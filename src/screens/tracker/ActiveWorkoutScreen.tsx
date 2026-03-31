@@ -7,12 +7,15 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
@@ -29,6 +32,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   } = useWorkoutStore();
 
   const [restTime, setRestTime] = useState(0);
+  const [restTotal, setRestTotal] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -40,6 +44,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
   const startRest = (seconds: number) => {
     setRestTime(seconds);
+    setRestTotal(seconds);
     setIsResting(true);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -73,6 +78,10 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const { workout, currentExerciseIndex, startTime } = activeWorkout;
   const currentExercise = workout.exercises[currentExerciseIndex];
   const elapsed = Math.round((Date.now() - startTime) / 60000);
+  const totalCompletedSets = workout.exercises.reduce(
+    (s, ex) => s + ex.sets.filter((set) => set.completed).length, 0
+  );
+  const totalSets = workout.exercises.reduce((s, ex) => s + ex.sets.length, 0);
 
   const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -125,9 +134,11 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         <TouchableOpacity onPress={handleCancel}>
           <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
         </TouchableOpacity>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={[typography.bodySemibold, { color: colors.text }]}>{workout.name}</Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>{elapsed} мин</Text>
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{workout.name}</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            {elapsed} мин {'\u2022'} {totalCompletedSets}/{totalSets} подходов
+          </Text>
         </View>
         <TouchableOpacity onPress={handleFinish}>
           <Text style={[typography.bodySemibold, { color: colors.success }]}>Готово</Text>
@@ -137,13 +148,51 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       {/* Rest timer overlay */}
       {isResting && (
         <View style={[styles.restOverlay, { backgroundColor: colors.primary }]}>
-          <Text style={[typography.caption, { color: 'rgba(255,255,255,0.7)' }]}>ОТДЫХ</Text>
-          <Text style={[{ fontSize: 56, fontWeight: '800', color: '#FFF' }]}>
-            {formatTime(restTime)}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+          <Text style={[typography.captionMedium, { color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }]}>ОТДЫХ</Text>
+          {/* Circular progress */}
+          <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center', marginVertical: spacing.xl }}>
+            {/* Background ring */}
+            <View style={{
+              position: 'absolute',
+              width: 180,
+              height: 180,
+              borderRadius: 90,
+              borderWidth: 8,
+              borderColor: 'rgba(255,255,255,0.2)',
+            }} />
+            {/* Progress segments */}
+            {(() => {
+              const progress = restTotal > 0 ? restTime / restTotal : 0;
+              const segments = 60;
+              return Array.from({ length: segments }).map((_, i) => {
+                const angle = (i / segments) * 360 - 90;
+                const rad = (angle * Math.PI) / 180;
+                const isActive = i / segments <= progress;
+                const cx = 90 + Math.cos(rad) * 82;
+                const cy = 90 + Math.sin(rad) * 82;
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      left: cx - 3,
+                      top: cy - 3,
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: isActive ? '#FFF' : 'rgba(255,255,255,0.15)',
+                    }}
+                  />
+                );
+              });
+            })()}
+            <Text style={[{ fontSize: 48, fontWeight: '800', color: '#FFF' }]}>
+              {formatTime(restTime)}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
             <TouchableOpacity
-              onPress={() => setRestTime((r) => r + 30)}
+              onPress={() => { setRestTime((r) => r + 30); setRestTotal((t) => t + 30); }}
               style={[styles.restBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
             >
               <Text style={[typography.buttonSmall, { color: '#FFF' }]}>+30с</Text>
@@ -158,6 +207,20 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         </View>
       )}
 
+      {/* Overall progress bar */}
+      <View style={{ paddingHorizontal: spacing.xl, backgroundColor: colors.surface }}>
+        <View style={{ height: 3, borderRadius: 1.5, backgroundColor: colors.border }}>
+          <View
+            style={{
+              height: 3,
+              borderRadius: 1.5,
+              backgroundColor: colors.primary,
+              width: `${totalSets > 0 ? (totalCompletedSets / totalSets) * 100 : 0}%`,
+            }}
+          />
+        </View>
+      </View>
+
       {/* Exercise navigation */}
       <View style={[styles.exerciseNav, { backgroundColor: colors.surface }]}>
         <TouchableOpacity
@@ -165,7 +228,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           disabled={currentExerciseIndex === 0}
           style={{ opacity: currentExerciseIndex === 0 ? 0.3 : 1 }}
         >
-          <Text style={[typography.h3, { color: colors.primary }]}>‹</Text>
+          <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
         <View style={{ alignItems: 'center', flex: 1 }}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>
@@ -180,7 +243,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           disabled={currentExerciseIndex === workout.exercises.length - 1}
           style={{ opacity: currentExerciseIndex === workout.exercises.length - 1 ? 0.3 : 1 }}
         >
-          <Text style={[typography.h3, { color: colors.primary }]}>›</Text>
+          <Text style={[typography.h3, { color: colors.primary }]}>{'›'}</Text>
         </TouchableOpacity>
       </View>
 

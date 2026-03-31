@@ -108,9 +108,50 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {/* Weekly stats */}
       <FadeIn delay={200}>
         <Card style={{ marginBottom: spacing.lg }}>
-          <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
-            Статистика за неделю
+          <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+            Эта неделя
           </Text>
+          {/* Week day dots */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day, i) => {
+              const now = new Date();
+              const currentDow = now.getDay() === 0 ? 6 : now.getDay() - 1;
+              const dayDate = new Date(now);
+              dayDate.setDate(now.getDate() - currentDow + i);
+              const dateStr = dayDate.toISOString().split('T')[0];
+              const hadWorkout = workoutHistory.some(
+                (w) => w.completedAt && w.completedAt.startsWith(dateStr)
+              );
+              const isToday = i === currentDow;
+              return (
+                <View key={day} style={{ alignItems: 'center', gap: 4 }}>
+                  <Text style={[typography.small, { color: isToday ? colors.primary : colors.textTertiary, fontSize: 10 }]}>
+                    {day}
+                  </Text>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: hadWorkout ? colors.success : isToday ? colors.primary + '15' : colors.surface,
+                      borderWidth: isToday ? 2 : 0,
+                      borderColor: colors.primary,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {hadWorkout ? (
+                      <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12 }}>{'✓'}</Text>
+                    ) : (
+                      <Text style={[typography.small, { color: isToday ? colors.primary : colors.textTertiary }]}>
+                        {dayDate.getDate()}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={[typography.number, { color: colors.primary }]}>
@@ -119,13 +160,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.primary }]}>
+              <Text style={[typography.number, { color: colors.accent }]}>
                 {Math.round(weekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0) / 1000)}
               </Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>Тонн</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.primary }]}>
+              <Text style={[typography.number, { color: colors.success }]}>
                 {weekWorkouts.reduce((s, w) => s + (w.durationMinutes || 0), 0)}
               </Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>Минут</Text>
@@ -195,7 +236,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {/* Water tracker mini */}
       <FadeIn delay={500}>
         <Card style={{ marginBottom: spacing.xxxl }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
             <View>
               <Text style={[typography.h4, { color: colors.text }]}>Вода</Text>
               <Text style={[typography.small, { color: colors.textSecondary }]}>
@@ -213,6 +254,17 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+          {/* Water progress bar */}
+          <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surface }}>
+            <View
+              style={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: colors.info,
+                width: `${Math.min((dayLog.waterMl / 2500) * 100, 100)}%`,
+              }}
+            />
           </View>
         </Card>
       </FadeIn>
