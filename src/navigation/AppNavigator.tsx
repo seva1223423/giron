@@ -13,6 +13,9 @@ import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { WorkoutsScreen } from '../screens/workouts/WorkoutsScreen';
 import { ActiveWorkoutScreen } from '../screens/tracker/ActiveWorkoutScreen';
+import { ExerciseDetailScreen } from '../screens/workouts/ExerciseDetailScreen';
+import { WorkoutSummaryScreen } from '../screens/workouts/WorkoutSummaryScreen';
+import { CustomWorkoutScreen } from '../screens/workouts/CustomWorkoutScreen';
 import { NutritionScreen } from '../screens/nutrition/NutritionScreen';
 import { FoodScannerScreen } from '../screens/nutrition/FoodScannerScreen';
 import { ProgressScreen } from '../screens/progress/ProgressScreen';
@@ -44,6 +47,9 @@ function WorkoutsStackNavigator() {
     <WorkoutsStack.Navigator screenOptions={{ headerShown: false }}>
       <WorkoutsStack.Screen name="WorkoutsList" component={WorkoutsScreen} />
       <WorkoutsStack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} />
+      <WorkoutsStack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
+      <WorkoutsStack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} />
+      <WorkoutsStack.Screen name="CustomWorkout" component={CustomWorkoutScreen} />
     </WorkoutsStack.Navigator>
   );
 }

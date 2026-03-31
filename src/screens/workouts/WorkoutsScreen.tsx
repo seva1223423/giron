@@ -182,7 +182,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             <Button
               title="Создать свою тренировку"
               variant="outline"
-              onPress={() => setTab('exercises')}
+              onPress={() => navigation.navigate('CustomWorkout')}
               fullWidth
               style={{ marginTop: spacing.md }}
             />
@@ -294,6 +294,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   key={ex.id}
                   style={{ marginBottom: spacing.sm }}
                   padding={spacing.md}
+                  onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
                 >
                   <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>

@@ -33,7 +33,7 @@ interface WorkoutStore {
   removeSet: (exerciseIndex: number, setIndex: number) => void;
   nextExercise: () => void;
   prevExercise: () => void;
-  finishWorkout: () => void;
+  finishWorkout: () => Workout | null;
   cancelWorkout: () => void;
   setRestTimer: (seconds: number) => void;
 
@@ -154,7 +154,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       finishWorkout: () => {
         const active = get().activeWorkout;
-        if (!active) return;
+        if (!active) return null;
         const completed: Workout = {
           ...active.workout,
           completedAt: new Date().toISOString(),
@@ -183,6 +183,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }))
           )
         ).catch(() => {});
+
+        return completed;
       },
 
       cancelWorkout: () => set({ activeWorkout: null }),

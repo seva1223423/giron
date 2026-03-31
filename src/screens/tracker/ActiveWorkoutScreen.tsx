@@ -87,8 +87,12 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         text: 'Завершить',
         onPress: () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          finishWorkout();
-          navigation.goBack();
+          const completed = finishWorkout();
+          if (completed) {
+            navigation.replace('WorkoutSummary', { workout: completed });
+          } else {
+            navigation.goBack();
+          }
         },
       },
     ]);
