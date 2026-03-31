@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER & AUTH ====================
+model User {
+  id                      String   @id @default(cuid())
+  email                   String   @unique
+  phone                   String?
+  passwordHash            String
+  firstName               String
+  lastName                String?
+  dateOfBirth             DateTime?
+  gender                  Gender?
+  heightCm                Float?
+  weightKg                Float?
+  goal                    TrainingGoal?
+  fitnessLevel            FitnessLevel?
+  trainingExperienceYears Int?
+  avatarUrl               String?
+  role                    UserRole  @default(CLIENT)
+  gymId                   String?
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  healthRestrictions      HealthRestriction[]
+  programs                Program[]
+  workouts                Workout[]
+  meals                   Meal[]
+  bodyWeights             BodyWeight[]
+  chatMessages            ChatMessage[]
+  savedNews               SavedNews[]
+  subscription            Subscription?
+
+  gym                     Gym?      @relation(fields: [gymId], references: [id])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum TrainingGoal {
+  WEIGHT_LOSS
+  MUSCLE_GAIN
+  STRENGTH
+  ENDURANCE
+  FLEXIBILITY
+  GENERAL_FITNESS
+}
+
+enum FitnessLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum UserRole {
+  GUEST
+  VISITOR
+  CLIENT
+  TRAINER
+  ADMIN
+}
+
+model HealthRestriction {
+  id          String @id @default(cuid())
+  bodyPart    String
+  description String
+  severity    String // mild, moderate, severe
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==================== GYM ====================
+model Gym {
+  id       String @id @default(cuid())
+  name     String
+  address  String?
+  phone    String?
+  members  User[]
+}
+
+// ==================== EXERCISES ====================
+model Exercise {
+  id               String   @id @default(cuid())
+  name             String
+  description      String
+  instructions     String[]
+  primaryMuscles   String[]
+  secondaryMuscles String[]
+  type             String   // barbell, dumbbell, machine, etc.
+  category         String   // strength, cardio, flexibility, functional
+  difficulty       String
+  videoUrl         String?
+  imageUrl         String?
+
+  workoutExercises WorkoutExercise[]
+}
+
+// ==================== PROGRAMS & WORKOUTS ====================
+model Program {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  type          String   // push_pull_legs, upper_lower, etc.
+  goal          TrainingGoal
+  level         FitnessLevel
+  daysPerWeek   Int
+  durationWeeks Int?
+  isActive      Boolean  @default(false)
+  createdBy     String   // system, user, ai
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workouts      Workout[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Workout {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  scheduledDate   DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  durationMinutes Int?
+  totalVolume     Float?
+  notes           String?
+
+  programId       String?
+  program         Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  exercises       WorkoutExercise[]
+
+  createdAt       DateTime  @default(now())
+}
+
+model WorkoutExercise {
+  id              String @id @default(cuid())
+  order           Int
+  restSeconds     Int    @default(90)
+  supersetGroupId String?
+  notes           String?
+
+  workoutId       String
+  workout         Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId      String
+  exercise        Exercise @relation(fields: [exerciseId], references: [id])
+
+  sets            WorkoutSet[]
+}
+
+model WorkoutSet {
+  id                String  @id @default(cuid())
+  setNumber         Int
+  type              String  @default("normal") // normal, warmup, dropset, superset, failure
+  reps              Int?
+  weight            Float?
+  duration          Int?    // seconds
+  distance          Float?  // meters
+  rpe               Int?    // 1-10
+  completed         Boolean @default(false)
+  notes             String?
+
+  workoutExerciseId String
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+}
+
+// ==================== NUTRITION ====================
+model Meal {
+  id             String   @id @default(cuid())
+  type           String   // breakfast, lunch, dinner, snack
+  photoUrl       String?
+  totalCalories  Float
+  totalProtein   Float
+  totalFats      Float
+  totalCarbs     Float
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items          MealItem[]
+
+  createdAt      DateTime @default(now())
+}
+
+model MealItem {
+  id          String @id @default(cuid())
+  name        String
+  calories    Float
+  protein     Float
+  fats        Float
+  carbs       Float
+  weightGrams Float
+  imageUrl    String?
+
+  mealId      String
+  meal        Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+}
+
+// ==================== PROGRESS ====================
+model BodyWeight {
+  id       String   @id @default(cuid())
+  weightKg Float
+  date     DateTime
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ==================== AI CHAT ====================
+model ChatMessage {
+  id        String   @id @default(cuid())
+  role      String   // user, assistant
+  content   String
+  actions   Json?    // AI actions performed
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// ==================== NEWS ====================
+model NewsArticle {
+  id          String   @id @default(cuid())
+  title       String
+  summary     String
+  content     String
+  imageUrl    String?
+  categories  String[] // russian, powerlifting, records, etc.
+  publishedAt DateTime @default(now())
+
+  savedBy     SavedNews[]
+}
+
+model SavedNews {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId String
+  article   NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  savedAt   DateTime    @default(now())
+
+  @@unique([userId, articleId])
+}
+
+// ==================== SUBSCRIPTION ====================
+model Subscription {
+  id         String   @id @default(cuid())
+  plan       String   // free, pro, trainer, club
+  status     String   // active, cancelled, expired
+  startDate  DateTime
+  endDate    DateTime?
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

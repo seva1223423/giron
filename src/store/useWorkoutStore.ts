@@ -1,0 +1,191 @@
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Workout, WorkoutExercise, WorkoutSet, Program } from '../types';
+
+interface ActiveWorkout {
+  workout: Workout;
+  startTime: number;
+  currentExerciseIndex: number;
+  isRestTimerActive: boolean;
+  restTimeRemaining: number;
+}
+
+interface WorkoutStore {
+  programs: Program[];
+  workoutHistory: Workout[];
+  activeWorkout: ActiveWorkout | null;
+
+  // Programs
+  setPrograms: (programs: Program[]) => void;
+  addProgram: (program: Program) => void;
+  updateProgram: (id: string, data: Partial<Program>) => void;
+  deleteProgram: (id: string) => void;
+
+  // Active workout
+  startWorkout: (workout: Workout) => void;
+  completeSet: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
+  addSet: (exerciseIndex: number) => void;
+  removeSet: (exerciseIndex: number, setIndex: number) => void;
+  nextExercise: () => void;
+  prevExercise: () => void;
+  finishWorkout: () => void;
+  cancelWorkout: () => void;
+  setRestTimer: (seconds: number) => void;
+
+  // History
+  addToHistory: (workout: Workout) => void;
+  getExerciseHistory: (exerciseId: string) => Workout[];
+}
+
+export const useWorkoutStore = create<WorkoutStore>()(
+  persist(
+    (set, get) => ({
+      programs: [],
+      workoutHistory: [],
+      activeWorkout: null,
+
+      setPrograms: (programs) => set({ programs }),
+      addProgram: (program) => set((s) => ({ programs: [...s.programs, program] })),
+      updateProgram: (id, data) => set((s) => ({
+        programs: s.programs.map((p) => p.id === id ? { ...p, ...data } : p),
+      })),
+      deleteProgram: (id) => set((s) => ({
+        programs: s.programs.filter((p) => p.id !== id),
+      })),
+
+      startWorkout: (workout) => set({
+        activeWorkout: {
+          workout: { ...workout, startedAt: new Date().toISOString() },
+          startTime: Date.now(),
+          currentExerciseIndex: 0,
+          isRestTimerActive: false,
+          restTimeRemaining: 0,
+        },
+      }),
+
+      completeSet: (exerciseIndex, setIndex, data) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const workout = { ...s.activeWorkout.workout };
+        const exercises = [...workout.exercises];
+        const exercise = { ...exercises[exerciseIndex] };
+        const sets = [...exercise.sets];
+        sets[setIndex] = { ...sets[setIndex], ...data, completed: true };
+        exercise.sets = sets;
+        exercises[exerciseIndex] = exercise;
+        workout.exercises = exercises;
+        return {
+          activeWorkout: { ...s.activeWorkout, workout },
+        };
+      }),
+
+      addSet: (exerciseIndex) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const workout = { ...s.activeWorkout.workout };
+        const exercises = [...workout.exercises];
+        const exercise = { ...exercises[exerciseIndex] };
+        const lastSet = exercise.sets[exercise.sets.length - 1];
+        const newSet: WorkoutSet = {
+          id: `set-${Date.now()}`,
+          setNumber: exercise.sets.length + 1,
+          type: 'normal',
+          reps: lastSet?.reps,
+          weight: lastSet?.weight,
+          completed: false,
+        };
+        exercise.sets = [...exercise.sets, newSet];
+        exercises[exerciseIndex] = exercise;
+        workout.exercises = exercises;
+        return {
+          activeWorkout: { ...s.activeWorkout, workout },
+        };
+      }),
+
+      removeSet: (exerciseIndex, setIndex) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const workout = { ...s.activeWorkout.workout };
+        const exercises = [...workout.exercises];
+        const exercise = { ...exercises[exerciseIndex] };
+        exercise.sets = exercise.sets.filter((_, i) => i !== setIndex);
+        exercises[exerciseIndex] = exercise;
+        workout.exercises = exercises;
+        return {
+          activeWorkout: { ...s.activeWorkout, workout },
+        };
+      }),
+
+      nextExercise: () => set((s) => {
+        if (!s.activeWorkout) return s;
+        const maxIndex = s.activeWorkout.workout.exercises.length - 1;
+        return {
+          activeWorkout: {
+            ...s.activeWorkout,
+            currentExerciseIndex: Math.min(s.activeWorkout.currentExerciseIndex + 1, maxIndex),
+          },
+        };
+      }),
+
+      prevExercise: () => set((s) => {
+        if (!s.activeWorkout) return s;
+        return {
+          activeWorkout: {
+            ...s.activeWorkout,
+            currentExerciseIndex: Math.max(s.activeWorkout.currentExerciseIndex - 1, 0),
+          },
+        };
+      }),
+
+      finishWorkout: () => {
+        const active = get().activeWorkout;
+        if (!active) return;
+        const completed: Workout = {
+          ...active.workout,
+          completedAt: new Date().toISOString(),
+          durationMinutes: Math.round((Date.now() - active.startTime) / 60000),
+          totalVolume: active.workout.exercises.reduce((total, ex) =>
+            total + ex.sets
+              .filter((s) => s.completed)
+              .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0),
+            0
+          ),
+        };
+        set((s) => ({
+          activeWorkout: null,
+          workoutHistory: [completed, ...s.workoutHistory],
+        }));
+      },
+
+      cancelWorkout: () => set({ activeWorkout: null }),
+
+      setRestTimer: (seconds) => set((s) => {
+        if (!s.activeWorkout) return s;
+        return {
+          activeWorkout: {
+            ...s.activeWorkout,
+            isRestTimerActive: seconds > 0,
+            restTimeRemaining: seconds,
+          },
+        };
+      }),
+
+      addToHistory: (workout) => set((s) => ({
+        workoutHistory: [workout, ...s.workoutHistory],
+      })),
+
+      getExerciseHistory: (exerciseId) => {
+        return get().workoutHistory.filter((w) =>
+          w.exercises.some((e) => e.exerciseId === exerciseId)
+        );
+      },
+    }),
+    {
+      name: 'iron-gym-workouts',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        programs: state.programs,
+        workoutHistory: state.workoutHistory,
+        activeWorkout: state.activeWorkout,
+      }),
+    }
+  )
+);
