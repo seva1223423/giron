@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Workout, WorkoutExercise, WorkoutSet, Program } from '../types';
+import { workoutService } from '../services';
 
 interface ActiveWorkout {
   workout: Workout;
@@ -15,12 +16,15 @@ interface WorkoutStore {
   programs: Program[];
   workoutHistory: Workout[];
   activeWorkout: ActiveWorkout | null;
+  isLoadingPrograms: boolean;
+  isLoadingHistory: boolean;
 
   // Programs
   setPrograms: (programs: Program[]) => void;
   addProgram: (program: Program) => void;
   updateProgram: (id: string, data: Partial<Program>) => void;
   deleteProgram: (id: string) => void;
+  fetchPrograms: () => Promise<void>;
 
   // Active workout
   startWorkout: (workout: Workout) => void;
@@ -36,6 +40,7 @@ interface WorkoutStore {
   // History
   addToHistory: (workout: Workout) => void;
   getExerciseHistory: (exerciseId: string) => Workout[];
+  fetchHistory: () => Promise<void>;
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -44,6 +49,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
       programs: [],
       workoutHistory: [],
       activeWorkout: null,
+      isLoadingPrograms: false,
+      isLoadingHistory: false,
 
       setPrograms: (programs) => set({ programs }),
       addProgram: (program) => set((s) => ({ programs: [...s.programs, program] })),
@@ -53,6 +60,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
       deleteProgram: (id) => set((s) => ({
         programs: s.programs.filter((p) => p.id !== id),
       })),
+
+      fetchPrograms: async () => {
+        set({ isLoadingPrograms: true });
+        try {
+          const programs = await workoutService.getPrograms();
+          set({ programs, isLoadingPrograms: false });
+        } catch {
+          set({ isLoadingPrograms: false });
+        }
+      },
 
       startWorkout: (workout) => set({
         activeWorkout: {
@@ -153,6 +170,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
           activeWorkout: null,
           workoutHistory: [completed, ...s.workoutHistory],
         }));
+
+        // Sync completed workout to server in background
+        workoutService.completeWorkout(completed.id,
+          completed.exercises.flatMap((ex) =>
+            ex.sets.map((s) => ({
+              id: s.id,
+              reps: s.reps,
+              weight: s.weight,
+              completed: s.completed,
+              rpe: s.rpe,
+            }))
+          )
+        ).catch(() => {});
       },
 
       cancelWorkout: () => set({ activeWorkout: null }),
@@ -176,6 +206,20 @@ export const useWorkoutStore = create<WorkoutStore>()(
         return get().workoutHistory.filter((w) =>
           w.exercises.some((e) => e.exerciseId === exerciseId)
         );
+      },
+
+      fetchHistory: async () => {
+        set({ isLoadingHistory: true });
+        try {
+          const history = await workoutService.getHistory();
+          if (history.length > 0) {
+            set({ workoutHistory: history, isLoadingHistory: false });
+          } else {
+            set({ isLoadingHistory: false });
+          }
+        } catch {
+          set({ isLoadingHistory: false });
+        }
       },
     }),
     {

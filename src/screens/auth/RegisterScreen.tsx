@@ -7,49 +7,39 @@ import { spacing } from '../../theme/spacing';
 
 export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { login } = useAuthStore();
+  const { register, isLoading, error, clearError } = useAuthStore();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
 
   const handleRegister = async () => {
     if (!firstName || !email || !password) {
-      setError('Заполните обязательные поля');
+      setLocalError('Заполните обязательные поля');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Пароли не совпадают');
+      setLocalError('Пароли не совпадают');
       return;
     }
     if (password.length < 6) {
-      setError('Пароль должен быть не менее 6 символов');
+      setLocalError('Пароль должен быть не менее 6 символов');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    setLocalError('');
+    clearError();
     try {
-      // TODO: Replace with actual API call
-      const mockUser = {
-        id: '1',
-        email,
-        firstName,
-        lastName,
-        healthRestrictions: [],
-        role: 'client' as const,
-        createdAt: new Date().toISOString(),
-      };
-      login(mockUser, 'mock-jwt-token');
-    } catch (e: any) {
-      setError(e.message || 'Ошибка регистрации');
-    } finally {
-      setLoading(false);
+      await register({ email, password, firstName, lastName: lastName || undefined });
+    } catch {
+      // Error is set in the store
     }
   };
+
+  const displayError = localError || error;
+  const clearErrors = () => { setLocalError(''); clearError(); };
 
   return (
     <KeyboardAvoidingView
@@ -69,14 +59,14 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             label="Имя *"
             placeholder="Александр"
             value={firstName}
-            onChangeText={setFirstName}
+            onChangeText={(t) => { setFirstName(t); clearErrors(); }}
             containerStyle={{ flex: 1, marginRight: spacing.md }}
           />
           <Input
             label="Фамилия"
             placeholder="Иванов"
             value={lastName}
-            onChangeText={setLastName}
+            onChangeText={(t) => { setLastName(t); clearErrors(); }}
             containerStyle={{ flex: 1 }}
           />
         </View>
@@ -87,7 +77,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(t) => { setEmail(t); clearErrors(); }}
           containerStyle={{ marginTop: spacing.xl }}
         />
 
@@ -96,7 +86,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           placeholder="Минимум 6 символов"
           secureTextEntry
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(t) => { setPassword(t); clearErrors(); }}
           containerStyle={{ marginTop: spacing.xl }}
         />
 
@@ -105,20 +95,20 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           placeholder="Повторите пароль"
           secureTextEntry
           value={confirmPassword}
-          onChangeText={setConfirmPassword}
+          onChangeText={(t) => { setConfirmPassword(t); clearErrors(); }}
           containerStyle={{ marginTop: spacing.xl }}
         />
 
-        {error ? (
+        {displayError ? (
           <Text style={[typography.small, { color: colors.error, marginTop: spacing.md }]}>
-            {error}
+            {displayError}
           </Text>
         ) : null}
 
         <Button
           title="Зарегистрироваться"
           onPress={handleRegister}
-          loading={loading}
+          loading={isLoading}
           fullWidth
           size="lg"
           style={{ marginTop: spacing.xxl }}

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useThemeStore, useAuthStore } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { ChatMessage } from '../../types';
+import { aiService, getApiError } from '../../services';
 
 const QUICK_PROMPTS = [
   'Составь программу на 4 дня',
@@ -32,12 +34,38 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я твой ИИ-тренер в Iron Gym.\n\nЯ могу помочь с:\n• Составлением программы тренировок\n• Расчётом КБЖУ и питания\n• Техникой выполнения упражнений\n• Изменением текущего плана\n• Рекомендациями по восстановлению\n\nСпрашивай что угодно!`,
+      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я твой ИИ-тренер в Iron Gym.\n\nЯ могу помочь с:\n\u2022 Составлением программы тренировок\n\u2022 Расчётом КБЖУ и питания\n\u2022 Техникой выполнения упражнений\n\u2022 Изменением текущего плана\n\u2022 Рекомендациями по восстановлению\n\nСпрашивай что угодно!`,
       createdAt: new Date().toISOString(),
     },
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  // Load chat history from server
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const history = await aiService.getChatHistory();
+        if (history.length > 0) {
+          setMessages([
+            {
+              id: 'welcome',
+              role: 'assistant',
+              content: `С возвращением${user?.firstName ? `, ${user.firstName}` : ''}! Продолжим?`,
+              createdAt: new Date().toISOString(),
+            },
+            ...history,
+          ]);
+        }
+      } catch {
+        // If server is unavailable, keep welcome message
+      } finally {
+        setHistoryLoaded(true);
+      }
+    };
+    loadHistory();
+  }, []);
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -56,22 +84,24 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      // TODO: Replace with actual API call to backend -> Claude API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await aiService.chat(text.trim());
 
       const aiResponse: ChatMessage = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
-        content: getAIMockResponse(text),
+        content: response.message,
         createdAt: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, aiResponse]);
     } catch (e) {
+      const apiError = getApiError(e);
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: 'Извини, произошла ошибка. Попробуй ещё раз.',
+        content: apiError.status === 0
+          ? 'Нет подключения к серверу. Проверь, что сервер запущен.'
+          : `Ошибка: ${apiError.message}`,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -137,8 +167,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ))}
 
         {isTyping && (
-          <View style={[styles.messageBubble, { alignSelf: 'flex-start', backgroundColor: colors.surface }]}>
-            <Text style={[typography.body, { color: colors.textSecondary }]}>Думаю...</Text>
+          <View style={[styles.messageBubble, styles.typingBubble, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[typography.body, { color: colors.textSecondary, marginLeft: spacing.sm }]}>
+              Думаю...
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -167,11 +200,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           style={[
             styles.sendBtn,
             {
-              backgroundColor: input.trim() ? colors.primary : colors.inputBackground,
+              backgroundColor: input.trim() && !isTyping ? colors.primary : colors.inputBackground,
             },
           ]}
         >
-          <Text style={{ color: input.trim() ? '#FFF' : colors.textTertiary, fontSize: 18, fontWeight: '700' }}>
+          <Text style={{ color: input.trim() && !isTyping ? '#FFF' : colors.textTertiary, fontSize: 18, fontWeight: '700' }}>
             ↑
           </Text>
         </TouchableOpacity>
@@ -179,36 +212,6 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     </KeyboardAvoidingView>
   );
 };
-
-function getAIMockResponse(question: string): string {
-  const q = question.toLowerCase();
-
-  if (q.includes('программ') || q.includes('план')) {
-    return `Отлично! Вот базовая программа на 4 дня в неделю (Push/Pull/Legs/Upper):\n\n📅 **День 1 — Push (грудь, плечи, трицепс)**\n• Жим штанги лёжа: 4×8-10\n• Жим гантелей на наклонной: 3×10-12\n• Жим стоя: 3×8-10\n• Махи в стороны: 3×12-15\n• Разгибания на блоке: 3×12-15\n\n📅 **День 2 — Pull (спина, бицепс)**\n• Становая тяга: 4×5\n• Тяга штанги в наклоне: 4×8-10\n• Подтягивания: 3×8-12\n• Сгибание рук со штангой: 3×10-12\n\n📅 **День 3 — Legs (ноги)**\n• Присед: 4×6-8\n• Жим ногами: 3×10-12\n• Румынская тяга: 3×10-12\n• Сгибание ног: 3×12\n• Подъём на носки: 4×15\n\n📅 **День 4 — Upper (верх тела)**\n• Жим гантелей лёжа: 4×10\n• Тяга верхнего блока: 4×10\n• Жим Арнольда: 3×10\n• Суперсет: бицепс + трицепс 3×12\n\nХочешь, чтобы я сохранил эту программу?`;
-  }
-
-  if (q.includes('легче') || q.includes('проще')) {
-    return 'Понял, сделаю нагрузку легче! Вот что предлагаю:\n\n1. Снизить рабочие веса на 10-15%\n2. Уменьшить количество подходов с 4 до 3\n3. Увеличить время отдыха до 2-3 минут\n4. Убрать изолирующие упражнения\n\nПрименить эти изменения к текущей программе?';
-  }
-
-  if (q.includes('присед') || q.includes('squat')) {
-    return '🏋️ **Техника приседа со штангой:**\n\n1. **Исходная позиция**: Стопы на ширине плеч, носки развёрнуты на 15-30°\n2. **Штанга**: На верхней части трапеций (high bar) или на задних дельтах (low bar)\n3. **Движение вниз**: Начинай с отведения таза назад, колени идут в сторону носков\n4. **Глубина**: До параллели бёдер с полом или чуть ниже\n5. **Движение вверх**: Давите пятками в пол, грудь вперёд\n\n⚠️ **Частые ошибки:**\n• Колени заваливаются внутрь\n• Округление спины\n• Подъём на носки\n• Слишком быстрое опускание\n\nХочешь видео или дополнительные советы?';
-  }
-
-  if (q.includes('кбжу') || q.includes('калор') || q.includes('питан')) {
-    return '📊 Рассчитаю КБЖУ! Для точного расчёта мне нужны:\n\n• Твой вес: из профиля\n• Рост: из профиля\n• Уровень активности\n• Цель (похудение / набор / поддержание)\n\nПриблизительный расчёт для мужчины 75 кг, цель — набор мышечной массы:\n\n🔥 **Калории**: ~2800 ккал/день\n🥩 **Белки**: 150-180 г (2-2.4 г/кг)\n🧈 **Жиры**: 75-85 г (1 г/кг)\n🍚 **Углеводы**: 350-400 г\n\nХочешь, чтобы я установил эти цели в твоём дневнике питания?';
-  }
-
-  if (q.includes('бол') || q.includes('травм') || q.includes('спин')) {
-    return '⚠️ Если у тебя болит спина, важно:\n\n1. **Прекратить** упражнения, которые вызывают боль\n2. **Обратиться к врачу** при сильной или длительной боли\n\nЧто я могу сделать:\n• Убрать становую тягу и тяжёлые тяги\n• Заменить приседания на жим ногами\n• Добавить упражнения на укрепление кора\n• Рекомендовать растяжку для поясницы\n\nУбрать нагрузку на спину из текущей программы?';
-  }
-
-  if (q.includes('замен')) {
-    return 'Вот альтернативы жиму штанги лёжа:\n\n1. **Жим гантелей лёжа** — больше амплитуда, работа стабилизаторов\n2. **Жим в тренажёре Смита** — безопаснее, не нужен страхующий\n3. **Отжимания на брусьях** — отличное базовое упражнение\n4. **Жим в Hammer Strength** — хорошая изоляция груди\n5. **Отжимания от пола с утяжелением** — работает везде\n\nКакой вариант тебе подходит больше?';
-  }
-
-  return 'Отличный вопрос! Я готов помочь тебе с тренировками, питанием, техникой упражнений и восстановлением. Расскажи подробнее, что тебя интересует, и я дам детальный ответ с учётом твоего уровня подготовки и целей.';
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -247,6 +250,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     marginBottom: spacing.md,
+  },
+  typingBubble: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   inputBar: {
     flexDirection: 'row',

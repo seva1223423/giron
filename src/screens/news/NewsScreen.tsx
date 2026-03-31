@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useThemeStore } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { NewsArticle, NewsCategory } from '../../types';
+import { newsService, getApiError } from '../../services';
 
 const CATEGORIES: { key: NewsCategory | 'all'; label: string }[] = [
   { key: 'all', label: 'Все' },
@@ -15,14 +16,13 @@ const CATEGORIES: { key: NewsCategory | 'all'; label: string }[] = [
   { key: 'club', label: 'Клуб' },
 ];
 
-// Mock news data
-const MOCK_NEWS: NewsArticle[] = [
+// Fallback data when server is unavailable
+const FALLBACK_NEWS: NewsArticle[] = [
   {
     id: '1',
     title: 'Юрий Белкин установил новый мировой рекорд в становой тяге',
     summary: 'На чемпионате WRPF Юрий Белкин поднял 440 кг в категории до 110 кг, побив свой прежний рекорд.',
     content: '',
-    imageUrl: undefined,
     category: ['russian', 'records', 'powerlifting'],
     publishedAt: '2026-03-30T10:00:00Z',
     isSaved: false,
@@ -68,19 +68,62 @@ const MOCK_NEWS: NewsArticle[] = [
 export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all'>('all');
+  const [news, setNews] = useState<NewsArticle[]>(FALLBACK_NEWS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchNews = useCallback(async () => {
+    try {
+      const category = activeCategory === 'all' ? undefined : activeCategory;
+      const articles = await newsService.getNews({ category });
+      if (articles.length > 0) {
+        setNews(articles);
+      }
+      // Load saved articles
+      try {
+        const saved = await newsService.getSaved();
+        setSavedIds(new Set(saved.map((a) => a.id)));
+      } catch {}
+    } catch {
+      // Keep fallback data
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [activeCategory]);
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchNews();
+  };
 
   const filteredNews = activeCategory === 'all'
-    ? MOCK_NEWS
-    : MOCK_NEWS.filter((n) => n.category.includes(activeCategory));
+    ? news
+    : news.filter((n) => n.category?.includes(activeCategory));
 
-  const toggleSave = (id: string) => {
+  const toggleSave = async (id: string) => {
     setSavedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    try {
+      await newsService.toggleSave(id);
+    } catch {
+      // Revert on error
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -128,50 +171,59 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.newsList}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
       >
-        {/* Records of the day */}
-        <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
-          <Text style={[typography.captionMedium, { color: colors.accent }]}>РЕКОРД ДНЯ</Text>
-          <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xs }]}>
-            Присед 350 кг — Андрей Маланичев
-          </Text>
-          <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-            Абсолютный рекорд России в экипировочном пауэрлифтинге
-          </Text>
-        </Card>
+        {loading && news.length === 0 ? (
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.huge }} />
+        ) : (
+          <>
+            {/* Record of the day */}
+            <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
+              <Text style={[typography.captionMedium, { color: colors.accent }]}>РЕКОРД ДНЯ</Text>
+              <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xs }]}>
+                Присед 350 кг — Андрей Маланичев
+              </Text>
+              <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+                Абсолютный рекорд России в экипировочном пауэрлифтинге
+              </Text>
+            </Card>
 
-        {filteredNews.map((article) => (
-          <Card key={article.id} style={{ marginBottom: spacing.md }}>
-            <View style={styles.articleHeader}>
-              <View style={styles.categoryTags}>
-                {article.category.map((cat) => (
-                  <View
-                    key={cat}
-                    style={[styles.tag, { backgroundColor: colors.primary + '15' }]}
-                  >
-                    <Text style={[typography.caption, { color: colors.primary }]}>
-                      {CATEGORIES.find((c) => c.key === cat)?.label || cat}
-                    </Text>
+            {filteredNews.map((article) => (
+              <Card key={article.id} style={{ marginBottom: spacing.md }}>
+                <View style={styles.articleHeader}>
+                  <View style={styles.categoryTags}>
+                    {(article.category || []).map((cat) => (
+                      <View
+                        key={cat}
+                        style={[styles.tag, { backgroundColor: colors.primary + '15' }]}
+                      >
+                        <Text style={[typography.caption, { color: colors.primary }]}>
+                          {CATEGORIES.find((c) => c.key === cat)?.label || cat}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-              <TouchableOpacity onPress={() => toggleSave(article.id)}>
-                <Text style={{ fontSize: 20 }}>
-                  {savedIds.has(article.id) ? '🔖' : '📌'}
+                  <TouchableOpacity onPress={() => toggleSave(article.id)}>
+                    <Text style={{ fontSize: 20 }}>
+                      {savedIds.has(article.id) ? '🔖' : '📌'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={[typography.h4, { color: colors.text, marginTop: spacing.sm }]}>
+                  {article.title}
                 </Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={[typography.h4, { color: colors.text, marginTop: spacing.sm }]}>
-              {article.title}
-            </Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]}>
-              {article.summary}
-            </Text>
-            <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.md }]}>
-              {formatDate(article.publishedAt)}
-            </Text>
-          </Card>
-        ))}
+                <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+                  {article.summary}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.md }]}>
+                  {formatDate(article.publishedAt)}
+                </Text>
+              </Card>
+            ))}
+          </>
+        )}
       </ScrollView>
     </View>
   );

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DailyNutrition, Meal, NutritionItem } from '../types';
+import { nutritionService } from '../services';
 
 interface NutritionStore {
   dailyLog: Record<string, DailyNutrition>;
@@ -13,6 +14,7 @@ interface NutritionStore {
   updateMealItem: (date: string, mealId: string, itemId: string, data: Partial<NutritionItem>) => void;
   addWater: (date: string, ml: number) => void;
   setTargets: (date: string, targets: { calories: number; protein: number; fats: number; carbs: number }) => void;
+  syncMealsFromServer: (date: string) => Promise<void>;
 }
 
 const getDefaultDayLog = (date: string): DailyNutrition => ({
@@ -35,32 +37,54 @@ export const useNutritionStore = create<NutritionStore>()(
         return get().dailyLog[date] || getDefaultDayLog(date);
       },
 
-      addMeal: (date, meal) => set((s) => {
-        const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
-        return {
-          dailyLog: {
-            ...s.dailyLog,
-            [date]: {
-              ...dayLog,
-              meals: [...dayLog.meals, meal],
+      addMeal: (date, meal) => {
+        // Update local state immediately
+        set((s) => {
+          const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
+          return {
+            dailyLog: {
+              ...s.dailyLog,
+              [date]: {
+                ...dayLog,
+                meals: [...dayLog.meals, meal],
+              },
             },
-          },
-        };
-      }),
+          };
+        });
 
-      removeMeal: (date, mealId) => set((s) => {
-        const dayLog = s.dailyLog[date];
-        if (!dayLog) return s;
-        return {
-          dailyLog: {
-            ...s.dailyLog,
-            [date]: {
-              ...dayLog,
-              meals: dayLog.meals.filter((m) => m.id !== mealId),
+        // Sync to server in background
+        nutritionService.addMeal({
+          type: meal.type,
+          photoUrl: meal.photoUrl,
+          items: meal.items.map((item) => ({
+            name: item.name,
+            calories: item.calories,
+            protein: item.protein,
+            fats: item.fats,
+            carbs: item.carbs,
+            weightGrams: item.weightGrams,
+          })),
+        }).catch(() => {});
+      },
+
+      removeMeal: (date, mealId) => {
+        set((s) => {
+          const dayLog = s.dailyLog[date];
+          if (!dayLog) return s;
+          return {
+            dailyLog: {
+              ...s.dailyLog,
+              [date]: {
+                ...dayLog,
+                meals: dayLog.meals.filter((m) => m.id !== mealId),
+              },
             },
-          },
-        };
-      }),
+          };
+        });
+
+        // Sync to server
+        nutritionService.deleteMeal(mealId).catch(() => {});
+      },
 
       updateMealItem: (date, mealId, itemId, data) => set((s) => {
         const dayLog = s.dailyLog[date];
@@ -113,6 +137,23 @@ export const useNutritionStore = create<NutritionStore>()(
           },
         };
       }),
+
+      syncMealsFromServer: async (date) => {
+        try {
+          const meals = await nutritionService.getMealsByDate(date);
+          if (meals.length > 0) {
+            set((s) => {
+              const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
+              return {
+                dailyLog: {
+                  ...s.dailyLog,
+                  [date]: { ...dayLog, meals },
+                },
+              };
+            });
+          }
+        } catch {}
+      },
     }),
     {
       name: 'iron-gym-nutrition',

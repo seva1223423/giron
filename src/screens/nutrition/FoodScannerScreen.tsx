@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useThemeStore, useNutritionStore } from '../../store';
-import { Button, Card, Input } from '../../components';
+import { Button, Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { NutritionItem, Meal } from '../../types';
+import { aiService, getApiError } from '../../services';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
 
@@ -16,6 +17,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [loading, setLoading] = useState(false);
   const [recognizedItems, setRecognizedItems] = useState<NutritionItem[]>([]);
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('lunch');
+  const [error, setError] = useState('');
 
   const pickImage = async (useCamera: boolean) => {
     const permission = useCamera
@@ -33,48 +35,35 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
     if (!result.canceled && result.assets[0]) {
       setImageUri(result.assets[0].uri);
+      setError('');
       analyzeFood(result.assets[0].base64 || '');
     }
   };
 
   const analyzeFood = async (base64: string) => {
     setLoading(true);
+    setError('');
     try {
-      // TODO: Replace with actual API call to backend -> Claude Vision
-      // Mock response for now
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const mockItems: NutritionItem[] = [
-        {
-          id: `item-${Date.now()}-1`,
-          name: 'Куриная грудка',
-          calories: 165,
-          protein: 31,
-          fats: 3.6,
-          carbs: 0,
-          weightGrams: 150,
-        },
-        {
-          id: `item-${Date.now()}-2`,
-          name: 'Рис варёный',
-          calories: 200,
-          protein: 4,
-          fats: 0.5,
-          carbs: 44,
-          weightGrams: 150,
-        },
-        {
-          id: `item-${Date.now()}-3`,
-          name: 'Овощной салат',
-          calories: 45,
-          protein: 2,
-          fats: 1,
-          carbs: 7,
-          weightGrams: 100,
-        },
-      ];
-      setRecognizedItems(mockItems);
+      const result = await aiService.analyzeFood(base64);
+
+      const items: NutritionItem[] = result.items.map((item, index) => ({
+        id: `item-${Date.now()}-${index}`,
+        name: item.name,
+        calories: item.calories,
+        protein: item.protein,
+        fats: item.fats,
+        carbs: item.carbs,
+        weightGrams: item.weightGrams,
+      }));
+
+      setRecognizedItems(items);
     } catch (e) {
-      Alert.alert('Ошибка', 'Не удалось распознать еду');
+      const apiError = getApiError(e);
+      setError(
+        apiError.status === 0
+          ? 'Нет подключения к серверу. Проверь, что сервер запущен.'
+          : apiError.message
+      );
     } finally {
       setLoading(false);
     }
@@ -97,14 +86,6 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
     addMeal(todayDate(), meal);
     navigation.goBack();
-  };
-
-  const updateItem = (index: number, field: keyof NutritionItem, value: string) => {
-    setRecognizedItems((items) =>
-      items.map((item, i) =>
-        i === index ? { ...item, [field]: isNaN(Number(value)) ? value : Number(value) } : item
-      )
-    );
   };
 
   const mealTypes = [
@@ -130,7 +111,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           <Image source={{ uri: imageUri }} style={styles.image} />
           <TouchableOpacity
             style={[styles.retakeBtn, { backgroundColor: colors.surface }]}
-            onPress={() => { setImageUri(null); setRecognizedItems([]); }}
+            onPress={() => { setImageUri(null); setRecognizedItems([]); setError(''); }}
           >
             <Text style={[typography.smallMedium, { color: colors.primary }]}>Переснять</Text>
           </TouchableOpacity>
@@ -139,7 +120,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.huge }}>
           <Text style={{ fontSize: 64, marginBottom: spacing.lg }}>📷</Text>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xxl }]}>
-            Сфотографируй еду или загрузи из галереи
+            Сфотографируй еду или загрузи из галереи{'\n'}
+            ИИ определит продукты и рассчитает КБЖУ
           </Text>
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
             <Button title="Камера" onPress={() => pickImage(true)} />
@@ -150,12 +132,29 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
       {/* Loading */}
       {loading && (
-        <Card style={{ marginBottom: spacing.lg, alignItems: 'center' }}>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>
-            Анализирую фото...
+        <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.xxl }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.md }]}>
+            ИИ анализирует фото...
+          </Text>
+          <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>
+            Определяю продукты и рассчитываю КБЖУ
           </Text>
         </Card>
       )}
+
+      {/* Error */}
+      {error ? (
+        <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.error }}>
+          <Text style={[typography.body, { color: colors.error }]}>{error}</Text>
+          <Button
+            title="Попробовать снова"
+            variant="outline"
+            onPress={() => { setImageUri(null); setError(''); }}
+            style={{ marginTop: spacing.md }}
+          />
+        </Card>
+      ) : null}
 
       {/* Results */}
       {recognizedItems.length > 0 && (
@@ -190,10 +189,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
             Распознано:
           </Text>
-          {recognizedItems.map((item, index) => (
+          {recognizedItems.map((item) => (
             <Card key={item.id} style={{ marginBottom: spacing.md }}>
               <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.sm }]}>
-                {item.name}
+                {item.name} ({item.weightGrams}г)
               </Text>
               <View style={styles.nutritionRow}>
                 <View style={styles.nutritionCell}>
@@ -211,10 +210,6 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 <View style={styles.nutritionCell}>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>Углев.</Text>
                   <Text style={[typography.bodyMedium, { color: colors.carbs }]}>{item.carbs}г</Text>
-                </View>
-                <View style={styles.nutritionCell}>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>Вес</Text>
-                  <Text style={[typography.bodyMedium, { color: colors.text }]}>{item.weightGrams}г</Text>
                 </View>
               </View>
             </Card>

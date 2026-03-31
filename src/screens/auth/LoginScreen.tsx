@@ -3,41 +3,30 @@ import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platfor
 import { useThemeStore, useAuthStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { spacing } from '../../theme/spacing';
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { login } = useAuthStore();
+  const { login, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError('Заполните все поля');
+      setLocalError('Заполните все поля');
       return;
     }
-    setLoading(true);
-    setError('');
+    setLocalError('');
+    clearError();
     try {
-      // TODO: Replace with actual API call
-      const mockUser = {
-        id: '1',
-        email,
-        firstName: 'Пользователь',
-        lastName: '',
-        healthRestrictions: [],
-        role: 'client' as const,
-        createdAt: new Date().toISOString(),
-      };
-      login(mockUser, 'mock-jwt-token');
-    } catch (e: any) {
-      setError(e.message || 'Ошибка входа');
-    } finally {
-      setLoading(false);
+      await login(email, password);
+    } catch {
+      // Error is set in the store
     }
   };
+
+  const displayError = localError || error;
 
   return (
     <KeyboardAvoidingView
@@ -59,7 +48,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             keyboardType="email-address"
             autoCapitalize="none"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => { setEmail(t); setLocalError(''); clearError(); }}
             containerStyle={{ marginBottom: spacing.xl }}
           />
           <Input
@@ -67,13 +56,13 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             placeholder="Введите пароль"
             secureTextEntry
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(t) => { setPassword(t); setLocalError(''); clearError(); }}
             containerStyle={{ marginBottom: spacing.md }}
           />
 
-          {error ? (
+          {displayError ? (
             <Text style={[typography.small, { color: colors.error, marginBottom: spacing.md }]}>
-              {error}
+              {displayError}
             </Text>
           ) : null}
 
@@ -86,7 +75,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <Button
             title="Войти"
             onPress={handleLogin}
-            loading={loading}
+            loading={isLoading}
             fullWidth
             size="lg"
           />

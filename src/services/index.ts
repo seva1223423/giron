@@ -1,0 +1,10 @@
+export { api, getApiError } from './api';
+export type { ApiError } from './api';
+export { authService } from './authService';
+export type { AuthResponse } from './authService';
+export { userService } from './userService';
+export { workoutService } from './workoutService';
+export { nutritionService } from './nutritionService';
+export { aiService } from './aiService';
+export type { FoodAnalysisItem, FoodAnalysisResult } from './aiService';
+export { newsService } from './newsService';

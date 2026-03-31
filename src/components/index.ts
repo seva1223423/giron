@@ -3,3 +3,5 @@ export { Card } from './Card';
 export { Input } from './Input';
 export { ProgressRing } from './ProgressRing';
 export { MacroBar } from './MacroBar';
+export { AnimatedPressable } from './AnimatedPressable';
+export { FadeIn } from './FadeIn';

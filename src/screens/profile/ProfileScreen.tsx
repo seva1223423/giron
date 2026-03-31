@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Switch } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
-import { Card, Button } from '../../components';
+import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 
@@ -97,7 +98,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <Text style={[typography.body, { color: colors.text }]}>Тёмная тема</Text>
           <Switch
             value={isDark}
-            onValueChange={toggleTheme}
+            onValueChange={() => { Haptics.selectionAsync(); toggleTheme(); }}
             trackColor={{ false: colors.border, true: colors.primary + '60' }}
             thumbColor={isDark ? colors.primary : '#f4f3f4'}
           />

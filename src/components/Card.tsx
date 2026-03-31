@@ -1,7 +1,15 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, ViewStyle, Pressable } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useThemeStore } from '../store';
 import { borderRadius, spacing } from '../theme/spacing';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface CardProps {
   children: React.ReactNode;
@@ -19,6 +27,24 @@ export const Card: React.FC<CardProps> = ({
   elevated = false,
 }) => {
   const { colors } = useThemeStore();
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.98, { damping: 15, stiffness: 400 });
+  }, []);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+  }, []);
+
+  const handlePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress?.();
+  }, [onPress]);
 
   const cardStyle: ViewStyle = {
     backgroundColor: elevated ? colors.surfaceElevated : colors.card,
@@ -33,9 +59,14 @@ export const Card: React.FC<CardProps> = ({
 
   if (onPress) {
     return (
-      <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={[cardStyle, style]}>
+      <AnimatedPressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[animatedStyle, cardStyle, style]}
+      >
         {children}
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   }
 

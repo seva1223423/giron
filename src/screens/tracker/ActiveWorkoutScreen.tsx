@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Vibration,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
@@ -47,7 +47,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           setIsResting(false);
-          Vibration.vibrate([0, 200, 100, 200]);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           return 0;
         }
         return prev - 1;
@@ -75,6 +75,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const elapsed = Math.round((Date.now() - startTime) / 60000);
 
   const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
     startRest(currentExercise.restSeconds || 90);
   };
@@ -85,6 +86,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       {
         text: 'Завершить',
         onPress: () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           finishWorkout();
           navigation.goBack();
         },
