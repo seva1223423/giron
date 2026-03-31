@@ -3,28 +3,69 @@ import { NUTRITION_KNOWLEDGE } from './nutrition';
 import { EXERCISE_TECHNIQUE } from './exerciseTechnique';
 import { RECOVERY_KNOWLEDGE } from './recovery';
 import { SPECIAL_POPULATIONS } from './specialPopulations';
+import { CARDIO_KNOWLEDGE } from './cardioAndConditioning';
+import { SPORTS_PHYSIOLOGY } from './sportsPhysiology';
+import { HOME_BODYWEIGHT } from './homeAndBodyweight';
+import { PSYCHOLOGY_HABITS } from './psychologyAndHabits';
 
 /**
- * Complete AI Trainer Knowledge Base
+ * Complete AI Trainer Knowledge Base — 9 Modules
  *
  * Compiled from peer-reviewed research and authoritative sources:
+ *
+ * Training & Programming:
  * - NSCA "Essentials of Strength Training and Conditioning" (4th ed.)
  * - ACSM Guidelines for Exercise Testing and Prescription (11th ed.)
- * - Brad Schoenfeld — hypertrophy research, meta-analyses
+ * - Brad Schoenfeld — hypertrophy meta-analyses (2010, 2016, 2017)
  * - Eric Helms — "Muscle & Strength Pyramids" (2nd ed.)
  * - Mike Israetel — "Scientific Principles of Hypertrophy Training"
  * - Greg Nuckols — "Stronger By Science"
  * - Mark Rippetoe — "Starting Strength" (3rd ed.)
  * - Tudor Bompa — "Periodization" (6th ed.)
- * - Alan Aragon — nutrition research
- * - Lyle McDonald — "Flexible Dieting"
+ * - Jim Wendler — "5/3/1 Forever"
+ *
+ * Nutrition & Supplements:
+ * - Alan Aragon — nutrition research reviews
+ * - Lyle McDonald — "Flexible Dieting", "Stubborn Fat Solution"
  * - ISSN Position Stands on protein, creatine, supplements
- * - Matthew Walker — "Why We Sleep"
  * - Morton et al. 2018 — protein meta-analysis
- * - Schoenfeld, Ogborn & Krieger 2016 — frequency meta-analysis
- * - Schoenfeld 2017 — volume meta-analysis
  * - Helms et al. 2014 — protein on caloric deficit
+ * - Jäger et al. 2017 — ISSN position on protein & exercise
+ * - Antonio et al. 2016 — high protein safety
+ * - Examine.com — evidence-based supplement reviews
+ *
+ * Exercise Science & Physiology:
+ * - Schoenfeld 2010 — mechanisms of hypertrophy
+ * - Schoenfeld, Ogborn & Krieger 2016 — frequency meta-analysis
+ * - Contreras et al. — glute activation research
+ * - Stuart McGill — spine biomechanics
+ * - Thomas Myers — "Anatomy Trains"
+ *
+ * Cardio & Conditioning:
+ * - Stephen Seiler — polarized training model
+ * - Alex Viada — "The Hybrid Athlete"
+ * - Wewege et al. 2017 — HIIT meta-analysis
+ * - Schoenfeld et al. 2014 — fasted cardio
+ * - Byrne et al. 2018 — MATADOR intermittent dieting
+ *
+ * Recovery & Injury Prevention:
+ * - Matthew Walker — "Why We Sleep"
  * - Lauersen et al. 2014 — injury prevention meta-analysis
+ * - Roberts et al. 2015 — cold water immersion
+ * - Dattilo et al. 2011 — sleep & muscle protein synthesis
+ * - Milewski et al. 2014 — sleep & injury risk
+ *
+ * Bodyweight & Home Training:
+ * - Paul Wade — "Convict Conditioning"
+ * - Al Kavadlo — calisthenics progressions
+ * - ACSM Home Exercise Guidelines
+ *
+ * Psychology & Habits:
+ * - James Clear — "Atomic Habits"
+ * - Carol Dweck — "Mindset"
+ * - Anders Ericsson — "Peak"
+ * - BJ Fogg — "Tiny Habits"
+ * - Self-determination theory (Deci & Ryan)
  */
 
 export const FULL_KNOWLEDGE_BASE = [
@@ -33,6 +74,10 @@ export const FULL_KNOWLEDGE_BASE = [
   EXERCISE_TECHNIQUE,
   RECOVERY_KNOWLEDGE,
   SPECIAL_POPULATIONS,
+  CARDIO_KNOWLEDGE,
+  SPORTS_PHYSIOLOGY,
+  HOME_BODYWEIGHT,
+  PSYCHOLOGY_HABITS,
 ].join('\n\n---\n\n');
 
 export {
@@ -41,4 +86,8 @@ export {
   EXERCISE_TECHNIQUE,
   RECOVERY_KNOWLEDGE,
   SPECIAL_POPULATIONS,
+  CARDIO_KNOWLEDGE,
+  SPORTS_PHYSIOLOGY,
+  HOME_BODYWEIGHT,
+  PSYCHOLOGY_HABITS,
 };
