@@ -1,31 +1,61 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Switch } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+import {
+  requestNotificationPermissions,
+  getNotificationPermissionStatus,
+  scheduleDailyWorkoutReminder,
+  cancelWorkoutReminders,
+} from '../../services/notificationService';
 
 const GOAL_LABELS: Record<string, string> = {
-  weight_loss: 'Похудение',
-  muscle_gain: 'Набор массы',
-  strength: 'Сила',
-  endurance: 'Выносливость',
-  flexibility: 'Гибкость',
-  general_fitness: 'Общая форма',
+  WEIGHT_LOSS: 'Похудение', weight_loss: 'Похудение',
+  MUSCLE_GAIN: 'Набор массы', muscle_gain: 'Набор массы',
+  STRENGTH: 'Сила', strength: 'Сила',
+  ENDURANCE: 'Выносливость', endurance: 'Выносливость',
+  FLEXIBILITY: 'Гибкость', flexibility: 'Гибкость',
+  GENERAL_FITNESS: 'Общая форма', general_fitness: 'Общая форма',
 };
 
 const LEVEL_LABELS: Record<string, string> = {
-  beginner: 'Новичок',
-  intermediate: 'Средний',
-  advanced: 'Продвинутый',
-  expert: 'Эксперт',
+  BEGINNER: 'Новичок', beginner: 'Новичок',
+  INTERMEDIATE: 'Средний', intermediate: 'Средний',
+  ADVANCED: 'Продвинутый', advanced: 'Продвинутый',
+  EXPERT: 'Эксперт', expert: 'Эксперт',
 };
 
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors, isDark, toggleTheme, mode } = useThemeStore();
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  useEffect(() => {
+    getNotificationPermissionStatus().then((status) => {
+      setNotificationsEnabled(status === 'granted');
+    });
+  }, []);
+
+  const handleToggleNotifications = async (value: boolean) => {
+    Haptics.selectionAsync();
+    if (value) {
+      const granted = await requestNotificationPermissions();
+      if (granted) {
+        await scheduleDailyWorkoutReminder(18, 0); // 18:00 daily reminder
+        setNotificationsEnabled(true);
+        Alert.alert('Уведомления включены', 'Ты будешь получать напоминание о тренировке каждый день в 18:00.');
+      } else {
+        Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства: Настройки → Iron Gym → Уведомления.');
+      }
+    } else {
+      await cancelWorkoutReminders();
+      setNotificationsEnabled(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Выйти из аккаунта?', '', [
@@ -82,7 +112,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         </Text>
         <ProfileRow label="Рост" value={user?.heightCm ? `${user.heightCm} см` : 'Не указан'} colors={colors} />
         <ProfileRow label="Вес" value={user?.weightKg ? `${user.weightKg} кг` : 'Не указан'} colors={colors} />
-        <ProfileRow label="Пол" value={user?.gender === 'male' ? 'Мужской' : user?.gender === 'female' ? 'Женский' : 'Не указан'} colors={colors} />
+        <ProfileRow label="Пол" value={user?.gender === 'MALE' || user?.gender === 'male' ? 'Мужской' : user?.gender === 'FEMALE' || user?.gender === 'female' ? 'Женский' : 'Не указан'} colors={colors} />
         <ProfileRow label="Цель" value={user?.goal ? GOAL_LABELS[user.goal] : 'Не указана'} colors={colors} />
         <ProfileRow label="Уровень" value={user?.fitnessLevel ? LEVEL_LABELS[user.fitnessLevel] : 'Не указан'} colors={colors} />
         <ProfileRow label="Стаж" value={user?.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'Не указан'} colors={colors} isLast />
@@ -114,10 +144,20 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <Text style={[typography.body, { color: colors.textSecondary }]}>кг / см</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: colors.divider }]}>
-          <Text style={[typography.body, { color: colors.text }]}>Уведомления</Text>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>Вкл</Text>
-        </TouchableOpacity>
+        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: colors.divider }]}>
+          <View>
+            <Text style={[typography.body, { color: colors.text }]}>Напоминания о тренировках</Text>
+            <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2 }]}>
+              {notificationsEnabled ? 'Каждый день в 18:00' : 'Выключены'}
+            </Text>
+          </View>
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={handleToggleNotifications}
+            trackColor={{ false: colors.border, true: colors.primary + '60' }}
+            thumbColor={notificationsEnabled ? colors.primary : '#f4f3f4'}
+          />
+        </View>
       </Card>
 
       {/* Subscription */}

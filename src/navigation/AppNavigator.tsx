@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View } from 'react-native';
 import { useThemeStore, useAuthStore } from '../store';
 import { typography } from '../theme';
+import { requestNotificationPermissions } from '../services/notificationService';
 
 // Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -149,6 +150,13 @@ function AuthStack() {
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isOnboarded } = useAuthStore();
   const { colors } = useThemeStore();
+
+  // Request notification permissions once on first authenticated launch
+  useEffect(() => {
+    if (isAuthenticated && isOnboarded) {
+      requestNotificationPermissions();
+    }
+  }, [isAuthenticated, isOnboarded]);
 
   return (
     <NavigationContainer>

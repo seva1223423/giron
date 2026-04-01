@@ -23,7 +23,7 @@
     "expo-image-picker": "^55.0.14",
     "expo-linear-gradient": "^55.0.9",
     "expo-linking": "^55.0.9",
-    "expo-router": "^55.0.8",
+    "expo-notifications": "~0.29.14",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5",
