@@ -163,8 +163,8 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
         </Text>
 
         {[
-          { name: 'PPL 3 дня', plan: [0, 2, 4], templates: [1, 0, 2] }, // Mon=Back, Wed=Chest, Fri=Legs
-          { name: 'Upper / Lower 4 дня', plan: [0, 1, 3, 4], templates: [4, 2, 4, 2] },
+          { name: 'Толчок-Тяга-Ноги 3 дня', plan: [0, 2, 4], templates: [1, 0, 2] },
+          { name: 'Верх / Низ 4 дня', plan: [0, 1, 3, 4], templates: [4, 2, 4, 2] },
           { name: 'Бро-сплит 5 дней', plan: [0, 1, 2, 3, 4], templates: [0, 1, 2, 3, 7] },
         ].map((preset) => (
           <Card key={preset.name} style={{ marginBottom: spacing.sm }}>

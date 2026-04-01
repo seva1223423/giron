@@ -19,7 +19,7 @@ export interface BuiltInProgram {
 export const builtInPrograms: BuiltInProgram[] = [
   {
     id: 'starting-strength',
-    name: 'Starting Strength',
+    name: 'Стартовая сила',
     description: 'Классическая программа Марка Риппто для начинающих. 3 тренировки в неделю, только базовые упражнения. Цель — максимально быстро набрать силу.',
     goal: 'strength',
     level: 'beginner',
@@ -48,17 +48,17 @@ export const builtInPrograms: BuiltInProgram[] = [
   },
   {
     id: 'ppl-6days',
-    name: 'Push Pull Legs (6 дней)',
-    description: 'Классический PPL-сплит для набора массы. Каждая группа мышц тренируется дважды в неделю. Оптимальный объём и частота для гипертрофии.',
+    name: 'Толчок-Тяга-Ноги (6 дней)',
+    description: 'Классический сплит Толчок-Тяга-Ноги для набора массы. Каждая группа мышц тренируется дважды в неделю. Оптимальный объём и частота для гипертрофии.',
     goal: 'muscle',
     level: 'intermediate',
     daysPerWeek: 6,
     durationWeeks: 12,
-    split: 'Push / Pull / Legs',
+    split: 'Толчок / Тяга / Ноги',
     emoji: '💪',
     days: [
       {
-        name: 'Push — Грудь, плечи, трицепс',
+        name: 'Толчок — Грудь, плечи, трицепс',
         exercises: [
           { exerciseId: 'bench-press', sets: 4, reps: '6-8', rest: 120 },
           { exerciseId: 'incline-bench-press', sets: 3, reps: '8-10', rest: 90 },
@@ -70,7 +70,7 @@ export const builtInPrograms: BuiltInProgram[] = [
         ],
       },
       {
-        name: 'Pull — Спина, бицепс',
+        name: 'Тяга — Спина, бицепс',
         exercises: [
           { exerciseId: 'deadlift', sets: 3, reps: '5', rest: 180 },
           { exerciseId: 'barbell-row', sets: 4, reps: '6-8', rest: 120 },
@@ -82,7 +82,7 @@ export const builtInPrograms: BuiltInProgram[] = [
         ],
       },
       {
-        name: 'Legs — Ноги',
+        name: 'Ноги',
         exercises: [
           { exerciseId: 'squat', sets: 4, reps: '6-8', rest: 180 },
           { exerciseId: 'leg-press', sets: 3, reps: '10-12', rest: 90 },
@@ -96,13 +96,13 @@ export const builtInPrograms: BuiltInProgram[] = [
   },
   {
     id: 'upper-lower',
-    name: 'Upper / Lower (4 дня)',
+    name: 'Верх / Низ (4 дня)',
     description: 'Сплит верх/низ — отличный баланс частоты и объёма. Каждая группа тренируется 2x в неделю. Идеально для одновременного роста силы и массы.',
     goal: 'muscle',
     level: 'intermediate',
     daysPerWeek: 4,
     durationWeeks: 12,
-    split: 'Upper / Lower',
+    split: 'Верх / Низ',
     emoji: '⚡',
     days: [
       {

@@ -24,7 +24,7 @@ const FOOD_DB = [
   { name: 'Творог 5%', calories: 121, protein: 17, fats: 5, carbs: 1.8 },
   { name: 'Греческий йогурт', calories: 59, protein: 10, fats: 0.4, carbs: 3.6 },
   { name: 'Молоко 3.2%', calories: 60, protein: 3.2, fats: 3.2, carbs: 4.7 },
-  { name: 'Протеин (whey)', calories: 380, protein: 74, fats: 5, carbs: 10 },
+  { name: 'Протеин (сывороточный)', calories: 380, protein: 74, fats: 5, carbs: 10 },
   { name: 'Гречка (варёная)', calories: 110, protein: 4.2, fats: 0.6, carbs: 21 },
   { name: 'Рис (варёный)', calories: 130, protein: 2.7, fats: 0.3, carbs: 28 },
   { name: 'Овсянка', calories: 68, protein: 2.4, fats: 1.4, carbs: 12 },
