@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
@@ -69,14 +69,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const todayCarbs = dayLog.meals.reduce((sum, m) => sum + m.totalCarbs, 0);
 
   const activeProgram = programs.find((p) => p.isActive);
-  // Streak
-  const streak = (() => {
+  const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;
     let s = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
     for (let i = 0; i < 365; i++) {
-      const d = new Date(today);
+      const d = new Date(now);
       d.setDate(d.getDate() - i);
       const ds = d.toISOString().split('T')[0];
       if (workoutHistory.some((w) => w.completedAt?.startsWith(ds))) {
@@ -86,7 +85,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     }
     return s;
-  })();
+  }, [workoutHistory]);
 
   const quote = getDailyQuote();
 
@@ -118,8 +117,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / 86400000)
     : null;
 
-  // Smart workout recommendation
-  const workoutRecommendation = (() => {
+  const workoutRecommendation = useMemo(() => {
     const SPLITS = [
       { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
       { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '🏋️' },
@@ -127,8 +125,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], emoji: '🎯' },
       { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '⚡' },
     ];
-
-    // Find days since each split was last trained
     const splitLastDays = SPLITS.map((split) => {
       let lastDay = 999;
       workoutHistory.forEach((w) => {
@@ -143,15 +139,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       });
       return { ...split, daysSince: lastDay };
     });
-
-    // Recommend the most "due" split
     const recommended = splitLastDays.sort((a, b) => b.daysSince - a.daysSince)[0];
     const daysLabel = recommended.daysSince >= 999
       ? 'Ещё не тренировал'
       : recommended.daysSince === 0 ? 'Уже сегодня'
       : `${recommended.daysSince} ${recommended.daysSince === 1 ? 'день' : recommended.daysSince < 5 ? 'дня' : 'дней'} назад`;
     return { ...recommended, daysLabel };
-  })();
+  }, [workoutHistory]);
 
   const weekWorkouts = workoutHistory.filter((w) => {
     if (!w.completedAt) return false;

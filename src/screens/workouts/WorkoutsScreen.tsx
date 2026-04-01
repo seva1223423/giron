@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
@@ -32,6 +32,16 @@ const MUSCLE_FILTERS = [
   { key: 'calves', label: 'Икры' },
 ];
 
+const EQUIPMENT_FILTERS = [
+  { key: 'all', label: 'Любое' },
+  { key: 'barbell', label: '🏋️ Штанга' },
+  { key: 'dumbbell', label: '💪 Гантели' },
+  { key: 'cable', label: '🔗 Блок' },
+  { key: 'machine', label: '⚙️ Тренажёр' },
+  { key: 'bodyweight', label: '🤸 Вес тела' },
+  { key: 'cardio', label: '🏃 Кардио' },
+];
+
 export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { programs, startWorkout, activeWorkout, fetchPrograms, isLoadingPrograms } = useWorkoutStore();
@@ -39,6 +49,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const [exerciseList, setExerciseList] = useState<Exercise[]>(localExercises);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [loadingExercises, setLoadingExercises] = useState(false);
 
   useEffect(() => {
@@ -60,15 +71,21 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     loadServerExercises();
   }, []);
 
-  const filteredExercises = exerciseList.filter((ex) => {
-    const matchesSearch = searchQuery
-      ? ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-    const matchesMuscle = muscleFilter === 'all'
-      ? true
-      : ex.primaryMuscles.includes(muscleFilter as any);
-    return matchesSearch && matchesMuscle;
-  });
+  const filteredExercises = useMemo(() =>
+    exerciseList.filter((ex) => {
+      const matchesSearch = searchQuery
+        ? ex.name.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+      const matchesMuscle = muscleFilter === 'all'
+        ? true
+        : ex.primaryMuscles.includes(muscleFilter as any);
+      const matchesEquipment = equipmentFilter === 'all'
+        ? true
+        : ex.type === equipmentFilter;
+      return matchesSearch && matchesMuscle && matchesEquipment;
+    }),
+    [exerciseList, searchQuery, muscleFilter, equipmentFilter]
+  );
 
   const createWorkoutFromTemplate = (template: typeof QUICK_WORKOUTS[0]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -265,7 +282,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: spacing.sm, marginBottom: spacing.lg }}
+              contentContainerStyle={{ gap: spacing.sm, marginBottom: spacing.sm }}
             >
               {MUSCLE_FILTERS.map((f) => (
                 <TouchableOpacity
@@ -279,12 +296,32 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     },
                   ]}
                 >
-                  <Text
-                    style={[
-                      typography.captionMedium,
-                      { color: muscleFilter === f.key ? '#FFF' : colors.text },
-                    ]}
-                  >
+                  <Text style={[typography.captionMedium, { color: muscleFilter === f.key ? '#FFF' : colors.text }]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Equipment filter chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: spacing.sm, marginBottom: spacing.lg }}
+            >
+              {EQUIPMENT_FILTERS.map((f) => (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => { Haptics.selectionAsync(); setEquipmentFilter(f.key); }}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: equipmentFilter === f.key ? colors.accent : colors.surface,
+                      borderColor: equipmentFilter === f.key ? colors.accent : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[typography.captionMedium, { color: equipmentFilter === f.key ? '#FFF' : colors.text }]}>
                     {f.label}
                   </Text>
                 </TouchableOpacity>
