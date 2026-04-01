@@ -34,6 +34,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setRestTimer,
     setExerciseNotes,
     updateSetData,
+    toggleSuperset,
   } = useWorkoutStore();
 
   // Pre-compute best 1RM per exercise to avoid iterating full history on each set completion
@@ -121,7 +122,6 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
-    startRest(currentExercise.restSeconds || 90);
 
     // PR detection: compare new 1RM against all-time best for this exercise
     if (weight > 0 && reps > 0) {
@@ -131,6 +131,26 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         showPrToast(currentExercise.exercise.name, Math.round(newRM));
       }
     }
+
+    // Superset auto-navigation: skip rest and jump to partner exercise
+    const groupId = currentExercise.supersetGroupId;
+    if (groupId) {
+      const nextEx = workout.exercises[currentExerciseIndex + 1];
+      const prevEx = workout.exercises[currentExerciseIndex - 1];
+      if (nextEx?.supersetGroupId === groupId) {
+        // We're in the first exercise of the pair — jump to partner, no rest
+        Haptics.selectionAsync();
+        setTimeout(() => nextExercise(), 250);
+        return;
+      } else if (prevEx?.supersetGroupId === groupId) {
+        // We're in the second exercise — start rest and jump back
+        startRest(currentExercise.restSeconds || 90);
+        setTimeout(() => prevExercise(), 250);
+        return;
+      }
+    }
+
+    startRest(currentExercise.restSeconds || 90);
   };
 
   const handleFinish = () => {
@@ -278,9 +298,16 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
         <View style={{ alignItems: 'center', flex: 1 }}>
-          <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>
-            {currentExerciseIndex + 1} из {workout.exercises.length}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: 2 }}>
+            <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>
+              {currentExerciseIndex + 1} из {workout.exercises.length}
+            </Text>
+            {currentExercise.supersetGroupId && (
+              <View style={[styles.supersetBadge, { backgroundColor: colors.accent + '20', borderColor: colors.accent + '60' }]}>
+                <Text style={[{ fontSize: 9, fontWeight: '800', color: colors.accent, letterSpacing: 0.5 }]}>⚡ СУПЕРСЕТ</Text>
+              </View>
+            )}
+          </View>
           <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>
             {currentExercise.exercise.name}
           </Text>
@@ -342,6 +369,27 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           multiline
           maxLength={300}
         />
+
+        {/* Superset toggle */}
+        {currentExerciseIndex < workout.exercises.length - 1 && (
+          <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); toggleSuperset(currentExerciseIndex); }}
+            style={[
+              styles.supersetToggleBtn,
+              {
+                backgroundColor: currentExercise.supersetGroupId ? colors.accent + '15' : colors.surface,
+                borderColor: currentExercise.supersetGroupId ? colors.accent + '80' : colors.border,
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 14, marginRight: spacing.xs }}>⚡</Text>
+            <Text style={[typography.small, { color: currentExercise.supersetGroupId ? colors.accent : colors.textSecondary }]}>
+              {currentExercise.supersetGroupId
+                ? `Суперсет со «${workout.exercises[currentExerciseIndex + 1]?.exercise.name}» — отменить`
+                : `Суперсет со следующим: ${workout.exercises[currentExerciseIndex + 1]?.exercise.name}`}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Exercise description */}
         <Card style={{ marginTop: spacing.md }}>
@@ -631,5 +679,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
+  },
+  supersetBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  supersetToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
   },
 });

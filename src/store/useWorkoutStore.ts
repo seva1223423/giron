@@ -48,6 +48,7 @@ interface WorkoutStore {
   setExerciseNotes: (exerciseIndex: number, notes: string) => void;
   updateSetData: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
   addExerciseToWorkout: (exercise: Exercise) => void;
+  toggleSuperset: (exerciseIndex: number) => void;
 
   // History
   addToHistory: (workout: Workout) => void;
@@ -180,6 +181,32 @@ export const useWorkoutStore = create<WorkoutStore>()(
           restSeconds: 90,
         };
         workout.exercises = [...workout.exercises, newExercise];
+        return { activeWorkout: { ...s.activeWorkout, workout } };
+      }),
+
+      toggleSuperset: (exerciseIndex) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const exercises = [...s.activeWorkout.workout.exercises];
+        const exercise = exercises[exerciseIndex];
+        const nextExercise = exercises[exerciseIndex + 1];
+        if (!nextExercise) return s;
+
+        if (exercise.supersetGroupId) {
+          // Remove superset — clear the group from all exercises in it
+          const groupId = exercise.supersetGroupId;
+          for (let i = 0; i < exercises.length; i++) {
+            if (exercises[i].supersetGroupId === groupId) {
+              exercises[i] = { ...exercises[i], supersetGroupId: undefined };
+            }
+          }
+        } else {
+          // Link with the next exercise
+          const groupId = `ss-${Date.now()}`;
+          exercises[exerciseIndex] = { ...exercise, supersetGroupId: groupId };
+          exercises[exerciseIndex + 1] = { ...nextExercise, supersetGroupId: groupId };
+        }
+
+        const workout = { ...s.activeWorkout.workout, exercises };
         return { activeWorkout: { ...s.activeWorkout, workout } };
       }),
 
