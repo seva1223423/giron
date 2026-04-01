@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Workout, WorkoutExercise, WorkoutSet, Program } from '../types';
+import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise } from '../types';
 import { workoutService } from '../services';
 
 interface ActiveWorkout {
@@ -47,6 +47,7 @@ interface WorkoutStore {
   setRestTimer: (seconds: number) => void;
   setExerciseNotes: (exerciseIndex: number, notes: string) => void;
   updateSetData: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
+  addExerciseToWorkout: (exercise: Exercise) => void;
 
   // History
   addToHistory: (workout: Workout) => void;
@@ -157,6 +158,28 @@ export const useWorkoutStore = create<WorkoutStore>()(
         exercise.sets = sets;
         exercises[exerciseIndex] = exercise;
         workout.exercises = exercises;
+        return { activeWorkout: { ...s.activeWorkout, workout } };
+      }),
+
+      addExerciseToWorkout: (exercise) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const workout = { ...s.activeWorkout.workout };
+        const newExercise: WorkoutExercise = {
+          id: `we-${Date.now()}`,
+          exerciseId: exercise.id,
+          exercise,
+          order: workout.exercises.length,
+          sets: Array.from({ length: 3 }, (_, i) => ({
+            id: `set-${Date.now()}-${i}`,
+            setNumber: i + 1,
+            type: 'normal' as const,
+            reps: 10,
+            weight: 0,
+            completed: false,
+          })),
+          restSeconds: 90,
+        };
+        workout.exercises = [...workout.exercises, newExercise];
         return { activeWorkout: { ...s.activeWorkout, workout } };
       }),
 

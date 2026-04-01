@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -71,7 +72,7 @@ const TrendChart: React.FC<{ data: { label: string; value: number }[]; color: st
 export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const { exerciseId } = route.params;
   const { colors } = useThemeStore();
-  const { workoutHistory } = useWorkoutStore();
+  const { workoutHistory, activeWorkout, addExerciseToWorkout } = useWorkoutStore();
 
   const exercise = localExercises.find((e) => e.id === exerciseId);
   if (!exercise) {
@@ -83,42 +84,38 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
     );
   }
 
-  // Calculate personal records from history
-  const exerciseHistory = workoutHistory
-    .filter((w) => w.exercises.some((e) => e.exerciseId === exerciseId))
-    .map((w) => {
-      const ex = w.exercises.find((e) => e.exerciseId === exerciseId)!;
-      const bestSet = ex.sets
-        .filter((s) => s.completed && s.weight && s.reps)
-        .sort((a, b) => (b.weight || 0) * (b.reps || 0) - (a.weight || 0) * (a.reps || 0))[0];
-      return {
-        date: w.completedAt || w.startedAt || '',
-        sets: ex.sets.filter((s) => s.completed),
-        bestWeight: bestSet?.weight || 0,
-        bestReps: bestSet?.reps || 0,
-        totalVolume: ex.sets
-          .filter((s) => s.completed)
-          .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0),
-      };
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const exerciseHistory = useMemo(() =>
+    workoutHistory
+      .filter((w) => w.exercises.some((e) => e.exerciseId === exerciseId))
+      .map((w) => {
+        const ex = w.exercises.find((e) => e.exerciseId === exerciseId)!;
+        const completedSets = ex.sets.filter((s) => s.completed && s.weight && s.reps);
+        const bestSet = completedSets.sort((a, b) => (b.weight || 0) * (b.reps || 0) - (a.weight || 0) * (a.reps || 0))[0];
+        return {
+          date: w.completedAt || w.startedAt || '',
+          sets: ex.sets.filter((s) => s.completed),
+          bestWeight: bestSet?.weight || 0,
+          bestReps: bestSet?.reps || 0,
+          totalVolume: completedSets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0),
+        };
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+  [workoutHistory, exerciseId]);
 
   const maxWeight = Math.max(0, ...exerciseHistory.map((h) => h.bestWeight));
-  const maxVolume = Math.max(0, ...exerciseHistory.map((h) => h.totalVolume));
   const estimated1RM = maxWeight > 0 && exerciseHistory[0]
     ? Math.round(maxWeight * (1 + exerciseHistory[0].bestReps / 30))
     : 0;
 
-  // 1RM trend chart data (chronological order, last 10)
-  const oneRMTrend = useMemo(() => {
-    return [...exerciseHistory]
+  const oneRMTrend = useMemo(() =>
+    [...exerciseHistory]
       .reverse()
       .slice(-10)
       .map((h) => ({
         label: new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', ''),
         value: Math.round(h.bestWeight * (1 + h.bestReps / 30)),
-      }));
-  }, [exerciseHistory]);
+      })),
+  [exerciseHistory]);
 
   const difficultyColor = DIFFICULTY_COLORS[exercise.difficulty] || colors.textSecondary;
 
@@ -160,6 +157,31 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
           </View>
         </View>
       </FadeIn>
+
+      {/* Add to active workout */}
+      {activeWorkout && (
+        <FadeIn delay={120}>
+          <TouchableOpacity
+            onPress={() => {
+              const alreadyAdded = activeWorkout.workout.exercises.some((e) => e.exerciseId === exerciseId);
+              if (alreadyAdded) {
+                Alert.alert('Уже добавлено', 'Это упражнение уже есть в текущей тренировке.');
+                return;
+              }
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              addExerciseToWorkout(exercise);
+              Alert.alert('Добавлено!', `${exercise.name} добавлено в тренировку.`, [
+                { text: 'Продолжить просмотр' },
+                { text: 'К тренировке', onPress: () => navigation.navigate('ActiveWorkout') },
+              ]);
+            }}
+            style={[{ backgroundColor: colors.success + '18', borderWidth: 1, borderColor: colors.success + '50', borderRadius: borderRadius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }]}
+          >
+            <Text style={{ fontSize: 18 }}>➕</Text>
+            <Text style={[typography.bodySemibold, { color: colors.success }]}>Добавить в текущую тренировку</Text>
+          </TouchableOpacity>
+        </FadeIn>
+      )}
 
       {/* Description */}
       <FadeIn delay={160}>
