@@ -7,8 +7,9 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { NewsArticle, NewsCategory } from '../../types';
 import { newsService, getApiError } from '../../services';
 
-const CATEGORIES: { key: NewsCategory | 'all'; label: string }[] = [
+const CATEGORIES: { key: NewsCategory | 'all' | 'saved'; label: string }[] = [
   { key: 'all', label: 'Все' },
+  { key: 'saved', label: '🔖 Сохранённые' },
   { key: 'russian', label: 'Россия' },
   { key: 'powerlifting', label: 'Силовые' },
   { key: 'records', label: 'Рекорды' },
@@ -67,7 +68,7 @@ const FALLBACK_NEWS: NewsArticle[] = [
 
 export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all'>('all');
+  const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all' | 'saved'>('all');
   const [news, setNews] = useState<NewsArticle[]>(FALLBACK_NEWS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const fetchNews = useCallback(async () => {
     try {
-      const category = activeCategory === 'all' ? undefined : activeCategory;
+      const category = activeCategory === 'all' || activeCategory === 'saved' ? undefined : activeCategory;
       const articles = await newsService.getNews({ category });
       if (articles.length > 0) {
         setNews(articles);
@@ -114,7 +115,9 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const filteredNews = activeCategory === 'all'
     ? news
-    : news.filter((n) => n.category?.includes(activeCategory));
+    : activeCategory === 'saved'
+      ? news.filter((n) => savedIds.has(n.id))
+      : news.filter((n) => n.category?.includes(activeCategory as NewsCategory));
 
   const toggleSave = async (id: string) => {
     setSavedIds((prev) => {
@@ -195,7 +198,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ) : (
           <>
             {/* Record of the day */}
-            <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
+            {activeCategory !== 'saved' && <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
               <Text style={[typography.captionMedium, { color: colors.accent }]}>РЕКОРД ДНЯ</Text>
               <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xs }]}>
                 Присед 350 кг — Андрей Маланичев
@@ -204,6 +207,15 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 Абсолютный рекорд России в экипировочном пауэрлифтинге
               </Text>
             </Card>
+
+            {filteredNews.length === 0 && activeCategory === 'saved' && (
+              <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
+                <Text style={{ fontSize: 48, marginBottom: spacing.md }}>🔖</Text>
+                <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                  Пока нет сохранённых статей.{'\n'}Нажми 📌 на любой статье чтобы сохранить.
+                </Text>
+              </View>
+            )}
 
             {filteredNews.map((article) => (
               <Card key={article.id} style={{ marginBottom: spacing.md }}>
