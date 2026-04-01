@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
@@ -9,6 +10,8 @@ import { exercises as localExercises } from '../../data/exercises';
 import { builtInPrograms } from '../../data/programs';
 import { Workout, WorkoutExercise, WorkoutSet, Exercise } from '../../types';
 import { workoutService } from '../../services';
+
+const FAVORITES_KEY = 'iron_gym_exercise_favorites';
 
 const QUICK_WORKOUTS = [
   { name: 'Грудь + Трицепс', emoji: '💪', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown'] },
@@ -20,6 +23,7 @@ const QUICK_WORKOUTS = [
 
 const MUSCLE_FILTERS = [
   { key: 'all', label: 'Все' },
+  { key: 'favorites', label: '❤️ Избранное' },
   { key: 'chest', label: 'Грудь' },
   { key: 'back', label: 'Спина' },
   { key: 'shoulders', label: 'Плечи' },
@@ -53,8 +57,14 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const [programGoalFilter, setProgramGoalFilter] = useState<'all' | 'strength' | 'muscle' | 'fat_loss' | 'endurance'>('all');
   const [programLevelFilter, setProgramLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
   const [loadingExercises, setLoadingExercises] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    AsyncStorage.getItem(FAVORITES_KEY).then((raw) => {
+      if (raw) {
+        try { setFavoriteIds(new Set(JSON.parse(raw))); } catch {}
+      }
+    });
     fetchPrograms();
     // Try loading exercises from server
     const loadServerExercises = async () => {
@@ -73,6 +83,20 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     loadServerExercises();
   }, []);
 
+  const toggleFavorite = useCallback((exerciseId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) {
+        next.delete(exerciseId);
+      } else {
+        next.add(exerciseId);
+      }
+      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(next)));
+      return next;
+    });
+  }, []);
+
   const filteredExercises = useMemo(() =>
     exerciseList.filter((ex) => {
       const matchesSearch = searchQuery
@@ -80,13 +104,15 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         : true;
       const matchesMuscle = muscleFilter === 'all'
         ? true
+        : muscleFilter === 'favorites'
+        ? favoriteIds.has(ex.id)
         : ex.primaryMuscles.includes(muscleFilter as any);
       const matchesEquipment = equipmentFilter === 'all'
         ? true
         : ex.type === equipmentFilter;
       return matchesSearch && matchesMuscle && matchesEquipment;
     }),
-    [exerciseList, searchQuery, muscleFilter, equipmentFilter]
+    [exerciseList, searchQuery, muscleFilter, equipmentFilter, favoriteIds]
   );
 
   const filteredPrograms = useMemo(() =>
@@ -381,22 +407,46 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               {filteredExercises.length} упражнений
             </Text>
 
+            {muscleFilter === 'favorites' && filteredExercises.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={{ fontSize: 40, marginBottom: spacing.md }}>❤️</Text>
+                <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                  Нажмите ❤️ на упражнении, чтобы добавить в избранное
+                </Text>
+              </View>
+            )}
             {loadingExercises ? (
               <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
             ) : (
-              filteredExercises.map((ex, i) => (
-                <Card
-                  key={ex.id}
-                  style={{ marginBottom: spacing.sm }}
-                  padding={spacing.md}
-                  onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
-                >
-                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                    {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
-                  </Text>
-                </Card>
-              ))
+              filteredExercises.map((ex, i) => {
+                const isFav = favoriteIds.has(ex.id);
+                return (
+                  <Card
+                    key={ex.id}
+                    style={{ marginBottom: spacing.sm }}
+                    padding={spacing.md}
+                    onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
+                        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                          {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={(e) => { e.stopPropagation(); toggleFavorite(ex.id); }}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={{ paddingLeft: spacing.md }}
+                      >
+                        <Text style={{ fontSize: 18, color: isFav ? '#FF3B55' : colors.textTertiary }}>
+                          {isFav ? '❤️' : '🤍'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Card>
+                );
+              })
             )}
           </>
         )}
