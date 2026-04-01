@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Switch, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
@@ -33,6 +33,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [reminderHour, setReminderHour] = useState(18);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     getNotificationPermissionStatus().then((status) => {
@@ -45,15 +47,24 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     if (value) {
       const granted = await requestNotificationPermissions();
       if (granted) {
-        await scheduleDailyWorkoutReminder(18, 0); // 18:00 daily reminder
+        await scheduleDailyWorkoutReminder(reminderHour, 0);
         setNotificationsEnabled(true);
-        Alert.alert('Уведомления включены', 'Ты будешь получать напоминание о тренировке каждый день в 18:00.');
+        Alert.alert('Уведомления включены', `Напоминание каждый день в ${reminderHour}:00.`);
       } else {
         Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства: Настройки → Iron Gym → Уведомления.');
       }
     } else {
       await cancelWorkoutReminders();
       setNotificationsEnabled(false);
+    }
+  };
+
+  const handleChangeReminderTime = async (hour: number) => {
+    Haptics.selectionAsync();
+    setReminderHour(hour);
+    setShowTimePicker(false);
+    if (notificationsEnabled) {
+      await scheduleDailyWorkoutReminder(hour, 0);
     }
   };
 
@@ -70,6 +81,27 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* Reminder time picker modal */}
+      <Modal visible={showTimePicker} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={[{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.xl, paddingBottom: 48 }]}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Время напоминания</Text>
+            {[7, 8, 9, 10, 12, 14, 16, 17, 18, 19, 20, 21].map((h) => (
+              <TouchableOpacity
+                key={h}
+                onPress={() => handleChangeReminderTime(h)}
+                style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider }]}
+              >
+                <Text style={[typography.body, { color: h === reminderHour ? colors.primary : colors.text }]}>{h}:00</Text>
+                {h === reminderHour && <Text style={{ color: colors.primary }}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setShowTimePicker(false)} style={{ marginTop: spacing.lg, alignItems: 'center' }}>
+              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       {/* Profile header */}
       <View style={styles.profileHeader}>
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
@@ -148,11 +180,16 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         </TouchableOpacity>
 
         <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: colors.divider }]}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={[typography.body, { color: colors.text }]}>Напоминания о тренировках</Text>
-            <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2 }]}>
-              {notificationsEnabled ? 'Каждый день в 18:00' : 'Выключены'}
-            </Text>
+            <TouchableOpacity
+              onPress={() => notificationsEnabled && setShowTimePicker(true)}
+              disabled={!notificationsEnabled}
+            >
+              <Text style={[typography.small, { marginTop: 2 }, notificationsEnabled ? { color: colors.primary } : { color: colors.textTertiary }]}>
+                {notificationsEnabled ? `Каждый день в ${reminderHour}:00 — изменить` : 'Выключены'}
+              </Text>
+            </TouchableOpacity>
           </View>
           <Switch
             value={notificationsEnabled}

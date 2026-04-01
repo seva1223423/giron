@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Share } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
@@ -105,6 +105,22 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
       }
     });
   });
+
+  const handleShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const lines: string[] = [];
+    lines.push(`🏋️ ${workout.name}`);
+    lines.push(`⏱ ${workout.durationMinutes || 0} мин  •  📦 ${((workout.totalVolume || 0) / 1000).toFixed(1)} т`);
+    lines.push(`${workout.exercises.length} упражнений  •  ${totalSets} подходов  •  ${totalReps} повторений`);
+    if (newPRs.length > 0) {
+      lines.push('');
+      lines.push(`🏆 Личные рекорды (${newPRs.length}):`);
+      newPRs.forEach((pr) => lines.push(`  • ${pr.name}: ${pr.weight}кг × ${pr.reps} = ~${pr.est1rm}кг 1ПМ`));
+    }
+    lines.push('');
+    lines.push('Тренировки с Iron Gym 💪');
+    await Share.share({ message: lines.join('\n') });
+  };
 
   return (
     <ScrollView
@@ -309,15 +325,54 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
         </Card>
       </FadeIn>
 
-      {/* Done button */}
+      {/* Progressive overload suggestions */}
+      {(() => {
+        const suggestions = workout.exercises.flatMap((ex) => {
+          const completedSets = ex.sets.filter((s) => s.completed && s.weight && s.reps);
+          if (completedSets.length === 0) return [];
+          const allDone = completedSets.length === ex.sets.length;
+          if (!allDone) return [];
+          const avgReps = completedSets.reduce((s, set) => s + (set.reps || 0), 0) / completedSets.length;
+          const maxWeight = Math.max(...completedSets.map((s) => s.weight || 0));
+          if (avgReps < 10) return [];
+          const increment = maxWeight >= 100 ? 5 : 2.5;
+          return [{ name: ex.exercise.name, currentWeight: maxWeight, nextWeight: maxWeight + increment }];
+        });
+        if (suggestions.length === 0) return null;
+        return (
+          <FadeIn delay={600}>
+            <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.success }}>
+              <Text style={[typography.captionMedium, { color: colors.success }]}>ПРОГРЕССИВНАЯ НАГРУЗКА</Text>
+              <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2, marginBottom: spacing.md }]}>
+                Все подходы выполнены — попробуй прибавить вес в следующий раз:
+              </Text>
+              {suggestions.map((s, i) => (
+                <View key={i} style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs }, i < suggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
+                  <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{s.name}</Text>
+                  <Text style={[typography.smallMedium, { color: colors.success }]}>{s.currentWeight} → {s.nextWeight} кг</Text>
+                </View>
+              ))}
+            </Card>
+          </FadeIn>
+        );
+      })()}
+
+      {/* Actions */}
       <FadeIn delay={650}>
-        <Button
-          title="Готово"
-          onPress={() => navigation.popToTop()}
-          fullWidth
-          size="lg"
-          style={{ marginBottom: spacing.huge }}
-        />
+        <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.huge }}>
+          <Button
+            title="📤 Поделиться"
+            variant="outline"
+            onPress={handleShare}
+            style={{ flex: 1 }}
+          />
+          <Button
+            title="Готово"
+            onPress={() => navigation.popToTop()}
+            style={{ flex: 1 }}
+            size="lg"
+          />
+        </View>
       </FadeIn>
     </ScrollView>
   );
