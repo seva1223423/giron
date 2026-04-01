@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useThemeStore, useNutritionStore } from '../../store';
 import { Card, Button, ProgressRing, MacroBar } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { Meal, NutritionItem } from '../../types';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
 
@@ -17,9 +17,24 @@ const MEAL_TYPES = [
 
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { getDayLog, addMeal, addWater } = useNutritionStore();
+  const { getDayLog, addWater, setTargets } = useNutritionStore();
   const today = todayDate();
   const dayLog = getDayLog(today);
+  const [showGoalsModal, setShowGoalsModal] = useState(false);
+  const [goalCalories, setGoalCalories] = useState(dayLog.targetCalories.toString());
+  const [goalProtein, setGoalProtein] = useState(dayLog.targetProtein.toString());
+  const [goalFats, setGoalFats] = useState(dayLog.targetFats?.toString() || '70');
+  const [goalCarbs, setGoalCarbs] = useState(dayLog.targetCarbs?.toString() || '250');
+
+  const handleSaveGoals = () => {
+    const cal = parseInt(goalCalories) || 2000;
+    const prot = parseInt(goalProtein) || 150;
+    const fat = parseInt(goalFats) || 70;
+    const carb = parseInt(goalCarbs) || 250;
+    setTargets(today, { calories: cal, protein: prot, fats: fat, carbs: carb });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowGoalsModal(false);
+  };
 
   const totalCalories = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
   const totalProtein = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0);
@@ -40,9 +55,44 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[typography.h2, { color: colors.text, marginBottom: spacing.lg }]}>
-        Питание
-      </Text>
+      {/* Goals modal */}
+      <Modal visible={showGoalsModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.xl }]}>
+              Дневные цели КБЖУ
+            </Text>
+            {[
+              { label: 'Калории (ккал)', value: goalCalories, setter: setGoalCalories },
+              { label: 'Белки (г)', value: goalProtein, setter: setGoalProtein },
+              { label: 'Жиры (г)', value: goalFats, setter: setGoalFats },
+              { label: 'Углеводы (г)', value: goalCarbs, setter: setGoalCarbs },
+            ].map(({ label, value, setter }) => (
+              <View key={label} style={{ marginBottom: spacing.md }}>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{label}</Text>
+                <TextInput
+                  style={[styles.goalInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                  value={value}
+                  onChangeText={setter}
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.inputPlaceholder}
+                />
+              </View>
+            ))}
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
+              <Button title="Отмена" variant="outline" onPress={() => setShowGoalsModal(false)} style={{ flex: 1 }} />
+              <Button title="Сохранить" onPress={handleSaveGoals} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+        <Text style={[typography.h2, { color: colors.text }]}>Питание</Text>
+        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowGoalsModal(true); }}>
+          <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Daily overview */}
       <Card style={{ marginBottom: spacing.lg }}>
@@ -179,6 +229,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.xl,
+    paddingBottom: 48,
+  },
+  goalInput: {
+    height: 48,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    fontSize: 16,
+    fontWeight: '600',
   },
   mealItem: {
     marginTop: spacing.sm,
