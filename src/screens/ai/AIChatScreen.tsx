@@ -35,8 +35,8 @@ const QUICK_PROMPTS = [
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { user } = useAuthStore();
-  const { workoutHistory } = useWorkoutStore();
+  const { user, fetchProfile } = useAuthStore();
+  const { workoutHistory, fetchHistory } = useWorkoutStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -102,6 +102,15 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       if (response.actions?.length > 0) {
         setLastActions(response.actions);
         setTimeout(() => setLastActions([]), 6000);
+
+        // Sync local stores after AI actions
+        const actionTypes = response.actions.map((a) => a.type);
+        if (actionTypes.includes('create_workout')) {
+          fetchHistory().catch(() => {});
+        }
+        if (actionTypes.includes('update_user_profile') || actionTypes.includes('log_body_weight')) {
+          fetchProfile().catch(() => {});
+        }
       }
 
       const aiResponse: ChatMessage = {

@@ -199,6 +199,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   ] as const;
 
   return (
+    <React.Fragment>
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
@@ -441,6 +442,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         </View>
       </View>
     </Modal>
+    </React.Fragment>
   );
 };
 
