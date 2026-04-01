@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -27,6 +27,45 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   beginner: '#4CAF50', intermediate: '#FF9800', advanced: '#F44336', expert: '#9C27B0',
+};
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Mini line chart for 1RM trend
+const TrendChart: React.FC<{ data: { label: string; value: number }[]; color: string; colors: any }> = ({ data, color, colors }) => {
+  if (data.length < 2) return null;
+  const maxVal = Math.max(...data.map((d) => d.value));
+  const minVal = Math.min(...data.map((d) => d.value));
+  const range = maxVal - minVal || 1;
+  const h = 90;
+
+  return (
+    <View style={{ height: h + 20 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Text style={[{ color: colors.textTertiary, fontSize: 10 }]}>{maxVal} кг</Text>
+        <Text style={[{ color: colors.textTertiary, fontSize: 10 }]}>{minVal} кг</Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: h }}>
+        {data.map((item, i) => {
+          const y = ((item.value - minVal) / range) * (h - 12);
+          return (
+            <View key={i} style={{ flex: 1, alignItems: 'center', height: h, justifyContent: 'flex-end' }}>
+              <View style={{ position: 'absolute', bottom: y }}>
+                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: color }} />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+      <View style={{ flexDirection: 'row', marginTop: 4 }}>
+        {data.map((item, i) => (
+          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[{ color: colors.textTertiary, fontSize: 9 }]}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 };
 
 export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
@@ -69,6 +108,17 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
   const estimated1RM = maxWeight > 0 && exerciseHistory[0]
     ? Math.round(maxWeight * (1 + exerciseHistory[0].bestReps / 30))
     : 0;
+
+  // 1RM trend chart data (chronological order, last 10)
+  const oneRMTrend = useMemo(() => {
+    return [...exerciseHistory]
+      .reverse()
+      .slice(-10)
+      .map((h) => ({
+        label: new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', ''),
+        value: Math.round(h.bestWeight * (1 + h.bestReps / 30)),
+      }));
+  }, [exerciseHistory]);
 
   const difficultyColor = DIFFICULTY_COLORS[exercise.difficulty] || colors.textSecondary;
 
@@ -197,6 +247,14 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
                 <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
               </View>
             </View>
+            {oneRMTrend.length >= 2 && (
+              <View style={{ marginTop: spacing.lg }}>
+                <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+                  ДИНАМИКА ~1ПМ
+                </Text>
+                <TrendChart data={oneRMTrend} color={colors.accent} colors={colors} />
+              </View>
+            )}
           </Card>
         </FadeIn>
       )}
