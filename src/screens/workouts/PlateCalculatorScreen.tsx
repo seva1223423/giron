@@ -119,9 +119,12 @@ const PlateVisual: React.FC<{ plates: Map<number, number>; colors: any }> = ({ p
   );
 };
 
-export const PlateCalculatorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
   const { colors } = useThemeStore();
-  const [targetWeight, setTargetWeight] = useState('100');
+  const initialWeight = route?.params?.initialWeight;
+  const [targetWeight, setTargetWeight] = useState(
+    initialWeight != null ? String(initialWeight) : '100'
+  );
   const [barbellIdx, setBarbellIdx] = useState(0);
 
   const barbell = BARBELL_OPTIONS[barbellIdx];

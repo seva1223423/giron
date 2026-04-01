@@ -35,6 +35,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setExerciseNotes,
     updateSetData,
     toggleSuperset,
+    generateWarmupSets,
   } = useWorkoutStore();
 
   // Pre-compute best 1RM per exercise to avoid iterating full history on each set completion
@@ -327,8 +328,9 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         <View style={styles.setRow}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40 }]}>Сет</Text>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>Вес (кг)</Text>
+          <View style={{ width: 28 }} />
           <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>Повт.</Text>
-          <View style={{ width: 60 }} />
+          <View style={{ width: 40 }} />
         </View>
 
         {currentExercise.sets.map((set, setIndex) => (
@@ -340,17 +342,39 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             onRpeChange={(rpe) => completeSet(currentExerciseIndex, setIndex, { rpe })}
             onRemove={currentExercise.sets.length > 1 ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); removeSet(currentExerciseIndex, setIndex); } : undefined}
             onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
+            onOpenPlates={(w) => navigation.navigate('PlateCalculator', { initialWeight: w })}
             colors={colors}
           />
         ))}
 
-        <Button
-          title="+ Добавить подход"
-          variant="ghost"
-          size="sm"
-          onPress={() => addSet(currentExerciseIndex)}
-          style={{ marginTop: spacing.md }}
-        />
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+          <Button
+            title="+ Подход"
+            variant="ghost"
+            size="sm"
+            onPress={() => addSet(currentExerciseIndex)}
+            style={{ flex: 1 }}
+          />
+          {/* Show warmup generator only if no warmup sets exist yet */}
+          {!currentExercise.sets.some((s) => s.type === 'warmup') && (
+            currentExercise.sets.some((s) => (s.weight || 0) > 0)
+              ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    const workingSet = currentExercise.sets.find((s) => (s.weight || 0) > 0);
+                    if (workingSet?.weight) generateWarmupSets(currentExerciseIndex, workingSet.weight);
+                  }}
+                  style={[
+                    styles.warmupBtn,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                  ]}
+                >
+                  <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>🔥 Разминка</Text>
+                </TouchableOpacity>
+              ) : null
+          )}
+        </View>
 
         {/* Exercise notes */}
         <TextInput
@@ -456,8 +480,9 @@ const SetRow: React.FC<{
   onRpeChange: (rpe: number) => void;
   onRemove?: () => void;
   onTypeChange?: (type: string) => void;
+  onOpenPlates?: (weight: number) => void;
   colors: any;
-}> = ({ set, setIndex, onComplete, onRpeChange, onRemove, onTypeChange, colors }) => {
+}> = ({ set, setIndex, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const [weight, setWeight] = useState(set.weight?.toString() || '');
   const [reps, setReps] = useState(set.reps?.toString() || '10');
   const [showRpe, setShowRpe] = useState(false);
@@ -503,6 +528,15 @@ const SetRow: React.FC<{
         placeholder="0"
         placeholderTextColor={colors.inputPlaceholder}
       />
+      {onOpenPlates && (
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync(); onOpenPlates(parseFloat(weight) || 0); }}
+          style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        >
+          <Text style={{ fontSize: 16 }}>🏋️</Text>
+        </TouchableOpacity>
+      )}
       <TextInput
         style={[
           styles.setInput,
@@ -693,5 +727,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+  },
+  warmupBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

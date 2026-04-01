@@ -49,6 +49,7 @@ interface WorkoutStore {
   updateSetData: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
   addExerciseToWorkout: (exercise: Exercise) => void;
   toggleSuperset: (exerciseIndex: number) => void;
+  generateWarmupSets: (exerciseIndex: number, workingWeight: number) => void;
 
   // History
   addToHistory: (workout: Workout) => void;
@@ -181,6 +182,36 @@ export const useWorkoutStore = create<WorkoutStore>()(
           restSeconds: 90,
         };
         workout.exercises = [...workout.exercises, newExercise];
+        return { activeWorkout: { ...s.activeWorkout, workout } };
+      }),
+
+      generateWarmupSets: (exerciseIndex, workingWeight) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const workout = { ...s.activeWorkout.workout };
+        const exercises = [...workout.exercises];
+        const exercise = { ...exercises[exerciseIndex] };
+        const warmupConfigs = [
+          { pct: 0.4, reps: 8 },
+          { pct: 0.6, reps: 5 },
+          { pct: 0.8, reps: 3 },
+        ];
+        const now = Date.now();
+        const warmupSets: WorkoutSet[] = warmupConfigs.map((cfg, i) => ({
+          id: `warmup-${now}-${i}`,
+          setNumber: i + 1,
+          type: 'warmup' as const,
+          weight: Math.round(workingWeight * cfg.pct * 2) / 2, // round to 0.5kg
+          reps: cfg.reps,
+          completed: false,
+        }));
+        // Renumber existing sets after prepending warmup sets
+        const existingSets = exercise.sets.map((set, i) => ({
+          ...set,
+          setNumber: warmupSets.length + i + 1,
+        }));
+        exercise.sets = [...warmupSets, ...existingSets];
+        exercises[exerciseIndex] = exercise;
+        workout.exercises = exercises;
         return { activeWorkout: { ...s.activeWorkout, workout } };
       }),
 
