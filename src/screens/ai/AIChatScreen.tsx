@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
 import { FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -36,6 +36,7 @@ const QUICK_PROMPTS = [
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
+  const { workoutHistory } = useWorkoutStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -129,6 +130,48 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  // Dynamic prompts based on recent workout data
+  const dynamicPrompts = useMemo(() => {
+    const prompts: { emoji: string; text: string }[] = [];
+    if (workoutHistory.length === 0) return prompts;
+
+    const last = workoutHistory[0];
+    if (last) {
+      prompts.push({ emoji: '🔍', text: `Разбери мою последнюю тренировку: ${last.name}` });
+    }
+
+    // Week analysis if ≥2 workouts in last 7 days
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const weekWorkouts = workoutHistory.filter((w) => new Date(w.completedAt || w.startedAt || '').getTime() > weekAgo);
+    if (weekWorkouts.length >= 2) {
+      const totalVol = weekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0);
+      prompts.push({
+        emoji: '📊',
+        text: `Анализ моей недели: ${weekWorkouts.length} тренировок, объём ${Math.round(totalVol / 1000 * 10) / 10} т`,
+      });
+    }
+
+    // Suggest rest if trained 3+ days in a row
+    const sortedDates = workoutHistory
+      .map((w) => new Date(w.completedAt || w.startedAt || '').toDateString())
+      .filter((v, i, a) => a.indexOf(v) === i);
+    let consecutive = 0;
+    const today = new Date();
+    for (let i = 0; i < 4; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      if (sortedDates.includes(d.toDateString())) consecutive++;
+      else break;
+    }
+    if (consecutive >= 3) {
+      prompts.push({ emoji: '😴', text: `Тренируюсь ${consecutive} дня подряд — стоит ли взять день отдыха?` });
+    }
+
+    return prompts;
+  }, [workoutHistory]);
+
+  const allQuickPrompts = [...dynamicPrompts, ...QUICK_PROMPTS];
+
   const showQuickPrompts = messages.length <= 1;
 
   return (
@@ -204,15 +247,30 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {showQuickPrompts && (
           <FadeIn delay={200}>
             <View style={styles.quickPrompts}>
-              {QUICK_PROMPTS.map((prompt, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => sendMessage(prompt.text)}
-                  style={[styles.quickPrompt, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                >
-                  <Text style={{ fontSize: 16, marginRight: spacing.xs }}>{prompt.emoji}</Text>
-                  <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{prompt.text}</Text>
-                </TouchableOpacity>
+              {dynamicPrompts.length > 0 && (
+                <Text style={[typography.captionMedium, { color: colors.textTertiary, marginBottom: spacing.xs, marginLeft: 2 }]}>
+                  ДЛЯ ТЕБЯ
+                </Text>
+              )}
+              {allQuickPrompts.map((prompt, i) => (
+                <React.Fragment key={i}>
+                  {i === dynamicPrompts.length && dynamicPrompts.length > 0 && (
+                    <Text style={[typography.captionMedium, { color: colors.textTertiary, marginTop: spacing.sm, marginBottom: spacing.xs, marginLeft: 2 }]}>
+                      ПОПУЛЯРНЫЕ ВОПРОСЫ
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => sendMessage(prompt.text)}
+                    style={[
+                      styles.quickPrompt,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                      i < dynamicPrompts.length && { borderColor: colors.primary + '40', backgroundColor: colors.primary + '08' },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 16, marginRight: spacing.xs }}>{prompt.emoji}</Text>
+                    <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{prompt.text}</Text>
+                  </TouchableOpacity>
+                </React.Fragment>
               ))}
             </View>
           </FadeIn>
