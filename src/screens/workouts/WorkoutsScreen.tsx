@@ -6,6 +6,7 @@ import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
+import { builtInPrograms } from '../../data/programs';
 import { Workout, WorkoutExercise, WorkoutSet, Exercise } from '../../types';
 import { workoutService } from '../../services';
 
@@ -198,45 +199,40 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
         {tab === 'programs' && (
           <>
-            {isLoadingPrograms ? (
-              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.huge }} />
-            ) : programs.length === 0 ? (
-              <FadeIn>
-                <View style={styles.emptyState}>
-                  <Text style={{ fontSize: 48, marginBottom: spacing.lg }}>📋</Text>
-                  <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>
-                    Нет программ
-                  </Text>
-                  <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
-                    Попроси ИИ-тренера составить программу под твои цели
-                  </Text>
-                  <Button
-                    title="Спросить ИИ-тренера"
-                    onPress={() => navigation.navigate('AITab')}
-                  />
-                </View>
-              </FadeIn>
-            ) : (
-              programs.map((program, i) => (
-                <FadeIn key={program.id} delay={i * 80}>
-                  <Card style={{ marginBottom: spacing.md }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[typography.bodySemibold, { color: colors.text }]}>{program.name}</Text>
-                        <Text style={[typography.small, { color: colors.textSecondary }]}>
-                          {program.daysPerWeek} дней/нед {program.level ? `\u2022 ${program.level}` : ''}
-                        </Text>
-                      </View>
-                      {program.isActive && (
-                        <View style={[styles.activeBadge, { backgroundColor: colors.success + '20' }]}>
-                          <Text style={[typography.captionMedium, { color: colors.success }]}>Активна</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
+              Готовые программы от лучших методистов мира
+            </Text>
+            {builtInPrograms.map((program, i) => (
+              <FadeIn key={program.id} delay={i * 60}>
+                <Card
+                  style={{ marginBottom: spacing.md }}
+                  onPress={() => navigation.navigate('ProgramDetail', { program })}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 32, marginRight: spacing.md }}>{program.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.bodySemibold, { color: colors.text }]}>{program.name}</Text>
+                      <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                        {program.daysPerWeek} дн/нед • {program.durationWeeks} нед • {program.split}
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                        <View style={[styles.miniTag, { backgroundColor: colors.primary + '15' }]}>
+                          <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 10 }]}>
+                            {program.level === 'beginner' ? 'Новичок' : program.level === 'intermediate' ? 'Средний' : 'Продвинутый'}
+                          </Text>
                         </View>
-                      )}
+                        <View style={[styles.miniTag, { backgroundColor: colors.surface }]}>
+                          <Text style={[typography.captionMedium, { color: colors.textSecondary, fontSize: 10 }]}>
+                            {program.goal === 'strength' ? 'Сила' : program.goal === 'muscle' ? 'Масса' : program.goal === 'fat_loss' ? 'Похудение' : 'Выносливость'}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                  </Card>
-                </FadeIn>
-              ))
-            )}
+                    <Text style={[typography.body, { color: colors.textTertiary }]}>{'>'}</Text>
+                  </View>
+                </Card>
+              </FadeIn>
+            ))}
           </>
         )}
 
@@ -336,9 +332,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.huge,
   },
-  activeBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+  miniTag: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
     borderRadius: borderRadius.sm,
   },
   searchInput: {
