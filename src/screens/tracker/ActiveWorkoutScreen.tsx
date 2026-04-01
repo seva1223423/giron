@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
-import { scheduleRestEndNotification, cancelRestEndNotification } from '../../services';
+import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification } from '../../services';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -141,6 +141,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onPress: () => {
           cancelRestEndNotification();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          scheduleStreakRiskNotification();
           const completed = finishWorkout();
           if (completed) {
             navigation.replace('WorkoutSummary', { workout: completed });

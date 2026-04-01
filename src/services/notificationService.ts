@@ -16,6 +16,7 @@ export const NOTIFICATION_IDS = {
   WORKOUT_REMINDER: 'workout-reminder',
   DAILY_REMINDER: 'daily-reminder',
   REST_TIMER: 'rest-timer',
+  STREAK_RISK: 'streak-risk',
 };
 
 // Request notification permissions. Returns true if granted.
@@ -108,6 +109,31 @@ export async function cancelRestEndNotification(): Promise<void> {
 // Cancel all workout reminders
 export async function cancelWorkoutReminders(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.WORKOUT_REMINDER).catch(() => {});
+}
+
+// Schedule "streak at risk" notification 48h after last workout.
+// Call after finishing a workout — this replaces any previous streak-risk notification.
+export async function scheduleStreakRiskNotification(): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.STREAK_RISK).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: NOTIFICATION_IDS.STREAK_RISK,
+      content: {
+        title: '⚡ Серия под угрозой!',
+        body: 'Ты не тренировался 2 дня. Не дай серии прерваться — открой Iron Gym!',
+        sound: 'default',
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 48 * 3600 },
+    });
+  } catch {
+    // Silently fail if notifications unavailable
+  }
+}
+
+export async function cancelStreakRiskNotification(): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.STREAK_RISK).catch(() => {});
 }
 
 // Cancel all scheduled notifications
