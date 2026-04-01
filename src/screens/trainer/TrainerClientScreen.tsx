@@ -119,6 +119,21 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
     setShowEditProfile(false);
   };
 
+  const handleMarkTrainingDone = () => {
+    const today = new Date().toISOString().split('T')[0];
+    if (client.lastVisit === today) return; // already logged today
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const patch: Partial<TrainerClient> = {
+      lastVisit: today,
+      totalWorkouts: (client.totalWorkouts || 0) + 1,
+    };
+    setClient((prev) => ({ ...prev, ...patch }));
+    updateClient(client.id, patch);
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+  const trainedToday = client.lastVisit === today;
+
   const age = client.age ? `${client.age} лет` : null;
   const goal = client.goal ? GOAL_LABELS[client.goal] ?? client.goal : null;
   const level = client.level ? LEVEL_LABELS[client.level] ?? client.level : null;
@@ -182,6 +197,36 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
             )}
           </View>
         </Card>
+
+        {/* Mark training done */}
+        <TouchableOpacity
+          onPress={handleMarkTrainingDone}
+          disabled={trainedToday}
+          activeOpacity={0.8}
+          style={{ marginBottom: spacing.lg }}
+        >
+          <View
+            style={[
+              styles.markDoneBtn,
+              {
+                backgroundColor: trainedToday ? colors.success + '20' : colors.success,
+                borderColor: colors.success,
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 22 }}>{trainedToday ? '✅' : '🏋️'}</Text>
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <Text style={[typography.bodySemibold, { color: trainedToday ? colors.success : '#fff' }]}>
+                {trainedToday ? 'Тренировка отмечена сегодня' : 'Отметить тренировку'}
+              </Text>
+              <Text style={[typography.small, { color: trainedToday ? colors.success + 'CC' : 'rgba(255,255,255,0.75)' }]}>
+                {trainedToday
+                  ? `Итого: ${client.totalWorkouts || 0} тренировок`
+                  : 'Запишет визит и прибавит тренировку к счётчику'}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Assigned Program */}
         <Card style={{ marginBottom: spacing.lg }}>
@@ -545,5 +590,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.lg,
     borderWidth: 1.5,
+  },
+  markDoneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
 });
