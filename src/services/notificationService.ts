@@ -15,6 +15,7 @@ Notifications.setNotificationHandler({
 export const NOTIFICATION_IDS = {
   WORKOUT_REMINDER: 'workout-reminder',
   DAILY_REMINDER: 'daily-reminder',
+  REST_TIMER: 'rest-timer',
 };
 
 // Request notification permissions. Returns true if granted.
@@ -78,6 +79,30 @@ export async function sendImmediateNotification(title: string, body: string): Pr
     content: { title, body, sound: 'default' },
     trigger: null, // fires immediately
   });
+}
+
+// Schedule a rest timer end notification (fires after `seconds` seconds)
+// Returns the notification identifier so it can be cancelled if the user skips rest.
+export async function scheduleRestEndNotification(seconds: number): Promise<string | null> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return null;
+    return await Notifications.scheduleNotificationAsync({
+      identifier: NOTIFICATION_IDS.REST_TIMER,
+      content: {
+        title: '💪 Отдых закончился!',
+        body: 'Время следующего подхода.',
+        sound: 'default',
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function cancelRestEndNotification(): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.REST_TIMER).catch(() => {});
 }
 
 // Cancel all workout reminders

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
+import { scheduleRestEndNotification, cancelRestEndNotification } from '../../services';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -64,6 +65,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setRestTime(seconds);
     setRestTotal(seconds);
     setIsResting(true);
+    scheduleRestEndNotification(seconds);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setRestTime((prev) => {
@@ -80,6 +82,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
   const skipRest = () => {
     if (timerRef.current) clearInterval(timerRef.current);
+    cancelRestEndNotification();
     setIsResting(false);
     setRestTime(0);
   };
@@ -135,6 +138,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       {
         text: 'Завершить',
         onPress: () => {
+          cancelRestEndNotification();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           const completed = finishWorkout();
           if (completed) {
@@ -154,6 +158,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         text: 'Да, отменить',
         style: 'destructive',
         onPress: () => {
+          cancelRestEndNotification();
           cancelWorkout();
           navigation.goBack();
         },
