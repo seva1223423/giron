@@ -23,6 +23,7 @@ import { WorkoutHistoryScreen } from '../screens/workouts/WorkoutHistoryScreen';
 import { NutritionScreen } from '../screens/nutrition/NutritionScreen';
 import { FoodScannerScreen } from '../screens/nutrition/FoodScannerScreen';
 import { ManualFoodAddScreen } from '../screens/nutrition/ManualFoodAddScreen';
+import { NutritionHistoryScreen } from '../screens/nutrition/NutritionHistoryScreen';
 import { ProgressScreen } from '../screens/progress/ProgressScreen';
 import { NewsScreen } from '../screens/news/NewsScreen';
 import { AIChatScreen } from '../screens/ai/AIChatScreen';
@@ -72,6 +73,7 @@ function NutritionStackNavigator() {
       <NutritionStack.Screen name="NutritionMain" component={NutritionScreen} />
       <NutritionStack.Screen name="FoodScanner" component={FoodScannerScreen} />
       <NutritionStack.Screen name="ManualFoodAdd" component={ManualFoodAddScreen} />
+      <NutritionStack.Screen name="NutritionHistory" component={NutritionHistoryScreen} />
     </NutritionStack.Navigator>
   );
 }

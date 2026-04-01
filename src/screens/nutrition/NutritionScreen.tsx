@@ -89,9 +89,14 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
         <Text style={[typography.h2, { color: colors.text }]}>Питание</Text>
-        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowGoalsModal(true); }}>
-          <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: spacing.lg }}>
+          <TouchableOpacity onPress={() => navigation.navigate('NutritionHistory')}>
+            <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>История</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowGoalsModal(true); }}>
+            <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Daily overview */}
