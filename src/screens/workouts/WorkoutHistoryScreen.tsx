@@ -174,6 +174,11 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                               {Math.round(workout.totalVolume)} кг
                             </Text>
                           )}
+                          {workout.rating > 0 && (
+                            <Text style={{ fontSize: 10 }}>
+                              {'⭐'.repeat(workout.rating)}
+                            </Text>
+                          )}
                           <Text style={[typography.caption, { color: colors.textTertiary }]}>
                             {completedSets} подх. {isExpanded ? '▲' : '▼'}
                           </Text>
