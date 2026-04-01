@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
+import { exercises as localExercises } from '../../data/exercises';
+import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { Card, ProgressRing, MacroBar, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -50,7 +52,7 @@ function getDailyQuote() {
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, fetchPrograms, fetchHistory } = useWorkoutStore();
+  const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
 
   // Sync data from server on mount
@@ -87,6 +89,28 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   })();
 
   const quote = getDailyQuote();
+
+  // Today's planned workout (Mon=0 … Sun=6)
+  const todayDow = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+  const todayPlan = weekPlan[todayDow] ?? null;
+
+  const handleStartPlannedWorkout = () => {
+    if (!todayPlan || todayPlan.exercises.length === 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const workoutExercises: WorkoutExercise[] = todayPlan.exercises
+      .map((exId, index) => {
+        const ex = localExercises.find((e) => e.id === exId);
+        if (!ex) return null;
+        const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
+          id: `set-${Date.now()}-${index}-${i}`,
+          setNumber: i + 1, type: 'normal' as const, reps: 10, weight: 0, completed: false,
+        }));
+        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 90 };
+      })
+      .filter(Boolean) as WorkoutExercise[];
+    startWorkout({ id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises });
+    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
+  };
 
   // Last workout
   const lastWorkout = workoutHistory[0] || null;
@@ -205,6 +229,29 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Card>
         )}
       </FadeIn>
+
+      {/* Today's planned workout */}
+      {!activeWorkout && todayPlan && (
+        <FadeIn delay={140}>
+          <Card
+            style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent }}
+            onPress={todayPlan.exercises.length > 0 ? handleStartPlannedWorkout : undefined}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.captionMedium, { color: colors.accent }]}>ПЛАН НА СЕГОДНЯ</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
+                  <Text style={{ fontSize: 20 }}>{todayPlan.emoji}</Text>
+                  <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
+                </View>
+              </View>
+              {todayPlan.exercises.length > 0 && (
+                <Text style={[typography.bodySemibold, { color: colors.accent }]}>▶ Начать</Text>
+              )}
+            </View>
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Smart recommendation */}
       {!activeWorkout && (

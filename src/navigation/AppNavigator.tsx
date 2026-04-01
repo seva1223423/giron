@@ -20,6 +20,7 @@ import { CustomWorkoutScreen } from '../screens/workouts/CustomWorkoutScreen';
 import { PlateCalculatorScreen } from '../screens/workouts/PlateCalculatorScreen';
 import { ProgramDetailScreen } from '../screens/workouts/ProgramDetailScreen';
 import { WorkoutHistoryScreen } from '../screens/workouts/WorkoutHistoryScreen';
+import { WeeklyPlanScreen } from '../screens/workouts/WeeklyPlanScreen';
 import { NutritionScreen } from '../screens/nutrition/NutritionScreen';
 import { FoodScannerScreen } from '../screens/nutrition/FoodScannerScreen';
 import { ManualFoodAddScreen } from '../screens/nutrition/ManualFoodAddScreen';
@@ -62,6 +63,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="PlateCalculator" component={PlateCalculatorScreen} />
       <WorkoutsStack.Screen name="ProgramDetail" component={ProgramDetailScreen} />
       <WorkoutsStack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
+      <WorkoutsStack.Screen name="WeeklyPlan" component={WeeklyPlanScreen} />
     </WorkoutsStack.Navigator>
   );
 }

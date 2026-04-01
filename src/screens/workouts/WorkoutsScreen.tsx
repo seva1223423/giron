@@ -115,13 +115,20 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.lg }}>
         <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
-        <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); navigation.navigate('PlateCalculator'); }}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
-        >
-          <Text style={{ fontSize: 18 }}>🏋️</Text>
-          <Text style={[typography.small, { color: colors.primary }]}>Блины</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); navigation.navigate('WeeklyPlan'); }}
+          >
+            <Text style={[typography.small, { color: colors.textSecondary }]}>📅 План</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); navigation.navigate('PlateCalculator'); }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
+          >
+            <Text style={{ fontSize: 18 }}>🏋️</Text>
+            <Text style={[typography.small, { color: colors.primary }]}>Блины</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tabs */}

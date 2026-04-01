@@ -12,12 +12,21 @@ interface ActiveWorkout {
   restTimeRemaining: number;
 }
 
+export interface WeekPlanEntry {
+  name: string;
+  emoji: string;
+  exercises: string[]; // exercise IDs
+}
+
 interface WorkoutStore {
   programs: Program[];
   workoutHistory: Workout[];
   activeWorkout: ActiveWorkout | null;
   isLoadingPrograms: boolean;
   isLoadingHistory: boolean;
+  weekPlan: Record<number, WeekPlanEntry | null>; // 0=Mon … 6=Sun
+
+  setWeekPlanDay: (dow: number, entry: WeekPlanEntry | null) => void;
 
   // Programs
   setPrograms: (programs: Program[]) => void;
@@ -53,6 +62,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
       activeWorkout: null,
       isLoadingPrograms: false,
       isLoadingHistory: false,
+      weekPlan: {},
+
+      setWeekPlanDay: (dow, entry) => set((s) => ({
+        weekPlan: { ...s.weekPlan, [dow]: entry },
+      })),
 
       setPrograms: (programs) => set({ programs }),
       addProgram: (program) => set((s) => ({ programs: [...s.programs, program] })),
@@ -255,6 +269,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         programs: state.programs,
         workoutHistory: state.workoutHistory,
         activeWorkout: state.activeWorkout,
+        weekPlan: state.weekPlan,
       }),
     }
   )
