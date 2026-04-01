@@ -303,6 +303,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             setIndex={setIndex}
             onComplete={(reps, weight) => handleCompleteSet(setIndex, reps, weight)}
             onRpeChange={(rpe) => completeSet(currentExerciseIndex, setIndex, { rpe })}
+            onRemove={currentExercise.sets.length > 1 ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); removeSet(currentExerciseIndex, setIndex); } : undefined}
             colors={colors}
           />
         ))}
@@ -389,8 +390,9 @@ const SetRow: React.FC<{
   setIndex: number;
   onComplete: (reps: number, weight: number) => void;
   onRpeChange: (rpe: number) => void;
+  onRemove?: () => void;
   colors: any;
-}> = ({ set, setIndex, onComplete, onRpeChange, colors }) => {
+}> = ({ set, setIndex, onComplete, onRpeChange, onRemove, colors }) => {
   const [weight, setWeight] = useState(set.weight?.toString() || '');
   const [reps, setReps] = useState(set.reps?.toString() || '10');
   const [showRpe, setShowRpe] = useState(false);
@@ -403,9 +405,16 @@ const SetRow: React.FC<{
         { paddingVertical: spacing.sm },
       ]}
     >
-      <Text style={[typography.bodyMedium, { color: colors.textSecondary, width: 40 }]}>
-        {setIndex + 1}
-      </Text>
+      <TouchableOpacity
+        onLongPress={onRemove}
+        delayLongPress={500}
+        style={{ width: 40 }}
+        disabled={!onRemove}
+      >
+        <Text style={[typography.bodyMedium, { color: onRemove ? colors.textSecondary : colors.textTertiary }]}>
+          {setIndex + 1}
+        </Text>
+      </TouchableOpacity>
       <TextInput
         style={[
           styles.setInput,
