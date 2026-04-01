@@ -50,6 +50,8 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
   const [equipmentFilter, setEquipmentFilter] = useState('all');
+  const [programGoalFilter, setProgramGoalFilter] = useState<'all' | 'strength' | 'muscle' | 'fat_loss' | 'endurance'>('all');
+  const [programLevelFilter, setProgramLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
   const [loadingExercises, setLoadingExercises] = useState(false);
 
   useEffect(() => {
@@ -85,6 +87,15 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       return matchesSearch && matchesMuscle && matchesEquipment;
     }),
     [exerciseList, searchQuery, muscleFilter, equipmentFilter]
+  );
+
+  const filteredPrograms = useMemo(() =>
+    builtInPrograms.filter((p) => {
+      const matchesGoal = programGoalFilter === 'all' || p.goal === programGoalFilter;
+      const matchesLevel = programLevelFilter === 'all' || p.level === programLevelFilter;
+      return matchesGoal && matchesLevel;
+    }),
+    [programGoalFilter, programLevelFilter]
   );
 
   const createWorkoutFromTemplate = (template: typeof QUICK_WORKOUTS[0]) => {
@@ -223,10 +234,47 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
         {tab === 'programs' && (
           <>
-            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
-              Готовые программы от лучших методистов мира
-            </Text>
-            {builtInPrograms.map((program, i) => (
+            {/* Goal filter chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xs }}>
+              {([
+                { key: 'all', label: 'Все' },
+                { key: 'strength', label: '💪 Сила' },
+                { key: 'muscle', label: '📈 Масса' },
+                { key: 'fat_loss', label: '🔥 Похудение' },
+                { key: 'endurance', label: '🏃 Выносливость' },
+              ] as const).map((f) => (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => { Haptics.selectionAsync(); setProgramGoalFilter(f.key); }}
+                  style={[styles.filterChip, { backgroundColor: programGoalFilter === f.key ? colors.primary : colors.surface, borderColor: programGoalFilter === f.key ? colors.primary : colors.border }]}
+                >
+                  <Text style={[typography.captionMedium, { color: programGoalFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {/* Level filter chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.lg }} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xs }}>
+              {([
+                { key: 'all', label: 'Любой уровень' },
+                { key: 'beginner', label: 'Новичок' },
+                { key: 'intermediate', label: 'Средний' },
+                { key: 'advanced', label: 'Продвинутый' },
+              ] as const).map((f) => (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => { Haptics.selectionAsync(); setProgramLevelFilter(f.key); }}
+                  style={[styles.filterChip, { backgroundColor: programLevelFilter === f.key ? colors.accent : colors.surface, borderColor: programLevelFilter === f.key ? colors.accent : colors.border }]}
+                >
+                  <Text style={[typography.captionMedium, { color: programLevelFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {filteredPrograms.length === 0 && (
+              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xl }]}>
+                Нет программ с такими фильтрами
+              </Text>
+            )}
+            {filteredPrograms.map((program, i) => (
               <FadeIn key={program.id} delay={i * 60}>
                 <Card
                   style={{ marginBottom: spacing.md }}
