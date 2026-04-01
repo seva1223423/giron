@@ -551,21 +551,35 @@ const SetRow: React.FC<{
           <Text style={{ fontSize: 16 }}>🏋️</Text>
         </TouchableOpacity>
       )}
-      <TextInput
-        style={[
-          styles.setInput,
-          {
-            backgroundColor: colors.inputBackground,
-            borderColor: colors.inputBorder,
-            color: colors.text,
-          },
-        ]}
-        value={reps}
-        onChangeText={setReps}
-        keyboardType="numeric"
-        placeholder="10"
-        placeholderTextColor={colors.inputPlaceholder}
-      />
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync(); const v = parseInt(reps) || 0; setReps(String(Math.max(1, v - 1))); }}
+          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+        >
+          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
+        </TouchableOpacity>
+        <TextInput
+          style={[
+            styles.setInput,
+            {
+              backgroundColor: colors.inputBackground,
+              borderColor: colors.inputBorder,
+              color: colors.text,
+            },
+          ]}
+          value={reps}
+          onChangeText={setReps}
+          keyboardType="numeric"
+          placeholder="10"
+          placeholderTextColor={colors.inputPlaceholder}
+        />
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync(); const v = parseInt(reps) || 0; setReps(String(v + 1)); }}
+          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+        >
+          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity
         style={[
           styles.checkBtn,
