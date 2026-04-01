@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, TextInput, Modal, Alert, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore, useAuthStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+import { userService } from '../../services';
+import { BodyWeight } from '../../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_WIDTH = SCREEN_WIDTH - spacing.xl * 2 - spacing.lg * 2;
@@ -155,7 +157,50 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
   const { user } = useAuthStore();
-  const [tab, setTab] = useState<'overview' | 'calendar' | 'records'>('overview');
+  const [tab, setTab] = useState<'overview' | 'calendar' | 'records' | 'weight'>('overview');
+
+  // Body weight state
+  const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
+  const [loadingWeight, setLoadingWeight] = useState(false);
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [newWeight, setNewWeight] = useState('');
+  const [savingWeight, setSavingWeight] = useState(false);
+
+  const fetchWeightHistory = useCallback(async () => {
+    setLoadingWeight(true);
+    try {
+      const data = await userService.getWeightHistory();
+      setWeightHistory(data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingWeight(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'weight') fetchWeightHistory();
+  }, [tab, fetchWeightHistory]);
+
+  const handleAddWeight = async () => {
+    const kg = parseFloat(newWeight.replace(',', '.'));
+    if (!kg || kg < 20 || kg > 300) {
+      Alert.alert('Ошибка', 'Введи корректный вес (20–300 кг)');
+      return;
+    }
+    setSavingWeight(true);
+    try {
+      await userService.addWeight(kg);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowWeightModal(false);
+      setNewWeight('');
+      await fetchWeightHistory();
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось сохранить вес');
+    } finally {
+      setSavingWeight(false);
+    }
+  };
 
   const totalWorkouts = workoutHistory.length;
   const totalVolume = workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0);
@@ -336,6 +381,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     { key: 'overview', label: 'Обзор' },
     { key: 'calendar', label: 'Календарь' },
     { key: 'records', label: 'Рекорды' },
+    { key: 'weight', label: 'Вес тела' },
   ] as const;
 
   const MONTH_NAMES = [
@@ -631,7 +677,143 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             )}
           </>
         )}
+
+        {tab === 'weight' && (
+          <>
+            {/* Current weight + add button */}
+            <FadeIn delay={0}>
+              <Card style={{ marginBottom: spacing.lg }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]}>Текущий вес</Text>
+                    <Text style={[typography.h1, { color: colors.primary, marginTop: 2 }]}>
+                      {weightHistory.length > 0
+                        ? `${weightHistory[weightHistory.length - 1].weightKg} кг`
+                        : user?.weightKg ? `${user.weightKg} кг` : '— кг'}
+                    </Text>
+                    {weightHistory.length >= 2 && (() => {
+                      const diff = weightHistory[weightHistory.length - 1].weightKg - weightHistory[weightHistory.length - 2].weightKg;
+                      const sign = diff > 0 ? '+' : '';
+                      const color = diff < 0 ? colors.success : diff > 0 ? colors.error : colors.textSecondary;
+                      return (
+                        <Text style={[typography.small, { color, marginTop: 2 }]}>
+                          {sign}{diff.toFixed(1)} кг с прошлого замера
+                        </Text>
+                      );
+                    })()}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowWeightModal(true); }}
+                    style={[styles.addWeightBtn, { backgroundColor: colors.primary }]}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 22, lineHeight: 26 }}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            </FadeIn>
+
+            {/* Weight chart */}
+            {loadingWeight ? (
+              <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+            ) : weightHistory.length >= 2 ? (
+              <FadeIn delay={100}>
+                <Card style={{ marginBottom: spacing.lg }}>
+                  <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+                    Динамика веса
+                  </Text>
+                  <LineChart
+                    data={weightHistory.slice(-12).map((w) => ({
+                      label: new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+                      value: w.weightKg,
+                    }))}
+                    color={colors.primary}
+                    colors={colors}
+                    suffix=" кг"
+                    height={140}
+                  />
+                </Card>
+              </FadeIn>
+            ) : weightHistory.length === 0 && !loadingWeight ? (
+              <FadeIn delay={100}>
+                <Card style={{ marginBottom: spacing.lg }}>
+                  <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                    Добавь первый замер, чтобы отслеживать динамику
+                  </Text>
+                </Card>
+              </FadeIn>
+            ) : null}
+
+            {/* Weight history list */}
+            {weightHistory.length > 0 && (
+              <FadeIn delay={200}>
+                <Card>
+                  <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+                    История замеров
+                  </Text>
+                  {[...weightHistory].reverse().slice(0, 20).map((entry, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm },
+                        i < Math.min(weightHistory.length, 20) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
+                      ]}
+                    >
+                      <Text style={[typography.body, { color: colors.text }]}>
+                        {new Date(entry.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                      </Text>
+                      <Text style={[typography.bodySemibold, { color: colors.primary }]}>
+                        {entry.weightKg} кг
+                      </Text>
+                    </View>
+                  ))}
+                </Card>
+              </FadeIn>
+            )}
+          </>
+        )}
       </ScrollView>
+
+      {/* Add weight modal */}
+      <Modal visible={showWeightModal} transparent animationType="fade" onRequestClose={() => setShowWeightModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Card style={styles.modalCard}>
+            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.md }]}>
+              Записать вес
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <TextInput
+                style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+                value={newWeight}
+                onChangeText={setNewWeight}
+                placeholder="85.5"
+                placeholderTextColor={colors.inputPlaceholder}
+                keyboardType="decimal-pad"
+                autoFocus
+                maxLength={6}
+              />
+              <Text style={[typography.h4, { color: colors.textSecondary }]}>кг</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
+              <TouchableOpacity
+                onPress={() => { setShowWeightModal(false); setNewWeight(''); }}
+                style={[styles.modalBtn, { backgroundColor: colors.surface, flex: 1 }]}
+              >
+                <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleAddWeight}
+                disabled={savingWeight}
+                style={[styles.modalBtn, { backgroundColor: colors.primary, flex: 1 }]}
+              >
+                {savingWeight
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={[typography.bodyMedium, { color: '#fff' }]}>Сохранить</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </Card>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -655,4 +837,34 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   workoutDot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
+  addWeightBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modalCard: { padding: spacing.xl },
+  weightInput: {
+    flex: 1,
+    height: 52,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  modalBtn: {
+    height: 48,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
