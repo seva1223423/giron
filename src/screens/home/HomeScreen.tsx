@@ -514,7 +514,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View>
               <Text style={[typography.h4, { color: colors.text }]}>Вода</Text>
               <Text style={[typography.small, { color: colors.textSecondary }]}>
-                {dayLog.waterMl} / 2500 мл
+                {dayLog.waterMl} / {dayLog.waterTargetMl ?? 2500} мл
               </Text>
             </View>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -536,7 +536,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 height: 6,
                 borderRadius: 3,
                 backgroundColor: colors.info,
-                width: `${Math.min((dayLog.waterMl / 2500) * 100, 100)}%`,
+                width: `${Math.min((dayLog.waterMl / (dayLog.waterTargetMl ?? 2500)) * 100, 100)}%`,
               }}
             />
           </View>
