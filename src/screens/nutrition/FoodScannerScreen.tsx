@@ -2,8 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useThemeStore, useNutritionStore } from '../../store';
-import { Button, Card } from '../../components';
+import { useThemeStore, useNutritionStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
+import { Button, Card, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { NutritionItem, Meal } from '../../types';
@@ -25,6 +25,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('lunch');
   const [error, setError] = useState('');
 
+  // Subscription gating
+  const { consumeFoodScan, foodScansLeft, isPremiumActive } = useSubscriptionStore();
+  const [showPaywall, setShowPaywall] = useState(false);
+
   // Barcode scanner
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
@@ -32,6 +36,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [barcodeLoading, setBarcodeLoading] = useState(false);
 
   const pickImage = async (useCamera: boolean) => {
+    const allowed = consumeFoodScan();
+    if (!allowed) { setShowPaywall(true); return; }
+
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -66,6 +73,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const lookupBarcode = async (barcode: string) => {
+    const allowed = consumeFoodScan();
+    if (!allowed) { setShowBarcodeScanner(false); setShowPaywall(true); return; }
     setBarcodeLoading(true);
     try {
       const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
@@ -205,9 +214,23 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[typography.h2, { color: colors.text, marginBottom: spacing.lg }]}>
-        КБЖУ по фото
-      </Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+        <Text style={[typography.h2, { color: colors.text }]}>
+          КБЖУ по фото
+        </Text>
+        {!isPremiumActive() && (
+          <View style={[styles.scanCountBadge, { backgroundColor: foodScansLeft() === 0 ? colors.error + '20' : colors.accent + '15' }]}>
+            <Text style={[typography.caption, { color: foodScansLeft() === 0 ? colors.error : colors.accent, fontWeight: '700' }]}>
+              {foodScansLeft() === 0 ? 'Лимит' : `${foodScansLeft()}/${FREE_LIMITS.FOOD_SCANS_PER_DAY}`} сканов
+            </Text>
+          </View>
+        )}
+        {isPremiumActive() && (
+          <View style={[styles.scanCountBadge, { backgroundColor: colors.accent + '15' }]}>
+            <Text style={[typography.caption, { color: colors.accent, fontWeight: '700' }]}>∞ Pro</Text>
+          </View>
+        )}
+      </View>
 
       {/* Image area */}
       {imageUri ? (
@@ -396,6 +419,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       )}
     </ScrollView>
 
+    <PaywallModal
+      visible={showPaywall}
+      onClose={() => setShowPaywall(false)}
+      reason="food_scan_limit"
+      navigation={navigation}
+    />
+
     {/* Barcode scanner modal */}
     <Modal visible={showBarcodeScanner} animationType="slide" statusBarTranslucent>
       <View style={[styles.barcodeModal, { backgroundColor: '#000' }]}>
@@ -486,6 +516,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
+  },
+  scanCountBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
   },
   barcodeBtn: {
     flexDirection: 'row',

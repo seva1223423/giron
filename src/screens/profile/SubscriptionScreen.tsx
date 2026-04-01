@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore } from '../../store';
+import { useThemeStore, useSubscriptionStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -48,14 +48,42 @@ const PLANS = [
 
 export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
+  const { isPremiumActive, activatePremium, deactivatePremium, markTrialUsed, trialUsed } = useSubscriptionStore();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const isActivePro = isPremiumActive();
 
   const handleSubscribe = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // TODO: Integrate RevenueCat / ЮKassa for real payment processing
+    // For now: activate premium locally as a demo/trial
+    const daysToAdd = trialUsed ? (selectedPlan === 'annual' ? 365 : 30) : 7;
+    const expiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+    activatePremium(expiresAt);
+    markTrialUsed();
     Alert.alert(
-      'Скоро!',
-      'Подписка будет доступна в ближайшем обновлении. Сейчас все функции Iron Gym Pro открыты бесплатно!',
+      '🎉 Iron Gym Pro активирован!',
+      trialUsed
+        ? `Подписка активна на ${daysToAdd} дней`
+        : 'Пробный период 7 дней активирован. Все функции Pro открыты!',
       [{ text: 'Отлично!', onPress: () => navigation.goBack() }]
+    );
+  };
+
+  const handleCancelPremium = () => {
+    Alert.alert(
+      'Отменить подписку?',
+      'Вы потеряете доступ к Pro-функциям.',
+      [
+        { text: 'Не отменять', style: 'cancel' },
+        {
+          text: 'Отменить',
+          style: 'destructive',
+          onPress: () => {
+            deactivatePremium();
+            Alert.alert('Подписка отменена', 'Доступ к Pro будет до конца оплаченного периода.');
+          },
+        },
+      ]
     );
   };
 
@@ -81,15 +109,28 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
         {/* Hero */}
         <FadeIn delay={0}>
           <View style={styles.hero}>
-            <View style={[styles.crownBadge, { backgroundColor: colors.accent + '20' }]}>
-              <Text style={{ fontSize: 40 }}>👑</Text>
+            <View style={[styles.crownBadge, { backgroundColor: isActivePro ? colors.accent + '30' : colors.accent + '20' }]}>
+              <Text style={{ fontSize: 40 }}>{isActivePro ? '✨' : '👑'}</Text>
             </View>
-            <Text style={[typography.h1, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>
-              Раскрой полный{'\n'}потенциал
-            </Text>
-            <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
-              Iron Coach, аналитика и программы{'\n'}без ограничений
-            </Text>
+            {isActivePro ? (
+              <>
+                <Text style={[typography.h1, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>
+                  Iron Gym Pro{'\n'}активен
+                </Text>
+                <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
+                  Все функции открыты без ограничений
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[typography.h1, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>
+                  Раскрой полный{'\n'}потенциал
+                </Text>
+                <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
+                  Iron Coach, аналитика и программы{'\n'}без ограничений
+                </Text>
+              </>
+            )}
           </View>
         </FadeIn>
 
@@ -142,15 +183,32 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
 
         {/* CTA */}
         <FadeIn delay={150}>
-          <Button
-            title={`Начать бесплатный период — 7 дней`}
-            onPress={handleSubscribe}
-            fullWidth
-            style={{ marginTop: spacing.lg }}
-          />
-          <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.sm }]}>
-            Затем {selectedPlan === 'annual' ? '1 990₽/год' : '299₽/мес'} · Отмена в любой момент
-          </Text>
+          {isActivePro ? (
+            <>
+              <View style={[styles.activeProBadge, { backgroundColor: colors.success + '18', borderColor: colors.success + '40' }]}>
+                <Text style={{ fontSize: 18 }}>✅</Text>
+                <Text style={[typography.bodySemibold, { color: colors.success }]}>Pro активен</Text>
+              </View>
+              <TouchableOpacity onPress={handleCancelPremium} style={{ alignItems: 'center', marginTop: spacing.lg }}>
+                <Text style={[typography.small, { color: colors.textTertiary }]}>Отменить подписку</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Button
+                title={trialUsed ? `Оформить подписку` : `Начать бесплатный период — 7 дней`}
+                onPress={handleSubscribe}
+                fullWidth
+                style={{ marginTop: spacing.lg }}
+              />
+              <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.sm }]}>
+                {trialUsed
+                  ? `${selectedPlan === 'annual' ? '1 990₽/год' : '299₽/мес'} · Отмена в любой момент`
+                  : `Затем ${selectedPlan === 'annual' ? '1 990₽/год' : '299₽/мес'} · Отмена в любой момент`
+                }
+              </Text>
+            </>
+          )}
         </FadeIn>
 
         {/* Features comparison */}
@@ -289,5 +347,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xxl,
     marginBottom: spacing.lg,
+  },
+  activeProBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
   },
 });

@@ -11,8 +11,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
-import { FadeIn } from '../../components';
+import { useThemeStore, useAuthStore, useWorkoutStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
+import { FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { ChatMessage } from '../../types';
@@ -46,10 +46,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       createdAt: new Date().toISOString(),
     },
   ]);
+  const { consumeAiMessage, aiMessagesLeft, isPremiumActive } = useSubscriptionStore();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [lastActions, setLastActions] = useState<AIActionResult[]>([]);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Load chat history from server
   useEffect(() => {
@@ -78,6 +80,14 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
+
+    // Check daily limit for free users
+    const allowed = consumeAiMessage();
+    if (!allowed) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setShowPaywall(true);
+      return;
+    }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -195,12 +205,26 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Text style={[typography.h3, { color: colors.text }]}>Iron Coach</Text>
             <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
+            {isPremiumActive() && (
+              <View style={[styles.proBadge, { backgroundColor: colors.accent }]}>
+                <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' }}>PRO</Text>
+              </View>
+            )}
           </View>
           <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2 }]}>
-            Персональный ИИ-тренер
+            {isPremiumActive()
+              ? 'Безлимитный доступ'
+              : `Осталось ${aiMessagesLeft()} из ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}
           </Text>
         </View>
       </View>
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        reason="ai_limit"
+        navigation={navigation}
+      />
 
       {/* Messages */}
       <ScrollView
@@ -363,6 +387,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  proBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   messagesContainer: {
     padding: spacing.xl,

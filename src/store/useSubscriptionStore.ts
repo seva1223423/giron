@@ -1,0 +1,142 @@
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const FREE_AI_MESSAGES_PER_DAY = 10;
+const FREE_FOOD_SCANS_PER_DAY = 5;
+
+function todayDateStr(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+interface SubscriptionStore {
+  isPremium: boolean;
+  premiumExpiresAt: string | null; // ISO date string
+  trialUsed: boolean;
+
+  // Daily usage counters (reset each day)
+  aiMessagesUsedToday: number;
+  aiMessagesDate: string | null; // YYYY-MM-DD
+  foodScansUsedToday: number;
+  foodScansDate: string | null; // YYYY-MM-DD
+
+  // Actions
+  activatePremium: (expiresAt: string) => void;
+  deactivatePremium: () => void;
+  markTrialUsed: () => void;
+
+  // Counters — return true if allowed, false if limit exceeded
+  canSendAiMessage: () => boolean;
+  consumeAiMessage: () => boolean;
+  canScanFood: () => boolean;
+  consumeFoodScan: () => boolean;
+
+  // Getters
+  aiMessagesLeft: () => number;
+  foodScansLeft: () => number;
+  isPremiumActive: () => boolean;
+}
+
+export const useSubscriptionStore = create<SubscriptionStore>()(
+  persist(
+    (set, get) => ({
+      isPremium: false,
+      premiumExpiresAt: null,
+      trialUsed: false,
+
+      aiMessagesUsedToday: 0,
+      aiMessagesDate: null,
+      foodScansUsedToday: 0,
+      foodScansDate: null,
+
+      activatePremium: (expiresAt) =>
+        set({ isPremium: true, premiumExpiresAt: expiresAt, trialUsed: true }),
+
+      deactivatePremium: () =>
+        set({ isPremium: false, premiumExpiresAt: null }),
+
+      markTrialUsed: () => set({ trialUsed: true }),
+
+      isPremiumActive: () => {
+        const { isPremium, premiumExpiresAt } = get();
+        if (!isPremium) return false;
+        if (!premiumExpiresAt) return true;
+        return new Date(premiumExpiresAt) > new Date();
+      },
+
+      canSendAiMessage: () => {
+        if (get().isPremiumActive()) return true;
+        const today = todayDateStr();
+        const { aiMessagesDate, aiMessagesUsedToday } = get();
+        if (aiMessagesDate !== today) return true; // new day, counter will reset
+        return aiMessagesUsedToday < FREE_AI_MESSAGES_PER_DAY;
+      },
+
+      consumeAiMessage: () => {
+        if (get().isPremiumActive()) return true;
+        const today = todayDateStr();
+        const { aiMessagesDate, aiMessagesUsedToday } = get();
+
+        const used = aiMessagesDate === today ? aiMessagesUsedToday : 0;
+        if (used >= FREE_AI_MESSAGES_PER_DAY) return false;
+
+        set({ aiMessagesUsedToday: used + 1, aiMessagesDate: today });
+        return true;
+      },
+
+      canScanFood: () => {
+        if (get().isPremiumActive()) return true;
+        const today = todayDateStr();
+        const { foodScansDate, foodScansUsedToday } = get();
+        if (foodScansDate !== today) return true;
+        return foodScansUsedToday < FREE_FOOD_SCANS_PER_DAY;
+      },
+
+      consumeFoodScan: () => {
+        if (get().isPremiumActive()) return true;
+        const today = todayDateStr();
+        const { foodScansDate, foodScansUsedToday } = get();
+
+        const used = foodScansDate === today ? foodScansUsedToday : 0;
+        if (used >= FREE_FOOD_SCANS_PER_DAY) return false;
+
+        set({ foodScansUsedToday: used + 1, foodScansDate: today });
+        return true;
+      },
+
+      aiMessagesLeft: () => {
+        if (get().isPremiumActive()) return Infinity;
+        const today = todayDateStr();
+        const { aiMessagesDate, aiMessagesUsedToday } = get();
+        const used = aiMessagesDate === today ? aiMessagesUsedToday : 0;
+        return Math.max(0, FREE_AI_MESSAGES_PER_DAY - used);
+      },
+
+      foodScansLeft: () => {
+        if (get().isPremiumActive()) return Infinity;
+        const today = todayDateStr();
+        const { foodScansDate, foodScansUsedToday } = get();
+        const used = foodScansDate === today ? foodScansUsedToday : 0;
+        return Math.max(0, FREE_FOOD_SCANS_PER_DAY - used);
+      },
+    }),
+    {
+      name: 'iron-gym-subscription',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        isPremium: state.isPremium,
+        premiumExpiresAt: state.premiumExpiresAt,
+        trialUsed: state.trialUsed,
+        aiMessagesUsedToday: state.aiMessagesUsedToday,
+        aiMessagesDate: state.aiMessagesDate,
+        foodScansUsedToday: state.foodScansUsedToday,
+        foodScansDate: state.foodScansDate,
+      }),
+    }
+  )
+);
+
+export const FREE_LIMITS = {
+  AI_MESSAGES_PER_DAY: FREE_AI_MESSAGES_PER_DAY,
+  FOOD_SCANS_PER_DAY: FREE_FOOD_SCANS_PER_DAY,
+};
