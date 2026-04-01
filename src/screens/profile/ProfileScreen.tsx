@@ -217,6 +217,25 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         />
       </Card>
 
+      {/* Trainer mode */}
+      <Card style={{ marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.primary + '40' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+          <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🏋️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.h4, { color: colors.text }]}>Режим тренера</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+              Управляй клиентами, назначай программы и отслеживай прогресс
+            </Text>
+          </View>
+        </View>
+        <Button
+          title="Открыть кабинет тренера"
+          variant="outline"
+          onPress={() => navigation.navigate('TrainerDashboard')}
+          fullWidth
+        />
+      </Card>
+
       {/* Logout */}
       <Button
         title="Выйти из аккаунта"

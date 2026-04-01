@@ -31,6 +31,8 @@ import { AIChatScreen } from '../screens/ai/AIChatScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { SubscriptionScreen } from '../screens/profile/SubscriptionScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
+import { TrainerDashboardScreen } from '../screens/trainer/TrainerDashboardScreen';
+import { TrainerClientScreen } from '../screens/trainer/TrainerClientScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -87,6 +89,8 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
+      <ProfileStack.Screen name="TrainerDashboard" component={TrainerDashboardScreen} />
+      <ProfileStack.Screen name="TrainerClient" component={TrainerClientScreen} />
     </ProfileStack.Navigator>
   );
 }

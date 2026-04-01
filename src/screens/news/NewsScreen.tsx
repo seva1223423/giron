@@ -206,7 +206,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
                 Абсолютный рекорд России в экипировочном пауэрлифтинге
               </Text>
-            </Card>
+            </Card>}
 
             {filteredNews.length === 0 && activeCategory === 'saved' && (
               <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>

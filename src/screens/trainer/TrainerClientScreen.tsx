@@ -1,0 +1,340 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+} from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useThemeStore } from '../../store';
+import { Card, Button } from '../../components';
+import { typography } from '../../theme';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { TrainerClient } from './TrainerDashboardScreen';
+
+const PROGRAMS = [
+  'Толчок-Тяга-Ноги',
+  'Верх / Низ',
+  'Стартовая сила',
+  'Бро-сплит',
+  'Фулбоди',
+  'Кардио + Тонус',
+];
+
+const GOAL_LABELS: Record<string, string> = {
+  weight_loss: 'Похудение',
+  muscle_gain: 'Набор массы',
+  strength: 'Сила',
+  endurance: 'Выносливость',
+  general_fitness: 'Общая форма',
+};
+
+const LEVEL_LABELS: Record<string, string> = {
+  beginner: 'Новичок',
+  intermediate: 'Средний',
+  advanced: 'Продвинутый',
+  expert: 'Эксперт',
+};
+
+export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+  const { colors } = useThemeStore();
+  const [client, setClient] = useState<TrainerClient>(route.params?.client);
+  const [showProgramPicker, setShowProgramPicker] = useState(false);
+  const [notes, setNotes] = useState(client.notes || '');
+  const [notesEditing, setNotesEditing] = useState(false);
+
+  if (!client) { navigation.goBack(); return null; }
+
+  const handleAssignProgram = (program: string) => {
+    Haptics.selectionAsync();
+    setClient((prev) => ({ ...prev, assignedProgram: program }));
+    setShowProgramPicker(false);
+  };
+
+  const handleSaveNotes = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setClient((prev) => ({ ...prev, notes }));
+    setNotesEditing(false);
+  };
+
+  const age = client.age ? `${client.age} лет` : null;
+  const goal = client.goal ? GOAL_LABELS[client.goal] ?? client.goal : null;
+  const level = client.level ? LEVEL_LABELS[client.level] ?? client.level : null;
+
+  // Fake workout history for demo
+  const fakeHistory = [
+    { date: '2026-04-01', name: 'Толчок — Грудь + Трицепс', duration: 68, volume: 8400 },
+    { date: '2026-03-30', name: 'Тяга — Спина + Бицепс', duration: 72, volume: 7200 },
+    { date: '2026-03-28', name: 'Ноги', duration: 80, volume: 12600 },
+    { date: '2026-03-26', name: 'Толчок — Грудь + Трицепс', duration: 65, volume: 7900 },
+  ];
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
+        </TouchableOpacity>
+        <Text style={[typography.h3, { color: colors.text }]} numberOfLines={1}>{client.name}</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Profile card */}
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={{ fontSize: 32 }}>{client.emoji || '🧑'}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <Text style={[typography.h4, { color: colors.text }]}>{client.name}</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: 4, flexWrap: 'wrap' }}>
+                {age && <Text style={[typography.caption, { color: colors.textSecondary }]}>{age}</Text>}
+                {client.phone && <Text style={[typography.caption, { color: colors.textSecondary }]}>{client.phone}</Text>}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.tagsRow}>
+            {goal && (
+              <View style={[styles.tag, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[typography.caption, { color: colors.primary }]}>🎯 {goal}</Text>
+              </View>
+            )}
+            {level && (
+              <View style={[styles.tag, { backgroundColor: colors.accent + '15' }]}>
+                <Text style={[typography.caption, { color: colors.accent }]}>📊 {level}</Text>
+              </View>
+            )}
+            {client.totalWorkouts !== undefined && (
+              <View style={[styles.tag, { backgroundColor: colors.success + '15' }]}>
+                <Text style={[typography.caption, { color: colors.success }]}>💪 {client.totalWorkouts} тренировок</Text>
+              </View>
+            )}
+          </View>
+        </Card>
+
+        {/* Assigned Program */}
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+            <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>ПРОГРАММА ТРЕНИРОВОК</Text>
+            <TouchableOpacity
+              onPress={() => { Haptics.selectionAsync(); setShowProgramPicker(true); }}
+              style={[styles.editBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}
+            >
+              <Text style={[typography.caption, { color: colors.primary }]}>Изменить</Text>
+            </TouchableOpacity>
+          </View>
+          {client.assignedProgram ? (
+            <Text style={[typography.bodySemibold, { color: colors.text }]}>
+              📋 {client.assignedProgram}
+            </Text>
+          ) : (
+            <Text style={[typography.body, { color: colors.textTertiary }]}>Программа не назначена</Text>
+          )}
+        </Card>
+
+        {/* Notes */}
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+            <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>ЗАМЕТКИ ТРЕНЕРА</Text>
+            {!notesEditing ? (
+              <TouchableOpacity
+                onPress={() => setNotesEditing(true)}
+                style={[styles.editBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>✎ Редактировать</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSaveNotes}
+                style={[styles.editBtn, { backgroundColor: colors.success + '20', borderColor: colors.success + '40' }]}
+              >
+                <Text style={[typography.caption, { color: colors.success }]}>✓ Сохранить</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {notesEditing ? (
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
+              placeholder="Особенности клиента, противопоказания, цели..."
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.notesInput, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
+              autoFocus
+            />
+          ) : (
+            <Text style={[typography.body, { color: client.notes ? colors.text : colors.textTertiary }]}>
+              {client.notes || 'Нет заметок'}
+            </Text>
+          )}
+        </Card>
+
+        {/* Recent workouts */}
+        <Card style={{ marginBottom: spacing.lg }}>
+          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+            ПОСЛЕДНИЕ ТРЕНИРОВКИ
+          </Text>
+          {fakeHistory.map((w, i) => (
+            <View
+              key={i}
+              style={[
+                styles.workoutRow,
+                i < fakeHistory.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name}</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  {new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                  {'  •  '}
+                  {w.duration} мин
+                </Text>
+              </View>
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>
+                {(w.volume / 1000).toFixed(1)} т
+              </Text>
+            </View>
+          ))}
+        </Card>
+
+        {/* Quick stats */}
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.huge }}>
+          <Card style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[typography.number, { color: colors.primary, fontSize: 24 }]}>
+              {Math.round(fakeHistory.reduce((s, w) => s + w.duration, 0) / fakeHistory.length)}
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>ср. мин</Text>
+          </Card>
+          <Card style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[typography.number, { color: colors.success, fontSize: 24 }]}>
+              {((fakeHistory.reduce((s, w) => s + w.volume, 0) / fakeHistory.length) / 1000).toFixed(1)}т
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>ср. объём</Text>
+          </Card>
+          <Card style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[typography.number, { color: colors.accent, fontSize: 24 }]}>4</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>трен/нед</Text>
+          </Card>
+        </View>
+      </ScrollView>
+
+      {/* Program picker modal */}
+      <Modal visible={showProgramPicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
+              Назначить программу
+            </Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 320 }}>
+              {PROGRAMS.map((program) => {
+                const isActive = client.assignedProgram === program;
+                return (
+                  <TouchableOpacity
+                    key={program}
+                    onPress={() => handleAssignProgram(program)}
+                    style={[styles.programRow, { borderBottomColor: colors.divider }]}
+                  >
+                    <Text style={[typography.body, { color: isActive ? colors.primary : colors.text, flex: 1 }]}>
+                      📋 {program}
+                    </Text>
+                    {isActive && <Text style={{ color: colors.primary }}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                onPress={() => { Haptics.selectionAsync(); setClient((prev) => ({ ...prev, assignedProgram: undefined })); setShowProgramPicker(false); }}
+                style={[styles.programRow, { borderBottomColor: colors.divider }]}
+              >
+                <Text style={[typography.body, { color: colors.textSecondary }]}>Убрать программу</Text>
+              </TouchableOpacity>
+            </ScrollView>
+            <Button
+              title="Отмена"
+              variant="ghost"
+              onPress={() => setShowProgramPicker(false)}
+              fullWidth
+              style={{ marginTop: spacing.md }}
+            />
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 56,
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderBottomWidth: 1,
+  },
+  content: {
+    padding: spacing.xl,
+    paddingBottom: spacing.huge,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  tag: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+  },
+  editBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  workoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    fontSize: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: spacing.xl,
+    paddingBottom: 48,
+  },
+  programRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+  },
+});

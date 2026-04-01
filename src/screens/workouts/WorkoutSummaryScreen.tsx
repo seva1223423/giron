@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, Share } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, Share, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -11,6 +13,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
   const workout: Workout = route.params?.workout;
+  const shareCardRef = useRef<View>(null);
 
   // Detect new personal records: compare this workout's 1RM per exercise vs history
   const newPRs = useMemo(() => {
@@ -108,19 +111,40 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const lines: string[] = [];
-    lines.push(`🏋️ ${workout.name}`);
-    lines.push(`⏱ ${workout.durationMinutes || 0} мин  •  📦 ${((workout.totalVolume || 0) / 1000).toFixed(1)} т`);
-    lines.push(`${workout.exercises.length} упражнений  •  ${totalSets} подходов  •  ${totalReps} повторений`);
-    if (newPRs.length > 0) {
-      lines.push('');
-      lines.push(`🏆 Личные рекорды (${newPRs.length}):`);
-      newPRs.forEach((pr) => lines.push(`  • ${pr.name}: ${pr.weight}кг × ${pr.reps} = ~${pr.est1rm}кг 1ПМ`));
+    try {
+      const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95, result: 'tmpfile' });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Поделиться тренировкой' });
+      } else {
+        // Fallback: text share
+        const lines: string[] = [];
+        lines.push(`🏋️ ${workout.name}`);
+        lines.push(`⏱ ${workout.durationMinutes || 0} мин  •  📦 ${((workout.totalVolume || 0) / 1000).toFixed(1)} т`);
+        lines.push(`${workout.exercises.length} упражнений  •  ${totalSets} подходов  •  ${totalReps} повторений`);
+        if (newPRs.length > 0) {
+          lines.push('');
+          lines.push(`🏆 Личные рекорды (${newPRs.length}):`);
+          newPRs.forEach((pr) => lines.push(`  • ${pr.name}: ${pr.weight}кг × ${pr.reps} = ~${pr.est1rm}кг 1ПМ`));
+        }
+        lines.push('');
+        lines.push('Тренировки с Iron Gym 💪');
+        await Share.share({ message: lines.join('\n') });
+      }
+    } catch {
+      // Fallback to text share on error
+      const lines: string[] = [];
+      lines.push(`🏋️ ${workout.name}`);
+      lines.push(`⏱ ${workout.durationMinutes || 0} мин  •  📦 ${((workout.totalVolume || 0) / 1000).toFixed(1)} т`);
+      lines.push(`${workout.exercises.length} упражнений  •  ${totalSets} подходов`);
+      lines.push('Тренировки с Iron Gym 💪');
+      await Share.share({ message: lines.join('\n') });
     }
-    lines.push('');
-    lines.push('Тренировки с Iron Gym 💪');
-    await Share.share({ message: lines.join('\n') });
   };
+
+  const dateStr = workout.completedAt
+    ? new Date(workout.completedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <ScrollView
@@ -374,6 +398,93 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
           />
         </View>
       </FadeIn>
+
+      {/* Hidden share card — captured as image */}
+      <View style={styles.shareCardWrapper}>
+        <View ref={shareCardRef} style={styles.shareCard} collapsable={false}>
+          {/* Background */}
+          <View style={StyleSheet.absoluteFillObject}>
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0D0D0D' }]} />
+            {/* Decorative gradient circle */}
+            <View style={styles.shareCardGlow} />
+          </View>
+
+          {/* Header */}
+          <View style={styles.shareCardHeader}>
+            <Text style={styles.shareCardBrand}>IRON GYM</Text>
+            <Text style={styles.shareCardDate}>{dateStr}</Text>
+          </View>
+
+          {/* Workout title */}
+          <Text style={styles.shareCardTitle}>{workout.name}</Text>
+
+          {/* PR badge */}
+          {newPRs.length > 0 && (
+            <View style={styles.shareCardPRBadge}>
+              <Text style={styles.shareCardPRText}>
+                🏆 {newPRs.length === 1 ? 'ЛИЧНЫЙ РЕКОРД' : `${newPRs.length} ЛИЧНЫХ РЕКОРДА`}
+              </Text>
+            </View>
+          )}
+
+          {/* Stats row */}
+          <View style={styles.shareCardStats}>
+            <View style={styles.shareCardStat}>
+              <Text style={styles.shareCardStatValue}>{workout.durationMinutes || 0}</Text>
+              <Text style={styles.shareCardStatLabel}>МИН</Text>
+            </View>
+            <View style={styles.shareCardStatDivider} />
+            <View style={styles.shareCardStat}>
+              <Text style={styles.shareCardStatValue}>{workout.exercises.length}</Text>
+              <Text style={styles.shareCardStatLabel}>УПРАЖ.</Text>
+            </View>
+            <View style={styles.shareCardStatDivider} />
+            <View style={styles.shareCardStat}>
+              <Text style={styles.shareCardStatValue}>{totalSets}</Text>
+              <Text style={styles.shareCardStatLabel}>ПОДХОДОВ</Text>
+            </View>
+            <View style={styles.shareCardStatDivider} />
+            <View style={styles.shareCardStat}>
+              <Text style={[styles.shareCardStatValue, { color: '#E8F5E9' }]}>
+                {((workout.totalVolume || 0) / 1000).toFixed(1)}т
+              </Text>
+              <Text style={styles.shareCardStatLabel}>ОБЪЁМ</Text>
+            </View>
+          </View>
+
+          {/* Exercises list (top 4) */}
+          <View style={styles.shareCardExercises}>
+            {workout.exercises.slice(0, 4).map((ex, i) => {
+              const completedSets = ex.sets.filter((s) => s.completed);
+              const topSet = completedSets.reduce<{ weight: number; reps: number } | null>((best, s) => {
+                const v = (s.weight || 0) * (s.reps || 0);
+                return !best || v > (best.weight * best.reps) ? { weight: s.weight || 0, reps: s.reps || 0 } : best;
+              }, null);
+              const isPR = newPRs.some((pr) => pr.name === ex.exercise.name);
+              return (
+                <View key={i} style={styles.shareCardExRow}>
+                  <Text style={styles.shareCardExName} numberOfLines={1}>
+                    {isPR ? '🏆 ' : ''}{ex.exercise.name}
+                  </Text>
+                  {topSet && (
+                    <Text style={styles.shareCardExSet}>
+                      {topSet.weight}×{topSet.reps}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+            {workout.exercises.length > 4 && (
+              <Text style={styles.shareCardMore}>+{workout.exercises.length - 4} упражнений</Text>
+            )}
+          </View>
+
+          {/* Footer */}
+          <View style={styles.shareCardFooter}>
+            <Text style={styles.shareCardFooterText}>iron-gym.app</Text>
+          </View>
+        </View>
+      </View>
     </ScrollView>
   );
 };
@@ -398,5 +509,140 @@ const styles = StyleSheet.create({
   exerciseRow: {
     flexDirection: 'row',
     paddingVertical: spacing.md,
+  },
+
+  // Share card — hidden off-screen
+  shareCardWrapper: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+  },
+  shareCard: {
+    width: 360,
+    backgroundColor: '#0D0D0D',
+    borderRadius: 24,
+    padding: 28,
+    overflow: 'hidden',
+  },
+  shareCardGlow: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: '#E53935',
+    opacity: 0.18,
+  },
+  shareCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  shareCardBrand: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 3,
+    color: '#E53935',
+  },
+  shareCardDate: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  shareCardTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 14,
+    letterSpacing: -0.5,
+  },
+  shareCardPRBadge: {
+    backgroundColor: '#FFD700' + '22',
+    borderWidth: 1,
+    borderColor: '#FFD700' + '60',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 20,
+  },
+  shareCardPRText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFD700',
+    letterSpacing: 1,
+  },
+  shareCardStats: {
+    flexDirection: 'row',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  shareCardStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  shareCardStatValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  shareCardStatLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#555',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  shareCardStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#2A2A2A',
+  },
+  shareCardExercises: {
+    marginBottom: 20,
+  },
+  shareCardExRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E1E1E',
+  },
+  shareCardExName: {
+    flex: 1,
+    fontSize: 13,
+    color: '#CCCCCC',
+    fontWeight: '500',
+  },
+  shareCardExSet: {
+    fontSize: 13,
+    color: '#E53935',
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  shareCardMore: {
+    fontSize: 11,
+    color: '#555',
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  shareCardFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#1E1E1E',
+    paddingTop: 12,
+    alignItems: 'center',
+  },
+  shareCardFooterText: {
+    fontSize: 11,
+    color: '#444',
+    fontWeight: '600',
+    letterSpacing: 1,
   },
 });
