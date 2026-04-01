@@ -36,6 +36,7 @@ interface WorkoutStore {
   finishWorkout: () => Workout | null;
   cancelWorkout: () => void;
   setRestTimer: (seconds: number) => void;
+  setExerciseNotes: (exerciseIndex: number, notes: string) => void;
 
   // History
   addToHistory: (workout: Workout) => void;
@@ -129,6 +130,15 @@ export const useWorkoutStore = create<WorkoutStore>()(
         return {
           activeWorkout: { ...s.activeWorkout, workout },
         };
+      }),
+
+      setExerciseNotes: (exerciseIndex, notes) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const workout = { ...s.activeWorkout.workout };
+        const exercises = [...workout.exercises];
+        exercises[exerciseIndex] = { ...exercises[exerciseIndex], notes };
+        workout.exercises = exercises;
+        return { activeWorkout: { ...s.activeWorkout, workout } };
       }),
 
       nextExercise: () => set((s) => {

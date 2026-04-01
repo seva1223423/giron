@@ -290,6 +290,11 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
                   <Text style={[typography.small, { color: colors.textSecondary }]}>
                     {completedSets.length} подх. • {Math.round(exVolume)} кг
                   </Text>
+                  {ex.notes ? (
+                    <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2, fontStyle: 'italic' }]} numberOfLines={2}>
+                      📝 {ex.notes}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   {completedSets.map((s, si) => (

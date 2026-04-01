@@ -31,6 +31,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     finishWorkout,
     cancelWorkout,
     setRestTimer,
+    setExerciseNotes,
   } = useWorkoutStore();
 
   const [restTime, setRestTime] = useState(0);
@@ -314,8 +315,26 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           style={{ marginTop: spacing.md }}
         />
 
+        {/* Exercise notes */}
+        <TextInput
+          style={[
+            styles.notesInput,
+            {
+              backgroundColor: colors.inputBackground,
+              borderColor: colors.inputBorder,
+              color: colors.text,
+            },
+          ]}
+          value={currentExercise.notes || ''}
+          onChangeText={(text) => setExerciseNotes(currentExerciseIndex, text)}
+          placeholder="Заметки к упражнению..."
+          placeholderTextColor={colors.inputPlaceholder}
+          multiline
+          maxLength={300}
+        />
+
         {/* Exercise description */}
-        <Card style={{ marginTop: spacing.xxl }}>
+        <Card style={{ marginTop: spacing.md }}>
           <Text style={[typography.smallMedium, { color: colors.text, marginBottom: spacing.sm }]}>Техника:</Text>
           {currentExercise.exercise.instructions.map((inst, i) => (
             <Text key={i} style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
@@ -531,6 +550,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
+  },
+  notesInput: {
+    marginTop: spacing.xl,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 14,
+    minHeight: 40,
+    maxHeight: 80,
   },
   rpePicker: {
     flexDirection: 'row',
