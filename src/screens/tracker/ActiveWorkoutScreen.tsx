@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   Dimensions,
+  Animated,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
@@ -21,6 +22,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const { colors } = useThemeStore();
   const {
     activeWorkout,
+    workoutHistory,
     completeSet,
     addSet,
     removeSet,
@@ -34,7 +36,21 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const [restTime, setRestTime] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
   const [isResting, setIsResting] = useState(false);
+  const [prToast, setPrToast] = useState<{ name: string; rm: number } | null>(null);
+  const prToastAnim = useRef(new Animated.Value(0)).current;
+  const prToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const showPrToast = useCallback((name: string, rm: number) => {
+    if (prToastTimer.current) clearTimeout(prToastTimer.current);
+    setPrToast({ name, rm });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Animated.sequence([
+      Animated.spring(prToastAnim, { toValue: 1, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(prToastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setPrToast(null));
+  }, [prToastAnim]);
 
   useEffect(() => {
     return () => {
@@ -87,6 +103,28 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
     startRest(currentExercise.restSeconds || 90);
+
+    // PR detection: compare new 1RM against all-time best for this exercise
+    if (weight > 0 && reps > 0) {
+      const newRM = weight * (1 + reps / 30);
+      const exerciseId = currentExercise.exerciseId;
+      let bestPrevRM = 0;
+      workoutHistory.forEach((w) => {
+        w.exercises
+          .filter((ex) => ex.exerciseId === exerciseId)
+          .forEach((ex) => {
+            ex.sets
+              .filter((s) => s.completed && s.weight && s.reps)
+              .forEach((s) => {
+                const rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
+                if (rm > bestPrevRM) bestPrevRM = rm;
+              });
+          });
+      });
+      if (newRM > bestPrevRM && bestPrevRM > 0) {
+        showPrToast(currentExercise.exercise.name, Math.round(newRM));
+      }
+    }
   };
 
   const handleFinish = () => {
@@ -357,6 +395,35 @@ const SetRow: React.FC<{
           ✓
         </Text>
       </TouchableOpacity>
+
+      {/* PR Toast */}
+      {prToast && (
+        <Animated.View
+          style={[
+            styles.prToast,
+            {
+              backgroundColor: colors.accent,
+              transform: [
+                {
+                  translateY: prToastAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-80, 0],
+                  }),
+                },
+              ],
+              opacity: prToastAnim,
+            },
+          ]}
+        >
+          <Text style={{ fontSize: 20 }}>🏆</Text>
+          <View style={{ marginLeft: spacing.sm }}>
+            <Text style={[typography.captionMedium, { color: '#fff', letterSpacing: 1 }]}>ЛИЧНЫЙ РЕКОРД!</Text>
+            <Text style={[typography.small, { color: 'rgba(255,255,255,0.85)' }]}>
+              {prToast.name} — ~{prToast.rm} кг 1ПМ
+            </Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -420,5 +487,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
+  },
+  prToast: {
+    position: 'absolute',
+    top: 110,
+    left: spacing.xl,
+    right: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.xl,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
