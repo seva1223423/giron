@@ -301,6 +301,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             set={set}
             setIndex={setIndex}
             onComplete={(reps, weight) => handleCompleteSet(setIndex, reps, weight)}
+            onRpeChange={(rpe) => completeSet(currentExerciseIndex, setIndex, { rpe })}
             colors={colors}
           />
         ))}
@@ -323,8 +324,44 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           ))}
         </Card>
       </ScrollView>
+
+      {/* PR Toast */}
+      {prToast && (
+        <Animated.View
+          style={[
+            styles.prToast,
+            {
+              backgroundColor: colors.accent,
+              transform: [{
+                translateY: prToastAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-80, 0],
+                }),
+              }],
+              opacity: prToastAnim,
+            },
+          ]}
+        >
+          <Text style={{ fontSize: 20 }}>🏆</Text>
+          <View style={{ marginLeft: spacing.sm }}>
+            <Text style={[typography.captionMedium, { color: '#fff', letterSpacing: 1 }]}>ЛИЧНЫЙ РЕКОРД!</Text>
+            <Text style={[typography.small, { color: 'rgba(255,255,255,0.85)' }]}>
+              {prToast.name} — ~{prToast.rm} кг 1ПМ
+            </Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
+};
+
+const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
+
+const rpeColor = (rpe: number): string => {
+  if (rpe <= 7) return '#3BC46E';   // green — easy
+  if (rpe <= 8) return '#F0A832';   // orange — moderate
+  if (rpe <= 9) return '#F06432';   // dark orange — hard
+  return '#E8364F';                 // red — max
 };
 
 // Individual set row component
@@ -332,20 +369,19 @@ const SetRow: React.FC<{
   set: any;
   setIndex: number;
   onComplete: (reps: number, weight: number) => void;
+  onRpeChange: (rpe: number) => void;
   colors: any;
-}> = ({ set, setIndex, onComplete, colors }) => {
+}> = ({ set, setIndex, onComplete, onRpeChange, colors }) => {
   const [weight, setWeight] = useState(set.weight?.toString() || '');
   const [reps, setReps] = useState(set.reps?.toString() || '10');
+  const [showRpe, setShowRpe] = useState(false);
 
   return (
+    <View style={{ backgroundColor: set.completed ? colors.success + '10' : 'transparent', borderRadius: borderRadius.sm, marginBottom: 2 }}>
     <View
       style={[
         styles.setRow,
-        {
-          backgroundColor: set.completed ? colors.success + '10' : 'transparent',
-          borderRadius: borderRadius.sm,
-          paddingVertical: spacing.sm,
-        },
+        { paddingVertical: spacing.sm },
       ]}
     >
       <Text style={[typography.bodyMedium, { color: colors.textSecondary, width: 40 }]}>
@@ -389,40 +425,48 @@ const SetRow: React.FC<{
             borderColor: set.completed ? colors.success : colors.border,
           },
         ]}
-        onPress={() => onComplete(parseInt(reps) || 0, parseFloat(weight) || 0)}
+        onPress={() => {
+          onComplete(parseInt(reps) || 0, parseFloat(weight) || 0);
+          setShowRpe(true);
+        }}
       >
         <Text style={{ color: set.completed ? '#FFF' : colors.textSecondary, fontWeight: '700' }}>
           ✓
         </Text>
       </TouchableOpacity>
+    </View>
 
-      {/* PR Toast */}
-      {prToast && (
-        <Animated.View
-          style={[
-            styles.prToast,
-            {
-              backgroundColor: colors.accent,
-              transform: [
+      {/* RPE picker — shown inline below set row after completion */}
+      {set.completed && showRpe && (
+        <View style={[styles.rpePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[typography.caption, { color: colors.textTertiary, marginRight: spacing.sm }]}>RPE</Text>
+          {RPE_VALUES.map((v) => (
+            <TouchableOpacity
+              key={v}
+              onPress={() => {
+                Haptics.selectionAsync();
+                onRpeChange(v);
+                setShowRpe(false);
+              }}
+              style={[
+                styles.rpeBtn,
                 {
-                  translateY: prToastAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-80, 0],
-                  }),
+                  backgroundColor: set.rpe === v ? rpeColor(v) : colors.inputBackground,
+                  borderColor: set.rpe === v ? rpeColor(v) : colors.border,
                 },
-              ],
-              opacity: prToastAnim,
-            },
-          ]}
-        >
-          <Text style={{ fontSize: 20 }}>🏆</Text>
-          <View style={{ marginLeft: spacing.sm }}>
-            <Text style={[typography.captionMedium, { color: '#fff', letterSpacing: 1 }]}>ЛИЧНЫЙ РЕКОРД!</Text>
-            <Text style={[typography.small, { color: 'rgba(255,255,255,0.85)' }]}>
-              {prToast.name} — ~{prToast.rm} кг 1ПМ
+              ]}
+            >
+              <Text style={[typography.small, { color: set.rpe === v ? '#fff' : colors.textSecondary, fontWeight: '700' }]}>
+                {v}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {set.rpe && (
+            <Text style={[typography.caption, { color: rpeColor(set.rpe), marginLeft: spacing.xs, fontWeight: '700' }]}>
+              {set.rpe >= 10 ? 'Max' : set.rpe >= 9 ? 'Hard' : set.rpe >= 8 ? 'Tough' : 'Easy'}
             </Text>
-          </View>
-        </Animated.View>
+          )}
+        </View>
       )}
     </View>
   );
@@ -487,6 +531,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
+  },
+  rpePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: 2,
+    marginBottom: spacing.xs,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  rpeBtn: {
+    width: 34,
+    height: 28,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   prToast: {
     position: 'absolute',
