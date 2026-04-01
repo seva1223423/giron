@@ -185,20 +185,58 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
 
       {/* Description */}
       <FadeIn delay={160}>
-        <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+        <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
           {exercise.description}
         </Text>
+      </FadeIn>
+
+      {/* Video preview card */}
+      <FadeIn delay={200}>
         <TouchableOpacity
-          onPress={() => {
-            const query = encodeURIComponent(`${exercise.name} техника выполнения`);
-            Linking.openURL(`https://www.youtube.com/results?search_query=${query}`);
+          activeOpacity={0.85}
+          onPress={async () => {
+            const query = encodeURIComponent(`${exercise.name} техника выполнения пауэрлифтинг`);
+            const youtubeAppUrl = `youtube://results?search_query=${query}`;
+            const webUrl = `https://www.youtube.com/results?search_query=${query}`;
+            try {
+              const canOpen = await Linking.canOpenURL(youtubeAppUrl);
+              await Linking.openURL(canOpen ? youtubeAppUrl : webUrl);
+            } catch {
+              Linking.openURL(webUrl);
+            }
           }}
-          style={[styles.youtubeBtn, { backgroundColor: '#FF0000' + '15', borderColor: '#FF0000' + '40' }]}
+          style={[styles.videoCard, { borderColor: colors.border }]}
         >
-          <Text style={{ fontSize: 16, marginRight: spacing.xs }}>▶</Text>
-          <Text style={[typography.smallMedium, { color: '#FF0000' }]}>
-            Видео техники на YouTube
-          </Text>
+          {/* Thumbnail area */}
+          <View style={styles.videoThumbnail}>
+            <View style={styles.videoOverlay} />
+            {/* Muscle groups watermark */}
+            <Text style={styles.videoMuscleText}>
+              {exercise.primaryMuscles.map((m) => (MUSCLE_LABELS[m] || m)).join(' · ')}
+            </Text>
+            {/* Play button */}
+            <View style={styles.playButton}>
+              <View style={styles.playButtonInner}>
+                <Text style={{ color: '#FFF', fontSize: 18, marginLeft: 3 }}>▶</Text>
+              </View>
+            </View>
+            {/* YouTube badge */}
+            <View style={styles.youtubeBadge}>
+              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>▶ YouTube</Text>
+            </View>
+          </View>
+          {/* Bottom info */}
+          <View style={[styles.videoInfo, { backgroundColor: colors.surface }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.smallMedium, { color: colors.text }]} numberOfLines={1}>
+                {exercise.name} — техника выполнения
+              </Text>
+              <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
+                Нажми чтобы открыть в приложении YouTube
+              </Text>
+            </View>
+            <Text style={{ fontSize: 18, color: colors.textTertiary }}>›</Text>
+          </View>
         </TouchableOpacity>
       </FadeIn>
 
@@ -346,15 +384,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.sm,
   },
-  youtubeBtn: {
+  videoCard: {
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: spacing.xl,
+  },
+  videoThumbnail: {
+    height: 160,
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  videoMuscleText: {
+    position: 'absolute',
+    top: 10,
+    left: 12,
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  playButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playButtonInner: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FF0000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  youtubeBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 10,
+    backgroundColor: '#FF0000',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  videoInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.xl,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   muscleRow: {
     flexDirection: 'row',
