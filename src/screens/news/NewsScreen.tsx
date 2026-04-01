@@ -102,6 +102,16 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchNews();
   };
 
+  const onFetchFreshNews = async () => {
+    setRefreshing(true);
+    try {
+      await newsService.triggerRefresh();
+    } catch {
+      // ignore — server will have tried its best
+    }
+    await fetchNews();
+  };
+
   const filteredNews = activeCategory === 'all'
     ? news
     : news.filter((n) => n.category?.includes(activeCategory));
@@ -133,9 +143,14 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[typography.h2, { color: colors.text, paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.md }]}>
-        Новости
-      </Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.md }}>
+        <Text style={[typography.h2, { color: colors.text }]}>Новости</Text>
+        <TouchableOpacity onPress={onFetchFreshNews} disabled={refreshing}>
+          <Text style={[typography.small, { color: refreshing ? colors.textTertiary : colors.primary }]}>
+            {refreshing ? 'Обновление...' : '↻ Обновить'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Categories */}
       <ScrollView

@@ -7,6 +7,7 @@ import { workoutRouter } from './routes/workout';
 import { nutritionRouter } from './routes/nutrition';
 import { aiRouter } from './routes/ai';
 import { newsRouter } from './routes/news';
+import { startNewsRefreshScheduler } from './services/newsRefreshService';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 app.listen(PORT, () => {
   console.log(`Iron Gym API server running on port ${PORT}`);
+  startNewsRefreshScheduler();
 });
 
 export default app;

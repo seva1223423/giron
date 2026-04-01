@@ -16,4 +16,9 @@ export const newsService = {
     const { data } = await api.get('/news/saved');
     return data;
   },
+
+  async triggerRefresh(): Promise<{ added: number; skipped: number }> {
+    const { data } = await api.post('/news/refresh');
+    return data;
+  },
 };

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { refreshNews } from '../services/newsRefreshService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -69,6 +70,17 @@ router.get('/saved', authenticate, async (req: AuthRequest, res: Response) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Ошибка получения сохранённых' });
+  }
+});
+
+// Manual news refresh (force fetch from RSS)
+router.post('/refresh', authenticate, async (_req: AuthRequest, res: Response) => {
+  try {
+    const result = await refreshNews(true);
+    res.json({ success: true, ...result });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Ошибка обновления новостей' });
   }
 });
 
