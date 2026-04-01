@@ -7,6 +7,7 @@ import { nutritionService } from '../services';
 interface NutritionStore {
   dailyLog: Record<string, DailyNutrition>;
   waterMl: number;
+  defaultTargets: { calories: number; protein: number; fats: number; carbs: number };
 
   getDayLog: (date: string) => DailyNutrition;
   addMeal: (date: string, meal: Meal) => void;
@@ -32,9 +33,19 @@ export const useNutritionStore = create<NutritionStore>()(
     (set, get) => ({
       dailyLog: {},
       waterMl: 0,
+      defaultTargets: { calories: 2500, protein: 150, fats: 80, carbs: 300 },
 
       getDayLog: (date) => {
-        return get().dailyLog[date] || getDefaultDayLog(date);
+        const existing = get().dailyLog[date];
+        if (existing) return existing;
+        const { defaultTargets } = get();
+        return {
+          ...getDefaultDayLog(date),
+          targetCalories: defaultTargets.calories,
+          targetProtein: defaultTargets.protein,
+          targetFats: defaultTargets.fats,
+          targetCarbs: defaultTargets.carbs,
+        };
       },
 
       addMeal: (date, meal) => {
@@ -125,6 +136,7 @@ export const useNutritionStore = create<NutritionStore>()(
       setTargets: (date, targets) => set((s) => {
         const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
         return {
+          defaultTargets: targets,
           dailyLog: {
             ...s.dailyLog,
             [date]: {
