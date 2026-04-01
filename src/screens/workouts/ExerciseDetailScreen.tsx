@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking } from 'react-native';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -163,9 +163,21 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
 
       {/* Description */}
       <FadeIn delay={160}>
-        <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.xl }]}>
+        <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md }]}>
           {exercise.description}
         </Text>
+        <TouchableOpacity
+          onPress={() => {
+            const query = encodeURIComponent(`${exercise.name} техника выполнения`);
+            Linking.openURL(`https://www.youtube.com/results?search_query=${query}`);
+          }}
+          style={[styles.youtubeBtn, { backgroundColor: '#FF0000' + '15', borderColor: '#FF0000' + '40' }]}
+        >
+          <Text style={{ fontSize: 16, marginRight: spacing.xs }}>▶</Text>
+          <Text style={[typography.smallMedium, { color: '#FF0000' }]}>
+            Видео техники на YouTube
+          </Text>
+        </TouchableOpacity>
       </FadeIn>
 
       {/* Muscles */}
@@ -311,6 +323,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.sm,
+  },
+  youtubeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    marginBottom: spacing.xl,
   },
   muscleRow: {
     flexDirection: 'row',
