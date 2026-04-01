@@ -137,6 +137,30 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
   };
 
+  const restDayRecommendation = useMemo(() => {
+    if (streak >= 4) {
+      return {
+        reason: `Вы тренируетесь ${streak} ${streak < 5 ? 'дня' : 'дней'} подряд`,
+        tip: 'Мышцы растут во время отдыха. Дайте телу восстановиться сегодня.',
+      };
+    }
+    if (lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 1) {
+      const completedSets = lastWorkout.exercises
+        .flatMap((ex) => ex.sets)
+        .filter((s) => s.completed && s.rpe != null);
+      if (completedSets.length >= 3) {
+        const avgRpe = completedSets.reduce((sum, s) => sum + (s.rpe ?? 0), 0) / completedSets.length;
+        if (avgRpe >= 8.5) {
+          return {
+            reason: `Последняя тренировка была очень тяжёлой (RPE ${avgRpe.toFixed(1)})`,
+            tip: 'Высокая нагрузка требует полного восстановления. Отдохни сегодня.',
+          };
+        }
+      }
+    }
+    return null;
+  }, [streak, lastWorkout, daysSinceLastWorkout]);
+
   const workoutRecommendation = useMemo(() => {
     const SPLITS = [
       { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
@@ -266,27 +290,44 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeIn>
       )}
 
-      {/* Smart recommendation */}
+      {/* Smart recommendation or Rest day */}
       {!activeWorkout && (
         <FadeIn delay={150}>
-          <Card
-            style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}
-            onPress={() => navigation.navigate('WorkoutsTab')}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.captionMedium, { color: colors.success }]}>РЕКОМЕНДУЕМ СЕГОДНЯ</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
-                  <Text style={{ fontSize: 20 }}>{workoutRecommendation.emoji}</Text>
-                  <Text style={[typography.h4, { color: colors.text }]}>{workoutRecommendation.name}</Text>
+          {restDayRecommendation ? (
+            <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
+                <Text style={{ fontSize: 28 }}>🛌</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.captionMedium, { color: colors.accent }]}>ДЕНЬ ОТДЫХА</Text>
+                  <Text style={[typography.bodyMedium, { color: colors.text, marginTop: spacing.xs }]}>
+                    {restDayRecommendation.reason}
+                  </Text>
+                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: 4 }]}>
+                    {restDayRecommendation.tip}
+                  </Text>
                 </View>
-                <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                  {workoutRecommendation.daysLabel}
-                </Text>
               </View>
-              <Text style={[typography.body, { color: colors.primary, marginTop: spacing.sm }]}>▶</Text>
-            </View>
-          </Card>
+            </Card>
+          ) : (
+            <Card
+              style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}
+              onPress={() => navigation.navigate('WorkoutsTab')}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.captionMedium, { color: colors.success }]}>РЕКОМЕНДУЕМ СЕГОДНЯ</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
+                    <Text style={{ fontSize: 20 }}>{workoutRecommendation.emoji}</Text>
+                    <Text style={[typography.h4, { color: colors.text }]}>{workoutRecommendation.name}</Text>
+                  </View>
+                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                    {workoutRecommendation.daysLabel}
+                  </Text>
+                </View>
+                <Text style={[typography.body, { color: colors.primary, marginTop: spacing.sm }]}>▶</Text>
+              </View>
+            </Card>
+          )}
         </FadeIn>
       )}
 
