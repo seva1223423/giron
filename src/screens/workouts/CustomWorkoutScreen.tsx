@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,15 +36,17 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const [muscleFilter, setMuscleFilter] = useState('all');
   const [step, setStep] = useState<'select' | 'configure'>('select');
 
-  const filteredExercises = localExercises.filter((ex) => {
-    const matchesSearch = searchQuery
-      ? ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-    const matchesMuscle = muscleFilter === 'all'
-      ? true
-      : ex.primaryMuscles.includes(muscleFilter as any);
-    return matchesSearch && matchesMuscle;
-  });
+  const filteredExercises = useMemo(() =>
+    localExercises.filter((ex) => {
+      const matchesSearch = searchQuery
+        ? ex.name.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+      const matchesMuscle = muscleFilter === 'all'
+        ? true
+        : ex.primaryMuscles.includes(muscleFilter as any);
+      return matchesSearch && matchesMuscle;
+    }),
+  [searchQuery, muscleFilter]);
 
   const toggleExercise = (exercise: Exercise) => {
     Haptics.selectionAsync();
