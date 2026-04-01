@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeStore, useAuthStore, useNutritionStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -35,6 +35,7 @@ const LEVELS = [
 export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, setUser } = useAuthStore();
+  const { setTargets } = useNutritionStore();
 
   const [weightKg, setWeightKg] = useState(user?.weightKg?.toString() || '');
   const [heightCm, setHeightCm] = useState(user?.heightCm?.toString() || '');
@@ -55,6 +56,32 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
         trainingExperienceYears: experienceYears ? parseInt(experienceYears) : undefined,
       } as any);
       setUser({ ...user!, ...updated });
+
+      // Recalculate nutrition targets if weight, height, or goal changed
+      const wKg = weightKg ? parseFloat(weightKg) : user?.weightKg;
+      const hCm = heightCm ? parseFloat(heightCm) : user?.heightCm;
+      const currentGoal = goal || user?.goal;
+      if (wKg && hCm && currentGoal) {
+        const gender = user?.gender?.toLowerCase();
+        const ageYears = user?.dateOfBirth
+          ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+          : 30;
+        const bmr = gender === 'female'
+          ? 10 * wKg + 6.25 * hCm - 5 * ageYears - 161
+          : 10 * wKg + 6.25 * hCm - 5 * ageYears + 5;
+        const tdee = Math.round(bmr * 1.55);
+        const goalNorm = currentGoal.toLowerCase();
+        const targetCalories = goalNorm.includes('loss') ? Math.round(tdee - 400)
+          : goalNorm.includes('gain') ? Math.round(tdee + 250) : tdee;
+        const proteinPerKg = goalNorm.includes('gain') ? 2.2 : goalNorm.includes('loss') ? 2.0 : 1.8;
+        const targetProtein = Math.round(wKg * proteinPerKg);
+        const targetFats = Math.round((targetCalories * 0.25) / 9);
+        const targetCarbs = Math.max(Math.round((targetCalories - targetProtein * 4 - targetFats * 9) / 4), 50);
+        const waterTargetMl = Math.round(wKg * 35);
+        const today = new Date().toISOString().split('T')[0];
+        setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: targetCarbs, waterTargetMl });
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       navigation.goBack();
     } catch {
