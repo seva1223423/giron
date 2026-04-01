@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useNutritionStore } from '../../store';
@@ -36,11 +36,14 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     setShowGoalsModal(false);
   };
 
-  const totalCalories = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
-  const totalProtein = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0);
-  const totalFats = dayLog.meals.reduce((s, m) => s + m.totalFats, 0);
-  const totalCarbs = dayLog.meals.reduce((s, m) => s + m.totalCarbs, 0);
+  const { totalCalories, totalProtein, totalFats, totalCarbs } = useMemo(() => ({
+    totalCalories: dayLog.meals.reduce((s, m) => s + m.totalCalories, 0),
+    totalProtein: dayLog.meals.reduce((s, m) => s + m.totalProtein, 0),
+    totalFats: dayLog.meals.reduce((s, m) => s + m.totalFats, 0),
+    totalCarbs: dayLog.meals.reduce((s, m) => s + m.totalCarbs, 0),
+  }), [dayLog.meals]);
   const remaining = dayLog.targetCalories - totalCalories;
+  const waterTarget = dayLog.waterTargetMl ?? 2500;
 
   const getMealsByType = (type: string) =>
     dayLog.meals.filter((m) => m.type === type);
@@ -137,7 +140,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           <View>
             <Text style={[typography.h4, { color: colors.text }]}>💧 Вода</Text>
             <Text style={[typography.body, { color: colors.textSecondary }]}>
-              {dayLog.waterMl} мл / 2500 мл
+              {dayLog.waterMl} мл / {waterTarget} мл
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -156,7 +159,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           <View
             style={{
               height: '100%',
-              width: `${Math.min((dayLog.waterMl / 2500) * 100, 100)}%`,
+              width: `${Math.min((dayLog.waterMl / waterTarget) * 100, 100)}%`,
               backgroundColor: colors.info,
               borderRadius: borderRadius.full,
             }}

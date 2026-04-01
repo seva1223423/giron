@@ -79,8 +79,10 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = ({ navigation }) 
     const targetFats = Math.round((targetCalories * 0.25) / 9);
     const targetCarbs = Math.round((targetCalories - targetProtein * 4 - targetFats * 9) / 4);
 
+    const waterTargetMl = Math.round(weightVal * 35); // 35ml per kg body weight
+
     const today = new Date().toISOString().split('T')[0];
-    setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: Math.max(targetCarbs, 50) });
+    setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: Math.max(targetCarbs, 50), waterTargetMl });
 
     completeOnboarding();
   };

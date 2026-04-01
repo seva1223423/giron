@@ -7,14 +7,14 @@ import { nutritionService } from '../services';
 interface NutritionStore {
   dailyLog: Record<string, DailyNutrition>;
   waterMl: number;
-  defaultTargets: { calories: number; protein: number; fats: number; carbs: number };
+  defaultTargets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number };
 
   getDayLog: (date: string) => DailyNutrition;
   addMeal: (date: string, meal: Meal) => void;
   removeMeal: (date: string, mealId: string) => void;
   updateMealItem: (date: string, mealId: string, itemId: string, data: Partial<NutritionItem>) => void;
   addWater: (date: string, ml: number) => void;
-  setTargets: (date: string, targets: { calories: number; protein: number; fats: number; carbs: number }) => void;
+  setTargets: (date: string, targets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl?: number }) => void;
   syncMealsFromServer: (date: string) => Promise<void>;
 }
 
@@ -33,7 +33,7 @@ export const useNutritionStore = create<NutritionStore>()(
     (set, get) => ({
       dailyLog: {},
       waterMl: 0,
-      defaultTargets: { calories: 2500, protein: 150, fats: 80, carbs: 300 },
+      defaultTargets: { calories: 2500, protein: 150, fats: 80, carbs: 300, waterTargetMl: 2500 },
 
       getDayLog: (date) => {
         const existing = get().dailyLog[date];
@@ -45,6 +45,7 @@ export const useNutritionStore = create<NutritionStore>()(
           targetProtein: defaultTargets.protein,
           targetFats: defaultTargets.fats,
           targetCarbs: defaultTargets.carbs,
+          waterTargetMl: defaultTargets.waterTargetMl,
         };
       },
 
@@ -135,8 +136,9 @@ export const useNutritionStore = create<NutritionStore>()(
 
       setTargets: (date, targets) => set((s) => {
         const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
+        const waterTargetMl = targets.waterTargetMl ?? s.defaultTargets.waterTargetMl;
         return {
-          defaultTargets: targets,
+          defaultTargets: { ...s.defaultTargets, ...targets, waterTargetMl },
           dailyLog: {
             ...s.dailyLog,
             [date]: {
@@ -145,6 +147,7 @@ export const useNutritionStore = create<NutritionStore>()(
               targetProtein: targets.protein,
               targetFats: targets.fats,
               targetCarbs: targets.carbs,
+              waterTargetMl,
             },
           },
         };

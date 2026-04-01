@@ -145,6 +145,7 @@ export interface DailyNutrition {
   targetProtein: number;
   targetFats: number;
   targetCarbs: number;
+  waterTargetMl?: number;
 }
 
 // ==================== NEWS ====================
