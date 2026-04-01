@@ -159,6 +159,13 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { workoutHistory } = useWorkoutStore();
   const { user } = useAuthStore();
   const [tab, setTab] = useState<'overview' | 'calendar' | 'records' | 'weight'>('overview');
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -320,19 +327,19 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       .map((w) => w.completedAt!);
   }, [workoutHistory]);
 
-  // Get calendar data for current month
-  const getCalendarData = () => {
+  // Get calendar data for a given month
+  const getCalendarData = (monthDate: Date) => {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const days: { date: number; hasWorkout: boolean; isToday: boolean }[] = [];
+    const days: { date: number; dateStr: string; hasWorkout: boolean; isToday: boolean }[] = [];
 
     let startDow = firstDay.getDay();
     if (startDow === 0) startDow = 7;
     for (let i = 1; i < startDow; i++) {
-      days.push({ date: 0, hasWorkout: false, isToday: false });
+      days.push({ date: 0, dateStr: '', hasWorkout: false, isToday: false });
     }
 
     for (let d = 1; d <= lastDay.getDate(); d++) {
@@ -340,8 +347,11 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       const hasWorkout = workoutHistory.some(
         (w) => w.completedAt && w.completedAt.startsWith(dateStr)
       );
-      const isToday = d === now.getDate();
-      days.push({ date: d, hasWorkout, isToday });
+      const isToday =
+        d === now.getDate() &&
+        month === now.getMonth() &&
+        year === now.getFullYear();
+      days.push({ date: d, dateStr, hasWorkout, isToday });
     }
 
     return days;
@@ -607,60 +617,159 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           </>
         )}
 
-        {tab === 'calendar' && (
-          <>
-            <FadeIn delay={0}>
-              <Text style={[typography.h4, { color: colors.text, textAlign: 'center', marginBottom: spacing.lg }]}>
-                {MONTH_NAMES[new Date().getMonth()]} {new Date().getFullYear()}
-              </Text>
-              <View style={styles.calendarHeader}>
-                {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
-                  <Text key={d} style={[typography.captionMedium, { color: colors.textSecondary, width: CELL_SIZE, textAlign: 'center' }]}>
-                    {d}
+        {tab === 'calendar' && (() => {
+          const calDays = getCalendarData(calendarMonth);
+          const monthStr = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`;
+          const monthWorkouts = workoutHistory.filter(
+            (w) => w.completedAt && w.completedAt.startsWith(monthStr)
+          );
+          const monthVolume = monthWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0);
+          const monthDuration = monthWorkouts.reduce((s, w) => s + (w.durationMinutes || 0), 0);
+          const selectedDayWorkouts = selectedDay
+            ? workoutHistory.filter((w) => w.completedAt && w.completedAt.startsWith(selectedDay))
+            : [];
+
+          const goToPrevMonth = () => {
+            Haptics.selectionAsync();
+            setSelectedDay(null);
+            setCalendarMonth((prev) => {
+              const d = new Date(prev);
+              d.setMonth(d.getMonth() - 1);
+              return d;
+            });
+          };
+
+          const goToNextMonth = () => {
+            const now = new Date();
+            if (
+              calendarMonth.getFullYear() === now.getFullYear() &&
+              calendarMonth.getMonth() === now.getMonth()
+            ) return;
+            Haptics.selectionAsync();
+            setSelectedDay(null);
+            setCalendarMonth((prev) => {
+              const d = new Date(prev);
+              d.setMonth(d.getMonth() + 1);
+              return d;
+            });
+          };
+
+          const isCurrentMonth =
+            calendarMonth.getFullYear() === new Date().getFullYear() &&
+            calendarMonth.getMonth() === new Date().getMonth();
+
+          return (
+            <>
+              <FadeIn delay={0}>
+                {/* Month navigation */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+                  <TouchableOpacity onPress={goToPrevMonth} style={styles.monthNavBtn}>
+                    <Text style={[typography.h4, { color: colors.primary }]}>‹</Text>
+                  </TouchableOpacity>
+                  <Text style={[typography.h4, { color: colors.text }]}>
+                    {MONTH_NAMES[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
                   </Text>
-                ))}
-              </View>
-              <View style={styles.calendarGrid}>
-                {getCalendarData().map((day, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.calendarCell,
-                      day.isToday && { borderWidth: 2, borderColor: colors.primary },
-                      day.hasWorkout && { backgroundColor: colors.success + '30' },
-                    ]}
+                  <TouchableOpacity
+                    onPress={goToNextMonth}
+                    style={[styles.monthNavBtn, isCurrentMonth && { opacity: 0.3 }]}
+                    disabled={isCurrentMonth}
                   >
-                    {day.date > 0 && (
-                      <>
-                        <Text style={[typography.smallMedium, { color: day.hasWorkout ? colors.success : colors.text }]}>
-                          {day.date}
-                        </Text>
-                        {day.hasWorkout && (
-                          <View style={[styles.workoutDot, { backgroundColor: colors.success }]} />
+                    <Text style={[typography.h4, { color: colors.primary }]}>›</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Day labels */}
+                <View style={styles.calendarHeader}>
+                  {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
+                    <Text key={d} style={[typography.captionMedium, { color: colors.textSecondary, width: CELL_SIZE, textAlign: 'center' }]}>
+                      {d}
+                    </Text>
+                  ))}
+                </View>
+
+                {/* Calendar grid */}
+                <View style={styles.calendarGrid}>
+                  {calDays.map((day, i) => {
+                    const isSelected = day.dateStr && selectedDay === day.dateStr;
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => {
+                          if (!day.date || !day.hasWorkout) return;
+                          Haptics.selectionAsync();
+                          setSelectedDay(isSelected ? null : day.dateStr);
+                        }}
+                        activeOpacity={day.hasWorkout ? 0.7 : 1}
+                        style={[
+                          styles.calendarCell,
+                          day.isToday && { borderWidth: 2, borderColor: colors.primary },
+                          day.hasWorkout && { backgroundColor: isSelected ? colors.success + '60' : colors.success + '30' },
+                          isSelected && { borderWidth: 2, borderColor: colors.success },
+                        ]}
+                      >
+                        {day.date > 0 && (
+                          <>
+                            <Text style={[typography.smallMedium, { color: day.hasWorkout ? colors.success : colors.text }]}>
+                              {day.date}
+                            </Text>
+                            {day.hasWorkout && (
+                              <View style={[styles.workoutDot, { backgroundColor: colors.success }]} />
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </View>
-                ))}
-              </View>
-            </FadeIn>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </FadeIn>
 
-            {/* Monthly summary */}
-            <FadeIn delay={150}>
-              <Card style={{ marginTop: spacing.xl }}>
-                <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
-                  Этот месяц
-                </Text>
-                {(() => {
-                  const now = new Date();
-                  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                  const monthWorkouts = workoutHistory.filter(
-                    (w) => w.completedAt && w.completedAt.startsWith(monthStr)
-                  );
-                  const monthVolume = monthWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0);
-                  const monthDuration = monthWorkouts.reduce((s, w) => s + (w.durationMinutes || 0), 0);
+              {/* Selected day workouts */}
+              {selectedDay && selectedDayWorkouts.length > 0 && (
+                <FadeIn delay={0}>
+                  <Card style={{ marginTop: spacing.xl }}>
+                    <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+                      {new Date(selectedDay + 'T12:00:00').toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        weekday: 'long',
+                      })}
+                    </Text>
+                    {selectedDayWorkouts.map((w, i) => (
+                      <View
+                        key={w.id}
+                        style={[
+                          { paddingVertical: spacing.md },
+                          i > 0 && { borderTopWidth: 1, borderTopColor: colors.divider },
+                        ]}
+                      >
+                        <Text style={[typography.bodySemibold, { color: colors.text }]}>{w.name}</Text>
+                        <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                          {w.exercises.length} упр.
+                          {w.durationMinutes ? ` · ${w.durationMinutes} мин` : ''}
+                          {w.totalVolume ? ` · ${Math.round(w.totalVolume)} кг` : ''}
+                        </Text>
+                        {w.exercises.length > 0 && (
+                          <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
+                            {w.exercises.map((ex) => ex.exercise.name).join(', ')}
+                          </Text>
+                        )}
+                      </View>
+                    ))}
+                  </Card>
+                </FadeIn>
+              )}
 
-                  return (
+              {/* Monthly summary */}
+              <FadeIn delay={150}>
+                <Card style={{ marginTop: spacing.xl }}>
+                  <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+                    {MONTH_NAMES[calendarMonth.getMonth()]}
+                  </Text>
+                  {monthWorkouts.length === 0 ? (
+                    <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                      Нет тренировок за этот месяц
+                    </Text>
+                  ) : (
                     <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
                       <View style={{ alignItems: 'center' }}>
                         <Text style={[typography.number, { color: colors.primary }]}>{monthWorkouts.length}</Text>
@@ -675,12 +784,12 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                         <Text style={[typography.caption, { color: colors.textSecondary }]}>минут</Text>
                       </View>
                     </View>
-                  );
-                })()}
-              </Card>
-            </FadeIn>
-          </>
-        )}
+                  )}
+                </Card>
+              </FadeIn>
+            </>
+          );
+        })()}
 
         {tab === 'records' && (
           <>
@@ -999,6 +1108,7 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   statCard: { width: (SCREEN_WIDTH - spacing.xl * 2 - spacing.md) / 2 - 1, alignItems: 'center', paddingVertical: spacing.xl },
+  monthNavBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   calendarHeader: { flexDirection: 'row', marginBottom: spacing.sm },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calendarCell: {
