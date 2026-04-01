@@ -107,9 +107,12 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
       {/* Personal info */}
       <Card style={{ marginBottom: spacing.lg }}>
-        <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
-          Личные данные
-        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+          <Text style={[typography.h4, { color: colors.text }]}>Личные данные</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+            <Text style={[typography.smallMedium, { color: colors.primary }]}>Изменить</Text>
+          </TouchableOpacity>
+        </View>
         <ProfileRow label="Рост" value={user?.heightCm ? `${user.heightCm} см` : 'Не указан'} colors={colors} />
         <ProfileRow label="Вес" value={user?.weightKg ? `${user.weightKg} кг` : 'Не указан'} colors={colors} />
         <ProfileRow label="Пол" value={user?.gender === 'MALE' || user?.gender === 'male' ? 'Мужской' : user?.gender === 'FEMALE' || user?.gender === 'female' ? 'Женский' : 'Не указан'} colors={colors} />

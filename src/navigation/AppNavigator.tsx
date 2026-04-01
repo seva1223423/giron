@@ -27,6 +27,7 @@ import { NewsScreen } from '../screens/news/NewsScreen';
 import { AIChatScreen } from '../screens/ai/AIChatScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { SubscriptionScreen } from '../screens/profile/SubscriptionScreen';
+import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,6 +80,7 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} />
+      <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
     </ProfileStack.Navigator>
   );
 }
