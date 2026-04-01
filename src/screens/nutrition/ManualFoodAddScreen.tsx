@@ -40,8 +40,9 @@ const FOOD_DB = [
   { name: 'Шпинат', calories: 23, protein: 2.9, fats: 0.4, carbs: 3.6 },
   { name: 'Авокадо', calories: 160, protein: 2, fats: 15, carbs: 9 },
   { name: 'Тунец консервированный', calories: 116, protein: 25, fats: 1, carbs: 0 },
-  { name: 'Сывороточный протеин', calories: 380, protein: 74, fats: 5, carbs: 10 },
   { name: 'Кефир 1%', calories: 40, protein: 3.3, fats: 1, carbs: 4.7 },
+  { name: 'Индейка (грудка)', calories: 157, protein: 29, fats: 3.2, carbs: 0 },
+  { name: 'Миндаль', calories: 579, protein: 21, fats: 50, carbs: 22 },
 ];
 
 export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {

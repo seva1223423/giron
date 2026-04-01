@@ -63,10 +63,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const today = todayDate();
   const dayLog = getDayLog(today);
-  const todayCalories = dayLog.meals.reduce((sum, m) => sum + m.totalCalories, 0);
-  const todayProtein = dayLog.meals.reduce((sum, m) => sum + m.totalProtein, 0);
-  const todayFats = dayLog.meals.reduce((sum, m) => sum + m.totalFats, 0);
-  const todayCarbs = dayLog.meals.reduce((sum, m) => sum + m.totalCarbs, 0);
+  const { todayCalories, todayProtein, todayFats, todayCarbs } = useMemo(() => ({
+    todayCalories: dayLog.meals.reduce((sum, m) => sum + m.totalCalories, 0),
+    todayProtein: dayLog.meals.reduce((sum, m) => sum + m.totalProtein, 0),
+    todayFats: dayLog.meals.reduce((sum, m) => sum + m.totalFats, 0),
+    todayCarbs: dayLog.meals.reduce((sum, m) => sum + m.totalCarbs, 0),
+  }), [dayLog.meals]);
 
   const activeProgram = programs.find((p) => p.isActive);
   const streak = useMemo(() => {
@@ -165,13 +167,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return { ...recommended, daysLabel };
   }, [workoutHistory]);
 
-  const weekWorkouts = workoutHistory.filter((w) => {
+  const weekWorkouts = useMemo(() => workoutHistory.filter((w) => {
     if (!w.completedAt) return false;
     const d = new Date(w.completedAt);
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     return d >= weekAgo;
-  });
+  }), [workoutHistory]);
 
   const greeting = () => {
     const h = new Date().getHours();
