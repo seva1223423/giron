@@ -108,19 +108,16 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     const { id } = req.params;
     const { sets } = req.body;
 
-    // Update sets
+    // Update sets in parallel
     if (sets) {
-      for (const set of sets) {
-        await prisma.workoutSet.update({
-          where: { id: set.id },
-          data: {
-            reps: set.reps,
-            weight: set.weight,
-            completed: set.completed,
-            rpe: set.rpe,
-          },
-        });
-      }
+      await Promise.all(
+        sets.map((set: any) =>
+          prisma.workoutSet.update({
+            where: { id: set.id },
+            data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
+          })
+        )
+      );
     }
 
     // Calculate total volume

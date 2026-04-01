@@ -525,7 +525,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // First API call — may include tool_use
     let response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: systemBlocks,
       tools: AI_TOOLS,
@@ -562,7 +562,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       messages.push({ role: 'user', content: toolResults });
 
       response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         system: systemBlocks,
         tools: AI_TOOLS,
@@ -604,7 +604,7 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const anthropic = getAnthropicClient();
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       messages: [
         {
