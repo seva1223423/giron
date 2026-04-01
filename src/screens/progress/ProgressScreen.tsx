@@ -12,6 +12,15 @@ import { LeaderboardEntry } from '../../services/workoutService';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_WIDTH = SCREEN_WIDTH - spacing.xl * 2 - spacing.lg * 2;
 
+const STRENGTH_STANDARDS = [
+  { exerciseId: 'squat', name: 'Присед', multipliers: [0.5, 1.0, 1.5, 2.0, 2.5] },
+  { exerciseId: 'bench-press', name: 'Жим лёжа', multipliers: [0.35, 0.75, 1.25, 1.75, 2.0] },
+  { exerciseId: 'deadlift', name: 'Становая', multipliers: [0.5, 1.25, 1.75, 2.25, 2.75] },
+  { exerciseId: 'overhead-press', name: 'Жим стоя', multipliers: [0.25, 0.5, 0.75, 1.0, 1.25] },
+];
+const LEVEL_NAMES = ['Новичок', 'Начинающий', 'Средний', 'Продвинутый', 'Элита'];
+const LEVEL_COLORS = ['#9E9E9E', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0'];
+
 // Simple bar chart component
 const BarChart: React.FC<{
   data: { label: string; value: number }[];
@@ -358,7 +367,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   };
 
   // Personal records
-  const getPersonalRecords = () => {
+  const personalRecords = useMemo(() => {
     const records: Record<string, { exerciseId: string; name: string; maxWeight: number; maxReps: number; estimated1RM: number }> = {};
 
     workoutHistory.forEach((workout) => {
@@ -383,7 +392,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     });
 
     return Object.values(records).sort((a, b) => b.estimated1RM - a.estimated1RM);
-  };
+  }, [workoutHistory]);
 
   // 1RM history for selected exercise
   const oneRMHistory = useMemo(() => {
@@ -821,7 +830,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
             {/* My records */}
             {recordsView === 'mine' && (
-              getPersonalRecords().length === 0 ? (
+              personalRecords.length === 0 ? (
                 <FadeIn>
                   <Card style={{ marginTop: spacing.lg }}>
                     <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
@@ -831,7 +840,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 </FadeIn>
               ) : (
                 (() => {
-                const records = getPersonalRecords();
+                const records = personalRecords;
                 return records.map((record, i) => {
                   const isSelected = selectedExerciseId === record.exerciseId;
                   return (
@@ -908,23 +917,13 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             )}
 
             {/* Strength Standards */}
-            {recordsView === 'mine' && getPersonalRecords().length > 0 && (() => {
+            {recordsView === 'mine' && personalRecords.length > 0 && (() => {
               const bodyWeightKg = weightHistory.length > 0
                 ? weightHistory[weightHistory.length - 1].weightKg
                 : user?.weightKg || 80;
 
-              const STANDARDS = [
-                { exerciseId: 'squat', name: 'Присед', multipliers: [0.5, 1.0, 1.5, 2.0, 2.5] },
-                { exerciseId: 'bench-press', name: 'Жим лёжа', multipliers: [0.35, 0.75, 1.25, 1.75, 2.0] },
-                { exerciseId: 'deadlift', name: 'Становая', multipliers: [0.5, 1.25, 1.75, 2.25, 2.75] },
-                { exerciseId: 'overhead-press', name: 'Жим стоя', multipliers: [0.25, 0.5, 0.75, 1.0, 1.25] },
-              ];
-              const LEVEL_NAMES = ['Новичок', 'Начинающий', 'Средний', 'Продвинутый', 'Элита'];
-              const LEVEL_COLORS = ['#9E9E9E', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0'];
-
-              const prs = getPersonalRecords();
-              const standardData = STANDARDS.map((std) => {
-                const pr = prs.find((r) => r.exerciseId === std.exerciseId);
+              const standardData = STRENGTH_STANDARDS.map((std) => {
+                const pr = personalRecords.find((r) => r.exerciseId === std.exerciseId);
                 if (!pr) return null;
                 const ratio = pr.estimated1RM / bodyWeightKg;
                 let levelIdx = 0;

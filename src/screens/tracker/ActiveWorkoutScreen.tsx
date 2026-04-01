@@ -378,8 +378,11 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 };
 
 const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
-const SET_TYPE_LABELS: Record<string, string> = { normal: 'РАБ', warmup: 'РАЗМ', dropset: 'ДРОП' };
-const SET_TYPE_COLORS: Record<string, string> = { normal: '#9E9E9E', warmup: '#FF9800', dropset: '#9C27B0' };
+const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
+  normal:  { label: 'РАБ',  color: '#9E9E9E' },
+  warmup:  { label: 'РАЗМ', color: '#FF9800' },
+  dropset: { label: 'ДРОП', color: '#9C27B0' },
+};
 
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
@@ -423,8 +426,8 @@ const SetRow: React.FC<{
         delayLongPress={500}
         style={{ width: 40, alignItems: 'center' }}
       >
-        <Text style={[{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 1 }, { color: SET_TYPE_COLORS[currentType] }]}>
-          {SET_TYPE_LABELS[currentType]}
+        <Text style={[{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 1 }, { color: SET_TYPE_CONFIG[currentType].color }]}>
+          {SET_TYPE_CONFIG[currentType].label}
         </Text>
         <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>
           {setIndex + 1}

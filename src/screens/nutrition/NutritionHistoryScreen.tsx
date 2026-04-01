@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useNutritionStore } from '../../store';
@@ -28,10 +28,12 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
   const { getDayLog } = useNutritionStore();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
-  const dates = getPastDates(30);
-  const logsWithData = dates
-    .map((date) => ({ date, log: getDayLog(date) }))
-    .filter(({ log }) => log.meals.length > 0 || log.waterMl > 0);
+  const logsWithData = useMemo(() =>
+    getPastDates(30)
+      .map((date) => ({ date, log: getDayLog(date) }))
+      .filter(({ log }) => log.meals.length > 0 || log.waterMl > 0),
+    [getDayLog]
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
