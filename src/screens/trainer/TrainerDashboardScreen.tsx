@@ -10,24 +10,11 @@ import {
   Modal,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore } from '../../store';
+import { useThemeStore, useTrainerStore } from '../../store';
+import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-
-export interface TrainerClient {
-  id: string;
-  name: string;
-  age?: number;
-  goal?: string;
-  level?: string;
-  lastVisit?: string;
-  totalWorkouts?: number;
-  assignedProgram?: string;
-  notes?: string;
-  phone?: string;
-  emoji?: string;
-}
 
 const GOAL_LABELS: Record<string, string> = {
   weight_loss: 'Похудение',
@@ -44,15 +31,9 @@ const LEVEL_LABELS: Record<string, string> = {
   expert: 'Эксперт',
 };
 
-const SAMPLE_CLIENTS: TrainerClient[] = [
-  { id: '1', name: 'Алексей Смирнов', age: 28, goal: 'muscle_gain', level: 'intermediate', lastVisit: '2026-03-31', totalWorkouts: 42, assignedProgram: 'Толчок-Тяга-Ноги', emoji: '💪', phone: '+7 900 000 0001' },
-  { id: '2', name: 'Мария Козлова', age: 24, goal: 'weight_loss', level: 'beginner', lastVisit: '2026-04-01', totalWorkouts: 18, assignedProgram: 'Верх / Низ', emoji: '🏃', phone: '+7 900 000 0002' },
-  { id: '3', name: 'Дмитрий Петров', age: 35, goal: 'strength', level: 'advanced', lastVisit: '2026-03-29', totalWorkouts: 87, assignedProgram: 'Стартовая сила', emoji: '🏋️', phone: '+7 900 000 0003' },
-];
-
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const [clients, setClients] = useState<TrainerClient[]>(SAMPLE_CLIENTS);
+  const { clients, addClient, deleteClient } = useTrainerStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -69,14 +50,12 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
   const handleAddClient = () => {
     if (!newName.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const newClient: TrainerClient = {
-      id: Date.now().toString(),
+    addClient({
       name: newName.trim(),
       phone: newPhone.trim() || undefined,
       totalWorkouts: 0,
       emoji: '🧑',
-    };
-    setClients((prev) => [...prev, newClient]);
+    });
     setNewName('');
     setNewPhone('');
     setShowAddModal(false);
@@ -93,7 +72,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
           style: 'destructive',
           onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setClients((prev) => prev.filter((c) => c.id !== clientId));
+            deleteClient(clientId);
           },
         },
       ]

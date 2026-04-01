@@ -9,11 +9,11 @@ import {
   Modal,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore } from '../../store';
+import { useThemeStore, useTrainerStore } from '../../store';
+import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { TrainerClient } from './TrainerDashboardScreen';
 
 const PROGRAMS = [
   'Толчок-Тяга-Ноги',
@@ -41,6 +41,7 @@ const LEVEL_LABELS: Record<string, string> = {
 
 export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const { colors } = useThemeStore();
+  const { updateClient } = useTrainerStore();
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
   const [showProgramPicker, setShowProgramPicker] = useState(false);
   const [notes, setNotes] = useState(client.notes || '');
@@ -50,13 +51,17 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const handleAssignProgram = (program: string) => {
     Haptics.selectionAsync();
-    setClient((prev) => ({ ...prev, assignedProgram: program }));
+    const updated = { ...client, assignedProgram: program };
+    setClient(updated);
+    updateClient(client.id, { assignedProgram: program });
     setShowProgramPicker(false);
   };
 
   const handleSaveNotes = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setClient((prev) => ({ ...prev, notes }));
+    const updated = { ...client, notes };
+    setClient(updated);
+    updateClient(client.id, { notes });
     setNotesEditing(false);
   };
 
