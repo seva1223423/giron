@@ -188,6 +188,11 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                       {/* Expanded: exercise breakdown */}
                       {isExpanded && (
                         <View style={{ marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider }}>
+                          {workout.notes ? (
+                            <Text style={[typography.small, { color: colors.textSecondary, fontStyle: 'italic', marginBottom: spacing.md }]} numberOfLines={3}>
+                              📝 {workout.notes}
+                            </Text>
+                          ) : null}
                           {!activeWorkout && (
                             <TouchableOpacity
                               onPress={() => handleRepeatWorkout(workout)}

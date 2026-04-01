@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated, TouchableOpacity, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
@@ -72,6 +72,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   const { workoutHistory, updateWorkoutInHistory } = useWorkoutStore();
   const workout: Workout = route.params?.workout;
   const [rating, setRating] = useState<number>(workout?.rating ?? 0);
+  const [sessionNote, setSessionNote] = useState<string>(workout?.notes ?? '');
   const shareCardRef = useRef<View>(null);
 
   // Detect new personal records: compare this workout's 1RM per exercise vs history
@@ -468,6 +469,29 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
               {rating === 1 ? 'Тяжело, еле добрался' : rating === 2 ? 'Средне, бывало лучше' : rating === 3 ? 'Нормально' : rating === 4 ? 'Хорошая тренировка' : 'Огонь! Всё по максимуму 🔥'}
             </Text>
           )}
+        </Card>
+      </FadeIn>
+
+      {/* Session note */}
+      <FadeIn delay={640}>
+        <Card style={{ marginBottom: spacing.lg }}>
+          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+            ЗАМЕТКИ О ТРЕНИРОВКЕ
+          </Text>
+          <TextInput
+            value={sessionNote}
+            onChangeText={setSessionNote}
+            onBlur={() => {
+              if (sessionNote !== (workout.notes ?? '')) {
+                updateWorkoutInHistory(workout.id, { notes: sessionNote.trim() || undefined });
+              }
+            }}
+            placeholder="Как прошло? Самочувствие, замечания..."
+            placeholderTextColor={colors.textTertiary}
+            multiline
+            numberOfLines={3}
+            style={[typography.body, { color: colors.text, backgroundColor: colors.background, borderRadius: borderRadius.md, padding: spacing.md, minHeight: 72, textAlignVertical: 'top', borderWidth: 1, borderColor: colors.border }]}
+          />
         </Card>
       </FadeIn>
 
