@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useNutritionStore } from '../../store';
 import { Card, Button, ProgressRing, MacroBar } from '../../components';
@@ -17,7 +17,7 @@ const MEAL_TYPES = [
 
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { getDayLog, addWater, setTargets } = useNutritionStore();
+  const { getDayLog, addWater, setTargets, removeMeal } = useNutritionStore();
   const today = todayDate();
   const dayLog = getDayLog(today);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
@@ -186,6 +186,12 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                       </Text>
                     </View>
                   ))}
+                  <TouchableOpacity
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeMeal(today, meal.id); }}
+                    style={{ alignSelf: 'flex-end', marginTop: 4 }}
+                  >
+                    <Text style={[typography.caption, { color: colors.error }]}>Удалить</Text>
+                  </TouchableOpacity>
                 </View>
               ))
             ) : (
