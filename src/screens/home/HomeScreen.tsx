@@ -8,6 +8,45 @@ import { spacing, borderRadius } from '../../theme/spacing';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
 
+const DAILY_QUOTES = [
+  { text: 'Штанга не знает сколько ты устал. Она знает только сколько ты поднял.', author: 'Iron Coach' },
+  { text: 'Прогресс — это не прямая линия. Это серпантин в гору.', author: 'Iron Coach' },
+  { text: 'Дисциплина — это выбор между тем чего ты хочешь сейчас и тем чего хочешь по-настоящему.', author: 'Abraham Lincoln' },
+  { text: 'Тело всегда слушается мозга. Натренируй оба.', author: 'Iron Coach' },
+  { text: 'Каждый профессионал когда-то был новичком, который не бросил.', author: 'Iron Coach' },
+  { text: 'Мышцы не растут во время тренировки. Они растут пока ты спишь и ешь правильно.', author: 'Наука' },
+  { text: 'Не ищи мотивацию. Создавай дисциплину. Мотивация уйдёт — дисциплина останется.', author: 'Iron Coach' },
+  { text: 'Слабые моменты строят сильных людей.', author: 'Iron Coach' },
+  { text: 'Один процент лучше каждый день — за год ты станешь в 37 раз лучше.', author: 'James Clear' },
+  { text: 'Сравнивай себя только с собой вчерашним.', author: 'Jordan Peterson' },
+  { text: 'Боль от тренировки временна. Гордость от результата навсегда.', author: 'Iron Coach' },
+  { text: 'Ты не проигрываешь. Ты либо выигрываешь, либо учишься.', author: 'Nelson Mandela' },
+  { text: 'Правило 40%: когда ты думаешь что достиг предела — ты использовал только 40% своих возможностей.', author: 'SEAL' },
+  { text: 'Тело достигает того, что задумал разум.', author: 'Bill Phillips' },
+  { text: 'Нет плохих тренировок. Есть только тренировки которые ты не сделал.', author: 'Iron Coach' },
+  { text: 'Каждый подход — это голосование за того человека которым ты хочешь стать.', author: 'Iron Coach' },
+  { text: 'Восстановление — часть тренировки. Пренебрегать им — значит тренироваться неправильно.', author: 'Наука' },
+  { text: 'Великие результаты требуют великого отношения к базовым вещам: сон, белок, объём.', author: 'Helms' },
+  { text: 'Сила — это не только мышцы. Это привычка не отступать.', author: 'Iron Coach' },
+  { text: 'Начни там где ты есть. Используй то что имеешь. Делай что можешь.', author: 'Arthur Ashe' },
+  { text: 'Тренировка без цели — это просто усталость. Тренировка с целью — инвестиция.', author: 'Iron Coach' },
+  { text: 'Гравитация одинакова для всех. Работа со штангой — честный бизнес.', author: 'Iron Coach' },
+  { text: 'Никогда не пропускай понедельник. И среду. И пятницу.', author: 'Iron Coach' },
+  { text: 'Тело — это долгосрочный проект. Не спринт.', author: 'Iron Coach' },
+  { text: 'Лучшая диета и лучшая программа — та, которой ты придерживаешься.', author: 'Alan Aragon' },
+  { text: 'Страдания сейчас, преимущество потом.', author: 'Джоко Уиллинк' },
+  { text: 'Тренировки не делают тебя лучше. Восстановление после тренировок — делает.', author: 'Наука' },
+  { text: 'Маленький прогресс каждый день складывается в большие результаты.', author: 'Iron Coach' },
+  { text: 'Делай сложное пока оно не стало лёгким.', author: 'Iron Coach' },
+  { text: 'Подними больше. Спи дольше. Ешь лучше. Повтори.', author: 'Iron Coach' },
+];
+
+function getDailyQuote() {
+  const start = new Date(2024, 0, 1).getTime();
+  const dayIndex = Math.floor((Date.now() - start) / 86400000);
+  return DAILY_QUOTES[dayIndex % DAILY_QUOTES.length];
+}
+
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
@@ -28,6 +67,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const todayCarbs = dayLog.meals.reduce((sum, m) => sum + m.totalCarbs, 0);
 
   const activeProgram = programs.find((p) => p.isActive);
+  // Streak
+  const streak = (() => {
+    if (workoutHistory.length === 0) return 0;
+    let s = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const ds = d.toISOString().split('T')[0];
+      if (workoutHistory.some((w) => w.completedAt?.startsWith(ds))) {
+        s++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    return s;
+  })();
+
+  const quote = getDailyQuote();
+
   const weekWorkouts = workoutHistory.filter((w) => {
     if (!w.completedAt) return false;
     const d = new Date(w.completedAt);
@@ -171,6 +231,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>Минут</Text>
             </View>
+            {streak > 0 && (
+              <View style={styles.statItem}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  <Text style={[typography.number, { color: colors.error }]}>{streak}</Text>
+                  <Text style={{ fontSize: 14 }}>🔥</Text>
+                </View>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>Дней</Text>
+              </View>
+            )}
           </View>
         </Card>
       </FadeIn>
@@ -229,6 +298,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
           <Text style={[typography.smallMedium, { color: colors.primary, marginTop: spacing.sm }]}>
             Открыть чат
+          </Text>
+        </Card>
+      </FadeIn>
+
+      {/* Daily quote */}
+      <FadeIn delay={450}>
+        <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '08' }}>
+          <Text style={[typography.captionMedium, { color: colors.primary, marginBottom: spacing.sm }]}>
+            ЦИТАТА ДНЯ
+          </Text>
+          <Text style={[typography.body, { color: colors.text, fontStyle: 'italic', lineHeight: 22 }]}>
+            "{quote.text}"
+          </Text>
+          <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.sm }]}>
+            — {quote.author}
           </Text>
         </Card>
       </FadeIn>

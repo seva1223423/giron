@@ -1,6 +1,16 @@
 import { api } from './api';
 import { Program, Workout, Exercise } from '../types';
 
+export interface LeaderboardEntry {
+  rank: number;
+  exerciseName: string;
+  userName: string;
+  weightKg: number;
+  reps: number;
+  estimated1RM: number;
+  date: string | null;
+}
+
 export const workoutService = {
   // Programs
   async getPrograms(): Promise<Program[]> {
@@ -54,5 +64,11 @@ export const workoutService = {
   async getExercises(): Promise<Exercise[]> {
     const { data } = await api.get('/workouts/exercises');
     return data;
+  },
+
+  // Club leaderboard
+  async getLeaderboard(): Promise<LeaderboardEntry[]> {
+    const { data } = await api.get('/workouts/leaderboard');
+    return data.leaderboard;
   },
 };

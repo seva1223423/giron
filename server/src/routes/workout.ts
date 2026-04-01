@@ -183,6 +183,75 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
   }
 });
 
+// Club leaderboard — top lifts per exercise across all users
+router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response) => {
+  try {
+    // Fetch completed sets with user and exercise info
+    const sets = await prisma.workoutSet.findMany({
+      where: { completed: true, weight: { gt: 0 }, reps: { gt: 0 } },
+      select: {
+        weight: true,
+        reps: true,
+        workoutExercise: {
+          select: {
+            exercise: { select: { id: true, name: true } },
+            workout: {
+              select: {
+                completedAt: true,
+                user: { select: { id: true, firstName: true } },
+              },
+            },
+          },
+        },
+      },
+      take: 5000,
+    });
+
+    // Aggregate: best estimated 1RM per (userId, exerciseId)
+    const bestMap: Map<string, {
+      exerciseName: string;
+      userName: string;
+      weightKg: number;
+      reps: number;
+      estimated1RM: number;
+      date: string | null;
+    }> = new Map();
+
+    sets.forEach((s) => {
+      const ex = s.workoutExercise?.exercise;
+      const workout = s.workoutExercise?.workout;
+      const user = workout?.user;
+      if (!ex || !user || !s.weight || !s.reps) return;
+
+      const est1rm = Math.round(s.weight * (1 + s.reps / 30));
+      const key = `${user.id}::${ex.id}`;
+      const existing = bestMap.get(key);
+
+      if (!existing || est1rm > existing.estimated1RM) {
+        bestMap.set(key, {
+          exerciseName: ex.name,
+          userName: user.firstName,
+          weightKg: s.weight,
+          reps: s.reps,
+          estimated1RM: est1rm,
+          date: workout?.completedAt?.toISOString() ?? null,
+        });
+      }
+    });
+
+    // Sort by 1RM desc, take top 100
+    const leaderboard = Array.from(bestMap.values())
+      .sort((a, b) => b.estimated1RM - a.estimated1RM)
+      .slice(0, 100)
+      .map((entry, i) => ({ rank: i + 1, ...entry }));
+
+    res.json({ leaderboard });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Ошибка получения лидерборда' });
+  }
+});
+
 // Get exercises database
 router.get('/exercises', async (_req, res: Response) => {
   try {

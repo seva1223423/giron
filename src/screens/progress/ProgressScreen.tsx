@@ -5,8 +5,9 @@ import { useThemeStore, useWorkoutStore, useAuthStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { userService } from '../../services';
+import { userService, workoutService } from '../../services';
 import { BodyWeight } from '../../types';
+import { LeaderboardEntry } from '../../services/workoutService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_WIDTH = SCREEN_WIDTH - spacing.xl * 2 - spacing.lg * 2;
@@ -159,6 +160,24 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { user } = useAuthStore();
   const [tab, setTab] = useState<'overview' | 'calendar' | 'records' | 'weight'>('overview');
 
+  // Leaderboard state
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [recordsView, setRecordsView] = useState<'mine' | 'club'>('mine');
+
+  const fetchLeaderboard = useCallback(async () => {
+    if (leaderboard.length > 0) return; // already loaded
+    setLoadingLeaderboard(true);
+    try {
+      const data = await workoutService.getLeaderboard();
+      setLeaderboard(data);
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  }, [leaderboard.length]);
+
   // Body weight state
   const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
   const [loadingWeight, setLoadingWeight] = useState(false);
@@ -180,7 +199,8 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   useEffect(() => {
     if (tab === 'weight') fetchWeightHistory();
-  }, [tab, fetchWeightHistory]);
+    if (tab === 'records' && recordsView === 'club') fetchLeaderboard();
+  }, [tab, fetchWeightHistory, fetchLeaderboard, recordsView]);
 
   const handleAddWeight = async () => {
     const kg = parseFloat(newWeight.replace(',', '.'));
@@ -631,49 +651,123 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
         {tab === 'records' && (
           <>
-            {getPersonalRecords().length === 0 ? (
-              <FadeIn>
-                <Card style={{ marginTop: spacing.xl }}>
-                  <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-                    Рекорды появятся после первых тренировок
-                  </Text>
-                </Card>
-              </FadeIn>
-            ) : (
-              getPersonalRecords().map((record, i) => (
-                <FadeIn key={i} delay={i * 60}>
-                  <Card style={{ marginBottom: spacing.sm }}>
-                    <Text style={[typography.bodySemibold, { color: colors.text }]}>{record.name}</Text>
-                    <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
-                      <View>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>Макс. вес</Text>
-                        <Text style={[typography.numberSmall, { color: colors.primary }]}>{record.maxWeight} кг</Text>
-                      </View>
-                      <View>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>Повторений</Text>
-                        <Text style={[typography.numberSmall, { color: colors.text }]}>{record.maxReps}</Text>
-                      </View>
-                      <View>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>~1ПМ</Text>
-                        <Text style={[typography.numberSmall, { color: colors.accent }]}>{record.estimated1RM} кг</Text>
-                      </View>
-                    </View>
-                    {/* Progress bar relative to top */}
-                    <View style={{ marginTop: spacing.sm }}>
-                      <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surface }}>
-                        <View
-                          style={{
-                            height: 4,
-                            borderRadius: 2,
-                            backgroundColor: colors.primary,
-                            width: `${(record.estimated1RM / getPersonalRecords()[0].estimated1RM) * 100}%`,
-                          }}
-                        />
-                      </View>
-                    </View>
+            {/* Mine / Club toggle */}
+            <FadeIn delay={0}>
+              <View style={[styles.segmentControl, { backgroundColor: colors.surface }]}>
+                {(['mine', 'club'] as const).map((v) => (
+                  <TouchableOpacity
+                    key={v}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setRecordsView(v);
+                      if (v === 'club') fetchLeaderboard();
+                    }}
+                    style={[
+                      styles.segmentBtn,
+                      recordsView === v && { backgroundColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={[typography.smallMedium, {
+                      color: recordsView === v ? '#fff' : colors.textSecondary,
+                    }]}>
+                      {v === 'mine' ? 'Мои рекорды' : '🏆 Клуб'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </FadeIn>
+
+            {/* My records */}
+            {recordsView === 'mine' && (
+              getPersonalRecords().length === 0 ? (
+                <FadeIn>
+                  <Card style={{ marginTop: spacing.lg }}>
+                    <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                      Рекорды появятся после первых тренировок
+                    </Text>
                   </Card>
                 </FadeIn>
-              ))
+              ) : (
+                getPersonalRecords().map((record, i) => (
+                  <FadeIn key={i} delay={i * 60}>
+                    <Card style={{ marginBottom: spacing.sm, marginTop: i === 0 ? spacing.lg : 0 }}>
+                      <Text style={[typography.bodySemibold, { color: colors.text }]}>{record.name}</Text>
+                      <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
+                        <View>
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>Макс. вес</Text>
+                          <Text style={[typography.numberSmall, { color: colors.primary }]}>{record.maxWeight} кг</Text>
+                        </View>
+                        <View>
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>Повторений</Text>
+                          <Text style={[typography.numberSmall, { color: colors.text }]}>{record.maxReps}</Text>
+                        </View>
+                        <View>
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>~1ПМ</Text>
+                          <Text style={[typography.numberSmall, { color: colors.accent }]}>{record.estimated1RM} кг</Text>
+                        </View>
+                      </View>
+                      <View style={{ marginTop: spacing.sm }}>
+                        <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surface }}>
+                          <View style={{
+                            height: 4, borderRadius: 2, backgroundColor: colors.primary,
+                            width: `${(record.estimated1RM / getPersonalRecords()[0].estimated1RM) * 100}%`,
+                          }} />
+                        </View>
+                      </View>
+                    </Card>
+                  </FadeIn>
+                ))
+              )
+            )}
+
+            {/* Club leaderboard */}
+            {recordsView === 'club' && (
+              loadingLeaderboard ? (
+                <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
+              ) : leaderboard.length === 0 ? (
+                <FadeIn>
+                  <Card style={{ marginTop: spacing.lg }}>
+                    <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                      Рекорды клуба появятся когда участники завершат тренировки
+                    </Text>
+                  </Card>
+                </FadeIn>
+              ) : (
+                <FadeIn delay={0}>
+                  <Card style={{ marginTop: spacing.lg }}>
+                    {leaderboard.slice(0, 30).map((entry, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
+                          i < leaderboard.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
+                        ]}
+                      >
+                        <Text style={[typography.numberSmall, {
+                          color: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : colors.textTertiary,
+                          width: 32,
+                          textAlign: 'center',
+                          fontSize: i < 3 ? 18 : 14,
+                        }]}>
+                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
+                        </Text>
+                        <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                          <Text style={[typography.bodySemibold, { color: colors.text }]}>{entry.exerciseName}</Text>
+                          <Text style={[typography.small, { color: colors.textSecondary }]}>
+                            {entry.userName} • {entry.weightKg} кг × {entry.reps}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[typography.numberSmall, { color: colors.accent, fontSize: 16 }]}>
+                            {entry.estimated1RM} кг
+                          </Text>
+                          <Text style={[typography.small, { color: colors.textTertiary }]}>~1ПМ</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </Card>
+                </FadeIn>
+              )
             )}
           </>
         )}
@@ -837,6 +931,18 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   workoutDot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
+  segmentControl: {
+    flexDirection: 'row',
+    borderRadius: borderRadius.lg,
+    padding: 3,
+    marginBottom: spacing.sm,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: borderRadius.md,
+  },
   addWeightBtn: {
     width: 48,
     height: 48,
