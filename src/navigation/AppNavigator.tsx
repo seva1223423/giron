@@ -23,11 +23,13 @@ import { ProgressScreen } from '../screens/progress/ProgressScreen';
 import { NewsScreen } from '../screens/news/NewsScreen';
 import { AIChatScreen } from '../screens/ai/AIChatScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { SubscriptionScreen } from '../screens/profile/SubscriptionScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const WorkoutsStack = createNativeStackNavigator();
 const NutritionStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
 
 // Tab icon component
 const TabIcon: React.FC<{ label: string; emoji: string; focused: boolean }> = ({ label, emoji, focused }) => {
@@ -62,6 +64,16 @@ function NutritionStackNavigator() {
       <NutritionStack.Screen name="NutritionMain" component={NutritionScreen} />
       <NutritionStack.Screen name="FoodScanner" component={FoodScannerScreen} />
     </NutritionStack.Navigator>
+  );
+}
+
+// Profile Stack
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -128,7 +140,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="ProfileTab"
-        component={ProfileScreen}
+        component={ProfileStackNavigator}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon emoji="👤" label="Профиль" focused={focused} />,
         }}

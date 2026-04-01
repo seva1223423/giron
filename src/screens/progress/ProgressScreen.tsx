@@ -164,6 +164,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [recordsView, setRecordsView] = useState<'mine' | 'club'>('mine');
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
 
   const fetchLeaderboard = useCallback(async () => {
     if (leaderboard.length > 0) return; // already loaded
@@ -348,7 +349,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   // Personal records
   const getPersonalRecords = () => {
-    const records: Record<string, { name: string; maxWeight: number; maxReps: number; estimated1RM: number }> = {};
+    const records: Record<string, { exerciseId: string; name: string; maxWeight: number; maxReps: number; estimated1RM: number }> = {};
 
     workoutHistory.forEach((workout) => {
       workout.exercises.forEach((ex) => {
@@ -360,6 +361,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
             if (!records[key] || estimated1RM > records[key].estimated1RM) {
               records[key] = {
+                exerciseId: ex.exerciseId,
                 name: ex.exercise.name,
                 maxWeight: set.weight || 0,
                 maxReps: set.reps || 0,
@@ -372,6 +374,37 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
     return Object.values(records).sort((a, b) => b.estimated1RM - a.estimated1RM);
   };
+
+  // 1RM history for selected exercise
+  const oneRMHistory = useMemo(() => {
+    if (!selectedExerciseId) return [];
+
+    const byDate = new Map<string, number>();
+
+    [...workoutHistory]
+      .filter((w) => w.completedAt)
+      .sort((a, b) => new Date(a.completedAt!).getTime() - new Date(b.completedAt!).getTime())
+      .forEach((workout) => {
+        workout.exercises
+          .filter((ex) => ex.exerciseId === selectedExerciseId)
+          .forEach((ex) => {
+            ex.sets
+              .filter((s) => s.completed && s.weight && s.reps)
+              .forEach((set) => {
+                const date = workout.completedAt!.split('T')[0];
+                const est1rm = Math.round((set.weight || 0) * (1 + (set.reps || 0) / 30));
+                if (!byDate.has(date) || est1rm > byDate.get(date)!) {
+                  byDate.set(date, est1rm);
+                }
+              });
+          });
+      });
+
+    return Array.from(byDate.entries()).map(([date, value]) => ({
+      label: new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+      value,
+    }));
+  }, [selectedExerciseId, workoutHistory]);
 
   // Muscle group distribution
   const muscleDistribution = useMemo(() => {
@@ -688,35 +721,80 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   </Card>
                 </FadeIn>
               ) : (
-                getPersonalRecords().map((record, i) => (
-                  <FadeIn key={i} delay={i * 60}>
-                    <Card style={{ marginBottom: spacing.sm, marginTop: i === 0 ? spacing.lg : 0 }}>
-                      <Text style={[typography.bodySemibold, { color: colors.text }]}>{record.name}</Text>
-                      <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
-                        <View>
-                          <Text style={[typography.caption, { color: colors.textSecondary }]}>Макс. вес</Text>
-                          <Text style={[typography.numberSmall, { color: colors.primary }]}>{record.maxWeight} кг</Text>
-                        </View>
-                        <View>
-                          <Text style={[typography.caption, { color: colors.textSecondary }]}>Повторений</Text>
-                          <Text style={[typography.numberSmall, { color: colors.text }]}>{record.maxReps}</Text>
-                        </View>
-                        <View>
-                          <Text style={[typography.caption, { color: colors.textSecondary }]}>~1ПМ</Text>
-                          <Text style={[typography.numberSmall, { color: colors.accent }]}>{record.estimated1RM} кг</Text>
-                        </View>
-                      </View>
-                      <View style={{ marginTop: spacing.sm }}>
-                        <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surface }}>
-                          <View style={{
-                            height: 4, borderRadius: 2, backgroundColor: colors.primary,
-                            width: `${(record.estimated1RM / getPersonalRecords()[0].estimated1RM) * 100}%`,
-                          }} />
-                        </View>
-                      </View>
-                    </Card>
-                  </FadeIn>
-                ))
+                (() => {
+                const records = getPersonalRecords();
+                return records.map((record, i) => {
+                  const isSelected = selectedExerciseId === record.exerciseId;
+                  return (
+                    <FadeIn key={record.exerciseId} delay={i * 60}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setSelectedExerciseId(isSelected ? null : record.exerciseId);
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Card style={{
+                          marginBottom: spacing.sm,
+                          marginTop: i === 0 ? spacing.lg : 0,
+                          borderWidth: isSelected ? 1.5 : 0,
+                          borderColor: isSelected ? colors.accent : 'transparent',
+                        }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}>{record.name}</Text>
+                            <Text style={[typography.caption, { color: isSelected ? colors.accent : colors.textTertiary, marginLeft: spacing.sm }]}>
+                              {isSelected ? 'Скрыть ▲' : 'График ▼'}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
+                            <View>
+                              <Text style={[typography.caption, { color: colors.textSecondary }]}>Макс. вес</Text>
+                              <Text style={[typography.numberSmall, { color: colors.primary }]}>{record.maxWeight} кг</Text>
+                            </View>
+                            <View>
+                              <Text style={[typography.caption, { color: colors.textSecondary }]}>Повторений</Text>
+                              <Text style={[typography.numberSmall, { color: colors.text }]}>{record.maxReps}</Text>
+                            </View>
+                            <View>
+                              <Text style={[typography.caption, { color: colors.textSecondary }]}>~1ПМ</Text>
+                              <Text style={[typography.numberSmall, { color: colors.accent }]}>{record.estimated1RM} кг</Text>
+                            </View>
+                          </View>
+                          <View style={{ marginTop: spacing.sm }}>
+                            <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surface }}>
+                              <View style={{
+                                height: 4, borderRadius: 2, backgroundColor: colors.primary,
+                                width: `${(record.estimated1RM / records[0].estimated1RM) * 100}%`,
+                              }} />
+                            </View>
+                          </View>
+                          {isSelected && oneRMHistory.length >= 2 && (
+                            <View style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider }}>
+                              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+                                ДИНАМИКА ~1ПМ
+                              </Text>
+                              <LineChart
+                                data={oneRMHistory.slice(-12)}
+                                color={colors.accent}
+                                colors={colors}
+                                suffix=" кг"
+                                height={130}
+                              />
+                            </View>
+                          )}
+                          {isSelected && oneRMHistory.length < 2 && (
+                            <View style={{ marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider }}>
+                              <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center' }]}>
+                                Нужно минимум 2 тренировки с этим упражнением для графика
+                              </Text>
+                            </View>
+                          )}
+                        </Card>
+                      </TouchableOpacity>
+                    </FadeIn>
+                  );
+                });
+              })()
               )
             )}
 

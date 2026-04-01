@@ -170,8 +170,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           Безлимитный ИИ-тренер, расширенная аналитика, персональные программы, КБЖУ без ограничений
         </Text>
         <Button
-          title="Попробовать бесплатно"
-          onPress={() => {}}
+          title="Попробовать бесплатно — 7 дней"
+          onPress={() => navigation.navigate('Subscription')}
           style={{ marginTop: spacing.lg }}
           fullWidth
         />
