@@ -17,6 +17,7 @@ import { ActiveWorkoutScreen } from '../screens/tracker/ActiveWorkoutScreen';
 import { ExerciseDetailScreen } from '../screens/workouts/ExerciseDetailScreen';
 import { WorkoutSummaryScreen } from '../screens/workouts/WorkoutSummaryScreen';
 import { CustomWorkoutScreen } from '../screens/workouts/CustomWorkoutScreen';
+import { PlateCalculatorScreen } from '../screens/workouts/PlateCalculatorScreen';
 import { NutritionScreen } from '../screens/nutrition/NutritionScreen';
 import { FoodScannerScreen } from '../screens/nutrition/FoodScannerScreen';
 import { ProgressScreen } from '../screens/progress/ProgressScreen';
@@ -53,6 +54,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
       <WorkoutsStack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} />
       <WorkoutsStack.Screen name="CustomWorkout" component={CustomWorkoutScreen} />
+      <WorkoutsStack.Screen name="PlateCalculator" component={PlateCalculatorScreen} />
     </WorkoutsStack.Navigator>
   );
 }
