@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,20 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setExerciseNotes,
     updateSetData,
   } = useWorkoutStore();
+
+  // Pre-compute best 1RM per exercise to avoid iterating full history on each set completion
+  const bestRMs = useMemo(() => {
+    const map: Record<string, number> = {};
+    workoutHistory.forEach((w) => {
+      w.exercises.forEach((ex) => {
+        ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((s) => {
+          const rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
+          if (!map[ex.exerciseId] || rm > map[ex.exerciseId]) map[ex.exerciseId] = rm;
+        });
+      });
+    });
+    return map;
+  }, [workoutHistory]);
 
   const [restTime, setRestTime] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
@@ -112,21 +126,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     // PR detection: compare new 1RM against all-time best for this exercise
     if (weight > 0 && reps > 0) {
       const newRM = weight * (1 + reps / 30);
-      const exerciseId = currentExercise.exerciseId;
-      let bestPrevRM = 0;
-      workoutHistory.forEach((w) => {
-        w.exercises
-          .filter((ex) => ex.exerciseId === exerciseId)
-          .forEach((ex) => {
-            ex.sets
-              .filter((s) => s.completed && s.weight && s.reps)
-              .forEach((s) => {
-                const rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
-                if (rm > bestPrevRM) bestPrevRM = rm;
-              });
-          });
-      });
-      if (newRM > bestPrevRM && bestPrevRM > 0) {
+      const prevBest = bestRMs[currentExercise.exerciseId] || 0;
+      if (newRM > prevBest && prevBest > 0) {
         showPrToast(currentExercise.exercise.name, Math.round(newRM));
       }
     }
