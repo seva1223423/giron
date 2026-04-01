@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useThemeStore, useNutritionStore } from '../../store';
 import { Button, Card } from '../../components';
@@ -8,14 +8,17 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { NutritionItem, Meal } from '../../types';
 import { aiService, getApiError } from '../../services';
 
-const todayDate = () => new Date().toISOString().split('T')[0];
-
 export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { addMeal } = useNutritionStore();
+  const { addMeal, getDayLog } = useNutritionStore();
+  const today = todayDate();
+  const dayLog = getDayLog(today);
+  const alreadyEaten = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [recognizedItems, setRecognizedItems] = useState<NutritionItem[]>([]);
+  // Per-item base values (per 100g) for proportional recalculation
+  const [itemBases, setItemBases] = useState<Record<string, { cal: number; prot: number; fats: number; carbs: number }>>({});
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('lunch');
   const [error, setError] = useState('');
 
@@ -56,6 +59,18 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         weightGrams: item.weightGrams,
       }));
 
+      // Store per-100g base so we can recalculate when weight is changed
+      const bases: typeof itemBases = {};
+      items.forEach((item) => {
+        const w = item.weightGrams || 100;
+        bases[item.id] = {
+          cal: (item.calories / w) * 100,
+          prot: (item.protein / w) * 100,
+          fats: (item.fats / w) * 100,
+          carbs: (item.carbs / w) * 100,
+        };
+      });
+      setItemBases(bases);
       setRecognizedItems(items);
     } catch (e) {
       const apiError = getApiError(e);
@@ -68,6 +83,27 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       setLoading(false);
     }
   };
+
+  const updateItemWeight = useCallback((id: string, newWeight: string) => {
+    const w = parseInt(newWeight) || 0;
+    if (w <= 0) return;
+    const base = itemBases[id];
+    if (!base) return;
+    setRecognizedItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              weightGrams: w,
+              calories: Math.round((base.cal * w) / 100),
+              protein: Math.round((base.prot * w) / 100),
+              fats: Math.round((base.fats * w) / 100 * 10) / 10,
+              carbs: Math.round((base.carbs * w) / 100),
+            }
+          : item
+      )
+    );
+  }, [itemBases]);
 
   const handleSave = () => {
     if (recognizedItems.length === 0) return;
@@ -84,7 +120,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       createdAt: new Date().toISOString(),
     };
 
-    addMeal(todayDate(), meal);
+    addMeal(today, meal);
     navigation.goBack();
   };
 
@@ -191,9 +227,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           </Text>
           {recognizedItems.map((item) => (
             <Card key={item.id} style={{ marginBottom: spacing.md }}>
-              <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.sm }]}>
-                {item.name} ({item.weightGrams}г)
-              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <TextInput
+                    style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                    value={item.weightGrams?.toString() ?? ''}
+                    onChangeText={(v) => updateItemWeight(item.id, v)}
+                    keyboardType="numeric"
+                    selectTextOnFocus
+                  />
+                  <Text style={[typography.small, { color: colors.textSecondary }]}>г</Text>
+                </View>
+              </View>
               <View style={styles.nutritionRow}>
                 <View style={styles.nutritionCell}>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>Ккал</Text>
@@ -248,6 +294,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             </View>
           </Card>
 
+          {dayLog.targetCalories > 0 && (() => {
+            const mealCal = recognizedItems.reduce((s, i) => s + i.calories, 0);
+            const afterMeal = alreadyEaten + mealCal;
+            const remaining = dayLog.targetCalories - afterMeal;
+            return (
+              <View style={[{ padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.lg }, { backgroundColor: remaining >= 0 ? colors.success + '15' : colors.error + '15' }]}>
+                <Text style={[typography.small, { color: remaining >= 0 ? colors.success : colors.error }]}>
+                  После этого приёма: {afterMeal} / {dayLog.targetCalories} ккал
+                  {' '}({remaining >= 0 ? `остаток ${remaining}` : `превышение ${Math.abs(remaining)}`} ккал)
+                </Text>
+              </View>
+            );
+          })()}
+
           <Button
             title="Сохранить в дневник"
             onPress={handleSave}
@@ -290,5 +350,15 @@ const styles = StyleSheet.create({
   },
   nutritionCell: {
     alignItems: 'center',
+  },
+  weightInput: {
+    width: 56,
+    height: 32,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
