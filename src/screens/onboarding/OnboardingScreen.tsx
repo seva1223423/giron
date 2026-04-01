@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeStore, useAuthStore, useNutritionStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -37,6 +37,7 @@ const LEVELS: { key: FitnessLevel; label: string; description: string }[] = [
 export const OnboardingScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { updateProfile, completeOnboarding } = useAuthStore();
+  const { setTargets } = useNutritionStore();
   const [step, setStep] = useState(0);
 
   const [gender, setGender] = useState<Gender | null>(null);
@@ -49,13 +50,38 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   const totalSteps = 4;
 
   const handleFinish = () => {
+    const heightVal = parseInt(height) || 175;
+    const weightVal = parseFloat(weight) || 75;
+    const ageVal = parseInt(age) || 25;
+
     updateProfile({
       gender: gender || undefined,
-      heightCm: height ? parseInt(height) : undefined,
-      weightKg: weight ? parseFloat(weight) : undefined,
+      heightCm: heightVal,
+      weightKg: weightVal,
       goal: goal || undefined,
       fitnessLevel: level || undefined,
     });
+
+    // Calculate TDEE (Mifflin-St Jeor) and set initial nutrition targets
+    const bmr = gender === 'female'
+      ? 10 * weightVal + 6.25 * heightVal - 5 * ageVal - 161
+      : 10 * weightVal + 6.25 * heightVal - 5 * ageVal + 5;
+    const tdee = Math.round(bmr * 1.55); // moderate activity
+
+    const targetCalories = goal === 'weight_loss'
+      ? Math.round(tdee - 400)
+      : goal === 'muscle_gain'
+        ? Math.round(tdee + 250)
+        : tdee;
+
+    const proteinPerKg = goal === 'muscle_gain' ? 2.2 : goal === 'weight_loss' ? 2.0 : 1.8;
+    const targetProtein = Math.round(weightVal * proteinPerKg);
+    const targetFats = Math.round((targetCalories * 0.25) / 9);
+    const targetCarbs = Math.round((targetCalories - targetProtein * 4 - targetFats * 9) / 4);
+
+    const today = new Date().toISOString().split('T')[0];
+    setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: Math.max(targetCarbs, 50) });
+
     completeOnboarding();
   };
 
