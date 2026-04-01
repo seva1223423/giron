@@ -117,6 +117,24 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / 86400000)
     : null;
 
+  const handleRepeatWorkout = () => {
+    if (!lastWorkout || activeWorkout) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const workoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((we, index) => {
+      const sets: WorkoutSet[] = we.sets.map((s, i) => ({
+        id: `set-${Date.now()}-${index}-${i}`,
+        setNumber: i + 1,
+        type: s.type,
+        reps: s.reps,
+        weight: s.weight,
+        completed: false,
+      }));
+      return { ...we, id: `we-${Date.now()}-${index}`, sets };
+    });
+    startWorkout({ id: `workout-${Date.now()}`, name: lastWorkout.name, exercises: workoutExercises });
+    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
+  };
+
   const workoutRecommendation = useMemo(() => {
     const SPLITS = [
       { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
@@ -275,9 +293,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 7 && (
         <FadeIn delay={175}>
           <Card style={{ marginBottom: spacing.lg }}>
-            <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>
-              {daysSinceLastWorkout === 0 ? 'СЕГОДНЯ' : daysSinceLastWorkout === 1 ? 'ВЧЕРА' : `${daysSinceLastWorkout} ДНЯ НАЗАД`}
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
+              <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>
+                {daysSinceLastWorkout === 0 ? 'СЕГОДНЯ' : daysSinceLastWorkout === 1 ? 'ВЧЕРА' : `${daysSinceLastWorkout} ДНЯ НАЗАД`}
+              </Text>
+              {!activeWorkout && (
+                <TouchableOpacity onPress={handleRepeatWorkout} style={[{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm }]}>
+                  <Text style={[typography.captionMedium, { color: colors.primary }]}>🔁 Повторить</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <Text style={[typography.bodySemibold, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={1}>
               {lastWorkout.name}
             </Text>
