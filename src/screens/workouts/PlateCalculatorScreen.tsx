@@ -119,9 +119,198 @@ const PlateVisual: React.FC<{ plates: Map<number, number>; colors: any }> = ({ p
   );
 };
 
+const ONE_RM_PERCENTAGES = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50];
+
+function calcEpley(weight: number, reps: number) {
+  if (reps === 1) return weight;
+  return weight * (1 + reps / 30);
+}
+
+function calcBrzycki(weight: number, reps: number) {
+  if (reps === 1) return weight;
+  if (reps >= 37) return weight;
+  return weight * (36 / (37 - reps));
+}
+
+function calcLander(weight: number, reps: number) {
+  if (reps === 1) return weight;
+  return (100 * weight) / (101.3 - 2.67123 * reps);
+}
+
+const OneRMCalculator: React.FC<{ colors: any }> = ({ colors }) => {
+  const [rmWeight, setRmWeight] = useState('100');
+  const [rmReps, setRmReps] = useState('5');
+
+  const results = useMemo(() => {
+    const w = parseFloat(rmWeight.replace(',', '.')) || 0;
+    const r = parseInt(rmReps) || 1;
+    if (w <= 0 || r <= 0) return null;
+    const epley = calcEpley(w, r);
+    const brzycki = calcBrzycki(w, r);
+    const lander = calcLander(w, r);
+    const avg = (epley + brzycki + lander) / 3;
+    return { epley, brzycki, lander, avg };
+  }, [rmWeight, rmReps]);
+
+  const adjustReps = (delta: number) => {
+    Haptics.selectionAsync();
+    const current = parseInt(rmReps) || 1;
+    const next = Math.max(1, Math.min(30, current + delta));
+    setRmReps(String(next));
+  };
+
+  return (
+    <View>
+      {/* Input */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+          ВВЕДИ РАБОЧИЙ ВЕС И ПОВТОРЕНИЯ
+        </Text>
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          {/* Weight */}
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: spacing.xs }]}>Вес (кг)</Text>
+            <TextInput
+              style={[{
+                color: colors.text,
+                borderColor: colors.inputBorder,
+                backgroundColor: colors.inputBackground,
+                fontSize: 28,
+                fontWeight: '800',
+                textAlign: 'center',
+                paddingVertical: spacing.sm,
+                borderRadius: borderRadius.lg,
+                borderWidth: 1.5,
+              }]}
+              value={rmWeight}
+              onChangeText={setRmWeight}
+              keyboardType="decimal-pad"
+              selectTextOnFocus
+            />
+          </View>
+          {/* Reps */}
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: spacing.xs }]}>Повторения</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+              <TouchableOpacity
+                onPress={() => adjustReps(-1)}
+                style={[styles.adjustBtn, { backgroundColor: colors.surface, width: 40, height: 40, borderRadius: 20 }]}
+              >
+                <Text style={[typography.h4, { color: colors.primary }]}>−</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={[{
+                  flex: 1,
+                  color: colors.text,
+                  borderColor: colors.inputBorder,
+                  backgroundColor: colors.inputBackground,
+                  fontSize: 28,
+                  fontWeight: '800',
+                  textAlign: 'center',
+                  paddingVertical: spacing.sm,
+                  borderRadius: borderRadius.lg,
+                  borderWidth: 1.5,
+                }]}
+                value={rmReps}
+                onChangeText={(v) => setRmReps(v.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                selectTextOnFocus
+              />
+              <TouchableOpacity
+                onPress={() => adjustReps(1)}
+                style={[styles.adjustBtn, { backgroundColor: colors.surface, width: 40, height: 40, borderRadius: 20 }]}
+              >
+                <Text style={[typography.h4, { color: colors.primary }]}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Card>
+
+      {results && (
+        <>
+          {/* 1RM result */}
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+              РАСЧЁТНЫЙ 1ПМ
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[typography.number, { color: colors.primary, fontSize: 42 }]}>
+                  {Math.round(results.avg)}
+                </Text>
+                <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>кг (среднее)</Text>
+              </View>
+            </View>
+            <View style={[{ borderTopWidth: 1, borderTopColor: colors.divider, marginTop: spacing.md, paddingTop: spacing.md }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{Math.round(results.epley)}</Text>
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>Эпли</Text>
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{Math.round(results.brzycki)}</Text>
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>Бжицки</Text>
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{Math.round(results.lander)}</Text>
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>Лэндер</Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+
+          {/* Percentage table */}
+          <Card>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+              ТАБЛИЦА ПРОЦЕНТОВ ОТ 1ПМ
+            </Text>
+            <View style={{ flexDirection: 'row', marginBottom: spacing.sm }}>
+              <Text style={[typography.captionMedium, { color: colors.textTertiary, flex: 1 }]}>%</Text>
+              <Text style={[typography.captionMedium, { color: colors.textTertiary, width: 80, textAlign: 'right' }]}>Вес (кг)</Text>
+              <Text style={[typography.captionMedium, { color: colors.textTertiary, width: 80, textAlign: 'right' }]}>Зона</Text>
+            </View>
+            {ONE_RM_PERCENTAGES.map((pct, i) => {
+              const weight = Math.round((results.avg * pct / 100) * 2) / 2;
+              const zone = pct >= 90 ? { label: 'Сила', color: colors.error || '#E8364F' }
+                : pct >= 75 ? { label: 'Гипертрофия', color: colors.accent }
+                : pct >= 60 ? { label: 'Выносливость', color: colors.success }
+                : { label: 'Разминка', color: colors.textTertiary };
+              const isHighlight = pct === 80 || pct === 85;
+              return (
+                <View
+                  key={pct}
+                  style={[{
+                    flexDirection: 'row',
+                    paddingVertical: spacing.sm,
+                    borderRadius: borderRadius.sm,
+                    paddingHorizontal: spacing.xs,
+                    backgroundColor: isHighlight ? colors.primary + '12' : 'transparent',
+                  }, i < ONE_RM_PERCENTAGES.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}
+                >
+                  <Text style={[typography.bodySemibold, { color: isHighlight ? colors.primary : colors.text, flex: 1 }]}>
+                    {pct}%
+                  </Text>
+                  <Text style={[typography.bodySemibold, { color: isHighlight ? colors.primary : colors.text, width: 80, textAlign: 'right' }]}>
+                    {weight}
+                  </Text>
+                  <Text style={[typography.caption, { color: zone.color, width: 80, textAlign: 'right' }]}>
+                    {zone.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </Card>
+        </>
+      )}
+    </View>
+  );
+};
+
 export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
   const { colors } = useThemeStore();
   const initialWeight = route?.params?.initialWeight;
+  const [activeTab, setActiveTab] = useState<'plates' | 'onerm'>('plates');
   const [targetWeight, setTargetWeight] = useState(
     initialWeight != null ? String(initialWeight) : '100'
   );
@@ -156,12 +345,34 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 60 }}>
           <Text style={[typography.body, { color: colors.primary }]}>← Назад</Text>
         </TouchableOpacity>
-        <Text style={[typography.h4, { color: colors.text }]}>Калькулятор блинов</Text>
+        <Text style={[typography.h4, { color: colors.text }]}>Инструменты</Text>
         <View style={{ width: 60 }} />
       </View>
 
+      {/* Tab switcher */}
+      <View style={[styles.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'plates' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => { Haptics.selectionAsync(); setActiveTab('plates'); }}
+        >
+          <Text style={[typography.bodySemibold, { color: activeTab === 'plates' ? colors.primary : colors.textSecondary }]}>
+            🏋️ Блины
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'onerm' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => { Haptics.selectionAsync(); setActiveTab('onerm'); }}
+        >
+          <Text style={[typography.bodySemibold, { color: activeTab === 'onerm' ? colors.primary : colors.textSecondary }]}>
+            📊 1ПМ
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Weight input */}
+        {activeTab === 'onerm' && <OneRMCalculator colors={colors} />}
+        {activeTab === 'plates' && (
+        <React.Fragment>
         <Card style={{ marginBottom: spacing.lg }}>
           <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
             ЦЕЛЕВОЙ ВЕС
@@ -308,6 +519,8 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
             ))}
           </View>
         </Card>
+        </React.Fragment>
+        )}
       </ScrollView>
     </View>
   );
@@ -323,6 +536,15 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
   },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   weightRow: {
