@@ -194,14 +194,16 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               </Text>
             )}
 
-            <TouchableOpacity
-              onPress={handlePhotoScan}
-              style={{ marginTop: spacing.md }}
-            >
-              <Text style={[typography.smallMedium, { color: colors.primary }]}>
-                + Добавить
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ManualFoodAdd', { mealType: mealType.key })}
+              >
+                <Text style={[typography.smallMedium, { color: colors.primary }]}>+ Добавить</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handlePhotoScan}>
+                <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>📸 Фото</Text>
+              </TouchableOpacity>
+            </View>
           </Card>
         );
       })}
