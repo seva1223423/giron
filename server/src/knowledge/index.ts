@@ -7,6 +7,7 @@ import { CARDIO_KNOWLEDGE } from './cardioAndConditioning';
 import { SPORTS_PHYSIOLOGY } from './sportsPhysiology';
 import { HOME_BODYWEIGHT } from './homeAndBodyweight';
 import { PSYCHOLOGY_HABITS } from './psychologyAndHabits';
+import { HEALTH_BIOMARKERS } from './healthBiomarkers';
 
 /**
  * Complete AI Trainer Knowledge Base — 9 Modules
@@ -66,6 +67,14 @@ import { PSYCHOLOGY_HABITS } from './psychologyAndHabits';
  * - Anders Ericsson — "Peak"
  * - BJ Fogg — "Tiny Habits"
  * - Self-determination theory (Deci & Ryan)
+ *
+ * Health Biomarkers & Micronutrients:
+ * - ACSM Health & Fitness Journal
+ * - Journal of the International Society of Sports Nutrition
+ * - Dr. Rhonda Patrick — micronutrient & longevity research
+ * - Peter Attia "Outlive" — metabolic health
+ * - Examine.com — evidence-based supplement & micronutrient reviews
+ * - UpToDate clinical references
  */
 
 export const FULL_KNOWLEDGE_BASE = [
@@ -78,6 +87,7 @@ export const FULL_KNOWLEDGE_BASE = [
   SPORTS_PHYSIOLOGY,
   HOME_BODYWEIGHT,
   PSYCHOLOGY_HABITS,
+  HEALTH_BIOMARKERS,
 ].join('\n\n---\n\n');
 
 export {
@@ -90,4 +100,5 @@ export {
   SPORTS_PHYSIOLOGY,
   HOME_BODYWEIGHT,
   PSYCHOLOGY_HABITS,
+  HEALTH_BIOMARKERS,
 };
