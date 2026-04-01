@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
@@ -64,7 +64,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
     navigation.navigate('ActiveWorkout');
   };
 
-  const groups = groupWorkoutsByMonth(workoutHistory);
+  const groups = useMemo(() => groupWorkoutsByMonth(workoutHistory), [workoutHistory]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
