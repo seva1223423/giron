@@ -88,6 +88,47 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const quote = getDailyQuote();
 
+  // Last workout
+  const lastWorkout = workoutHistory[0] || null;
+  const daysSinceLastWorkout = lastWorkout?.completedAt
+    ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / 86400000)
+    : null;
+
+  // Smart workout recommendation
+  const workoutRecommendation = (() => {
+    const SPLITS = [
+      { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
+      { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '🏋️' },
+      { name: 'Ноги', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], emoji: '🦵' },
+      { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], emoji: '🎯' },
+      { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '⚡' },
+    ];
+
+    // Find days since each split was last trained
+    const splitLastDays = SPLITS.map((split) => {
+      let lastDay = 999;
+      workoutHistory.forEach((w) => {
+        if (!w.completedAt) return;
+        const hasThisSplit = w.exercises.some((ex) =>
+          ex.exercise.primaryMuscles.some((m) => split.muscles.includes(m))
+        );
+        if (hasThisSplit) {
+          const daysAgo = Math.floor((Date.now() - new Date(w.completedAt).getTime()) / 86400000);
+          if (daysAgo < lastDay) lastDay = daysAgo;
+        }
+      });
+      return { ...split, daysSince: lastDay };
+    });
+
+    // Recommend the most "due" split
+    const recommended = splitLastDays.sort((a, b) => b.daysSince - a.daysSince)[0];
+    const daysLabel = recommended.daysSince >= 999
+      ? 'Ещё не тренировал'
+      : recommended.daysSince === 0 ? 'Уже сегодня'
+      : `${recommended.daysSince} ${recommended.daysSince === 1 ? 'день' : recommended.daysSince < 5 ? 'дня' : 'дней'} назад`;
+    return { ...recommended, daysLabel };
+  })();
+
   const weekWorkouts = workoutHistory.filter((w) => {
     if (!w.completedAt) return false;
     const d = new Date(w.completedAt);
@@ -164,6 +205,64 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Card>
         )}
       </FadeIn>
+
+      {/* Smart recommendation */}
+      {!activeWorkout && (
+        <FadeIn delay={150}>
+          <Card
+            style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}
+            onPress={() => navigation.navigate('WorkoutsTab')}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.captionMedium, { color: colors.success }]}>РЕКОМЕНДУЕМ СЕГОДНЯ</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
+                  <Text style={{ fontSize: 20 }}>{workoutRecommendation.emoji}</Text>
+                  <Text style={[typography.h4, { color: colors.text }]}>{workoutRecommendation.name}</Text>
+                </View>
+                <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                  {workoutRecommendation.daysLabel}
+                </Text>
+              </View>
+              <Text style={[typography.body, { color: colors.primary, marginTop: spacing.sm }]}>▶</Text>
+            </View>
+          </Card>
+        </FadeIn>
+      )}
+
+      {/* Last workout recap */}
+      {lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 7 && (
+        <FadeIn delay={175}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>
+              {daysSinceLastWorkout === 0 ? 'СЕГОДНЯ' : daysSinceLastWorkout === 1 ? 'ВЧЕРА' : `${daysSinceLastWorkout} ДНЯ НАЗАД`}
+            </Text>
+            <Text style={[typography.bodySemibold, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={1}>
+              {lastWorkout.name}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
+              {lastWorkout.exercises.length > 0 && (
+                <View>
+                  <Text style={[typography.numberSmall, { color: colors.primary, fontSize: 18 }]}>{lastWorkout.exercises.length}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>упр.</Text>
+                </View>
+              )}
+              {lastWorkout.durationMinutes && (
+                <View>
+                  <Text style={[typography.numberSmall, { color: colors.accent, fontSize: 18 }]}>{lastWorkout.durationMinutes}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>мин</Text>
+                </View>
+              )}
+              {lastWorkout.totalVolume ? (
+                <View>
+                  <Text style={[typography.numberSmall, { color: colors.success, fontSize: 18 }]}>{Math.round(lastWorkout.totalVolume)}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>кг объём</Text>
+                </View>
+              ) : null}
+            </View>
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Weekly stats */}
       <FadeIn delay={200}>
