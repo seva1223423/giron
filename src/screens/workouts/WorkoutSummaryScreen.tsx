@@ -72,6 +72,25 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
     (s, e) => s + e.sets.filter((set) => set.completed).reduce((r, set) => r + (set.reps || 0), 0), 0
   );
 
+  // Average RPE (if any sets have RPE)
+  const rpeValues = workout.exercises
+    .flatMap((e) => e.sets.filter((s) => s.completed && s.rpe))
+    .map((s) => s.rpe as number);
+  const avgRpe = rpeValues.length > 0
+    ? (rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length).toFixed(1)
+    : null;
+
+  // Compare vs previous same-name workout
+  const prevSameWorkout = workoutHistory.find(
+    (w) => w.id !== workout.id && w.name === workout.name && w.completedAt
+  );
+  const volumeDiff = prevSameWorkout && workout.totalVolume && prevSameWorkout.totalVolume
+    ? Math.round(workout.totalVolume - prevSameWorkout.totalVolume)
+    : null;
+  const durationDiff = prevSameWorkout && workout.durationMinutes && prevSameWorkout.durationMinutes
+    ? workout.durationMinutes - prevSameWorkout.durationMinutes
+    : null;
+
   // Find best set by volume (weight * reps)
   let bestExerciseName = '';
   let bestSetWeight = 0;
@@ -166,15 +185,70 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
       {/* Volume */}
       <FadeIn delay={350}>
         <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
-          <Text style={[typography.captionMedium, { color: colors.primary }]}>ОБЩИЙ ОБЪЁМ</Text>
-          <Text style={[typography.h1, { color: colors.primary, marginTop: spacing.xs }]}>
-            {Math.round(workout.totalVolume || 0).toLocaleString()} кг
-          </Text>
-          <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-            {((workout.totalVolume || 0) / 1000).toFixed(1)} тонн
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View>
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>ОБЩИЙ ОБЪЁМ</Text>
+              <Text style={[typography.h1, { color: colors.primary, marginTop: spacing.xs }]}>
+                {Math.round(workout.totalVolume || 0).toLocaleString()} кг
+              </Text>
+              <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+                {((workout.totalVolume || 0) / 1000).toFixed(1)} тонн
+              </Text>
+            </View>
+            {avgRpe && (
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>Ср. RPE</Text>
+                <Text style={[typography.numberSmall, { color: parseFloat(avgRpe) >= 9 ? colors.error : parseFloat(avgRpe) >= 8 ? colors.accent : colors.success }]}>
+                  {avgRpe}
+                </Text>
+              </View>
+            )}
+          </View>
         </Card>
       </FadeIn>
+
+      {/* Comparison vs previous */}
+      {prevSameWorkout && volumeDiff !== null && (
+        <FadeIn delay={420}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>
+              VS ПРОШЛЫЙ РАЗ ({new Date(prevSameWorkout.completedAt!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })})
+            </Text>
+            <View style={{ flexDirection: 'row', gap: spacing.xxl, marginTop: spacing.md }}>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                  <Text style={[typography.numberSmall, {
+                    color: volumeDiff > 0 ? colors.success : volumeDiff < 0 ? colors.error : colors.textSecondary,
+                    fontSize: 22,
+                  }]}>
+                    {volumeDiff > 0 ? '+' : ''}{volumeDiff}
+                  </Text>
+                  <Text style={[typography.caption, { color: volumeDiff > 0 ? colors.success : volumeDiff < 0 ? colors.error : colors.textSecondary }]}>
+                    {volumeDiff > 0 ? '▲' : volumeDiff < 0 ? '▼' : '—'}
+                  </Text>
+                </View>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>кг объём</Text>
+              </View>
+              {durationDiff !== null && (
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                    <Text style={[typography.numberSmall, {
+                      color: durationDiff < 0 ? colors.success : durationDiff > 5 ? colors.error : colors.textSecondary,
+                      fontSize: 22,
+                    }]}>
+                      {durationDiff > 0 ? '+' : ''}{durationDiff}
+                    </Text>
+                    <Text style={[typography.caption, { color: durationDiff < 0 ? colors.success : durationDiff > 5 ? colors.error : colors.textSecondary }]}>
+                      {durationDiff < 0 ? '▲' : durationDiff > 0 ? '▼' : '—'}
+                    </Text>
+                  </View>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>мин</Text>
+                </View>
+              )}
+            </View>
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Best set */}
       {bestExerciseName && (
