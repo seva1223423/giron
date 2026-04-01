@@ -1,13 +1,26 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, TextInput, Modal, Alert, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore, useAuthStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { userService, workoutService } from '../../services';
-import { BodyWeight } from '../../types';
+import { BodyWeight, BodyMeasurement } from '../../types';
 import { LeaderboardEntry } from '../../services/workoutService';
+
+const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
+
+const MEASUREMENT_FIELDS: { key: keyof BodyMeasurement; label: string; emoji: string }[] = [
+  { key: 'chest', label: 'Грудь', emoji: '💪' },
+  { key: 'waist', label: 'Талия', emoji: '📏' },
+  { key: 'hips', label: 'Бёдра', emoji: '🦵' },
+  { key: 'bicep', label: 'Бицепс', emoji: '💪' },
+  { key: 'thigh', label: 'Бедро', emoji: '🦵' },
+  { key: 'calf', label: 'Икра', emoji: '🦿' },
+  { key: 'neck', label: 'Шея', emoji: '📐' },
+];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_WIDTH = SCREEN_WIDTH - spacing.xl * 2 - spacing.lg * 2;
@@ -202,6 +215,49 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const [newWeight, setNewWeight] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
 
+  // Body measurements state
+  const [measurementHistory, setMeasurementHistory] = useState<BodyMeasurement[]>([]);
+  const [showMeasurementModal, setShowMeasurementModal] = useState(false);
+  const [newMeasurements, setNewMeasurements] = useState<Partial<Record<keyof BodyMeasurement, string>>>({});
+  const [savingMeasurements, setSavingMeasurements] = useState(false);
+
+  const fetchMeasurementHistory = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(MEASUREMENTS_KEY);
+      if (raw) {
+        const data: BodyMeasurement[] = JSON.parse(raw);
+        setMeasurementHistory(data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  const handleAddMeasurements = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const entry: BodyMeasurement = { date: today };
+    let hasAny = false;
+    MEASUREMENT_FIELDS.forEach(({ key }) => {
+      const val = parseFloat((newMeasurements[key] ?? '').replace(',', '.'));
+      if (val > 0 && val < 200) { (entry as any)[key] = val; hasAny = true; }
+    });
+    if (!hasAny) { Alert.alert('Ошибка', 'Введи хотя бы одно измерение'); return; }
+    setSavingMeasurements(true);
+    try {
+      const updated = [...measurementHistory.filter((m) => m.date !== today), entry]
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      await AsyncStorage.setItem(MEASUREMENTS_KEY, JSON.stringify(updated));
+      setMeasurementHistory(updated);
+      setNewMeasurements({});
+      setShowMeasurementModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось сохранить измерения');
+    } finally {
+      setSavingMeasurements(false);
+    }
+  };
+
   const fetchWeightHistory = useCallback(async () => {
     setLoadingWeight(true);
     try {
@@ -215,9 +271,9 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   }, []);
 
   useEffect(() => {
-    if (tab === 'weight') fetchWeightHistory();
+    if (tab === 'weight') { fetchWeightHistory(); fetchMeasurementHistory(); }
     if (tab === 'records' && recordsView === 'club') fetchLeaderboard();
-  }, [tab, fetchWeightHistory, fetchLeaderboard, recordsView]);
+  }, [tab, fetchWeightHistory, fetchMeasurementHistory, fetchLeaderboard, recordsView]);
 
   const handleAddWeight = async () => {
     const kg = parseFloat(newWeight.replace(',', '.'));
@@ -1107,7 +1163,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             {/* Weight history list */}
             {weightHistory.length > 0 && (
               <FadeIn delay={200}>
-                <Card>
+                <Card style={{ marginBottom: spacing.lg }}>
                   <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
                     История замеров
                   </Text>
@@ -1130,9 +1186,132 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 </Card>
               </FadeIn>
             )}
+
+            {/* Body measurements section */}
+            <FadeIn delay={250}>
+              <Card style={{ marginBottom: spacing.lg }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                  <Text style={[typography.h4, { color: colors.text }]}>Обхваты тела</Text>
+                  <TouchableOpacity
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowMeasurementModal(true); }}
+                    style={[{ backgroundColor: colors.accent + '15', paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.accent + '40' }]}
+                  >
+                    <Text style={[typography.captionMedium, { color: colors.accent }]}>+ Замер</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {measurementHistory.length === 0 ? (
+                  <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', paddingVertical: spacing.md }]}>
+                    Добавь первый замер обхватов
+                  </Text>
+                ) : (() => {
+                  const latest = measurementHistory[measurementHistory.length - 1];
+                  const prev = measurementHistory.length >= 2 ? measurementHistory[measurementHistory.length - 2] : null;
+                  return (
+                    <>
+                      <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+                        {new Date(latest.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                        {MEASUREMENT_FIELDS.filter(({ key }) => latest[key] != null).map(({ key, label, emoji }) => {
+                          const val = latest[key] as number;
+                          const prevVal = prev?.[key] as number | undefined;
+                          const diff = prevVal != null ? val - prevVal : null;
+                          return (
+                            <View
+                              key={key}
+                              style={[{ backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.sm, minWidth: 90, alignItems: 'center' }]}
+                            >
+                              <Text style={{ fontSize: 16 }}>{emoji}</Text>
+                              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{label}</Text>
+                              <Text style={[typography.bodySemibold, { color: colors.primary }]}>{val} см</Text>
+                              {diff != null && diff !== 0 && (
+                                <Text style={[typography.caption, { color: diff < 0 ? colors.success : colors.error, fontSize: 10 }]}>
+                                  {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+                                </Text>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+
+                      {measurementHistory.length >= 2 && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            Alert.alert(
+                              'История замеров',
+                              [...measurementHistory].reverse().slice(0, 10).map((m) => {
+                                const parts = MEASUREMENT_FIELDS
+                                  .filter(({ key }) => m[key] != null)
+                                  .map(({ key, label }) => `${label}: ${m[key]} см`);
+                                return `${new Date(m.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}\n${parts.join(', ')}`;
+                              }).join('\n\n')
+                            );
+                          }}
+                          style={{ marginTop: spacing.md }}
+                        >
+                          <Text style={[typography.caption, { color: colors.primary, textAlign: 'center' }]}>
+                            История ({measurementHistory.length} замеров) ›
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  );
+                })()}
+              </Card>
+            </FadeIn>
           </>
         )}
       </ScrollView>
+
+      {/* Add measurements modal */}
+      <Modal visible={showMeasurementModal} transparent animationType="slide" onRequestClose={() => setShowMeasurementModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '85%', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderRadius: 0, paddingBottom: 48 }]}>
+            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.sm }]}>Замер обхватов</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.lg }]}>Заполни только те поля, которые хочешь отследить</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {MEASUREMENT_FIELDS.map(({ key, label, emoji }) => (
+                <View key={key} style={{ marginBottom: spacing.md }}>
+                  <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
+                    {emoji} {label.toUpperCase()}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <TextInput
+                      style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText, flex: 1 }]}
+                      value={newMeasurements[key] ?? ''}
+                      onChangeText={(v) => setNewMeasurements((prev) => ({ ...prev, [key]: v }))}
+                      placeholder="—"
+                      placeholderTextColor={colors.inputPlaceholder}
+                      keyboardType="decimal-pad"
+                      maxLength={5}
+                    />
+                    <Text style={[typography.body, { color: colors.textSecondary }]}>см</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
+              <TouchableOpacity
+                onPress={() => { setShowMeasurementModal(false); setNewMeasurements({}); }}
+                style={[styles.modalBtn, { backgroundColor: colors.surface, flex: 1 }]}
+              >
+                <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleAddMeasurements}
+                disabled={savingMeasurements}
+                style={[styles.modalBtn, { backgroundColor: colors.accent, flex: 1 }]}
+              >
+                {savingMeasurements
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={[typography.bodyMedium, { color: '#fff' }]}>Сохранить</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Add weight modal */}
       <Modal visible={showWeightModal} transparent animationType="fade" onRequestClose={() => setShowWeightModal(false)}>

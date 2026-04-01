@@ -184,6 +184,17 @@ export interface BodyWeight {
   weightKg: number;
 }
 
+export interface BodyMeasurement {
+  date: string;
+  chest?: number;    // грудь, см
+  waist?: number;    // талия, см
+  hips?: number;     // бёдра, см
+  bicep?: number;    // бицепс (правый), см
+  thigh?: number;    // бедро (правое), см
+  calf?: number;     // икра (правая), см
+  neck?: number;     // шея, см
+}
+
 export interface PersonalRecord {
   exerciseId: string;
   exerciseName: string;
