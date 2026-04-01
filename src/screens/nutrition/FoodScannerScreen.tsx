@@ -8,6 +8,8 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { NutritionItem, Meal } from '../../types';
 import { aiService, getApiError } from '../../services';
 
+const todayDate = () => new Date().toISOString().split('T')[0];
+
 export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { addMeal, getDayLog } = useNutritionStore();

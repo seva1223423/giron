@@ -5,6 +5,7 @@ import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
@@ -42,8 +43,26 @@ function groupWorkoutsByMonth(workouts: any[]) {
 
 export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { workoutHistory } = useWorkoutStore();
+  const { workoutHistory, activeWorkout, startWorkout } = useWorkoutStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const handleRepeatWorkout = (workout: any) => {
+    if (activeWorkout) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const exercises: WorkoutExercise[] = workout.exercises.map((we: any, index: number) => {
+      const sets: WorkoutSet[] = we.sets.map((s: any, i: number) => ({
+        id: `set-${Date.now()}-${index}-${i}`,
+        setNumber: i + 1,
+        type: s.type,
+        reps: s.reps,
+        weight: s.weight,
+        completed: false,
+      }));
+      return { ...we, id: `we-${Date.now()}-${index}`, sets };
+    });
+    startWorkout({ id: `workout-${Date.now()}`, name: workout.name, exercises });
+    navigation.navigate('ActiveWorkout');
+  };
 
   const groups = groupWorkoutsByMonth(workoutHistory);
 
@@ -164,6 +183,14 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                       {/* Expanded: exercise breakdown */}
                       {isExpanded && (
                         <View style={{ marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider }}>
+                          {!activeWorkout && (
+                            <TouchableOpacity
+                              onPress={() => handleRepeatWorkout(workout)}
+                              style={[{ backgroundColor: colors.primary + '15', borderRadius: borderRadius.sm, paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md }]}
+                            >
+                              <Text style={[typography.captionMedium, { color: colors.primary }]}>🔁 Повторить тренировку</Text>
+                            </TouchableOpacity>
+                          )}
                           {workout.exercises.map((ex: any, ei: number) => {
                             const doneSets = ex.sets.filter((s: any) => s.completed);
                             const vol = doneSets.reduce((s: number, set: any) => s + (set.weight || 0) * (set.reps || 0), 0);

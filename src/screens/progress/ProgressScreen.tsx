@@ -243,28 +243,23 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const totalVolume = workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0);
   const totalDuration = workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0);
 
-  // Calculate streak
-  const getStreak = () => {
+  const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;
-    let streak = 0;
+    let s = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     for (let i = 0; i < 365; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const hasWorkout = workoutHistory.some(
-        (w) => w.completedAt && w.completedAt.startsWith(dateStr)
-      );
-      if (hasWorkout) {
-        streak++;
+      if (workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr))) {
+        s++;
       } else if (i > 0) {
         break;
       }
     }
-    return streak;
-  };
+    return s;
+  }, [workoutHistory]);
 
   // Weekly volume data for last 8 weeks
   const weeklyVolumeData = useMemo(() => {
@@ -493,7 +488,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
                 </Card>
                 <Card style={styles.statCard}>
-                  <Text style={[typography.number, { color: colors.success }]}>{getStreak()}</Text>
+                  <Text style={[typography.number, { color: colors.success }]}>{streak}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>Дней подряд</Text>
                 </Card>
                 <Card style={styles.statCard}>
