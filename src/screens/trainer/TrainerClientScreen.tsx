@@ -24,6 +24,23 @@ const PROGRAMS = [
   'Кардио + Тонус',
 ];
 
+const GOAL_OPTIONS = [
+  { value: 'weight_loss', label: 'Похудение', icon: '🔥' },
+  { value: 'muscle_gain', label: 'Набор массы', icon: '💪' },
+  { value: 'strength', label: 'Сила', icon: '🏋️' },
+  { value: 'endurance', label: 'Выносливость', icon: '🏃' },
+  { value: 'general_fitness', label: 'Общая форма', icon: '⚡' },
+];
+
+const LEVEL_OPTIONS = [
+  { value: 'beginner', label: 'Новичок' },
+  { value: 'intermediate', label: 'Средний' },
+  { value: 'advanced', label: 'Продвинутый' },
+  { value: 'expert', label: 'Эксперт' },
+];
+
+const EMOJI_OPTIONS = ['🧑', '💪', '🏃', '🏋️', '🧘', '🚴', '🤸', '🏊', '⚽', '🎯', '🦾', '🔥'];
+
 const GOAL_LABELS: Record<string, string> = {
   weight_loss: 'Похудение',
   muscle_gain: 'Набор массы',
@@ -44,8 +61,17 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   const { updateClient } = useTrainerStore();
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
   const [showProgramPicker, setShowProgramPicker] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [notes, setNotes] = useState(client.notes || '');
   const [notesEditing, setNotesEditing] = useState(false);
+
+  // Edit profile form state
+  const [editAge, setEditAge] = useState(client.age ? String(client.age) : '');
+  const [editGoal, setEditGoal] = useState(client.goal || '');
+  const [editLevel, setEditLevel] = useState(client.level || '');
+  const [editEmoji, setEditEmoji] = useState(client.emoji || '🧑');
+  const [editPhone, setEditPhone] = useState(client.phone || '');
+  const [editName, setEditName] = useState(client.name || '');
 
   if (!client) { navigation.goBack(); return null; }
 
@@ -63,6 +89,34 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
     setClient(updated);
     updateClient(client.id, { notes });
     setNotesEditing(false);
+  };
+
+  const handleOpenEditProfile = () => {
+    Haptics.selectionAsync();
+    setEditAge(client.age ? String(client.age) : '');
+    setEditGoal(client.goal || '');
+    setEditLevel(client.level || '');
+    setEditEmoji(client.emoji || '🧑');
+    setEditPhone(client.phone || '');
+    setEditName(client.name || '');
+    setShowEditProfile(true);
+  };
+
+  const handleSaveProfile = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const age = editAge ? parseInt(editAge) || undefined : undefined;
+    const patch: Partial<TrainerClient> = {
+      name: editName.trim() || client.name,
+      age,
+      goal: editGoal || undefined,
+      level: editLevel || undefined,
+      emoji: editEmoji,
+      phone: editPhone.trim() || undefined,
+    };
+    const updated = { ...client, ...patch };
+    setClient(updated);
+    updateClient(client.id, patch);
+    setShowEditProfile(false);
   };
 
   const age = client.age ? `${client.age} лет` : null;
@@ -102,6 +156,12 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                 {client.phone && <Text style={[typography.caption, { color: colors.textSecondary }]}>{client.phone}</Text>}
               </View>
             </View>
+            <TouchableOpacity
+              onPress={handleOpenEditProfile}
+              style={[styles.editBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>✎ Изменить</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.tagsRow}>
@@ -254,7 +314,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                 );
               })}
               <TouchableOpacity
-                onPress={() => { Haptics.selectionAsync(); setClient((prev) => ({ ...prev, assignedProgram: undefined })); setShowProgramPicker(false); }}
+                onPress={() => { Haptics.selectionAsync(); setClient((prev) => ({ ...prev, assignedProgram: undefined })); updateClient(client.id, { assignedProgram: undefined }); setShowProgramPicker(false); }}
                 style={[styles.programRow, { borderBottomColor: colors.divider }]}
               >
                 <Text style={[typography.body, { color: colors.textSecondary }]}>Убрать программу</Text>
@@ -267,6 +327,129 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
               fullWidth
               style={{ marginTop: spacing.md }}
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit profile modal */}
+      <Modal visible={showEditProfile} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
+              Профиль клиента
+            </Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+              {/* Emoji picker */}
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>АВАТАР</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+                {EMOJI_OPTIONS.map((em) => (
+                  <TouchableOpacity
+                    key={em}
+                    onPress={() => { Haptics.selectionAsync(); setEditEmoji(em); }}
+                    style={[
+                      styles.emojiOption,
+                      {
+                        backgroundColor: editEmoji === em ? colors.primary + '20' : colors.background,
+                        borderColor: editEmoji === em ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 24 }}>{em}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Name */}
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>ИМЯ</Text>
+              <TextInput
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Имя клиента"
+                placeholderTextColor={colors.textTertiary}
+                style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border, marginBottom: spacing.md }]}
+              />
+
+              {/* Phone */}
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>ТЕЛЕФОН</Text>
+              <TextInput
+                value={editPhone}
+                onChangeText={setEditPhone}
+                placeholder="+7 900 000 0000"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="phone-pad"
+                style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border, marginBottom: spacing.md }]}
+              />
+
+              {/* Age */}
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>ВОЗРАСТ</Text>
+              <TextInput
+                value={editAge}
+                onChangeText={setEditAge}
+                placeholder="Лет"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="numeric"
+                style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border, marginBottom: spacing.lg }]}
+              />
+
+              {/* Goal */}
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>ЦЕЛЬ</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+                {GOAL_OPTIONS.map((g) => (
+                  <TouchableOpacity
+                    key={g.value}
+                    onPress={() => { Haptics.selectionAsync(); setEditGoal(editGoal === g.value ? '' : g.value); }}
+                    style={[
+                      styles.chipOption,
+                      {
+                        backgroundColor: editGoal === g.value ? colors.primary + '20' : colors.background,
+                        borderColor: editGoal === g.value ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[typography.caption, { color: editGoal === g.value ? colors.primary : colors.text }]}>
+                      {g.icon} {g.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Level */}
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>УРОВЕНЬ</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xl }}>
+                {LEVEL_OPTIONS.map((l) => (
+                  <TouchableOpacity
+                    key={l.value}
+                    onPress={() => { Haptics.selectionAsync(); setEditLevel(editLevel === l.value ? '' : l.value); }}
+                    style={[
+                      styles.chipOption,
+                      {
+                        backgroundColor: editLevel === l.value ? colors.accent + '20' : colors.background,
+                        borderColor: editLevel === l.value ? colors.accent : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[typography.caption, { color: editLevel === l.value ? colors.accent : colors.text }]}>
+                      {l.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+              <Button
+                title="Отмена"
+                variant="ghost"
+                onPress={() => setShowEditProfile(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Сохранить"
+                onPress={handleSaveProfile}
+                style={{ flex: 1 }}
+                disabled={!editName.trim()}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -341,5 +524,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
+  },
+  emojiOption: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 16,
+  },
+  chipOption: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
   },
 });
