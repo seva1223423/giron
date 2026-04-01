@@ -94,6 +94,7 @@ export interface Workout {
   durationMinutes?: number;
   totalVolume?: number; // kg
   notes?: string;
+  rating?: number; // 1–5 субъективная оценка
 }
 
 // ==================== PROGRAMS ====================

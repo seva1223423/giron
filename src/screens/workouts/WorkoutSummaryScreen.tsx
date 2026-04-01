@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
@@ -69,8 +69,9 @@ const PRCelebration: React.FC = () => {
 
 export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const { colors } = useThemeStore();
-  const { workoutHistory } = useWorkoutStore();
+  const { workoutHistory, updateWorkoutInHistory } = useWorkoutStore();
   const workout: Workout = route.params?.workout;
+  const [rating, setRating] = useState<number>(workout?.rating ?? 0);
   const shareCardRef = useRef<View>(null);
 
   // Detect new personal records: compare this workout's 1RM per exercise vs history
@@ -439,6 +440,36 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
           </FadeIn>
         );
       })()}
+
+      {/* Workout rating */}
+      <FadeIn delay={620}>
+        <Card style={{ marginBottom: spacing.lg, alignItems: 'center' }}>
+          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+            КАК ПРОШЛА ТРЕНИРОВКА?
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing.lg }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity
+                key={star}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const newRating = rating === star ? 0 : star;
+                  setRating(newRating);
+                  updateWorkoutInHistory(workout.id, { rating: newRating });
+                }}
+                style={{ padding: spacing.xs }}
+              >
+                <Text style={{ fontSize: 32, opacity: star <= rating ? 1 : 0.25 }}>⭐</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {rating > 0 && (
+            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+              {rating === 1 ? 'Тяжело, еле добрался' : rating === 2 ? 'Средне, бывало лучше' : rating === 3 ? 'Нормально' : rating === 4 ? 'Хорошая тренировка' : 'Огонь! Всё по максимуму 🔥'}
+            </Text>
+          )}
+        </Card>
+      </FadeIn>
 
       {/* Actions */}
       <FadeIn delay={650}>

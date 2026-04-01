@@ -53,6 +53,7 @@ interface WorkoutStore {
 
   // History
   addToHistory: (workout: Workout) => void;
+  updateWorkoutInHistory: (id: string, data: Partial<Workout>) => void;
   getExerciseHistory: (exerciseId: string) => Workout[];
   fetchHistory: () => Promise<void>;
 }
@@ -321,6 +322,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       addToHistory: (workout) => set((s) => ({
         workoutHistory: [workout, ...s.workoutHistory],
+      })),
+
+      updateWorkoutInHistory: (id, data) => set((s) => ({
+        workoutHistory: s.workoutHistory.map((w) => w.id === id ? { ...w, ...data } : w),
       })),
 
       getExerciseHistory: (exerciseId) => {
