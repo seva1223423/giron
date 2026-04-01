@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useThemeStore, useNutritionStore } from '../../store';
 import { Button, Card } from '../../components';
 import { typography } from '../../theme';
@@ -24,6 +25,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('lunch');
   const [error, setError] = useState('');
 
+  // Barcode scanner
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [barcodeScanned, setBarcodeScanned] = useState(false);
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+
   const pickImage = async (useCamera: boolean) => {
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
@@ -43,6 +50,64 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       setError('');
       analyzeFood(result.assets[0].base64 || '');
     }
+  };
+
+  const openBarcodeScanner = async () => {
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) {
+        Alert.alert('Нет доступа', 'Разрешите доступ к камере в настройках устройства');
+        return;
+      }
+    }
+    setBarcodeScanned(false);
+    setError('');
+    setShowBarcodeScanner(true);
+  };
+
+  const lookupBarcode = async (barcode: string) => {
+    setBarcodeLoading(true);
+    try {
+      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const data = await response.json();
+      if (data.status === 1 && data.product) {
+        const p = data.product;
+        const n = p.nutriments || {};
+        const name = p.product_name_ru || p.product_name || p.abbreviated_product_name || 'Продукт';
+        const cal = Math.round(n['energy-kcal_100g'] || n['energy-kcal'] || 0);
+        const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
+        const fats = Math.round((n.fat_100g || 0) * 10) / 10;
+        const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
+        const item: NutritionItem = {
+          id: `item-${Date.now()}-barcode`,
+          name,
+          calories: cal,
+          protein: prot,
+          fats,
+          carbs,
+          weightGrams: 100,
+        };
+        setItemBases({ [item.id]: { cal, prot, fats, carbs } });
+        setRecognizedItems([item]);
+        setShowBarcodeScanner(false);
+      } else {
+        Alert.alert('Не найдено', 'Продукт не найден в базе данных.\nПопробуй другой штрих-код или добавь КБЖУ вручную.', [
+          { text: 'ОК', onPress: () => setBarcodeScanned(false) },
+        ]);
+      }
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось получить данные. Проверь подключение к интернету.', [
+        { text: 'ОК', onPress: () => setBarcodeScanned(false) },
+      ]);
+    } finally {
+      setBarcodeLoading(false);
+    }
+  };
+
+  const handleBarcodeScan = ({ data: barcode }: { data: string }) => {
+    if (barcodeScanned || barcodeLoading) return;
+    setBarcodeScanned(true);
+    lookupBarcode(barcode);
   };
 
   const analyzeFood = async (base64: string) => {
@@ -161,10 +226,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             Сфотографируй еду или загрузи из галереи{'\n'}
             ИИ определит продукты и рассчитает КБЖУ
           </Text>
-          <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <Button title="Камера" onPress={() => pickImage(true)} />
+          <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
+            <Button title="📷 Камера" onPress={() => pickImage(true)} />
             <Button title="Галерея" variant="outline" onPress={() => pickImage(false)} />
           </View>
+          <TouchableOpacity
+            onPress={openBarcodeScanner}
+            style={[styles.barcodeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Text style={{ fontSize: 22 }}>📦</Text>
+            <View style={{ marginLeft: spacing.sm }}>
+              <Text style={[typography.smallMedium, { color: colors.text }]}>Сканировать штрих-код</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>Для упакованных продуктов</Text>
+            </View>
+          </TouchableOpacity>
         </Card>
       )}
 
@@ -319,6 +394,53 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         </>
       )}
     </ScrollView>
+
+    {/* Barcode scanner modal */}
+    <Modal visible={showBarcodeScanner} animationType="slide" statusBarTranslucent>
+      <View style={[styles.barcodeModal, { backgroundColor: '#000' }]}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'] }}
+          onBarcodeScanned={handleBarcodeScan}
+          facing="back"
+        />
+        {/* Overlay */}
+        <View style={styles.barcodeOverlay}>
+          <View style={[styles.barcodeTopArea, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+            <TouchableOpacity
+              onPress={() => setShowBarcodeScanner(false)}
+              style={[styles.barcodeCloseBtn, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+            >
+              <Text style={{ color: '#FFF', fontSize: 16 }}>✕  Закрыть</Text>
+            </TouchableOpacity>
+            <Text style={[typography.body, { color: '#FFF', textAlign: 'center', marginTop: spacing.sm }]}>
+              Направь камеру на штрих-код продукта
+            </Text>
+          </View>
+
+          {/* Scan frame */}
+          <View style={styles.scanFrame}>
+            <View style={[styles.scanCorner, styles.scanCornerTL]} />
+            <View style={[styles.scanCorner, styles.scanCornerTR]} />
+            <View style={[styles.scanCorner, styles.scanCornerBL]} />
+            <View style={[styles.scanCorner, styles.scanCornerBR]} />
+          </View>
+
+          <View style={[styles.barcodeBottomArea, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+            {barcodeLoading ? (
+              <View style={{ alignItems: 'center', gap: spacing.sm }}>
+                <ActivityIndicator color="#FFF" />
+                <Text style={[typography.small, { color: '#FFF' }]}>Ищем продукт в базе данных...</Text>
+              </View>
+            ) : (
+              <Text style={[typography.small, { color: 'rgba(255,255,255,0.7)', textAlign: 'center' }]}>
+                EAN-13 / EAN-8 / UPC / Code 128
+              </Text>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 };
 
@@ -362,5 +484,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
+  },
+  barcodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  barcodeModal: { flex: 1 },
+  barcodeOverlay: { flex: 1 },
+  barcodeTopArea: {
+    paddingTop: 56,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
+  },
+  barcodeCloseBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.md,
+  },
+  scanFrame: {
+    flex: 1,
+    margin: spacing.xl * 2,
+    position: 'relative',
+  },
+  scanCorner: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderColor: '#FFF',
+  },
+  scanCornerTL: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3 },
+  scanCornerTR: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3 },
+  scanCornerBL: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3 },
+  scanCornerBR: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3 },
+  barcodeBottomArea: {
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
   },
 });
