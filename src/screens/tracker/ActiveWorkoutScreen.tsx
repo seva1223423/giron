@@ -32,6 +32,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     cancelWorkout,
     setRestTimer,
     setExerciseNotes,
+    updateSetData,
   } = useWorkoutStore();
 
   const [restTime, setRestTime] = useState(0);
@@ -304,6 +305,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             onComplete={(reps, weight) => handleCompleteSet(setIndex, reps, weight)}
             onRpeChange={(rpe) => completeSet(currentExerciseIndex, setIndex, { rpe })}
             onRemove={currentExercise.sets.length > 1 ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); removeSet(currentExerciseIndex, setIndex); } : undefined}
+            onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
             colors={colors}
           />
         ))}
@@ -375,6 +377,10 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   );
 };
 
+const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
+const SET_TYPE_LABELS: Record<string, string> = { normal: 'РАБ', warmup: 'РАЗМ', dropset: 'ДРОП' };
+const SET_TYPE_COLORS: Record<string, string> = { normal: '#9E9E9E', warmup: '#FF9800', dropset: '#9C27B0' };
+
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
 const rpeColor = (rpe: number): string => {
@@ -391,11 +397,13 @@ const SetRow: React.FC<{
   onComplete: (reps: number, weight: number) => void;
   onRpeChange: (rpe: number) => void;
   onRemove?: () => void;
+  onTypeChange?: (type: string) => void;
   colors: any;
-}> = ({ set, setIndex, onComplete, onRpeChange, onRemove, colors }) => {
+}> = ({ set, setIndex, onComplete, onRpeChange, onRemove, onTypeChange, colors }) => {
   const [weight, setWeight] = useState(set.weight?.toString() || '');
   const [reps, setReps] = useState(set.reps?.toString() || '10');
   const [showRpe, setShowRpe] = useState(false);
+  const currentType = set.type || 'normal';
 
   return (
     <View style={{ backgroundColor: set.completed ? colors.success + '10' : 'transparent', borderRadius: borderRadius.sm, marginBottom: 2 }}>
@@ -406,12 +414,19 @@ const SetRow: React.FC<{
       ]}
     >
       <TouchableOpacity
+        onPress={onTypeChange ? () => {
+          Haptics.selectionAsync();
+          const idx = SET_TYPES.indexOf(currentType as any);
+          onTypeChange(SET_TYPES[(idx + 1) % SET_TYPES.length]);
+        } : undefined}
         onLongPress={onRemove}
         delayLongPress={500}
-        style={{ width: 40 }}
-        disabled={!onRemove}
+        style={{ width: 40, alignItems: 'center' }}
       >
-        <Text style={[typography.bodyMedium, { color: onRemove ? colors.textSecondary : colors.textTertiary }]}>
+        <Text style={[{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 1 }, { color: SET_TYPE_COLORS[currentType] }]}>
+          {SET_TYPE_LABELS[currentType]}
+        </Text>
+        <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>
           {setIndex + 1}
         </Text>
       </TouchableOpacity>
