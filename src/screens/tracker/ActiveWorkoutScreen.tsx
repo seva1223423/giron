@@ -513,21 +513,35 @@ const SetRow: React.FC<{
           {setIndex + 1}
         </Text>
       </TouchableOpacity>
-      <TextInput
-        style={[
-          styles.setInput,
-          {
-            backgroundColor: colors.inputBackground,
-            borderColor: colors.inputBorder,
-            color: colors.text,
-          },
-        ]}
-        value={weight}
-        onChangeText={setWeight}
-        keyboardType="numeric"
-        placeholder="0"
-        placeholderTextColor={colors.inputPlaceholder}
-      />
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync(); const v = parseFloat(weight) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
+          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+        >
+          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
+        </TouchableOpacity>
+        <TextInput
+          style={[
+            styles.setInput,
+            {
+              backgroundColor: colors.inputBackground,
+              borderColor: colors.inputBorder,
+              color: colors.text,
+            },
+          ]}
+          value={weight}
+          onChangeText={setWeight}
+          keyboardType="numeric"
+          placeholder="0"
+          placeholderTextColor={colors.inputPlaceholder}
+        />
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync(); const v = parseFloat(weight) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
+          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+        >
+          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
+        </TouchableOpacity>
+      </View>
       {onOpenPlates && (
         <TouchableOpacity
           onPress={() => { Haptics.selectionAsync(); onOpenPlates(parseFloat(weight) || 0); }}
@@ -727,6 +741,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+  },
+  stepBtn: {
+    width: 26,
+    height: 36,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   warmupBtn: {
     flex: 1,
