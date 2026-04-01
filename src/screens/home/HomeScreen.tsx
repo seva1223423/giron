@@ -267,9 +267,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {/* Weekly stats */}
       <FadeIn delay={200}>
         <Card style={{ marginBottom: spacing.lg }}>
-          <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
-            Эта неделя
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <Text style={[typography.h4, { color: colors.text }]}>Эта неделя</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutHistory' })}>
+              <Text style={[typography.smallMedium, { color: colors.primary }]}>История</Text>
+            </TouchableOpacity>
+          </View>
           {/* Week day dots */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day, i) => {
