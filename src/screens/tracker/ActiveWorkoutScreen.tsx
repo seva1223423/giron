@@ -115,6 +115,18 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const { workout, currentExerciseIndex, startTime } = activeWorkout;
   const currentExercise = workout.exercises[currentExerciseIndex];
   const elapsed = Math.round((Date.now() - startTime) / 60000);
+
+  // Find previous session sets for the current exercise
+  const previousSets = useMemo(() => {
+    const exId = currentExercise.exerciseId;
+    const prev = workoutHistory.find((w) =>
+      w.id !== workout.id && w.exercises.some((e) => e.exerciseId === exId)
+    );
+    if (!prev) return null;
+    const prevEx = prev.exercises.find((e) => e.exerciseId === exId);
+    const done = prevEx?.sets.filter((s) => s.completed && (s.weight || s.reps)) ?? [];
+    return done.length > 0 ? { date: prev.completedAt || prev.startedAt, sets: done } : null;
+  }, [currentExercise.exerciseId, workoutHistory, workout.id]);
   const totalCompletedSets = workout.exercises.reduce(
     (s, ex) => s + ex.sets.filter((set) => set.completed).length, 0
   );
@@ -324,6 +336,28 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
       {/* Sets */}
       <ScrollView contentContainerStyle={styles.setsContainer} showsVerticalScrollIndicator={false}>
+        {/* Previous session summary */}
+        {previousSets && (
+          <View style={[styles.prevSessionRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[typography.captionMedium, { color: colors.textTertiary, marginRight: spacing.sm }]}>
+              {'↩ '}
+              {new Date(previousSets.date!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}:
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                {previousSets.sets.slice(0, 6).map((s, i) => (
+                  <Text key={i} style={[typography.captionMedium, { color: colors.textSecondary }]}>
+                    {s.weight ? `${s.weight}×${s.reps}` : `${s.reps} пвт`}
+                  </Text>
+                ))}
+                {previousSets.sets.length > 6 && (
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>+{previousSets.sets.length - 6}</Text>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
         {/* Table header */}
         <View style={styles.setRow}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40 }]}>Сет</Text>
@@ -772,5 +806,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  prevSessionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
   },
 });
