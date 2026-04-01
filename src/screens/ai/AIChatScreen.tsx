@@ -16,7 +16,7 @@ import { FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { ChatMessage } from '../../types';
-import { aiService, getApiError } from '../../services';
+import { aiService, getApiError, AIActionResult } from '../../services';
 
 const QUICK_PROMPTS = [
   { emoji: '💪', text: 'Составь программу тренировок под мои цели' },
@@ -48,6 +48,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [lastActions, setLastActions] = useState<AIActionResult[]>([]);
 
   // Load chat history from server
   useEffect(() => {
@@ -96,6 +97,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const response = await aiService.chat(text.trim());
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      if (response.actions?.length > 0) {
+        setLastActions(response.actions);
+        setTimeout(() => setLastActions([]), 6000);
+      }
 
       const aiResponse: ChatMessage = {
         id: `ai-${Date.now()}`,
@@ -228,6 +234,18 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         )}
       </ScrollView>
 
+      {/* AI Action notifications */}
+      {lastActions.length > 0 && (
+        <View style={[styles.actionsBar, { backgroundColor: colors.success + '18', borderTopColor: colors.success + '40' }]}>
+          {lastActions.map((action, i) => (
+            <View key={i} style={[styles.actionChip, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
+              <Text style={{ fontSize: 13, marginRight: 4 }}>✓</Text>
+              <Text style={[typography.small, { color: colors.success, flex: 1 }]}>{action.description}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Input */}
       <View style={[styles.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TextInput
@@ -340,5 +358,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  actionsBar: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    gap: spacing.xs,
+  },
+  actionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
   },
 });

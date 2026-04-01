@@ -46,6 +46,32 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 
 6. **Мотивация и психология:** Помощь с плато, потерей мотивации, постановкой целей, формированием привычек.
 
+7. **Здоровье и биомаркеры:** Интерпретация анализов, рекомендации по микронутриентам, адаптогены, воспаление. Рассматривай здоровье, тренировки и питание как единую систему.
+
+## ИНТЕГРИРОВАННЫЙ ПОДХОД
+
+**Ключевой принцип:** Всегда рассматривай здоровье, тренировки и питание как взаимосвязанную систему, а не отдельные темы.
+
+- При вопросе о тренировках — учитывай питание и восстановление
+- При вопросе о питании — учитывай тренировочную фазу и гормональный контекст
+- При вопросе о здоровье — связывай с тренировочным планом и рационом
+- Используй оценку готовности (сон + стресс + питание) для корректировки плана
+
+## ДЕЙСТВИЯ (TOOLS)
+
+У тебя есть возможность реально изменять данные пользователя в приложении:
+- **update_user_profile** — обновить вес, рост, цель, уровень подготовки
+- **log_body_weight** — записать замер веса тела
+- **create_workout** — создать тренировку и добавить её в план
+
+Используй эти инструменты когда:
+- Пользователь сообщает свой актуальный вес ("сегодня вешу 85 кг") → log_body_weight + update_user_profile
+- Пользователь хочет изменить цель тренировок → update_user_profile
+- Пользователь просит составить конкретную тренировку → create_workout
+- После составления программы — создай первую тренировку сразу
+
+После использования инструмента — не упоминай технические детали, просто подтверди действие в тексте: "Записал твой вес — 85 кг" или "Создал тренировку — она уже в твоём плане".
+
 ## ПРАВИЛА ОТВЕТОВ
 
 **Формат:**
@@ -67,7 +93,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - При признаках расстройства пищевого поведения — мягко порекомендуй специалиста
 
 **Научная база:**
-- Основывай рекомендации на текущих научных данных
+- Основывай рекомендации на текущих научных данных из базы знаний
 - Если есть спорные данные — дай обе стороны аргумента
 - Разоблачай мифы вежливо но уверенно
 
@@ -84,6 +110,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 3. Объясни логику: почему эти упражнения, почему такой объём
 4. Дай рекомендации по прогрессии
 5. Укажи когда делать деload
+6. Создай первую тренировку через инструмент create_workout
 
 **При запросе расчёта КБЖУ:**
 1. Рассчитай TDEE по формуле Миффлина-Сан Жеора
@@ -105,6 +132,69 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 3. Если хроническая/умеренная → дай рекомендации по модификации упражнений
 4. Предложи альтернативные упражнения, не нагружающие проблемную зону
 5. Дай упражнения на реабилитацию/укрепление (если уместно)`;
+
+// AI tools that Iron Coach can call to modify user data
+const AI_TOOLS: Anthropic.Tool[] = [
+  {
+    name: 'update_user_profile',
+    description: 'Обновить профиль пользователя. Используй когда пользователь сообщает новый вес тела, рост, хочет изменить цель тренировок или уровень подготовки. Можно обновлять одно или несколько полей.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        weightKg: { type: 'number', description: 'Вес тела в кг' },
+        heightCm: { type: 'number', description: 'Рост в см' },
+        goal: {
+          type: 'string',
+          enum: ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'],
+          description: 'Тренировочная цель',
+        },
+        fitnessLevel: {
+          type: 'string',
+          enum: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'],
+          description: 'Уровень подготовки',
+        },
+      },
+    },
+  },
+  {
+    name: 'log_body_weight',
+    description: 'Записать замер веса тела. Используй когда пользователь сообщает свой текущий вес. Автоматически также обновляет вес в профиле.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        weightKg: { type: 'number', description: 'Вес тела в кг' },
+        date: { type: 'string', description: 'Дата в формате YYYY-MM-DD (по умолчанию сегодня)' },
+      },
+      required: ['weightKg'],
+    },
+  },
+  {
+    name: 'create_workout',
+    description: 'Создать тренировку и добавить её в план пользователя. Используй когда составляешь конкретную тренировку по запросу. Упражнения ищутся по названию в базе данных.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Название тренировки (например "День ног", "Верх тела A", "Full Body")' },
+        exercises: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              exerciseName: { type: 'string', description: 'Название упражнения на русском или английском' },
+              sets: { type: 'number', description: 'Количество подходов' },
+              reps: { type: 'number', description: 'Количество повторений' },
+              weight: { type: 'number', description: 'Вес в кг (если применимо)' },
+              restSeconds: { type: 'number', description: 'Отдых между подходами в секундах' },
+            },
+            required: ['exerciseName', 'sets', 'reps'],
+          },
+          description: 'Список упражнений тренировки',
+        },
+      },
+      required: ['name', 'exercises'],
+    },
+  },
+];
 
 // Keyword mappings — module-level constant (computed once, not per-request)
 const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
@@ -172,10 +262,17 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
     'анализ', 'биомаркер', 'тестостерон', 'кортизол', 'гемоглобин', 'ферритин',
     'ттг', 'щитовидн', 'инсулин', 'глюкоз', 'hba1c', 'холестерин', 'липид',
     'витамин d', 'магний', 'цинк', 'железо', 'кальций', 'омега-3', 'omega-3',
-    'воспален', 'crp', 'микронутриент', 'анемия', 'иммун', 'hrv', 'всс', 'всрс', 'всрс',
+    'воспален', 'crp', 'микронутриент', 'анемия', 'иммун', 'hrv', 'всс', 'всрс',
     'ашваганда', 'адаптоген', 'родиол', 'куркум', 'антиоксидант', 'антивоспал',
     'инсулинорезист', 'метаболическ', 'кишечник', 'микробиом', 'пробиотик',
     'дефицит витамин', 'сдать анализ', 'кровь', 'биохими',
+  ]],
+  ['INTEGRATED_APPROACH', [
+    'комплексн', 'интеграц', 'система', 'всё вместе', 'одновременно',
+    'рекомпозиц', 'готовность', 'готов к тренировке', 'стоит ли тренироваться',
+    'гормональн', 'тестостерон кортизол', 'периодизация питан', 'тайминг',
+    'адаптац', 'уравнение', 'мультипликатор', 'оценить состояние',
+    'суставы питание', 'коллаген', 'сухожил',
   ]],
 ];
 
@@ -188,28 +285,147 @@ function getRelevantKnowledge(message: string): string {
   return chunks.join(', ') || 'GENERAL';
 }
 
+// Execute an AI tool call and return the result string + performed action info
+async function executeTool(
+  toolName: string,
+  toolInput: Record<string, unknown>,
+  userId: string,
+): Promise<{ resultText: string; actionDescription: string }> {
+  if (toolName === 'update_user_profile') {
+    const { weightKg, heightCm, goal, fitnessLevel } = toolInput as {
+      weightKg?: number;
+      heightCm?: number;
+      goal?: string;
+      fitnessLevel?: string;
+    };
+
+    const updateData: Record<string, unknown> = {};
+    if (weightKg !== undefined) updateData.weightKg = weightKg;
+    if (heightCm !== undefined) updateData.heightCm = heightCm;
+    if (goal !== undefined) updateData.goal = goal;
+    if (fitnessLevel !== undefined) updateData.fitnessLevel = fitnessLevel;
+
+    await prisma.user.update({ where: { id: userId }, data: updateData });
+
+    const parts: string[] = [];
+    if (weightKg !== undefined) parts.push(`вес ${weightKg} кг`);
+    if (heightCm !== undefined) parts.push(`рост ${heightCm} см`);
+    if (goal !== undefined) parts.push(`цель обновлена`);
+    if (fitnessLevel !== undefined) parts.push(`уровень обновлён`);
+
+    return {
+      resultText: `Профиль обновлён: ${parts.join(', ')}`,
+      actionDescription: `Профиль обновлён: ${parts.join(', ')}`,
+    };
+  }
+
+  if (toolName === 'log_body_weight') {
+    const { weightKg, date } = toolInput as { weightKg: number; date?: string };
+    const logDate = date ? new Date(date) : new Date();
+    logDate.setHours(0, 0, 0, 0);
+
+    await prisma.bodyWeight.upsert({
+      where: { userId_date: { userId, date: logDate } },
+      create: { userId, weightKg, date: logDate },
+      update: { weightKg },
+    });
+
+    // Also update profile weight
+    await prisma.user.update({ where: { id: userId }, data: { weightKg } });
+
+    return {
+      resultText: `Вес записан: ${weightKg} кг`,
+      actionDescription: `Вес ${weightKg} кг записан в дневник`,
+    };
+  }
+
+  if (toolName === 'create_workout') {
+    const { name, exercises } = toolInput as {
+      name: string;
+      exercises: Array<{
+        exerciseName: string;
+        sets: number;
+        reps: number;
+        weight?: number;
+        restSeconds?: number;
+      }>;
+    };
+
+    // Find exercises in DB (case-insensitive partial match)
+    const exerciseRecords = await Promise.all(
+      exercises.map(async (ex) => {
+        const found = await prisma.exercise.findFirst({
+          where: { name: { contains: ex.exerciseName, mode: 'insensitive' } },
+        });
+        return { input: ex, record: found };
+      }),
+    );
+
+    const validExercises = exerciseRecords.filter((e) => e.record !== null);
+
+    if (validExercises.length === 0) {
+      return {
+        resultText: 'Упражнения не найдены в базе данных',
+        actionDescription: 'Тренировка не создана — упражнения не найдены',
+      };
+    }
+
+    const workout = await prisma.workout.create({
+      data: {
+        name,
+        userId,
+        createdAt: new Date(),
+        exercises: {
+          create: validExercises.map((ex, idx) => ({
+            order: idx + 1,
+            restSeconds: ex.input.restSeconds ?? 90,
+            exerciseId: ex.record!.id,
+            sets: {
+              create: Array.from({ length: ex.input.sets }, (_, i) => ({
+                setNumber: i + 1,
+                reps: ex.input.reps,
+                weight: ex.input.weight ?? null,
+              })),
+            },
+          })),
+        },
+      },
+    });
+
+    const foundNames = validExercises.map((e) => e.record!.name).join(', ');
+    return {
+      resultText: `Тренировка "${workout.name}" создана с упражнениями: ${foundNames}`,
+      actionDescription: `Тренировка "${name}" добавлена в план (${validExercises.length} упражнений)`,
+    };
+  }
+
+  return { resultText: 'Неизвестный инструмент', actionDescription: '' };
+}
+
 // Chat with AI
 router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: 'Сообщение обязательно' });
 
+    const userId = req.userId!;
+
     // Get user profile
     const user = await prisma.user.findUnique({
-      where: { id: req.userId },
+      where: { id: userId },
       include: { healthRestrictions: true },
     });
 
     // Get recent chat history
     const history = await prisma.chatMessage.findMany({
-      where: { userId: req.userId },
+      where: { userId },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
     // Get active program
     const activeProgram = await prisma.program.findFirst({
-      where: { userId: req.userId, isActive: true },
+      where: { userId, isActive: true },
       include: {
         workouts: {
           include: { exercises: { include: { exercise: true, sets: true } } },
@@ -219,17 +435,10 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Get recent workout stats
     const recentWorkouts = await prisma.workout.findMany({
-      where: {
-        userId: req.userId,
-        completedAt: { not: null },
-      },
+      where: { userId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
       take: 5,
-      include: {
-        exercises: {
-          include: { exercise: true, sets: true },
-        },
-      },
+      include: { exercises: { include: { exercise: true, sets: true } } },
     });
 
     // Build user context
@@ -241,24 +450,24 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
 
       userContext = `\n## ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ
 - Имя: ${user.firstName}
-- Пол: ${user.gender === 'male' ? 'мужской' : user.gender === 'female' ? 'женский' : 'не указан'}
+- Пол: ${user.gender === 'MALE' ? 'мужской' : user.gender === 'FEMALE' ? 'женский' : 'не указан'}
 ${age ? `- Возраст: ${age} лет` : ''}
 - Рост: ${user.heightCm ? `${user.heightCm} см` : 'не указан'}
 - Вес: ${user.weightKg ? `${user.weightKg} кг` : 'не указан'}
 - Цель: ${user.goal ? ({
-  weight_loss: 'похудение',
-  muscle_gain: 'набор мышечной массы',
-  strength: 'развитие силы',
-  endurance: 'выносливость',
-  flexibility: 'гибкость',
-  general_fitness: 'общая физическая форма',
-} as Record<string, string>)[user.goal] || user.goal : 'не указана'}
+        WEIGHT_LOSS: 'похудение',
+        MUSCLE_GAIN: 'набор мышечной массы',
+        STRENGTH: 'развитие силы',
+        ENDURANCE: 'выносливость',
+        FLEXIBILITY: 'гибкость',
+        GENERAL_FITNESS: 'общая физическая форма',
+      } as Record<string, string>)[user.goal] || user.goal : 'не указана'}
 - Уровень подготовки: ${user.fitnessLevel ? ({
-  beginner: 'новичок',
-  intermediate: 'средний',
-  advanced: 'продвинутый',
-  expert: 'эксперт',
-} as Record<string, string>)[user.fitnessLevel] || user.fitnessLevel : 'не указан'}
+        BEGINNER: 'новичок',
+        INTERMEDIATE: 'средний',
+        ADVANCED: 'продвинутый',
+        EXPERT: 'эксперт',
+      } as Record<string, string>)[user.fitnessLevel] || user.fitnessLevel : 'не указан'}
 - Тренировочный стаж: ${user.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'не указан'}
 ${user.healthRestrictions.length > 0 ? `- Ограничения здоровья: ${user.healthRestrictions.map((h) => `${h.bodyPart}: ${h.description} (${h.severity})`).join('; ')}` : '- Ограничений здоровья: нет'}`;
     }
@@ -291,11 +500,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // Save user message
     await prisma.chatMessage.create({
-      data: { role: 'user', content: message, userId: req.userId! },
+      data: { role: 'user', content: message, userId },
     });
 
     // Build conversation messages
-    const messages = history
+    const messages: Anthropic.MessageParam[] = history
       .reverse()
       .map((m) => ({
         role: m.role as 'user' | 'assistant',
@@ -303,41 +512,77 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }));
     messages.push({ role: 'user', content: message });
 
-    // Determine relevant knowledge based on user message
     const relevantTopics = getRelevantKnowledge(message);
 
-    // Call Claude with full knowledge base
+    const systemBlocks: Anthropic.TextBlockParam[] = [
+      { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: FULL_KNOWLEDGE_BASE, cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: `${userContext}\n${programContext}\n${statsContext}\n\nРелевантные темы запроса: ${relevantTopics}` },
+    ];
+
     const anthropic = getAnthropicClient();
-    const response = await anthropic.messages.create({
+    const performedActions: Array<{ type: string; description: string }> = [];
+
+    // First API call — may include tool_use
+    let response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: [
-        {
-          type: 'text',
-          text: SYSTEM_PROMPT,
-          cache_control: { type: 'ephemeral' },
-        },
-        {
-          type: 'text',
-          text: FULL_KNOWLEDGE_BASE,
-          cache_control: { type: 'ephemeral' },
-        },
-        {
-          type: 'text',
-          text: `${userContext}\n${programContext}\n${statsContext}\n\nРелевантные темы запроса: ${relevantTopics}`,
-        },
-      ],
+      system: systemBlocks,
+      tools: AI_TOOLS,
       messages,
     });
 
-    const aiContent = response.content[0].type === 'text' ? response.content[0].text : '';
+    // Agentic loop: process tool calls until we get a final text response
+    while (response.stop_reason === 'tool_use') {
+      const toolUseBlocks = response.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      );
 
-    // Save AI response
+      // Execute all tool calls
+      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        toolUseBlocks.map(async (block) => {
+          const { resultText, actionDescription } = await executeTool(
+            block.name,
+            block.input as Record<string, unknown>,
+            userId,
+          );
+          if (actionDescription) {
+            performedActions.push({ type: block.name, description: actionDescription });
+          }
+          return {
+            type: 'tool_result' as const,
+            tool_use_id: block.id,
+            content: resultText,
+          };
+        }),
+      );
+
+      // Continue conversation with tool results
+      messages.push({ role: 'assistant', content: response.content });
+      messages.push({ role: 'user', content: toolResults });
+
+      response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: systemBlocks,
+        tools: AI_TOOLS,
+        messages,
+      });
+    }
+
+    const aiContent = response.content.find((b) => b.type === 'text')?.text ?? '';
+
+    // Save AI response with actions
     await prisma.chatMessage.create({
-      data: { role: 'assistant', content: aiContent, userId: req.userId! },
+      data: {
+        role: 'assistant',
+        content: aiContent,
+        userId,
+        actions: performedActions.length > 0 ? performedActions : undefined,
+      },
     });
 
-    res.json({ message: aiContent });
+    res.json({ message: aiContent, actions: performedActions });
   } catch (e) {
     console.error('AI Chat error:', e);
     res.status(500).json({ error: 'Ошибка ИИ-ассистента' });
@@ -350,13 +595,10 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const { imageBase64 } = req.body;
     if (!imageBase64) return res.status(400).json({ error: 'Изображение обязательно' });
 
-    // Get user info for personalized analysis
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-    });
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
 
     const userInfo = user
-      ? `Пользователь: ${user.gender === 'male' ? 'мужчина' : user.gender === 'female' ? 'женщина' : ''}, ${user.weightKg ? `вес ${user.weightKg} кг` : ''}, цель: ${user.goal || 'не указана'}.`
+      ? `Пользователь: ${user.gender === 'MALE' ? 'мужчина' : user.gender === 'FEMALE' ? 'женщина' : ''}, ${user.weightKg ? `вес ${user.weightKg} кг` : ''}, цель: ${user.goal || 'не указана'}.`
       : '';
 
     const anthropic = getAnthropicClient();
@@ -411,15 +653,12 @@ ${userInfo}
     });
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
-
-    // Parse JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return res.status(500).json({ error: 'Не удалось распознать еду' });
     }
 
-    const result = JSON.parse(jsonMatch[0]);
-    res.json(result);
+    res.json(JSON.parse(jsonMatch[0]));
   } catch (e) {
     console.error('Food analysis error:', e);
     res.status(500).json({ error: 'Ошибка анализа фото' });

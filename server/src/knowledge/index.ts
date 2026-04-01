@@ -8,6 +8,7 @@ import { SPORTS_PHYSIOLOGY } from './sportsPhysiology';
 import { HOME_BODYWEIGHT } from './homeAndBodyweight';
 import { PSYCHOLOGY_HABITS } from './psychologyAndHabits';
 import { HEALTH_BIOMARKERS } from './healthBiomarkers';
+import { INTEGRATED_APPROACH } from './integratedApproach';
 
 /**
  * Complete AI Trainer Knowledge Base — 9 Modules
@@ -75,6 +76,15 @@ import { HEALTH_BIOMARKERS } from './healthBiomarkers';
  * - Peter Attia "Outlive" — metabolic health
  * - Examine.com — evidence-based supplement & micronutrient reviews
  * - UpToDate clinical references
+ *
+ * Integrated Holistic Approach:
+ * - Israetel "Scientific Principles of Hypertrophy Training"
+ * - Helms "Muscle & Strength Pyramids" (2nd ed.)
+ * - Peter Attia "Outlive"
+ * - Seiler polarized training model
+ * - NSCA CSCS, ISSN Position Stands
+ * - Shaw et al. 2017 — collagen/vitamin C and tendon synthesis
+ * - Wankhede et al. 2015 — ashwagandha and testosterone
  */
 
 export const FULL_KNOWLEDGE_BASE = [
@@ -88,6 +98,7 @@ export const FULL_KNOWLEDGE_BASE = [
   HOME_BODYWEIGHT,
   PSYCHOLOGY_HABITS,
   HEALTH_BIOMARKERS,
+  INTEGRATED_APPROACH,
 ].join('\n\n---\n\n');
 
 export {
@@ -101,4 +112,5 @@ export {
   HOME_BODYWEIGHT,
   PSYCHOLOGY_HABITS,
   HEALTH_BIOMARKERS,
+  INTEGRATED_APPROACH,
 };

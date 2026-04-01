@@ -14,10 +14,15 @@ export interface FoodAnalysisResult {
   items: FoodAnalysisItem[];
 }
 
+export interface AIActionResult {
+  type: string;
+  description: string;
+}
+
 export const aiService = {
-  async chat(message: string): Promise<{ message: string }> {
+  async chat(message: string): Promise<{ message: string; actions: AIActionResult[] }> {
     const { data } = await api.post('/ai/chat', { message });
-    return data;
+    return { message: data.message, actions: data.actions ?? [] };
   },
 
   async analyzeFood(imageBase64: string): Promise<FoodAnalysisResult> {
