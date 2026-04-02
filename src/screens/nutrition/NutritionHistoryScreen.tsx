@@ -6,6 +6,50 @@ import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 
+// ─── Micro calorie bar chart for last N days ────────────────────────────────
+type CalorieBarChartProps = {
+  data: { label: string; calories: number; target: number }[];
+  colors: any;
+};
+const CalorieBarChart: React.FC<CalorieBarChartProps> = ({ data, colors }) => {
+  const maxCal = Math.max(...data.map((d) => d.calories), ...data.map((d) => d.target), 1);
+  const chartH = 80;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: chartH + 24, gap: 4, paddingTop: 4 }}>
+      {data.map((d, i) => {
+        const barH = Math.max(4, (d.calories / maxCal) * chartH);
+        const targetH = (d.target / maxCal) * chartH;
+        const over = d.target > 0 && d.calories > d.target * 1.1;
+        const good = d.target > 0 && d.calories >= d.target * 0.85;
+        const barColor = d.calories === 0 ? colors.border : over ? colors.error : good ? colors.success : colors.primary;
+        return (
+          <View key={i} style={{ flex: 1, alignItems: 'center', height: chartH + 24, justifyContent: 'flex-end' }}>
+            <View style={{ width: '100%', height: chartH, justifyContent: 'flex-end', position: 'relative' }}>
+              {/* Target line */}
+              {d.target > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: targetH,
+                    left: 0,
+                    right: 0,
+                    height: 1,
+                    backgroundColor: colors.accent + '80',
+                  }}
+                />
+              )}
+              <View style={{ width: '100%', height: barH, borderRadius: 3, backgroundColor: barColor, opacity: d.calories === 0 ? 0.25 : 0.9 }} />
+            </View>
+            <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 9, marginTop: 4, textAlign: 'center' }]} numberOfLines={1}>
+              {d.label}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 function getPastDates(days: number): string[] {
   return Array.from({ length: days }, (_, i) => {
     const d = new Date();
@@ -35,6 +79,27 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
     [getDayLog]
   );
 
+  // Last 14 days for the chart (oldest → newest)
+  const chartData = useMemo(() => {
+    return getPastDates(14)
+      .reverse()
+      .map((date) => {
+        const log = getDayLog(date);
+        const calories = log.meals.reduce((s, m) => s + m.totalCalories, 0);
+        const d = new Date(date);
+        const label = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' });
+        return { label, calories, target: log.targetCalories };
+      });
+  }, [getDayLog]);
+
+  const totalCalAvg = useMemo(() => {
+    const withData = chartData.filter((d) => d.calories > 0);
+    if (withData.length === 0) return 0;
+    return Math.round(withData.reduce((s, d) => s + d.calories, 0) / withData.length);
+  }, [chartData]);
+
+  const daysTracked = chartData.filter((d) => d.calories > 0).length;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -56,6 +121,41 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {/* 14-day calorie chart */}
+          <FadeIn delay={0}>
+            <Card style={{ marginBottom: spacing.xl }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
+                <View>
+                  <Text style={[typography.h4, { color: colors.text }]}>Калории за 2 недели</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                    Отслежено {daysTracked} из 14 дней
+                  </Text>
+                </View>
+                {totalCalAvg > 0 && (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[typography.number, { color: colors.primary, fontSize: 20 }]}>{totalCalAvg}</Text>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]}>ср. ккал/день</Text>
+                  </View>
+                )}
+              </View>
+              <CalorieBarChart data={chartData} colors={colors} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 12, height: 3, backgroundColor: colors.accent + '80', borderRadius: 1 }} />
+                  <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Цель</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: colors.success }} />
+                  <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>В норме</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: colors.error }} />
+                  <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Перебор</Text>
+                </View>
+              </View>
+            </Card>
+          </FadeIn>
+
           {logsWithData.map(({ date, log }, i) => {
             const totalCalories = log.meals.reduce((s, m) => s + m.totalCalories, 0);
             const totalProtein = log.meals.reduce((s, m) => s + m.totalProtein, 0);

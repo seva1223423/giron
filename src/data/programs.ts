@@ -848,4 +848,262 @@ export const builtInPrograms: BuiltInProgram[] = [
       },
     ],
   },
+
+  // ─── 18 ─── Русский силовой минимум (3×/нед, фулбоди, начинающий)
+  {
+    id: 'russian-strength-minimum',
+    name: 'Русский силовой минимум',
+    description: 'Три базовых движения — присед, жим, тяга. Прогресс на каждой тренировке. Идеально для начинающих силовиков.',
+    goal: 'strength',
+    level: 'beginner',
+    daysPerWeek: 3,
+    durationWeeks: 8,
+    split: 'Фулбоди A/B',
+    emoji: '🇷🇺',
+    days: [
+      {
+        name: 'День A — Присед + Жим',
+        exercises: [
+          { exerciseId: 'squat', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'bench-press', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'barbell-row', sets: 3, reps: '5', rest: 180 },
+        ],
+      },
+      {
+        name: 'День B — Присед + Жим стоя',
+        exercises: [
+          { exerciseId: 'squat', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'deadlift', sets: 1, reps: '5', rest: 240 },
+        ],
+      },
+    ],
+  },
+
+  // ─── 19 ─── Программа жиросжигания «Сушка 6 недель»
+  {
+    id: 'cut-6-weeks',
+    name: 'Сушка 6 недель',
+    description: 'Суперсеты, высокий темп, минимальный отдых. Максимальный расход калорий при сохранении мышц.',
+    goal: 'fat_loss',
+    level: 'intermediate',
+    daysPerWeek: 4,
+    durationWeeks: 6,
+    split: 'Верх / Низ',
+    emoji: '🔥',
+    days: [
+      {
+        name: 'День 1 — Верх тела',
+        exercises: [
+          { exerciseId: 'bench-press', sets: 4, reps: '12', rest: 60 },
+          { exerciseId: 'barbell-row', sets: 4, reps: '12', rest: 60 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '15', rest: 45 },
+          { exerciseId: 'lat-pulldown', sets: 3, reps: '15', rest: 45 },
+          { exerciseId: 'dumbbell-curl', sets: 3, reps: '15', rest: 30 },
+          { exerciseId: 'tricep-pushdown', sets: 3, reps: '15', rest: 30 },
+        ],
+      },
+      {
+        name: 'День 2 — Низ тела',
+        exercises: [
+          { exerciseId: 'squat', sets: 4, reps: '15', rest: 60 },
+          { exerciseId: 'romanian-deadlift', sets: 4, reps: '12', rest: 60 },
+          { exerciseId: 'leg-press', sets: 3, reps: '20', rest: 45 },
+          { exerciseId: 'leg-curl', sets: 3, reps: '15', rest: 45 },
+          { exerciseId: 'calf-raise', sets: 4, reps: '20', rest: 30 },
+          { exerciseId: 'plank', sets: 3, reps: '45с', rest: 30 },
+        ],
+      },
+      {
+        name: 'День 3 — Верх тела (силовой)',
+        exercises: [
+          { exerciseId: 'incline-bench-press', sets: 4, reps: '10', rest: 75 },
+          { exerciseId: 'pull-ups', sets: 4, reps: '8-10', rest: 75 },
+          { exerciseId: 'dumbbell-shoulder-press', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'cable-row', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'hammer-curl', sets: 3, reps: '12', rest: 30 },
+          { exerciseId: 'skull-crushers', sets: 3, reps: '12', rest: 30 },
+        ],
+      },
+      {
+        name: 'День 4 — Низ тела + Кардио',
+        exercises: [
+          { exerciseId: 'front-squat', sets: 4, reps: '12', rest: 60 },
+          { exerciseId: 'lunges', sets: 3, reps: '12', rest: 45 },
+          { exerciseId: 'leg-extension', sets: 3, reps: '15', rest: 45 },
+          { exerciseId: 'sumo-deadlift', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'jump-rope', sets: 5, reps: '2 мин', rest: 30 },
+          { exerciseId: 'bicycle-crunch', sets: 3, reps: '25', rest: 30 },
+        ],
+      },
+    ],
+  },
+
+  // ─── 20 ─── Пауэрлифтинг Пик (8 нед, продвинутый)
+  {
+    id: 'powerlifting-peak',
+    name: 'Пауэрлифтинг: Пик',
+    description: '8-недельный пик перед соревнованиями или тестом 1ПМ. Волновая нагрузка, интенсивность 80–95%.',
+    goal: 'strength',
+    level: 'advanced',
+    daysPerWeek: 4,
+    durationWeeks: 8,
+    split: 'Сопряжённый метод',
+    emoji: '⚡',
+    days: [
+      {
+        name: 'День 1 — Максимальная сила (жим)',
+        exercises: [
+          { exerciseId: 'bench-press', sets: 5, reps: '3', rest: 300 },
+          { exerciseId: 'close-grip-bench', sets: 4, reps: '4', rest: 240 },
+          { exerciseId: 'tricep-pushdown', sets: 4, reps: '8', rest: 120 },
+          { exerciseId: 'dumbbell-fly', sets: 3, reps: '10', rest: 90 },
+          { exerciseId: 'face-pull', sets: 3, reps: '15', rest: 90 },
+        ],
+      },
+      {
+        name: 'День 2 — Максимальная сила (присед)',
+        exercises: [
+          { exerciseId: 'squat', sets: 5, reps: '3', rest: 300 },
+          { exerciseId: 'box-squat', sets: 4, reps: '3', rest: 300 },
+          { exerciseId: 'leg-press', sets: 3, reps: '8', rest: 120 },
+          { exerciseId: 'leg-curl', sets: 3, reps: '10', rest: 90 },
+          { exerciseId: 'ab-rollout', sets: 3, reps: '10', rest: 90 },
+        ],
+      },
+      {
+        name: 'День 3 — Динамическая сила (жим)',
+        exercises: [
+          { exerciseId: 'bench-press', sets: 8, reps: '3', rest: 60 },
+          { exerciseId: 'incline-bench-press', sets: 3, reps: '6', rest: 120 },
+          { exerciseId: 'barbell-row', sets: 4, reps: '6', rest: 120 },
+          { exerciseId: 'pull-ups', sets: 3, reps: '6', rest: 90 },
+          { exerciseId: 'lateral-raise', sets: 3, reps: '15', rest: 60 },
+        ],
+      },
+      {
+        name: 'День 4 — Максимальная сила (тяга)',
+        exercises: [
+          { exerciseId: 'deadlift', sets: 5, reps: '2', rest: 360 },
+          { exerciseId: 'sumo-deadlift', sets: 3, reps: '3', rest: 300 },
+          { exerciseId: 'romanian-deadlift', sets: 3, reps: '6', rest: 180 },
+          { exerciseId: 'barbell-row', sets: 4, reps: '5', rest: 180 },
+          { exerciseId: 'lat-pulldown', sets: 3, reps: '8', rest: 90 },
+        ],
+      },
+    ],
+  },
+
+  // ─── 21 ─── Женская программа «Форма и тонус»
+  {
+    id: 'women-shape-tone',
+    name: 'Форма и тонус',
+    description: 'Программа для девушек: акцент на ягодицы, ноги и корпус. Умеренные веса, высокий объём, красивая форма.',
+    goal: 'muscle',
+    level: 'beginner',
+    daysPerWeek: 3,
+    durationWeeks: 8,
+    split: 'Ноги / Верх / Фулбоди',
+    emoji: '✨',
+    days: [
+      {
+        name: 'День 1 — Ноги и ягодицы',
+        exercises: [
+          { exerciseId: 'squat', sets: 4, reps: '15', rest: 90 },
+          { exerciseId: 'romanian-deadlift', sets: 4, reps: '12', rest: 90 },
+          { exerciseId: 'leg-press', sets: 3, reps: '15', rest: 75 },
+          { exerciseId: 'lunges', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'calf-raise', sets: 4, reps: '20', rest: 45 },
+          { exerciseId: 'glute-bridge', sets: 3, reps: '15', rest: 60 },
+        ],
+      },
+      {
+        name: 'День 2 — Верх тела',
+        exercises: [
+          { exerciseId: 'dumbbell-chest-press', sets: 3, reps: '12', rest: 75 },
+          { exerciseId: 'lat-pulldown', sets: 3, reps: '12', rest: 75 },
+          { exerciseId: 'dumbbell-shoulder-press', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'cable-row', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'dumbbell-curl', sets: 3, reps: '12', rest: 45 },
+          { exerciseId: 'tricep-pushdown', sets: 3, reps: '15', rest: 45 },
+        ],
+      },
+      {
+        name: 'День 3 — Фулбоди + Кор',
+        exercises: [
+          { exerciseId: 'sumo-deadlift', sets: 3, reps: '12', rest: 90 },
+          { exerciseId: 'incline-bench-press', sets: 3, reps: '12', rest: 75 },
+          { exerciseId: 'leg-curl', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'lateral-raise', sets: 3, reps: '15', rest: 45 },
+          { exerciseId: 'plank', sets: 3, reps: '45с', rest: 45 },
+          { exerciseId: 'bicycle-crunch', sets: 3, reps: '20', rest: 30 },
+        ],
+      },
+    ],
+  },
+
+  // ─── 22 ─── Выносливость «Железный марафонец»
+  {
+    id: 'iron-marathoner',
+    name: 'Железный марафонец',
+    description: 'Силовая выносливость для спортсменов. Высокие повторения, короткие паузы, функциональные движения.',
+    goal: 'endurance',
+    level: 'intermediate',
+    daysPerWeek: 5,
+    durationWeeks: 6,
+    split: 'Функциональный сплит',
+    emoji: '🏃',
+    days: [
+      {
+        name: 'День 1 — Нижняя выносливость',
+        exercises: [
+          { exerciseId: 'squat', sets: 5, reps: '20', rest: 60 },
+          { exerciseId: 'lunges', sets: 4, reps: '20', rest: 45 },
+          { exerciseId: 'jump-rope', sets: 6, reps: '2 мин', rest: 30 },
+          { exerciseId: 'box-squat', sets: 4, reps: '15', rest: 45 },
+          { exerciseId: 'calf-raise', sets: 5, reps: '25', rest: 30 },
+        ],
+      },
+      {
+        name: 'День 2 — Верхняя выносливость',
+        exercises: [
+          { exerciseId: 'push-ups', sets: 6, reps: '20', rest: 45 },
+          { exerciseId: 'pull-ups', sets: 6, reps: 'МАКС', rest: 60 },
+          { exerciseId: 'overhead-press', sets: 4, reps: '15', rest: 45 },
+          { exerciseId: 'barbell-row', sets: 4, reps: '15', rest: 45 },
+          { exerciseId: 'dip', sets: 4, reps: '15', rest: 45 },
+        ],
+      },
+      {
+        name: 'День 3 — Кардио + Кор',
+        exercises: [
+          { exerciseId: 'jump-rope', sets: 8, reps: '3 мин', rest: 30 },
+          { exerciseId: 'plank', sets: 5, reps: '60с', rest: 30 },
+          { exerciseId: 'bicycle-crunch', sets: 4, reps: '30', rest: 30 },
+          { exerciseId: 'russian-twist', sets: 4, reps: '25', rest: 30 },
+          { exerciseId: 'hanging-leg-raise', sets: 4, reps: '15', rest: 30 },
+        ],
+      },
+      {
+        name: 'День 4 — Фулбоди мощность',
+        exercises: [
+          { exerciseId: 'deadlift', sets: 4, reps: '12', rest: 90 },
+          { exerciseId: 'bench-press', sets: 4, reps: '12', rest: 75 },
+          { exerciseId: 'barbell-row', sets: 4, reps: '12', rest: 75 },
+          { exerciseId: 'squat', sets: 4, reps: '12', rest: 75 },
+          { exerciseId: 'push-ups', sets: 3, reps: '20', rest: 45 },
+        ],
+      },
+      {
+        name: 'День 5 — Восстановительная',
+        exercises: [
+          { exerciseId: 'jump-rope', sets: 3, reps: '5 мин', rest: 60 },
+          { exerciseId: 'lunges', sets: 3, reps: '15', rest: 45 },
+          { exerciseId: 'push-ups', sets: 3, reps: '15', rest: 45 },
+          { exerciseId: 'plank', sets: 3, reps: '45с', rest: 30 },
+          { exerciseId: 'side-plank', sets: 2, reps: '30с', rest: 30 },
+        ],
+      },
+    ],
+  },
 ];
