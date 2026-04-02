@@ -550,6 +550,17 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       take: 10,
     });
 
+    // Get today's meals
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayMeals = await prisma.meal.findMany({
+      where: { userId, createdAt: { gte: todayStart, lte: todayEnd } },
+      include: { items: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
     // Build user context
     let userContext = '';
     if (user) {
@@ -652,6 +663,29 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       const trend = Math.abs(delta) < 0.3 ? 'стабильный' : delta > 0 ? `+${delta.toFixed(1)} кг (рост)` : `${delta.toFixed(1)} кг (снижение)`;
       statsContext += `Последние записи: ${entries.map((e) => `${new Date(e.date).toLocaleDateString('ru-RU')}: ${e.weightKg} кг`).join(', ')}\n`;
       statsContext += `Тренд: ${trend}\n`;
+    }
+
+    // Build today's nutrition context
+    if (todayMeals.length > 0) {
+      const MEAL_TYPE_LABELS: Record<string, string> = {
+        breakfast: 'Завтрак',
+        lunch: 'Обед',
+        dinner: 'Ужин',
+        snack: 'Перекус',
+      };
+      const totalCal = todayMeals.reduce((s, m) => s + m.totalCalories, 0);
+      const totalProt = todayMeals.reduce((s, m) => s + m.totalProtein, 0);
+      const totalFats = todayMeals.reduce((s, m) => s + m.totalFats, 0);
+      const totalCarbs = todayMeals.reduce((s, m) => s + m.totalCarbs, 0);
+
+      statsContext += '\n## ПИТАНИЕ СЕГОДНЯ\n';
+      statsContext += `Итого: ${Math.round(totalCal)} ккал | Б ${Math.round(totalProt)}г | Ж ${Math.round(totalFats)}г | У ${Math.round(totalCarbs)}г\n`;
+      statsContext += 'Приёмы пищи:\n';
+      for (const meal of todayMeals) {
+        const label = MEAL_TYPE_LABELS[meal.type] || meal.type;
+        const itemList = meal.items.map((i) => `${i.name} (${Math.round(i.calories)} ккал, ${i.weightGrams}г)`).join(', ');
+        statsContext += `- ${label}: ${Math.round(meal.totalCalories)} ккал — ${itemList || 'без деталей'}\n`;
+      }
     }
 
     // Save user message
