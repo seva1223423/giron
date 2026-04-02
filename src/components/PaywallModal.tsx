@@ -17,7 +17,7 @@ import { Button } from './Button';
 interface PaywallModalProps {
   visible: boolean;
   onClose: () => void;
-  reason: 'ai_limit' | 'food_scan_limit' | 'feature';
+  reason: 'ai_limit' | 'food_scan_limit' | 'feature' | 'programs_limit';
   featureName?: string;
   navigation?: any;
 }
@@ -40,6 +40,12 @@ const REASON_CONFIGS = {
     title: 'Функция Pro',
     subtitle: 'Это функция Iron Gym Pro',
     ctaTitle: 'Открыть Pro за 299₽/мес',
+  },
+  programs_limit: {
+    emoji: '📋',
+    title: '3 программы бесплатно',
+    subtitle: 'Подключи Pro и открой все 22 готовые программы тренировок',
+    ctaTitle: 'Все программы за 299₽/мес',
   },
 };
 

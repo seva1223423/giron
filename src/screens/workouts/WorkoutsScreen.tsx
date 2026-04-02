@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useWorkoutStore } from '../../store';
-import { Card, Button, FadeIn } from '../../components';
+import { useThemeStore, useWorkoutStore, useSubscriptionStore } from '../../store';
+import { Card, Button, FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
@@ -49,6 +49,8 @@ const EQUIPMENT_FILTERS = [
 export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { programs, startWorkout, activeWorkout, fetchPrograms, isLoadingPrograms } = useWorkoutStore();
+  const { isPremiumActive } = useSubscriptionStore();
+  const [showPaywall, setShowPaywall] = useState(false);
   const [tab, setTab] = useState<'quick' | 'programs' | 'exercises'>('quick');
   const [exerciseList, setExerciseList] = useState<Exercise[]>(localExercises);
   const [searchQuery, setSearchQuery] = useState('');
@@ -295,42 +297,68 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            {!isPremiumActive() && (
+              <TouchableOpacity
+                onPress={() => setShowPaywall(true)}
+                style={[styles.proBanner, { backgroundColor: colors.accent + '12', borderColor: colors.accent + '40' }]}
+              >
+                <Text style={{ fontSize: 18 }}>👑</Text>
+                <Text style={[typography.small, { color: colors.accent, flex: 1 }]}>
+                  3 из {builtInPrograms.length} программ бесплатно — <Text style={{ fontWeight: '700' }}>получи все с Pro</Text>
+                </Text>
+                <Text style={[typography.caption, { color: colors.accent }]}>›</Text>
+              </TouchableOpacity>
+            )}
             {filteredPrograms.length === 0 && (
               <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xl }]}>
                 Нет программ с такими фильтрами
               </Text>
             )}
-            {filteredPrograms.map((program, i) => (
-              <FadeIn key={program.id} delay={i * 60}>
-                <Card
-                  style={{ marginBottom: spacing.md }}
-                  onPress={() => navigation.navigate('ProgramDetail', { program })}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 32, marginRight: spacing.md }}>{program.emoji}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.bodySemibold, { color: colors.text }]}>{program.name}</Text>
-                      <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                        {program.daysPerWeek} дн/нед • {program.durationWeeks} нед • {program.split}
-                      </Text>
-                      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
-                        <View style={[styles.miniTag, { backgroundColor: colors.primary + '15' }]}>
-                          <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 10 }]}>
-                            {program.level === 'beginner' ? 'Новичок' : program.level === 'intermediate' ? 'Средний' : 'Продвинутый'}
-                          </Text>
-                        </View>
-                        <View style={[styles.miniTag, { backgroundColor: colors.surface }]}>
-                          <Text style={[typography.captionMedium, { color: colors.textSecondary, fontSize: 10 }]}>
-                            {program.goal === 'strength' ? 'Сила' : program.goal === 'muscle' ? 'Масса' : program.goal === 'fat_loss' ? 'Похудение' : 'Выносливость'}
-                          </Text>
+            {filteredPrograms.map((program, i) => {
+              // Free users get first 3 programs; Pro unlocks all
+              const allPrograms = builtInPrograms;
+              const globalIndex = allPrograms.findIndex((p) => p.id === program.id);
+              const isLocked = !isPremiumActive() && globalIndex >= 3;
+              return (
+                <FadeIn key={program.id} delay={i * 60}>
+                  <Card
+                    style={{ marginBottom: spacing.md, opacity: isLocked ? 0.7 : 1 }}
+                    onPress={() => {
+                      if (isLocked) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); setShowPaywall(true); }
+                      else navigation.navigate('ProgramDetail', { program });
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 32, marginRight: spacing.md }}>{isLocked ? '🔒' : program.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[typography.bodySemibold, { color: isLocked ? colors.textSecondary : colors.text }]}>{program.name}</Text>
+                        <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                          {program.daysPerWeek} дн/нед • {program.durationWeeks} нед • {program.split}
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                          <View style={[styles.miniTag, { backgroundColor: isLocked ? colors.border : colors.primary + '15' }]}>
+                            <Text style={[typography.captionMedium, { color: isLocked ? colors.textTertiary : colors.primary, fontSize: 10 }]}>
+                              {program.level === 'beginner' ? 'Новичок' : program.level === 'intermediate' ? 'Средний' : 'Продвинутый'}
+                            </Text>
+                          </View>
+                          <View style={[styles.miniTag, { backgroundColor: colors.surface }]}>
+                            <Text style={[typography.captionMedium, { color: colors.textSecondary, fontSize: 10 }]}>
+                              {program.goal === 'strength' ? 'Сила' : program.goal === 'muscle' ? 'Масса' : program.goal === 'fat_loss' ? 'Похудение' : 'Выносливость'}
+                            </Text>
+                          </View>
+                          {isLocked && (
+                            <View style={[styles.miniTag, { backgroundColor: colors.accent + '20' }]}>
+                              <Text style={[typography.captionMedium, { color: colors.accent, fontSize: 10 }]}>Pro</Text>
+                            </View>
+                          )}
                         </View>
                       </View>
+                      <Text style={[typography.body, { color: colors.textTertiary }]}>{isLocked ? '›' : '>'}</Text>
                     </View>
-                    <Text style={[typography.body, { color: colors.textTertiary }]}>{'>'}</Text>
-                  </View>
-                </Card>
-              </FadeIn>
-            ))}
+                  </Card>
+                </FadeIn>
+              );
+            })}
           </>
         )}
 
@@ -451,6 +479,13 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           </>
         )}
       </ScrollView>
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        reason="programs_limit"
+        navigation={navigation}
+      />
     </View>
   );
 };
@@ -478,6 +513,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
+  },
+  proBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
   },
   searchInput: {
     height: 44,
