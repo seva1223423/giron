@@ -504,6 +504,13 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       include: { exercises: { include: { exercise: true, sets: true } } },
     });
 
+    // Get body weight history
+    const bodyWeightHistory = await prisma.bodyWeight.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+      take: 10,
+    });
+
     // Build user context
     let userContext = '';
     if (user) {
@@ -553,12 +560,59 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     let statsContext = '';
     if (recentWorkouts.length > 0) {
       statsContext = '\n## ПОСЛЕДНИЕ ТРЕНИРОВКИ\n';
-      recentWorkouts.slice(0, 3).forEach((w) => {
+      recentWorkouts.forEach((w) => {
         const date = w.completedAt ? new Date(w.completedAt).toLocaleDateString('ru-RU') : '';
         const totalVolume = w.exercises.reduce((sum, ex) =>
           sum + ex.sets.filter((s) => s.completed).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0);
         statsContext += `- ${date}: ${w.name}, ${w.durationMinutes || '?'} мин, объём ${Math.round(totalVolume)} кг\n`;
       });
+
+      // Build per-exercise progression for key compound lifts
+      // Group sets by exercise across all recent workouts
+      const exerciseHistory: Record<string, { name: string; sessions: Array<{ date: string; maxWeight: number; totalReps: number; sets: number }> }> = {};
+      for (const w of recentWorkouts) {
+        const date = w.completedAt ? new Date(w.completedAt).toLocaleDateString('ru-RU') : '';
+        for (const ex of w.exercises) {
+          const id = ex.exerciseId;
+          const completedSets = ex.sets.filter((s) => s.completed && (s.weight || 0) > 0);
+          if (completedSets.length === 0) continue;
+          const maxWeight = Math.max(...completedSets.map((s) => s.weight || 0));
+          const totalReps = completedSets.reduce((sum, s) => sum + (s.reps || 0), 0);
+          if (!exerciseHistory[id]) {
+            exerciseHistory[id] = { name: ex.exercise.name, sessions: [] };
+          }
+          exerciseHistory[id].sessions.push({ date, maxWeight, totalReps, sets: completedSets.length });
+        }
+      }
+
+      // Show progression for exercises with ≥2 sessions (meaningful trend)
+      const progressionLines: string[] = [];
+      for (const { name, sessions } of Object.values(exerciseHistory)) {
+        if (sessions.length < 2) continue;
+        const trend = sessions.map((s) => `${s.date}: ${s.maxWeight}кг×${s.sets}п`).join(' → ');
+        // Detect plateau: same maxWeight in last 2+ sessions
+        const last2 = sessions.slice(0, 2);
+        const plateau = last2.length === 2 && last2[0].maxWeight === last2[1].maxWeight ? ' [плато]' : '';
+        const progress = sessions[0].maxWeight > sessions[sessions.length - 1].maxWeight ? ' [прогресс ↑]' : '';
+        progressionLines.push(`- ${name}: ${trend}${plateau}${progress}`);
+      }
+      if (progressionLines.length > 0) {
+        statsContext += '\n## ПРОГРЕСС ПО УПРАЖНЕНИЯМ\n';
+        statsContext += progressionLines.join('\n') + '\n';
+      }
+    }
+
+    // Build body weight trend
+    if (bodyWeightHistory.length > 0) {
+      statsContext += '\n## ДИНАМИКА ВЕСА ТЕЛА\n';
+      const entries = bodyWeightHistory.slice(0, 10).reverse(); // oldest first
+      const weights = entries.map((e) => e.weightKg);
+      const oldest = weights[0];
+      const newest = weights[weights.length - 1];
+      const delta = newest - oldest;
+      const trend = Math.abs(delta) < 0.3 ? 'стабильный' : delta > 0 ? `+${delta.toFixed(1)} кг (рост)` : `${delta.toFixed(1)} кг (снижение)`;
+      statsContext += `Последние записи: ${entries.map((e) => `${new Date(e.date).toLocaleDateString('ru-RU')}: ${e.weightKg} кг`).join(', ')}\n`;
+      statsContext += `Тренд: ${trend}\n`;
     }
 
     // Save user message

@@ -9,9 +9,9 @@ import { HOME_BODYWEIGHT } from './homeAndBodyweight';
 import { PSYCHOLOGY_HABITS } from './psychologyAndHabits';
 import { HEALTH_BIOMARKERS } from './healthBiomarkers';
 import { INTEGRATED_APPROACH } from './integratedApproach';
-import { POWERLIFTING } from './powerlifting';
-import { ADVANCED_TECHNIQUES } from './advancedTechniques';
-import { SUPPLEMENTS_DETAILED } from './supplementsDetailed';
+import { POWERLIFTING_KNOWLEDGE as POWERLIFTING } from './powerlifting';
+import { ADVANCED_TECHNIQUES_KNOWLEDGE as ADVANCED_TECHNIQUES } from './advancedTechniques';
+import { SUPPLEMENTS_DETAILED_KNOWLEDGE as SUPPLEMENTS_DETAILED } from './supplementsDetailed';
 import { WOMENS_PROGRAMMING } from './womensProgramming';
 import { CUTTING_BULKING } from './cuttingBulking';
 
