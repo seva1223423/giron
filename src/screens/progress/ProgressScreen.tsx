@@ -330,6 +330,45 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     ]);
   };
 
+  // Body fat % estimation (US Navy method) from latest measurements
+  // Requires: waist, neck (men) or waist, hips, neck (women) + user height
+  const bodyFatEstimate = useMemo((): { pct: number; category: string; color: string } | null => {
+    if (measurementHistory.length === 0) return null;
+    const latest = measurementHistory[measurementHistory.length - 1];
+    const heightCm = user?.heightCm;
+    const gender = user?.gender;
+    if (!heightCm || !latest.waist || !latest.neck) return null;
+    const { waist, neck, hips } = latest;
+    let pct: number;
+    if (gender === 'female') {
+      if (!hips) return null;
+      // Navy formula for women
+      const val = 163.205 * Math.log10(waist + hips - neck) - 97.684 * Math.log10(heightCm) - 78.387;
+      pct = Math.max(5, Math.min(60, Math.round(val * 10) / 10));
+    } else {
+      // Navy formula for men (default)
+      const val = 86.010 * Math.log10(waist - neck) - 70.041 * Math.log10(heightCm) + 36.76;
+      pct = Math.max(3, Math.min(60, Math.round(val * 10) / 10));
+    }
+    // Category classification
+    let category: string;
+    let color: string;
+    if (gender === 'female') {
+      if (pct < 14) { category = 'Очень низкий'; color = '#FF9800'; }
+      else if (pct < 21) { category = 'Спортсмен'; color = '#4CAF50'; }
+      else if (pct < 25) { category = 'Фитнес'; color = '#2196F3'; }
+      else if (pct < 32) { category = 'Норма'; color = '#9E9E9E'; }
+      else { category = 'Выше нормы'; color = '#FF5722'; }
+    } else {
+      if (pct < 6) { category = 'Очень низкий'; color = '#FF9800'; }
+      else if (pct < 14) { category = 'Спортсмен'; color = '#4CAF50'; }
+      else if (pct < 18) { category = 'Фитнес'; color = '#2196F3'; }
+      else if (pct < 25) { category = 'Норма'; color = '#9E9E9E'; }
+      else { category = 'Выше нормы'; color = '#FF5722'; }
+    }
+    return { pct, category, color };
+  }, [measurementHistory, user]);
+
   const fetchMeasurementHistory = useCallback(async () => {
     try {
       const raw = await AsyncStorage.getItem(MEASUREMENTS_KEY);
@@ -1389,6 +1428,38 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 })()}
               </Card>
             </FadeIn>
+
+            {/* Body fat % estimate card */}
+            {bodyFatEstimate !== null && (
+              <FadeIn delay={300}>
+                <Card style={{ marginBottom: spacing.lg }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
+                        Жировая масса (Navy метод)
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs }}>
+                        <Text style={[typography.number, { color: bodyFatEstimate.color, fontSize: 36 }]}>
+                          {bodyFatEstimate.pct}
+                        </Text>
+                        <Text style={[typography.h4, { color: bodyFatEstimate.color }]}>%</Text>
+                      </View>
+                      <View style={[{ alignSelf: 'flex-start', marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full, backgroundColor: bodyFatEstimate.color + '20' }]}>
+                        <Text style={[typography.captionMedium, { color: bodyFatEstimate.color }]}>
+                          {bodyFatEstimate.category}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ fontSize: 32 }}>🔬</Text>
+                    </View>
+                  </View>
+                  <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.md }]}>
+                    Рассчитано по методу ВМФ США на основе замеров шеи, талии{user?.gender === 'female' ? ', бёдер' : ''} и роста из профиля
+                  </Text>
+                </Card>
+              </FadeIn>
+            )}
           </>
         )}
 

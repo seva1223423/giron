@@ -209,6 +209,26 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return d >= weekAgo;
   }), [workoutHistory]);
 
+  const prevWeekWorkouts = useMemo(() => workoutHistory.filter((w) => {
+    if (!w.completedAt) return false;
+    const d = new Date(w.completedAt);
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return d >= twoWeeksAgo && d < oneWeekAgo;
+  }), [workoutHistory]);
+
+  const weekVolume = useMemo(() =>
+    weekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0),
+    [weekWorkouts]
+  );
+  const prevWeekVolume = useMemo(() =>
+    prevWeekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0),
+    [prevWeekWorkouts]
+  );
+  const volumeDeltaPct = prevWeekVolume > 0
+    ? Math.round(((weekVolume - prevWeekVolume) / prevWeekVolume) * 100)
+    : null;
+
   // Muscle recovery status: for each muscle, find hours since last trained
   const muscleReadiness = useMemo(() => {
     const lastTrained: Record<string, number> = {};
@@ -482,15 +502,35 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.primary }]}>
-                {weekWorkouts.length}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Text style={[typography.number, { color: colors.primary }]}>
+                  {weekWorkouts.length}
+                </Text>
+                {prevWeekWorkouts.length > 0 && weekWorkouts.length !== prevWeekWorkouts.length && (
+                  <Text style={[typography.small, {
+                    color: weekWorkouts.length >= prevWeekWorkouts.length ? colors.success : colors.error,
+                    fontSize: 10, fontWeight: '700',
+                  }]}>
+                    {weekWorkouts.length >= prevWeekWorkouts.length ? '▲' : '▼'}{Math.abs(weekWorkouts.length - prevWeekWorkouts.length)}
+                  </Text>
+                )}
+              </View>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.accent }]}>
-                {Math.round(weekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0) / 1000)}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Text style={[typography.number, { color: colors.accent }]}>
+                  {Math.round(weekVolume / 1000)}
+                </Text>
+                {volumeDeltaPct !== null && (
+                  <Text style={[typography.small, {
+                    color: volumeDeltaPct >= 0 ? colors.success : colors.error,
+                    fontSize: 10, fontWeight: '700',
+                  }]}>
+                    {volumeDeltaPct >= 0 ? '▲' : '▼'}{Math.abs(volumeDeltaPct)}%
+                  </Text>
+                )}
+              </View>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>Тонн</Text>
             </View>
             <View style={styles.statItem}>
