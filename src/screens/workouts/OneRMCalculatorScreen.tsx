@@ -82,7 +82,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
       { name: 'Эпли', value: epley(weight, reps) },
       { name: 'Брзыцки', value: brzycki(weight, reps) },
       { name: 'Ландер', value: lander(weight, reps) },
-      { name: 'О'Коннер', value: oconner(weight, reps) },
+      { name: "О'Коннер", value: oconner(weight, reps) },
     ];
     const avg = Math.round(estimates.reduce((s, e) => s + e.value, 0) / estimates.length);
     return { estimates, avg };

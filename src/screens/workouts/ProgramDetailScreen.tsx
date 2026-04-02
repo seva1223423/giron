@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
@@ -8,6 +8,16 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
 import { BuiltInProgram } from '../../data/programs';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
+
+// Map daysPerWeek → weekday indices (0=Mon…6=Sun)
+const WEEK_SLOTS: Record<number, number[]> = {
+  2: [0, 3],
+  3: [0, 2, 4],
+  4: [0, 1, 3, 4],
+  5: [0, 1, 2, 3, 4],
+  6: [0, 1, 2, 3, 4, 5],
+};
+const DAY_LABELS_FULL = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 const GOAL_LABELS: Record<string, string> = {
   strength: 'Сила', muscle: 'Масса', fat_loss: 'Похудение', endurance: 'Выносливость',
@@ -22,7 +32,7 @@ const LEVEL_LABELS: Record<string, string> = {
 export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const program: BuiltInProgram = route.params?.program;
   const { colors } = useThemeStore();
-  const { startWorkout } = useWorkoutStore();
+  const { startWorkout, setWeekPlanDay } = useWorkoutStore();
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
 
   if (!program) {
@@ -31,6 +41,34 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   }
 
   const goalColor = GOAL_COLORS[program.goal] || colors.primary;
+
+  const addProgramToWeeklyPlan = () => {
+    const slots = WEEK_SLOTS[program.daysPerWeek] || WEEK_SLOTS[Math.min(program.daysPerWeek, 6)];
+    const daysToAssign = program.days.slice(0, slots.length);
+    const dayNames = slots.map((d) => DAY_LABELS_FULL[d]).join(', ');
+
+    Alert.alert(
+      'Добавить в план недели',
+      `Программа «${program.name}» будет назначена на: ${dayNames}. Текущие тренировки на этих днях будут заменены.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Добавить',
+          onPress: () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            daysToAssign.forEach((day, i) => {
+              setWeekPlanDay(slots[i], {
+                name: `${program.name} — ${day.name}`,
+                emoji: program.emoji,
+                exercises: day.exercises.map((e) => e.exerciseId),
+              });
+            });
+            Alert.alert('✅ Добавлено!', `${program.name} добавлена в план недели на ${dayNames}.`);
+          },
+        },
+      ]
+    );
+  };
 
   const startProgramDay = (day: typeof program.days[0]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -143,6 +181,23 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             {program.split}
           </Text>
         </Card>
+      </FadeIn>
+
+      {/* Add to weekly plan */}
+      <FadeIn delay={240}>
+        <TouchableOpacity
+          onPress={addProgramToWeeklyPlan}
+          style={[styles.weekPlanBtn, { backgroundColor: goalColor + '15', borderColor: goalColor + '50' }]}
+        >
+          <Text style={{ fontSize: 18 }}>📅</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.bodySemibold, { color: goalColor }]}>Добавить в план недели</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              Расставить тренировки по дням автоматически
+            </Text>
+          </View>
+          <Text style={[typography.captionMedium, { color: goalColor }]}>›</Text>
+        </TouchableOpacity>
       </FadeIn>
 
       {/* Program days */}
@@ -278,5 +333,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  weekPlanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.xl,
   },
 });
