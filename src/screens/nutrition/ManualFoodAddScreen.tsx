@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  FlatList,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useNutritionStore } from '../../store';
@@ -48,7 +49,7 @@ const FOOD_DB = [
 export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const mealType = route.params?.mealType || 'snack';
   const { colors } = useThemeStore();
-  const { addMeal } = useNutritionStore();
+  const { addMeal, dailyLog } = useNutritionStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFood, setSelectedFood] = useState<typeof FOOD_DB[0] | null>(null);
@@ -68,6 +69,38 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
       f.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery]);
+
+  const recentFoods = useMemo(() => {
+    const seen = new Set<string>();
+    const result: (typeof FOOD_DB[0])[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const log = dailyLog[dateStr];
+      if (!log) continue;
+      for (const meal of log.meals) {
+        for (const item of meal.items) {
+          const grams = item.weightGrams || 100;
+          const baseName = item.name.replace(/\s*\(\d+г\)$/, '').trim();
+          if (seen.has(baseName)) continue;
+          seen.add(baseName);
+          const factor = 100 / grams;
+          result.push({
+            name: baseName,
+            calories: Math.round(item.calories * factor),
+            protein: Math.round(item.protein * factor * 10) / 10,
+            fats: Math.round(item.fats * factor * 10) / 10,
+            carbs: Math.round(item.carbs * factor * 10) / 10,
+          });
+          if (result.length >= 10) break;
+        }
+        if (result.length >= 10) break;
+      }
+      if (result.length >= 10) break;
+    }
+    return result;
+  }, [dailyLog]);
 
   const computedNutrition = useMemo(() => {
     if (!selectedFood) return null;
@@ -165,6 +198,42 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {tab === 'search' && (
           <>
+            {recentFoods.length > 0 && (
+              <View style={{ marginBottom: spacing.md }}>
+                <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+                  🕒 Недавно добавлено
+                </Text>
+                <FlatList
+                  data={recentFoods}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.name}
+                  contentContainerStyle={{ gap: spacing.sm }}
+                  renderItem={({ item }) => {
+                    const isSelected = selectedFood?.name === item.name;
+                    return (
+                      <TouchableOpacity
+                        onPress={() => { Haptics.selectionAsync(); setSelectedFood(item); setWeightGrams('100'); }}
+                        style={[
+                          styles.recentChip,
+                          {
+                            backgroundColor: isSelected ? colors.primary : colors.surface,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[typography.small, { color: isSelected ? '#fff' : colors.text }]} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        <Text style={[typography.caption, { color: isSelected ? 'rgba(255,255,255,0.75)' : colors.textTertiary }]}>
+                          {item.calories} ккал/100г
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              </View>
+            )}
             <TextInput
               style={[styles.searchInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
               value={searchQuery}
@@ -364,5 +433,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  recentChip: {
+    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    minWidth: 110,
+    maxWidth: 150,
   },
 });
