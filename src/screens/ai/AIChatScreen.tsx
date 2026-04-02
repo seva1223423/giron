@@ -36,7 +36,7 @@ const QUICK_PROMPTS = [
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
-  const { workoutHistory, fetchHistory, fetchPrograms } = useWorkoutStore();
+  const { workoutHistory, fetchHistory, fetchPrograms, programs } = useWorkoutStore();
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -186,6 +186,15 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   // Dynamic prompts based on recent workout data
   const dynamicPrompts = useMemo(() => {
     const prompts: { emoji: string; text: string }[] = [];
+
+    // Modify-workout prompts if user has an active program with workouts
+    const activeProgram = programs.find((p) => p.isActive);
+    if (activeProgram && activeProgram.workouts && activeProgram.workouts.length > 0) {
+      const firstWorkout = activeProgram.workouts[0];
+      prompts.push({ emoji: '🔄', text: `Сделай тренировку "${firstWorkout.name}" немного легче` });
+      prompts.push({ emoji: '✂️', text: `Убери одно упражнение из "${firstWorkout.name}" — устала спина` });
+    }
+
     if (workoutHistory.length === 0) return prompts;
 
     const last = workoutHistory[0];
@@ -221,7 +230,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
 
     return prompts;
-  }, [workoutHistory]);
+  }, [workoutHistory, programs]);
 
   const allQuickPrompts = [...dynamicPrompts, ...QUICK_PROMPTS];
 
