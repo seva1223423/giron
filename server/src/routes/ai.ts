@@ -65,6 +65,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - **create_workout** — создать тренировку и добавить её в план
 - **update_nutrition_targets** — установить дневные нормы КБЖУ (калории, белки, жиры, углеводы)
 - **log_meal** — записать приём пищи в дневник питания
+- **delete_meal** — удалить приём пищи из дневника (при ошибке или по запросу пользователя)
 
 Используй эти инструменты когда:
 - Пользователь сообщает свой актуальный вес ("сегодня вешу 85 кг") → log_body_weight + update_user_profile
@@ -75,6 +76,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - При изменении цели (похудение/набор) → update_nutrition_targets с пересчитанными нормами
 - Пользователь сообщает что поел ("съел 200г гречки и куриную грудку") → log_meal с рассчитанным КБЖУ
 - Пользователь просит записать еду/приём пищи → log_meal
+- Пользователь хочет удалить/отменить записанный приём пищи → найди его id в разделе "ПИТАНИЕ СЕГОДНЯ" и вызови delete_meal
 
 После использования инструмента — не упоминай технические детали, просто подтверди действие в тексте: "Записал твой вес — 85 кг" или "Создал тренировку — она уже в твоём плане".
 
@@ -222,6 +224,17 @@ const AI_TOOLS: Anthropic.Tool[] = [
         carbs: { type: 'number', description: 'Дневная норма углеводов в граммах' },
       },
       required: ['calories', 'protein', 'fats', 'carbs'],
+    },
+  },
+  {
+    name: 'delete_meal',
+    description: 'Удалить приём пищи из дневника питания. Используй когда пользователь хочет отменить или удалить ранее записанный приём пищи (например "удали завтрак", "убери последний перекус", "я не ел это"). ID приёма берётся из контекста питания сегодня.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        mealId: { type: 'string', description: 'ID приёма пищи из списка "ПИТАНИЕ СЕГОДНЯ"' },
+      },
+      required: ['mealId'],
     },
   },
   {
@@ -566,6 +579,29 @@ async function executeTool(
     };
   }
 
+  if (toolName === 'delete_meal') {
+    const { mealId } = toolInput as { mealId: string };
+
+    const meal = await prisma.meal.findFirst({ where: { id: mealId, userId } });
+    if (!meal) {
+      return { resultText: 'Приём пищи не найден или уже удалён', actionDescription: '' };
+    }
+
+    await prisma.meal.delete({ where: { id: mealId } });
+
+    const MEAL_LABELS: Record<string, string> = {
+      breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус',
+    };
+    const label = MEAL_LABELS[meal.type] || meal.type;
+    const description = `${label} удалён (${Math.round(meal.totalCalories)} ккал)`;
+
+    return {
+      resultText: `${label} удалён из дневника питания`,
+      actionDescription: description,
+      actionData: { mealId, mealType: meal.type },
+    };
+  }
+
   if (toolName === 'update_nutrition_targets') {
     const { calories, protein, fats, carbs } = toolInput as {
       calories: number;
@@ -767,11 +803,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
       statsContext += '\n## ПИТАНИЕ СЕГОДНЯ\n';
       statsContext += `Итого: ${Math.round(totalCal)} ккал | Б ${Math.round(totalProt)}г | Ж ${Math.round(totalFats)}г | У ${Math.round(totalCarbs)}г\n`;
-      statsContext += 'Приёмы пищи:\n';
+      statsContext += 'Приёмы пищи (id используй для удаления через delete_meal):\n';
       for (const meal of todayMeals) {
         const label = MEAL_TYPE_LABELS[meal.type] || meal.type;
         const itemList = meal.items.map((i) => `${i.name} (${Math.round(i.calories)} ккал, ${i.weightGrams}г)`).join(', ');
-        statsContext += `- ${label}: ${Math.round(meal.totalCalories)} ккал — ${itemList || 'без деталей'}\n`;
+        statsContext += `- [id:${meal.id}] ${label}: ${Math.round(meal.totalCalories)} ккал — ${itemList || 'без деталей'}\n`;
       }
     }
 

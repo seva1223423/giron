@@ -122,7 +122,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (actionTypes.includes('update_user_profile') || actionTypes.includes('log_body_weight')) {
           fetchProfile().catch(() => {});
         }
-        if (actionTypes.includes('log_meal')) {
+        if (actionTypes.includes('log_meal') || actionTypes.includes('delete_meal')) {
           const today = new Date().toISOString().split('T')[0];
           syncMealsFromServer(today).catch(() => {});
         }
