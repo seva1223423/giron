@@ -277,9 +277,15 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           />
           <View style={{ flex: 1, marginLeft: spacing.xl }}>
             <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
-              Осталось: <Text style={[typography.bodySemibold, { color: remaining > 0 ? colors.success : colors.error }]}>
-                {remaining > 0 ? remaining : 0} ккал
-              </Text>
+              {remaining > 0 ? (
+                <>Осталось: <Text style={[typography.bodySemibold, { color: colors.success }]}>{remaining} ккал</Text></>
+              ) : (() => {
+                const excess = Math.abs(remaining);
+                const isGain = user?.goal === 'muscle_gain' || user?.goal === 'MUSCLE_GAIN' || user?.goal === 'strength' || user?.goal === 'STRENGTH';
+                return (
+                  <>{isGain ? 'Профицит: ' : 'Превышение: '}<Text style={[typography.bodySemibold, { color: isGain ? colors.success : colors.error }]}>+{excess} ккал</Text></>
+                );
+              })()}
             </Text>
             <MacroBar label="Белки" current={totalProtein} target={dayLog.targetProtein} color={colors.protein} />
             <MacroBar label="Жиры" current={totalFats} target={dayLog.targetFats} color={colors.fats} />
