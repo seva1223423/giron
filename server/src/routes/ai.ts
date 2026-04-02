@@ -67,12 +67,13 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - **log_meal** — записать приём пищи в дневник питания
 - **log_water** — записать выпитую воду в дневник
 - **delete_meal** — удалить приём пищи из дневника (при ошибке или по запросу пользователя)
+- **set_weekly_plan** — расставить тренировки по дням недели в планировщике
 
 Используй эти инструменты когда:
 - Пользователь сообщает свой актуальный вес ("сегодня вешу 85 кг") → log_body_weight + update_user_profile
 - Пользователь хочет изменить цель тренировок → update_user_profile
 - Пользователь просит составить конкретную тренировку → create_workout
-- После составления программы — создай первую тренировку сразу
+- После составления программы — создай тренировки через create_workout И расставь их по дням через set_weekly_plan
 - Пользователь просит рассчитать КБЖУ/калории или установить нормы питания → рассчитай TDEE и вызови update_nutrition_targets
 - При изменении цели (похудение/набор) → update_nutrition_targets с пересчитанными нормами
 - Пользователь сообщает что поел ("съел 200г гречки и куриную грудку") → log_meal с рассчитанным КБЖУ
@@ -291,6 +292,34 @@ const AI_TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['action', 'exerciseName'],
+    },
+  },
+  {
+    name: 'set_weekly_plan',
+    description: 'Установить расписание тренировок на неделю. Используй когда составляешь программу и хочешь сразу распределить тренировки по дням недели. Укажи для каждого дня (0=Пн, 1=Вт, ... 6=Вс) название тренировки и список упражнений. Тренировочные дни должны чередоваться с днями отдыха.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        schedule: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              dayIndex: { type: 'number', description: '0=Понедельник, 1=Вторник, 2=Среда, 3=Четверг, 4=Пятница, 5=Суббота, 6=Воскресенье' },
+              workoutName: { type: 'string', description: 'Название тренировки, например "День ног", "Грудь + Трицепс"' },
+              emoji: { type: 'string', description: 'Эмодзи для тренировки (например 🏋️, 💪, 🦵)' },
+              exerciseNames: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Список названий упражнений на русском',
+              },
+            },
+            required: ['dayIndex', 'workoutName', 'exerciseNames'],
+          },
+          description: 'Расписание по дням. Указывай только тренировочные дни, не указывай дни отдыха.',
+        },
+      },
+      required: ['schedule'],
     },
   },
   {
@@ -942,6 +971,49 @@ async function executeTool(
     }
 
     return { resultText: 'Неизвестное действие modify_workout', actionDescription: '' };
+  }
+
+  if (toolName === 'set_weekly_plan') {
+    const { schedule } = toolInput as {
+      schedule: Array<{
+        dayIndex: number;
+        workoutName: string;
+        emoji?: string;
+        exerciseNames: string[];
+      }>;
+    };
+
+    const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+
+    // Resolve exercise IDs from DB for each day
+    const resolvedSchedule = await Promise.all(
+      schedule.map(async (day) => {
+        const exerciseIds: string[] = [];
+        for (const name of day.exerciseNames) {
+          const ex = await prisma.exercise.findFirst({
+            where: { name: { contains: name, mode: 'insensitive' } },
+            select: { id: true },
+          });
+          if (ex) exerciseIds.push(ex.id);
+        }
+        return {
+          dayIndex: day.dayIndex,
+          workoutName: day.workoutName,
+          emoji: day.emoji || '🏋️',
+          exerciseIds,
+        };
+      }),
+    );
+
+    const summary = resolvedSchedule
+      .map((d) => `${DAY_NAMES[d.dayIndex]}: ${d.workoutName}`)
+      .join(', ');
+
+    return {
+      resultText: `Расписание установлено: ${summary}`,
+      actionDescription: `Расписание на неделю обновлено`,
+      actionData: { schedule: resolvedSchedule },
+    };
   }
 
   return { resultText: 'Неизвестный инструмент', actionDescription: '' };

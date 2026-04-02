@@ -36,7 +36,7 @@ const QUICK_PROMPTS = [
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
-  const { workoutHistory, fetchHistory, fetchPrograms, programs } = useWorkoutStore();
+  const { workoutHistory, fetchHistory, fetchPrograms, programs, setWeekPlanDay } = useWorkoutStore();
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -155,6 +155,19 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             });
           }
         }
+        if (actionTypes.includes('set_weekly_plan')) {
+          const action = response.actions.find((a) => a.type === 'set_weekly_plan');
+          const schedule = action?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[] }> | undefined;
+          if (schedule) {
+            schedule.forEach((day) => {
+              setWeekPlanDay(day.dayIndex, {
+                name: day.workoutName,
+                emoji: day.emoji || '🏋️',
+                exercises: day.exerciseIds,
+              });
+            });
+          }
+        }
       }
 
       const aiResponse: ChatMessage = {
@@ -227,6 +240,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
     if (consecutive >= 3) {
       prompts.push({ emoji: '😴', text: `Тренируюсь ${consecutive} дня подряд — стоит ли взять день отдыха?` });
+    }
+
+    // Suggest scheduling if user has active program but hasn't done it yet
+    const activeProgram = programs.find((p) => p.isActive);
+    if (activeProgram && activeProgram.workouts && activeProgram.workouts.length > 1 && workoutHistory.length < 3) {
+      prompts.push({ emoji: '📅', text: `Расставь тренировки программы "${activeProgram.name}" по дням недели` });
     }
 
     return prompts;
