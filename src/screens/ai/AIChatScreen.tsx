@@ -36,7 +36,7 @@ const QUICK_PROMPTS = [
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
-  const { workoutHistory, fetchHistory, fetchPrograms, programs, setWeekPlanDay } = useWorkoutStore();
+  const { workoutHistory, fetchHistory, fetchPrograms, programs, setWeekPlanDay, weekPlan } = useWorkoutStore();
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -115,7 +115,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         carbs: todayLog.targetCarbs ?? defaultTargets.carbs,
         waterTargetMl: todayLog.waterTargetMl ?? defaultTargets.waterTargetMl,
       };
-      const response = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl);
+      const response = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 

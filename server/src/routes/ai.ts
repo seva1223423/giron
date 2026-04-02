@@ -1022,10 +1022,11 @@ async function executeTool(
 // Chat with AI
 router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { message, nutritionTargets, waterMl } = req.body as {
+    const { message, nutritionTargets, waterMl, weekPlan } = req.body as {
       message: string;
       nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number };
       waterMl?: number;
+      weekPlan?: Record<string, { name: string; emoji: string; exercises: string[] } | null>;
     };
     if (!message) return res.status(400).json({ error: 'Сообщение обязательно' });
 
@@ -1214,6 +1215,22 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         const itemList = meal.items.map((i) => `${i.name} (${Math.round(i.calories)} ккал, ${i.weightGrams}г)`).join(', ');
         statsContext += `- [id:${meal.id}] ${label}: ${Math.round(meal.totalCalories)} ккал — ${itemList || 'без деталей'}\n`;
       }
+    }
+
+    // Add weekly plan context if provided
+    if (weekPlan && Object.keys(weekPlan).length > 0) {
+      const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+      const planLines: string[] = [];
+      for (let i = 0; i <= 6; i++) {
+        const entry = weekPlan[i];
+        if (entry) {
+          planLines.push(`- ${DAY_NAMES[i]}: ${entry.emoji} ${entry.name}`);
+        } else {
+          planLines.push(`- ${DAY_NAMES[i]}: отдых`);
+        }
+      }
+      statsContext += '\n## РАСПИСАНИЕ НА НЕДЕЛЮ (ПЛАНИРОВЩИК)\n';
+      statsContext += planLines.join('\n') + '\n';
     }
 
     // Save user message

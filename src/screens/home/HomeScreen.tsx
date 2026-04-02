@@ -519,6 +519,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 (w) => w.completedAt && w.completedAt.startsWith(dateStr)
               );
               const isToday = i === currentDow;
+              const hasPlan = !!weekPlan[i];
+              const isPast = i < currentDow;
               return (
                 <View key={day} style={{ alignItems: 'center', gap: 4 }}>
                   <Text style={[typography.small, { color: isToday ? colors.primary : colors.textTertiary, fontSize: 10 }]}>
@@ -530,20 +532,25 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                       height: 32,
                       borderRadius: 16,
                       backgroundColor: hadWorkout ? colors.success : isToday ? colors.primary + '15' : colors.surface,
-                      borderWidth: isToday ? 2 : 0,
-                      borderColor: colors.primary,
+                      borderWidth: isToday ? 2 : hasPlan && !hadWorkout && !isPast ? 1.5 : 0,
+                      borderColor: isToday ? colors.primary : colors.accent,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
                     {hadWorkout ? (
                       <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12 }}>{'✓'}</Text>
+                    ) : hasPlan && !isPast ? (
+                      <Text style={{ fontSize: 14 }}>{weekPlan[i]?.emoji || '🏋️'}</Text>
                     ) : (
                       <Text style={[typography.small, { color: isToday ? colors.primary : colors.textTertiary }]}>
                         {dayDate.getDate()}
                       </Text>
                     )}
                   </View>
+                  {hasPlan && !hadWorkout && !isPast && (
+                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />
+                  )}
                 </View>
               );
             })}

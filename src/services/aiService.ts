@@ -25,8 +25,9 @@ export const aiService = {
     message: string,
     nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number },
     waterMl?: number,
+    weekPlan?: Record<number, { name: string; emoji: string; exercises: string[] } | null>,
   ): Promise<{ message: string; actions: AIActionResult[] }> {
-    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl });
+    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan });
     return { message: data.message, actions: data.actions ?? [] };
   },
 
