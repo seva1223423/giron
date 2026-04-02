@@ -61,6 +61,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [programGoalFilter, setProgramGoalFilter] = useState<'all' | 'strength' | 'muscle' | 'fat_loss' | 'endurance'>('all');
   const [programLevelFilter, setProgramLevelFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
+  const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
@@ -350,6 +351,100 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
         {tab === 'programs' && (
           <>
+            {/* User / AI programs from DB */}
+            {programs.length > 0 && (
+              <>
+                <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+                  Мои программы
+                </Text>
+                {programs.map((program, i) => (
+                  <FadeIn key={program.id} delay={i * 60}>
+                    <Card style={{ marginBottom: spacing.md }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setExpandedProgramId(expandedProgramId === program.id ? null : program.id);
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 28, marginRight: spacing.md }}>
+                            {program.createdBy === 'ai' ? '🤖' : '📋'}
+                          </Text>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                              <Text style={[typography.bodySemibold, { color: colors.text }]}>{program.name}</Text>
+                              {program.isActive && (
+                                <View style={[styles.miniTag, { backgroundColor: colors.success + '20' }]}>
+                                  <Text style={[typography.captionMedium, { color: colors.success, fontSize: 10 }]}>Активная</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                              {program.workouts.length} тренировок
+                              {program.description ? ` • ${program.description}` : ''}
+                            </Text>
+                          </View>
+                          <Text style={[typography.body, { color: colors.textTertiary }]}>
+                            {expandedProgramId === program.id ? '∧' : '∨'}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {expandedProgramId === program.id && program.workouts.length > 0 && (
+                        <View style={{ marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md, gap: spacing.sm }}>
+                          {program.workouts.map((workout) => (
+                            <TouchableOpacity
+                              key={workout.id}
+                              onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                const fresh: Workout = {
+                                  ...workout,
+                                  id: `workout-${Date.now()}`,
+                                  exercises: workout.exercises.map((ex, ei) => ({
+                                    ...ex,
+                                    id: `we-${Date.now()}-${ei}`,
+                                    sets: ex.sets.map((s, si) => ({
+                                      ...s,
+                                      id: `set-${Date.now()}-${ei}-${si}`,
+                                      completed: false,
+                                      weight: s.weight ?? undefined,
+                                      rpe: s.rpe ?? undefined,
+                                    })),
+                                  })),
+                                  startedAt: undefined,
+                                  completedAt: undefined,
+                                };
+                                startWorkout(fresh);
+                                navigation.navigate('ActiveWorkout');
+                              }}
+                              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, gap: spacing.md }}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={[typography.bodyMedium, { color: colors.text }]}>{workout.name}</Text>
+                                <Text style={[typography.small, { color: colors.textSecondary }]}>
+                                  {workout.exercises.length} упражнений
+                                </Text>
+                              </View>
+                              <View style={[styles.miniTag, { backgroundColor: colors.primary + '15' }]}>
+                                <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 10 }]}>Начать</Text>
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+
+                      {expandedProgramId === program.id && program.workouts.length === 0 && (
+                        <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.md }]}>
+                          Нет тренировок — попроси Iron Coach составить тренировку
+                        </Text>
+                      )}
+                    </Card>
+                  </FadeIn>
+                ))}
+                <View style={{ height: 1, backgroundColor: colors.border, marginBottom: spacing.lg }} />
+              </>
+            )}
+
             {/* Goal filter chips */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xs }}>
               {([
