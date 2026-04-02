@@ -32,8 +32,17 @@ const TEMPLATES: WeekPlanEntry[] = [
 
 export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { weekPlan, setWeekPlanDay, startWorkout } = useWorkoutStore();
+  const { weekPlan, setWeekPlanDay, startWorkout, savedTemplates, customExercises } = useWorkoutStore();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
+
+  const allExercises = [...customExercises, ...localExercises];
+
+  // Convert saved Workout templates to WeekPlanEntry format
+  const userTemplateEntries: WeekPlanEntry[] = savedTemplates.map((tpl) => ({
+    name: tpl.name,
+    emoji: '📋',
+    exercises: tpl.exercises.map((e) => e.exerciseId),
+  }));
 
   const todayDow = (() => {
     const d = new Date().getDay();
@@ -52,7 +61,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const workoutExercises: WorkoutExercise[] = entry.exercises
       .map((exId, index) => {
-        const ex = localExercises.find((e) => e.id === exId);
+        const ex = allExercises.find((e) => e.id === exId);
         if (!ex) return null;
         const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
           id: `set-${Date.now()}-${index}-${i}`,
@@ -123,7 +132,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                         <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
                           {entry.exercises
                             .slice(0, 3)
-                            .map((id) => localExercises.find((e) => e.id === id)?.name)
+                            .map((id) => allExercises.find((e) => e.id === id)?.name)
                             .filter(Boolean)
                             .join(', ')}
                           {entry.exercises.length > 3 ? ` +${entry.exercises.length - 3}` : ''}
@@ -211,6 +220,9 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                 )}
               </TouchableOpacity>
 
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>
+                ГОТОВЫЕ ШАБЛОНЫ
+              </Text>
               {TEMPLATES.map((t) => {
                 const isActive = pickerDay !== null && weekPlan[pickerDay]?.name === t.name;
                 return (
@@ -238,6 +250,36 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                   </TouchableOpacity>
                 );
               })}
+              {userTemplateEntries.length > 0 && (
+                <>
+                  <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>
+                    МОИ ШАБЛОНЫ
+                  </Text>
+                  {userTemplateEntries.map((t) => {
+                    const isActive = pickerDay !== null && weekPlan[pickerDay]?.name === t.name;
+                    return (
+                      <TouchableOpacity
+                        key={t.name}
+                        onPress={() => handleSelectTemplate(t)}
+                        style={[styles.templateRow, { borderBottomColor: colors.divider }]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                            <Text style={{ fontSize: 18 }}>{t.emoji}</Text>
+                            <Text style={[typography.body, { color: isActive ? colors.primary : colors.text }]}>{t.name}</Text>
+                          </View>
+                          {t.exercises.length > 0 && (
+                            <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]} numberOfLines={1}>
+                              {t.exercises.slice(0, 3).map((id) => allExercises.find((e) => e.id === id)?.name).filter(Boolean).join(', ')}
+                            </Text>
+                          )}
+                        </View>
+                        {isActive && <Text style={{ color: colors.primary }}>✓</Text>}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </>
+              )}
             </ScrollView>
 
             <Button
