@@ -8,6 +8,17 @@ import { Card, ProgressRing, MacroBar, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 
+// Hours of recovery each muscle group needs after training
+const MUSCLE_RECOVERY_HOURS: Record<string, number> = {
+  chest: 48, back: 48, shoulders: 48, biceps: 36, triceps: 36,
+  quadriceps: 72, hamstrings: 72, glutes: 72, calves: 36, abs: 24,
+};
+const MUSCLE_LABELS: Record<string, string> = {
+  chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
+  triceps: 'Трицепс', quadriceps: 'Квадрицепс', hamstrings: 'Бицепс бедра',
+  glutes: 'Ягодицы', calves: 'Икры', abs: 'Пресс',
+};
+
 const todayDate = () => new Date().toISOString().split('T')[0];
 
 const DAILY_QUOTES = [
@@ -197,6 +208,32 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     return d >= weekAgo;
   }), [workoutHistory]);
+
+  // Muscle recovery status: for each muscle, find hours since last trained
+  const muscleReadiness = useMemo(() => {
+    const lastTrained: Record<string, number> = {};
+    workoutHistory.forEach((w) => {
+      if (!w.completedAt) return;
+      const completedMs = new Date(w.completedAt).getTime();
+      w.exercises.forEach((ex) => {
+        ex.exercise.primaryMuscles.forEach((m) => {
+          if (!lastTrained[m] || completedMs > lastTrained[m]) {
+            lastTrained[m] = completedMs;
+          }
+        });
+      });
+    });
+    const now = Date.now();
+    return Object.keys(MUSCLE_RECOVERY_HOURS).map((muscle) => {
+      const lastMs = lastTrained[muscle];
+      if (!lastMs) return { muscle, status: 'ready' as const, hoursLeft: 0 };
+      const hoursSince = (now - lastMs) / 3600000;
+      const needed = MUSCLE_RECOVERY_HOURS[muscle];
+      const hoursLeft = Math.max(0, needed - hoursSince);
+      const status = hoursLeft > 12 ? 'recovering' as const : hoursLeft > 0 ? 'almost' as const : 'ready' as const;
+      return { muscle, status, hoursLeft: Math.round(hoursLeft) };
+    });
+  }, [workoutHistory]);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -474,6 +511,55 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </Card>
       </FadeIn>
+
+      {/* Muscle recovery widget — only show if user has workout history */}
+      {workoutHistory.length > 0 && (
+        <FadeIn delay={260}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Готовность мышц</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {muscleReadiness.map(({ muscle, status, hoursLeft }) => {
+                const dotColor = status === 'ready' ? colors.success : status === 'almost' ? colors.warning : colors.error;
+                const bgColor = dotColor + '18';
+                return (
+                  <View
+                    key={muscle}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 5,
+                      backgroundColor: bgColor, borderRadius: borderRadius.sm,
+                      paddingVertical: 4, paddingHorizontal: spacing.sm,
+                    }}
+                  >
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />
+                    <Text style={[typography.caption, { color: colors.text, fontSize: 11 }]}>
+                      {MUSCLE_LABELS[muscle]}
+                    </Text>
+                    {status !== 'ready' && (
+                      <Text style={[typography.caption, { color: dotColor, fontSize: 10 }]}>
+                        {hoursLeft}ч
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success }} />
+                <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Готова</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning }} />
+                <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Почти</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error }} />
+                <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Восстанавливается</Text>
+              </View>
+            </View>
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Nutrition today */}
       <FadeIn delay={300}>
