@@ -64,6 +64,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - **log_body_weight** — записать замер веса тела
 - **create_workout** — создать тренировку и добавить её в план
 - **update_nutrition_targets** — установить дневные нормы КБЖУ (калории, белки, жиры, углеводы)
+- **log_meal** — записать приём пищи в дневник питания
 
 Используй эти инструменты когда:
 - Пользователь сообщает свой актуальный вес ("сегодня вешу 85 кг") → log_body_weight + update_user_profile
@@ -72,6 +73,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - После составления программы — создай первую тренировку сразу
 - Пользователь просит рассчитать КБЖУ/калории или установить нормы питания → рассчитай TDEE и вызови update_nutrition_targets
 - При изменении цели (похудение/набор) → update_nutrition_targets с пересчитанными нормами
+- Пользователь сообщает что поел ("съел 200г гречки и куриную грудку") → log_meal с рассчитанным КБЖУ
+- Пользователь просит записать еду/приём пищи → log_meal
 
 После использования инструмента — не упоминай технические детали, просто подтверди действие в тексте: "Записал твой вес — 85 кг" или "Создал тренировку — она уже в твоём плане".
 
@@ -219,6 +222,37 @@ const AI_TOOLS: Anthropic.Tool[] = [
         carbs: { type: 'number', description: 'Дневная норма углеводов в граммах' },
       },
       required: ['calories', 'protein', 'fats', 'carbs'],
+    },
+  },
+  {
+    name: 'log_meal',
+    description: 'Записать приём пищи в дневник питания пользователя. Используй когда пользователь сообщает что поел или просит записать еду. Рассчитай КБЖУ для каждого продукта на основе указанного веса. Если вес не указан — используй стандартную порцию.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        mealType: {
+          type: 'string',
+          enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+          description: 'Тип приёма пищи: breakfast (завтрак), lunch (обед), dinner (ужин), snack (перекус)',
+        },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Название продукта' },
+              weightGrams: { type: 'number', description: 'Вес порции в граммах' },
+              calories: { type: 'number', description: 'Калорийность данной порции в ккал' },
+              protein: { type: 'number', description: 'Белки данной порции в граммах' },
+              fats: { type: 'number', description: 'Жиры данной порции в граммах' },
+              carbs: { type: 'number', description: 'Углеводы данной порции в граммах' },
+            },
+            required: ['name', 'weightGrams', 'calories', 'protein', 'fats', 'carbs'],
+          },
+          description: 'Список продуктов в приёме пищи с КБЖУ',
+        },
+      },
+      required: ['mealType', 'items'],
     },
   },
 ];
@@ -476,6 +510,59 @@ async function executeTool(
     return {
       resultText: `Тренировка "${workout.name}" создана с упражнениями: ${foundNames}`,
       actionDescription: `Тренировка "${name}" добавлена в план (${validExercises.length} упражнений)`,
+    };
+  }
+
+  if (toolName === 'log_meal') {
+    const { mealType, items } = toolInput as {
+      mealType: string;
+      items: Array<{
+        name: string;
+        weightGrams: number;
+        calories: number;
+        protein: number;
+        fats: number;
+        carbs: number;
+      }>;
+    };
+
+    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
+    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
+    const totalFats = items.reduce((s, i) => s + i.fats, 0);
+    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+
+    await prisma.meal.create({
+      data: {
+        type: mealType,
+        userId,
+        totalCalories,
+        totalProtein,
+        totalFats,
+        totalCarbs,
+        items: {
+          create: items.map((i) => ({
+            name: i.name,
+            calories: i.calories,
+            protein: i.protein,
+            fats: i.fats,
+            carbs: i.carbs,
+            weightGrams: i.weightGrams,
+          })),
+        },
+      },
+    });
+
+    const MEAL_LABELS: Record<string, string> = {
+      breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус',
+    };
+    const label = MEAL_LABELS[mealType] || mealType;
+    const itemSummary = items.map((i) => `${i.name} ${i.weightGrams}г`).join(', ');
+    const description = `${label} записан: ${itemSummary} — ${Math.round(totalCalories)} ккал`;
+
+    return {
+      resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${Math.round(totalCalories)} ккал, Б${Math.round(totalProtein)}г, Ж${Math.round(totalFats)}г, У${Math.round(totalCarbs)}г`,
+      actionDescription: description,
+      actionData: { mealType, totalCalories: Math.round(totalCalories) },
     };
   }
 

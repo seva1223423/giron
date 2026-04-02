@@ -37,7 +37,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
   const { workoutHistory, fetchHistory } = useWorkoutStore();
-  const { setTargets } = useNutritionStore();
+  const { setTargets, syncMealsFromServer } = useNutritionStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -121,6 +121,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
         if (actionTypes.includes('update_user_profile') || actionTypes.includes('log_body_weight')) {
           fetchProfile().catch(() => {});
+        }
+        if (actionTypes.includes('log_meal')) {
+          const today = new Date().toISOString().split('T')[0];
+          syncMealsFromServer(today).catch(() => {});
         }
         if (actionTypes.includes('update_nutrition_targets')) {
           const action = response.actions.find((a) => a.type === 'update_nutrition_targets');
