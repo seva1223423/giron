@@ -52,6 +52,7 @@ export interface Exercise {
   type: ExerciseType;
   category: ExerciseCategory;
   videoUrl?: string;
+  youtubeId?: string;
   imageUrl?: string;
   difficulty: FitnessLevel;
 }

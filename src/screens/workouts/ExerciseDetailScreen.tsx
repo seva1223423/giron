@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking, Alert, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
@@ -195,20 +195,38 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={async () => {
-            const query = encodeURIComponent(`${exercise.name} техника выполнения пауэрлифтинг`);
-            const youtubeAppUrl = `youtube://results?search_query=${query}`;
-            const webUrl = `https://www.youtube.com/results?search_query=${query}`;
+            const videoUrl = exercise.youtubeId
+              ? `https://www.youtube.com/watch?v=${exercise.youtubeId}`
+              : null;
+            const appUrl = exercise.youtubeId
+              ? `youtube://www.youtube.com/watch?v=${exercise.youtubeId}`
+              : null;
+            const query = encodeURIComponent(`${exercise.name} техника выполнения`);
+            const searchWebUrl = `https://www.youtube.com/results?search_query=${query}`;
+            const searchAppUrl = `youtube://results?search_query=${query}`;
             try {
-              const canOpen = await Linking.canOpenURL(youtubeAppUrl);
-              await Linking.openURL(canOpen ? youtubeAppUrl : webUrl);
+              if (appUrl && videoUrl) {
+                const canOpen = await Linking.canOpenURL(appUrl);
+                await Linking.openURL(canOpen ? appUrl : videoUrl);
+              } else {
+                const canOpen = await Linking.canOpenURL(searchAppUrl);
+                await Linking.openURL(canOpen ? searchAppUrl : searchWebUrl);
+              }
             } catch {
-              Linking.openURL(webUrl);
+              Linking.openURL(videoUrl || searchWebUrl);
             }
           }}
           style={[styles.videoCard, { borderColor: colors.border }]}
         >
           {/* Thumbnail area */}
           <View style={styles.videoThumbnail}>
+            {exercise.youtubeId ? (
+              <Image
+                source={{ uri: `https://img.youtube.com/vi/${exercise.youtubeId}/hqdefault.jpg` }}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
+              />
+            ) : null}
             <View style={styles.videoOverlay} />
             {/* Muscle groups watermark */}
             <Text style={styles.videoMuscleText}>

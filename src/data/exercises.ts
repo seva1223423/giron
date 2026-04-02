@@ -12,6 +12,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'BYKScL2sgCs',
   },
   {
     id: 'incline-bench-press',
@@ -23,6 +24,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '8iPEnn-ltC8',
   },
   {
     id: 'dumbbell-fly',
@@ -34,6 +36,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'eozdVDA78K0',
   },
   {
     id: 'push-ups',
@@ -45,6 +48,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '0pkjOk0EiAk',
   },
   {
     id: 'dips',
@@ -56,6 +60,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: '2z8JmcrW-As',
   },
   {
     id: 'dumbbell-bench-press',
@@ -67,6 +72,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'QsYre__-aro',
   },
   {
     id: 'cable-crossover',
@@ -78,6 +84,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'taI4XduLpTk',
   },
   {
     id: 'pullover',
@@ -89,6 +96,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'FK4LwpIVJJE',
   },
 
   // ============ BACK (8) ============
@@ -102,6 +110,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'ytGaGIn3SjE',
   },
   {
     id: 'barbell-row',
@@ -113,6 +122,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'kBWAon7ItDw',
   },
   {
     id: 'pull-ups',
@@ -124,6 +134,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'eGo4IYlbE5g',
   },
   {
     id: 'lat-pulldown',
@@ -135,6 +146,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'CAwf7n6Luuc',
   },
   {
     id: 'seated-row',
@@ -146,6 +158,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'GZbfZ033f74',
   },
   {
     id: 'dumbbell-row',
@@ -157,6 +170,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'pYcpY20QaE8',
   },
   {
     id: 'hyperextension',
@@ -168,6 +182,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'ph3pMFGAT_c',
   },
   {
     id: 'shrugs',
@@ -179,6 +194,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'cJRVVxmytaM',
   },
 
   // ============ SHOULDERS (7) ============
@@ -192,6 +208,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: '5yWaNOvgFCM',
   },
   {
     id: 'lateral-raise',
@@ -203,6 +220,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'FeCtMNOsYKc',
   },
   {
     id: 'arnold-press',
@@ -214,6 +232,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: '6Z15_WdXmVw',
   },
   {
     id: 'front-raise',
@@ -225,6 +244,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'Ai_0oMR3M_4',
   },
   {
     id: 'reverse-fly',
@@ -236,6 +256,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'ndFbKZmWBR0',
   },
   {
     id: 'upright-row',
@@ -247,6 +268,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'VG6scGFoVmo',
   },
   {
     id: 'machine-shoulder-press',
@@ -258,6 +280,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'WvLMauqrnK8',
   },
 
   // ============ ARMS (8) ============
@@ -271,6 +294,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'ykJmrZ5v0Oo',
   },
   {
     id: 'hammer-curl',
@@ -282,6 +306,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'zC3nLlEvin4',
   },
   {
     id: 'preacher-curl',
@@ -293,6 +318,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'fIWP-FRFNU0',
   },
   {
     id: 'tricep-pushdown',
@@ -304,6 +330,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'vB5OHsJ3EME',
   },
   {
     id: 'french-press',
@@ -315,6 +342,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'd_KuTom_vQo',
   },
   {
     id: 'close-grip-bench',
@@ -326,6 +354,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'nEF0bv2FW94',
   },
   {
     id: 'concentration-curl',
@@ -337,6 +366,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '0AUGkch3tzc',
   },
   {
     id: 'overhead-tricep-ext',
@@ -348,6 +378,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '_gsUck-7M74',
   },
 
   // ============ LEGS (10) ============
@@ -361,6 +392,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'bEv6CCg2BC8',
   },
   {
     id: 'leg-press',
@@ -372,6 +404,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'IZxyjW7SKSA',
   },
   {
     id: 'romanian-deadlift',
@@ -383,6 +416,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'JCXUYuzwNrM',
   },
   {
     id: 'leg-curl',
@@ -394,6 +428,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'ELOCsoDSmrg',
   },
   {
     id: 'leg-extension',
@@ -405,6 +440,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'YyvSfVjQeL0',
   },
   {
     id: 'calf-raise',
@@ -416,6 +452,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'gwLzBJYoWlA',
   },
   {
     id: 'lunges',
@@ -427,6 +464,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'D7KaRcUTQeE',
   },
   {
     id: 'goblet-squat',
@@ -438,6 +476,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'MxsFDhcyFyE',
   },
   {
     id: 'bulgarian-split-squat',
@@ -449,6 +488,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: '2C-uNgKwPLE',
   },
   {
     id: 'hack-squat',
@@ -460,6 +500,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'EdtPABcmXco',
   },
 
   // ============ ABS (6) ============
@@ -473,6 +514,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'pSHjTRCQxIw',
   },
   {
     id: 'cable-crunch',
@@ -484,6 +526,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'AV5PnGzHm3g',
   },
   {
     id: 'hanging-leg-raise',
@@ -495,6 +538,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'hdng3vmclwY',
   },
   {
     id: 'bicycle-crunch',
@@ -506,6 +550,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'o0cHCdOUe-A',
   },
   {
     id: 'russian-twist',
@@ -517,6 +562,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'wkD8rjkodUI',
   },
   {
     id: 'side-plank',
@@ -528,6 +574,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '_rdfjFSFKMY',
   },
 
   // ============ CARDIO (5) ============
@@ -598,6 +645,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'lpmwHIjFnJA',
   },
   {
     id: 'cable-row',
@@ -609,6 +657,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'UCXFGLsFMkI',
   },
   {
     id: 'face-pull',
@@ -620,6 +669,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'HSoHeSjvjeQ',
   },
   {
     id: 'cable-fly',
@@ -631,6 +681,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'Iwe6AmxVf7o',
   },
   {
     id: 'tricep-overhead-extension',
@@ -642,6 +693,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '_gsUck-7M74',
   },
   {
     id: 'concentration-curl',
@@ -653,6 +705,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '0AUGkch3tzc',
   },
   {
     id: 'wrist-curl',
@@ -664,6 +717,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'QXUIL-OwLeg',
   },
   {
     id: 'standing-calf-raise',
@@ -675,6 +729,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'gwLzBJYoWlA',
   },
   {
     id: 'seated-calf-raise',
@@ -686,6 +741,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'JbyjNymZOt0',
   },
   {
     id: 'shrugs',
@@ -697,6 +753,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'g6qbq4Lf1FI',
   },
   {
     id: 'barbell-shrugs',
@@ -708,6 +765,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: 'cJRVVxmytaM',
   },
 
   // ============ FUNCTIONAL / BODYWEIGHT ============
@@ -721,6 +779,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: '2z8JmcrW-As',
   },
   {
     id: 'chin-up',
@@ -732,6 +791,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'intermediate',
+    youtubeId: 'Ja4LUSc6MzM',
   },
   {
     id: 'push-up',
@@ -743,6 +803,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
+    youtubeId: '0pkjOk0EiAk',
   },
   {
     id: 'burpee',
@@ -754,6 +815,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'cardio',
     difficulty: 'intermediate',
+    youtubeId: 'auBLPXO8Fww',
   },
   {
     id: 'mountain-climber',
@@ -765,6 +827,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'cardio',
     difficulty: 'beginner',
+    youtubeId: 'cnyTQDSE884',
   },
 
   // ============ STRETCHING / MOBILITY ============
