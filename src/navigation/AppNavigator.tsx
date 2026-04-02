@@ -21,6 +21,7 @@ import { PlateCalculatorScreen } from '../screens/workouts/PlateCalculatorScreen
 import { ProgramDetailScreen } from '../screens/workouts/ProgramDetailScreen';
 import { WorkoutHistoryScreen } from '../screens/workouts/WorkoutHistoryScreen';
 import { WeeklyPlanScreen } from '../screens/workouts/WeeklyPlanScreen';
+import { OneRMCalculatorScreen } from '../screens/workouts/OneRMCalculatorScreen';
 import { NutritionScreen } from '../screens/nutrition/NutritionScreen';
 import { FoodScannerScreen } from '../screens/nutrition/FoodScannerScreen';
 import { ManualFoodAddScreen } from '../screens/nutrition/ManualFoodAddScreen';
@@ -66,6 +67,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="ProgramDetail" component={ProgramDetailScreen} />
       <WorkoutsStack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
       <WorkoutsStack.Screen name="WeeklyPlan" component={WeeklyPlanScreen} />
+      <WorkoutsStack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} />
     </WorkoutsStack.Navigator>
   );
 }
