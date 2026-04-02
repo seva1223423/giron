@@ -1247,6 +1247,21 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       take: 10,
     });
 
+    // Get lifetime personal records (all completed workouts, optimized select)
+    const allCompletedExerciseSets = await prisma.workoutExercise.findMany({
+      where: {
+        workout: { userId, completedAt: { not: null } },
+      },
+      select: {
+        exerciseId: true,
+        exercise: { select: { name: true } },
+        sets: {
+          where: { completed: true },
+          select: { weight: true, reps: true, type: true },
+        },
+      },
+    });
+
     // Get today's meals
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -1347,6 +1362,36 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         statsContext += '\n## ПРОГРЕСС ПО УПРАЖНЕНИЯМ\n';
         statsContext += progressionLines.join('\n') + '\n';
       }
+    }
+
+    // Compute lifetime personal records
+    const lifetimePRs: Record<string, { name: string; bestWeight: number; bestReps: number; est1RM: number }> = {};
+    for (const ex of allCompletedExerciseSets) {
+      for (const s of ex.sets) {
+        if (!s.weight || !s.reps || s.type === 'warmup') continue;
+        const rm = s.weight * (1 + s.reps / 30);
+        const current = lifetimePRs[ex.exerciseId];
+        if (!current || rm > current.est1RM) {
+          lifetimePRs[ex.exerciseId] = {
+            name: ex.exercise.name,
+            bestWeight: s.weight,
+            bestReps: s.reps,
+            est1RM: Math.round(rm),
+          };
+        }
+      }
+    }
+
+    // Add top 15 PRs to context (sorted by 1RM descending)
+    const topPRs = Object.values(lifetimePRs)
+      .sort((a, b) => b.est1RM - a.est1RM)
+      .slice(0, 15);
+
+    if (topPRs.length > 0) {
+      statsContext += '\n## ЛИЧНЫЕ РЕКОРДЫ (LIFETIME PRs)\n';
+      statsContext += topPRs
+        .map((pr) => `- ${pr.name}: ${pr.bestWeight} кг × ${pr.bestReps} повт. → ~1ПМ: ${pr.est1RM} кг`)
+        .join('\n') + '\n';
     }
 
     // Build body weight trend

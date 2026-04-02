@@ -230,6 +230,32 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return d >= weekAgo;
   }), [workoutHistory]);
 
+  // Weekly plan adherence: how many planned workouts (past days) were completed this week
+  const weekAdherence = useMemo(() => {
+    const now = new Date();
+    const currentDow = now.getDay() === 0 ? 6 : now.getDay() - 1; // Mon=0…Sun=6
+    const mondayDate = new Date(now);
+    mondayDate.setDate(now.getDate() - currentDow);
+    mondayDate.setHours(0, 0, 0, 0);
+
+    let planned = 0;
+    let done = 0;
+
+    for (let i = 0; i <= 6; i++) {
+      if (!weekPlan[i]) continue;
+      planned++;
+      if (i > currentDow) continue; // future day — not counted yet
+      const dayDate = new Date(mondayDate);
+      dayDate.setDate(mondayDate.getDate() + i);
+      const dayStr = dayDate.toISOString().split('T')[0];
+      if (workoutHistory.some((w) => w.completedAt?.startsWith(dayStr))) {
+        done++;
+      }
+    }
+
+    return { planned, done, pastPlanned: Math.min(planned, currentDow + 1) };
+  }, [weekPlan, workoutHistory]);
+
   const prevWeekWorkouts = useMemo(() => workoutHistory.filter((w) => {
     if (!w.completedAt) return false;
     const d = new Date(w.completedAt);
@@ -555,6 +581,19 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               );
             })}
           </View>
+          {weekAdherence.planned > 0 && weekAdherence.pastPlanned > 0 && (
+            <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={[typography.small, { color: colors.textSecondary }]}>Выполнение плана</Text>
+                <Text style={[typography.small, { color: weekAdherence.done === weekAdherence.pastPlanned ? colors.success : colors.textSecondary, fontWeight: '700' }]}>
+                  {weekAdherence.done}/{weekAdherence.pastPlanned}
+                </Text>
+              </View>
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.border }}>
+                <View style={{ height: 4, borderRadius: 2, backgroundColor: weekAdherence.done === weekAdherence.pastPlanned ? colors.success : colors.primary, width: `${(weekAdherence.done / weekAdherence.pastPlanned) * 100}%` }} />
+              </View>
+            </View>
+          )}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
