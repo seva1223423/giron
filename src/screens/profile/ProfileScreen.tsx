@@ -147,7 +147,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         </View>
         <ProfileRow label="Рост" value={user?.heightCm ? `${user.heightCm} см` : 'Не указан'} colors={colors} />
         <ProfileRow label="Вес" value={user?.weightKg ? `${user.weightKg} кг` : 'Не указан'} colors={colors} />
-        <ProfileRow label="Пол" value={user?.gender === 'MALE' || user?.gender === 'male' ? 'Мужской' : user?.gender === 'FEMALE' || user?.gender === 'female' ? 'Женский' : 'Не указан'} colors={colors} />
+        <ProfileRow label="Пол" value={user?.gender === 'male' ? 'Мужской' : user?.gender === 'female' ? 'Женский' : 'Не указан'} colors={colors} />
         <ProfileRow label="Цель" value={user?.goal ? GOAL_LABELS[user.goal] : 'Не указана'} colors={colors} />
         <ProfileRow label="Уровень" value={user?.fitnessLevel ? LEVEL_LABELS[user.fitnessLevel] : 'Не указан'} colors={colors} />
         <ProfileRow label="Стаж" value={user?.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'Не указан'} colors={colors} isLast />

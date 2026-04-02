@@ -4,6 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
 
+// Backend returns Prisma enum values (MALE/FEMALE); normalize to frontend type (male/female)
+const normalizeUser = (user: User): User => ({
+  ...user,
+  gender: user.gender ? (user.gender.toLowerCase() as User['gender']) : user.gender,
+});
+
 interface AuthStore {
   user: User | null;
   token: string | null;
@@ -44,7 +50,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authService.login(email, password);
           set({
-            user: response.user,
+            user: normalizeUser(response.user),
             token: response.token,
             refreshToken: response.refreshToken,
             isAuthenticated: true,
@@ -62,7 +68,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authService.register(params);
           set({
-            user: response.user,
+            user: normalizeUser(response.user),
             token: response.token,
             refreshToken: response.refreshToken,
             isAuthenticated: true,
@@ -90,7 +96,7 @@ export const useAuthStore = create<AuthStore>()(
         if (!user) return;
         try {
           const updated = await userService.updateProfile(data);
-          set({ user: { ...user, ...updated } });
+          set({ user: normalizeUser({ ...user, ...updated }) });
         } catch {
           // Fallback to local update if server is unavailable
           set({ user: { ...user, ...data } });
@@ -100,7 +106,7 @@ export const useAuthStore = create<AuthStore>()(
       fetchProfile: async () => {
         try {
           const user = await userService.getProfile();
-          set({ user });
+          set({ user: normalizeUser(user) });
         } catch {}
       },
     }),

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, ViewStyle, Pressable } from 'react-native';
+import { View, ViewStyle, StyleProp, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,7 +13,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   padding?: number;
   elevated?: boolean;

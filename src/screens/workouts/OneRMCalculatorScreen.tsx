@@ -97,7 +97,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   }, [results]);
 
   const userWeight = user?.weightKg || 80;
-  const userGender = (user?.gender === 'female' || user?.gender === 'FEMALE') ? 'female' : 'male';
+  const userGender = user?.gender === 'female' ? 'female' : 'male';
 
   const standardsForSelected = useMemo(() => {
     if (!selectedStandard || !results) return null;
