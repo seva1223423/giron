@@ -373,6 +373,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             key={set.id}
             set={set}
             setIndex={setIndex}
+            prevSet={previousSets?.sets[setIndex] ?? null}
             onComplete={(reps, weight) => handleCompleteSet(setIndex, reps, weight)}
             onRpeChange={(rpe) => completeSet(currentExerciseIndex, setIndex, { rpe })}
             onRemove={currentExercise.sets.length > 1 ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); removeSet(currentExerciseIndex, setIndex); } : undefined}
@@ -530,15 +531,19 @@ const rpeColor = (rpe: number): string => {
 const SetRow: React.FC<{
   set: any;
   setIndex: number;
+  prevSet?: { weight?: number; reps?: number } | null;
   onComplete: (reps: number, weight: number) => void;
   onRpeChange: (rpe: number) => void;
   onRemove?: () => void;
   onTypeChange?: (type: string) => void;
   onOpenPlates?: (weight: number) => void;
   colors: any;
-}> = ({ set, setIndex, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
-  const [weight, setWeight] = useState(set.weight?.toString() || '');
-  const [reps, setReps] = useState(set.reps?.toString() || '10');
+}> = ({ set, setIndex, prevSet, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
+  // Pre-fill weight from last session if current set has no weight entered yet
+  const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
+  const initialReps = set.reps ? set.reps.toString() : (prevSet?.reps ? prevSet.reps.toString() : '10');
+  const [weight, setWeight] = useState(initialWeight);
+  const [reps, setReps] = useState(initialReps);
   const [showRpe, setShowRpe] = useState(false);
   const currentType = set.type || 'normal';
 
@@ -586,8 +591,8 @@ const SetRow: React.FC<{
           value={weight}
           onChangeText={setWeight}
           keyboardType="numeric"
-          placeholder="0"
-          placeholderTextColor={colors.inputPlaceholder}
+          placeholder={prevSet?.weight ? prevSet.weight.toString() : '0'}
+          placeholderTextColor={prevSet?.weight ? colors.primary + '60' : colors.inputPlaceholder}
         />
         <TouchableOpacity
           onPress={() => { Haptics.selectionAsync(); const v = parseFloat(weight) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
