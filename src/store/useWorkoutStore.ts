@@ -55,6 +55,7 @@ interface WorkoutStore {
   setWorkoutNotes: (notes: string) => void;
   updateSetData: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
   addExerciseToWorkout: (exercise: Exercise) => void;
+  removeExerciseFromWorkout: (exerciseIndex: number) => void;
   toggleSuperset: (exerciseIndex: number) => void;
   generateWarmupSets: (exerciseIndex: number, workingWeight: number) => void;
 
@@ -221,6 +222,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
         };
         workout.exercises = [...workout.exercises, newExercise];
         return { activeWorkout: { ...s.activeWorkout, workout } };
+      }),
+
+      removeExerciseFromWorkout: (exerciseIndex) => set((s) => {
+        if (!s.activeWorkout) return s;
+        const workout = { ...s.activeWorkout.workout };
+        const exercises = workout.exercises.filter((_, i) => i !== exerciseIndex);
+        // Re-order
+        const reordered = exercises.map((ex, i) => ({ ...ex, order: i }));
+        workout.exercises = reordered;
+        // Adjust currentExerciseIndex if needed
+        const maxIndex = Math.max(0, reordered.length - 1);
+        const currentIndex = Math.min(s.activeWorkout.currentExerciseIndex, maxIndex);
+        return {
+          activeWorkout: {
+            ...s.activeWorkout,
+            workout,
+            currentExerciseIndex: currentIndex,
+          },
+        };
       }),
 
       generateWarmupSets: (exerciseIndex, workingWeight) => set((s) => {

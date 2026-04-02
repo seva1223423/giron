@@ -37,6 +37,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     updateSetData,
     toggleSuperset,
     generateWarmupSets,
+    removeExerciseFromWorkout,
   } = useWorkoutStore();
 
   // Pre-compute best 1RM per exercise to avoid iterating full history on each set completion
@@ -451,6 +452,37 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           </TouchableOpacity>
         )}
 
+        {/* Remove exercise button (shown only when >1 exercise) */}
+        {workout.exercises.length > 1 && (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              Alert.alert(
+                'Убрать упражнение?',
+                `«${currentExercise.exercise.name}» будет удалено из тренировки.`,
+                [
+                  { text: 'Отмена', style: 'cancel' },
+                  {
+                    text: 'Убрать',
+                    style: 'destructive',
+                    onPress: () => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      removeExerciseFromWorkout(currentExerciseIndex);
+                    },
+                  },
+                ]
+              );
+            }}
+            style={[
+              styles.removeExerciseBtn,
+              { borderColor: colors.error + '50' },
+            ]}
+          >
+            <Text style={{ fontSize: 14, marginRight: spacing.xs }}>🗑</Text>
+            <Text style={[typography.small, { color: colors.error }]}>Убрать упражнение</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Session notes (global) */}
         <TextInput
           style={[
@@ -812,6 +844,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
     padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  removeExerciseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
   },
