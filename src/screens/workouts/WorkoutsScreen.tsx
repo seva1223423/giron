@@ -34,6 +34,8 @@ const MUSCLE_FILTERS = [
   { key: 'glutes', label: 'Ягодицы' },
   { key: 'abs', label: 'Пресс' },
   { key: 'calves', label: 'Икры' },
+  { key: 'traps', label: 'Трапеции' },
+  { key: 'forearms', label: 'Предплечья' },
 ];
 
 const EQUIPMENT_FILTERS = [
@@ -44,6 +46,7 @@ const EQUIPMENT_FILTERS = [
   { key: 'machine', label: '⚙️ Тренажёр' },
   { key: 'bodyweight', label: '🤸 Вес тела' },
   { key: 'cardio', label: '🏃 Кардио' },
+  { key: 'stretching', label: '🧘 Растяжка' },
 ];
 
 export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -111,6 +114,8 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         : ex.primaryMuscles.includes(muscleFilter as any);
       const matchesEquipment = equipmentFilter === 'all'
         ? true
+        : equipmentFilter === 'stretching'
+        ? (ex as any).category === 'stretching'
         : ex.type === equipmentFilter;
       return matchesSearch && matchesMuscle && matchesEquipment;
     }),
