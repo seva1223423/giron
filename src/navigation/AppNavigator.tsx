@@ -23,6 +23,7 @@ import { WorkoutHistoryScreen } from '../screens/workouts/WorkoutHistoryScreen';
 import { WeeklyPlanScreen } from '../screens/workouts/WeeklyPlanScreen';
 import { OneRMCalculatorScreen } from '../screens/workouts/OneRMCalculatorScreen';
 import { WorkoutCalendarScreen } from '../screens/workouts/WorkoutCalendarScreen';
+import { PersonalRecordsScreen } from '../screens/workouts/PersonalRecordsScreen';
 import { NutritionScreen } from '../screens/nutrition/NutritionScreen';
 import { FoodScannerScreen } from '../screens/nutrition/FoodScannerScreen';
 import { ManualFoodAddScreen } from '../screens/nutrition/ManualFoodAddScreen';
@@ -70,6 +71,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="WeeklyPlan" component={WeeklyPlanScreen} />
       <WorkoutsStack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} />
       <WorkoutsStack.Screen name="WorkoutCalendar" component={WorkoutCalendarScreen} />
+      <WorkoutsStack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
     </WorkoutsStack.Navigator>
   );
 }
