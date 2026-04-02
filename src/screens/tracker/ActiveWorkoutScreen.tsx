@@ -33,6 +33,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     cancelWorkout,
     setRestTimer,
     setExerciseNotes,
+    setWorkoutNotes,
     updateSetData,
     toggleSuperset,
     generateWarmupSets,
@@ -448,6 +449,25 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* Session notes (global) */}
+        <TextInput
+          style={[
+            styles.notesInput,
+            {
+              backgroundColor: colors.inputBackground,
+              borderColor: colors.primary + '30',
+              color: colors.text,
+              marginTop: spacing.sm,
+            },
+          ]}
+          value={workout.notes || ''}
+          onChangeText={(text) => setWorkoutNotes(text)}
+          placeholder="Общие заметки к тренировке..."
+          placeholderTextColor={colors.inputPlaceholder}
+          multiline
+          maxLength={500}
+        />
 
         {/* Exercise description */}
         <Card style={{ marginTop: spacing.md }}>

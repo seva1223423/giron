@@ -100,6 +100,50 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
 
   const daysTracked = chartData.filter((d) => d.calories > 0).length;
 
+  // Weekly averages (last 7 days with data)
+  const weeklyInsights = useMemo(() => {
+    const week = getPastDates(7).map((date) => {
+      const log = getDayLog(date);
+      const cal = log.meals.reduce((s, m) => s + m.totalCalories, 0);
+      const prot = log.meals.reduce((s, m) => s + m.totalProtein, 0);
+      const fats = log.meals.reduce((s, m) => s + m.totalFats, 0);
+      const carbs = log.meals.reduce((s, m) => s + m.totalCarbs, 0);
+      return { date, cal, prot, fats, carbs, targetCal: log.targetCalories, targetProt: log.targetProtein, tracked: cal > 0 };
+    });
+    const tracked = week.filter((d) => d.tracked);
+    if (tracked.length === 0) return null;
+    const n = tracked.length;
+    const avgCal = Math.round(tracked.reduce((s, d) => s + d.cal, 0) / n);
+    const avgProt = Math.round(tracked.reduce((s, d) => s + d.prot, 0) / n);
+    const avgFats = Math.round(tracked.reduce((s, d) => s + d.fats, 0) / n);
+    const avgCarbs = Math.round(tracked.reduce((s, d) => s + d.carbs, 0) / n);
+    const targetCal = tracked[0].targetCal;
+    const targetProt = tracked[0].targetProt;
+    const calRatio = targetCal > 0 ? avgCal / targetCal : 1;
+    const protRatio = targetProt > 0 ? avgProt / targetProt : 1;
+    const consistency = Math.round((n / 7) * 100);
+
+    let calVerdict: string;
+    let calColor: string;
+    if (calRatio < 0.85) { calVerdict = 'Дефицит калорий'; calColor = 'info'; }
+    else if (calRatio > 1.15) { calVerdict = 'Профицит калорий'; calColor = 'error'; }
+    else { calVerdict = 'Калории в норме'; calColor = 'success'; }
+
+    let protVerdict: string;
+    let protColor: string;
+    if (protRatio < 0.75) { protVerdict = '⚠️ Мало белка'; protColor = 'error'; }
+    else if (protRatio < 0.9) { protVerdict = 'Белка чуть меньше нормы'; protColor = 'accent'; }
+    else { protVerdict = 'Белок в норме ✓'; protColor = 'success'; }
+
+    let tip: string;
+    if (protRatio < 0.75) tip = 'Добавь белок к каждому приёму: яйца, творог, мясо, рыба.';
+    else if (calRatio < 0.85) tip = 'Небольшой дефицит — хорошо для похудения. Следи, чтобы хватало белка.';
+    else if (calRatio > 1.15) tip = 'Небольшой профицит — хорошо для набора массы. Контролируй жиры.';
+    else tip = 'Питание сбалансировано. Продолжай в том же духе!';
+
+    return { avgCal, avgProt, avgFats, avgCarbs, targetCal, targetProt, calRatio, protRatio, calVerdict, calColor, protVerdict, protColor, tip, consistency, daysTracked: n };
+  }, [getDayLog]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -155,6 +199,62 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
               </View>
             </Card>
           </FadeIn>
+
+          {/* Weekly macro insights */}
+          {weeklyInsights && (
+            <FadeIn delay={80}>
+              <Card style={{ marginBottom: spacing.xl }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md }}>
+                  <View>
+                    <Text style={[typography.h4, { color: colors.text }]}>Итоги недели</Text>
+                    <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                      Среднее за {weeklyInsights.daysTracked} из 7 дней · Отслеженность {weeklyInsights.consistency}%
+                    </Text>
+                  </View>
+                  <View style={[
+                    { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.sm },
+                    { backgroundColor: (colors as any)[weeklyInsights.calColor] + '20' },
+                  ]}>
+                    <Text style={[typography.caption, { color: (colors as any)[weeklyInsights.calColor], fontWeight: '700' }]}>
+                      {weeklyInsights.calVerdict}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Macro averages row */}
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                  {[
+                    { label: 'Ккал', value: weeklyInsights.avgCal, target: weeklyInsights.targetCal, color: colors.primary },
+                    { label: 'Белки', value: weeklyInsights.avgProt, target: weeklyInsights.targetProt, color: colors.protein },
+                    { label: 'Жиры', value: weeklyInsights.avgFats, target: undefined, color: colors.fats },
+                    { label: 'Углев.', value: weeklyInsights.avgCarbs, target: undefined, color: colors.carbs },
+                  ].map(({ label, value, target, color }) => (
+                    <View key={label} style={[
+                      { flex: 1, alignItems: 'center', padding: spacing.sm, borderRadius: borderRadius.md },
+                      { backgroundColor: color + '12' },
+                    ]}>
+                      <Text style={[typography.number, { color, fontSize: 18, lineHeight: 22 }]}>{value}</Text>
+                      <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 9, marginTop: 1 }]}>{label}</Text>
+                      {target != null && target > 0 && (
+                        <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 9 }]}>/ {target}</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+
+                {/* Protein verdict + tip */}
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.surface }}>
+                  <Text style={{ fontSize: 16 }}>💡</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.captionMedium, { color: (colors as any)[weeklyInsights.protColor], marginBottom: 2 }]}>
+                      {weeklyInsights.protVerdict}
+                    </Text>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]}>{weeklyInsights.tip}</Text>
+                  </View>
+                </View>
+              </Card>
+            </FadeIn>
+          )}
 
           {logsWithData.map(({ date, log }, i) => {
             const totalCalories = log.meals.reduce((s, m) => s + m.totalCalories, 0);
