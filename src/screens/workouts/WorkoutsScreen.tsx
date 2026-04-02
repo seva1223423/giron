@@ -183,6 +183,13 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             <Text style={[typography.small, { color: colors.textSecondary }]}>📅 План</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); navigation.navigate('WorkoutCalendar'); }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
+          >
+            <Text style={{ fontSize: 18 }}>🗓</Text>
+            <Text style={[typography.small, { color: colors.primary }]}>Календарь</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => { Haptics.selectionAsync(); navigation.navigate('OneRMCalculator'); }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
           >
