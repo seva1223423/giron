@@ -251,6 +251,49 @@ const AI_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'modify_workout',
+    description: 'Изменить существующую тренировку в плане: убрать упражнение, добавить упражнение, или обновить подходы/веса. Используй когда: пользователь просит сделать тренировку легче/тяжелее, убрать упражнение (болит что-то), добавить подход/упражнение, изменить нагрузку. Тренировки ищутся в активном плане пользователя.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        workoutName: {
+          type: 'string',
+          description: 'Название тренировки для поиска (например "День ног"). Если не указано — используется последняя тренировка в активном плане.',
+        },
+        action: {
+          type: 'string',
+          enum: ['remove_exercise', 'add_exercise', 'update_exercise'],
+          description: 'remove_exercise — убрать упражнение из тренировки; add_exercise — добавить новое упражнение; update_exercise — изменить подходы/повторения/веса существующего упражнения',
+        },
+        exerciseName: {
+          type: 'string',
+          description: 'Название упражнения на русском или английском',
+        },
+        sets: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              reps: { type: 'number', description: 'Повторения' },
+              weight: { type: 'number', description: 'Вес в кг' },
+            },
+            required: ['reps'],
+          },
+          description: 'Новые подходы для update_exercise или add_exercise. Пример: [{reps:8,weight:60},{reps:8,weight:60},{reps:6,weight:60}]',
+        },
+        weightMultiplier: {
+          type: 'number',
+          description: 'Для update_exercise: множитель веса для всех подходов (0.8 = −20%, 0.9 = −10%, 1.1 = +10%). Используй если нужно просто сделать легче/тяжелее без ручного задания весов.',
+        },
+        restSeconds: {
+          type: 'number',
+          description: 'Для add_exercise: отдых между подходами в секундах (по умолчанию 90)',
+        },
+      },
+      required: ['action', 'exerciseName'],
+    },
+  },
+  {
     name: 'log_meal',
     description: 'Записать приём пищи в дневник питания пользователя. Используй когда пользователь сообщает что поел или просит записать еду. Рассчитай КБЖУ для каждого продукта на основе указанного веса. Если вес не указан — используй стандартную порцию.',
     input_schema: {
@@ -717,6 +760,188 @@ async function executeTool(
       actionDescription: description,
       actionData: { calories: cal, protein: prot, fats: fat, carbs: carb },
     };
+  }
+
+  if (toolName === 'modify_workout') {
+    const { workoutName, action, exerciseName, sets, weightMultiplier, restSeconds } = toolInput as {
+      workoutName?: string;
+      action: 'remove_exercise' | 'add_exercise' | 'update_exercise';
+      exerciseName: string;
+      sets?: Array<{ reps: number; weight?: number }>;
+      weightMultiplier?: number;
+      restSeconds?: number;
+    };
+
+    // EN→RU fallback (reuse same map)
+    const EN_RU_MAP: Record<string, string> = {
+      'bench press': 'жим штанги лёжа', 'squat': 'приседания', 'deadlift': 'становая тяга',
+      'overhead press': 'жим штанги стоя', 'barbell row': 'тяга штанги в наклоне',
+      'pull-up': 'подтягивания', 'pullup': 'подтягивания', 'chin-up': 'подтягивания',
+      'dip': 'отжимания на брусьях', 'lat pulldown': 'тяга верхнего блока',
+      'cable row': 'тяга нижнего блока', 'leg press': 'жим ногами в тренажёре',
+      'leg curl': 'сгибание ног в тренажёре', 'leg extension': 'разгибание ног в тренажёре',
+      'calf raise': 'подъём на носки в тренажёре', 'bicep curl': 'сгибание рук со штангой',
+      'tricep pushdown': 'разгибание рук на блоке', 'lateral raise': 'махи гантелями в стороны',
+      'romanian deadlift': 'румынская тяга', 'rdl': 'румынская тяга',
+      'incline bench press': 'жим штанги на наклонной скамье',
+      'dumbbell fly': 'разводка гантелей лёжа', 'cable fly': 'кроссовер на блоках',
+      'plank': 'планка', 'crunch': 'скручивания', 'sit-up': 'скручивания',
+      'push-up': 'отжимания от пола', 'pushup': 'отжимания от пола',
+      'arnold press': 'жим арнольда', 'hyperextension': 'гиперэкстензия',
+      'shrug': 'шраги со штангой', 'close grip bench': 'жим штанги узким хватом',
+      'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
+      'front raise': 'махи гантелями перед собой',
+    };
+
+    // Resolve exercise name with EN→RU fallback
+    const resolveExerciseName = async (name: string) => {
+      let found = await prisma.exercise.findFirst({
+        where: { name: { contains: name, mode: 'insensitive' } },
+      });
+      if (!found) {
+        const lower = name.toLowerCase();
+        const translated = EN_RU_MAP[lower] || Object.entries(EN_RU_MAP).find(([k]) => lower.includes(k))?.[1];
+        if (translated) {
+          found = await prisma.exercise.findFirst({
+            where: { name: { contains: translated, mode: 'insensitive' } },
+          });
+        }
+      }
+      return found;
+    };
+
+    // Find the target workout
+    let workout: { id: string; name: string } | null = null;
+    if (workoutName) {
+      workout = await prisma.workout.findFirst({
+        where: { userId, completedAt: null, name: { contains: workoutName, mode: 'insensitive' } },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+    if (!workout) {
+      // Use last uncompleted workout in active program
+      const prog = await prisma.program.findFirst({
+        where: { userId, isActive: true },
+        include: { workouts: { where: { completedAt: null }, orderBy: { createdAt: 'desc' }, take: 1 } },
+      });
+      workout = prog?.workouts[0] ?? null;
+    }
+    if (!workout) {
+      return { resultText: 'Активная тренировка не найдена. Сначала создай тренировку.', actionDescription: '' };
+    }
+
+    if (action === 'remove_exercise') {
+      // Find WorkoutExercise containing this exercise
+      const exerciseRecord = await resolveExerciseName(exerciseName);
+      if (!exerciseRecord) {
+        return { resultText: `Упражнение "${exerciseName}" не найдено в базе данных.`, actionDescription: '' };
+      }
+      const we = await prisma.workoutExercise.findFirst({
+        where: { workoutId: workout.id, exerciseId: exerciseRecord.id },
+      });
+      if (!we) {
+        return { resultText: `Упражнение "${exerciseRecord.name}" не найдено в тренировке "${workout.name}".`, actionDescription: '' };
+      }
+      await prisma.workoutExercise.delete({ where: { id: we.id } });
+      return {
+        resultText: `Упражнение "${exerciseRecord.name}" убрано из тренировки "${workout.name}".`,
+        actionDescription: `Убрано упражнение "${exerciseRecord.name}" из "${workout.name}"`,
+        actionData: { workoutId: workout.id },
+      };
+    }
+
+    if (action === 'update_exercise') {
+      const exerciseRecord = await resolveExerciseName(exerciseName);
+      if (!exerciseRecord) {
+        return { resultText: `Упражнение "${exerciseName}" не найдено в базе данных.`, actionDescription: '' };
+      }
+      const we = await prisma.workoutExercise.findFirst({
+        where: { workoutId: workout.id, exerciseId: exerciseRecord.id },
+        include: { sets: true },
+      });
+      if (!we) {
+        return { resultText: `Упражнение "${exerciseRecord.name}" не найдено в тренировке "${workout.name}".`, actionDescription: '' };
+      }
+
+      if (sets && sets.length > 0) {
+        // Replace all sets with provided ones
+        await prisma.workoutSet.deleteMany({ where: { workoutExerciseId: we.id } });
+        await prisma.workoutSet.createMany({
+          data: sets.map((s, i) => ({
+            workoutExerciseId: we.id,
+            setNumber: i + 1,
+            reps: s.reps,
+            weight: s.weight ?? null,
+          })),
+        });
+        const summary = sets.map((s) => `${s.weight ?? '—'}кг×${s.reps}`).join(', ');
+        return {
+          resultText: `Подходы для "${exerciseRecord.name}" в "${workout.name}" обновлены: ${summary}`,
+          actionDescription: `Обновлены подходы "${exerciseRecord.name}": ${summary}`,
+          actionData: { workoutId: workout.id },
+        };
+      } else if (weightMultiplier !== undefined) {
+        // Scale all existing weights by the multiplier
+        const updatedSets = we.sets.map((s) => ({
+          id: s.id,
+          newWeight: s.weight ? Math.round((s.weight * weightMultiplier) / 2.5) * 2.5 : null,
+        }));
+        await Promise.all(
+          updatedSets.map((s) => prisma.workoutSet.update({ where: { id: s.id }, data: { weight: s.newWeight } }))
+        );
+        const pct = Math.round((weightMultiplier - 1) * 100);
+        const sign = pct >= 0 ? `+${pct}%` : `${pct}%`;
+        return {
+          resultText: `Веса в "${exerciseRecord.name}" изменены на ${sign} в тренировке "${workout.name}".`,
+          actionDescription: `Веса "${exerciseRecord.name}" ${sign} в "${workout.name}"`,
+          actionData: { workoutId: workout.id },
+        };
+      }
+      return { resultText: 'Укажи sets или weightMultiplier для update_exercise.', actionDescription: '' };
+    }
+
+    if (action === 'add_exercise') {
+      const exerciseRecord = await resolveExerciseName(exerciseName);
+      if (!exerciseRecord) {
+        return { resultText: `Упражнение "${exerciseName}" не найдено в базе данных.`, actionDescription: '' };
+      }
+      // Check not already in workout
+      const existing = await prisma.workoutExercise.findFirst({
+        where: { workoutId: workout.id, exerciseId: exerciseRecord.id },
+      });
+      if (existing) {
+        return { resultText: `Упражнение "${exerciseRecord.name}" уже есть в тренировке "${workout.name}".`, actionDescription: '' };
+      }
+      const maxOrder = await prisma.workoutExercise.aggregate({
+        where: { workoutId: workout.id },
+        _max: { order: true },
+      });
+      const newOrder = (maxOrder._max.order ?? 0) + 1;
+      const setsData = sets && sets.length > 0 ? sets : [{ reps: 10 }, { reps: 10 }, { reps: 10 }];
+      await prisma.workoutExercise.create({
+        data: {
+          workoutId: workout.id,
+          exerciseId: exerciseRecord.id,
+          order: newOrder,
+          restSeconds: restSeconds ?? 90,
+          sets: {
+            create: setsData.map((s, i) => ({
+              setNumber: i + 1,
+              reps: s.reps,
+              weight: s.weight ?? null,
+            })),
+          },
+        },
+      });
+      const summary = setsData.map((s) => `${s.weight ? `${s.weight}кг×` : ''}${s.reps}`).join(', ');
+      return {
+        resultText: `Упражнение "${exerciseRecord.name}" добавлено в "${workout.name}": ${summary}`,
+        actionDescription: `Добавлено "${exerciseRecord.name}" в "${workout.name}"`,
+        actionData: { workoutId: workout.id },
+      };
+    }
+
+    return { resultText: 'Неизвестное действие modify_workout', actionDescription: '' };
   }
 
   return { resultText: 'Неизвестный инструмент', actionDescription: '' };

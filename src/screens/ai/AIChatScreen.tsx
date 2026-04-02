@@ -125,7 +125,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         // Sync local stores after AI actions
         const actionTypes = response.actions.map((a) => a.type);
-        if (actionTypes.includes('create_workout')) {
+        if (actionTypes.includes('create_workout') || actionTypes.includes('modify_workout')) {
           fetchPrograms().catch(() => {});
           fetchHistory().catch(() => {});
         }
