@@ -173,6 +173,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, [streak, lastWorkout, daysSinceLastWorkout]);
 
   const workoutRecommendation = useMemo(() => {
+    // If user has an active program with workouts, recommend the next one in sequence
+    if (activeProgram && activeProgram.workouts && activeProgram.workouts.length > 0) {
+      // Find workout that was completed least recently (or never)
+      const workoutsWithLastDone = activeProgram.workouts.map((pw) => {
+        const lastMatch = workoutHistory
+          .filter((h) => h.completedAt && h.name === pw.name)
+          .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
+        const daysAgo = lastMatch
+          ? Math.floor((Date.now() - new Date(lastMatch.completedAt!).getTime()) / 86400000)
+          : 999;
+        return { name: pw.name, id: pw.id, daysSince: daysAgo, programWorkout: pw };
+      });
+      const next = workoutsWithLastDone.sort((a, b) => b.daysSince - a.daysSince)[0];
+      const daysLabel = next.daysSince >= 999
+        ? 'Ещё не делал'
+        : next.daysSince === 0 ? 'Уже сегодня'
+        : `${next.daysSince} ${next.daysSince === 1 ? 'день' : next.daysSince < 5 ? 'дня' : 'дней'} назад`;
+      return { name: next.name, emoji: '🏋️', daysLabel, programWorkout: next.programWorkout };
+    }
+
+    // Fallback: muscle group heuristic
     const SPLITS = [
       { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
       { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '🏋️' },
@@ -199,8 +220,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       ? 'Ещё не тренировал'
       : recommended.daysSince === 0 ? 'Уже сегодня'
       : `${recommended.daysSince} ${recommended.daysSince === 1 ? 'день' : recommended.daysSince < 5 ? 'дня' : 'дней'} назад`;
-    return { ...recommended, daysLabel };
-  }, [workoutHistory]);
+    return { ...recommended, daysLabel, programWorkout: null };
+  }, [workoutHistory, activeProgram]);
 
   const weekWorkouts = useMemo(() => workoutHistory.filter((w) => {
     if (!w.completedAt) return false;
@@ -368,17 +389,44 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           ) : (
             <Card
               style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}
-              onPress={() => navigation.navigate('WorkoutsTab')}
+              onPress={() => {
+                if (workoutRecommendation.programWorkout) {
+                  const pw = workoutRecommendation.programWorkout as any;
+                  const fresh = {
+                    id: `workout-${Date.now()}`,
+                    name: pw.name,
+                    exercises: (pw.exercises || []).map((we: any, idx: number) => ({
+                      ...we,
+                      id: `we-${Date.now()}-${idx}`,
+                      sets: (we.sets || []).map((s: any, si: number) => ({
+                        ...s,
+                        id: `set-${Date.now()}-${idx}-${si}`,
+                        completed: false,
+                      })),
+                    })),
+                    startedAt: undefined,
+                    completedAt: undefined,
+                  };
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  startWorkout(fresh as any);
+                  navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
+                } else {
+                  navigation.navigate('WorkoutsTab');
+                }
+              }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[typography.captionMedium, { color: colors.success }]}>РЕКОМЕНДУЕМ СЕГОДНЯ</Text>
+                  <Text style={[typography.captionMedium, { color: colors.success }]}>
+                    {workoutRecommendation.programWorkout ? 'СЛЕДУЮЩАЯ ТРЕНИРОВКА' : 'РЕКОМЕНДУЕМ СЕГОДНЯ'}
+                  </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
                     <Text style={{ fontSize: 20 }}>{workoutRecommendation.emoji}</Text>
                     <Text style={[typography.h4, { color: colors.text }]}>{workoutRecommendation.name}</Text>
                   </View>
                   <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
                     {workoutRecommendation.daysLabel}
+                    {workoutRecommendation.programWorkout ? ` · ${activeProgram?.name}` : ''}
                   </Text>
                 </View>
                 <Text style={[typography.body, { color: colors.primary, marginTop: spacing.sm }]}>▶</Text>
