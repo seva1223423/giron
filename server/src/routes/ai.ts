@@ -510,10 +510,47 @@ async function executeTool(
       };
     }
 
+    // Find active program or get/create Iron Coach program
+    let activeProgram = await prisma.program.findFirst({
+      where: { userId, isActive: true },
+    });
+
+    if (!activeProgram) {
+      // Find existing Iron Coach program
+      let ironCoachProgram = await prisma.program.findFirst({
+        where: { userId, createdBy: 'ai' },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!ironCoachProgram) {
+        // Get user profile to set sensible defaults
+        const userProfile = await prisma.user.findUnique({ where: { id: userId } });
+        ironCoachProgram = await prisma.program.create({
+          data: {
+            name: 'Iron Coach',
+            description: 'Тренировки, созданные твоим AI-тренером Iron Coach',
+            type: 'custom',
+            goal: (userProfile?.goal as any) ?? 'GENERAL_FITNESS',
+            level: (userProfile?.fitnessLevel as any) ?? 'BEGINNER',
+            daysPerWeek: 3,
+            isActive: true,
+            createdBy: 'ai',
+            userId,
+          },
+        });
+      } else {
+        // Activate the existing Iron Coach program
+        await prisma.program.update({ where: { id: ironCoachProgram.id }, data: { isActive: true } });
+      }
+
+      activeProgram = ironCoachProgram;
+    }
+
     const workout = await prisma.workout.create({
       data: {
         name,
         userId,
+        programId: activeProgram.id,
         createdAt: new Date(),
         exercises: {
           create: validExercises.map((ex, idx) => ({
@@ -536,6 +573,7 @@ async function executeTool(
     return {
       resultText: `Тренировка "${workout.name}" создана с упражнениями: ${foundNames}`,
       actionDescription: `Тренировка "${name}" добавлена в план (${validExercises.length} упражнений)`,
+      actionData: { workoutId: workout.id, programId: activeProgram.id },
     };
   }
 
