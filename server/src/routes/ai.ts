@@ -491,12 +491,44 @@ async function executeTool(
       }>;
     };
 
-    // Find exercises in DB (case-insensitive partial match)
+    // English → Russian fallback for common exercise names
+    const EN_RU: Record<string, string> = {
+      'bench press': 'жим штанги лёжа', 'squat': 'приседания', 'deadlift': 'становая тяга',
+      'overhead press': 'жим штанги стоя', 'barbell row': 'тяга штанги в наклоне',
+      'pull-up': 'подтягивания', 'pullup': 'подтягивания', 'chin-up': 'подтягивания',
+      'dip': 'отжимания на брусьях', 'lat pulldown': 'тяга верхнего блока',
+      'cable row': 'тяга нижнего блока', 'leg press': 'жим ногами в тренажёре',
+      'leg curl': 'сгибание ног в тренажёре', 'leg extension': 'разгибание ног в тренажёре',
+      'calf raise': 'подъём на носки в тренажёре', 'bicep curl': 'сгибание рук со штангой',
+      'tricep pushdown': 'разгибание рук на блоке', 'lateral raise': 'махи гантелями в стороны',
+      'romanian deadlift': 'румынская тяга', 'rdl': 'румынская тяга',
+      'incline bench press': 'жим штанги на наклонной скамье',
+      'dumbbell fly': 'разводка гантелей лёжа', 'cable fly': 'кроссовер на блоках',
+      'plank': 'планка', 'crunch': 'скручивания', 'sit-up': 'скручивания',
+      'push-up': 'отжимания от пола', 'pushup': 'отжимания от пола',
+      'arnold press': 'жим арнольда', 'hyperextension': 'гиперэкстензия',
+      'shrug': 'шраги со штангой', 'close grip bench': 'жим штанги узким хватом',
+      'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
+      'front raise': 'махи гантелями перед собой',
+    };
+
+    // Find exercises in DB (case-insensitive partial match, with EN→RU fallback)
     const exerciseRecords = await Promise.all(
       exercises.map(async (ex) => {
-        const found = await prisma.exercise.findFirst({
-          where: { name: { contains: ex.exerciseName, mode: 'insensitive' } },
+        const searchName = ex.exerciseName;
+        let found = await prisma.exercise.findFirst({
+          where: { name: { contains: searchName, mode: 'insensitive' } },
         });
+        // Try English → Russian translation fallback
+        if (!found) {
+          const lower = searchName.toLowerCase();
+          const translated = EN_RU[lower] || Object.entries(EN_RU).find(([k]) => lower.includes(k))?.[1];
+          if (translated) {
+            found = await prisma.exercise.findFirst({
+              where: { name: { contains: translated, mode: 'insensitive' } },
+            });
+          }
+        }
         return { input: ex, record: found };
       }),
     );
@@ -570,8 +602,10 @@ async function executeTool(
     });
 
     const foundNames = validExercises.map((e) => e.record!.name).join(', ');
+    const missingNames = exerciseRecords.filter((e) => e.record === null).map((e) => e.input.exerciseName);
+    const missingNote = missingNames.length > 0 ? ` (не найдены в базе: ${missingNames.join(', ')})` : '';
     return {
-      resultText: `Тренировка "${workout.name}" создана с упражнениями: ${foundNames}`,
+      resultText: `Тренировка "${workout.name}" создана с упражнениями: ${foundNames}${missingNote}`,
       actionDescription: `Тренировка "${name}" добавлена в план (${validExercises.length} упражнений)`,
       actionData: { workoutId: workout.id, programId: activeProgram.id },
     };
