@@ -64,7 +64,7 @@ const MEAL_TYPES = [
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { getDayLog, addWater, setTargets, removeMeal } = useNutritionStore();
+  const { dailyLog, getDayLog, addWater, setTargets, removeMeal } = useNutritionStore();
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const isToday = selectedDate === todayDate();
   const dayLog = getDayLog(selectedDate);
@@ -92,6 +92,38 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   }), [dayLog.meals]);
   const remaining = dayLog.targetCalories - totalCalories;
   const waterTarget = dayLog.waterTargetMl ?? 2500;
+
+  const weekStats = useMemo(() => {
+    const days: { date: string; calories: number; protein: number; fats: number; carbs: number; target: number }[] = [];
+    const today = todayDate();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const log = dailyLog[dateStr];
+      if (!log || log.meals.length === 0) continue;
+      days.push({
+        date: dateStr,
+        calories: log.meals.reduce((s, m) => s + m.totalCalories, 0),
+        protein: log.meals.reduce((s, m) => s + m.totalProtein, 0),
+        fats: log.meals.reduce((s, m) => s + m.totalFats, 0),
+        carbs: log.meals.reduce((s, m) => s + m.totalCarbs, 0),
+        target: log.targetCalories,
+      });
+    }
+    if (days.length === 0) return null;
+    const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+    const goalMet = days.filter((d) => d.calories <= d.target * 1.05 && d.calories >= d.target * 0.85).length;
+    return {
+      daysLogged: days.length,
+      avgCalories: avg(days.map((d) => d.calories)),
+      avgProtein: avg(days.map((d) => d.protein)),
+      avgFats: avg(days.map((d) => d.fats)),
+      avgCarbs: avg(days.map((d) => d.carbs)),
+      goalMet,
+      days,
+    };
+  }, [dailyLog]);
 
   const getMealsByType = (type: string) =>
     dayLog.meals.filter((m) => m.type === type);
@@ -256,6 +288,51 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           />
         </View>
       </Card>
+
+      {/* 7-day analytics */}
+      {weekStats && (
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <Text style={[typography.h4, { color: colors.text }]}>📊 За 7 дней</Text>
+            <View style={{ backgroundColor: colors.primary + '20', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full }}>
+              <Text style={[typography.caption, { color: colors.primary }]}>
+                Цель выполнена {weekStats.goalMet}/{weekStats.daysLogged}
+              </Text>
+            </View>
+          </View>
+
+          {/* Mini bar chart for daily calories */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 56, marginBottom: spacing.md }}>
+            {weekStats.days.map((d, i) => {
+              const maxCal = Math.max(...weekStats.days.map((dd) => dd.calories), weekStats.days[0]?.target || 2000);
+              const barH = Math.max(4, (d.calories / maxCal) * 44);
+              const isGoalMet = d.calories <= d.target * 1.05 && d.calories >= d.target * 0.85;
+              const dayLabel = new Date(d.date).toLocaleDateString('ru-RU', { weekday: 'short' }).slice(0, 2);
+              return (
+                <View key={d.date} style={{ flex: 1, alignItems: 'center' }}>
+                  <View style={{ width: '80%', height: barH, backgroundColor: isGoalMet ? colors.success : colors.primary, borderRadius: 3 }} />
+                  <Text style={[typography.small, { color: colors.textTertiary, fontSize: 9, marginTop: 3 }]}>{dayLabel}</Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Average macros */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+            {[
+              { label: 'Ккал', value: weekStats.avgCalories, color: colors.primary },
+              { label: 'Белки', value: `${weekStats.avgProtein}г`, color: colors.success },
+              { label: 'Жиры', value: `${weekStats.avgFats}г`, color: colors.warning },
+              { label: 'Углев.', value: `${weekStats.avgCarbs}г`, color: colors.accent },
+            ].map(({ label, value, color }) => (
+              <View key={label} style={{ alignItems: 'center' }}>
+                <Text style={[typography.bodySemibold, { color }]}>{value}</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}/день</Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      )}
 
       {/* Meals by type */}
       {MEAL_TYPES.map((mealType) => {
