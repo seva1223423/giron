@@ -8,6 +8,24 @@ import { spacing, borderRadius } from '../../theme/spacing';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
 
+function formatDisplayDate(dateStr: string): string {
+  const today = todayDate();
+  const yesterday = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  })();
+  if (dateStr === today) return 'Сегодня';
+  if (dateStr === yesterday) return 'Вчера';
+  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+}
+
+function shiftDate(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Завтрак', emoji: '🌅' },
   { key: 'lunch', label: 'Обед', emoji: '☀️' },
@@ -18,8 +36,9 @@ const MEAL_TYPES = [
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { getDayLog, addWater, setTargets, removeMeal } = useNutritionStore();
-  const today = todayDate();
-  const dayLog = getDayLog(today);
+  const [selectedDate, setSelectedDate] = useState(todayDate);
+  const isToday = selectedDate === todayDate();
+  const dayLog = getDayLog(selectedDate);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [goalCalories, setGoalCalories] = useState(dayLog.targetCalories.toString());
   const [goalProtein, setGoalProtein] = useState(dayLog.targetProtein.toString());
@@ -31,7 +50,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const prot = parseInt(goalProtein) || 150;
     const fat = parseInt(goalFats) || 70;
     const carb = parseInt(goalCarbs) || 250;
-    setTargets(today, { calories: cal, protein: prot, fats: fat, carbs: carb });
+    setTargets(selectedDate, { calories: cal, protein: prot, fats: fat, carbs: carb });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowGoalsModal(false);
   };
@@ -50,6 +69,17 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   const handlePhotoScan = () => {
     navigation.navigate('FoodScanner');
+  };
+
+  const handlePrevDay = () => {
+    Haptics.selectionAsync();
+    setSelectedDate((d) => shiftDate(d, -1));
+  };
+
+  const handleNextDay = () => {
+    if (isToday) return;
+    Haptics.selectionAsync();
+    setSelectedDate((d) => shiftDate(d, 1));
   };
 
   return (
@@ -90,7 +120,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         </View>
       </Modal>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
         <Text style={[typography.h2, { color: colors.text }]}>Питание</Text>
         <View style={{ flexDirection: 'row', gap: spacing.lg }}>
           <TouchableOpacity onPress={() => navigation.navigate('NutritionHistory')}>
@@ -100,6 +130,24 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Date navigation */}
+      <View style={[styles.dateNav, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TouchableOpacity onPress={handlePrevDay} style={styles.dateNavBtn}>
+          <Text style={[typography.h3, { color: colors.primary }]}>‹</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => { if (!isToday) { Haptics.selectionAsync(); setSelectedDate(todayDate()); } }}>
+          <Text style={[typography.bodySemibold, { color: colors.text }]}>{formatDisplayDate(selectedDate)}</Text>
+          {!isToday && (
+            <Text style={[typography.caption, { color: colors.primary, textAlign: 'center', marginTop: 1 }]}>
+              Вернуться к сегодня
+            </Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleNextDay} style={styles.dateNavBtn} disabled={isToday}>
+          <Text style={[typography.h3, { color: isToday ? colors.textTertiary : colors.primary }]}>›</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Daily overview */}
@@ -148,7 +196,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               <TouchableOpacity
                 key={ml}
                 style={[styles.waterBtn, { backgroundColor: colors.info + '15', borderColor: colors.info }]}
-                onPress={() => addWater(today, ml)}
+                onPress={() => addWater(selectedDate, ml)}
               >
                 <Text style={[typography.buttonSmall, { color: colors.info }]}>+{ml}</Text>
               </TouchableOpacity>
@@ -195,7 +243,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                     </View>
                   ))}
                   <TouchableOpacity
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeMeal(today, meal.id); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeMeal(selectedDate, meal.id); }}
                     style={{ alignSelf: 'flex-end', marginTop: 4 }}
                   >
                     <Text style={[typography.caption, { color: colors.error }]}>Удалить</Text>
@@ -210,7 +258,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
               <TouchableOpacity
-                onPress={() => navigation.navigate('ManualFoodAdd', { mealType: mealType.key })}
+                onPress={() => navigation.navigate('ManualFoodAdd', { mealType: mealType.key, date: selectedDate })}
               >
                 <Text style={[typography.smallMedium, { color: colors.primary }]}>+ Добавить</Text>
               </TouchableOpacity>
@@ -275,5 +323,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 2,
+  },
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  dateNavBtn: {
+    padding: spacing.xs,
+    minWidth: 32,
+    alignItems: 'center',
   },
 });

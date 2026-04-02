@@ -48,6 +48,7 @@ const FOOD_DB = [
 
 export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const mealType = route.params?.mealType || 'snack';
+  const routeDate = route.params?.date as string | undefined;
   const { colors } = useThemeStore();
   const { addMeal, dailyLog } = useNutritionStore();
 
@@ -61,7 +62,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
   const [customCarbs, setCustomCarbs] = useState('');
   const [tab, setTab] = useState<'search' | 'custom'>('search');
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = routeDate ?? new Date().toISOString().split('T')[0];
 
   const filteredFoods = useMemo(() => {
     if (!searchQuery.trim()) return FOOD_DB.slice(0, 12);
