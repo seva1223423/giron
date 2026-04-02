@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Dimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
@@ -12,6 +12,19 @@ const MUSCLE_LABELS: Record<string, string> = {
   triceps: 'Трицепс', quadriceps: 'Ноги', hamstrings: 'Задняя', glutes: 'Ягодицы',
   abs: 'Пресс', calves: 'Икры', lats: 'Широчайшие',
 };
+
+const MUSCLE_FILTERS = [
+  { key: 'all', label: 'Все' },
+  { key: 'chest', label: 'Грудь' },
+  { key: 'back', label: 'Спина' },
+  { key: 'shoulders', label: 'Плечи' },
+  { key: 'biceps', label: 'Бицепс' },
+  { key: 'triceps', label: 'Трицепс' },
+  { key: 'quadriceps', label: 'Ноги' },
+  { key: 'abs', label: 'Пресс' },
+];
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -41,10 +54,48 @@ function groupWorkoutsByMonth(workouts: any[]) {
   }));
 }
 
+// Mini bar chart for volume trend
+const VolumeTrendChart: React.FC<{ data: { label: string; value: number }[]; color: string; colors: any }> = ({ data, color, colors }) => {
+  if (data.length < 2) return null;
+  const maxVal = Math.max(1, ...data.map((d) => d.value));
+  const barH = 48;
+
+  return (
+    <View>
+      <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+        ОБЪЁМ — ПОСЛЕДНИЕ {data.length} ТРЕНИРОВОК
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: barH + 20, gap: 3 }}>
+        {data.map((item, i) => {
+          const h = Math.max(4, (item.value / maxVal) * barH);
+          const isLast = i === data.length - 1;
+          return (
+            <View key={i} style={{ flex: 1, alignItems: 'center', height: barH + 20, justifyContent: 'flex-end' }}>
+              <View
+                style={{
+                  width: '85%',
+                  height: h,
+                  borderRadius: 3,
+                  backgroundColor: isLast ? color : color + '60',
+                }}
+              />
+              <Text style={{ color: colors.textTertiary, fontSize: 8, marginTop: 3 }} numberOfLines={1}>
+                {item.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
 export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { workoutHistory, activeWorkout, startWorkout } = useWorkoutStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [muscleFilter, setMuscleFilter] = useState('all');
 
   const handleRepeatWorkout = (workout: any) => {
     if (activeWorkout) return;
@@ -64,7 +115,41 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
     navigation.navigate('ActiveWorkout');
   };
 
-  const groups = useMemo(() => groupWorkoutsByMonth(workoutHistory), [workoutHistory]);
+  const filteredWorkouts = useMemo(() => {
+    return workoutHistory.filter((w) => {
+      const matchesSearch = searchQuery
+        ? w.name.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+      const matchesMuscle = muscleFilter === 'all'
+        ? true
+        : w.exercises.some((ex: any) => ex.exercise?.primaryMuscles?.includes(muscleFilter));
+      return matchesSearch && matchesMuscle;
+    });
+  }, [workoutHistory, searchQuery, muscleFilter]);
+
+  const groups = useMemo(() => groupWorkoutsByMonth(filteredWorkouts), [filteredWorkouts]);
+
+  // Volume trend: last 8 completed workouts (with volume)
+  const volumeTrend = useMemo(() => {
+    return workoutHistory
+      .filter((w) => w.completedAt && (w.totalVolume || 0) > 0)
+      .slice(0, 8)
+      .reverse()
+      .map((w) => ({
+        label: new Date(w.completedAt!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', ''),
+        value: Math.round(w.totalVolume || 0),
+      }));
+  }, [workoutHistory]);
+
+  const totalVolumeTons = Math.round(
+    workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0) / 1000
+  );
+  const totalHours = Math.round(
+    workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0) / 60
+  );
+  const avgDuration = workoutHistory.length > 0
+    ? Math.round(workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0) / workoutHistory.length)
+    : 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -91,7 +176,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* Summary stats */}
           <FadeIn delay={0}>
-            <Card style={{ marginBottom: spacing.xl }}>
+            <Card style={{ marginBottom: spacing.lg }}>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={[typography.number, { color: colors.primary }]}>{workoutHistory.length}</Text>
@@ -99,21 +184,89 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
                 <View style={styles.statItem}>
-                  <Text style={[typography.number, { color: colors.accent }]}>
-                    {Math.round(workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0) / 1000)}
-                  </Text>
+                  <Text style={[typography.number, { color: colors.accent }]}>{totalVolumeTons}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>тонн</Text>
                 </View>
                 <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
                 <View style={styles.statItem}>
-                  <Text style={[typography.number, { color: colors.success }]}>
-                    {Math.round(workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0) / 60)}
-                  </Text>
+                  <Text style={[typography.number, { color: colors.success }]}>{totalHours}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>часов</Text>
                 </View>
+                <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
+                <View style={styles.statItem}>
+                  <Text style={[typography.number, { color: colors.protein }]}>{avgDuration}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>мин/тр.</Text>
+                </View>
               </View>
+
+              {volumeTrend.length >= 2 && (
+                <View style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider }}>
+                  <VolumeTrendChart data={volumeTrend} color={colors.primary} colors={colors} />
+                </View>
+              )}
             </Card>
           </FadeIn>
+
+          {/* Search */}
+          <FadeIn delay={40}>
+            <TextInput
+              style={[
+                styles.searchInput,
+                {
+                  backgroundColor: colors.inputBackground,
+                  borderColor: colors.inputBorder,
+                  color: colors.inputText,
+                },
+              ]}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Поиск по названию..."
+              placeholderTextColor={colors.inputPlaceholder}
+            />
+          </FadeIn>
+
+          {/* Muscle filter chips */}
+          <FadeIn delay={60}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.md }}
+            >
+              {MUSCLE_FILTERS.map((f) => (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => { Haptics.selectionAsync(); setMuscleFilter(f.key); }}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: muscleFilter === f.key ? colors.primary : colors.surface,
+                      borderColor: muscleFilter === f.key ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[typography.captionMedium, { color: muscleFilter === f.key ? '#FFF' : colors.text }]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </FadeIn>
+
+          {/* Results count */}
+          {(searchQuery || muscleFilter !== 'all') && (
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+              Найдено: {filteredWorkouts.length}
+            </Text>
+          )}
+
+          {filteredWorkouts.length === 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
+              <Text style={{ fontSize: 40, marginBottom: spacing.md }}>🔍</Text>
+              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                Ничего не найдено
+              </Text>
+            </View>
+          )}
 
           {groups.map((group, gi) => (
             <FadeIn key={group.key} delay={gi * 40}>
@@ -126,7 +279,6 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                   (s: number, e: any) => s + e.sets.filter((set: any) => set.completed).length, 0
                 );
 
-                // Get primary muscles trained
                 const muscleSet = new Set<string>();
                 workout.exercises.forEach((ex: any) => {
                   ex.exercise.primaryMuscles.slice(0, 1).forEach((m: string) => muscleSet.add(m));
@@ -293,5 +445,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     gap: spacing.sm,
+  },
+  searchInput: {
+    height: 44,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    fontSize: 16,
+    marginBottom: spacing.md,
+  },
+  filterChip: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
   },
 });
