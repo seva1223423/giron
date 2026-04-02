@@ -1,16 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Switch, Modal } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
-import {
-  requestNotificationPermissions,
-  getNotificationPermissionStatus,
-  scheduleDailyWorkoutReminder,
-  cancelWorkoutReminders,
-} from '../../services/notificationService';
+import { spacing } from '../../theme/spacing';
 
 const GOAL_LABELS: Record<string, string> = {
   WEIGHT_LOSS: 'Похудение', weight_loss: 'Похудение',
@@ -29,44 +23,9 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { colors, isDark, toggleTheme, mode } = useThemeStore();
+  const { colors } = useThemeStore();
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [reminderHour, setReminderHour] = useState(18);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-
-  useEffect(() => {
-    getNotificationPermissionStatus().then((status) => {
-      setNotificationsEnabled(status === 'granted');
-    });
-  }, []);
-
-  const handleToggleNotifications = async (value: boolean) => {
-    Haptics.selectionAsync();
-    if (value) {
-      const granted = await requestNotificationPermissions();
-      if (granted) {
-        await scheduleDailyWorkoutReminder(reminderHour, 0);
-        setNotificationsEnabled(true);
-        Alert.alert('Уведомления включены', `Напоминание каждый день в ${reminderHour}:00.`);
-      } else {
-        Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства: Настройки → Iron Gym → Уведомления.');
-      }
-    } else {
-      await cancelWorkoutReminders();
-      setNotificationsEnabled(false);
-    }
-  };
-
-  const handleChangeReminderTime = async (hour: number) => {
-    Haptics.selectionAsync();
-    setReminderHour(hour);
-    setShowTimePicker(false);
-    if (notificationsEnabled) {
-      await scheduleDailyWorkoutReminder(hour, 0);
-    }
-  };
 
   const handleLogout = () => {
     Alert.alert('Выйти из аккаунта?', '', [
@@ -81,27 +40,6 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Reminder time picker modal */}
-      <Modal visible={showTimePicker} transparent animationType="slide">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-          <View style={[{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.xl, paddingBottom: 48 }]}>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Время напоминания</Text>
-            {[7, 8, 9, 10, 12, 14, 16, 17, 18, 19, 20, 21].map((h) => (
-              <TouchableOpacity
-                key={h}
-                onPress={() => handleChangeReminderTime(h)}
-                style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider }]}
-              >
-                <Text style={[typography.body, { color: h === reminderHour ? colors.primary : colors.text }]}>{h}:00</Text>
-                {h === reminderHour && <Text style={{ color: colors.primary }}>✓</Text>}
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity onPress={() => setShowTimePicker(false)} style={{ marginTop: spacing.lg, alignItems: 'center' }}>
-              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
       {/* Profile header */}
       <View style={styles.profileHeader}>
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
@@ -153,51 +91,18 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         <ProfileRow label="Стаж" value={user?.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'Не указан'} colors={colors} isLast />
       </Card>
 
-      {/* Settings */}
+      {/* Settings link */}
       <Card style={{ marginBottom: spacing.lg }}>
-        <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
-          Настройки
-        </Text>
-
-        <View style={styles.settingRow}>
-          <Text style={[typography.body, { color: colors.text }]}>Тёмная тема</Text>
-          <Switch
-            value={isDark}
-            onValueChange={() => { Haptics.selectionAsync(); toggleTheme(); }}
-            trackColor={{ false: colors.border, true: colors.primary + '60' }}
-            thumbColor={isDark ? colors.primary : '#f4f3f4'}
-          />
-        </View>
-
-        <TouchableOpacity style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: colors.divider }]}>
-          <Text style={[typography.body, { color: colors.text }]}>Язык</Text>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>Русский</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: colors.divider }]}>
-          <Text style={[typography.body, { color: colors.text }]}>Единицы измерения</Text>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>кг / см</Text>
-        </TouchableOpacity>
-
-        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: colors.divider }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.body, { color: colors.text }]}>Напоминания о тренировках</Text>
-            <TouchableOpacity
-              onPress={() => notificationsEnabled && setShowTimePicker(true)}
-              disabled={!notificationsEnabled}
-            >
-              <Text style={[typography.small, { marginTop: 2 }, notificationsEnabled ? { color: colors.primary } : { color: colors.textTertiary }]}>
-                {notificationsEnabled ? `Каждый день в ${reminderHour}:00 — изменить` : 'Выключены'}
-              </Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync(); navigation.navigate('Settings'); }}
+          style={styles.settingRow}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={{ fontSize: 20 }}>⚙️</Text>
+            <Text style={[typography.body, { color: colors.text }]}>Настройки</Text>
           </View>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={handleToggleNotifications}
-            trackColor={{ false: colors.border, true: colors.primary + '60' }}
-            thumbColor={notificationsEnabled ? colors.primary : '#f4f3f4'}
-          />
-        </View>
+          <Text style={[typography.body, { color: colors.textSecondary }]}>›</Text>
+        </TouchableOpacity>
       </Card>
 
       {/* Subscription */}

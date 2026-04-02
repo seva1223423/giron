@@ -36,6 +36,7 @@ import { SubscriptionScreen } from '../screens/profile/SubscriptionScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TrainerDashboardScreen } from '../screens/trainer/TrainerDashboardScreen';
 import { TrainerClientScreen } from '../screens/trainer/TrainerClientScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -97,6 +98,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="TrainerDashboard" component={TrainerDashboardScreen} />
       <ProfileStack.Screen name="TrainerClient" component={TrainerClientScreen} />
+      <ProfileStack.Screen name="Settings" component={SettingsScreen} />
     </ProfileStack.Navigator>
   );
 }
