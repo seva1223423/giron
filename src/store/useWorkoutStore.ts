@@ -26,10 +26,13 @@ interface WorkoutStore {
   isLoadingHistory: boolean;
   weekPlan: Record<number, WeekPlanEntry | null>; // 0=Mon … 6=Sun
   savedTemplates: Workout[];
+  customExercises: Exercise[];
 
   setWeekPlanDay: (dow: number, entry: WeekPlanEntry | null) => void;
   saveAsTemplate: (workout: Workout) => void;
   deleteTemplate: (id: string) => void;
+  addCustomExercise: (exercise: Exercise) => void;
+  deleteCustomExercise: (id: string) => void;
 
   // Programs
   setPrograms: (programs: Program[]) => void;
@@ -72,9 +75,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
       isLoadingHistory: false,
       weekPlan: {},
       savedTemplates: [],
+      customExercises: [],
 
       setWeekPlanDay: (dow, entry) => set((s) => ({
         weekPlan: { ...s.weekPlan, [dow]: entry },
+      })),
+
+      addCustomExercise: (exercise) => set((s) => {
+        if (s.customExercises.some((e) => e.id === exercise.id)) return s;
+        return { customExercises: [exercise, ...s.customExercises] };
+      }),
+
+      deleteCustomExercise: (id) => set((s) => ({
+        customExercises: s.customExercises.filter((e) => e.id !== id),
       })),
 
       saveAsTemplate: (workout) => set((s) => {
@@ -391,6 +404,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         activeWorkout: state.activeWorkout,
         weekPlan: state.weekPlan,
         savedTemplates: state.savedTemplates,
+        customExercises: state.customExercises,
       }),
     }
   )
