@@ -62,7 +62,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 У тебя есть возможность реально изменять данные пользователя в приложении:
 - **update_user_profile** — обновить вес, рост, цель, уровень подготовки
 - **log_body_weight** — записать замер веса тела
-- **create_workout** — создать тренировку и добавить её в план
+- **create_program** — создать полноценную программу тренировок с несколькими тренировочными днями (рекомендуемый способ при составлении программы)
+- **create_workout** — создать одну тренировку и добавить её в текущий план (для разовой тренировки)
 - **update_nutrition_targets** — установить дневные нормы КБЖУ (калории, белки, жиры, углеводы)
 - **log_meal** — записать приём пищи в дневник питания
 - **log_water** — записать выпитую воду в дневник
@@ -72,8 +73,9 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 Используй эти инструменты когда:
 - Пользователь сообщает свой актуальный вес ("сегодня вешу 85 кг") → log_body_weight + update_user_profile
 - Пользователь хочет изменить цель тренировок → update_user_profile
-- Пользователь просит составить конкретную тренировку → create_workout
-- После составления программы — создай тренировки через create_workout И расставь их по дням через set_weekly_plan
+- Пользователь просит составить программу тренировок (Пуш/Пул/Ноги, Верх/Низ, 5x5 и т.д.) → create_program (создаёт программу + все тренировки сразу), затем set_weekly_plan
+- Пользователь просит составить одну конкретную тренировку → create_workout
+- После составления программы через create_program — расставь дни через set_weekly_plan
 - Пользователь просит рассчитать КБЖУ/калории или установить нормы питания → рассчитай TDEE и вызови update_nutrition_targets
 - При изменении цели (похудение/набор) → update_nutrition_targets с пересчитанными нормами
 - Пользователь сообщает что поел ("съел 200г гречки и куриную грудку") → log_meal с рассчитанным КБЖУ
@@ -213,6 +215,59 @@ const AI_TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['name', 'exercises'],
+    },
+  },
+  {
+    name: 'create_program',
+    description: 'Создать полноценную программу тренировок с несколькими тренировочными днями. Используй когда пользователь просит составить программу (Пуш/Пул/Ноги, Верх/Низ, 5x5, Full Body и т.д.). Создаёт программу и все входящие в неё тренировки за один вызов. После создания программы вызови set_weekly_plan для расстановки тренировок по дням.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Название программы (например "Толчок-Тяга-Ноги", "Верх/Низ A/B", "Стартовая сила")' },
+        description: { type: 'string', description: 'Краткое описание программы и её логики' },
+        type: {
+          type: 'string',
+          enum: ['push_pull_legs', 'upper_lower', 'full_body', 'bro_split', 'custom'],
+          description: 'Тип сплита',
+        },
+        goal: {
+          type: 'string',
+          enum: ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'],
+          description: 'Основная цель программы',
+        },
+        level: {
+          type: 'string',
+          enum: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'],
+          description: 'Уровень подготовки',
+        },
+        daysPerWeek: { type: 'number', description: 'Количество тренировок в неделю (2-6)' },
+        workouts: {
+          type: 'array',
+          description: 'Тренировочные дни программы',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Название дня (например "День A — Толчок", "Верх тела", "День ног")' },
+              exercises: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    exerciseName: { type: 'string', description: 'Название упражнения на русском или английском' },
+                    sets: { type: 'number', description: 'Количество подходов' },
+                    reps: { type: 'number', description: 'Количество повторений' },
+                    weight: { type: 'number', description: 'Вес в кг (если применимо)' },
+                    restSeconds: { type: 'number', description: 'Отдых между подходами в секундах' },
+                  },
+                  required: ['exerciseName', 'sets', 'reps'],
+                },
+              },
+            },
+            required: ['name', 'exercises'],
+          },
+        },
+      },
+      required: ['name', 'type', 'goal', 'level', 'daysPerWeek', 'workouts'],
     },
   },
   {
@@ -766,6 +821,128 @@ async function executeTool(
       resultText: `${label} удалён из дневника питания`,
       actionDescription: description,
       actionData: { mealId, mealType: meal.type },
+    };
+  }
+
+  if (toolName === 'create_program') {
+    const { name, description, type, goal, level, daysPerWeek, workouts } = toolInput as {
+      name: string;
+      description?: string;
+      type: string;
+      goal: string;
+      level: string;
+      daysPerWeek: number;
+      workouts: Array<{
+        name: string;
+        exercises: Array<{
+          exerciseName: string;
+          sets: number;
+          reps: number;
+          weight?: number;
+          restSeconds?: number;
+        }>;
+      }>;
+    };
+
+    // English → Russian fallback for common exercise names
+    const EN_RU_PROG: Record<string, string> = {
+      'bench press': 'жим штанги лёжа', 'squat': 'приседания', 'deadlift': 'становая тяга',
+      'overhead press': 'жим штанги стоя', 'barbell row': 'тяга штанги в наклоне',
+      'pull-up': 'подтягивания', 'pullup': 'подтягивания', 'chin-up': 'подтягивания',
+      'dip': 'отжимания на брусьях', 'lat pulldown': 'тяга верхнего блока',
+      'cable row': 'тяга нижнего блока', 'leg press': 'жим ногами в тренажёре',
+      'leg curl': 'сгибание ног в тренажёре', 'leg extension': 'разгибание ног в тренажёре',
+      'calf raise': 'подъём на носки в тренажёре', 'bicep curl': 'сгибание рук со штангой',
+      'tricep pushdown': 'разгибание рук на блоке', 'lateral raise': 'махи гантелями в стороны',
+      'romanian deadlift': 'румынская тяга', 'rdl': 'румынская тяга',
+      'incline bench press': 'жим штанги на наклонной скамье',
+      'dumbbell fly': 'разводка гантелей лёжа', 'plank': 'планка',
+      'push-up': 'отжимания от пола', 'pushup': 'отжимания от пола',
+      'arnold press': 'жим арнольда', 'hyperextension': 'гиперэкстензия',
+      'shrug': 'шраги со штангой', 'close grip bench': 'жим штанги узким хватом',
+      'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
+      'front raise': 'махи гантелями перед собой',
+    };
+
+    const resolveExercise = async (exerciseName: string) => {
+      let found = await prisma.exercise.findFirst({
+        where: { name: { contains: exerciseName, mode: 'insensitive' } },
+      });
+      if (!found) {
+        const lower = exerciseName.toLowerCase();
+        const translated = EN_RU_PROG[lower] || Object.entries(EN_RU_PROG).find(([k]) => lower.includes(k))?.[1];
+        if (translated) {
+          found = await prisma.exercise.findFirst({
+            where: { name: { contains: translated, mode: 'insensitive' } },
+          });
+        }
+      }
+      return found;
+    };
+
+    // Deactivate all existing programs for this user
+    await prisma.program.updateMany({
+      where: { userId, isActive: true },
+      data: { isActive: false },
+    });
+
+    // Create the new program
+    const program = await prisma.program.create({
+      data: {
+        name,
+        description: description ?? '',
+        type,
+        goal: goal as any,
+        level: level as any,
+        daysPerWeek,
+        isActive: true,
+        createdBy: 'ai',
+        userId,
+      },
+    });
+
+    // Create all workouts for this program
+    let totalExercises = 0;
+    const workoutNames: string[] = [];
+    for (const workoutDef of workouts) {
+      const exerciseRecords = await Promise.all(
+        workoutDef.exercises.map(async (ex) => {
+          const record = await resolveExercise(ex.exerciseName);
+          return { input: ex, record };
+        }),
+      );
+      const valid = exerciseRecords.filter((e) => e.record !== null);
+
+      await prisma.workout.create({
+        data: {
+          name: workoutDef.name,
+          userId,
+          programId: program.id,
+          exercises: {
+            create: valid.map((ex, idx) => ({
+              order: idx + 1,
+              restSeconds: ex.input.restSeconds ?? 90,
+              exerciseId: ex.record!.id,
+              sets: {
+                create: Array.from({ length: ex.input.sets }, (_, i) => ({
+                  setNumber: i + 1,
+                  reps: ex.input.reps,
+                  weight: ex.input.weight ?? null,
+                })),
+              },
+            })),
+          },
+        },
+      });
+
+      totalExercises += valid.length;
+      workoutNames.push(workoutDef.name);
+    }
+
+    return {
+      resultText: `Программа "${name}" создана с ${workouts.length} тренировками: ${workoutNames.join(', ')}. Всего упражнений: ${totalExercises}.`,
+      actionDescription: `Программа "${name}" (${workouts.length} дней) создана и активирована`,
+      actionData: { programId: program.id, programName: name, workoutCount: workouts.length },
     };
   }
 

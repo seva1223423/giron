@@ -125,7 +125,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         // Sync local stores after AI actions
         const actionTypes = response.actions.map((a) => a.type);
-        if (actionTypes.includes('create_workout') || actionTypes.includes('modify_workout')) {
+        if (actionTypes.includes('create_workout') || actionTypes.includes('modify_workout') || actionTypes.includes('create_program')) {
           fetchPrograms().catch(() => {});
           fetchHistory().catch(() => {});
         }
@@ -243,9 +243,13 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
 
     // Suggest scheduling if user has active program but hasn't done it yet
-    const activeProgram = programs.find((p) => p.isActive);
     if (activeProgram && activeProgram.workouts && activeProgram.workouts.length > 1 && workoutHistory.length < 3) {
       prompts.push({ emoji: '📅', text: `Расставь тренировки программы "${activeProgram.name}" по дням недели` });
+    }
+
+    // Suggest creating a program if user has no active program
+    if (!activeProgram) {
+      prompts.push({ emoji: '📋', text: 'Составь мне программу тренировок Толчок-Тяга-Ноги на 3 дня в неделю' });
     }
 
     return prompts;
