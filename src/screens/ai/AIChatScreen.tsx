@@ -37,7 +37,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
   const { workoutHistory, fetchHistory } = useWorkoutStore();
-  const { setTargets, syncMealsFromServer, defaultTargets, getDayLog } = useNutritionStore();
+  const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -134,6 +134,13 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (actionTypes.includes('log_meal') || actionTypes.includes('delete_meal')) {
           const today = new Date().toISOString().split('T')[0];
           syncMealsFromServer(today).catch(() => {});
+        }
+        if (actionTypes.includes('log_water')) {
+          const action = response.actions.find((a) => a.type === 'log_water');
+          if (action?.data?.ml) {
+            const today = new Date().toISOString().split('T')[0];
+            addWater(today, action.data.ml as number);
+          }
         }
         if (actionTypes.includes('update_nutrition_targets')) {
           const action = response.actions.find((a) => a.type === 'update_nutrition_targets');

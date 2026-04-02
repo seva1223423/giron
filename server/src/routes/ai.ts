@@ -65,6 +65,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - **create_workout** — создать тренировку и добавить её в план
 - **update_nutrition_targets** — установить дневные нормы КБЖУ (калории, белки, жиры, углеводы)
 - **log_meal** — записать приём пищи в дневник питания
+- **log_water** — записать выпитую воду в дневник
 - **delete_meal** — удалить приём пищи из дневника (при ошибке или по запросу пользователя)
 
 Используй эти инструменты когда:
@@ -77,6 +78,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - Пользователь сообщает что поел ("съел 200г гречки и куриную грудку") → log_meal с рассчитанным КБЖУ
 - Пользователь просит записать еду/приём пищи → log_meal
 - Пользователь хочет удалить/отменить записанный приём пищи → найди его id в разделе "ПИТАНИЕ СЕГОДНЯ" и вызови delete_meal
+- Пользователь сообщает что выпил воду/чай/кофе → log_water с количеством в мл
 
 После использования инструмента — не упоминай технические детали, просто подтверди действие в тексте: "Записал твой вес — 85 кг" или "Создал тренировку — она уже в твоём плане".
 
@@ -224,6 +226,17 @@ const AI_TOOLS: Anthropic.Tool[] = [
         carbs: { type: 'number', description: 'Дневная норма углеводов в граммах' },
       },
       required: ['calories', 'protein', 'fats', 'carbs'],
+    },
+  },
+  {
+    name: 'log_water',
+    description: 'Записать выпитую воду в дневник пользователя. Используй когда пользователь сообщает что выпил воду или другой напиток (чай, кофе считаются). 1 стакан ≈ 250 мл, 1 бутылка ≈ 500 мл.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ml: { type: 'number', description: 'Количество воды в миллилитрах' },
+      },
+      required: ['ml'],
     },
   },
   {
@@ -576,6 +589,16 @@ async function executeTool(
       resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${Math.round(totalCalories)} ккал, Б${Math.round(totalProtein)}г, Ж${Math.round(totalFats)}г, У${Math.round(totalCarbs)}г`,
       actionDescription: description,
       actionData: { mealType, totalCalories: Math.round(totalCalories) },
+    };
+  }
+
+  if (toolName === 'log_water') {
+    const { ml } = toolInput as { ml: number };
+    const amount = Math.round(ml);
+    return {
+      resultText: `Записано ${amount} мл воды`,
+      actionDescription: `+${amount} мл воды`,
+      actionData: { ml: amount },
     };
   }
 
