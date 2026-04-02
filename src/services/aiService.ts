@@ -21,8 +21,12 @@ export interface AIActionResult {
 }
 
 export const aiService = {
-  async chat(message: string): Promise<{ message: string; actions: AIActionResult[] }> {
-    const { data } = await api.post('/ai/chat', { message });
+  async chat(
+    message: string,
+    nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number },
+    waterMl?: number,
+  ): Promise<{ message: string; actions: AIActionResult[] }> {
+    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl });
     return { message: data.message, actions: data.actions ?? [] };
   },
 

@@ -630,7 +630,11 @@ async function executeTool(
 // Chat with AI
 router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { message } = req.body;
+    const { message, nutritionTargets, waterMl } = req.body as {
+      message: string;
+      nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number };
+      waterMl?: number;
+    };
     if (!message) return res.status(400).json({ error: 'Сообщение обязательно' });
 
     const userId = req.userId!;
@@ -789,6 +793,15 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
 
     // Build today's nutrition context
+    if (nutritionTargets) {
+      statsContext += '\n## НОРМЫ ПИТАНИЯ (ЦЕЛИ ПОЛЬЗОВАТЕЛЯ)\n';
+      statsContext += `Калории: ${nutritionTargets.calories} ккал | Белок: ${nutritionTargets.protein}г | Жиры: ${nutritionTargets.fats}г | Углеводы: ${nutritionTargets.carbs}г | Вода: ${nutritionTargets.waterTargetMl} мл\n`;
+      if (waterMl !== undefined) {
+        const waterLeft = Math.max(0, nutritionTargets.waterTargetMl - waterMl);
+        statsContext += `Вода выпита сегодня: ${waterMl} мл из ${nutritionTargets.waterTargetMl} мл (осталось ${waterLeft} мл)\n`;
+      }
+    }
+
     if (todayMeals.length > 0) {
       const MEAL_TYPE_LABELS: Record<string, string> = {
         breakfast: 'Завтрак',

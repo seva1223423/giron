@@ -37,7 +37,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
   const { workoutHistory, fetchHistory } = useWorkoutStore();
-  const { setTargets, syncMealsFromServer } = useNutritionStore();
+  const { setTargets, syncMealsFromServer, defaultTargets, getDayLog } = useNutritionStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -106,7 +106,16 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const response = await aiService.chat(text.trim());
+      const todayDate = new Date().toISOString().split('T')[0];
+      const todayLog = getDayLog(todayDate);
+      const nutritionTargets = {
+        calories: todayLog.targetCalories,
+        protein: todayLog.targetProtein,
+        fats: todayLog.targetFats ?? defaultTargets.fats,
+        carbs: todayLog.targetCarbs ?? defaultTargets.carbs,
+        waterTargetMl: todayLog.waterTargetMl ?? defaultTargets.waterTargetMl,
+      };
+      const response = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
