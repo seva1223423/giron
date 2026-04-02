@@ -1,10 +1,38 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useNutritionStore } from '../../store';
+import { useThemeStore, useNutritionStore, useAuthStore } from '../../store';
 import { Card, Button, ProgressRing, MacroBar } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+
+function calcSmartTargets(user: { weightKg?: number; heightCm?: number; goal?: string; gender?: string; age?: number } | null) {
+  const weight = user?.weightKg || 80;
+  const height = user?.heightCm || 175;
+  const age = user?.age || 28;
+  const gender = user?.gender;
+  const goal = user?.goal;
+
+  const bmr = gender === 'female'
+    ? 10 * weight + 6.25 * height - 5 * age - 161
+    : 10 * weight + 6.25 * height - 5 * age + 5;
+
+  const tdee = Math.round(bmr * 1.55); // moderately active (gym 3-5x/week)
+
+  let calories: number;
+  if (goal === 'weight_loss') calories = Math.round(tdee - 500);
+  else if (goal === 'muscle_gain') calories = Math.round(tdee + 400);
+  else if (goal === 'strength') calories = Math.round(tdee + 200);
+  else calories = tdee;
+  calories = Math.max(calories, 1200);
+
+  const proteinPerKg = goal === 'muscle_gain' ? 2.2 : goal === 'weight_loss' ? 2.0 : goal === 'strength' ? 2.0 : 1.8;
+  const protein = Math.round(weight * proteinPerKg);
+  const fats = Math.round((calories * 0.25) / 9);
+  const carbs = Math.max(Math.round((calories - protein * 4 - fats * 9) / 4), 50);
+
+  return { calories, protein, fats, carbs };
+}
 
 const todayDate = () => new Date().toISOString().split('T')[0];
 
@@ -35,6 +63,7 @@ const MEAL_TYPES = [
 
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
+  const { user } = useAuthStore();
   const { getDayLog, addWater, setTargets, removeMeal } = useNutritionStore();
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const isToday = selectedDate === todayDate();
@@ -92,9 +121,22 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <Modal visible={showGoalsModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.xl }]}>
+            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.md }]}>
               Дневные цели КБЖУ
             </Text>
+            <TouchableOpacity
+              onPress={() => {
+                const smart = calcSmartTargets(user);
+                setGoalCalories(smart.calories.toString());
+                setGoalProtein(smart.protein.toString());
+                setGoalFats(smart.fats.toString());
+                setGoalCarbs(smart.carbs.toString());
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={[styles.smartBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
+            >
+              <Text style={[typography.smallMedium, { color: colors.primary }]}>⚡ Авторассчитать по профилю</Text>
+            </TouchableOpacity>
             {[
               { label: 'Калории (ккал)', value: goalCalories, setter: setGoalCalories },
               { label: 'Белки (г)', value: goalProtein, setter: setGoalProtein },
@@ -304,6 +346,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: borderRadius.xl,
     padding: spacing.xl,
     paddingBottom: 48,
+  },
+  smartBtn: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center' as const,
+    marginBottom: spacing.lg,
   },
   goalInput: {
     height: 48,

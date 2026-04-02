@@ -18,14 +18,15 @@ interface NutritionStore {
   syncMealsFromServer: (date: string) => Promise<void>;
 }
 
-const getDefaultDayLog = (date: string): DailyNutrition => ({
+const getDefaultDayLog = (date: string, defaults?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number }): DailyNutrition => ({
   date,
   meals: [],
   waterMl: 0,
-  targetCalories: 2500,
-  targetProtein: 150,
-  targetFats: 80,
-  targetCarbs: 300,
+  targetCalories: defaults?.calories ?? 2500,
+  targetProtein: defaults?.protein ?? 150,
+  targetFats: defaults?.fats ?? 80,
+  targetCarbs: defaults?.carbs ?? 300,
+  waterTargetMl: defaults?.waterTargetMl ?? 2500,
 });
 
 export const useNutritionStore = create<NutritionStore>()(
@@ -38,21 +39,13 @@ export const useNutritionStore = create<NutritionStore>()(
       getDayLog: (date) => {
         const existing = get().dailyLog[date];
         if (existing) return existing;
-        const { defaultTargets } = get();
-        return {
-          ...getDefaultDayLog(date),
-          targetCalories: defaultTargets.calories,
-          targetProtein: defaultTargets.protein,
-          targetFats: defaultTargets.fats,
-          targetCarbs: defaultTargets.carbs,
-          waterTargetMl: defaultTargets.waterTargetMl,
-        };
+        return getDefaultDayLog(date, get().defaultTargets);
       },
 
       addMeal: (date, meal) => {
         // Update local state immediately
         set((s) => {
-          const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
+          const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
           return {
             dailyLog: {
               ...s.dailyLog,
@@ -122,7 +115,7 @@ export const useNutritionStore = create<NutritionStore>()(
       }),
 
       addWater: (date, ml) => set((s) => {
-        const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
+        const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
         return {
           dailyLog: {
             ...s.dailyLog,
@@ -135,7 +128,7 @@ export const useNutritionStore = create<NutritionStore>()(
       }),
 
       setTargets: (date, targets) => set((s) => {
-        const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
+        const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
         const waterTargetMl = targets.waterTargetMl ?? s.defaultTargets.waterTargetMl;
         return {
           defaultTargets: { ...s.defaultTargets, ...targets, waterTargetMl },
@@ -158,7 +151,7 @@ export const useNutritionStore = create<NutritionStore>()(
           const meals = await nutritionService.getMealsByDate(date);
           if (meals.length > 0) {
             set((s) => {
-              const dayLog = s.dailyLog[date] || getDefaultDayLog(date);
+              const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
               return {
                 dailyLog: {
                   ...s.dailyLog,
