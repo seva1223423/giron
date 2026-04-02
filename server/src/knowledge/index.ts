@@ -9,9 +9,14 @@ import { HOME_BODYWEIGHT } from './homeAndBodyweight';
 import { PSYCHOLOGY_HABITS } from './psychologyAndHabits';
 import { HEALTH_BIOMARKERS } from './healthBiomarkers';
 import { INTEGRATED_APPROACH } from './integratedApproach';
+import { POWERLIFTING } from './powerlifting';
+import { ADVANCED_TECHNIQUES } from './advancedTechniques';
+import { SUPPLEMENTS_DETAILED } from './supplementsDetailed';
+import { WOMENS_PROGRAMMING } from './womensProgramming';
+import { CUTTING_BULKING } from './cuttingBulking';
 
 /**
- * Complete AI Trainer Knowledge Base — 9 Modules
+ * Complete AI Trainer Knowledge Base — 16 Modules
  *
  * Compiled from peer-reviewed research and authoritative sources:
  *
@@ -99,6 +104,11 @@ export const FULL_KNOWLEDGE_BASE = [
   PSYCHOLOGY_HABITS,
   HEALTH_BIOMARKERS,
   INTEGRATED_APPROACH,
+  POWERLIFTING,
+  ADVANCED_TECHNIQUES,
+  SUPPLEMENTS_DETAILED,
+  WOMENS_PROGRAMMING,
+  CUTTING_BULKING,
 ].join('\n\n---\n\n');
 
 export {
@@ -113,4 +123,9 @@ export {
   PSYCHOLOGY_HABITS,
   HEALTH_BIOMARKERS,
   INTEGRATED_APPROACH,
+  POWERLIFTING,
+  ADVANCED_TECHNIQUES,
+  SUPPLEMENTS_DETAILED,
+  WOMENS_PROGRAMMING,
+  CUTTING_BULKING,
 };
