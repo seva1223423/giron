@@ -3,11 +3,12 @@ import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated, Touchabl
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { Workout } from '../../types';
+import { computeAchievements, getNewlyUnlocked } from '../../utils/achievements';
 
 const PR_EMOJIS = ['🏆', '🎉', '⭐', '💪', '🔥', '✨', '🥇', '💫'];
 const PARTICLE_COUNT = 18;
@@ -70,6 +71,7 @@ const PRCelebration: React.FC = () => {
 export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const { colors } = useThemeStore();
   const { workoutHistory, updateWorkoutInHistory } = useWorkoutStore();
+  const { dailyLog } = useNutritionStore();
   const workout: Workout = route.params?.workout;
   const [rating, setRating] = useState<number>(workout?.rating ?? 0);
   const [sessionNote, setSessionNote] = useState<string>(workout?.notes ?? '');
@@ -116,14 +118,40 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
     return prs;
   }, [workout, workoutHistory]);
 
+  // Detect newly unlocked achievements after this workout
+  const newAchievements = useMemo(() => {
+    if (!workout) return [];
+    const nutritionDaysLogged = Object.values(dailyLog).filter((d) => d.meals.length > 0).length;
+    // Streak from workout history: consecutive days ending today
+    const sortedDates = workoutHistory
+      .filter((w) => w.completedAt)
+      .map((w) => new Date(w.completedAt!).toDateString())
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < sortedDates.length; i++) {
+      const expected = new Date(today);
+      expected.setDate(today.getDate() - i);
+      if (sortedDates[i] === expected.toDateString()) streak++;
+      else break;
+    }
+    // Achievements BEFORE this workout (history without current)
+    const prevHistory = workoutHistory.filter((w) => w.id !== workout.id);
+    const prevAchievements = computeAchievements({ workoutHistory: prevHistory, nutritionDaysLogged, currentStreak: Math.max(0, streak - 1) });
+    const prevUnlockedIds = prevAchievements.filter((a) => a.unlocked).map((a) => a.id);
+    const currentAchievements = computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak: streak });
+    return getNewlyUnlocked(prevUnlockedIds, currentAchievements);
+  }, [workout, workoutHistory, dailyLog]);
+
   useEffect(() => {
-    if (newPRs.length > 0) {
+    if (newPRs.length > 0 || newAchievements.length > 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 400);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [newPRs.length]);
+  }, [newPRs.length, newAchievements.length]);
 
   if (!workout) {
     navigation.goBack();
@@ -242,6 +270,36 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
                 <Text style={[typography.small, { color: colors.textSecondary }]}>
                   {pr.weight} кг × {pr.reps} повт. • ~1ПМ: {pr.est1rm} кг
                 </Text>
+              </View>
+            ))}
+          </Card>
+        </FadeIn>
+      )}
+
+      {/* Achievement unlocks banner */}
+      {newAchievements.length > 0 && (
+        <FadeIn delay={150}>
+          <Card style={{ marginBottom: spacing.lg, backgroundColor: '#FFD70015', borderLeftWidth: 4, borderLeftColor: '#FFD700' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🏅</Text>
+              <Text style={[typography.h4, { color: '#B8860B' }]}>
+                {newAchievements.length === 1 ? 'Новое достижение!' : `${newAchievements.length} новых достижения!`}
+              </Text>
+            </View>
+            {newAchievements.map((a, i) => (
+              <View
+                key={a.id}
+                style={[
+                  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
+                  i < newAchievements.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#FFD70030' },
+                ]}
+              >
+                <Text style={{ fontSize: 22 }}>{a.emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{a.title}</Text>
+                  <Text style={[typography.small, { color: colors.textSecondary }]}>{a.description}</Text>
+                </View>
+                <Text style={{ fontSize: 16 }}>✅</Text>
               </View>
             ))}
           </Card>

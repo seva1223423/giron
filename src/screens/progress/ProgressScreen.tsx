@@ -2,13 +2,14 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, TextInput, Modal, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useWorkoutStore, useAuthStore } from '../../store';
+import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { userService, workoutService } from '../../services';
 import { BodyWeight, BodyMeasurement } from '../../types';
 import { LeaderboardEntry } from '../../services/workoutService';
+import { computeAchievements, ACHIEVEMENT_DEFINITIONS, Achievement } from '../../utils/achievements';
 
 const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
 
@@ -180,7 +181,8 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
   const { user } = useAuthStore();
-  const [tab, setTab] = useState<'overview' | 'calendar' | 'records' | 'weight'>('overview');
+  const { dailyLog } = useNutritionStore();
+  const [tab, setTab] = useState<'overview' | 'calendar' | 'records' | 'weight' | 'achievements'>('overview');
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -500,11 +502,24 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       .map(([key, value]) => ({ label: labels[key] || key, value }));
   }, [workoutHistory]);
 
+  // Nutrition days logged (distinct dates with at least 1 meal)
+  const nutritionDaysLogged = useMemo(() => {
+    return Object.values(dailyLog).filter((d) => d.meals.length > 0).length;
+  }, [dailyLog]);
+
+  // Achievements
+  const achievements = useMemo(() =>
+    computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak: streak }),
+  [workoutHistory, nutritionDaysLogged, streak]);
+
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+
   const tabs = [
     { key: 'overview', label: 'Обзор' },
     { key: 'calendar', label: 'Календарь' },
     { key: 'records', label: 'Рекорды' },
     { key: 'weight', label: 'Вес тела' },
+    { key: 'achievements', label: `🏅 ${unlockedCount}/${ACHIEVEMENT_DEFINITIONS.length}` },
   ] as const;
 
   const MONTH_NAMES = [
@@ -1262,6 +1277,115 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             </FadeIn>
           </>
         )}
+
+        {tab === 'achievements' && (
+          <>
+            <FadeIn delay={0}>
+              <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+                <Text style={{ fontSize: 48 }}>🏅</Text>
+                <Text style={[typography.h3, { color: colors.text, marginTop: spacing.md }]}>
+                  Достижения
+                </Text>
+                <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+                  {unlockedCount} из {ACHIEVEMENT_DEFINITIONS.length} получено
+                </Text>
+                <View style={[styles.achievementProgressBar, { backgroundColor: colors.border }]}>
+                  <View
+                    style={[
+                      styles.achievementProgressFill,
+                      {
+                        backgroundColor: colors.accent,
+                        width: `${(unlockedCount / ACHIEVEMENT_DEFINITIONS.length) * 100}%` as any,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            </FadeIn>
+            {(['workout', 'strength', 'streak', 'exploration', 'nutrition'] as const).map((cat) => {
+              const catAchievements = achievements.filter((a) => a.category === cat);
+              const catLabels: Record<string, string> = {
+                workout: '💪 Тренировки',
+                strength: '🏋️ Сила',
+                streak: '🔥 Серии',
+                exploration: '🌟 Разнообразие',
+                nutrition: '🥗 Питание',
+              };
+              return (
+                <FadeIn key={cat} delay={80}>
+                  <Text
+                    style={[
+                      typography.h4,
+                      { color: colors.text, marginBottom: spacing.md, marginTop: spacing.lg },
+                    ]}
+                  >
+                    {catLabels[cat]}
+                  </Text>
+                  {catAchievements.map((a) => (
+                    <Card key={a.id} style={{ marginBottom: spacing.sm, opacity: a.unlocked ? 1 : 0.55 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                        <View
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: a.unlocked ? colors.accent + '20' : colors.border + '60',
+                          }}
+                        >
+                          <Text style={{ fontSize: 24 }}>{a.emoji}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              typography.bodySemibold,
+                              { color: a.unlocked ? colors.text : colors.textSecondary },
+                            ]}
+                          >
+                            {a.title}
+                          </Text>
+                          <Text
+                            style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}
+                          >
+                            {a.description}
+                          </Text>
+                          {!a.unlocked && a.progress !== undefined && (
+                            <>
+                              <View
+                                style={{
+                                  height: 4,
+                                  borderRadius: 2,
+                                  backgroundColor: colors.border,
+                                  marginTop: spacing.sm,
+                                }}
+                              >
+                                <View
+                                  style={{
+                                    height: 4,
+                                    borderRadius: 2,
+                                    backgroundColor: colors.accent,
+                                    width: `${a.progress * 100}%` as any,
+                                  }}
+                                />
+                              </View>
+                              <Text
+                                style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}
+                              >
+                                {a.progressLabel}
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                        {a.unlocked && <Text style={{ fontSize: 20 }}>✅</Text>}
+                      </View>
+                    </Card>
+                  ))}
+                </FadeIn>
+              );
+            })}
+          </>
+        )}
       </ScrollView>
 
       {/* Add measurements modal */}
@@ -1404,6 +1528,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   modalCard: { padding: spacing.xl },
+  achievementProgressBar: {
+    height: 6,
+    borderRadius: 3,
+    width: '70%',
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  achievementProgressFill: {
+    height: 6,
+    borderRadius: 3,
+  },
   weightInput: {
     flex: 1,
     height: 52,
