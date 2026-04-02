@@ -25,8 +25,11 @@ interface WorkoutStore {
   isLoadingPrograms: boolean;
   isLoadingHistory: boolean;
   weekPlan: Record<number, WeekPlanEntry | null>; // 0=Mon … 6=Sun
+  savedTemplates: Workout[];
 
   setWeekPlanDay: (dow: number, entry: WeekPlanEntry | null) => void;
+  saveAsTemplate: (workout: Workout) => void;
+  deleteTemplate: (id: string) => void;
 
   // Programs
   setPrograms: (programs: Program[]) => void;
@@ -68,9 +71,29 @@ export const useWorkoutStore = create<WorkoutStore>()(
       isLoadingPrograms: false,
       isLoadingHistory: false,
       weekPlan: {},
+      savedTemplates: [],
 
       setWeekPlanDay: (dow, entry) => set((s) => ({
         weekPlan: { ...s.weekPlan, [dow]: entry },
+      })),
+
+      saveAsTemplate: (workout) => set((s) => {
+        // Avoid duplicates by id
+        const exists = s.savedTemplates.some((t) => t.id === workout.id);
+        if (exists) return s;
+        const template: Workout = {
+          ...workout,
+          id: `tpl-${Date.now()}`,
+          completedAt: undefined,
+          startedAt: undefined,
+          durationMinutes: undefined,
+          totalVolume: undefined,
+        };
+        return { savedTemplates: [template, ...s.savedTemplates] };
+      }),
+
+      deleteTemplate: (id) => set((s) => ({
+        savedTemplates: s.savedTemplates.filter((t) => t.id !== id),
       })),
 
       setPrograms: (programs) => set({ programs }),
@@ -367,6 +390,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         workoutHistory: state.workoutHistory,
         activeWorkout: state.activeWorkout,
         weekPlan: state.weekPlan,
+        savedTemplates: state.savedTemplates,
       }),
     }
   )

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore, useSubscriptionStore } from '../../store';
@@ -48,7 +48,7 @@ const EQUIPMENT_FILTERS = [
 
 export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { programs, startWorkout, activeWorkout, fetchPrograms, isLoadingPrograms } = useWorkoutStore();
+  const { programs, startWorkout, activeWorkout, fetchPrograms, isLoadingPrograms, savedTemplates, saveAsTemplate, deleteTemplate } = useWorkoutStore();
   const { isPremiumActive } = useSubscriptionStore();
   const [showPaywall, setShowPaywall] = useState(false);
   const [tab, setTab] = useState<'quick' | 'programs' | 'exercises'>('quick');
@@ -225,6 +225,68 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   </Text>
                 </Card>
               </FadeIn>
+            )}
+
+            {savedTemplates.length > 0 && (
+              <>
+                <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+                  Мои шаблоны
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.sm }}
+                  style={{ marginBottom: spacing.xl }}
+                >
+                  {savedTemplates.map((tpl, i) => (
+                    <FadeIn key={tpl.id} delay={i * 60}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          const workout: Workout = {
+                            ...tpl,
+                            id: `workout-${Date.now()}`,
+                            exercises: tpl.exercises.map((ex, ei) => ({
+                              ...ex,
+                              id: `we-${Date.now()}-${ei}`,
+                              sets: ex.sets.map((s, si) => ({
+                                ...s,
+                                id: `set-${Date.now()}-${ei}-${si}`,
+                                completed: false,
+                              })),
+                            })),
+                          };
+                          startWorkout(workout);
+                          navigation.navigate('ActiveWorkout');
+                        }}
+                        onLongPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                          Alert.alert(
+                            'Удалить шаблон?',
+                            `"${tpl.name}" будет удалён из сохранённых`,
+                            [
+                              { text: 'Отмена', style: 'cancel' },
+                              { text: 'Удалить', style: 'destructive', onPress: () => deleteTemplate(tpl.id) },
+                            ]
+                          );
+                        }}
+                        style={[
+                          styles.templateCard,
+                          { backgroundColor: colors.card, borderColor: colors.border },
+                        ]}
+                      >
+                        <Text style={{ fontSize: 28, marginBottom: spacing.sm }}>⭐</Text>
+                        <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.xs }]} numberOfLines={2}>
+                          {tpl.name}
+                        </Text>
+                        <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                          {tpl.exercises.length} упр.
+                        </Text>
+                      </TouchableOpacity>
+                    </FadeIn>
+                  ))}
+                </ScrollView>
+              </>
             )}
 
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
@@ -536,5 +598,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
     borderWidth: 1,
+  },
+  templateCard: {
+    width: 140,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
   },
 });

@@ -29,7 +29,7 @@ const MUSCLE_FILTERS = [
 
 export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { startWorkout } = useWorkoutStore();
+  const { startWorkout, saveAsTemplate } = useWorkoutStore();
   const [workoutName, setWorkoutName] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,14 +59,7 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
   const isSelected = (id: string) => selectedExercises.some((e) => e.id === id);
 
-  const handleStart = () => {
-    if (selectedExercises.length === 0) {
-      Alert.alert('Выбери упражнения', 'Добавь хотя бы одно упражнение в тренировку');
-      return;
-    }
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
+  const buildWorkout = (): Workout => {
     const workoutExercises: WorkoutExercise[] = selectedExercises.map((ex, index) => {
       const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
         id: `set-${Date.now()}-${index}-${i}`,
@@ -85,15 +78,31 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         restSeconds: 90,
       };
     });
-
-    const workout: Workout = {
+    return {
       id: `workout-${Date.now()}`,
       name: workoutName || `Тренировка ${new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`,
       exercises: workoutExercises,
     };
+  };
 
-    startWorkout(workout);
+  const handleStart = () => {
+    if (selectedExercises.length === 0) {
+      Alert.alert('Выбери упражнения', 'Добавь хотя бы одно упражнение в тренировку');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    startWorkout(buildWorkout());
     navigation.navigate('ActiveWorkout');
+  };
+
+  const handleSaveTemplate = () => {
+    if (selectedExercises.length === 0) {
+      Alert.alert('Выбери упражнения', 'Добавь хотя бы одно упражнение');
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    saveAsTemplate(buildWorkout());
+    Alert.alert('Сохранено', 'Шаблон добавлен в «Мои шаблоны»');
   };
 
   const moveExercise = (index: number, direction: 'up' | 'down') => {
@@ -176,11 +185,19 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         ))}
 
         <Button
+          title="Сохранить как шаблон"
+          variant="outline"
+          onPress={handleSaveTemplate}
+          fullWidth
+          style={{ marginTop: spacing.xl }}
+        />
+
+        <Button
           title="Начать тренировку"
           onPress={handleStart}
           fullWidth
           size="lg"
-          style={{ marginTop: spacing.xl }}
+          style={{ marginTop: spacing.md }}
         />
       </ScrollView>
     );
