@@ -17,6 +17,7 @@ export interface FoodAnalysisResult {
 export interface AIActionResult {
   type: string;
   description: string;
+  data?: Record<string, unknown>;
 }
 
 export const aiService = {

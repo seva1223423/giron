@@ -63,12 +63,15 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 - **update_user_profile** — обновить вес, рост, цель, уровень подготовки
 - **log_body_weight** — записать замер веса тела
 - **create_workout** — создать тренировку и добавить её в план
+- **update_nutrition_targets** — установить дневные нормы КБЖУ (калории, белки, жиры, углеводы)
 
 Используй эти инструменты когда:
 - Пользователь сообщает свой актуальный вес ("сегодня вешу 85 кг") → log_body_weight + update_user_profile
 - Пользователь хочет изменить цель тренировок → update_user_profile
 - Пользователь просит составить конкретную тренировку → create_workout
 - После составления программы — создай первую тренировку сразу
+- Пользователь просит рассчитать КБЖУ/калории или установить нормы питания → рассчитай TDEE и вызови update_nutrition_targets
+- При изменении цели (похудение/набор) → update_nutrition_targets с пересчитанными нормами
 
 После использования инструмента — не упоминай технические детали, просто подтверди действие в тексте: "Записал твой вес — 85 кг" или "Создал тренировку — она уже в твоём плане".
 
@@ -202,6 +205,20 @@ const AI_TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['name', 'exercises'],
+    },
+  },
+  {
+    name: 'update_nutrition_targets',
+    description: 'Установить дневные нормы КБЖУ пользователя. Используй когда рассчитываешь TDEE и макросы по запросу или когда пользователь просит изменить нормы питания. Рассчитай точные значения на основе профиля и цели, затем вызови этот инструмент.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        calories: { type: 'number', description: 'Дневная норма калорий в ккал' },
+        protein: { type: 'number', description: 'Дневная норма белка в граммах' },
+        fats: { type: 'number', description: 'Дневная норма жиров в граммах' },
+        carbs: { type: 'number', description: 'Дневная норма углеводов в граммах' },
+      },
+      required: ['calories', 'protein', 'fats', 'carbs'],
     },
   },
 ];
@@ -353,7 +370,7 @@ async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   userId: string,
-): Promise<{ resultText: string; actionDescription: string }> {
+): Promise<{ resultText: string; actionDescription: string; actionData?: Record<string, unknown> }> {
   if (toolName === 'update_user_profile') {
     const { weightKg, heightCm, goal, fitnessLevel } = toolInput as {
       weightKg?: number;
@@ -459,6 +476,28 @@ async function executeTool(
     return {
       resultText: `Тренировка "${workout.name}" создана с упражнениями: ${foundNames}`,
       actionDescription: `Тренировка "${name}" добавлена в план (${validExercises.length} упражнений)`,
+    };
+  }
+
+  if (toolName === 'update_nutrition_targets') {
+    const { calories, protein, fats, carbs } = toolInput as {
+      calories: number;
+      protein: number;
+      fats: number;
+      carbs: number;
+    };
+
+    const cal = Math.round(calories);
+    const prot = Math.round(protein);
+    const fat = Math.round(fats);
+    const carb = Math.round(carbs);
+
+    const description = `Нормы КБЖУ: ${cal} ккал / Б${prot}г / Ж${fat}г / У${carb}г`;
+
+    return {
+      resultText: `Нормы КБЖУ установлены: ${cal} ккал, белок ${prot}г, жиры ${fat}г, углеводы ${carb}г`,
+      actionDescription: description,
+      actionData: { calories: cal, protein: prot, fats: fat, carbs: carb },
     };
   }
 
@@ -638,7 +677,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     ];
 
     const anthropic = getAnthropicClient();
-    const performedActions: Array<{ type: string; description: string }> = [];
+    const performedActions: Array<{ type: string; description: string; data?: Record<string, unknown> }> = [];
 
     // First API call — may include tool_use
     let response = await anthropic.messages.create({
@@ -658,13 +697,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       // Execute all tool calls
       const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
         toolUseBlocks.map(async (block) => {
-          const { resultText, actionDescription } = await executeTool(
+          const { resultText, actionDescription, actionData } = await executeTool(
             block.name,
             block.input as Record<string, unknown>,
             userId,
           );
           if (actionDescription) {
-            performedActions.push({ type: block.name, description: actionDescription });
+            performedActions.push({ type: block.name, description: actionDescription, data: actionData });
           }
           return {
             type: 'tool_result' as const,

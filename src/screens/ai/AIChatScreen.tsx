@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useAuthStore, useWorkoutStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
+import { useThemeStore, useAuthStore, useWorkoutStore, useSubscriptionStore, FREE_LIMITS, useNutritionStore } from '../../store';
 import { FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -37,6 +37,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
   const { workoutHistory, fetchHistory } = useWorkoutStore();
+  const { setTargets } = useNutritionStore();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -120,6 +121,18 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
         if (actionTypes.includes('update_user_profile') || actionTypes.includes('log_body_weight')) {
           fetchProfile().catch(() => {});
+        }
+        if (actionTypes.includes('update_nutrition_targets')) {
+          const action = response.actions.find((a) => a.type === 'update_nutrition_targets');
+          if (action?.data) {
+            const today = new Date().toISOString().split('T')[0];
+            setTargets(today, {
+              calories: action.data.calories as number,
+              protein: action.data.protein as number,
+              fats: action.data.fats as number,
+              carbs: action.data.carbs as number,
+            });
+          }
         }
       }
 
