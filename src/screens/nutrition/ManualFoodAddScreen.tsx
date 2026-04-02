@@ -50,7 +50,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
   const mealType = route.params?.mealType || 'snack';
   const routeDate = route.params?.date as string | undefined;
   const { colors } = useThemeStore();
-  const { addMeal, dailyLog } = useNutritionStore();
+  const { addMeal, dailyLog, saveFoodItem } = useNutritionStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFood, setSelectedFood] = useState<typeof FOOD_DB[0] | null>(null);
@@ -276,9 +276,29 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
 
             {selectedFood && (
               <Card style={{ marginTop: spacing.md, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
-                <Text style={[typography.captionMedium, { color: colors.primary, marginBottom: spacing.md }]}>
-                  {selectedFood.name}
-                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                  <Text style={[typography.captionMedium, { color: colors.primary }]}>
+                    {selectedFood.name}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      saveFoodItem({
+                        id: `saved-${selectedFood.name.replace(/\s/g, '-').toLowerCase()}`,
+                        name: selectedFood.name,
+                        calories: selectedFood.calories,
+                        protein: selectedFood.protein,
+                        fats: selectedFood.fats,
+                        carbs: selectedFood.carbs,
+                        weightGrams: 100,
+                      });
+                      Alert.alert('Сохранено ⭐', `${selectedFood.name} добавлен в быстрые продукты`);
+                    }}
+                    style={[styles.saveBtn, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
+                  >
+                    <Text style={[typography.caption, { color: colors.warning }]}>⭐ Сохранить</Text>
+                  </TouchableOpacity>
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
                   <Text style={[typography.body, { color: colors.text }]}>Порция:</Text>
                   <TextInput
@@ -368,13 +388,36 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
           </Card>
         )}
 
-        <Button
-          title="Добавить"
-          onPress={handleAdd}
-          fullWidth
-          size="lg"
-          style={{ marginTop: spacing.xl, marginBottom: spacing.huge }}
-        />
+        <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.huge }}>
+          {tab === 'custom' && customName.trim() !== '' && (
+            <TouchableOpacity
+              onPress={() => {
+                if (!customName.trim()) return;
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                saveFoodItem({
+                  id: `saved-${customName.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`,
+                  name: customName.trim(),
+                  calories: parseInt(customCalories) || 0,
+                  protein: parseFloat(customProtein) || 0,
+                  fats: parseFloat(customFats) || 0,
+                  carbs: parseFloat(customCarbs) || 0,
+                  weightGrams: 100,
+                });
+                Alert.alert('Сохранено ⭐', `${customName.trim()} добавлен в быстрые продукты`);
+              }}
+              style={[styles.saveBtnLg, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
+            >
+              <Text style={[typography.smallMedium, { color: colors.warning }]}>⭐</Text>
+            </TouchableOpacity>
+          )}
+          <Button
+            title="Добавить"
+            onPress={handleAdd}
+            fullWidth
+            size="lg"
+            style={{ flex: 1 }}
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -443,5 +486,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 110,
     maxWidth: 150,
+  },
+  saveBtn: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  saveBtnLg: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

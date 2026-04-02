@@ -5,6 +5,7 @@ import { useThemeStore, useNutritionStore, useAuthStore } from '../../store';
 import { Card, Button, ProgressRing, MacroBar } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+import { NutritionItem, Meal } from '../../types';
 
 function calcSmartTargets(user: { weightKg?: number; heightCm?: number; goal?: string; gender?: string; age?: number } | null) {
   const weight = user?.weightKg || 80;
@@ -64,11 +65,15 @@ const MEAL_TYPES = [
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { dailyLog, getDayLog, addWater, setTargets, removeMeal } = useNutritionStore();
+  const { dailyLog, getDayLog, addWater, setTargets, removeMeal, addMeal, savedFoods, removeSavedFood } = useNutritionStore();
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const isToday = selectedDate === todayDate();
   const dayLog = getDayLog(selectedDate);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [quickAddFood, setQuickAddFood] = useState<NutritionItem | null>(null);
+  const [quickMealType, setQuickMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
+  const [quickWeight, setQuickWeight] = useState('100');
   const [goalCalories, setGoalCalories] = useState(dayLog.targetCalories.toString());
   const [goalProtein, setGoalProtein] = useState(dayLog.targetProtein.toString());
   const [goalFats, setGoalFats] = useState(dayLog.targetFats?.toString() || '70');
@@ -130,6 +135,42 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   const handlePhotoScan = () => {
     navigation.navigate('FoodScanner');
+  };
+
+  const handleQuickAdd = (food: NutritionItem) => {
+    Haptics.selectionAsync();
+    setQuickAddFood(food);
+    setQuickWeight('100');
+    setShowQuickAddModal(true);
+  };
+
+  const handleConfirmQuickAdd = () => {
+    if (!quickAddFood) return;
+    const w = parseFloat(quickWeight) || 100;
+    const base = quickAddFood.weightGrams || 100;
+    const ratio = w / base;
+    const item: NutritionItem = {
+      ...quickAddFood,
+      id: Date.now().toString(),
+      weightGrams: w,
+      calories: Math.round(quickAddFood.calories * ratio),
+      protein: Math.round(quickAddFood.protein * ratio * 10) / 10,
+      fats: Math.round(quickAddFood.fats * ratio * 10) / 10,
+      carbs: Math.round(quickAddFood.carbs * ratio * 10) / 10,
+    };
+    const meal: Meal = {
+      id: Date.now().toString(),
+      type: quickMealType,
+      items: [item],
+      totalCalories: item.calories,
+      totalProtein: item.protein,
+      totalFats: item.fats,
+      totalCarbs: item.carbs,
+      createdAt: new Date().toISOString(),
+    };
+    addMeal(selectedDate, meal);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowQuickAddModal(false);
   };
 
   const handlePrevDay = () => {
@@ -247,6 +288,52 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         </View>
       </Card>
 
+      {/* Quick-add modal */}
+      <Modal visible={showQuickAddModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.xs }]}>
+              {quickAddFood?.name}
+            </Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
+              {quickAddFood?.calories} ккал / {quickAddFood?.weightGrams || 100}г
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>Вес (г)</Text>
+            <TextInput
+              style={[styles.goalInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text, marginBottom: spacing.lg }]}
+              value={quickWeight}
+              onChangeText={setQuickWeight}
+              keyboardType="numeric"
+              placeholderTextColor={colors.inputPlaceholder}
+            />
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>Приём пищи</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+              {MEAL_TYPES.map((mt) => (
+                <TouchableOpacity
+                  key={mt.key}
+                  onPress={() => setQuickMealType(mt.key as any)}
+                  style={[
+                    styles.mealTypeChip,
+                    {
+                      backgroundColor: quickMealType === mt.key ? colors.primary : colors.surface,
+                      borderColor: quickMealType === mt.key ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[typography.caption, { color: quickMealType === mt.key ? '#FFF' : colors.text }]}>
+                    {mt.emoji} {mt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <Button title="Отмена" variant="outline" onPress={() => setShowQuickAddModal(false)} style={{ flex: 1 }} />
+              <Button title="Добавить" onPress={handleConfirmQuickAdd} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Scan food button */}
       <Button
         title="📸 Сканировать еду по фото"
@@ -255,6 +342,35 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         size="lg"
         style={{ marginBottom: spacing.lg }}
       />
+
+      {/* Saved foods quick-add */}
+      {savedFoods.length > 0 && (
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <Text style={[typography.h4, { color: colors.text }]}>⭐ Быстрые продукты</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>{savedFoods.length}/30</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.xs }}>
+            {savedFoods.map((food) => (
+              <TouchableOpacity
+                key={food.id}
+                onPress={() => handleQuickAdd(food)}
+                onLongPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  removeSavedFood(food.id);
+                }}
+                style={[styles.savedFoodChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <Text style={[typography.captionMedium, { color: colors.text }]} numberOfLines={1}>{food.name}</Text>
+                <Text style={[typography.small, { color: colors.primary }]}>{food.calories} ккал</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.sm }]}>
+            Нажми для добавления · Удержи для удаления
+          </Text>
+        </Card>
+      )}
 
       {/* Water tracker */}
       <Card style={{ marginBottom: spacing.lg }}>
@@ -464,5 +580,20 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
     minWidth: 32,
     alignItems: 'center',
+  },
+  savedFoodChip: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginHorizontal: spacing.xs,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  mealTypeChip: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
 });

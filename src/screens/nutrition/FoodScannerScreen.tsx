@@ -13,7 +13,7 @@ const todayDate = () => new Date().toISOString().split('T')[0];
 
 export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { addMeal, getDayLog } = useNutritionStore();
+  const { addMeal, getDayLog, saveFoodItem } = useNutritionStore();
   const today = todayDate();
   const dayLog = getDayLog(today);
   const alreadyEaten = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
@@ -330,15 +330,35 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <Card key={item.id} style={{ marginBottom: spacing.md }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
                 <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}>{item.name}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <TextInput
-                    style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
-                    value={item.weightGrams?.toString() ?? ''}
-                    onChangeText={(v) => updateItemWeight(item.id, v)}
-                    keyboardType="numeric"
-                    selectTextOnFocus
-                  />
-                  <Text style={[typography.small, { color: colors.textSecondary }]}>г</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const base = itemBases[item.id];
+                      saveFoodItem({
+                        ...item,
+                        id: `saved-${item.name.replace(/\s/g, '-').toLowerCase()}`,
+                        calories: base ? Math.round(base.cal) : item.calories,
+                        protein: base ? Math.round(base.prot * 10) / 10 : item.protein,
+                        fats: base ? Math.round(base.fats * 10) / 10 : item.fats,
+                        carbs: base ? Math.round(base.carbs * 10) / 10 : item.carbs,
+                        weightGrams: 100,
+                      });
+                      Alert.alert('Сохранено ⭐', `${item.name} добавлен в быстрые продукты`);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={{ fontSize: 18 }}>⭐</Text>
+                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <TextInput
+                      style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                      value={item.weightGrams?.toString() ?? ''}
+                      onChangeText={(v) => updateItemWeight(item.id, v)}
+                      keyboardType="numeric"
+                      selectTextOnFocus
+                    />
+                    <Text style={[typography.small, { color: colors.textSecondary }]}>г</Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.nutritionRow}>

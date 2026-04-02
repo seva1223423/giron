@@ -8,6 +8,7 @@ interface NutritionStore {
   dailyLog: Record<string, DailyNutrition>;
   waterMl: number;
   defaultTargets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number };
+  savedFoods: NutritionItem[];
 
   getDayLog: (date: string) => DailyNutrition;
   addMeal: (date: string, meal: Meal) => void;
@@ -16,6 +17,8 @@ interface NutritionStore {
   addWater: (date: string, ml: number) => void;
   setTargets: (date: string, targets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl?: number }) => void;
   syncMealsFromServer: (date: string) => Promise<void>;
+  saveFoodItem: (item: NutritionItem) => void;
+  removeSavedFood: (id: string) => void;
 }
 
 const getDefaultDayLog = (date: string, defaults?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number }): DailyNutrition => ({
@@ -35,6 +38,7 @@ export const useNutritionStore = create<NutritionStore>()(
       dailyLog: {},
       waterMl: 0,
       defaultTargets: { calories: 2500, protein: 150, fats: 80, carbs: 300, waterTargetMl: 2500 },
+      savedFoods: [],
 
       getDayLog: (date) => {
         const existing = get().dailyLog[date];
@@ -145,6 +149,16 @@ export const useNutritionStore = create<NutritionStore>()(
           },
         };
       }),
+
+      saveFoodItem: (item) => set((s) => {
+        const already = s.savedFoods.some((f) => f.id === item.id || f.name === item.name);
+        if (already) return s;
+        return { savedFoods: [item, ...s.savedFoods].slice(0, 30) };
+      }),
+
+      removeSavedFood: (id) => set((s) => ({
+        savedFoods: s.savedFoods.filter((f) => f.id !== id),
+      })),
 
       syncMealsFromServer: async (date) => {
         try {
