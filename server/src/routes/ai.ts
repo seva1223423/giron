@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { chat, analyzeImage, generate, DeepSeekTool, DeepSeekMessage } from '../services/deepseekAI';
+import { chat, chatWithoutTools, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
   NUTRITION_KNOWLEDGE,
@@ -1697,14 +1697,14 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       data: { role: 'user', content: message, userId },
     });
 
-    // Build conversation messages (history + current message)
-    const messages: DeepSeekMessage[] = history
+    // Build conversation messages (history + current message) with smart trimming
+    const rawMessages: DeepSeekMessage[] = history
       .reverse()
       .map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       }));
-    messages.push({ role: 'user', content: message });
+    rawMessages.push({ role: 'user', content: message });
 
     const { content: knowledgeContent, topics: relevantTopics } = getRelevantKnowledge(message);
 
@@ -1778,44 +1778,19 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       `${userContext}\n${programContext}\n${statsContext}${insightsBlock}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
+    // Smart history trimming — не шлём больше чем влезет в контекст
+    // Mistral small: ~32k, DeepSeek: ~64k. Берём консервативно 24k для истории.
+    const MODEL_CONTEXT_TOKENS = 24_000;
+    const systemTokens = estimateTokens(systemPrompt);
+    const messages = trimHistory(rawMessages, MODEL_CONTEXT_TOKENS, systemTokens);
+
     const performedActions: Array<{ type: string; description: string; data?: Record<string, unknown> }> = [];
+    const MAX_TOOL_ITERATIONS = 5; // Защита от бесконечного цикла
+    let toolIterations = 0;
 
-    // First AI call — may include tool_calls
-    let result = await chat({
-      system: systemPrompt,
-      messages,
-      tools: AI_TOOLS,
-      maxTokens: 6144,
-      temperature: 0.5,
-    });
-
-    // Agentic loop: process tool calls until we get a final text response
-    while (result.hasToolCalls) {
-      // Append assistant's tool-call message (OpenAI format: requires id + type)
-      messages.push({
-        role: 'assistant',
-        content: result.content || null,
-        tool_calls: result.toolCalls.map((tc) => ({
-          id: tc.id,
-          type: 'function' as const,
-          function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
-        })),
-      });
-
-      // Execute all tool calls and append results (OpenAI format: requires tool_call_id)
-      for (const tc of result.toolCalls) {
-        const { resultText, actionDescription, actionData } = await executeTool(
-          tc.name,
-          tc.arguments,
-          userId,
-        );
-        if (actionDescription) {
-          performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
-        }
-        messages.push({ role: 'tool', tool_call_id: tc.id, content: resultText });
-      }
-
-      // Continue conversation
+    let result;
+    try {
+      // First AI call — may include tool_calls
       result = await chat({
         system: systemPrompt,
         messages,
@@ -1823,9 +1798,86 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         maxTokens: 6144,
         temperature: 0.5,
       });
+
+      // Agentic loop: process tool calls until we get a final text response
+      while (result.hasToolCalls && toolIterations < MAX_TOOL_ITERATIONS) {
+        toolIterations++;
+
+        // Append assistant's tool-call message (OpenAI format: requires id + type)
+        messages.push({
+          role: 'assistant',
+          content: result.content || null,
+          tool_calls: result.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: 'function' as const,
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          })),
+        });
+
+        // Execute all tool calls and append results
+        for (const tc of result.toolCalls) {
+          let resultText: string;
+          let actionDescription = '';
+          let actionData: Record<string, unknown> | undefined;
+
+          try {
+            const toolResult = await executeTool(tc.name, tc.arguments, userId);
+            resultText = toolResult.resultText;
+            actionDescription = toolResult.actionDescription;
+            actionData = toolResult.actionData;
+          } catch (toolError) {
+            console.error(`Tool ${tc.name} failed:`, toolError);
+            resultText = `Ошибка выполнения инструмента ${tc.name}: ${(toolError as Error).message}`;
+          }
+
+          if (actionDescription) {
+            performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
+          }
+          messages.push({ role: 'tool', tool_call_id: tc.id, content: resultText });
+        }
+
+        // Continue conversation
+        result = await chat({
+          system: systemPrompt,
+          messages,
+          tools: AI_TOOLS,
+          maxTokens: 6144,
+          temperature: 0.5,
+        });
+      }
+
+      // Если AI зациклился на tool calls — запросим финальный ответ без tools
+      if (toolIterations >= MAX_TOOL_ITERATIONS && result.hasToolCalls) {
+        console.warn(`AI tool loop hit limit (${MAX_TOOL_ITERATIONS}), forcing text response`);
+        const textOnly = await chatWithoutTools({
+          system: systemPrompt,
+          messages,
+          maxTokens: 6144,
+          temperature: 0.5,
+        });
+        result = { content: textOnly, toolCalls: [], hasToolCalls: false };
+      }
+    } catch (aiError) {
+      console.error('AI chat call failed, attempting fallback without tools:', aiError);
+      // Fallback: повторяем без tools (проще для модели, меньше шанс ошибки)
+      try {
+        const fallbackContent = await chatWithoutTools({
+          system: systemPrompt,
+          messages,
+          maxTokens: 4096,
+          temperature: 0.6,
+        });
+        result = { content: fallbackContent, toolCalls: [], hasToolCalls: false };
+      } catch (fallbackError) {
+        console.error('AI fallback also failed:', fallbackError);
+        return res.status(503).json({
+          error: 'AI-сервис временно недоступен. Попробуй через минуту.',
+          retryAfter: 60,
+        });
+      }
     }
 
-    const aiContent = result.content;
+    const aiContent = result.content || 'Не удалось сгенерировать ответ. Попробуй переформулировать вопрос.';
 
     // Save AI response with actions
     await prisma.chatMessage.create({
