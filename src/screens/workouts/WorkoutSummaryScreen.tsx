@@ -628,27 +628,32 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
           {/* Background */}
           <View style={StyleSheet.absoluteFillObject}>
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0D0D0D' }]} />
-            {/* Decorative gradient circle */}
+            {/* Top-right glow — red brand color */}
             <View style={styles.shareCardGlow} />
+            {/* Bottom-left glow — accent complement */}
+            <View style={styles.shareCardGlow2} />
           </View>
 
           {/* Header */}
           <View style={styles.shareCardHeader}>
-            <Text style={styles.shareCardBrand}>IRON GYM</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 14 }}>🏋️</Text>
+              <Text style={styles.shareCardBrand}>IRON GYM</Text>
+            </View>
             <Text style={styles.shareCardDate}>{dateStr}</Text>
           </View>
 
           {/* Workout title */}
           <Text style={styles.shareCardTitle}>{workout.name}</Text>
 
-          {/* PR badge */}
-          {newPRs.length > 0 && (
+          {/* PR badge — prominent if any */}
+          {newPRs.length > 0 ? (
             <View style={styles.shareCardPRBadge}>
               <Text style={styles.shareCardPRText}>
-                🏆 {newPRs.length === 1 ? 'ЛИЧНЫЙ РЕКОРД' : `${newPRs.length} ЛИЧНЫХ РЕКОРДА`}
+                🏆 {newPRs.length === 1 ? `ЛИЧНЫЙ РЕКОРД • ${newPRs[0].name}` : `${newPRs.length} ЛИЧНЫХ РЕКОРДА`}
               </Text>
             </View>
-          )}
+          ) : null}
 
           {/* Stats row */}
           <View style={styles.shareCardStats}>
@@ -658,53 +663,64 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
             </View>
             <View style={styles.shareCardStatDivider} />
             <View style={styles.shareCardStat}>
-              <Text style={styles.shareCardStatValue}>{workout.exercises.length}</Text>
-              <Text style={styles.shareCardStatLabel}>УПРАЖ.</Text>
-            </View>
-            <View style={styles.shareCardStatDivider} />
-            <View style={styles.shareCardStat}>
               <Text style={styles.shareCardStatValue}>{totalSets}</Text>
-              <Text style={styles.shareCardStatLabel}>ПОДХОДОВ</Text>
+              <Text style={styles.shareCardStatLabel}>ПОДХ.</Text>
             </View>
             <View style={styles.shareCardStatDivider} />
             <View style={styles.shareCardStat}>
-              <Text style={[styles.shareCardStatValue, { color: '#E8F5E9' }]}>
+              <Text style={styles.shareCardStatValue}>{totalReps}</Text>
+              <Text style={styles.shareCardStatLabel}>ПОВТ.</Text>
+            </View>
+            <View style={styles.shareCardStatDivider} />
+            <View style={styles.shareCardStat}>
+              <Text style={[styles.shareCardStatValue, { color: '#4FC3F7' }]}>
                 {((workout.totalVolume || 0) / 1000).toFixed(1)}т
               </Text>
               <Text style={styles.shareCardStatLabel}>ОБЪЁМ</Text>
             </View>
           </View>
 
-          {/* Exercises list (top 4) */}
+          {/* Exercises list (top 5) */}
           <View style={styles.shareCardExercises}>
-            {workout.exercises.slice(0, 4).map((ex, i) => {
+            {workout.exercises.slice(0, 5).map((ex, i) => {
               const completedSets = ex.sets.filter((s) => s.completed);
               const topSet = completedSets.reduce<{ weight: number; reps: number } | null>((best, s) => {
                 const v = (s.weight || 0) * (s.reps || 0);
                 return !best || v > (best.weight * best.reps) ? { weight: s.weight || 0, reps: s.reps || 0 } : best;
               }, null);
-              const isPR = newPRs.some((pr) => pr.name === ex.exercise.name);
+              const isExPR = newPRs.some((pr) => pr.name === ex.exercise.name);
               return (
                 <View key={i} style={styles.shareCardExRow}>
-                  <Text style={styles.shareCardExName} numberOfLines={1}>
-                    {isPR ? '🏆 ' : ''}{ex.exercise.name}
-                  </Text>
-                  {topSet && (
-                    <Text style={styles.shareCardExSet}>
-                      {topSet.weight}×{topSet.reps}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 5 }}>
+                    {isExPR && <Text style={{ fontSize: 10 }}>🏆</Text>}
+                    <Text style={[styles.shareCardExName, isExPR && { color: '#FFD700' }]} numberOfLines={1}>
+                      {ex.exercise.name}
                     </Text>
-                  )}
+                  </View>
+                  {topSet && topSet.weight > 0 ? (
+                    <Text style={styles.shareCardExSet}>
+                      {topSet.weight}кг × {topSet.reps}
+                    </Text>
+                  ) : topSet ? (
+                    <Text style={styles.shareCardExSet}>
+                      {completedSets.length} подх.
+                    </Text>
+                  ) : null}
                 </View>
               );
             })}
-            {workout.exercises.length > 4 && (
-              <Text style={styles.shareCardMore}>+{workout.exercises.length - 4} упражнений</Text>
+            {workout.exercises.length > 5 && (
+              <Text style={styles.shareCardMore}>+{workout.exercises.length - 5} ещё</Text>
             )}
           </View>
 
           {/* Footer */}
           <View style={styles.shareCardFooter}>
-            <Text style={styles.shareCardFooterText}>iron-gym.app</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 9, color: '#333' }}>●</Text>
+              <Text style={styles.shareCardFooterText}>СДЕЛАНО В IRON GYM</Text>
+              <Text style={{ fontSize: 9, color: '#333' }}>●</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -759,6 +775,16 @@ const styles = StyleSheet.create({
     borderRadius: 110,
     backgroundColor: '#E53935',
     opacity: 0.18,
+  },
+  shareCardGlow2: {
+    position: 'absolute',
+    bottom: -80,
+    left: -80,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: '#1565C0',
+    opacity: 0.14,
   },
   shareCardHeader: {
     flexDirection: 'row',
@@ -864,11 +890,12 @@ const styles = StyleSheet.create({
     borderTopColor: '#1E1E1E',
     paddingTop: 12,
     alignItems: 'center',
+    marginTop: 4,
   },
   shareCardFooterText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#444',
-    fontWeight: '600',
-    letterSpacing: 1,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
 });

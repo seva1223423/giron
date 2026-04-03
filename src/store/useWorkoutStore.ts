@@ -145,7 +145,27 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const exercises = [...workout.exercises];
         const exercise = { ...exercises[exerciseIndex] };
         const sets = [...exercise.sets];
-        sets[setIndex] = { ...sets[setIndex], ...data, completed: true };
+        const completedSet = { ...sets[setIndex], ...data, completed: true };
+
+        // Detect PR: compute Epley 1RM and compare against history
+        const { weight, reps } = completedSet;
+        if (weight && reps && weight > 0 && reps > 0 && completedSet.type !== 'warmup') {
+          const newRM = weight * (1 + reps / 30);
+          const exerciseId = exercise.exerciseId;
+          const historyBest = s.workoutHistory
+            .filter((w) => w.id !== workout.id)
+            .flatMap((w) => w.exercises)
+            .filter((e) => e.exerciseId === exerciseId)
+            .flatMap((e) => e.sets)
+            .filter((st) => st.completed && st.weight && st.reps && st.type !== 'warmup')
+            .reduce((best, st) => {
+              const rm = (st.weight!) * (1 + (st.reps!) / 30);
+              return rm > best ? rm : best;
+            }, 0);
+          completedSet.isPR = newRM > historyBest && historyBest > 0;
+        }
+
+        sets[setIndex] = completedSet;
         exercise.sets = sets;
         exercises[exerciseIndex] = exercise;
         workout.exercises = exercises;

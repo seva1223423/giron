@@ -278,6 +278,9 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                 const completedSets = workout.exercises.reduce(
                   (s: number, e: any) => s + e.sets.filter((set: any) => set.completed).length, 0
                 );
+                const prCount = workout.exercises.reduce(
+                  (s: number, e: any) => s + e.sets.filter((set: any) => set.isPR).length, 0
+                );
 
                 const muscleSet = new Set<string>();
                 workout.exercises.forEach((ex: any) => {
@@ -331,6 +334,11 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                               {'⭐'.repeat(workout.rating)}
                             </Text>
                           )}
+                          {prCount > 0 && (
+                            <View style={[styles.prBadge, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '60' }]}>
+                              <Text style={{ fontSize: 10, color: colors.warning }}>🏆 {prCount} ЛР</Text>
+                            </View>
+                          )}
                           <Text style={[typography.caption, { color: colors.textTertiary }]}>
                             {completedSets} подх. {isExpanded ? '▲' : '▼'}
                           </Text>
@@ -356,7 +364,8 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                           {workout.exercises.map((ex: any, ei: number) => {
                             const doneSets = ex.sets.filter((s: any) => s.completed);
                             const vol = doneSets.reduce((s: number, set: any) => s + (set.weight || 0) * (set.reps || 0), 0);
-                            const bestSet = doneSets.sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0))[0];
+                            const bestSet = [...doneSets].sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0))[0];
+                            const hasPR = doneSets.some((s: any) => s.isPR);
                             return (
                               <View
                                 key={ex.id}
@@ -366,9 +375,16 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                                 ]}
                               >
                                 <View style={{ flex: 1 }}>
-                                  <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>
-                                    {ex.exercise.name}
-                                  </Text>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                                    <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>
+                                      {ex.exercise.name}
+                                    </Text>
+                                    {hasPR && (
+                                      <View style={[styles.prBadge, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '60' }]}>
+                                        <Text style={{ fontSize: 9, color: colors.warning }}>🏆 ЛР</Text>
+                                      </View>
+                                    )}
+                                  </View>
                                   {ex.notes ? (
                                     <Text style={[typography.small, { color: colors.textTertiary, fontStyle: 'italic' }]} numberOfLines={1}>
                                       {ex.notes}
@@ -376,7 +392,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                                   ) : null}
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
-                                  <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>
+                                  <Text style={[typography.captionMedium, { color: hasPR ? colors.warning : colors.textSecondary }]}>
                                     {doneSets.length}×{bestSet ? `${bestSet.weight}кг` : '-'}
                                   </Text>
                                   {vol > 0 && (
@@ -458,6 +474,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  prBadge: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
   },
 });
