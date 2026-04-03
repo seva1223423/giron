@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { chat, chatWithoutTools, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory } from '../services/deepseekAI';
+import { chat, chatWithoutTools, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
   NUTRITION_KNOWLEDGE,
@@ -757,24 +757,162 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
   ]],
 ];
 
+// ─── Intent Classification ──────────────────────────────────────────────────
+
+type UserIntent =
+  | 'data_logging'      // "вешу 85", "съел гречку", "выпил воду"
+  | 'program_creation'  // "составь программу", "план на неделю"
+  | 'workout_modify'    // "сделай легче", "убери упражнение"
+  | 'technique_question'// "как делать присед", "техника жима"
+  | 'nutrition_query'   // "сколько белка", "рассчитай КБЖУ"
+  | 'analytics_query'   // "как мой прогресс", "покажи статистику"
+  | 'greeting'          // "привет", "здорово"
+  | 'complaint'         // "болит", "травма", "не могу"
+  | 'motivation'        // "не хочу", "лень", "скучно"
+  | 'general';          // всё остальное
+
+interface IntentConfig {
+  temperature: number;
+  maxTokens: number;
+  toolsEnabled: boolean;  // false = chatWithoutTools (faster, cheaper for info-only queries)
+  priorityModules?: string[]; // force-include these knowledge modules
+}
+
+const INTENT_CONFIGS: Record<UserIntent, IntentConfig> = {
+  data_logging:       { temperature: 0.3, maxTokens: 2048, toolsEnabled: true },
+  program_creation:   { temperature: 0.6, maxTokens: 8192, toolsEnabled: true },
+  workout_modify:     { temperature: 0.3, maxTokens: 4096, toolsEnabled: true },
+  technique_question: { temperature: 0.5, maxTokens: 4096, toolsEnabled: false, priorityModules: ['EXERCISE_TECHNIQUE'] },
+  nutrition_query:    { temperature: 0.4, maxTokens: 4096, toolsEnabled: true, priorityModules: ['NUTRITION', 'NUTRITION_DATABASE'] },
+  analytics_query:    { temperature: 0.4, maxTokens: 4096, toolsEnabled: false },
+  greeting:           { temperature: 0.7, maxTokens: 1024, toolsEnabled: false },
+  complaint:          { temperature: 0.4, maxTokens: 4096, toolsEnabled: true, priorityModules: ['INJURY_AND_REHAB', 'RECOVERY'] },
+  motivation:         { temperature: 0.7, maxTokens: 3072, toolsEnabled: false, priorityModules: ['PSYCHOLOGY'] },
+  general:            { temperature: 0.5, maxTokens: 6144, toolsEnabled: true },
+};
+
+const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
+  ['data_logging', [
+    /(?:вешу|вес\s*\d|взвеси|записать?\s*вес|моё?\s*вес)/i,
+    /(?:съел[аи]?|поел[аи]?|кушал|завтрак|обед|ужин|перекус).*(?:\d|грамм|порц|тарелк)/i,
+    /(?:выпил[аи]?|пил[аи]?)\s*(?:вод|стакан|бутылк|чай|кофе|литр|\d)/i,
+    /(?:съел[аи]?|поел[аи]?|кушал[аи]?)\b/i,
+    /(?:удали|убери)\s*(?:приём|завтрак|обед|ужин|перекус|еду)/i,
+    /(?:рост|мне)\s*\d{2,3}\s*(?:см|кг)/i,
+  ]],
+  ['program_creation', [
+    /(?:составь|создай|сделай|придумай|напиши)\s*(?:програм|план|сплит|тренировк)/i,
+    /(?:программ[ау]?\s*(?:на|для|тренировок))/i,
+    /(?:план\s*(?:на\s*недел|тренировок))/i,
+    /(?:хочу\s*(?:начать|заниматься|тренировать))/i,
+    /(?:расписание\s*тренировок)/i,
+  ]],
+  ['workout_modify', [
+    /(?:сделай|давай)\s*(?:легче|тяжелее|проще|сложнее)/i,
+    /(?:убери|удали|замени|поменяй|добавь)\s*(?:упражнен|подход|сет)/i,
+    /(?:не могу делать|болит при|замена для)/i,
+    /(?:увеличь|уменьши|снизь|подними)\s*(?:вес|нагрузк|повтор|подход)/i,
+  ]],
+  ['technique_question', [
+    /(?:как\s*(?:делать|правильно|выполнять|научиться))/i,
+    /(?:техник[аеу]?\s*(?:выполнения|жим|присед|тяг|упражнен))/i,
+    /(?:покажи|объясни|расскажи)\s*(?:технику|как делать)/i,
+    /(?:ошибк[иа]\s*(?:в|при|на)\s*(?:жим|присед|тяг))/i,
+    /(?:чем\s*заменить|аналог|альтернатив)/i,
+  ]],
+  ['nutrition_query', [
+    /(?:сколько\s*(?:белк|калори|жир|углевод|есть|пить|нужно\s*(?:есть|белк|калори)))/i,
+    /(?:рассчитай|посчитай|расчёт)\s*(?:кбжу|калори|tdee|бжу|норм)/i,
+    /(?:что\s*(?:есть|кушать|поесть|приготовить))/i,
+    /(?:меню|рацион|диет[аеу])\s/i,
+    /(?:кбжу|бжу|калорийность|макрос)/i,
+  ]],
+  ['analytics_query', [
+    /(?:как\s*(?:мой|мои|у\s*меня)\s*(?:прогресс|результат|успехи|динамик))/i,
+    /(?:покажи|расскажи|скажи)\s*(?:статистик|прогресс|результат|аналитик)/i,
+    /(?:мой[и]?\s*(?:рекорд|pr|пм|1пм|достижени))/i,
+    /(?:что\s*(?:изменилось|улучшилось))/i,
+  ]],
+  ['greeting', [
+    /^(?:привет|здравствуй|здорово|хай|хэй|hi|hello|добр\w+\s*(?:утро|день|вечер)|йо|ку)\s*[!.?]?\s*$/i,
+  ]],
+  ['complaint', [
+    /(?:болит|боль\s|травм|повредил|ушиб|растян|разры|защемил|онемен|хруст|щёлк|щелк)/i,
+    /(?:не\s*могу\s*(?:делать|тренироват|поднять|согнуть|разогнуть))/i,
+    /(?:дискомфорт|воспален|опух)/i,
+  ]],
+  ['motivation', [
+    /(?:не\s*хочу|лень|надоело|скучно|устал[аи]?|бросить|пропустил|нет\s*(?:сил|мотивац|желани))/i,
+    /(?:заставить\s*себя|как\s*(?:мотивировать|заставить|начать))/i,
+    /(?:потерял\s*(?:мотивац|интерес|запал))/i,
+  ]],
+];
+
+/**
+ * Fast rule-based intent classifier. No AI call — pure regex.
+ * Returns the most specific intent or 'general' as fallback.
+ */
+function classifyIntent(message: string): UserIntent {
+  for (const [intent, patterns] of INTENT_PATTERNS) {
+    if (patterns.some((p) => p.test(message))) {
+      return intent;
+    }
+  }
+  return 'general';
+}
+
 // Maximum number of knowledge modules to include per request (controls token usage)
 const MAX_KNOWLEDGE_MODULES = 4;
 
 // Default modules for general/greeting messages that don't match any keywords
 const DEFAULT_MODULES = ['TRAINING_PRINCIPLES', 'NUTRITION'];
 
-// Determine which knowledge chunks are relevant and return their actual content
-function getRelevantKnowledge(message: string): { content: string; topics: string[] } {
-  const lower = message.toLowerCase();
+/**
+ * Determine which knowledge chunks are relevant based on FULL conversation context.
+ * Analyzes current message + recent history (weighted: newer = more important).
+ * Also considers user profile (goal, gender) for implicit relevance.
+ */
+function getRelevantKnowledge(
+  message: string,
+  recentHistory: DeepSeekMessage[] = [],
+  userContext?: { goal?: string; gender?: string },
+): { content: string; topics: string[] } {
+  // Build weighted text: current message has highest weight, older messages decay
+  const weights = [1.0, 0.5, 0.3, 0.2]; // current, prev, prev-2, prev-3
+  const textsWithWeights: Array<{ text: string; weight: number }> = [
+    { text: message, weight: weights[0] },
+  ];
 
-  // Score each module: count how many keywords match (more matches = more relevant)
+  // Add recent user messages from history (only user messages, not assistant)
+  const userMessages = recentHistory
+    .filter((m) => m.role === 'user' && m.content)
+    .slice(-3)
+    .reverse();
+  userMessages.forEach((m, i) => {
+    textsWithWeights.push({ text: m.content!, weight: weights[i + 1] || 0.1 });
+  });
+
+  // Score each module with weighted keyword matching
   const scored = KEYWORD_MAPPINGS
     .map(([module, keywords]) => {
-      const matchCount = keywords.filter((k) => lower.includes(k)).length;
-      return { module, matchCount };
+      let score = 0;
+      for (const { text, weight } of textsWithWeights) {
+        const lower = text.toLowerCase();
+        const matchCount = keywords.filter((k) => lower.includes(k)).length;
+        score += matchCount * weight;
+      }
+
+      // Boost modules based on user profile (implicit relevance)
+      if (userContext?.gender === 'FEMALE' && module === 'WOMENS_PROGRAMMING') score += 1.5;
+      if (userContext?.goal === 'WEIGHT_LOSS' && module === 'CUTTING_BULKING') score += 1.0;
+      if (userContext?.goal === 'MUSCLE_GAIN' && module === 'CUTTING_BULKING') score += 1.0;
+      if (userContext?.goal === 'STRENGTH' && module === 'POWERLIFTING') score += 1.0;
+      if (userContext?.goal === 'ENDURANCE' && module === 'ENDURANCE_SPORTS') score += 1.0;
+
+      return { module, score };
     })
-    .filter((m) => m.matchCount > 0)
-    .sort((a, b) => b.matchCount - a.matchCount);
+    .filter((m) => m.score > 0)
+    .sort((a, b) => b.score - a.score);
 
   // Pick top N most relevant modules
   const selected = scored.length > 0
@@ -1697,6 +1835,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       data: { role: 'user', content: message, userId },
     });
 
+    // ─── Intent classification: tune AI parameters per message type ──────
+    const intent = classifyIntent(message);
+    const intentConfig = INTENT_CONFIGS[intent];
+    console.log(`[AI] Intent: ${intent}, temp: ${intentConfig.temperature}, maxTokens: ${intentConfig.maxTokens}, tools: ${intentConfig.toolsEnabled}`);
+
     // Build conversation messages (history + current message) with smart trimming
     const rawMessages: DeepSeekMessage[] = history
       .reverse()
@@ -1706,7 +1849,112 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }));
     rawMessages.push({ role: 'user', content: message });
 
-    const { content: knowledgeContent, topics: relevantTopics } = getRelevantKnowledge(message);
+    const { content: knowledgeContent, topics: relevantTopics } = getRelevantKnowledge(
+      message,
+      rawMessages.slice(0, -1), // история без текущего сообщения
+      { goal: user?.goal || undefined, gender: user?.gender || undefined },
+    );
+
+    // Force-include priority modules from intent config (if not already selected)
+    if (intentConfig.priorityModules) {
+      for (const mod of intentConfig.priorityModules) {
+        if (!relevantTopics.includes(mod) && KNOWLEDGE_MODULES[mod]) {
+          relevantTopics.push(mod);
+        }
+      }
+    }
+
+    // ─── Advanced analytics: compute deeper metrics for smarter AI ──────
+
+    // Weekly training volume and adherence
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    const weekWorkouts = await prisma.workout.findMany({
+      where: { userId, completedAt: { gte: oneWeekAgo } },
+      include: { exercises: { include: { sets: true } } },
+    });
+    const prevWeekWorkouts = await prisma.workout.findMany({
+      where: { userId, completedAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
+      include: { exercises: { include: { sets: true } } },
+    });
+
+    const calcWeekVolume = (workouts: typeof weekWorkouts) =>
+      workouts.reduce((total, w) =>
+        total + w.exercises.reduce((wSum, ex) =>
+          wSum + ex.sets.filter((s) => s.completed).reduce((sSum, s) => sSum + (s.weight || 0) * (s.reps || 0), 0), 0), 0);
+
+    const thisWeekVolume = calcWeekVolume(weekWorkouts);
+    const prevWeekVolume = calcWeekVolume(prevWeekWorkouts);
+    const plannedDays = activeProgram?.daysPerWeek || 3;
+    const adherenceRate = Math.min(100, Math.round((weekWorkouts.length / plannedDays) * 100));
+
+    if (weekWorkouts.length > 0 || prevWeekWorkouts.length > 0) {
+      const volumeDelta = prevWeekVolume > 0
+        ? Math.round(((thisWeekVolume - prevWeekVolume) / prevWeekVolume) * 100)
+        : null;
+      statsContext += '\n## НЕДЕЛЬНАЯ АНАЛИТИКА\n';
+      statsContext += `Тренировок за неделю: ${weekWorkouts.length}/${plannedDays} (adherence: ${adherenceRate}%)\n`;
+      statsContext += `Объём за неделю: ${Math.round(thisWeekVolume)} кг`;
+      if (volumeDelta !== null) {
+        statsContext += ` (${volumeDelta >= 0 ? '+' : ''}${volumeDelta}% vs прошлая неделя)`;
+      }
+      statsContext += '\n';
+
+      // Detect overreaching (volume jumped >30% week over week)
+      if (volumeDelta !== null && volumeDelta > 30) {
+        statsContext += `⚠️ Объём вырос на ${volumeDelta}% — возможно чрезмерная нагрузка\n`;
+      }
+    }
+
+    // Macro balance analysis (if there are meals today)
+    if (todayMeals.length > 0 && nutritionTargets) {
+      const totalProt = todayMeals.reduce((s, m) => s + m.totalProtein, 0);
+      const totalFat = todayMeals.reduce((s, m) => s + m.totalFats, 0);
+      const totalCarb = todayMeals.reduce((s, m) => s + m.totalCarbs, 0);
+      const totalCal = todayMeals.reduce((s, m) => s + m.totalCalories, 0);
+
+      const protPct = totalCal > 0 ? Math.round((totalProt * 4 / totalCal) * 100) : 0;
+      const fatPct = totalCal > 0 ? Math.round((totalFat * 9 / totalCal) * 100) : 0;
+      const carbPct = totalCal > 0 ? Math.round((totalCarb * 4 / totalCal) * 100) : 0;
+
+      statsContext += '\n## МАКРО-БАЛАНС СЕГОДНЯ\n';
+      statsContext += `Б: ${Math.round(totalProt)}г/${nutritionTargets.protein}г (${protPct}% ккал) | Ж: ${Math.round(totalFat)}г/${nutritionTargets.fats}г (${fatPct}% ккал) | У: ${Math.round(totalCarb)}г/${nutritionTargets.carbs}г (${carbPct}% ккал)\n`;
+
+      // Flag imbalances
+      if (protPct < 20 && user?.goal === 'MUSCLE_GAIN') {
+        statsContext += `⚠️ Низкая доля белка (${protPct}%) для набора массы. Рекомендуется 25-35%\n`;
+      }
+      if (fatPct > 40) {
+        statsContext += `⚠️ Высокая доля жиров (${fatPct}%). Рекомендуется 20-35%\n`;
+      }
+    }
+
+    // Estimated TDEE from actual data (if we have weight trend + calorie data for 7+ days)
+    const weekMeals = await prisma.meal.findMany({
+      where: { userId, createdAt: { gte: oneWeekAgo } },
+    });
+    if (weekMeals.length >= 5 && bodyWeightHistory.length >= 2) {
+      const avgDailyCal = weekMeals.reduce((s, m) => s + m.totalCalories, 0) / 7;
+      const newestWeight = bodyWeightHistory[0]?.weightKg;
+      const weekOldWeight = bodyWeightHistory.find(
+        (e) => (Date.now() - new Date(e.date).getTime()) / (1000 * 60 * 60 * 24) >= 5
+      )?.weightKg;
+
+      if (newestWeight && weekOldWeight) {
+        // 1 kg of body weight change ≈ 7700 kcal surplus/deficit
+        const weightChange = newestWeight - weekOldWeight;
+        const impliedSurplus = (weightChange * 7700) / 7; // daily surplus/deficit
+        const estimatedTDEE = Math.round(avgDailyCal - impliedSurplus);
+
+        if (estimatedTDEE > 1200 && estimatedTDEE < 5000) { // sanity check
+          statsContext += `\n## РАСЧЁТНЫЙ TDEE (на основе данных)\n`;
+          statsContext += `Средний приём: ${Math.round(avgDailyCal)} ккал/день | Δ вес: ${weightChange > 0 ? '+' : ''}${weightChange.toFixed(1)} кг/нед → TDEE ≈ ${estimatedTDEE} ккал\n`;
+        }
+      }
+    }
 
     // ─── Proactive insights: auto-detect issues and inject directives ──────
     const proactiveInsights: string[] = [];
@@ -1768,6 +2016,19 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       proactiveInsights.push(`⚠️ У пользователя нет активной программы тренировок. Если контекст подходит — предложи составить.`);
     }
 
+    // Low adherence (training less than planned)
+    if (adherenceRate < 50 && plannedDays >= 3 && weekWorkouts.length > 0) {
+      proactiveInsights.push(`⚠️ Adherence за неделю: ${adherenceRate}% (${weekWorkouts.length}/${plannedDays} тренировок). Если уместно — спроси что мешает и предложи скорректировать программу.`);
+    }
+
+    // Volume drop (possible fatigue/overtraining)
+    if (prevWeekVolume > 0 && thisWeekVolume > 0) {
+      const volumeDropPct = Math.round(((prevWeekVolume - thisWeekVolume) / prevWeekVolume) * 100);
+      if (volumeDropPct > 25) {
+        proactiveInsights.push(`⚠️ Объём тренировок упал на ${volumeDropPct}% по сравнению с прошлой неделей. Возможна усталость/перетренированность. Рассмотри deload.`);
+      }
+    }
+
     const insightsBlock = proactiveInsights.length > 0
       ? `\n\n## 🔔 ПРОАКТИВНЫЕ НАБЛЮДЕНИЯ (обязательно учти в ответе если релевантно)\n${proactiveInsights.join('\n')}`
       : '';
@@ -1778,11 +2039,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       `${userContext}\n${programContext}\n${statsContext}${insightsBlock}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
-    // Smart history trimming — не шлём больше чем влезет в контекст
+    // Smart history management — суммаризация старых сообщений + trim
     // Mistral small: ~32k, DeepSeek: ~64k. Берём консервативно 24k для истории.
     const MODEL_CONTEXT_TOKENS = 24_000;
     const systemTokens = estimateTokens(systemPrompt);
-    const messages = trimHistory(rawMessages, MODEL_CONTEXT_TOKENS, systemTokens);
+    const messages = await summarizeHistory(rawMessages, MODEL_CONTEXT_TOKENS, systemTokens, 8);
 
     const performedActions: Array<{ type: string; description: string; data?: Record<string, unknown> }> = [];
     const MAX_TOOL_ITERATIONS = 5; // Защита от бесконечного цикла
@@ -1790,76 +2051,83 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     let result;
     try {
-      // First AI call — may include tool_calls
-      result = await chat({
-        system: systemPrompt,
-        messages,
-        tools: AI_TOOLS,
-        maxTokens: 6144,
-        temperature: 0.5,
-      });
-
-      // Agentic loop: process tool calls until we get a final text response
-      while (result.hasToolCalls && toolIterations < MAX_TOOL_ITERATIONS) {
-        toolIterations++;
-
-        // Append assistant's tool-call message (OpenAI format: requires id + type)
-        messages.push({
-          role: 'assistant',
-          content: result.content || null,
-          tool_calls: result.toolCalls.map((tc) => ({
-            id: tc.id,
-            type: 'function' as const,
-            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
-          })),
-        });
-
-        // Execute all tool calls and append results
-        for (const tc of result.toolCalls) {
-          let resultText: string;
-          let actionDescription = '';
-          let actionData: Record<string, unknown> | undefined;
-
-          try {
-            const toolResult = await executeTool(tc.name, tc.arguments, userId);
-            resultText = toolResult.resultText;
-            actionDescription = toolResult.actionDescription;
-            actionData = toolResult.actionData;
-          } catch (toolError) {
-            console.error(`Tool ${tc.name} failed:`, toolError);
-            resultText = `Ошибка выполнения инструмента ${tc.name}: ${(toolError as Error).message}`;
-          }
-
-          if (actionDescription) {
-            performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
-          }
-          messages.push({ role: 'tool', tool_call_id: tc.id, content: resultText });
-        }
-
-        // Continue conversation
+      if (intentConfig.toolsEnabled) {
+        // Intent requires tools (data_logging, program_creation, etc.)
         result = await chat({
           system: systemPrompt,
           messages,
           tools: AI_TOOLS,
-          maxTokens: 6144,
-          temperature: 0.5,
+          maxTokens: intentConfig.maxTokens,
+          temperature: intentConfig.temperature,
         });
-      }
 
-      // Если AI зациклился на tool calls — запросим финальный ответ без tools
-      if (toolIterations >= MAX_TOOL_ITERATIONS && result.hasToolCalls) {
-        console.warn(`AI tool loop hit limit (${MAX_TOOL_ITERATIONS}), forcing text response`);
-        const textOnly = await chatWithoutTools({
+        // Agentic loop: process tool calls until we get a final text response
+        while (result.hasToolCalls && toolIterations < MAX_TOOL_ITERATIONS) {
+          toolIterations++;
+
+          messages.push({
+            role: 'assistant',
+            content: result.content || null,
+            tool_calls: result.toolCalls.map((tc) => ({
+              id: tc.id,
+              type: 'function' as const,
+              function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+            })),
+          });
+
+          for (const tc of result.toolCalls) {
+            let resultText: string;
+            let actionDescription = '';
+            let actionData: Record<string, unknown> | undefined;
+
+            try {
+              const toolResult = await executeTool(tc.name, tc.arguments, userId);
+              resultText = toolResult.resultText;
+              actionDescription = toolResult.actionDescription;
+              actionData = toolResult.actionData;
+            } catch (toolError) {
+              console.error(`Tool ${tc.name} failed:`, toolError);
+              resultText = `Ошибка выполнения инструмента ${tc.name}: ${(toolError as Error).message}`;
+            }
+
+            if (actionDescription) {
+              performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
+            }
+            messages.push({ role: 'tool', tool_call_id: tc.id, content: resultText });
+          }
+
+          result = await chat({
+            system: systemPrompt,
+            messages,
+            tools: AI_TOOLS,
+            maxTokens: intentConfig.maxTokens,
+            temperature: intentConfig.temperature,
+          });
+        }
+
+        if (toolIterations >= MAX_TOOL_ITERATIONS && result.hasToolCalls) {
+          console.warn(`AI tool loop hit limit (${MAX_TOOL_ITERATIONS}), forcing text response`);
+          const textOnly = await chatWithoutTools({
+            system: systemPrompt,
+            messages,
+            maxTokens: intentConfig.maxTokens,
+            temperature: intentConfig.temperature,
+          });
+          result = { content: textOnly, toolCalls: [], hasToolCalls: false };
+        }
+      } else {
+        // Intent is info-only (technique_question, analytics, greeting, motivation)
+        // Skip tools entirely — faster response, lower cost
+        const textContent = await chatWithoutTools({
           system: systemPrompt,
           messages,
-          maxTokens: 6144,
-          temperature: 0.5,
+          maxTokens: intentConfig.maxTokens,
+          temperature: intentConfig.temperature,
         });
-        result = { content: textOnly, toolCalls: [], hasToolCalls: false };
+        result = { content: textContent, toolCalls: [], hasToolCalls: false };
       }
     } catch (aiError) {
       console.error('AI chat call failed, attempting fallback without tools:', aiError);
-      // Fallback: повторяем без tools (проще для модели, меньше шанс ошибки)
       try {
         const fallbackContent = await chatWithoutTools({
           system: systemPrompt,
@@ -1877,7 +2145,30 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }
     }
 
-    const aiContent = result.content || 'Не удалось сгенерировать ответ. Попробуй переформулировать вопрос.';
+    // ─── Validate and clean AI response ──────────────────────────────
+    let aiContent = result.content || '';
+
+    const validation = validateResponse(aiContent, message);
+    if (validation.shouldRegenerate) {
+      console.warn(`AI response failed validation: ${validation.issues.join(', ')}. Regenerating...`);
+      try {
+        // Повторный запрос с hint'ом в системном промпте, temperature ниже чем intent для стабильности
+        const regenContent = await chatWithoutTools({
+          system: systemPrompt + '\n\n⚠️ ВАЖНО: Отвечай СТРОГО на русском языке. Будь конкретным и полезным. Не используй английский.',
+          messages,
+          maxTokens: intentConfig.maxTokens,
+          temperature: Math.max(0.2, intentConfig.temperature - 0.15),
+        });
+        const regenValidation = validateResponse(regenContent, message);
+        if (!regenValidation.shouldRegenerate) {
+          aiContent = regenContent;
+        }
+      } catch (regenError) {
+        console.warn('Regeneration failed, using original response:', (regenError as Error).message);
+      }
+    }
+
+    aiContent = cleanResponse(aiContent) || 'Не удалось сгенерировать ответ. Попробуй переформулировать вопрос.';
 
     // Save AI response with actions
     await prisma.chatMessage.create({
@@ -1889,12 +2180,87 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       },
     });
 
-    res.json({ message: aiContent, actions: performedActions });
+    res.json({ message: aiContent, actions: performedActions, intent });
   } catch (e) {
     console.error('AI Chat error:', e);
     res.status(500).json({ error: 'Ошибка ИИ-ассистента' });
   }
 });
+
+// ─── Food photo analysis helpers ──────────────────────────────────────────────
+
+interface FoodItem {
+  name: string;
+  weightGrams: number;
+  calories: number;
+  protein: number;
+  fats: number;
+  carbs: number;
+}
+
+/** Парсит JSON с едой из ответа AI. Обрабатывает битый JSON, markdown-обёртки, etc. */
+function parseFoodResponse(text: string): FoodItem[] | null {
+  // 1. Убираем markdown code blocks
+  let cleaned = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim();
+
+  // 2. Ищем JSON-объект
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    // Попробуем найти массив напрямую
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        const items = JSON.parse(arrayMatch[0]);
+        if (Array.isArray(items) && items.length > 0 && items[0].name) return items;
+      } catch { /* continue */ }
+    }
+    return null;
+  }
+
+  // 3. Пробуем прямой парсинг
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (parsed.items && Array.isArray(parsed.items)) return parsed.items;
+    if (Array.isArray(parsed)) return parsed;
+    return null;
+  } catch { /* continue to fix */ }
+
+  // 4. Чиним типичные ошибки AI в JSON
+  try {
+    let fixed = jsonMatch[0]
+      .replace(/,\s*}/g, '}')           // trailing comma перед }
+      .replace(/,\s*]/g, ']')           // trailing comma перед ]
+      .replace(/'/g, '"')               // одинарные кавычки
+      .replace(/(\w+)\s*:/g, '"$1":')   // ключи без кавычек
+      .replace(/""(\w+)""/g, '"$1"');   // двойные кавычки
+    const parsed = JSON.parse(fixed);
+    if (parsed.items && Array.isArray(parsed.items)) return parsed.items;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Проверяет валидность КБЖУ значений */
+function validateFoodItems(items: FoodItem[]): FoodItem[] {
+  return items
+    .filter((item) => item.name && item.weightGrams > 0)
+    .map((item) => ({
+      name: item.name,
+      weightGrams: Math.round(Math.max(1, item.weightGrams)),
+      calories: Math.round(Math.max(0, item.calories || 0)),
+      protein: Math.round(Math.max(0, item.protein || 0) * 10) / 10,
+      fats: Math.round(Math.max(0, item.fats || 0) * 10) / 10,
+      carbs: Math.round(Math.max(0, item.carbs || 0) * 10) / 10,
+    }))
+    .map((item) => {
+      // Sanity check: если КБЖУ = 0 но вес > 0 — пересчитаем приблизительно
+      if (item.calories === 0 && item.weightGrams > 0) {
+        item.calories = Math.round((item.protein * 4 + item.fats * 9 + item.carbs * 4));
+      }
+      return item;
+    });
+}
 
 // Analyze food photo
 router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Response) => {
@@ -1939,16 +2305,59 @@ ${userInfo}
 
 Только JSON, без комментариев и пояснений.`;
 
-    const text = await analyzeImage(imageBase64, prompt);
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return res.status(500).json({ error: 'Не удалось распознать еду' });
+    // Retry loop: до 2 попыток
+    const MAX_FOOD_RETRIES = 2;
+    let lastError: string | null = null;
+
+    for (let attempt = 0; attempt < MAX_FOOD_RETRIES; attempt++) {
+      try {
+        const text = await analyzeImage(imageBase64, prompt);
+        const items = parseFoodResponse(text);
+
+        if (!items || items.length === 0) {
+          lastError = 'Не удалось распознать JSON из ответа AI';
+          console.warn(`Food analysis attempt ${attempt + 1}: parse failed. Raw: ${text.slice(0, 200)}`);
+          continue;
+        }
+
+        const validated = validateFoodItems(items);
+        if (validated.length === 0) {
+          lastError = 'Продукты не прошли валидацию';
+          continue;
+        }
+
+        return res.json({ items: validated });
+      } catch (analyzeError) {
+        lastError = (analyzeError as Error).message;
+        console.warn(`Food analysis attempt ${attempt + 1} failed:`, lastError);
+        // Если ошибка сети/таймаут — подождём перед retry
+        if (attempt < MAX_FOOD_RETRIES - 1) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
     }
 
-    res.json(JSON.parse(jsonMatch[0]));
+    // Если vision не сработал — fallback на text-only модель с описанием
+    try {
+      console.warn('Vision failed, attempting text-only fallback for food analysis');
+      const fallbackText = await generate(
+        `Пользователь сфотографировал еду. К сожалению, фото не удалось обработать. Попроси пользователя описать еду текстом (что ел, примерный размер порции), и ты рассчитаешь КБЖУ. Ответь на русском, кратко.`,
+        { maxTokens: 256, temperature: 0.5 },
+      );
+      return res.status(422).json({
+        error: 'Не удалось распознать еду на фото',
+        suggestion: fallbackText || 'Попробуй описать еду текстом в чате с Iron Coach — он рассчитает КБЖУ.',
+        retryable: true,
+      });
+    } catch {
+      return res.status(500).json({
+        error: lastError || 'Ошибка анализа фото',
+        retryable: true,
+      });
+    }
   } catch (e) {
     console.error('Food analysis error:', e);
-    res.status(500).json({ error: 'Ошибка анализа фото' });
+    res.status(500).json({ error: 'Ошибка анализа фото', retryable: true });
   }
 });
 

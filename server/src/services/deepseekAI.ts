@@ -249,6 +249,185 @@ export async function chatWithoutTools(options: Omit<ChatOptions, 'tools'>): Pro
   return result.content;
 }
 
+// ─── History summarization ──────────────────────────────────────────────────
+
+/**
+ * Сжимает длинную историю чата в компактное резюме + последние N сообщений.
+ * Вместо обрезки старых сообщений — суммаризирует их, сохраняя контекст.
+ *
+ * Стратегия:
+ * - Если сообщений <= keepRecent — возвращаем как есть
+ * - Иначе: старые сообщения → AI-резюме, затем последние keepRecent сообщений
+ */
+export async function summarizeHistory(
+  messages: DeepSeekMessage[],
+  maxTokens: number,
+  systemTokens: number,
+  keepRecent: number = 6,
+): Promise<DeepSeekMessage[]> {
+  // Если сообщений мало — просто trim
+  if (messages.length <= keepRecent) {
+    return trimHistory(messages, maxTokens, systemTokens);
+  }
+
+  const recentMessages = messages.slice(-keepRecent);
+  const olderMessages = messages.slice(0, -keepRecent);
+
+  // Проверяем нужно ли вообще суммаризировать (если старых сообщений мало по токенам — не надо)
+  const olderTokens = olderMessages.reduce((sum, m) => sum + estimateTokens(m.content || ''), 0);
+  if (olderTokens < 500) {
+    // Мало текста — просто объединим всё
+    return trimHistory(messages, maxTokens, systemTokens);
+  }
+
+  // Формируем текст старых сообщений для суммаризации
+  const olderText = olderMessages
+    .map((m) => `${m.role === 'user' ? 'Пользователь' : 'Тренер'}: ${m.content || '[действие]'}`)
+    .join('\n');
+
+  try {
+    const summary = await chatWithoutTools({
+      system: 'Ты — ассистент для сжатия диалогов. Сделай краткое резюме беседы между пользователем и AI-тренером. Сохрани: ключевые факты, решения, данные (вес, программа, цели), контекст. Формат: 2-4 предложения на русском. Только факты, без вводных слов.',
+      messages: [{ role: 'user', content: `Сожми этот диалог в краткое резюме:\n\n${olderText}` }],
+      maxTokens: 256,
+      temperature: 0.3,
+    });
+
+    // Вставляем резюме как системное сообщение перед последними сообщениями
+    const summaryMessage: DeepSeekMessage = {
+      role: 'user',
+      content: `[Краткое резюме предыдущей беседы: ${summary}]`,
+    };
+
+    const result = [summaryMessage, ...recentMessages];
+    return trimHistory(result, maxTokens, systemTokens);
+  } catch (e) {
+    // Если суммаризация сломалась — fallback на обычный trim
+    console.warn('History summarization failed, falling back to trim:', (e as Error).message);
+    return trimHistory(messages, maxTokens, systemTokens);
+  }
+}
+
+// ─── Response validation ────────────────────────────────────────────────────
+
+export interface ValidationResult {
+  valid: boolean;
+  issues: string[];
+  shouldRegenerate: boolean;
+}
+
+/**
+ * Проверяет качество ответа AI и решает нужна ли регенерация.
+ * Критерии: пустота, неправильный язык, слишком короткий/длинный,
+ * повторы фраз, технический мусор.
+ */
+export function validateResponse(content: string, userMessage: string): ValidationResult {
+  const issues: string[] = [];
+
+  // 1. Пустой или почти пустой ответ
+  if (!content || content.trim().length < 10) {
+    issues.push('empty_response');
+    return { valid: false, issues, shouldRegenerate: true };
+  }
+
+  // 2. Ответ на неправильном языке (> 60% латиницы — скорее всего английский)
+  const latinChars = (content.match(/[a-zA-Z]/g) || []).length;
+  const cyrillicChars = (content.match(/[а-яА-ЯёЁ]/g) || []).length;
+  const totalChars = latinChars + cyrillicChars;
+  if (totalChars > 50 && latinChars / totalChars > 0.6) {
+    issues.push('wrong_language');
+    return { valid: false, issues, shouldRegenerate: true };
+  }
+
+  // 3. Ответ слишком длинный (> 3000 слов — модель ушла в "поток сознания")
+  const wordCount = content.split(/\s+/).length;
+  if (wordCount > 3000) {
+    issues.push('too_long');
+    // Не регенерируем — обрезаем на клиенте
+  }
+
+  // 4. Повторяющиеся фразы (признак зацикливания модели)
+  const sentences = content.split(/[.!?]+/).filter((s) => s.trim().length > 20);
+  if (sentences.length > 4) {
+    const uniqueSentences = new Set(sentences.map((s) => s.trim().toLowerCase()));
+    const dupeRatio = 1 - uniqueSentences.size / sentences.length;
+    if (dupeRatio > 0.4) {
+      issues.push('repetitive');
+      return { valid: false, issues, shouldRegenerate: true };
+    }
+  }
+
+  // 5. Технический мусор (JSON-фрагменты, код, XML-теги в ответе для пользователя)
+  const techPatterns = [
+    /```json[\s\S]{100,}```/,  // длинные JSON-блоки
+    /<\/?(?:div|span|html|head|body|script|style)\b/i, // HTML-теги
+    /\{"(?:role|content|tool_calls)":/,  // утечка формата сообщений
+    /(?:function|const|let|var)\s+\w+\s*[=(]/,  // код JavaScript
+  ];
+  for (const pattern of techPatterns) {
+    if (pattern.test(content)) {
+      issues.push('tech_garbage');
+      return { valid: false, issues, shouldRegenerate: true };
+    }
+  }
+
+  // 6. Ответ-отказ (модель отказывается помогать без причины)
+  const refusalPatterns = [
+    /I (?:cannot|can't|am unable|don't)/i,
+    /as an ai (?:language )?model/i,
+    /i'm sorry,? (?:but )?i (?:cannot|can't)/i,
+  ];
+  for (const pattern of refusalPatterns) {
+    if (pattern.test(content)) {
+      issues.push('english_refusal');
+      return { valid: false, issues, shouldRegenerate: true };
+    }
+  }
+
+  // 7. Начинается с запрещённых фраз (из системного промпта)
+  const badStarts = ['конечно!', 'отличный вопрос', 'хороший вопрос', 'great question'];
+  const lowerStart = content.trim().toLowerCase().slice(0, 30);
+  for (const bad of badStarts) {
+    if (lowerStart.startsWith(bad)) {
+      issues.push('bad_start');
+      // Не регенерируем — просто обрезаем начало
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    shouldRegenerate: false,
+  };
+}
+
+/**
+ * Очищает ответ AI от мелких проблем (обрезка плохого начала, усечение длинных ответов).
+ */
+export function cleanResponse(content: string): string {
+  let cleaned = content.trim();
+
+  // Убираем плохие начала
+  const badStartPatterns = [
+    /^(?:конечно!?\s*)/i,
+    /^(?:отличный вопрос!?\s*)/i,
+    /^(?:хороший вопрос!?\s*)/i,
+    /^(?:рад помочь!?\s*)/i,
+    /^(?:с удовольствием!?\s*)/i,
+  ];
+  for (const pattern of badStartPatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+
+  // Обрезаем слишком длинные ответы (оставляем первые ~2000 слов + добавляем многоточие)
+  const words = cleaned.split(/\s+/);
+  if (words.length > 2000) {
+    cleaned = words.slice(0, 2000).join(' ') + '...';
+  }
+
+  return cleaned.trim();
+}
+
 // ─── Vision (image analysis) ─────────────────────────────────────────────────
 
 export async function analyzeImage(
