@@ -384,7 +384,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             setIndex={setIndex}
             prevSet={previousSets?.sets[setIndex] ?? null}
             onComplete={(reps, weight) => handleCompleteSet(setIndex, reps, weight)}
-            onRpeChange={(rpe) => completeSet(currentExerciseIndex, setIndex, { rpe })}
+            onRpeChange={(rpe) => updateSetData(currentExerciseIndex, setIndex, { rpe })}
             onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
             onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
             onOpenPlates={(w) => navigation.navigate('PlateCalculator', { initialWeight: w })}
