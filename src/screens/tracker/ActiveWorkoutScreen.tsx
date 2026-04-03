@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useWorkoutStore } from '../../store';
+import { useSettingsStore } from '../../store/useSettingsStore';
 import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification } from '../../services';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
@@ -21,6 +22,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
+  const { restTimerDefault } = useSettingsStore();
   const {
     activeWorkout,
     workoutHistory,
@@ -164,13 +166,13 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         return;
       } else if (prevEx?.supersetGroupId === groupId) {
         // We're in the second exercise — start rest and jump back
-        startRest(currentExercise.restSeconds || 90);
+        startRest(currentExercise.restSeconds || restTimerDefault);
         setTimeout(() => prevExercise(), 250);
         return;
       }
     }
 
-    startRest(currentExercise.restSeconds || 90);
+    startRest(currentExercise.restSeconds || restTimerDefault);
   };
 
   const handleFinish = () => {

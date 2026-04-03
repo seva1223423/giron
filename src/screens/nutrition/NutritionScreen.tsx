@@ -8,10 +8,12 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { NutritionItem, Meal } from '../../types';
 import { scheduleNutritionSummaryReminder } from '../../services/notificationService';
 
-function calcSmartTargets(user: { weightKg?: number; heightCm?: number; goal?: string; gender?: string; age?: number } | null) {
+function calcSmartTargets(user: { weightKg?: number; heightCm?: number; goal?: string; gender?: string; dateOfBirth?: string } | null) {
   const weight = user?.weightKg || 80;
   const height = user?.heightCm || 175;
-  const age = user?.age || 28;
+  const age = user?.dateOfBirth
+    ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+    : 28;
   const gender = user?.gender;
   const goal = user?.goal;
 

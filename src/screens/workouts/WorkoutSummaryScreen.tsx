@@ -10,6 +10,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { Workout } from '../../types';
 import { computeAchievements, getNewlyUnlocked } from '../../utils/achievements';
 import { aiService } from '../../services/aiService';
+import { scheduleStreakRiskNotification } from '../../services/notificationService';
 
 const PR_EMOJIS = ['🏆', '🎉', '⭐', '💪', '🔥', '✨', '🥇', '💫'];
 const PARTICLE_COUNT = 18;
@@ -154,6 +155,8 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    // Schedule 48h streak-risk reminder so user doesn't miss next workout
+    scheduleStreakRiskNotification().catch(() => {});
   }, [newPRs.length, newAchievements.length]);
 
   useEffect(() => {
