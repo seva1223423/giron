@@ -24,19 +24,29 @@ function epley1RM(weight: number, reps: number): number {
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Грудь',
   back: 'Спина',
+  lats: 'Широчайшие',
+  lower_back: 'Нижняя спина',
   shoulders: 'Плечи',
+  traps: 'Трапеции',
   biceps: 'Бицепс',
   triceps: 'Трицепс',
-  legs: 'Ноги',
-  glutes: 'Ягодицы',
-  core: 'Пресс',
-  cardio: 'Кардио',
-  full_body: 'Всё тело',
   forearms: 'Предплечья',
+  quadriceps: 'Квадрицепс',
+  hamstrings: 'Задняя поверхность',
+  glutes: 'Ягодицы',
   calves: 'Икры',
+  abs: 'Пресс',
+  obliques: 'Косые мышцы',
+  hip_flexors: 'Сгибатели бедра',
+  full_body: 'Всё тело',
 };
 
-const MUSCLE_ORDER = ['chest', 'back', 'legs', 'shoulders', 'biceps', 'triceps', 'core', 'glutes', 'calves', 'forearms', 'cardio', 'full_body'];
+const MUSCLE_ORDER = [
+  'chest', 'back', 'lats', 'lower_back', 'shoulders', 'traps',
+  'biceps', 'triceps', 'forearms',
+  'quadriceps', 'hamstrings', 'glutes', 'calves',
+  'abs', 'obliques', 'hip_flexors', 'full_body',
+];
 
 interface PREntry {
   exerciseId: string;
@@ -109,7 +119,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
     map.forEach((data, exerciseId) => {
       const ex = localExercises.find((e) => e.id === exerciseId);
       const name = ex?.name || exerciseId;
-      const muscle = (ex as any)?.muscleGroup || (ex as any)?.primaryMuscle || 'full_body';
+      const muscle = ex?.primaryMuscles?.[0] || 'full_body';
 
       // Build sorted history (oldest→newest) for sparkline
       const history = Array.from(data.byDate.entries())
