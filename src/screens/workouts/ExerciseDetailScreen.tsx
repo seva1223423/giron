@@ -104,9 +104,19 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
   [workoutHistory, exerciseId]);
 
   const maxWeight = Math.max(0, ...exerciseHistory.map((h) => h.bestWeight));
-  const estimated1RM = maxWeight > 0 && exerciseHistory[0]
-    ? Math.round(maxWeight * (1 + exerciseHistory[0].bestReps / 30))
-    : 0;
+  // Compute best 1RM from all history (not mixing weight from one session with reps from another)
+  const estimated1RM = useMemo(() => {
+    let best = 0;
+    workoutHistory.forEach((w) => {
+      w.exercises.filter((e) => e.exerciseId === exerciseId).forEach((e) => {
+        e.sets.filter((s) => s.completed && s.weight && s.reps).forEach((s) => {
+          const rm = (s.weight || 0) * (1 + (s.reps || 0) / 30);
+          if (rm > best) best = rm;
+        });
+      });
+    });
+    return best > 0 ? Math.round(best) : 0;
+  }, [workoutHistory, exerciseId]);
 
   const oneRMTrend = useMemo(() =>
     [...exerciseHistory]
