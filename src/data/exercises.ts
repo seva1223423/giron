@@ -841,6 +841,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'stretching' as any,
     difficulty: 'beginner',
+    youtubeId: 'KBTHnS5GYgg',
   },
   {
     id: 'thoracic-rotation',
@@ -852,6 +853,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'stretching' as any,
     difficulty: 'beginner',
+    youtubeId: 'qj4NsJ1GQXI',
   },
   {
     id: 'hip-flexor-stretch',
@@ -863,6 +865,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'stretching' as any,
     difficulty: 'beginner',
+    youtubeId: 'YqF2BkRNb5s',
   },
   {
     id: 'doorway-chest-stretch',
@@ -874,6 +877,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'stretching' as any,
     difficulty: 'beginner',
+    youtubeId: 'Y7eN1sHfDuQ',
   },
 ];
 
