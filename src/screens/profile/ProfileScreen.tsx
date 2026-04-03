@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
@@ -26,6 +26,55 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const { colors } = useThemeStore();
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
+
+  const lifetimeStats = useMemo(() => {
+    if (workoutHistory.length === 0) return null;
+    const totalTonnage = workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0);
+    const totalMinutes = workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0);
+
+    // Best streak
+    let bestStreak = 0;
+    let currentStreak = 0;
+    const sortedDates = workoutHistory
+      .filter((w) => w.completedAt)
+      .map((w) => w.completedAt!.split('T')[0])
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort();
+    for (let i = 0; i < sortedDates.length; i++) {
+      if (i === 0) {
+        currentStreak = 1;
+      } else {
+        const prev = new Date(sortedDates[i - 1]);
+        const curr = new Date(sortedDates[i]);
+        const diffDays = Math.round((curr.getTime() - prev.getTime()) / 86400000);
+        if (diffDays === 1) {
+          currentStreak++;
+        } else {
+          currentStreak = 1;
+        }
+      }
+      if (currentStreak > bestStreak) bestStreak = currentStreak;
+    }
+
+    // Favorite exercise (most frequently done)
+    const exCount: Record<string, { name: string; count: number }> = {};
+    workoutHistory.forEach((w) => {
+      w.exercises.forEach((we) => {
+        const id = we.exerciseId || we.exercise.id;
+        if (!exCount[id]) exCount[id] = { name: we.exercise.name, count: 0 };
+        exCount[id].count++;
+      });
+    });
+    const topExercise = Object.values(exCount).sort((a, b) => b.count - a.count)[0] || null;
+
+    // Avg workouts per week (based on first/last workout span)
+    const first = new Date(sortedDates[0]);
+    const last = new Date(sortedDates[sortedDates.length - 1]);
+    const weeks = Math.max(1, Math.round((last.getTime() - first.getTime()) / (7 * 86400000)));
+    const avgPerWeek = +(workoutHistory.length / weeks).toFixed(1);
+
+    return { totalTonnage, totalMinutes, bestStreak, topExercise, avgPerWeek };
+  }, [workoutHistory]);
 
   const handleLogout = () => {
     Alert.alert('Выйти из аккаунта?', '', [
@@ -74,6 +123,62 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <Text style={[typography.caption, { color: colors.textSecondary }]}>Уровень</Text>
         </View>
       </View>
+
+      {/* Lifetime stats */}
+      {lifetimeStats && (
+        <FadeIn delay={100}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Статистика за всё время</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              <View style={[styles.statCard, { backgroundColor: colors.primary + '15', flex: 1, minWidth: '45%' }]}>
+                <Text style={{ fontSize: 22 }}>🏋️</Text>
+                <Text style={[typography.number, { color: colors.primary, marginTop: 4 }]}>
+                  {lifetimeStats.totalTonnage >= 1000000
+                    ? `${(lifetimeStats.totalTonnage / 1000000).toFixed(1)}M`
+                    : lifetimeStats.totalTonnage >= 1000
+                    ? `${Math.round(lifetimeStats.totalTonnage / 1000)}K`
+                    : `${lifetimeStats.totalTonnage}`}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>кг поднято</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: colors.success + '15', flex: 1, minWidth: '45%' }]}>
+                <Text style={{ fontSize: 22 }}>⏱</Text>
+                <Text style={[typography.number, { color: colors.success, marginTop: 4 }]}>
+                  {lifetimeStats.totalMinutes >= 60
+                    ? `${Math.round(lifetimeStats.totalMinutes / 60)}`
+                    : `${lifetimeStats.totalMinutes}`}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  {lifetimeStats.totalMinutes >= 60 ? 'часов в зале' : 'минут'}
+                </Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: colors.accent + '15', flex: 1, minWidth: '45%' }]}>
+                <Text style={{ fontSize: 22 }}>🔥</Text>
+                <Text style={[typography.number, { color: colors.accent, marginTop: 4 }]}>{lifetimeStats.bestStreak}</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>лучший стрик</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: colors.primary + '10', flex: 1, minWidth: '45%' }]}>
+                <Text style={{ fontSize: 22 }}>📅</Text>
+                <Text style={[typography.number, { color: colors.primary, marginTop: 4 }]}>{lifetimeStats.avgPerWeek}</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>трен/неделю</Text>
+              </View>
+            </View>
+            {lifetimeStats.topExercise && (
+              <View style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider }}>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>Любимое упражнение</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+                    {lifetimeStats.topExercise.name}
+                  </Text>
+                  <Text style={[typography.small, { color: colors.textSecondary }]}>
+                    {lifetimeStats.topExercise.count} раз
+                  </Text>
+                </View>
+              </View>
+            )}
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Personal info */}
       <Card style={{ marginBottom: spacing.lg }}>
@@ -199,5 +304,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.md,
+  },
+  statCard: {
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
   },
 });
