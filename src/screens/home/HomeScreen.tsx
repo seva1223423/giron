@@ -64,7 +64,7 @@ function getDailyQuote() {
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user, setUser } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout } = useWorkoutStore();
+  const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises } = useWorkoutStore();
 
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -134,9 +134,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const handleStartPlannedWorkout = () => {
     if (!todayPlan || todayPlan.exercises.length === 0) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const allExercises = [...customExercises, ...localExercises];
     const workoutExercises: WorkoutExercise[] = todayPlan.exercises
       .map((exId, index) => {
-        const ex = localExercises.find((e) => e.id === exId);
+        const ex = allExercises.find((e) => e.id === exId);
         if (!ex) return null;
         const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
           id: `set-${Date.now()}-${index}-${i}`,
