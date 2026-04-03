@@ -2448,6 +2448,48 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       : [];
     const restTimerContext = buildRestTimerContext(user?.goal || null, exerciseTypesInProgram);
 
+    // ─── Block 36: Fatigue index (ACWR) ──────
+    const allRecentForFatigue = await prisma.workout.findMany({
+      where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) } },
+      select: { completedAt: true, totalVolume: true, durationMinutes: true },
+    });
+    const fatigueData = calculateFatigueIndex(allRecentForFatigue);
+    const fatigueContext = buildFatigueContext(fatigueData);
+
+    // ─── Block 37: Training frequency optimizer ──────
+    const frequencyContext = analyzeTrainingFrequency(
+      recentWorkouts.map((w) => ({ completedAt: w.completedAt, name: w.name })),
+      recovery.score,
+      user?.goal || null,
+    );
+
+    // ─── Block 38: Nutrition gap detector ──────
+    const recentMealsForGaps = await prisma.meal.findMany({
+      where: { userId, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+      include: { items: true },
+    });
+    const nutritionGapsContext = detectNutritionGaps(
+      recentMealsForGaps.map((m) => ({
+        items: m.items.map((i) => ({ name: i.name, protein: i.protein, fats: i.fats, carbs: i.carbs })),
+      })),
+      user?.goal || null,
+    );
+
+    // ─── Block 39: Workout template matcher ──────
+    const workoutTemplatesContext = findSimilarWorkouts(
+      recentWorkouts.map((w) => ({
+        name: w.name,
+        exercises: w.exercises.map((e) => ({ exercise: e.exercise })),
+        completedAt: w.completedAt,
+        totalVolume: w.totalVolume,
+      })),
+    );
+
+    // ─── Block 40: Conversational memory summary ──────
+    const chatThemesContext = summarizeChatThemes(
+      rawMessages.slice(-20).map((m) => ({ role: m.role, content: m.content || '' }))
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2455,7 +2497,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
     const memoryContext = await getMemoryContext(userId);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus, memories: ${extractedMemories.length} new, adjustments: ${difficultyAdjustments.length}, alternatives: ${exerciseAlternatives.length}`);
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus, memories: ${extractedMemories.length} new`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -2541,7 +2583,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -4521,6 +4563,298 @@ function buildRestTimerContext(
   return `\n\n## ⏱ РЕКОМЕНДАЦИИ ПО ОТДЫХУ
 ${recommendations.join('\n')}
 → Предлагай персонализированное время отдыха при обсуждении тренировок.`;
+}
+
+// ─── Block 36: Fatigue Index ────────────────────────────────────────────────
+// Cumulative weekly load scoring using simplified TRIMP-like model
+
+interface FatigueData {
+  acuteLoad: number;    // last 7 days
+  chronicLoad: number;  // last 28 days average per week
+  ratio: number;        // acute:chronic ratio (ACWR)
+  status: 'fresh' | 'optimal' | 'overreaching' | 'dangerous';
+  message: string;
+}
+
+function calculateFatigueIndex(
+  workouts: Array<{ completedAt: Date | null; totalVolume: number | null; durationMinutes: number | null }>,
+): FatigueData {
+  const now = Date.now();
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+  // Calculate load as volume × duration proxy
+  const getLoad = (wo: typeof workouts[number]) => {
+    const vol = wo.totalVolume || 0;
+    const dur = wo.durationMinutes || 45;
+    return vol * (dur / 60); // volume-hours
+  };
+
+  const last7Days = workouts.filter((w) => w.completedAt && (now - new Date(w.completedAt).getTime()) < 7 * MS_PER_DAY);
+  const last28Days = workouts.filter((w) => w.completedAt && (now - new Date(w.completedAt).getTime()) < 28 * MS_PER_DAY);
+
+  const acuteLoad = last7Days.reduce((s, w) => s + getLoad(w), 0);
+  const chronicLoad = last28Days.length > 0
+    ? last28Days.reduce((s, w) => s + getLoad(w), 0) / 4 // average weekly load over 4 weeks
+    : acuteLoad;
+
+  const ratio = chronicLoad > 0 ? Math.round((acuteLoad / chronicLoad) * 100) / 100 : 1;
+
+  let status: FatigueData['status'];
+  let message: string;
+
+  if (ratio < 0.8) {
+    status = 'fresh';
+    message = `Нагрузка ниже обычной (ACWR: ${ratio}). Можно увеличить объём или интенсивность.`;
+  } else if (ratio <= 1.3) {
+    status = 'optimal';
+    message = `Нагрузка в оптимальной зоне (ACWR: ${ratio}). Продолжай в том же духе!`;
+  } else if (ratio <= 1.5) {
+    status = 'overreaching';
+    message = `⚠️ Нагрузка повышена (ACWR: ${ratio}). Возможно функциональное перенапряжение. Следи за восстановлением.`;
+  } else {
+    status = 'dangerous';
+    message = `🚨 Нагрузка критически высокая (ACWR: ${ratio}). Высокий риск травмы! Рекомендуется снизить объём на 30-40%.`;
+  }
+
+  return { acuteLoad: Math.round(acuteLoad), chronicLoad: Math.round(chronicLoad), ratio, status, message };
+}
+
+function buildFatigueContext(fatigue: FatigueData): string {
+  if (fatigue.acuteLoad === 0 && fatigue.chronicLoad === 0) return '';
+
+  return `\n\n## 🔋 ИНДЕКС УСТАЛОСТИ (ACWR)
+Острая нагрузка (7д): ${fatigue.acuteLoad} | Хроническая (28д/нед): ${fatigue.chronicLoad}
+Соотношение: ${fatigue.ratio} — ${fatigue.message}
+→ Учитывай при рекомендациях по объёму и интенсивности.`;
+}
+
+// ─── Block 37: Training Frequency Optimizer ─────────────────────────────────
+// Analyze recovery patterns to suggest optimal training frequency
+
+function analyzeTrainingFrequency(
+  workouts: Array<{ completedAt: Date | null; name: string }>,
+  recoveryScore: number,
+  userGoal: string | null,
+): string {
+  if (workouts.length < 4) return '';
+
+  const completed = workouts.filter((w) => w.completedAt).sort(
+    (a, b) => new Date(a.completedAt!).getTime() - new Date(b.completedAt!).getTime()
+  );
+
+  if (completed.length < 3) return '';
+
+  // Calculate average gap between workouts (in days)
+  const gaps: number[] = [];
+  for (let i = 1; i < completed.length; i++) {
+    const gap = (new Date(completed[i].completedAt!).getTime() - new Date(completed[i - 1].completedAt!).getTime()) / (24 * 60 * 60 * 1000);
+    gaps.push(gap);
+  }
+
+  const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+  const currentFrequency = Math.round(7 / avgGap * 10) / 10; // workouts per week
+
+  let suggestedFrequency: number;
+  let suggestion: string;
+
+  if (userGoal === 'STRENGTH') {
+    suggestedFrequency = recoveryScore >= 70 ? 4 : 3;
+    suggestion = recoveryScore >= 70
+      ? `Восстановление хорошее (${recoveryScore}%) — 4 тренировки/нед оптимально для силы.`
+      : `Восстановление ${recoveryScore}% — 3 тренировки/нед безопаснее для силовых занятий.`;
+  } else if (userGoal === 'MUSCLE_GAIN') {
+    suggestedFrequency = recoveryScore >= 60 ? 5 : 4;
+    suggestion = recoveryScore >= 60
+      ? `Для гипертрофии 5 тренировок/нед даст больше стимула.`
+      : `Восстановление ${recoveryScore}% — 4 тренировки/нед для баланса роста и отдыха.`;
+  } else if (userGoal === 'WEIGHT_LOSS') {
+    suggestedFrequency = recoveryScore >= 50 ? 5 : 4;
+    suggestion = `Для жиросжигания ${suggestedFrequency} тренировок/нед + повседневная активность.`;
+  } else {
+    suggestedFrequency = recoveryScore >= 65 ? 4 : 3;
+    suggestion = `Оптимально ${suggestedFrequency} тренировок/нед при текущем восстановлении (${recoveryScore}%).`;
+  }
+
+  const freqDiff = Math.abs(currentFrequency - suggestedFrequency);
+  if (freqDiff < 0.5) return ''; // Already optimal, no need to suggest
+
+  return `\n\n## 📅 ЧАСТОТА ТРЕНИРОВОК
+Текущая: ${currentFrequency} тренировок/нед | Рекомендуемая: ${suggestedFrequency}/нед
+${suggestion}
+${currentFrequency > suggestedFrequency + 0.5 ? '→ Больше отдыха — лучше прогресс. Качество > количество.' : ''}
+${currentFrequency < suggestedFrequency - 0.5 ? '→ Можно добавить тренировку — восстановление позволяет.' : ''}`;
+}
+
+// ─── Block 38: Nutrition Gap Detector ───────────────────────────────────────
+// Detect potential micronutrient gaps from meal patterns
+
+function detectNutritionGaps(
+  meals: Array<{ items: Array<{ name: string; protein: number; fats: number; carbs: number }> }>,
+  userGoal: string | null,
+): string {
+  if (meals.length < 3) return ''; // Need at least 3 meals for analysis
+
+  // Collect all food items
+  const allItems = meals.flatMap((m) => m.items.map((i) => i.name.toLowerCase()));
+
+  const gaps: string[] = [];
+  const recommendations: string[] = [];
+
+  // Check for protein source variety
+  const proteinSources = allItems.filter((name) =>
+    /курица|мясо|рыба|говядин|свинин|яйц|творог|тунец|лосось|индейк|печен/i.test(name)
+  );
+  if (proteinSources.length < meals.length * 0.3) {
+    gaps.push('Мало белковых продуктов');
+    recommendations.push('Добавь белок в каждый приём: курица, рыба, яйца, творог.');
+  }
+
+  // Check for vegetables/fiber
+  const veggies = allItems.filter((name) =>
+    /салат|овощ|помидор|огурец|брокколи|шпинат|капуст|морков|свекл|перец|лук|зелен|кабачок/i.test(name)
+  );
+  if (veggies.length < meals.length * 0.2) {
+    gaps.push('Мало овощей и клетчатки');
+    recommendations.push('Минимум 400г овощей в день для клетчатки и микроэлементов.');
+  }
+
+  // Check for healthy fats
+  const healthyFats = allItems.filter((name) =>
+    /авокадо|орех|миндаль|лосось|масло.*олив|семена|льн/i.test(name)
+  );
+  if (healthyFats.length === 0) {
+    gaps.push('Мало полезных жиров');
+    recommendations.push('Добавь источники омега-3: лосось, орехи, семена, авокадо.');
+  }
+
+  // Check for dairy/calcium
+  const dairy = allItems.filter((name) =>
+    /молок|кефир|творог|йогурт|сыр|ряженк/i.test(name)
+  );
+  if (dairy.length === 0) {
+    gaps.push('Мало кальция (нет молочных)');
+    recommendations.push('Для костей и мышц: творог, кефир или йогурт ежедневно.');
+  }
+
+  // Check carb quality
+  const simpleCarbs = allItems.filter((name) =>
+    /сахар|конфет|торт|печень.*сладк|шоколад|газировк|сок.*пакет/i.test(name)
+  );
+  const complexCarbs = allItems.filter((name) =>
+    /рис|гречк|овсянк|картофел|макарон|хлеб.*цельнозерн|булгур|киноа|перловк/i.test(name)
+  );
+  if (simpleCarbs.length > complexCarbs.length && simpleCarbs.length >= 2) {
+    gaps.push('Преобладают простые углеводы');
+    recommendations.push('Замени сладкое на сложные углеводы: гречка, рис, овсянка.');
+  }
+
+  // Goal-specific
+  if (userGoal === 'MUSCLE_GAIN') {
+    const totalProtein = meals.reduce((s, m) => s + m.items.reduce((ps, i) => ps + i.protein, 0), 0);
+    const avgProteinPerMeal = totalProtein / meals.length;
+    if (avgProteinPerMeal < 25) {
+      gaps.push('Мало белка на приём пищи');
+      recommendations.push('Для набора массы: минимум 30г белка в каждом приёме пищи.');
+    }
+  }
+
+  if (gaps.length === 0) return '';
+
+  return `\n\n## 🥗 ПРОБЕЛЫ В ПИТАНИИ
+${gaps.map((g) => `- ❌ ${g}`).join('\n')}
+Рекомендации:
+${recommendations.map((r) => `- 💡 ${r}`).join('\n')}
+→ Если пользователь обсуждает питание — мягко предложи улучшения.`;
+}
+
+// ─── Block 39: Workout Template Matcher ─────────────────────────────────────
+// Find similar workouts from history to suggest when user asks for ideas
+
+function findSimilarWorkouts(
+  historyWorkouts: Array<{ name: string; exercises: Array<{ exercise: { name: string; primaryMuscles: string[] } }>; completedAt: Date | null; totalVolume: number | null }>,
+  targetMuscles?: string[],
+): string {
+  if (historyWorkouts.length < 2) return '';
+
+  // Group workouts by primary muscle focus
+  const workoutsByFocus = new Map<string, typeof historyWorkouts>();
+  for (const w of historyWorkouts) {
+    const muscles = w.exercises.flatMap((e) => e.exercise.primaryMuscles);
+    const primary = muscles.sort((a, b) =>
+      muscles.filter((m) => m === b).length - muscles.filter((m) => m === a).length
+    )[0];
+    if (primary) {
+      if (!workoutsByFocus.has(primary)) workoutsByFocus.set(primary, []);
+      workoutsByFocus.get(primary)!.push(w);
+    }
+  }
+
+  // Build template summary — most productive workouts per muscle group
+  const templates: string[] = [];
+  for (const [muscle, workouts] of workoutsByFocus) {
+    const best = workouts
+      .filter((w) => w.totalVolume && w.totalVolume > 0)
+      .sort((a, b) => (b.totalVolume || 0) - (a.totalVolume || 0))[0];
+    if (best) {
+      const exercises = best.exercises.slice(0, 4).map((e) => e.exercise.name).join(', ');
+      templates.push(`${muscle}: "${best.name}" (${exercises}) — ${best.totalVolume} кг объём`);
+    }
+  }
+
+  if (templates.length === 0) return '';
+
+  return `\n\n## 📋 ЛУЧШИЕ ТРЕНИРОВКИ ИЗ ИСТОРИИ
+${templates.slice(0, 5).join('\n')}
+→ Используй как референс при составлении новых тренировок или когда пользователь просит идеи.`;
+}
+
+// ─── Block 40: Conversational Memory Summary ────────────────────────────────
+// Periodically extract and summarize key themes from recent chat history
+
+function summarizeChatThemes(
+  recentMessages: Array<{ role: string; content: string }>,
+): string {
+  if (recentMessages.length < 4) return '';
+
+  const userMessages = recentMessages.filter((m) => m.role === 'user').map((m) => m.content.toLowerCase());
+
+  const themes: string[] = [];
+
+  // Detect recurring topics
+  const topicCounts: Record<string, number> = {};
+  const topicPatterns: Record<string, RegExp> = {
+    'питание': /питани|еда|калори|белок|кбжу|диет|перекус|завтрак|обед|ужин/,
+    'тренировки': /тренировк|упражнен|подход|повтор|сет|программ|план/,
+    'боль/травма': /болит|боль|травм|повредил|дискомфорт/,
+    'мотивация': /мотивац|лень|устал|не хочу|бросить|настроен/,
+    'вес тела': /вес|похуд|набор|масс|сушк/,
+    'техника': /техник|как делать|правильно|форма|ошибк/,
+    'программа': /программ|сплит|план|расписан|график/,
+    'добавки': /добавк|протеин.*порош|креатин|витамин|бад/,
+    'сон': /сон|спать|бессонниц|высыпа/,
+    'стресс': /стресс|нервнич|тревог|психолог/,
+  };
+
+  for (const msg of userMessages) {
+    for (const [topic, pattern] of Object.entries(topicPatterns)) {
+      if (pattern.test(msg)) {
+        topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+      }
+    }
+  }
+
+  // Topics mentioned 2+ times are "themes"
+  for (const [topic, count] of Object.entries(topicCounts)) {
+    if (count >= 2) {
+      themes.push(`${topic} (${count}× за сессию)`);
+    }
+  }
+
+  if (themes.length === 0) return '';
+
+  return `\n\n## 💬 ТЕМЫ РАЗГОВОРА
+Пользователь чаще всего обсуждает: ${themes.join(', ')}
+→ Приоритизируй эти темы в ответах. Проактивно предлагай помощь по ним.`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
