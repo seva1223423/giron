@@ -2640,6 +2640,39 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       avgVolumePerWorkout,
     );
 
+    // ─── Block 61: Water intake tracker ──────
+    const hydrationContext = buildHydrationAdvice(
+      user?.weightKg || null,
+      user?.goal || null,
+      !!scheduledWorkoutToday,
+      todayMeals.length,
+    );
+
+    // ─── Block 62: Injury risk predictor ──────
+    const injuryRiskContext = predictInjuryRisks(
+      fatigueData.ratio,
+      fatigueData.status,
+      muscleRecoveryStatuses,
+      overloadData,
+      recentWorkouts.map((w) => ({ durationMinutes: w.durationMinutes, completedAt: w.completedAt })),
+    );
+
+    // ─── Block 63: PR prediction ──────
+    const prPredictionContext = predictNextPR(overloadData);
+
+    // ─── Block 64: Workout duration optimizer ──────
+    const durationOptimizerContext = optimizeWorkoutDuration(
+      recentWorkouts.map((w) => ({
+        durationMinutes: w.durationMinutes,
+        totalVolume: w.totalVolume,
+        exercises: w.exercises.map((e) => ({ sets: e.sets.map((s) => ({ completed: s.completed })) })),
+      })),
+      user?.goal || null,
+    );
+
+    // ─── Block 65: Seasonal training advisor ──────
+    const seasonalContext = getSeasonalAdvice();
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2733,7 +2766,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -2780,6 +2813,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'exerciseVariety', content: exerciseVarietyContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
         { name: 'trainingTime', content: trainingTimeContext, relevantIntents: new Set(['workout', 'greeting']), priority: 3 },
         { name: 'deloadProgram', content: deloadProgramContext, relevantIntents: new Set(['workout', 'program_creation', 'health']), priority: 2 },
+        { name: 'hydration', content: hydrationContext, relevantIntents: new Set(['nutrition', 'health']), priority: 3 },
+        { name: 'injuryRisk', content: injuryRiskContext, relevantIntents: new Set(['workout', 'health']), priority: 1 },
+        { name: 'prPrediction', content: prPredictionContext, relevantIntents: new Set(['workout', 'motivation']), priority: 3 },
+        { name: 'durationOptimizer', content: durationOptimizerContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'seasonal', content: seasonalContext, relevantIntents: new Set(['nutrition', 'workout', 'greeting']), priority: 3 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
       ];
@@ -6137,6 +6175,233 @@ function generateDeloadProgram(
 Пример deload тренировки:
 ${deloadExercises.join('\n')}
 → Предложи эту программу если пользователь спрашивает о deload или когда система рекомендует разгрузку.`;
+}
+
+// ─── Block 61: Water Intake Tracker ─────────────────────────────────────────
+// Estimate daily water needs and remind about hydration
+
+function buildHydrationAdvice(
+  userWeightKg: number | null,
+  userGoal: string | null,
+  todayWorkout: boolean,
+  todayMealsCount: number,
+): string {
+  if (!userWeightKg) return '';
+
+  // Base: 30-35ml per kg body weight
+  const baseWater = Math.round(userWeightKg * 33);
+  let totalWater = baseWater;
+  const notes: string[] = [];
+
+  // Training day: +500-750ml
+  if (todayWorkout) {
+    totalWater += 600;
+    notes.push('+600мл за тренировку');
+  }
+
+  // Goal-specific
+  if (userGoal === 'WEIGHT_LOSS') {
+    totalWater += 300;
+    notes.push('+300мл для метаболизма (похудение)');
+  } else if (userGoal === 'MUSCLE_GAIN') {
+    totalWater += 400;
+    notes.push('+400мл для синтеза белка (набор)');
+  }
+
+  // Season (summer = more water)
+  const month = new Date().getMonth();
+  if (month >= 5 && month <= 8) {
+    totalWater += 400;
+    notes.push('+400мл (лето, жара)');
+  }
+
+  const liters = (totalWater / 1000).toFixed(1);
+
+  return `\n\n## 💧 ГИДРАТАЦИЯ
+Рекомендуемый объём: ${liters} л/день (${totalWater} мл)
+${notes.length > 0 ? `Расчёт: базовые ${baseWater}мл, ${notes.join(', ')}` : ''}
+${todayMealsCount < 3 ? '⚠️ Мало приёмов пищи сегодня — не забывай пить между едой' : ''}
+→ Напоминай о воде когда обсуждаешь питание или тренировки.`;
+}
+
+// ─── Block 62: Injury Risk Predictor ────────────────────────────────────────
+// Flag risky training patterns before injury occurs
+
+function predictInjuryRisks(
+  fatigueRatio: number,
+  fatigueStatus: string,
+  muscleRecovery: MuscleRecoveryStatus[],
+  overloadData: Array<{ exercise: string; status: string }>,
+  recentWorkouts: Array<{ durationMinutes: number | null; completedAt: Date | null }>,
+): string {
+  const risks: string[] = [];
+
+  // Risk 1: High ACWR ratio
+  if (fatigueRatio > 1.5) {
+    risks.push('🔴 ACWR > 1.5 — резкий скачок нагрузки, высокий риск травмы. Рекомендуй снизить объём.');
+  } else if (fatigueRatio > 1.3) {
+    risks.push('🟡 ACWR 1.3-1.5 — зона риска. Не увеличивай нагрузку дальше.');
+  }
+
+  // Risk 2: Training recovering muscles
+  const notRecovered = muscleRecovery.filter((m) => m.status === 'fresh' || (m.status === 'recovering' && m.hoursSinceTraining < 24));
+  if (notRecovered.length > 0) {
+    risks.push(`🟡 Недовосстановленные мышцы: ${notRecovered.map((m) => m.muscle).join(', ')} — не нагружай их сегодня`);
+  }
+
+  // Risk 3: Consecutive heavy days without rest
+  const completed = recentWorkouts
+    .filter((w) => w.completedAt)
+    .map((w) => new Date(w.completedAt!))
+    .sort((a, b) => b.getTime() - a.getTime());
+
+  if (completed.length >= 5) {
+    // Check if last 5 workouts were within 5 days
+    const daySpan = (completed[0].getTime() - completed[4].getTime()) / (1000 * 60 * 60 * 24);
+    if (daySpan <= 5) {
+      risks.push('🟠 5 тренировок за 5 дней — нет дней отдыха. Рекомендуй день восстановления.');
+    }
+  }
+
+  // Risk 4: Long workouts without deload
+  const longWorkouts = recentWorkouts.filter((w) => (w.durationMinutes || 0) > 120);
+  if (longWorkouts.length >= 3) {
+    risks.push('🟡 Регулярные тренировки >2ч — повышенный риск перетренированности и травм суставов');
+  }
+
+  if (risks.length === 0) return '';
+
+  return `\n\n## ⚠️ РИСКИ ТРАВМ
+${risks.join('\n')}
+→ ПРИОРИТЕТНО: предупреди пользователя о рисках. Безопасность важнее прогресса.`;
+}
+
+// ─── Block 63: PR Prediction ────────────────────────────────────────────────
+// Estimate when user will hit their next PR based on progression rate
+
+function predictNextPR(
+  overloadData: Array<{ exercise: string; status: string; lastWeights: number[]; suggestion: string }>,
+): string {
+  if (overloadData.length === 0) return '';
+
+  const predictions: string[] = [];
+
+  for (const ex of overloadData) {
+    if (ex.status !== 'progressing' || ex.lastWeights.length < 3) continue;
+
+    // Calculate weekly weight progression rate
+    const weights = ex.lastWeights;
+    const weeklyGain = (weights[weights.length - 1] - weights[0]) / Math.max(weights.length - 1, 1);
+
+    if (weeklyGain <= 0) continue;
+
+    const currentMax = weights[weights.length - 1];
+    // Predict next milestone (round up to next 5kg)
+    const nextMilestone = Math.ceil(currentMax / 5) * 5;
+    if (nextMilestone <= currentMax) continue;
+
+    const weeksToMilestone = Math.ceil((nextMilestone - currentMax) / weeklyGain);
+
+    if (weeksToMilestone <= 8) {
+      predictions.push(`📈 ${ex.exercise}: текущий макс ~${currentMax}кг → ${nextMilestone}кг через ~${weeksToMilestone} ${weeksToMilestone === 1 ? 'неделю' : weeksToMilestone < 5 ? 'недели' : 'недель'}`);
+    }
+  }
+
+  if (predictions.length === 0) return '';
+
+  return `\n\n## 🎯 ПРОГНОЗ РЕКОРДОВ
+${predictions.slice(0, 3).join('\n')}
+→ Мотивируй: «До нового рекорда осталось совсем немного!»`;
+}
+
+// ─── Block 64: Workout Duration Optimizer ───────────────────────────────────
+// Detect time waste patterns and suggest efficiency improvements
+
+function optimizeWorkoutDuration(
+  recentWorkouts: Array<{
+    durationMinutes: number | null;
+    totalVolume: number | null;
+    exercises: Array<{ sets: Array<{ completed: boolean }> }>;
+  }>,
+  userGoal: string | null,
+): string {
+  const completed = recentWorkouts.filter((w) => w.durationMinutes && w.durationMinutes > 0);
+  if (completed.length < 3) return '';
+
+  const avgDuration = completed.reduce((s, w) => s + (w.durationMinutes || 0), 0) / completed.length;
+  const avgVolume = completed.reduce((s, w) => s + (w.totalVolume || 0), 0) / completed.length;
+
+  // Volume per minute (efficiency metric)
+  const efficiency = avgVolume / Math.max(avgDuration, 1);
+
+  const suggestions: string[] = [];
+
+  // Too long workouts
+  if (avgDuration > 90 && userGoal !== 'STRENGTH') {
+    suggestions.push(`⏱️ Средняя тренировка: ${Math.round(avgDuration)} мин — можно оптимизировать до 60-75 мин`);
+    suggestions.push('💡 Совет: суперсеты антагонистов (грудь+спина), сокращение отдыха между лёгкими подходами');
+  }
+
+  // Low efficiency (low volume for time spent)
+  if (efficiency < 50 && avgDuration > 45) {
+    suggestions.push('📉 Низкая плотность тренировки — много времени, мало объёма');
+    suggestions.push('💡 Совет: меньше пауз между подходами, убери лишние упражнения, фокус на базовые');
+  }
+
+  // Very short workouts
+  if (avgDuration < 30 && userGoal !== 'WEIGHT_LOSS') {
+    suggestions.push(`⚡ Средняя тренировка всего ${Math.round(avgDuration)} мин — возможно недостаточно объёма для прогресса`);
+  }
+
+  // Increasing duration trend
+  if (completed.length >= 4) {
+    const recent2 = completed.slice(0, 2).reduce((s, w) => s + (w.durationMinutes || 0), 0) / 2;
+    const older2 = completed.slice(-2).reduce((s, w) => s + (w.durationMinutes || 0), 0) / 2;
+    if (recent2 > older2 * 1.3) {
+      suggestions.push('📈 Длительность тренировок растёт — убедись что это оправданный объём, а не затянутый отдых');
+    }
+  }
+
+  if (suggestions.length === 0) return '';
+
+  return `\n\n## ⚡ ЭФФЕКТИВНОСТЬ ТРЕНИРОВОК
+${suggestions.join('\n')}
+→ Помоги оптимизировать время в зале без потери качества.`;
+}
+
+// ─── Block 65: Seasonal Training Advisor ────────────────────────────────────
+// Adjust training and nutrition advice for season, weather, and daylight
+
+function getSeasonalAdvice(): string {
+  const month = new Date().getMonth(); // 0-11
+  const lines: string[] = [];
+
+  if (month >= 11 || month <= 1) {
+    // Зима (декабрь-февраль)
+    lines.push('❄️ Зима: больше времени на разминку (10-15 мин), мышцы холоднее');
+    lines.push('🥤 Витамин D: обязателен 2000-4000 МЕ/день (солнца почти нет)');
+    lines.push('🍲 Увеличь калорийность на 5-10% — организм тратит энергию на терморегуляцию');
+    lines.push('💡 Мотивация может падать из-за короткого светового дня — это нормально');
+  } else if (month >= 2 && month <= 4) {
+    // Весна (март-май)
+    lines.push('🌱 Весна: хорошее время начать «сушку» к лету');
+    lines.push('🏃 Добавь outdoor кардио — бег, велосипед (улучшает настроение после зимы)');
+    lines.push('💊 Продолжай витамин D до мая (дефицит после зимы)');
+  } else if (month >= 5 && month <= 7) {
+    // Лето (июнь-август)
+    lines.push('☀️ Лето: пей больше воды (+500мл в жару), электролиты при длительных тренировках');
+    lines.push('🕐 Тренируйся утром или вечером — избегай пиковой жары (12-16)');
+    lines.push('🥗 Лёгкая еда перед тренировкой, больше фруктов и овощей');
+  } else {
+    // Осень (сентябрь-ноябрь)
+    lines.push('🍂 Осень: идеальное время для набора массы (межсезонье)');
+    lines.push('🏋️ Увеличивай рабочие веса — прохладная погода, хороший аппетит');
+    lines.push('😷 Укрепляй иммунитет: цинк, витамин C, достаточный сон');
+  }
+
+  return `\n\n## 🗓️ СЕЗОННЫЕ РЕКОМЕНДАЦИИ
+${lines.slice(0, 3).join('\n')}
+→ Учитывай при составлении программ и советах по питанию.`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
