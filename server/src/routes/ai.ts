@@ -2490,6 +2490,25 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       rawMessages.slice(-20).map((m) => ({ role: m.role, content: m.content || '' }))
     );
 
+    // ─── Block 41: Plateau breaker strategies ──────
+    const plateauStrategies = getPlateauBreakers(overloadData);
+    const plateauContext = buildPlateauContext(plateauStrategies);
+
+    // ─── Block 42: Sleep & recovery questionnaire ──────
+    const userMemories = await prisma.aIMemory.findMany({ where: { userId }, select: { key: true } });
+    const hasAskedAboutSleep = userMemories.some((m) => m.key.includes('sleep') || m.key.includes('сон'));
+    const recoveryQuestionnaireContext = buildRecoveryQuestionnaire(recovery.score, hasAskedAboutSleep, fatigueData.status);
+
+    // ─── Block 43: Progressive overload planner ──────
+    const progressionPlanContext = buildProgressionPlan(overloadData, user?.goal || null);
+
+    // ─── Block 45: Workout intensity zones ──────
+    const intensityZoneContext = buildIntensityZoneContext(
+      user?.goal || null,
+      periodizationAdvice.currentPhase,
+      weeklySummary.avgRpe,
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2497,7 +2516,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
     const memoryContext = await getMemoryContext(userId);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus, memories: ${extractedMemories.length} new`);
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -2583,7 +2602,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -2732,6 +2751,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
 
     aiContent = cleanResponse(aiContent) || 'Не удалось сгенерировать ответ. Попробуй переформулировать вопрос.';
+
+    // ─── Block 44: Response quality guard ──────
+    const qualityCheck = validateAIResponse(aiContent, intent);
+    aiContent = qualityCheck.cleaned;
+    if (qualityCheck.warnings.length > 0) {
+      console.log(`[AI Quality] Warnings: ${qualityCheck.warnings.join(', ')}`);
+    }
 
     // Cache response for technique/general questions (no personal data in response)
     if (performedActions.length === 0) {
@@ -4855,6 +4881,285 @@ function summarizeChatThemes(
   return `\n\n## 💬 ТЕМЫ РАЗГОВОРА
 Пользователь чаще всего обсуждает: ${themes.join(', ')}
 → Приоритизируй эти темы в ответах. Проактивно предлагай помощь по ним.`;
+}
+
+// ─── Block 41: Plateau Breaker ──────────────────────────────────────────────
+// When overload data shows plateaus, suggest specific science-based strategies
+
+interface PlateauStrategy {
+  exerciseName: string;
+  strategy: string;
+  explanation: string;
+}
+
+function getPlateauBreakers(
+  overloadData: OverloadStatus[],
+): PlateauStrategy[] {
+  const plateaus = overloadData.filter((o) => o.status === 'plateau' || o.status === 'regressing');
+  if (plateaus.length === 0) return [];
+
+  const strategies: PlateauStrategy[] = [];
+
+  for (const p of plateaus.slice(0, 3)) {
+    const strats: Array<{ strategy: string; explanation: string }> = [];
+    const lastWeight = p.lastWeights.length > 0 ? p.lastWeights[p.lastWeights.length - 1] : 0;
+
+    if (lastWeight === 0) continue;
+
+    // Strategy 1: Vary rep range
+    strats.push({
+      strategy: `Переключись на другой диапазон повторений с весом ${Math.round(lastWeight * 0.8)} кг на 2-3 недели`,
+      explanation: 'Смена диапазона повторений создаёт новый стимул для адаптации.',
+    });
+
+    // Strategy 2: Pause reps
+    strats.push({
+      strategy: `Добавь паузу 2 сек в нижней точке: ${Math.round(lastWeight * 0.85)} кг × 3-4 подхода`,
+      explanation: 'Паузы убирают инерцию и увеличивают время под нагрузкой.',
+    });
+
+    // Strategy 3: Volume manipulation
+    if (p.status === 'regressing') {
+      strats.push({
+        strategy: `Снизь объём на 40% на 1 неделю (deload), затем вернись к ${lastWeight} кг`,
+        explanation: 'Регресс часто вызван накопленной усталостью. Суперкомпенсация после deload.',
+      });
+    } else {
+      strats.push({
+        strategy: `Добавь 1 дополнительный подход к ${p.exercise} на 2 недели`,
+        explanation: 'Кратковременное повышение объёма может преодолеть адаптационное плато.',
+      });
+    }
+
+    // Pick best 2 strategies
+    const selected = strats.slice(0, 2);
+    for (const s of selected) {
+      strategies.push({ exerciseName: p.exercise, ...s });
+    }
+  }
+
+  return strategies;
+}
+
+function buildPlateauContext(strategies: PlateauStrategy[]): string {
+  if (strategies.length === 0) return '';
+
+  const grouped = new Map<string, PlateauStrategy[]>();
+  for (const s of strategies) {
+    if (!grouped.has(s.exerciseName)) grouped.set(s.exerciseName, []);
+    grouped.get(s.exerciseName)!.push(s);
+  }
+
+  const lines: string[] = [];
+  for (const [exercise, strats] of grouped) {
+    lines.push(`**${exercise}** (плато):`);
+    for (const s of strats) {
+      lines.push(`  → ${s.strategy} — ${s.explanation}`);
+    }
+  }
+
+  return `\n\n## 🧱 СТРАТЕГИИ ПРЕОДОЛЕНИЯ ПЛАТО
+${lines.join('\n')}
+→ Предлагай эти стратегии когда пользователь жалуется на застой или спрашивает как прогрессировать.`;
+}
+
+// ─── Block 42: Sleep & Recovery Questionnaire ───────────────────────────────
+// Proactive lifestyle questions when recovery is suboptimal
+
+function buildRecoveryQuestionnaire(
+  recoveryScore: number,
+  hasAskedAboutSleep: boolean, // from AI memory
+  fatigueStatus: string,
+): string {
+  if (recoveryScore >= 75 && fatigueStatus !== 'overreaching' && fatigueStatus !== 'dangerous') return '';
+
+  const questions: string[] = [];
+
+  if (!hasAskedAboutSleep) {
+    questions.push('💤 Сколько часов ты обычно спишь? Ложишься/встаёшь в одно время?');
+  }
+
+  if (recoveryScore < 50) {
+    questions.push('😰 Уровень стресса на работе/учёбе по шкале 1-10?');
+    questions.push('💧 Сколько воды пьёшь в день?');
+  }
+
+  if (fatigueStatus === 'overreaching' || fatigueStatus === 'dangerous') {
+    questions.push('🤕 Есть ли болезненность в суставах или мышцах, которая не проходит?');
+    questions.push('📉 Заметил снижение мотивации или настроения?');
+  }
+
+  if (questions.length === 0) return '';
+
+  return `\n\n## 🩺 ВОПРОСЫ О ВОССТАНОВЛЕНИИ (задай 1-2 если контекст подходит)
+${questions.slice(0, 3).join('\n')}
+→ Восстановление ${recoveryScore}%, усталость: ${fatigueStatus}. Нужна диагностика.`;
+}
+
+// ─── Block 43: Progressive Overload Planner ─────────────────────────────────
+// Generate concrete week-by-week progression for key exercises
+
+function buildProgressionPlan(
+  overloadData: OverloadStatus[],
+  userGoal: string | null,
+): string {
+  const progressing = overloadData.filter((o) => o.status === 'progressing' || o.status === 'plateau');
+  if (progressing.length === 0) return '';
+
+  const plans: string[] = [];
+
+  for (const ex of progressing.slice(0, 3)) {
+    let plan: string;
+    const lastWeight = ex.lastWeights.length > 0 ? ex.lastWeights[ex.lastWeights.length - 1] : 0;
+    if (lastWeight === 0) continue;
+
+    if (userGoal === 'STRENGTH') {
+      const w1 = lastWeight;
+      const w2 = w1 + 2.5;
+      const w3 = w2 + 2.5;
+      const w4 = Math.round(w1 * 0.6 / 2.5) * 2.5;
+      plan = `${ex.exercise}: нед1 ${w1}кг×5×4 → нед2 ${w2}кг×4×4 → нед3 ${w3}кг×3×4 → нед4 ${w4}кг×8×3 (deload)`;
+    } else if (userGoal === 'MUSCLE_GAIN') {
+      const nextWeight = lastWeight + 2.5;
+      plan = `${ex.exercise}: нед1-2 ${lastWeight}кг×10-12×4 (больше повторов) → нед3-4 ${nextWeight}кг×8×4 (больше вес)`;
+    } else {
+      plan = `${ex.exercise}: +2.5 кг каждые 1-2 недели при выполнении всех подходов`;
+    }
+
+    plans.push(plan);
+  }
+
+  return `\n\n## 📐 ПЛАН ПРОГРЕССИИ (ближайшие 4 недели)
+${plans.join('\n')}
+→ Предлагай этот план когда пользователь спрашивает про прогресс или веса.`;
+}
+
+// ─── Block 44: Response Quality Guard ───────────────────────────────────────
+// Post-processing to ensure AI response meets quality standards
+
+function validateAIResponse(response: string, intent: string): { cleaned: string; warnings: string[] } {
+  let cleaned = response;
+  const warnings: string[] = [];
+
+  // Remove excessive emoji (more than 8 per response)
+  const emojiCount = (cleaned.match(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu) || []).length;
+  if (emojiCount > 8) {
+    warnings.push('excessive_emoji');
+    // Remove emojis beyond first 5
+    let count = 0;
+    cleaned = cleaned.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, (match) => {
+      count++;
+      return count <= 5 ? match : '';
+    });
+  }
+
+  // Remove English text blocks (AI sometimes responds in English)
+  const englishPattern = /^[A-Za-z\s,.!?:;'"()-]{50,}$/m;
+  if (englishPattern.test(cleaned) && intent !== 'technique_question') {
+    warnings.push('english_detected');
+  }
+
+  // Ensure response isn't too short for important intents
+  if (cleaned.length < 30 && !['greeting'].includes(intent)) {
+    warnings.push('too_short');
+  }
+
+  // Ensure response isn't absurdly long
+  if (cleaned.length > 3000) {
+    warnings.push('too_long');
+    // Trim at last sentence break before 3000 chars
+    const trimPoint = cleaned.lastIndexOf('.', 2800);
+    if (trimPoint > 1500) {
+      cleaned = cleaned.substring(0, trimPoint + 1);
+    }
+  }
+
+  // Remove repeated sentences
+  const sentences = cleaned.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const s of sentences) {
+    const normalized = s.toLowerCase().replace(/\s+/g, ' ');
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      unique.push(s);
+    }
+  }
+  if (unique.length < sentences.length) {
+    warnings.push('duplicates_removed');
+    // Reconstruct — find original sentence endings
+    cleaned = unique.join('. ') + '.';
+  }
+
+  return { cleaned, warnings };
+}
+
+// ─── Block 45: Workout Intensity Zones ──────────────────────────────────────
+// RPE-based intensity zone recommendations for different training phases
+
+function buildIntensityZoneContext(
+  userGoal: string | null,
+  currentPhase: string, // from periodization
+  avgRpe: number | null,
+): string {
+  if (!userGoal) return '';
+
+  interface Zone {
+    name: string;
+    rpeRange: string;
+    percentRM: string;
+    purpose: string;
+  }
+
+  const zones: Zone[] = [
+    { name: 'Лёгкая', rpeRange: '4-5', percentRM: '50-65%', purpose: 'Разминка, техника, активное восстановление' },
+    { name: 'Умеренная', rpeRange: '6-7', percentRM: '65-75%', purpose: 'Объёмная работа, гипертрофия, выносливость' },
+    { name: 'Тяжёлая', rpeRange: '8-9', percentRM: '75-90%', purpose: 'Сила, мышечный рост, прогрессия' },
+    { name: 'Максимальная', rpeRange: '9.5-10', percentRM: '90-100%', purpose: 'Пиковая сила, тестирование 1ПМ' },
+  ];
+
+  let targetZone: string;
+  let distribution: string;
+
+  if (currentPhase === 'accumulation') {
+    targetZone = 'Умеренная-Тяжёлая (RPE 6-8)';
+    distribution = '60% умеренная, 30% тяжёлая, 10% лёгкая';
+  } else if (currentPhase === 'intensification') {
+    targetZone = 'Тяжёлая (RPE 8-9)';
+    distribution = '20% умеренная, 60% тяжёлая, 20% максимальная';
+  } else if (currentPhase === 'deload') {
+    targetZone = 'Лёгкая-Умеренная (RPE 4-6)';
+    distribution = '60% лёгкая, 40% умеренная';
+  } else {
+    // Default based on goal
+    if (userGoal === 'STRENGTH') {
+      targetZone = 'Тяжёлая (RPE 7-9)';
+      distribution = '30% умеренная, 60% тяжёлая, 10% максимальная';
+    } else if (userGoal === 'MUSCLE_GAIN') {
+      targetZone = 'Умеренная-Тяжёлая (RPE 7-8)';
+      distribution = '20% лёгкая, 50% умеренная, 30% тяжёлая';
+    } else if (userGoal === 'WEIGHT_LOSS') {
+      targetZone = 'Умеренная (RPE 6-7)';
+      distribution = '30% лёгкая, 60% умеренная, 10% тяжёлая';
+    } else {
+      targetZone = 'Умеренная (RPE 6-8)';
+      distribution = '20% лёгкая, 60% умеренная, 20% тяжёлая';
+    }
+  }
+
+  let rpeWarning = '';
+  if (avgRpe !== null) {
+    if (avgRpe >= 9 && currentPhase !== 'intensification') {
+      rpeWarning = `\n⚠️ Средний RPE ${avgRpe} — слишком высокий для текущей фазы. Снизь интенсивность.`;
+    } else if (avgRpe < 6 && currentPhase !== 'deload') {
+      rpeWarning = `\n💡 Средний RPE ${avgRpe} — можно работать тяжелее для лучшего прогресса.`;
+    }
+  }
+
+  return `\n\n## 🎚 ЗОНЫ ИНТЕНСИВНОСТИ
+Целевая зона: ${targetZone}
+Распределение: ${distribution}${rpeWarning}
+→ Используй при программировании нагрузки и ответах о весах.`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
