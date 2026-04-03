@@ -72,6 +72,7 @@ export interface WorkoutSet {
   completed: boolean;
   notes?: string;
   isPR?: boolean; // личный рекорд по Epley 1RM
+}
 
 export interface WorkoutExercise {
   id: string;

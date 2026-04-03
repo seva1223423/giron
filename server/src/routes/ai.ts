@@ -993,10 +993,39 @@ const MAX_KNOWLEDGE_MODULES = 4;
 // Default modules for general/greeting messages that don't match any keywords
 const DEFAULT_MODULES = ['TRAINING_PRINCIPLES', 'NUTRITION'];
 
+// Pre-compute inverse document frequency for each keyword (rarer keywords = higher score)
+// IDF = log(totalModules / modulesContainingKeyword) — keywords that appear in fewer modules are more discriminative
+const KEYWORD_IDF_CACHE: Map<string, number> = new Map();
+const TOTAL_MODULES = KEYWORD_MAPPINGS.length;
+
+function getKeywordIDF(keyword: string): number {
+  const cached = KEYWORD_IDF_CACHE.get(keyword);
+  if (cached !== undefined) return cached;
+
+  let modulesWithKeyword = 0;
+  for (const [, keywords] of KEYWORD_MAPPINGS) {
+    if (keywords.includes(keyword)) modulesWithKeyword++;
+  }
+  // IDF: rare keyword (1 module) = log(22/1) ≈ 3.1, common keyword (5 modules) = log(22/5) ≈ 1.5
+  const idf = Math.log(TOTAL_MODULES / Math.max(1, modulesWithKeyword));
+  KEYWORD_IDF_CACHE.set(keyword, idf);
+  return idf;
+}
+
+// Pre-compute all IDFs at startup
+for (const [, keywords] of KEYWORD_MAPPINGS) {
+  for (const k of keywords) getKeywordIDF(k);
+}
+
 /**
- * Determine which knowledge chunks are relevant based on FULL conversation context.
- * Analyzes current message + recent history (weighted: newer = more important).
- * Also considers user profile (goal, gender) for implicit relevance.
+ * TF-IDF-inspired knowledge module selection.
+ * Improvements over simple keyword counting:
+ * 1. IDF weighting: rare/specific keywords score higher than common ones
+ * 2. Position bonus: keywords at the start of the message get a small boost
+ * 3. Exact match bonus: full keyword match (not substring) scores higher
+ * 4. Decay on recency: older messages contribute less
+ * 5. Profile-based implicit relevance boosting
+ * 6. Anti-overlap: penalize selecting modules with heavily overlapping topics
  */
 function getRelevantKnowledge(
   message: string,
@@ -1004,12 +1033,11 @@ function getRelevantKnowledge(
   userContext?: { goal?: string; gender?: string },
 ): { content: string; topics: string[] } {
   // Build weighted text: current message has highest weight, older messages decay
-  const weights = [1.0, 0.5, 0.3, 0.2]; // current, prev, prev-2, prev-3
+  const weights = [1.0, 0.5, 0.3, 0.2];
   const textsWithWeights: Array<{ text: string; weight: number }> = [
     { text: message, weight: weights[0] },
   ];
 
-  // Add recent user messages from history (only user messages, not assistant)
   const userMessages = recentHistory
     .filter((m) => m.role === 'user' && m.content)
     .slice(-3)
@@ -1018,39 +1046,97 @@ function getRelevantKnowledge(
     textsWithWeights.push({ text: m.content!, weight: weights[i + 1] || 0.1 });
   });
 
-  // Score each module with weighted keyword matching
+  // Score each module with TF-IDF-inspired matching
   const scored = KEYWORD_MAPPINGS
     .map(([module, keywords]) => {
       let score = 0;
+      let matchedKeywords: string[] = [];
+
       for (const { text, weight } of textsWithWeights) {
         const lower = text.toLowerCase();
-        const matchCount = keywords.filter((k) => lower.includes(k)).length;
-        score += matchCount * weight;
+        const words = lower.split(/\s+/);
+
+        for (const keyword of keywords) {
+          if (!lower.includes(keyword)) continue;
+
+          const idf = getKeywordIDF(keyword);
+
+          // Base score: weight * IDF
+          let keywordScore = weight * idf;
+
+          // Exact word match bonus (not just substring): +30%
+          if (words.includes(keyword) || words.some(w => w === keyword + 'у' || w === keyword + 'а' || w === keyword + 'ы' || w === keyword + 'ов')) {
+            keywordScore *= 1.3;
+          }
+
+          // Position bonus: keyword in first 50 chars of message = +20% (user's main intent)
+          if (text === message && lower.indexOf(keyword) < 50) {
+            keywordScore *= 1.2;
+          }
+
+          // Multi-word keyword bonus: phrases like "интервальн голодан" are more specific
+          if (keyword.includes(' ')) {
+            keywordScore *= 1.5;
+          }
+
+          score += keywordScore;
+          matchedKeywords.push(keyword);
+        }
       }
 
-      // Boost modules based on user profile (implicit relevance)
-      if (userContext?.gender === 'FEMALE' && module === 'WOMENS_PROGRAMMING') score += 1.5;
-      if (userContext?.goal === 'WEIGHT_LOSS' && module === 'CUTTING_BULKING') score += 1.0;
-      if (userContext?.goal === 'MUSCLE_GAIN' && module === 'CUTTING_BULKING') score += 1.0;
-      if (userContext?.goal === 'STRENGTH' && module === 'POWERLIFTING') score += 1.0;
-      if (userContext?.goal === 'ENDURANCE' && module === 'ENDURANCE_SPORTS') score += 1.0;
+      // Profile-based implicit relevance boost
+      if (userContext?.gender === 'FEMALE' && module === 'WOMENS_PROGRAMMING') score += 2.0;
+      if (userContext?.goal === 'weight_loss' && module === 'CUTTING_BULKING') score += 1.5;
+      if (userContext?.goal === 'muscle_gain' && module === 'CUTTING_BULKING') score += 1.5;
+      if (userContext?.goal === 'strength' && module === 'POWERLIFTING') score += 1.5;
+      if (userContext?.goal === 'endurance' && module === 'ENDURANCE_SPORTS') score += 1.5;
 
-      return { module, score };
+      // Diversity bonus: number of distinct matched keywords matters
+      const uniqueMatches = new Set(matchedKeywords).size;
+      if (uniqueMatches >= 3) score *= 1.2; // broad topic match = more relevant
+
+      return { module, score, matchedKeywords: uniqueMatches };
     })
     .filter((m) => m.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  // Pick top N most relevant modules
-  const selected = scored.length > 0
-    ? scored.slice(0, MAX_KNOWLEDGE_MODULES).map((s) => s.module)
-    : DEFAULT_MODULES;
+  // Anti-overlap: avoid selecting modules that share too many keywords with already-selected ones
+  const selected: string[] = [];
+  const selectedKeywordSets: Set<string>[] = [];
 
-  const content = selected
+  for (const candidate of scored) {
+    if (selected.length >= MAX_KNOWLEDGE_MODULES) break;
+
+    // Check overlap with already selected modules
+    const candidateKeywords = new Set(
+      KEYWORD_MAPPINGS.find(([m]) => m === candidate.module)?.[1] ?? []
+    );
+
+    let maxOverlap = 0;
+    for (const existingSet of selectedKeywordSets) {
+      let overlap = 0;
+      for (const k of candidateKeywords) {
+        if (existingSet.has(k)) overlap++;
+      }
+      const overlapRatio = overlap / Math.min(candidateKeywords.size, existingSet.size);
+      maxOverlap = Math.max(maxOverlap, overlapRatio);
+    }
+
+    // Skip if >60% keyword overlap with an already selected module (too similar)
+    if (maxOverlap > 0.6 && selected.length > 0) continue;
+
+    selected.push(candidate.module);
+    selectedKeywordSets.push(candidateKeywords);
+  }
+
+  const finalSelection = selected.length > 0 ? selected : DEFAULT_MODULES;
+
+  const content = finalSelection
     .map((name) => KNOWLEDGE_MODULES[name])
     .filter(Boolean)
     .join('\n\n---\n\n');
 
-  return { content, topics: selected };
+  return { content, topics: finalSelection };
 }
 
 // Execute an AI tool call and return the result string + performed action info
@@ -2199,7 +2285,22 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
     const recoveryContext = buildRecoveryContext(recovery);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus`);
+    // ─── Block 25: Deload week auto-detection ──────
+    const deloadRecommendation = detectDeloadNeed(
+      recentWorkouts.map((w) => ({ name: w.name, completedAt: w.completedAt, totalVolume: w.totalVolume })),
+      overloadData,
+      recovery.score,
+    );
+    const deloadContext = buildDeloadContext(deloadRecommendation);
+
+    // ─── Block 24: AI Memory — learn from user and personalize ──────
+    const extractedMemories = extractMemories(message);
+    if (extractedMemories.length > 0) {
+      saveMemories(userId, extractedMemories).catch(() => {}); // fire-and-forget
+    }
+    const memoryContext = await getMemoryContext(userId);
+
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus, memories: ${extractedMemories.length} new`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -2238,7 +2339,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -3178,6 +3279,248 @@ function buildRecoveryContext(recovery: { score: number; factors: string[] }): s
   }
 
   return lines.join('\n');
+}
+
+// ─── Block 24: AI Memory — cross-session preference learning ────────────────
+
+interface MemoryExtraction {
+  category: string;
+  key: string;
+  value: string;
+  confidence: number;
+  source: 'stated' | 'inferred';
+}
+
+// Patterns to extract user preferences/facts from messages
+const MEMORY_PATTERNS: Array<{ regex: RegExp; category: string; key: string; extract: (match: RegExpMatchArray) => string }> = [
+  // Training schedule
+  { regex: /тренируюсь?\s*(\d)\s*(раз|дн)/i, category: 'schedule', key: 'training_frequency', extract: (m) => `${m[1]} раз в неделю` },
+  { regex: /по\s*(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)/i, category: 'schedule', key: 'training_days', extract: (m) => m[0] },
+  // Equipment
+  { regex: /(?:занимаюсь|тренируюсь)\s*(дома|в зале|на улице)/i, category: 'preference', key: 'training_location', extract: (m) => m[1] },
+  { regex: /(?:у меня|есть|имеется)\s*(гантел|штанг|турник|брусья|гир|тренажёр|тренажер|резинк)/i, category: 'preference', key: 'available_equipment', extract: (m) => m[1] },
+  // Diet preferences
+  { regex: /(?:я\s+)?(вегетарианец|веган|не ем мясо|не ем рыб|не пью молок|без глютен|безлактозн)/i, category: 'allergy', key: 'diet_restriction', extract: (m) => m[1] },
+  { regex: /(?:аллерги[яю]|непереносимость)\s+(?:на\s+)?([\wа-яА-Я]+)/i, category: 'allergy', key: 'food_allergy', extract: (m) => m[1] },
+  // Injuries and limitations
+  { regex: /(?:у меня|имеется|была?)\s*(грыж|протрузи|сколиоз|артрит|артроз)/i, category: 'injury', key: 'chronic_condition', extract: (m) => m[1] },
+  { regex: /(?:болит|травмирова|проблемы с)\s*(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп)/i, category: 'injury', key: 'pain_area', extract: (m) => m[1] },
+  // Preferences
+  { regex: /(?:люблю|нравится|предпочитаю)\s*(присед|жим|тяг|кардио|йог|бег|плаван)/i, category: 'preference', key: 'favorite_exercise', extract: (m) => m[1] },
+  { regex: /(?:не люблю|ненавижу|не хочу делать)\s*(кардио|присед|бег|планк)/i, category: 'preference', key: 'disliked_exercise', extract: (m) => m[1] },
+  // Sleep pattern
+  { regex: /(?:сплю|ложусь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?\s*(?:час|ночи)?/i, category: 'habit', key: 'sleep_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
+  { regex: /(?:встаю|просыпаюсь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?/i, category: 'habit', key: 'wake_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
+  // Experience
+  { regex: /(?:занимаюсь|тренируюсь)\s*(?:уже)?\s*(\d+)\s*(лет|год|месяц)/i, category: 'preference', key: 'experience_stated', extract: (m) => `${m[1]} ${m[2]}` },
+];
+
+/**
+ * Extract memorable facts from a user message.
+ */
+function extractMemories(message: string): MemoryExtraction[] {
+  const memories: MemoryExtraction[] = [];
+
+  for (const pattern of MEMORY_PATTERNS) {
+    const match = message.match(pattern.regex);
+    if (match) {
+      memories.push({
+        category: pattern.category,
+        key: pattern.key,
+        value: pattern.extract(match),
+        confidence: 0.7, // stated explicitly
+        source: 'stated',
+      });
+    }
+  }
+
+  return memories;
+}
+
+/**
+ * Save or update extracted memories in the database.
+ * Upsert: if key exists, increase confidence; if new, create.
+ */
+async function saveMemories(userId: string, memories: MemoryExtraction[]): Promise<void> {
+  for (const mem of memories) {
+    try {
+      const existing = await prisma.aIMemory.findUnique({
+        where: { userId_key: { userId, key: mem.key } },
+      });
+
+      if (existing) {
+        // If same value, boost confidence; if different, update with reset confidence
+        const sameValue = existing.value === mem.value;
+        await prisma.aIMemory.update({
+          where: { userId_key: { userId, key: mem.key } },
+          data: {
+            value: mem.value,
+            confidence: sameValue
+              ? Math.min(1.0, existing.confidence + 0.15)
+              : mem.confidence,
+            source: mem.source,
+          },
+        });
+      } else {
+        await prisma.aIMemory.create({
+          data: {
+            userId,
+            category: mem.category,
+            key: mem.key,
+            value: mem.value,
+            confidence: mem.confidence,
+            source: mem.source,
+          },
+        });
+      }
+    } catch (e) {
+      // Silently skip if DB issue (table may not exist yet)
+      console.error('AIMemory save error:', e);
+    }
+  }
+}
+
+/**
+ * Build context string from stored AI memories for injection into system prompt.
+ */
+async function getMemoryContext(userId: string): Promise<string> {
+  try {
+    const memories = await prisma.aIMemory.findMany({
+      where: { userId, confidence: { gte: 0.5 } },
+      orderBy: { confidence: 'desc' },
+      take: 20,
+    });
+
+    if (memories.length === 0) return '';
+
+    const grouped: Record<string, string[]> = {};
+    for (const m of memories) {
+      const cat = m.category;
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(`${m.key}: ${m.value} (${Math.round(m.confidence * 100)}%)`);
+    }
+
+    const lines: string[] = ['\n## 🧠 ПАМЯТЬ О ПОЛЬЗОВАТЕЛЕ (из прошлых разговоров)'];
+
+    const categoryLabels: Record<string, string> = {
+      preference: 'Предпочтения',
+      habit: 'Привычки',
+      injury: 'Травмы/ограничения',
+      allergy: 'Аллергии/диета',
+      schedule: 'Расписание',
+      personality: 'Особенности',
+    };
+
+    for (const [cat, items] of Object.entries(grouped)) {
+      lines.push(`**${categoryLabels[cat] || cat}:** ${items.join('; ')}`);
+    }
+
+    lines.push('→ Используй эту информацию для персонализации. Не переспрашивай то, что уже знаешь. Если информация противоречит текущему сообщению — уточни, не игнорируй.');
+
+    return lines.join('\n');
+  } catch {
+    return '';
+  }
+}
+
+// ─── Block 25: Deload Week Auto-Detection ──────────────────────────────────
+
+interface DeloadRecommendation {
+  shouldDeload: boolean;
+  reason: string;
+  weeksSinceDeload: number;
+  suggestedAction: string;
+}
+
+/**
+ * Analyze training history to determine if the user needs a deload week.
+ * Factors:
+ * 1. Weeks of continuous training without deload (>4-6 weeks = likely needs one)
+ * 2. Plateaus across multiple exercises
+ * 3. Volume/intensity trends (consecutive increases = accumulated fatigue)
+ * 4. Recovery score trend
+ */
+function detectDeloadNeed(
+  recentWorkouts: Array<{ name: string; completedAt: Date | null; totalVolume: number | null }>,
+  overloadData: OverloadStatus[],
+  recoveryScore: number,
+): DeloadRecommendation {
+  const now = Date.now();
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+  // Count consecutive weeks with training
+  let consecutiveWeeks = 0;
+  for (let w = 0; w < 8; w++) {
+    const weekStart = now - (w + 1) * MS_PER_WEEK;
+    const weekEnd = now - w * MS_PER_WEEK;
+    const workoutsInWeek = recentWorkouts.filter((wo) => {
+      const t = wo.completedAt ? wo.completedAt.getTime() : 0;
+      return t >= weekStart && t < weekEnd;
+    });
+    if (workoutsInWeek.length >= 2) {
+      consecutiveWeeks++;
+    } else {
+      break; // found a rest/deload week
+    }
+  }
+
+  // Check for volume trend (are last 3 weeks showing increasing or flat-high volume?)
+  const weeklyVolumes: number[] = [];
+  for (let w = 0; w < 4; w++) {
+    const weekStart = now - (w + 1) * MS_PER_WEEK;
+    const weekEnd = now - w * MS_PER_WEEK;
+    const vol = recentWorkouts
+      .filter((wo) => {
+        const t = wo.completedAt ? wo.completedAt.getTime() : 0;
+        return t >= weekStart && t < weekEnd;
+      })
+      .reduce((sum, wo) => sum + (wo.totalVolume || 0), 0);
+    weeklyVolumes.push(vol);
+  }
+
+  // Count plateaus
+  const plateauCount = overloadData.filter((o) => o.status === 'plateau').length;
+  const regressionCount = overloadData.filter((o) => o.status === 'regressing').length;
+
+  // Decision logic
+  let shouldDeload = false;
+  let reason = '';
+  let suggestedAction = '';
+
+  if (consecutiveWeeks >= 6) {
+    shouldDeload = true;
+    reason = `${consecutiveWeeks} недель подряд без разгрузки — накопленная усталость гарантирована`;
+    suggestedAction = 'Рекомендуй deload неделю: сохранить упражнения, снизить вес на 40-50%, объём на 30-40%';
+  } else if (consecutiveWeeks >= 4 && (plateauCount >= 2 || recoveryScore < 50)) {
+    shouldDeload = true;
+    reason = `${consecutiveWeeks} недель без отдыха + ${plateauCount >= 2 ? `плато в ${plateauCount} упражнениях` : `низкий recovery score (${recoveryScore})`}`;
+    suggestedAction = 'Предложи облегчённую неделю: снизить рабочие веса на 30%, убрать изоляцию, оставить базовые';
+  } else if (regressionCount >= 3) {
+    shouldDeload = true;
+    reason = `Регрессия в ${regressionCount} упражнениях — явный признак перетренированности`;
+    suggestedAction = 'СРОЧНО рекомендуй полный отдых 3-5 дней или очень лёгкую восстановительную тренировку';
+  } else if (consecutiveWeeks >= 4 && recoveryScore < 60 && weeklyVolumes[0] > weeklyVolumes[1]) {
+    shouldDeload = true;
+    reason = `Усталость при растущем объёме — классический сигнал для deload`;
+    suggestedAction = 'Предложи следующую неделю сделать разгрузочной: те же упражнения, 60% от рабочих весов';
+  }
+
+  return {
+    shouldDeload,
+    reason,
+    weeksSinceDeload: consecutiveWeeks,
+    suggestedAction,
+  };
+}
+
+function buildDeloadContext(deload: DeloadRecommendation): string {
+  if (!deload.shouldDeload) return '';
+
+  return `\n## ⚠️ DELOAD РЕКОМЕНДАЦИЯ (ВАЖНО)
+Причина: ${deload.reason}
+Тренировочных недель подряд: ${deload.weeksSinceDeload}
+→ ${deload.suggestedAction}
+→ Объясни пользователю ЗАЧЕМ нужен deload (суперкомпенсация, адаптация ЦНС, профилактика травм).`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────

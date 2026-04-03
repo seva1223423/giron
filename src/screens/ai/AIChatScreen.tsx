@@ -16,9 +16,9 @@ import { FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { ChatMessage } from '../../types';
-import { aiService, getApiError, AIActionResult } from '../../services';
+import { aiService, getApiError, AIActionResult, AIMeta, AIStarter } from '../../services';
 
-const QUICK_PROMPTS = [
+const FALLBACK_PROMPTS = [
   { emoji: '💪', text: 'Составь программу тренировок под мои цели' },
   { emoji: '🍽', text: 'Рассчитай мне КБЖУ и составь рацион' },
   { emoji: '🏋️', text: 'Как правильно делать становую тягу?' },
@@ -32,6 +32,20 @@ const QUICK_PROMPTS = [
   { emoji: '🏃', text: 'Как совмещать кардио и силовые?' },
   { emoji: '🤕', text: 'Болит плечо при жиме — что делать?' },
 ];
+
+function getRecoveryColor(score: number): string {
+  if (score >= 80) return '#4CAF50';
+  if (score >= 60) return '#FF9800';
+  if (score >= 40) return '#FF5722';
+  return '#F44336';
+}
+
+function getRecoveryLabel(score: number): string {
+  if (score >= 80) return 'Отличное';
+  if (score >= 60) return 'Хорошее';
+  if (score >= 40) return 'Среднее';
+  return 'Низкое';
+}
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
@@ -54,6 +68,9 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [lastActions, setLastActions] = useState<AIActionResult[]>([]);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [lastMeta, setLastMeta] = useState<AIMeta | null>(null);
+  const [serverStarters, setServerStarters] = useState<AIStarter[]>([]);
+  const [celebration, setCelebration] = useState<{ milestones: string[]; prs: string[] } | null>(null);
 
   // Load chat history from server
   useEffect(() => {
@@ -78,6 +95,13 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     };
     loadHistory();
+  }, []);
+
+  // Load personalized starters from server
+  useEffect(() => {
+    aiService.getStarters().then((starters) => {
+      if (starters.length > 0) setServerStarters(starters);
+    });
   }, []);
 
   const sendMessage = async (text: string) => {
@@ -119,6 +143,19 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const response = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan);
 
       haptic.success();
+
+      // Capture AI metadata
+      if (response.meta) {
+        setLastMeta(response.meta);
+        const celebrationData: { milestones: string[]; prs: string[] } = {
+          milestones: response.meta.milestones ?? [],
+          prs: response.meta.newPRs ?? [],
+        };
+        if (celebrationData.milestones.length > 0 || celebrationData.prs.length > 0) {
+          setCelebration(celebrationData);
+          setTimeout(() => setCelebration(null), 8000);
+        }
+      }
 
       if (response.actions?.length > 0) {
         setLastActions(response.actions);
@@ -256,7 +293,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return prompts;
   }, [workoutHistory, programs]);
 
-  const allQuickPrompts = [...dynamicPrompts, ...QUICK_PROMPTS];
+  const staticPrompts = serverStarters.length > 0
+    ? serverStarters.map((s) => ({ emoji: s.emoji, text: s.text }))
+    : FALLBACK_PROMPTS;
+  const allQuickPrompts = [...dynamicPrompts, ...staticPrompts];
 
   const showQuickPrompts = messages.length <= 1;
 
@@ -277,12 +317,26 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' }}>PRO</Text>
               </View>
             )}
+            {lastMeta?.recovery != null && (
+              <View style={[styles.recoveryBadge, { backgroundColor: getRecoveryColor(lastMeta.recovery) + '20', borderColor: getRecoveryColor(lastMeta.recovery) + '60' }]}>
+                <Text style={{ fontSize: 10, color: getRecoveryColor(lastMeta.recovery), fontWeight: '700' }}>
+                  {getRecoveryLabel(lastMeta.recovery)} {lastMeta.recovery}%
+                </Text>
+              </View>
+            )}
           </View>
-          <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2 }]}>
-            {isPremiumActive()
-              ? 'Безлимитный доступ'
-              : `Осталось ${aiMessagesLeft()} из ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2 }]}>
+              {isPremiumActive()
+                ? 'Безлимитный доступ'
+                : `Осталось ${aiMessagesLeft()} из ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}
+            </Text>
+            {lastMeta?.streak != null && lastMeta.streak > 0 && (
+              <Text style={[typography.small, { color: colors.accent, marginTop: 2, fontWeight: '600' }]}>
+                🔥 {lastMeta.streak} дн
+              </Text>
+            )}
+          </View>
         </View>
       </View>
 
@@ -356,7 +410,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <React.Fragment key={i}>
                   {i === dynamicPrompts.length && dynamicPrompts.length > 0 && (
                     <Text style={[typography.captionMedium, { color: colors.textTertiary, marginTop: spacing.sm, marginBottom: spacing.xs, marginLeft: 2 }]}>
-                      ПОПУЛЯРНЫЕ ВОПРОСЫ
+                      {serverStarters.length > 0 ? 'РЕКОМЕНДАЦИИ' : 'ПОПУЛЯРНЫЕ ВОПРОСЫ'}
                     </Text>
                   )}
                   <TouchableOpacity
@@ -399,6 +453,24 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View key={i} style={[styles.actionChip, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
               <Text style={{ fontSize: 13, marginRight: 4 }}>✓</Text>
               <Text style={[typography.small, { color: colors.success, flex: 1 }]}>{action.description}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Celebration banner for milestones & PRs */}
+      {celebration && (
+        <View style={[styles.celebrationBar, { backgroundColor: colors.accent + '15', borderTopColor: colors.accent + '40' }]}>
+          {celebration.milestones.map((m, i) => (
+            <View key={`m-${i}`} style={[styles.celebrationChip, { backgroundColor: colors.accent + '20', borderColor: colors.accent + '50' }]}>
+              <Text style={{ fontSize: 14, marginRight: 4 }}>🏆</Text>
+              <Text style={[typography.small, { color: colors.accent, fontWeight: '700', flex: 1 }]}>{m}</Text>
+            </View>
+          ))}
+          {celebration.prs.map((pr, i) => (
+            <View key={`pr-${i}`} style={[styles.celebrationChip, { backgroundColor: '#FF9800' + '20', borderColor: '#FF9800' + '50' }]}>
+              <Text style={{ fontSize: 14, marginRight: 4 }}>🎉</Text>
+              <Text style={[typography.small, { color: '#FF9800', fontWeight: '700', flex: 1 }]}>Новый рекорд: {pr}</Text>
             </View>
           ))}
         </View>
@@ -459,6 +531,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
+  },
+  recoveryBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
   },
   messagesContainer: {
     padding: spacing.xl,
@@ -529,6 +607,20 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   actionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  celebrationBar: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    gap: spacing.xs,
+  },
+  celebrationChip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 6,

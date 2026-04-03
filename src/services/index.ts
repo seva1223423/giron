@@ -6,6 +6,6 @@ export { userService } from './userService';
 export { workoutService } from './workoutService';
 export { nutritionService } from './nutritionService';
 export { aiService } from './aiService';
-export type { FoodAnalysisItem, FoodAnalysisResult, AIActionResult } from './aiService';
+export type { FoodAnalysisItem, FoodAnalysisResult, AIActionResult, AIMeta, AIStarter } from './aiService';
 export { newsService } from './newsService';
 export * from './notificationService';
