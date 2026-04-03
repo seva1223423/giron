@@ -861,6 +861,132 @@ function classifyIntent(message: string): UserIntent {
   return 'general';
 }
 
+// ─── Emotion Detection ──────────────────────────────────────────────────────
+
+type UserMood = 'frustrated' | 'excited' | 'anxious' | 'sad' | 'neutral' | 'curious';
+
+interface MoodDirective {
+  mood: UserMood;
+  directive: string; // injected into system prompt
+}
+
+const MOOD_PATTERNS: Array<[UserMood, RegExp[]]> = [
+  ['frustrated', [
+    /(?:за[ае]бал|бесит|достало|надоело|ненавижу|сука|блять|бл[яе]|пиздец|хуй|нахуй)/i,
+    /(?:ничего не (?:работает|получается|помогает|меняется))/i,
+    /(?:я\s*(?:устал|задолбал|замучил)(?:ся|ась)?)/i,
+    /(?:какого\s*(?:хрена|чёрта|хера|фига))/i,
+    /(?:сколько можно|опять|снова)\s*(?:одно и то же|ничего)/i,
+  ]],
+  ['excited', [
+    /(?:ура|ааа|оооо|вау|круто|офигеть|охренеть|обалдеть|класс|супер|бомба)/i,
+    /(?:наконец[-\s]?то|я\s*(?:смог|сделал|осилил|поднял|побил))/i,
+    /(?:новый рекорд|личный рекорд|pr|пр|пб)/i,
+    /(?:!!|🔥|💪|🎉|🏆)/,
+  ]],
+  ['anxious', [
+    /(?:боюсь|страшно|опасно ли|вредно ли|не навредит|не опасно)/i,
+    /(?:переживаю|волнуюсь|тревож|беспокоюсь)/i,
+    /(?:а вдруг|а что если|не (?:сломаю|порву|повредю|надорву))/i,
+    /(?:стоит ли|можно ли|безопасно ли|нормально ли)/i,
+  ]],
+  ['sad', [
+    /(?:грустно|печально|расстроен|депрессия|уныние|тоска)/i,
+    /(?:ничего не выходит|я\s*(?:неудачник|жирный|слабый|бесполезн))/i,
+    /(?:зачем\s*(?:всё это|я\s*(?:вообще|тут)|стараюсь))/i,
+    /(?:все\s*(?:лучше|сильнее|красивее)\s*(?:меня|чем я))/i,
+  ]],
+  ['curious', [
+    /(?:а\s*(?:почему|зачем|как так|правда ли))/i,
+    /(?:интересно|хочу\s*(?:узнать|понять|разобраться))/i,
+    /(?:объясни|расскажи подробнее|а что насчёт|в чём разница)/i,
+    /(?:\?.*\?)/,  // multiple question marks = curiosity
+  ]],
+];
+
+const MOOD_DIRECTIVES: Record<UserMood, string> = {
+  frustrated: '⚡ НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: раздражён/фрустрирован. Будь максимально конкретным, без воды. Покажи эмпатию ("Понимаю, это бесит"), но сразу дай решение. Не морализируй.',
+  excited: '🎉 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: воодушевлён/рад. Поддержи энергию! Похвали конкретное достижение через данные. Предложи следующий вызов чтобы не терять момент.',
+  anxious: '🫶 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: тревожится/переживает. Успокой фактами и наукой. Объясни риски честно но без запугивания. Дай чёткий безопасный план действий.',
+  sad: '💪 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: подавлен/грустит. Будь мягким но не жалей. Покажи прогресс через данные ("посмотри сколько ты уже сделал"). Дай маленький достижимый шаг на сегодня.',
+  neutral: '',
+  curious: '🧠 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: любопытен, хочет разобраться. Дай развёрнутый ответ с объяснением механизмов. Можно чуть подробнее чем обычно — человек хочет понять.',
+};
+
+function detectMood(message: string): MoodDirective {
+  for (const [mood, patterns] of MOOD_PATTERNS) {
+    if (patterns.some((p) => p.test(message))) {
+      return { mood, directive: MOOD_DIRECTIVES[mood] };
+    }
+  }
+  return { mood: 'neutral', directive: '' };
+}
+
+// ─── Time-Aware Context ─────────────────────────────────────────────────────
+
+function getTimeContext(): string {
+  const now = new Date();
+  const hour = now.getHours();
+  const DAY_NAMES = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+  const dayName = DAY_NAMES[now.getDay()];
+  const dateStr = now.toLocaleDateString('ru-RU');
+
+  let timeOfDay: string;
+  let timeHint: string;
+  if (hour >= 5 && hour < 10) {
+    timeOfDay = 'утро';
+    timeHint = 'Утро — хорошее время для тренировки натощак (кардио) или после лёгкого завтрака. Напомни про завтрак если нет записей.';
+  } else if (hour >= 10 && hour < 14) {
+    timeOfDay = 'первая половина дня';
+    timeHint = 'Пик работоспособности. Хорошее время для силовой тренировки.';
+  } else if (hour >= 14 && hour < 17) {
+    timeOfDay = 'день';
+    timeHint = 'Температура тела максимальна — оптимальное время для тяжёлых базовых упражнений и рекордов.';
+  } else if (hour >= 17 && hour < 21) {
+    timeOfDay = 'вечер';
+    timeHint = 'Если пользователь ещё не тренировался сегодня — это последний шанс. Если тренировался — спроси как прошло.';
+  } else if (hour >= 21 || hour < 5) {
+    timeOfDay = 'ночь';
+    timeHint = 'Поздно для тренировки. Фокус на восстановление и сон. Если пользователь не спит — мягко напомни что сон = рост мышц.';
+  } else {
+    timeOfDay = 'раннее утро';
+    timeHint = '';
+  }
+
+  return `\n## ВРЕМЯ И ДАТА\nСейчас: ${dateStr}, ${dayName}, ${timeOfDay} (${hour}:${String(now.getMinutes()).padStart(2, '0')})\n${timeHint}`;
+}
+
+// ─── Profile Completeness Check ─────────────────────────────────────────────
+
+interface ProfileGap {
+  field: string;
+  question: string;
+  priority: number; // higher = ask sooner
+}
+
+function getProfileGaps(user: {
+  weightKg: number | null;
+  heightCm: number | null;
+  goal: string | null;
+  fitnessLevel: string | null;
+  dateOfBirth: Date | null;
+  gender: string | null;
+  trainingExperienceYears: number | null;
+} | null): ProfileGap[] {
+  if (!user) return [];
+  const gaps: ProfileGap[] = [];
+
+  if (!user.weightKg) gaps.push({ field: 'вес', question: 'Сколько ты весишь? Это нужно для расчёта КБЖУ и нагрузки.', priority: 10 });
+  if (!user.heightCm) gaps.push({ field: 'рост', question: 'Какой у тебя рост? Нужно для расчёта TDEE и ИМТ.', priority: 9 });
+  if (!user.goal) gaps.push({ field: 'цель', question: 'Какая у тебя основная цель? Похудение, набор массы, сила, выносливость?', priority: 10 });
+  if (!user.fitnessLevel) gaps.push({ field: 'уровень', question: 'Как давно тренируешься? Нужно чтобы подобрать правильную программу.', priority: 7 });
+  if (!user.gender) gaps.push({ field: 'пол', question: 'Укажи пол — это влияет на нормы КБЖУ и рекомендации по тренировкам.', priority: 6 });
+  if (!user.dateOfBirth) gaps.push({ field: 'возраст', question: 'Сколько тебе лет? Влияет на восстановление и допустимые нагрузки.', priority: 5 });
+  if (!user.trainingExperienceYears) gaps.push({ field: 'стаж', question: 'Сколько лет занимаешься в зале? Или только начинаешь?', priority: 4 });
+
+  return gaps.sort((a, b) => b.priority - a.priority);
+}
+
 // Maximum number of knowledge modules to include per request (controls token usage)
 const MAX_KNOWLEDGE_MODULES = 4;
 
@@ -1838,7 +1964,17 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Intent classification: tune AI parameters per message type ──────
     const intent = classifyIntent(message);
     const intentConfig = INTENT_CONFIGS[intent];
-    console.log(`[AI] Intent: ${intent}, temp: ${intentConfig.temperature}, maxTokens: ${intentConfig.maxTokens}, tools: ${intentConfig.toolsEnabled}`);
+
+    // ─── Emotion detection: adapt AI tone to user's mood ──────
+    const { mood, directive: moodDirective } = detectMood(message);
+
+    // ─── Time context: inject current time/day for situational awareness ──────
+    const timeContext = getTimeContext();
+
+    // ─── Profile completeness: detect missing data ──────
+    const profileGaps = getProfileGaps(user);
+
+    console.log(`[AI] Intent: ${intent}, mood: ${mood}, gaps: ${profileGaps.length}, tools: ${intentConfig.toolsEnabled}`);
 
     // Build conversation messages (history + current message) with smart trimming
     const rawMessages: DeepSeekMessage[] = history
@@ -2033,10 +2169,17 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       ? `\n\n## 🔔 ПРОАКТИВНЫЕ НАБЛЮДЕНИЯ (обязательно учти в ответе если релевантно)\n${proactiveInsights.join('\n')}`
       : '';
 
+    // Build profile gaps directive (top 2 missing fields)
+    let profileGapsBlock = '';
+    if (profileGaps.length > 0 && intent !== 'greeting') {
+      const topGaps = profileGaps.slice(0, 2);
+      profileGapsBlock = `\n\n## НЕДОСТАЮЩИЕ ДАННЫЕ ПРОФИЛЯ (если контекст подходит — спроси)\n${topGaps.map((g) => `- ${g.field}: ${g.question}`).join('\n')}`;
+    }
+
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${userContext}\n${programContext}\n${statsContext}${insightsBlock}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${insightsBlock}${profileGapsBlock}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -2261,6 +2404,101 @@ function validateFoodItems(items: FoodItem[]): FoodItem[] {
       return item;
     });
 }
+
+// ─── Conversation Starters: personalized quick-action suggestions ────────────
+
+router.get('/starters', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const starters: Array<{ emoji: string; text: string; action?: string }> = [];
+
+    const [user, lastWorkout, todayMeals, bodyWeight, activeProgram] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.workout.findFirst({
+        where: { userId, completedAt: { not: null } },
+        orderBy: { completedAt: 'desc' },
+      }),
+      prisma.meal.findMany({
+        where: {
+          userId,
+          createdAt: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            lte: new Date(new Date().setHours(23, 59, 59, 999)),
+          },
+        },
+      }),
+      prisma.bodyWeight.findFirst({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.program.findFirst({ where: { userId, isActive: true } }),
+    ]);
+
+    const hour = new Date().getHours();
+    const DAY_NAMES_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+    const dayShort = DAY_NAMES_SHORT[new Date().getDay()];
+
+    // 1. Time-based meal suggestion
+    if (todayMeals.length === 0 && hour >= 7 && hour < 11) {
+      starters.push({ emoji: '🍳', text: 'Что мне поесть на завтрак?' });
+    } else if (todayMeals.length <= 1 && hour >= 12 && hour < 15) {
+      starters.push({ emoji: '🥗', text: 'Что приготовить на обед?' });
+    } else if (hour >= 18 && hour < 22) {
+      starters.push({ emoji: '🍽️', text: 'Что поесть на ужин?' });
+    }
+
+    // 2. Inactivity prompt
+    if (lastWorkout) {
+      const daysSince = Math.floor((Date.now() - new Date(lastWorkout.completedAt!).getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSince >= 3 && daysSince < 7) {
+        starters.push({ emoji: '💪', text: `Давно не тренировался (${daysSince} дн). Что делать сегодня?` });
+      } else if (daysSince >= 7) {
+        starters.push({ emoji: '🔄', text: 'Хочу вернуться к тренировкам' });
+      }
+    }
+
+    // 3. No program
+    if (!activeProgram) {
+      starters.push({ emoji: '📋', text: 'Составь мне программу тренировок' });
+    }
+
+    // 4. Weight logging (if last weight was >3 days ago)
+    if (bodyWeight) {
+      const daysSinceWeigh = Math.floor((Date.now() - new Date(bodyWeight.date).getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceWeigh >= 3) {
+        starters.push({ emoji: '⚖️', text: 'Записать вес' });
+      }
+    } else {
+      starters.push({ emoji: '⚖️', text: 'Записать вес' });
+    }
+
+    // 5. Profile gaps → natural questions
+    const gaps = getProfileGaps(user);
+    if (gaps.length > 0) {
+      const top = gaps[0];
+      starters.push({ emoji: '⚙️', text: `Рассчитай мои нормы КБЖУ` });
+    }
+
+    // 6. General starters (always available, lower priority)
+    const generalStarters = [
+      { emoji: '🧠', text: 'Как улучшить технику приседа?' },
+      { emoji: '📈', text: 'Покажи мой прогресс' },
+      { emoji: '💊', text: 'Какие добавки мне нужны?' },
+      { emoji: '😴', text: 'Как улучшить восстановление?' },
+    ];
+
+    // Fill up to 6 starters total
+    while (starters.length < 6 && generalStarters.length > 0) {
+      starters.push(generalStarters.shift()!);
+    }
+
+    res.json({ starters: starters.slice(0, 6) });
+  } catch (e) {
+    console.error('Starters error:', e);
+    res.json({ starters: [
+      { emoji: '💪', text: 'Составь тренировку на сегодня' },
+      { emoji: '🍽️', text: 'Что мне поесть?' },
+      { emoji: '📈', text: 'Покажи мой прогресс' },
+    ]});
+  }
+});
 
 // Analyze food photo
 router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Response) => {
