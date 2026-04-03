@@ -1,53 +1,32 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# Dependencies
 node_modules/
+server/node_modules/
+
+# Environment variables — NEVER commit these
+.env
+server/.env
+*.env.local
+
+# Build output
+dist/
+server/dist/
+build/
 
 # Expo
 .expo/
-dist/
 web-build/
-expo-env.d.ts
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# Logs
+*.log
+npm-debug.log*
 
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
+# OS
 .DS_Store
-*.pem
-
-# local env files
-.env
-.env*.local
-
-# Server
-server/dist/
-server/node_modules/
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
 
-# OS
-Thumbs.db
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
+# Prisma
+server/prisma/migrations/dev.db

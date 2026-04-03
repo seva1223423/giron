@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { chat as ollamaChat, analyzeImage, generate as ollamaGenerate, OllamaTool, OllamaMessage } from '../services/localAI';
+import { chat, analyzeImage, generate, DeepSeekTool, DeepSeekMessage } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
   NUTRITION_KNOWLEDGE,
@@ -190,8 +190,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 4. Предложи альтернативные упражнения, не нагружающие проблемную зону
 5. Дай упражнения на реабилитацию/укрепление (если уместно)`;
 
-// ─── AI Tools (OpenAI/Ollama format) ─────────────────────────────────────────
-const AI_TOOLS: OllamaTool[] = [
+// ─── AI Tools (OpenAI-compatible format) ─────────────────────────────────────
+const AI_TOOLS: DeepSeekTool[] = [
   {
     type: 'function',
     function: {
@@ -1697,7 +1697,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     });
 
     // Build conversation messages (history + current message)
-    const messages: OllamaMessage[] = history
+    const messages: DeepSeekMessage[] = history
       .reverse()
       .map((m) => ({
         role: m.role as 'user' | 'assistant',
@@ -1716,7 +1716,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const performedActions: Array<{ type: string; description: string; data?: Record<string, unknown> }> = [];
 
     // First Ollama call — may include tool_calls
-    let result = await ollamaChat({
+    let result = await chat({
       system: systemPrompt,
       messages,
       tools: AI_TOOLS,
@@ -1724,16 +1724,18 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // Agentic loop: process tool calls until we get a final text response
     while (result.hasToolCalls) {
-      // Append assistant's tool-call message
+      // Append assistant's tool-call message (OpenAI format: requires id + type)
       messages.push({
         role: 'assistant',
-        content: result.content || '',
+        content: result.content || null,
         tool_calls: result.toolCalls.map((tc) => ({
-          function: { name: tc.name, arguments: tc.arguments },
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
         })),
       });
 
-      // Execute all tool calls and append results
+      // Execute all tool calls and append results (OpenAI format: requires tool_call_id)
       for (const tc of result.toolCalls) {
         const { resultText, actionDescription, actionData } = await executeTool(
           tc.name,
@@ -1743,11 +1745,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         if (actionDescription) {
           performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
         }
-        messages.push({ role: 'tool', content: resultText });
+        messages.push({ role: 'tool', tool_call_id: tc.id, content: resultText });
       }
 
       // Continue conversation
-      result = await ollamaChat({
+      result = await chat({
         system: systemPrompt,
         messages,
         tools: AI_TOOLS,
@@ -1889,7 +1891,7 @@ ${exerciseSummaries}
 
 Ответ строго на русском. Никаких заголовков — просто текст. Структура: 1) что было хорошо, 2) на что обратить внимание, 3) мотивирующий итог.`;
 
-    const text = await ollamaGenerate(prompt, { maxTokens: 512, temperature: 0.7 });
+    const text = await generate(prompt, { maxTokens: 512, temperature: 0.7 });
     res.json({ insights: text });
   } catch (e) {
     console.error('Workout insights error:', e);
