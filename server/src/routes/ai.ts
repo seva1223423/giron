@@ -2,7 +2,33 @@ import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import Anthropic from '@anthropic-ai/sdk';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { FULL_KNOWLEDGE_BASE } from '../knowledge';
+import {
+  TRAINING_PRINCIPLES,
+  NUTRITION_KNOWLEDGE,
+  EXERCISE_TECHNIQUE,
+  RECOVERY_KNOWLEDGE,
+  SPECIAL_POPULATIONS,
+  CARDIO_KNOWLEDGE,
+  SPORTS_PHYSIOLOGY,
+  HOME_BODYWEIGHT,
+  PSYCHOLOGY_HABITS,
+  HEALTH_BIOMARKERS,
+  INTEGRATED_APPROACH,
+  POWERLIFTING,
+  ADVANCED_TECHNIQUES,
+  SUPPLEMENTS_DETAILED,
+  WOMENS_PROGRAMMING,
+  CUTTING_BULKING,
+  NUTRITION_DATABASE,
+  SUPPLEMENTS_ENCYCLOPEDIA,
+  SPORTS_SPECIFIC,
+  COMBAT_SPORTS,
+  ENDURANCE_SPORTS,
+  INJURY_AND_REHAB,
+  HORMONES_AND_HEALTH,
+  FLEXIBILITY_MOBILITY,
+  RUSSIAN_SPORTS_SCHOOL,
+} from '../knowledge';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -422,6 +448,35 @@ const AI_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+// Map keyword module names → actual knowledge content
+const KNOWLEDGE_MODULES: Record<string, string> = {
+  TRAINING_PRINCIPLES: TRAINING_PRINCIPLES,
+  NUTRITION: NUTRITION_KNOWLEDGE,
+  EXERCISE_TECHNIQUE: EXERCISE_TECHNIQUE,
+  RECOVERY: RECOVERY_KNOWLEDGE,
+  SPECIAL_POPULATIONS: SPECIAL_POPULATIONS,
+  CARDIO: CARDIO_KNOWLEDGE,
+  PHYSIOLOGY: SPORTS_PHYSIOLOGY,
+  HOME_BODYWEIGHT: HOME_BODYWEIGHT,
+  PSYCHOLOGY: PSYCHOLOGY_HABITS,
+  HEALTH_BIOMARKERS: HEALTH_BIOMARKERS,
+  INTEGRATED_APPROACH: INTEGRATED_APPROACH,
+  POWERLIFTING: POWERLIFTING,
+  ADVANCED_TECHNIQUES: ADVANCED_TECHNIQUES,
+  SUPPLEMENTS_DETAILED: SUPPLEMENTS_DETAILED,
+  WOMENS_PROGRAMMING: WOMENS_PROGRAMMING,
+  CUTTING_BULKING: CUTTING_BULKING,
+  NUTRITION_DATABASE: NUTRITION_DATABASE,
+  SUPPLEMENTS_ENCYCLOPEDIA: SUPPLEMENTS_ENCYCLOPEDIA,
+  SPORTS_SPECIFIC: SPORTS_SPECIFIC,
+  COMBAT_SPORTS: COMBAT_SPORTS,
+  ENDURANCE_SPORTS: ENDURANCE_SPORTS,
+  INJURY_AND_REHAB: INJURY_AND_REHAB,
+  HORMONES_AND_HEALTH: HORMONES_AND_HEALTH,
+  FLEXIBILITY_MOBILITY: FLEXIBILITY_MOBILITY,
+  RUSSIAN_SPORTS_SCHOOL: RUSSIAN_SPORTS_SCHOOL,
+};
+
 // Keyword mappings — module-level constant (computed once, not per-request)
 const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
   ['TRAINING_PRINCIPLES', [
@@ -675,13 +730,36 @@ const KEYWORD_MAPPINGS: Array<[string, string[]]> = [
   ]],
 ];
 
-// Determine which knowledge chunks are relevant to the user's question
-function getRelevantKnowledge(message: string): string {
+// Maximum number of knowledge modules to include per request (controls token usage)
+const MAX_KNOWLEDGE_MODULES = 4;
+
+// Default modules for general/greeting messages that don't match any keywords
+const DEFAULT_MODULES = ['TRAINING_PRINCIPLES', 'NUTRITION'];
+
+// Determine which knowledge chunks are relevant and return their actual content
+function getRelevantKnowledge(message: string): { content: string; topics: string[] } {
   const lower = message.toLowerCase();
-  const chunks = KEYWORD_MAPPINGS
-    .filter(([, keywords]) => keywords.some((k) => lower.includes(k)))
-    .map(([module]) => module);
-  return chunks.join(', ') || 'GENERAL';
+
+  // Score each module: count how many keywords match (more matches = more relevant)
+  const scored = KEYWORD_MAPPINGS
+    .map(([module, keywords]) => {
+      const matchCount = keywords.filter((k) => lower.includes(k)).length;
+      return { module, matchCount };
+    })
+    .filter((m) => m.matchCount > 0)
+    .sort((a, b) => b.matchCount - a.matchCount);
+
+  // Pick top N most relevant modules
+  const selected = scored.length > 0
+    ? scored.slice(0, MAX_KNOWLEDGE_MODULES).map((s) => s.module)
+    : DEFAULT_MODULES;
+
+  const content = selected
+    .map((name) => KNOWLEDGE_MODULES[name])
+    .filter(Boolean)
+    .join('\n\n---\n\n');
+
+  return { content, topics: selected };
 }
 
 // Execute an AI tool call and return the result string + performed action info
@@ -1601,12 +1679,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }));
     messages.push({ role: 'user', content: message });
 
-    const relevantTopics = getRelevantKnowledge(message);
+    const { content: knowledgeContent, topics: relevantTopics } = getRelevantKnowledge(message);
 
     const systemBlocks: Anthropic.TextBlockParam[] = [
       { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      { type: 'text', text: FULL_KNOWLEDGE_BASE, cache_control: { type: 'ephemeral' } },
-      { type: 'text', text: `${userContext}\n${programContext}\n${statsContext}\n\nРелевантные темы запроса: ${relevantTopics}` },
+      ...(knowledgeContent ? [{ type: 'text' as const, text: knowledgeContent }] : []),
+      { type: 'text', text: `${userContext}\n${programContext}\n${statsContext}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}` },
     ];
 
     const anthropic = getAnthropicClient();
