@@ -2509,6 +2509,45 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       weeklySummary.avgRpe,
     );
 
+    // ─── Block 46: Warm-up generator ──────
+    // Get scheduled workout today for warm-up and supplement advice
+    const todayStartDate = new Date(); todayStartDate.setHours(0, 0, 0, 0);
+    const todayEndDate = new Date(); todayEndDate.setHours(23, 59, 59, 999);
+    const scheduledWorkoutToday = await prisma.workout.findFirst({
+      where: { userId, scheduledDate: { gte: todayStartDate, lte: todayEndDate }, completedAt: null },
+      include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
+    });
+    const todayMuscles = scheduledWorkoutToday
+      ? scheduledWorkoutToday.exercises.flatMap((e) => e.exercise.primaryMuscles)
+      : [];
+    const warmupContext = generateWarmup(todayMuscles);
+
+    // ─── Block 47: Body composition estimator ──────
+    const bodyCompContext = estimateBodyComposition(
+      { weightKg: user?.weightKg, heightCm: user?.heightCm, gender: user?.gender },
+      bodyWeightHistory,
+      totalWorkoutsLast30Days,
+    );
+
+    // ─── Block 48: Supplement timing advisor ──────
+    const currentHour = new Date().getHours();
+    const supplementContext = buildSupplementAdvice(
+      user?.goal || null,
+      !!scheduledWorkoutToday,
+      currentHour,
+    );
+
+    // ─── Block 49: Workout comparison (week vs week) ──────
+    const thisWeekCount = weekWorkouts.filter((w) => w.completedAt).length;
+    const prevWeekCount = prevWeekWorkouts.filter((w) => w.completedAt).length;
+    const thisWeekDuration = weekWorkouts.reduce((sum, w) => sum + (w.durationMinutes || 0), 0);
+    const prevWeekDuration = prevWeekWorkouts.reduce((sum, w) => sum + (w.durationMinutes || 0), 0);
+    const workoutComparisonContext = buildWorkoutComparison(
+      thisWeekVolume, prevWeekVolume,
+      thisWeekCount, prevWeekCount,
+      thisWeekDuration, prevWeekDuration,
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2516,7 +2555,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
     const memoryContext = await getMemoryContext(userId);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new`);
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, warmup: ${todayMuscles.length > 0}, bodyComp: ${!!bodyCompContext}, supplements: ${!!supplementContext}`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -2602,13 +2641,61 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
+
+    // ─── Block 50: Context size optimizer ──────
+    // If system prompt is too large, prune low-priority sections
+    const MAX_SYSTEM_TOKENS = 12_000;
+    let finalSystemPrompt = systemPrompt;
+    const estimatedSystemTokens = estimateTokens(systemPrompt);
+    if (estimatedSystemTokens > MAX_SYSTEM_TOKENS) {
+      const contextSections: ContextSection[] = [
+        { name: 'user', content: userContext, relevantIntents: new Set(['*']), priority: 1 },
+        { name: 'program', content: programContext, relevantIntents: new Set(['*']), priority: 1 },
+        { name: 'stats', content: statsContext, relevantIntents: new Set(['*']), priority: 1 },
+        { name: 'memory', content: memoryContext, relevantIntents: new Set(['*']), priority: 1 },
+        { name: 'gamification', content: gamificationContext, relevantIntents: new Set(['workout', 'greeting', 'motivation']), priority: 2 },
+        { name: 'overload', content: overloadContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'recovery', content: recoveryContext, relevantIntents: new Set(['workout', 'health']), priority: 2 },
+        { name: 'deload', content: deloadContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'fatigue', content: fatigueContext, relevantIntents: new Set(['workout', 'health']), priority: 2 },
+        { name: 'periodization', content: periodizationContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'difficulty', content: difficultyContext, relevantIntents: new Set(['workout']), priority: 2 },
+        { name: 'alternatives', content: alternativesContext, relevantIntents: new Set(['workout', 'health']), priority: 2 },
+        { name: 'weeklySummary', content: weeklySummaryContext, relevantIntents: new Set(['greeting', 'workout']), priority: 2 },
+        { name: 'goalProgress', content: goalProgressContext, relevantIntents: new Set(['motivation', 'greeting']), priority: 2 },
+        { name: 'restTimer', content: restTimerContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'frequency', content: frequencyContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
+        { name: 'nutritionGaps', content: nutritionGapsContext, relevantIntents: new Set(['nutrition', 'data_logging']), priority: 2 },
+        { name: 'workoutTemplates', content: workoutTemplatesContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'chatThemes', content: chatThemesContext, relevantIntents: new Set(['*']), priority: 2 },
+        { name: 'plateau', content: plateauContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'recoveryQ', content: recoveryQuestionnaireContext, relevantIntents: new Set(['health', 'greeting']), priority: 3 },
+        { name: 'progression', content: progressionPlanContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
+        { name: 'intensity', content: intensityZoneContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'warmup', content: warmupContext, relevantIntents: new Set(['workout', 'greeting']), priority: 3 },
+        { name: 'bodyComp', content: bodyCompContext, relevantIntents: new Set(['nutrition', 'motivation']), priority: 3 },
+        { name: 'supplements', content: supplementContext, relevantIntents: new Set(['nutrition', 'health']), priority: 3 },
+        { name: 'comparison', content: workoutComparisonContext, relevantIntents: new Set(['workout', 'greeting', 'motivation']), priority: 3 },
+        { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
+        { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
+      ];
+
+      const optimizedSections = optimizeContext(contextSections, intent, MAX_SYSTEM_TOKENS);
+      const optimizedDynamic = optimizedSections.join('\n');
+      finalSystemPrompt = [
+        SYSTEM_PROMPT,
+        knowledgeContent,
+        `${timeContext}\n${optimizedDynamic}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      ].filter(Boolean).join('\n\n---\n\n');
+      console.log(`[AI+] Context optimized: ${estimatedSystemTokens} → ${estimateTokens(finalSystemPrompt)} tokens`);
+    }
 
     // Smart history management — суммаризация старых сообщений + trim
     // Mistral small: ~32k, DeepSeek: ~64k. Берём консервативно 24k для истории.
     const MODEL_CONTEXT_TOKENS = 24_000;
-    const systemTokens = estimateTokens(systemPrompt);
+    const systemTokens = estimateTokens(finalSystemPrompt);
     const messages = await summarizeHistory(rawMessages, MODEL_CONTEXT_TOKENS, systemTokens, 8);
 
     const performedActions: Array<{ type: string; description: string; data?: Record<string, unknown> }> = [];
@@ -2620,7 +2707,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       if (intentConfig.toolsEnabled) {
         // Intent requires tools (data_logging, program_creation, etc.)
         result = await chat({
-          system: systemPrompt,
+          system: finalSystemPrompt,
           messages,
           tools: AI_TOOLS,
           maxTokens: intentConfig.maxTokens,
@@ -2663,7 +2750,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           }
 
           result = await chat({
-            system: systemPrompt,
+            system: finalSystemPrompt,
             messages,
             tools: AI_TOOLS,
             maxTokens: intentConfig.maxTokens,
@@ -2674,7 +2761,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         if (toolIterations >= MAX_TOOL_ITERATIONS && result.hasToolCalls) {
           console.warn(`AI tool loop hit limit (${MAX_TOOL_ITERATIONS}), forcing text response`);
           const textOnly = await chatWithoutTools({
-            system: systemPrompt,
+            system: finalSystemPrompt,
             messages,
             maxTokens: intentConfig.maxTokens,
             temperature: intentConfig.temperature,
@@ -2685,7 +2772,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         // Intent is info-only (technique_question, analytics, greeting, motivation)
         // Skip tools entirely — faster response, lower cost
         const textContent = await chatWithoutTools({
-          system: systemPrompt,
+          system: finalSystemPrompt,
           messages,
           maxTokens: intentConfig.maxTokens,
           temperature: intentConfig.temperature,
@@ -2698,7 +2785,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         // Fallback 1: same prompt, no tools, shorter context
         const shortMessages = messages.slice(-6); // only last 3 exchanges
         const fallbackContent = await chatWithoutTools({
-          system: systemPrompt,
+          system: finalSystemPrompt,
           messages: shortMessages,
           maxTokens: 4096,
           temperature: 0.6,
@@ -2736,7 +2823,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       try {
         // Повторный запрос с hint'ом в системном промпте, temperature ниже чем intent для стабильности
         const regenContent = await chatWithoutTools({
-          system: systemPrompt + '\n\n⚠️ ВАЖНО: Отвечай СТРОГО на русском языке. Будь конкретным и полезным. Не используй английский.',
+          system: finalSystemPrompt + '\n\n⚠️ ВАЖНО: Отвечай СТРОГО на русском языке. Будь конкретным и полезным. Не используй английский.',
           messages,
           maxTokens: intentConfig.maxTokens,
           temperature: Math.max(0.2, intentConfig.temperature - 0.15),
@@ -2775,7 +2862,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     });
 
     // ─── Block 20: Response metadata ──────
-    const contextTokens = estimateTokens(systemPrompt);
+    const contextTokens = estimateTokens(finalSystemPrompt);
     const responseTokens = estimateTokens(aiContent);
 
     res.json({
@@ -5160,6 +5247,226 @@ function buildIntensityZoneContext(
 Целевая зона: ${targetZone}
 Распределение: ${distribution}${rpeWarning}
 → Используй при программировании нагрузки и ответах о весах.`;
+}
+
+// ─── Block 46: Warm-up Generator ────────────────────────────────────────────
+// Suggest specific warm-up exercises based on today's planned workout
+
+const WARMUP_TEMPLATES: Record<string, string[]> = {
+  chest: ['Круговые вращения руками (20 раз)', 'Отжимания от стены (10 раз)', 'Пуловер с лёгкой гантелей (12 раз)', 'Жим пустым грифом (15 раз)'],
+  back: ['Вис на перекладине (15 сек)', 'Круговые вращения плечами (15 раз)', 'Тяга резинки к лицу (15 раз)', 'Гиперэкстензия без веса (12 раз)'],
+  shoulders: ['Круговые вращения руками (20 раз)', 'Y-W-T подъёмы лёжа (10 каждый)', 'Вращения с резинкой (15 раз)', 'Жим гантелей 2-3 кг (12 раз)'],
+  quadriceps: ['Ходьба на месте (60 сек)', 'Воздушные приседания (15 раз)', 'Выпады без веса (10 на каждую)', 'Разгибания ног без веса (15 раз)'],
+  hamstrings: ['Наклоны вперёд (10 раз)', 'Румынская тяга без веса (12 раз)', 'Махи ногой назад (10 раз)', 'Ходьба на месте с высоким подъёмом колена (30 сек)'],
+  glutes: ['Ягодичный мостик (15 раз)', 'Отведение бедра стоя (12 раз)', 'Приседания в стиле сумо без веса (12 раз)'],
+  biceps: ['Сгибания рук без веса (20 раз)', 'Вращения запястий (15 раз)', 'Сгибания с лёгкой гантелей (12 раз)'],
+  triceps: ['Разгибания рук над головой без веса (15 раз)', 'Отжимания от скамьи (10 раз)', 'Вращения в локтевых суставах (15 раз)'],
+};
+
+function generateWarmup(primaryMuscles: string[]): string {
+  if (primaryMuscles.length === 0) return '';
+
+  const warmupExercises: string[] = [
+    '🏃 Общая разминка: 5 мин лёгкого кардио (ходьба, велотренажёр, скакалка)',
+  ];
+
+  const usedMuscles = new Set<string>();
+  for (const muscle of primaryMuscles) {
+    const normalized = muscle.toLowerCase();
+    for (const [key, exercises] of Object.entries(WARMUP_TEMPLATES)) {
+      if (normalized.includes(key) && !usedMuscles.has(key)) {
+        usedMuscles.add(key);
+        warmupExercises.push(`🎯 ${key}: ${exercises.slice(0, 2).join(', ')}`);
+      }
+    }
+  }
+
+  if (warmupExercises.length <= 1) return '';
+
+  return `\n\n## 🔥 РЕКОМЕНДУЕМАЯ РАЗМИНКА
+${warmupExercises.join('\n')}
+→ Предлагай разминку когда пользователь начинает тренировку или спрашивает о ней.`;
+}
+
+// ─── Block 47: Body Composition Estimator ───────────────────────────────────
+// Rough body fat % estimation from weight trends and Navy method approximation
+
+function estimateBodyComposition(
+  user: { weightKg?: number | null; heightCm?: number | null; gender?: string | null },
+  bodyWeightHistory: Array<{ weightKg: number; date: Date }>,
+  totalWorkoutsLast30Days: number,
+): string {
+  if (!user.weightKg || !user.heightCm || bodyWeightHistory.length < 2) return '';
+
+  const bmi = user.weightKg / Math.pow(user.heightCm / 100, 2);
+
+  // Simple BF% estimation from BMI (Deurenberg formula, rough approximation)
+  // BF% = 1.2 × BMI + 0.23 × age − 10.8 × sex − 5.4
+  // Without age, use simplified version
+  const sexFactor = user.gender === 'MALE' ? 1 : 0;
+  const estimatedBF = Math.round(1.2 * bmi - 10.8 * sexFactor - 5.4 + 0.23 * 25); // assume ~25 age
+
+  // Categorize
+  let category: string;
+  if (user.gender === 'MALE') {
+    if (estimatedBF < 10) category = 'соревновательная форма';
+    else if (estimatedBF < 15) category = 'атлетичная форма';
+    else if (estimatedBF < 20) category = 'нормальный уровень';
+    else if (estimatedBF < 25) category = 'выше нормы';
+    else category = 'избыточный';
+  } else {
+    if (estimatedBF < 18) category = 'соревновательная форма';
+    else if (estimatedBF < 23) category = 'атлетичная форма';
+    else if (estimatedBF < 28) category = 'нормальный уровень';
+    else if (estimatedBF < 33) category = 'выше нормы';
+    else category = 'избыточный';
+  }
+
+  // Weight trend over last month
+  const newest = bodyWeightHistory[0];
+  const monthAgo = bodyWeightHistory.find(
+    (bw) => (Date.now() - new Date(bw.date).getTime()) / (1000 * 60 * 60 * 24) >= 21
+  );
+  let trendNote = '';
+  if (monthAgo) {
+    const delta = newest.weightKg - monthAgo.weightKg;
+    if (Math.abs(delta) > 0.5) {
+      trendNote = `\nДинамика за месяц: ${delta > 0 ? '+' : ''}${delta.toFixed(1)} кг`;
+    }
+  }
+
+  return `\n\n## 📐 СОСТАВ ТЕЛА (оценка)
+BMI: ${bmi.toFixed(1)} | Примерный % жира: ~${estimatedBF}% (${category})
+Вес: ${user.weightKg} кг, Рост: ${user.heightCm} см${trendNote}
+⚠️ Это грубая оценка по BMI. Для точности рекомендуй калиперометрию или биоимпедансометрию.
+→ Используй при обсуждении целей по составу тела.`;
+}
+
+// ─── Block 48: Supplement Timing Advisor ────────────────────────────────────
+// Recommend supplement timing based on training schedule and goals
+
+function buildSupplementAdvice(
+  userGoal: string | null,
+  hasWorkoutToday: boolean,
+  hour: number,
+): string {
+  if (!userGoal) return '';
+
+  const advice: string[] = [];
+
+  // Universal: creatine
+  advice.push('💊 Креатин: 5г ежедневно, в любое время (с едой для лучшего усвоения)');
+
+  // Protein timing
+  if (hasWorkoutToday) {
+    if (hour < 12) {
+      advice.push('🥤 Протеин: 25-30г в течение 2ч после тренировки (сывороточный)');
+    } else {
+      advice.push('🥤 Протеин: 25-30г после тренировки + казеин перед сном');
+    }
+  } else {
+    advice.push('🥤 Протеин: распредели равномерно по приёмам пищи (30г каждый)');
+  }
+
+  // Goal-specific
+  if (userGoal === 'WEIGHT_LOSS') {
+    advice.push('🔥 Перед тренировкой: кофеин (200мг) за 30 мин для повышения метаболизма');
+    advice.push('🥬 Витамин D: 2000-4000 МЕ с жирной пищей (часто дефицит в РФ)');
+  } else if (userGoal === 'MUSCLE_GAIN') {
+    advice.push('🍌 До тренировки: 30-40г углеводов за 1-2ч для энергии');
+    advice.push('💧 Во время тренировки: BCAA или EAA (5-10г) если тренируешься натощак');
+  } else if (userGoal === 'STRENGTH') {
+    advice.push('⚡ До тренировки: кофеин (3-6 мг/кг) за 30-60 мин для силовых показателей');
+    advice.push('🧂 Электролиты: при длительных тренировках (>60 мин) — натрий + калий');
+  }
+
+  // Season-specific for Russia
+  const month = new Date().getMonth();
+  if (month >= 9 || month <= 3) {
+    advice.push('☀️ Витамин D: 2000-4000 МЕ/день (октябрь-март — мало солнца в РФ)');
+  }
+
+  return `\n\n## 💊 РЕКОМЕНДАЦИИ ПО ДОБАВКАМ
+${advice.slice(0, 4).join('\n')}
+→ Упоминай при обсуждении питания или восстановления. Это общие рекомендации, не медицинский совет.`;
+}
+
+// ─── Block 49: Workout Comparison ───────────────────────────────────────────
+// Compare current week vs previous week performance
+
+function buildWorkoutComparison(
+  thisWeekVolume: number,
+  prevWeekVolume: number,
+  thisWeekCount: number,
+  prevWeekCount: number,
+  thisWeekDuration: number,
+  prevWeekDuration: number,
+): string {
+  if (thisWeekVolume === 0 && prevWeekVolume === 0) return '';
+  if (prevWeekVolume === 0) return ''; // nothing to compare
+
+  const volumeDelta = thisWeekVolume - prevWeekVolume;
+  const volumePct = Math.round((volumeDelta / prevWeekVolume) * 100);
+  const countDelta = thisWeekCount - prevWeekCount;
+  const durationDelta = thisWeekDuration - prevWeekDuration;
+
+  const lines: string[] = [];
+  lines.push(`Объём: ${Math.round(thisWeekVolume)} кг ${volumeDelta >= 0 ? '📈' : '📉'} (${volumeDelta >= 0 ? '+' : ''}${volumePct}%)`);
+  lines.push(`Тренировок: ${thisWeekCount} ${countDelta > 0 ? `(+${countDelta})` : countDelta < 0 ? `(${countDelta})` : '(=)'}`);
+  if (thisWeekDuration > 0 && prevWeekDuration > 0) {
+    lines.push(`Длительность: ${thisWeekDuration} мин ${durationDelta > 0 ? `(+${durationDelta})` : durationDelta < 0 ? `(${durationDelta})` : '(=)'}`);
+  }
+
+  let verdict = '';
+  if (volumePct > 10 && thisWeekCount >= prevWeekCount) verdict = '✅ Прогресс! Объём растёт — хорошая динамика.';
+  else if (volumePct < -15) verdict = '⚠️ Объём упал. Это может быть деload (хорошо) или потеря мотивации (плохо).';
+  else if (volumePct >= -5 && volumePct <= 5) verdict = '➡️ Стабильно. Для прогресса увеличивай объём на 5-10% в неделю.';
+
+  return `\n\n## 📊 СРАВНЕНИЕ С ПРОШЛОЙ НЕДЕЛЕЙ
+${lines.join('\n')}
+${verdict}`;
+}
+
+// ─── Block 50: Context Size Optimizer ───────────────────────────────────────
+// Smart pruning of system prompt sections based on intent relevance
+
+interface ContextSection {
+  name: string;
+  content: string;
+  relevantIntents: Set<string>;
+  priority: number; // 1 = always include, 2 = include if relevant, 3 = include if space allows
+}
+
+function optimizeContext(
+  sections: ContextSection[],
+  intent: string,
+  maxTokenEstimate: number,
+): string[] {
+  // Sort by priority, then by relevance
+  const scored = sections.map((s) => ({
+    ...s,
+    score: s.priority * 10 + (s.relevantIntents.has(intent) || s.relevantIntents.has('*') ? 100 : 0),
+  }));
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const included: string[] = [];
+  let totalTokens = 0;
+
+  for (const section of scored) {
+    if (!section.content) continue;
+    const sectionTokens = Math.ceil(section.content.length / 3.5); // rough estimate
+
+    if (totalTokens + sectionTokens > maxTokenEstimate) {
+      // Skip low-priority sections if over budget
+      if (section.priority >= 3) continue;
+    }
+
+    included.push(section.content);
+    totalTokens += sectionTokens;
+  }
+
+  return included;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
