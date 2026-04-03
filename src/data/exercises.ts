@@ -696,18 +696,6 @@ export const exercises: Exercise[] = [
     youtubeId: '_gsUck-7M74',
   },
   {
-    id: 'concentration-curl',
-    name: 'Концентрированный подъём на бицепс',
-    description: 'Максимальная изоляция бицепса.',
-    instructions: ['Сядьте, локоть опирается на внутреннюю часть бедра', 'Возьмите гантель нижним хватом', 'Поднимите к плечу, пик сокращения вверху', 'Медленно опустите'],
-    primaryMuscles: ['biceps'],
-    secondaryMuscles: ['forearms'],
-    type: 'dumbbell',
-    category: 'strength',
-    difficulty: 'beginner',
-    youtubeId: '0AUGkch3tzc',
-  },
-  {
     id: 'wrist-curl',
     name: 'Сгибание запястий со штангой',
     description: 'Изолированная работа предплечий.',
@@ -744,9 +732,9 @@ export const exercises: Exercise[] = [
     youtubeId: 'JbyjNymZOt0',
   },
   {
-    id: 'shrugs',
+    id: 'dumbbell-shrugs',
     name: 'Шраги с гантелями',
-    description: 'Изоляция трапециевидных мышц.',
+    description: 'Изоляция трапециевидных мышц с гантелями.',
     instructions: ['Возьмите гантели, руки по бокам', 'Поднимите плечи вверх как можно выше', 'Задержитесь на секунду', 'Медленно опустите'],
     primaryMuscles: ['traps'],
     secondaryMuscles: [],
@@ -770,10 +758,10 @@ export const exercises: Exercise[] = [
 
   // ============ FUNCTIONAL / BODYWEIGHT ============
   {
-    id: 'dips',
-    name: 'Отжимания на брусьях',
-    description: 'Базовое упражнение на трицепс и грудь.',
-    instructions: ['Возьмитесь за брусья, поднимитесь в упор', 'Медленно опускайтесь, локти назад', 'Опуститесь до угла 90° в локтях', 'Выжмите себя вверх'],
+    id: 'dips-triceps',
+    name: 'Отжимания на брусьях (трицепс)',
+    description: 'Вариант отжиманий на брусьях с акцентом на трицепс.',
+    instructions: ['Возьмитесь за брусья, поднимитесь в упор', 'Держите корпус вертикально, локти назад', 'Опуститесь до угла 90° в локтях', 'Выжмите себя вверх'],
     primaryMuscles: ['triceps'],
     secondaryMuscles: ['chest', 'shoulders'],
     type: 'bodyweight',

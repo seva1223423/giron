@@ -14,11 +14,18 @@ import { workoutService } from '../../services';
 const FAVORITES_KEY = 'iron_gym_exercise_favorites';
 
 const QUICK_WORKOUTS = [
-  { name: 'Грудь + Трицепс', emoji: '💪', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown'] },
-  { name: 'Спина + Бицепс', emoji: '🔥', exercises: ['barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl'] },
-  { name: 'Ноги', emoji: '🦵', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'calf-raise'] },
-  { name: 'Плечи + Пресс', emoji: '🎯', exercises: ['overhead-press', 'lateral-raise', 'plank', 'cable-crunch'] },
+  { name: 'Грудь + Трицепс', emoji: '💪', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown', 'overhead-tricep-ext'] },
+  { name: 'Спина + Бицепс', emoji: '🔥', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl', 'hammer-curl'] },
+  { name: 'Ноги', emoji: '🦵', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'leg-extension', 'calf-raise'] },
+  { name: 'Плечи + Пресс', emoji: '🎯', exercises: ['overhead-press', 'lateral-raise', 'arnold-press', 'face-pull', 'plank', 'cable-crunch'] },
   { name: 'Фулбоди', emoji: '⚡', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
+  { name: 'Руки', emoji: '💪', exercises: ['barbell-curl', 'hammer-curl', 'preacher-curl', 'tricep-pushdown', 'french-press', 'close-grip-bench'] },
+  { name: 'Базовая тройка', emoji: '🏆', exercises: ['squat', 'bench-press', 'deadlift'] },
+  { name: 'Пресс + Кор', emoji: '🔩', exercises: ['plank', 'cable-crunch', 'hanging-leg-raise', 'bicycle-crunch', 'russian-twist', 'side-plank'] },
+  { name: 'Кардио', emoji: '🏃', exercises: ['treadmill', 'jump-rope', 'cycling'] },
+  { name: 'Тяжёлая спина', emoji: '🏋️', exercises: ['deadlift', 'barbell-row', 'pull-ups', 'lat-pulldown', 'seated-row', 'dumbbell-row'] },
+  { name: 'Ноги (гантели)', emoji: '🦵', exercises: ['goblet-squat', 'lunges', 'romanian-deadlift', 'bulgarian-split-squat', 'leg-curl'] },
+  { name: 'Жим + Грудь', emoji: '🎯', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-bench-press', 'cable-fly', 'dips'] },
 ];
 
 const MUSCLE_FILTERS = [
