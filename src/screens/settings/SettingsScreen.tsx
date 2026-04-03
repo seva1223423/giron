@@ -293,7 +293,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   { color: units === 'imperial' ? '#FFF' : colors.text },
                 ]}
               >
-                lbs / дюймы
+                фунты / дюймы
               </Text>
             </TouchableOpacity>
           </View>

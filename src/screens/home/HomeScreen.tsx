@@ -675,7 +675,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {workoutHistory.length > 0 && (
         <FadeIn delay={260}>
           <Card style={{ marginBottom: spacing.lg }}>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Готовность мышц</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+              <Text style={[typography.h4, { color: colors.text }]}>Готовность мышц</Text>
+              <Text style={[typography.small, { color: colors.textSecondary }]}>
+                {muscleReadiness.filter((m) => m.status === 'ready').length}/{muscleReadiness.length} готовы
+              </Text>
+            </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {muscleReadiness.map(({ muscle, status, hoursLeft }) => {
                 const dotColor = status === 'ready' ? colors.success : status === 'almost' ? colors.warning : colors.error;
@@ -778,43 +783,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             >
               <Text style={[typography.buttonSmall, { color: colors.primary }]}>⚖️ Записать</Text>
             </TouchableOpacity>
-          </View>
-        </Card>
-      </FadeIn>
-
-      {/* Muscle readiness */}
-      <FadeIn delay={395}>
-        <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <Text style={[typography.h4, { color: colors.text }]}>Готовность мышц</Text>
-            <Text style={[typography.small, { color: colors.textSecondary }]}>
-              {muscleReadiness.filter((m) => m.status === 'ready').length}/{muscleReadiness.length} готовы
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {muscleReadiness.map(({ muscle, status, hoursLeft }) => {
-              const dotColor = status === 'ready' ? colors.success : status === 'almost' ? colors.warning : colors.error;
-              return (
-                <View
-                  key={muscle}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: dotColor + '18',
-                    borderRadius: borderRadius.sm,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 4,
-                    gap: 4,
-                  }}
-                >
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dotColor }} />
-                  <Text style={[typography.small, { color: colors.text, fontSize: 12 }]}>{MUSCLE_LABELS[muscle]}</Text>
-                  {status !== 'ready' && (
-                    <Text style={[typography.small, { color: dotColor, fontSize: 11, fontWeight: '600' }]}>{hoursLeft}ч</Text>
-                  )}
-                </View>
-              );
-            })}
           </View>
         </Card>
       </FadeIn>

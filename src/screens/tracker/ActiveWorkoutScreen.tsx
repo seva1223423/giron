@@ -717,7 +717,7 @@ const SetRow: React.FC<{
           ))}
           {set.rpe && (
             <Text style={[typography.caption, { color: rpeColor(set.rpe), marginLeft: spacing.xs, fontWeight: '700' }]}>
-              {set.rpe >= 10 ? 'Max' : set.rpe >= 9 ? 'Hard' : set.rpe >= 8 ? 'Tough' : 'Easy'}
+              {set.rpe >= 10 ? 'Макс' : set.rpe >= 9 ? 'Тяжело' : set.rpe >= 8 ? 'Сложно' : 'Легко'}
             </Text>
           )}
         </View>
