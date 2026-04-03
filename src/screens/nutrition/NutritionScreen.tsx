@@ -241,6 +241,9 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           <TouchableOpacity onPress={() => navigation.navigate('NutritionHistory')}>
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>История</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.navigate('MacroCalculator'); }}>
+            <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>🧮</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowGoalsModal(true); }}>
             <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
           </TouchableOpacity>
