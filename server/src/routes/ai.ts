@@ -1756,6 +1756,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       select: {
         exerciseId: true,
         exercise: { select: { name: true } },
+        workout: { select: { completedAt: true } },
         sets: {
           where: { completed: true },
           select: { weight: true, reps: true, type: true },
@@ -2164,7 +2165,41 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 15: Confidence & uncertainty ──────
     const confidenceDirective = getConfidenceDirective(user, message);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, followups: ${pendingFollowups.length}`);
+    // ─── Block 16: Smart workout recommendation ──────
+    const workoutRecommendation = getWorkoutRecommendation(
+      weekPlan,
+      recentWorkouts.map((w) => ({ name: w.name, completedAt: w.completedAt })),
+      new Date().getDay(),
+    );
+
+    // ─── Block 17: Nutrition timing intelligence ──────
+    const nutritionTimingAdvice = getNutritionTimingAdvice(
+      new Date().getHours(),
+      todayMeals.map((m) => ({ type: m.type, totalCalories: m.totalCalories, totalProtein: m.totalProtein, createdAt: m.createdAt })),
+      recentWorkouts.map((w) => ({ completedAt: w.completedAt })),
+      nutritionTargets,
+    );
+
+    // ─── Block 18: Progressive overload analysis ──────
+    const overloadData = analyzeProgressiveOverload(
+      allCompletedExerciseSets.map((we) => ({
+        exercise: we.exercise,
+        workout: { completedAt: we.workout.completedAt },
+        sets: we.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
+      }))
+    );
+    const overloadContext = buildOverloadContext(overloadData);
+
+    // ─── Block 19: Recovery score estimation ──────
+    const recovery = estimateRecoveryScore(
+      recentWorkouts,
+      bodyWeightHistory,
+      todayMeals.map((m) => ({ totalCalories: m.totalCalories, totalProtein: m.totalProtein })),
+      nutritionTargets,
+    );
+    const recoveryContext = buildRecoveryContext(recovery);
+
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -2203,7 +2238,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -2347,7 +2382,27 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       },
     });
 
-    res.json({ message: aiContent, actions: performedActions, intent });
+    // ─── Block 20: Response metadata ──────
+    const contextTokens = estimateTokens(systemPrompt);
+    const responseTokens = estimateTokens(aiContent);
+
+    res.json({
+      message: aiContent,
+      actions: performedActions,
+      intent,
+      meta: {
+        mood,
+        recovery: recovery.score,
+        streak: gamification.currentStreak,
+        contextTokens,
+        responseTokens,
+        toolCalls: performedActions.length,
+        milestones: gamification.milestones.length > 0 ? gamification.milestones : undefined,
+        newPRs: gamification.newPRsThisWeek.length > 0
+          ? gamification.newPRsThisWeek.map((pr) => `${pr.exercise}: ${pr.weight}кг`)
+          : undefined,
+      },
+    });
   } catch (e) {
     console.error('AI Chat error:', e);
     res.status(500).json({ error: 'Ошибка ИИ-ассистента' });
@@ -2812,6 +2867,317 @@ function getConfidenceDirective(user: any, message: string): string {
   return directives.length > 0
     ? `\n\n## ⚖️ УВЕРЕННОСТЬ И ОГРАНИЧЕНИЯ\n${directives.join('\n')}`
     : '';
+}
+
+// ─── Block 16: Smart Workout Recommendation ─────────────────────────────────
+
+function getWorkoutRecommendation(
+  weekPlan: Record<string, any> | undefined,
+  recentWorkouts: Array<{ name: string; completedAt: Date | null }>,
+  dayOfWeek: number, // 0=Sun ... 6=Sat
+): string {
+  // dayOfWeek from JS: 0=Sun, but weekPlan uses 0=Mon...6=Sun
+  const planDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const today = weekPlan?.[planDay];
+
+  if (!today) return '';
+
+  // Check if user already trained today
+  const todayStr = new Date().toISOString().split('T')[0];
+  const trainedToday = recentWorkouts.some(
+    (w) => w.completedAt && w.completedAt.toISOString().split('T')[0] === todayStr
+  );
+
+  if (trainedToday) {
+    return `\n\n## 📅 ТРЕНИРОВКА ДНЯ\nПо плану сегодня: ${today.emoji || '💪'} ${today.name} — уже выполнена ✅. Отдыхай или сделай лёгкую заминку/кардио.`;
+  }
+
+  // Check what was trained yesterday to avoid same muscle groups
+  const yesterday = recentWorkouts.find((w) => {
+    if (!w.completedAt) return false;
+    const d = new Date(w.completedAt);
+    const diff = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+    return diff === 1;
+  });
+
+  let fatigueTip = '';
+  if (yesterday) {
+    fatigueTip = ` Вчера: ${yesterday.name} — учитывай усталость этих мышечных групп.`;
+  }
+
+  return `\n\n## 📅 ТРЕНИРОВКА ДНЯ\nПо плану сегодня: ${today.emoji || '💪'} **${today.name}**.${fatigueTip} Если пользователь спросит "что делать сегодня" — предложи эту тренировку.`;
+}
+
+// ─── Block 17: Nutrition Timing Intelligence ────────────────────────────────
+
+function getNutritionTimingAdvice(
+  hour: number,
+  todayMeals: Array<{ type: string; totalCalories: number; totalProtein: number; createdAt: Date }>,
+  recentWorkouts: Array<{ completedAt: Date | null }>,
+  nutritionTargets?: { calories: number; protein: number } | null,
+): string {
+  const lines: string[] = [];
+
+  // Check if workout is coming (planned for today) or just finished
+  const todayStr = new Date().toISOString().split('T')[0];
+  const trainedToday = recentWorkouts.some(
+    (w) => w.completedAt && w.completedAt.toISOString().split('T')[0] === todayStr
+  );
+
+  // Post-workout window (trained today, less than 2h ago)
+  const recentTraining = recentWorkouts.find((w) => {
+    if (!w.completedAt) return false;
+    const hoursAgo = (Date.now() - new Date(w.completedAt).getTime()) / (1000 * 60 * 60);
+    return hoursAgo < 2;
+  });
+
+  if (recentTraining) {
+    const postWorkoutMeal = todayMeals.find((m) => {
+      const mealTime = new Date(m.createdAt).getTime();
+      const workoutTime = new Date(recentTraining.completedAt!).getTime();
+      return mealTime > workoutTime;
+    });
+
+    if (!postWorkoutMeal) {
+      lines.push('🍽️ ПОСТ-ТРЕНИРОВКА: Прошло менее 2ч после тренировки и нет приёма пищи. Рекомендуй: 30-40г белка + быстрые углеводы (рис, банан, протеин с молоком).');
+    }
+  }
+
+  // Meal timing gaps (>5 hours between meals)
+  if (todayMeals.length >= 2) {
+    const sortedMeals = [...todayMeals].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    for (let i = 1; i < sortedMeals.length; i++) {
+      const gap = (new Date(sortedMeals[i].createdAt).getTime() - new Date(sortedMeals[i - 1].createdAt).getTime()) / (1000 * 60 * 60);
+      if (gap > 5) {
+        lines.push(`⏰ Перерыв ${Math.round(gap)}ч между приёмами пищи — слишком долго. Оптимально: каждые 3-4ч.`);
+        break;
+      }
+    }
+  }
+
+  // Evening protein check
+  if (hour >= 20 && nutritionTargets) {
+    const totalProt = todayMeals.reduce((s, m) => s + m.totalProtein, 0);
+    const remaining = nutritionTargets.protein - totalProt;
+    if (remaining > 30) {
+      lines.push(`🌙 Вечер, а до нормы белка ещё ${Math.round(remaining)}г. Рекомендуй казеин / творог перед сном.`);
+    }
+  }
+
+  // Pre-workout timing
+  if (!trainedToday && hour >= 15 && hour <= 20) {
+    const lastMeal = todayMeals[todayMeals.length - 1];
+    if (lastMeal) {
+      const hoursSinceLastMeal = (Date.now() - new Date(lastMeal.createdAt).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastMeal > 3) {
+        lines.push('⚡ Если тренировка вечером — стоит перекусить за 1-1.5ч: банан + немного белка.');
+      }
+    }
+  }
+
+  if (lines.length === 0) return '';
+  return '\n\n## ⏱️ ТАЙМИНГ ПИТАНИЯ\n' + lines.join('\n');
+}
+
+// ─── Block 18: Progressive Overload Tracker ─────────────────────────────────
+
+interface OverloadStatus {
+  exercise: string;
+  status: 'progressing' | 'plateau' | 'regressing';
+  lastWeights: number[];
+  suggestion: string;
+}
+
+function analyzeProgressiveOverload(
+  exerciseSets: Array<{
+    exercise: { name: string };
+    workout: { completedAt: Date | null };
+    sets: Array<{ weight: number | null; reps: number | null }>;
+  }>
+): OverloadStatus[] {
+  // Group by exercise, get max weight per workout, sorted by date
+  const exerciseHistory = new Map<string, Array<{ date: Date; maxWeight: number; maxReps: number }>>();
+
+  for (const we of exerciseSets) {
+    if (!we.workout.completedAt || we.sets.length === 0) continue;
+    const name = we.exercise.name;
+    const maxSet = we.sets.reduce((best, s) =>
+      (s.weight || 0) > (best.weight || 0) ? s : best, we.sets[0]);
+
+    if (!exerciseHistory.has(name)) exerciseHistory.set(name, []);
+    exerciseHistory.get(name)!.push({
+      date: we.workout.completedAt,
+      maxWeight: maxSet.weight || 0,
+      maxReps: maxSet.reps || 0,
+    });
+  }
+
+  const results: OverloadStatus[] = [];
+
+  for (const [exercise, history] of exerciseHistory) {
+    if (history.length < 3) continue; // need at least 3 data points
+
+    // Sort by date ascending
+    history.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const last3 = history.slice(-3);
+    const weights = last3.map((h) => h.maxWeight);
+
+    let status: 'progressing' | 'plateau' | 'regressing';
+    let suggestion: string;
+
+    if (weights[2] > weights[0] && weights[2] > weights[1]) {
+      status = 'progressing';
+      suggestion = `${exercise}: прогрессия ✅ (${weights.join(' → ')} кг)`;
+    } else if (Math.abs(weights[2] - weights[0]) <= 2.5 && Math.abs(weights[1] - weights[0]) <= 2.5) {
+      status = 'plateau';
+      suggestion = `${exercise}: ПЛАТО ⚠️ (${weights[0]} кг × 3 тренировки). Варианты: +микронагрузка 1.25кг, смена диапазона повторений, пауза-рест, или замена на аналог.`;
+    } else if (weights[2] < weights[0]) {
+      status = 'regressing';
+      suggestion = `${exercise}: РЕГРЕСС ⛔ (${weights.join(' → ')} кг). Возможно: недовосстановление, недоедание, или нужен deload.`;
+    } else {
+      continue; // mixed, skip
+    }
+
+    results.push({ exercise, status, lastWeights: weights, suggestion });
+  }
+
+  return results;
+}
+
+function buildOverloadContext(overloadData: OverloadStatus[]): string {
+  if (overloadData.length === 0) return '';
+
+  const plateaus = overloadData.filter((o) => o.status === 'plateau');
+  const regressions = overloadData.filter((o) => o.status === 'regressing');
+  const progressions = overloadData.filter((o) => o.status === 'progressing');
+
+  if (plateaus.length === 0 && regressions.length === 0 && progressions.length === 0) return '';
+
+  const lines: string[] = ['\n## 📊 ПРОГРЕССИВНАЯ ПЕРЕГРУЗКА'];
+
+  if (progressions.length > 0) {
+    lines.push(`✅ Прогресс: ${progressions.slice(0, 3).map((p) => p.suggestion).join('; ')}`);
+  }
+  if (plateaus.length > 0) {
+    lines.push(`⚠️ Плато: ${plateaus.map((p) => p.suggestion).join('\n')}`);
+    lines.push('→ Если пользователь спрашивает про прогресс — обязательно упомяни плато и предложи решение.');
+  }
+  if (regressions.length > 0) {
+    lines.push(`⛔ Регресс: ${regressions.map((r) => r.suggestion).join('\n')}`);
+    lines.push('→ ОБЯЗАТЕЛЬНО обрати внимание на регресс и предложи причины + решения.');
+  }
+
+  return lines.join('\n');
+}
+
+// ─── Block 19: Recovery Score Estimation ────────────────────────────────────
+
+function estimateRecoveryScore(
+  recentWorkouts: Array<{ completedAt: Date | null; exercises: Array<{ sets: Array<{ completed: boolean }> }> }>,
+  bodyWeightHistory: Array<{ weightKg: number; date: Date }>,
+  todayMeals: Array<{ totalCalories: number; totalProtein: number }>,
+  nutritionTargets?: { calories: number; protein: number } | null,
+): { score: number; factors: string[] } {
+  let score = 100; // start at 100, subtract for negative factors
+  const factors: string[] = [];
+
+  // Factor 1: Training frequency last 7 days
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekSessions = recentWorkouts.filter(
+    (w) => w.completedAt && new Date(w.completedAt) >= weekAgo
+  ).length;
+
+  if (weekSessions >= 6) {
+    score -= 25;
+    factors.push('Высокая частота тренировок (6+ за неделю) — риск перетренированности');
+  } else if (weekSessions >= 5) {
+    score -= 10;
+    factors.push('5 тренировок за неделю — на грани');
+  }
+
+  // Factor 2: Training in last 24h
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+  const trainedRecently = recentWorkouts.some(
+    (w) => w.completedAt && new Date(w.completedAt) >= oneDayAgo
+  );
+  if (trainedRecently) {
+    score -= 15;
+    factors.push('Тренировка менее 24ч назад');
+  }
+
+  // Factor 3: Consecutive training days
+  let consecutiveDays = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 7; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() - i);
+    const dateStr = checkDate.toISOString().split('T')[0];
+    const trained = recentWorkouts.some(
+      (w) => w.completedAt && w.completedAt.toISOString().split('T')[0] === dateStr
+    );
+    if (trained) consecutiveDays++;
+    else break;
+  }
+  if (consecutiveDays >= 4) {
+    score -= 20;
+    factors.push(`${consecutiveDays} дней подряд без отдыха`);
+  }
+
+  // Factor 4: Nutrition quality (if data available)
+  if (nutritionTargets && todayMeals.length > 0) {
+    const totalProt = todayMeals.reduce((s, m) => s + m.totalProtein, 0);
+    const totalCal = todayMeals.reduce((s, m) => s + m.totalCalories, 0);
+    if (totalProt < nutritionTargets.protein * 0.6) {
+      score -= 10;
+      factors.push('Низкое потребление белка');
+    }
+    if (totalCal < nutritionTargets.calories * 0.7) {
+      score -= 10;
+      factors.push('Недобор калорий');
+    }
+  }
+
+  // Factor 5: Weight fluctuation (stress indicator)
+  if (bodyWeightHistory.length >= 3) {
+    const last3 = bodyWeightHistory.slice(0, 3).map((bw) => bw.weightKg);
+    const variance = Math.max(...last3) - Math.min(...last3);
+    if (variance > 2) {
+      score -= 10;
+      factors.push(`Сильные колебания веса (±${variance.toFixed(1)} кг за 3 взвешивания)`);
+    }
+  }
+
+  return { score: Math.max(0, Math.min(100, score)), factors };
+}
+
+function buildRecoveryContext(recovery: { score: number; factors: string[] }): string {
+  if (recovery.score >= 80 && recovery.factors.length === 0) return '';
+
+  const emoji = recovery.score >= 70 ? '🟢' : recovery.score >= 40 ? '🟡' : '🔴';
+  const status = recovery.score >= 70 ? 'Хорошее восстановление' : recovery.score >= 40 ? 'Умеренная усталость' : 'Высокая усталость';
+
+  const lines: string[] = [
+    `\n## 🔋 ОЦЕНКА ВОССТАНОВЛЕНИЯ`,
+    `${emoji} Score: ${recovery.score}/100 — ${status}`,
+  ];
+
+  if (recovery.factors.length > 0) {
+    lines.push('Факторы:');
+    for (const f of recovery.factors) {
+      lines.push(`- ${f}`);
+    }
+  }
+
+  if (recovery.score < 40) {
+    lines.push('→ ОБЯЗАТЕЛЬНО рекомендуй лёгкий день или полный отдых. Не предлагай тяжёлых тренировок.');
+  } else if (recovery.score < 70) {
+    lines.push('→ Рекомендуй снизить интенсивность или объём. Упомяни важность сна и питания.');
+  }
+
+  return lines.join('\n');
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
