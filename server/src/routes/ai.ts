@@ -2729,6 +2729,38 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       rawMessages.slice(-6).map((m) => ({ role: m.role, content: m.content || '' })),
     );
 
+    // ─── Block 71: Weak point identifier ──────
+    const weakPointsContext = identifyWeakPoints(recentWorkouts as any);
+
+    // ─── Block 72: Rest day activity advisor ──────
+    const lastWoForRest = recentWorkouts[0] || null;
+    const daysSinceLastForRest = lastWoForRest?.completedAt
+      ? Math.floor((Date.now() - new Date(lastWoForRest.completedAt).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    const restDayContext = buildRestDayAdvice(daysSinceLastForRest, recovery.score, muscleRecoveryStatuses);
+
+    // ─── Block 73: Protein timing optimizer ──────
+    const proteinTimingContext = optimizeProteinTiming(
+      todayMeals as any,
+      user?.weightKg || null,
+      user?.goal || null,
+      !!scheduledWorkoutToday,
+    );
+
+    // ─── Block 74: Workout naming intelligence ──────
+    const workoutNamingContext = scheduledWorkoutToday
+      ? suggestWorkoutName((scheduledWorkoutToday as any).exercises || [])
+      : '';
+
+    // ─── Block 75: Confidence calibration ──────
+    const aiMemoryCount = await prisma.aIMemory.count({ where: { userId } });
+    const confidenceContext = calibrateConfidence(
+      totalWorkoutsEver,
+      bodyWeightHistory.length,
+      todayMeals.length,
+      aiMemoryCount,
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2822,7 +2854,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -2878,6 +2910,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'workoutDensity', content: workoutDensityContext, relevantIntents: new Set(['workout']), priority: 3 },
         { name: 'repRange', content: repRangeContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
         { name: 'splitRec', content: splitRecommendationContext, relevantIntents: new Set(['program_creation']), priority: 2 },
+        { name: 'weakPoints', content: weakPointsContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'restDay', content: restDayContext, relevantIntents: new Set(['health', 'greeting', 'general']), priority: 3 },
+        { name: 'proteinTiming', content: proteinTimingContext, relevantIntents: new Set(['nutrition', 'data_logging']), priority: 2 },
+        { name: 'workoutNaming', content: workoutNamingContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'confidence', content: confidenceContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
@@ -6713,6 +6750,242 @@ function buildLanguageEnforcer(recentMessages: Array<{ role: string; content: st
   }
 
   return '';
+}
+
+// ─── Block 71: Weak Point Identifier ────────────────────────────────────────
+// Find muscle groups that lag behind based on volume distribution
+
+function identifyWeakPoints(
+  recentWorkouts: Array<{
+    exercises: Array<{
+      exercise: { primaryMuscles: string[] };
+      sets: Array<{ weight: number | null; reps: number | null; completed: boolean }>;
+    }>;
+  }>,
+): string {
+  if (recentWorkouts.length < 3) return '';
+
+  // Calculate volume per muscle group
+  const muscleVolume: Record<string, number> = {};
+  const muscleFrequency: Record<string, number> = {};
+
+  for (const w of recentWorkouts) {
+    const musclesThisWorkout = new Set<string>();
+    for (const ex of w.exercises) {
+      for (const muscle of ex.exercise.primaryMuscles) {
+        const vol = ex.sets
+          .filter((s) => s.completed)
+          .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
+        muscleVolume[muscle] = (muscleVolume[muscle] || 0) + vol;
+        musclesThisWorkout.add(muscle);
+      }
+    }
+    for (const m of musclesThisWorkout) {
+      muscleFrequency[m] = (muscleFrequency[m] || 0) + 1;
+    }
+  }
+
+  if (Object.keys(muscleVolume).length < 3) return '';
+
+  const totalVolume = Object.values(muscleVolume).reduce((a, b) => a + b, 0);
+  const avgVolume = totalVolume / Object.keys(muscleVolume).length;
+
+  // Find significantly undertrained muscles
+  const weak = Object.entries(muscleVolume)
+    .filter(([, vol]) => vol < avgVolume * 0.4)
+    .map(([muscle, vol]) => ({
+      muscle,
+      volume: vol,
+      pct: Math.round((vol / avgVolume) * 100),
+      frequency: muscleFrequency[muscle] || 0,
+    }))
+    .sort((a, b) => a.pct - b.pct);
+
+  // Find important neglected muscle groups
+  const importantMuscles = ['quadriceps', 'hamstrings', 'glutes', 'back', 'chest', 'shoulders'];
+  const neglected = importantMuscles.filter((m) => !muscleVolume[m] || muscleVolume[m] < avgVolume * 0.2);
+
+  const lines: string[] = [];
+
+  if (weak.length > 0) {
+    lines.push(`📉 Отстающие мышцы: ${weak.slice(0, 3).map((w) => `${w.muscle} (${w.pct}% от среднего)`).join(', ')}`);
+  }
+
+  if (neglected.length > 0) {
+    const muscleNames: Record<string, string> = {
+      quadriceps: 'квадрицепсы', hamstrings: 'задняя поверхность бедра', glutes: 'ягодицы',
+      back: 'спина', chest: 'грудь', shoulders: 'плечи',
+    };
+    lines.push(`⚠️ Почти не тренируются: ${neglected.map((m) => muscleNames[m] || m).join(', ')}`);
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\n\n## 🔍 СЛАБЫЕ МЕСТА
+${lines.join('\n')}
+→ Предложи добавить упражнения на отстающие группы мышц. Баланс важен для здоровья и эстетики.`;
+}
+
+// ─── Block 72: Rest Day Activity Advisor ────────────────────────────────────
+// Suggest active recovery activities for rest days
+
+function buildRestDayAdvice(
+  daysSinceLastWorkout: number | null,
+  recoveryScore: number,
+  muscleRecovery: MuscleRecoveryStatus[],
+): string {
+  if (daysSinceLastWorkout === null || daysSinceLastWorkout < 1) return '';
+
+  const activities: string[] = [];
+
+  if (recoveryScore < 50) {
+    // Low recovery — very light activity
+    activities.push('🧘 Лёгкая растяжка (15-20 мин) — снимает напряжение без нагрузки');
+    activities.push('🚶 Прогулка (20-30 мин) — улучшает кровообращение и восстановление');
+    activities.push('🧊 Контрастный душ — горячий 1мин / холодный 30сек × 3-4 цикла');
+  } else if (recoveryScore < 75) {
+    // Moderate recovery — light activity
+    activities.push('🏊 Лёгкое плавание (20-30 мин) — разгружает суставы, улучшает кровоток');
+    activities.push('🧘 Йога или мобильность (20-30 мин) — растяжка и стабилизация');
+    activities.push('🚴 Лёгкое кардио (велосипед/ходьба) — пульс 100-120 уд/мин');
+  } else {
+    // Good recovery — moderate activity ok
+    activities.push('🏃 Лёгкий бег или быстрая ходьба (30-40 мин)');
+    activities.push('🏊 Плавание или подвижные игры');
+    activities.push('🧘 Глубокая растяжка + foam rolling (20 мин)');
+  }
+
+  // Specific muscle advice
+  const sorest = muscleRecovery.filter((m) => m.status === 'recovering').slice(0, 2);
+  if (sorest.length > 0) {
+    activities.push(`💆 Foam rolling / массаж: ${sorest.map((s) => s.muscle).join(', ')} (особенно нуждаются)`);
+  }
+
+  return `\n\n## 🌿 ДЕНЬ ОТДЫХА (${daysSinceLastWorkout}д без тренировки)
+${activities.slice(0, 3).join('\n')}
+→ Предлагай если пользователь спрашивает чем заняться в день отдыха.`;
+}
+
+// ─── Block 73: Protein Timing Optimizer ─────────────────────────────────────
+// Distribute protein intake optimally across meals
+
+function optimizeProteinTiming(
+  todayMeals: Array<{ type: string; totalProtein: number; createdAt: Date }>,
+  userWeightKg: number | null,
+  userGoal: string | null,
+  hasWorkoutToday: boolean,
+): string {
+  if (!userWeightKg) return '';
+
+  // Target protein per day
+  let proteinTarget: number;
+  if (userGoal === 'MUSCLE_GAIN') proteinTarget = userWeightKg * 2.0;
+  else if (userGoal === 'WEIGHT_LOSS') proteinTarget = userWeightKg * 2.2; // higher to preserve muscle
+  else if (userGoal === 'STRENGTH') proteinTarget = userWeightKg * 1.8;
+  else proteinTarget = userWeightKg * 1.6;
+
+  const totalProtein = todayMeals.reduce((sum, m) => sum + m.totalProtein, 0);
+  const remaining = Math.max(0, proteinTarget - totalProtein);
+
+  const lines: string[] = [];
+  lines.push(`Цель: ${Math.round(proteinTarget)}г белка/день (${(proteinTarget / userWeightKg).toFixed(1)}г/кг)`);
+  lines.push(`Сегодня: ${Math.round(totalProtein)}г из ${Math.round(proteinTarget)}г (${Math.round((totalProtein / proteinTarget) * 100)}%)`);
+
+  if (remaining > 40) {
+    const mealsLeft = hasWorkoutToday ? 3 : 2; // assume more meals on training day
+    const perMeal = Math.round(remaining / mealsLeft);
+    lines.push(`📌 Осталось добрать: ${Math.round(remaining)}г (~${perMeal}г на оставшиеся приёмы)`);
+  }
+
+  // Timing advice
+  if (hasWorkoutToday) {
+    lines.push('⏰ Пост-тренировочный приём (30-60мин после): 30-40г быстрого белка (сывороточный протеин, яйца)');
+  }
+
+  // Check meal distribution
+  if (todayMeals.length >= 2) {
+    const maxProtein = Math.max(...todayMeals.map((m) => m.totalProtein));
+    const minProtein = Math.min(...todayMeals.map((m) => m.totalProtein));
+    if (maxProtein > minProtein * 3 && minProtein < 20) {
+      lines.push('⚠️ Белок распределён неравномерно — старайся 25-40г в каждом приёме');
+    }
+  }
+
+  return `\n\n## 🥩 БЕЛОК СЕГОДНЯ
+${lines.join('\n')}
+→ Упоминай при обсуждении питания. Помоги добрать белок к концу дня.`;
+}
+
+// ─── Block 74: Workout Naming Intelligence ──────────────────────────────────
+// Help AI suggest meaningful workout names from exercise composition
+
+function suggestWorkoutName(
+  exercises: Array<{ exercise: { primaryMuscles: string[]; category: string } }>,
+): string {
+  if (exercises.length === 0) return '';
+
+  const allMuscles = exercises.flatMap((e) => e.exercise.primaryMuscles);
+  const muscleCount: Record<string, number> = {};
+  for (const m of allMuscles) muscleCount[m] = (muscleCount[m] || 0) + 1;
+
+  const topMuscles = Object.entries(muscleCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([m]) => m);
+
+  const muscleNames: Record<string, string> = {
+    chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс', triceps: 'Трицепс',
+    quadriceps: 'Квадрицепс', hamstrings: 'Бицепс бедра', glutes: 'Ягодицы', calves: 'Икры',
+    abs: 'Пресс', lats: 'Широчайшие', traps: 'Трапеция', forearms: 'Предплечья',
+  };
+
+  // Detect common splits
+  const hasChest = topMuscles.includes('chest');
+  const hasBack = topMuscles.includes('back') || topMuscles.includes('lats');
+  const hasLegs = topMuscles.includes('quadriceps') || topMuscles.includes('hamstrings') || topMuscles.includes('glutes');
+  const hasShoulders = topMuscles.includes('shoulders');
+  const categories = exercises.map((e) => e.exercise.category);
+  const hasCardio = categories.includes('cardio');
+
+  let suggestion = '';
+  if (hasChest && hasShoulders && topMuscles.includes('triceps')) suggestion = 'Push (Грудь + Плечи + Трицепс)';
+  else if (hasBack && topMuscles.includes('biceps')) suggestion = 'Pull (Спина + Бицепс)';
+  else if (hasLegs && !hasChest && !hasBack) suggestion = 'Ноги';
+  else if (hasChest && !hasLegs) suggestion = `Верх (${topMuscles.slice(0, 2).map((m) => muscleNames[m] || m).join(' + ')})`;
+  else if (hasCardio) suggestion = 'Кардио + Функционал';
+  else suggestion = topMuscles.slice(0, 2).map((m) => muscleNames[m] || m).join(' + ');
+
+  return `\n\nСовет для названия тренировки: «${suggestion}»`;
+}
+
+// ─── Block 75: Confidence Calibration ───────────────────────────────────────
+// Adjust AI certainty based on available data volume
+
+function calibrateConfidence(
+  totalWorkouts: number,
+  bodyWeightEntries: number,
+  mealEntries: number,
+  memoryCount: number,
+): string {
+  let dataLevel: 'minimal' | 'low' | 'moderate' | 'good' | 'rich';
+  const score = totalWorkouts * 3 + bodyWeightEntries * 2 + mealEntries + memoryCount * 2;
+
+  if (score < 10) dataLevel = 'minimal';
+  else if (score < 30) dataLevel = 'low';
+  else if (score < 80) dataLevel = 'moderate';
+  else if (score < 200) dataLevel = 'good';
+  else dataLevel = 'rich';
+
+  const directives: Record<string, string> = {
+    minimal: '⚠️ ДАННЫХ ОЧЕНЬ МАЛО. Будь осторожен с рекомендациями. Задавай больше вопросов. Используй общие советы, а не персонализированные. Не делай выводов о прогрессе.',
+    low: '⚠️ Мало данных. Рекомендации ориентировочные. Объясняй что для точных советов нужно больше тренировок/замеров.',
+    moderate: 'Средний объём данных. Можно давать персонализированные советы, но отмечай неопределённость в прогнозах.',
+    good: 'Хороший объём данных. Персонализация надёжна. Можно делать уверенные рекомендации по программам и питанию.',
+    rich: 'Богатая история данных. Максимальная персонализация. Можно выявлять тренды, паттерны, давать точные рекомендации.',
+  };
+
+  return `\n\n## 📊 УРОВЕНЬ ДАННЫХ: ${dataLevel.toUpperCase()} (${score} баллов)
+${directives[dataLevel]}`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
