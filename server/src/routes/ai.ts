@@ -2142,6 +2142,30 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }
     }
 
+    // ─── Block 11: Gamification & streaks ──────
+    const gamification = await getGamificationData(userId);
+    const gamificationContext = buildGamificationContext(gamification);
+
+    // ─── Block 12: Exercise substitution for injuries ──────
+    const injuryZones = detectInjuryZone(message, user?.healthRestrictions);
+    const substitutionAdvice = getSubstitutionAdvice(injuryZones);
+
+    // ─── Block 13: Pending follow-ups from AI ──────
+    // rawMessages already contains history in chronological order (built at line ~1981)
+    const historyForAnalysis = rawMessages.slice(0, -1); // exclude current message
+    const pendingFollowups = detectPendingFollowups(historyForAnalysis);
+    const followupsBlock = pendingFollowups.length > 0
+      ? `\n\n## 📌 НЕЗАКРЫТЫЕ ВОПРОСЫ (ты спрашивал, пользователь не ответил)\n${pendingFollowups.map((q) => `- "${q}"`).join('\n')}\n→ Если контекст подходит — мягко переспроси.`
+      : '';
+
+    // ─── Block 14: Anti-pattern directive ──────
+    const antiPatternDirective = buildAntiPatternDirective(historyForAnalysis);
+
+    // ─── Block 15: Confidence & uncertainty ──────
+    const confidenceDirective = getConfidenceDirective(user, message);
+
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, followups: ${pendingFollowups.length}`);
+
     // No nutrition targets set
     if (!nutritionTargets && user) {
       proactiveInsights.push(`⚠️ У пользователя не заданы нормы КБЖУ. Если контекст подходит — предложи рассчитать и установить через update_nutrition_targets.`);
@@ -2179,7 +2203,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${insightsBlock}${profileGapsBlock}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -2403,6 +2427,391 @@ function validateFoodItems(items: FoodItem[]): FoodItem[] {
       }
       return item;
     });
+}
+
+// ─── Block 11: Streak & Gamification Awareness ─────────────────────────────────
+
+interface GamificationData {
+  currentStreak: number;       // consecutive days with workouts
+  longestStreak: number;
+  totalWorkouts: number;
+  personalRecords: Array<{ exercise: string; weight: number; reps: number; date: Date }>;
+  newPRsThisWeek: Array<{ exercise: string; weight: number; reps: number }>;
+  milestones: string[];        // human-readable milestone messages
+}
+
+async function getGamificationData(userId: string): Promise<GamificationData> {
+  // Get all completed workouts ordered by date
+  const workouts = await prisma.workout.findMany({
+    where: { userId, completedAt: { not: null } },
+    orderBy: { completedAt: 'desc' },
+    select: { completedAt: true },
+  });
+
+  // Calculate current streak (consecutive days)
+  let currentStreak = 0;
+  let longestStreak = 0;
+  if (workouts.length > 0) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Build set of training dates (YYYY-MM-DD)
+    const trainingDays = new Set<string>();
+    for (const w of workouts) {
+      if (w.completedAt) {
+        trainingDays.add(w.completedAt.toISOString().split('T')[0]);
+      }
+    }
+
+    // Current streak: count back from today/yesterday
+    const checkDate = new Date(today);
+    // If no workout today, start from yesterday
+    if (!trainingDays.has(checkDate.toISOString().split('T')[0])) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    while (trainingDays.has(checkDate.toISOString().split('T')[0])) {
+      currentStreak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    // Longest streak: scan all dates
+    const sortedDates = Array.from(trainingDays).sort();
+    let tempStreak = 1;
+    longestStreak = 1;
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prev = new Date(sortedDates[i - 1]);
+      const curr = new Date(sortedDates[i]);
+      const diffDays = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        tempStreak++;
+        longestStreak = Math.max(longestStreak, tempStreak);
+      } else {
+        tempStreak = 1;
+      }
+    }
+  }
+
+  // Personal records per exercise (best weight for any reps ≥ 1)
+  const exerciseSets = await prisma.workoutExercise.findMany({
+    where: { workout: { userId, completedAt: { not: null } } },
+    select: {
+      exercise: { select: { name: true } },
+      workout: { select: { completedAt: true } },
+      sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
+    },
+  });
+
+  const prMap = new Map<string, { weight: number; reps: number; date: Date }>();
+  for (const we of exerciseSets) {
+    for (const s of we.sets) {
+      const name = we.exercise.name;
+      const existing = prMap.get(name);
+      if (!existing || (s.weight || 0) > existing.weight) {
+        prMap.set(name, { weight: s.weight || 0, reps: s.reps || 0, date: we.workout.completedAt! });
+      }
+    }
+  }
+
+  const personalRecords = Array.from(prMap.entries()).map(([exercise, data]) => ({
+    exercise, ...data,
+  }));
+
+  // New PRs this week
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const newPRsThisWeek = personalRecords.filter((pr) => pr.date >= oneWeekAgo);
+
+  // Milestones
+  const milestones: string[] = [];
+  const total = workouts.length;
+
+  if (total === 1) milestones.push('🎉 Первая тренировка завершена!');
+  if (total === 10) milestones.push('🔥 10 тренировок — отличный старт!');
+  if (total === 25) milestones.push('💪 25 тренировок — формируется привычка!');
+  if (total === 50) milestones.push('🏆 50 тренировок — полсотни за спиной!');
+  if (total === 100) milestones.push('👑 100 тренировок — ты элита!');
+  if (total === 200) milestones.push('⭐ 200 тренировок — железная дисциплина!');
+
+  if (currentStreak === 3) milestones.push('🔥 3 дня подряд!');
+  if (currentStreak === 5) milestones.push('🔥🔥 5 дней подряд — огненная серия!');
+  if (currentStreak === 7) milestones.push('🔥🔥🔥 7 дней — неделя без перерыва!');
+  if (currentStreak === 14) milestones.push('💎 14 дней подряд — две недели железа!');
+  if (currentStreak === 30) milestones.push('🏅 30 дней подряд — легенда!');
+
+  if (newPRsThisWeek.length > 0) {
+    milestones.push(`🏋️ Новые рекорды на этой неделе: ${newPRsThisWeek.map((pr) => `${pr.exercise} ${pr.weight} кг`).join(', ')}`);
+  }
+
+  return { currentStreak, longestStreak, totalWorkouts: total, personalRecords, newPRsThisWeek, milestones };
+}
+
+function buildGamificationContext(gam: GamificationData): string {
+  if (gam.totalWorkouts === 0) return '';
+
+  const lines: string[] = ['## 🏆 ДОСТИЖЕНИЯ И СТРИКИ'];
+
+  lines.push(`Всего тренировок: ${gam.totalWorkouts}`);
+  if (gam.currentStreak > 0) {
+    lines.push(`Текущая серия: ${gam.currentStreak} ${gam.currentStreak === 1 ? 'день' : gam.currentStreak < 5 ? 'дня' : 'дней'} подряд`);
+  }
+  if (gam.longestStreak > gam.currentStreak) {
+    lines.push(`Рекорд серии: ${gam.longestStreak} дней`);
+  }
+
+  // Top 5 PRs by weight
+  const topPRs = gam.personalRecords
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 5);
+  if (topPRs.length > 0) {
+    lines.push(`\nТоп-5 личных рекордов:`);
+    for (const pr of topPRs) {
+      lines.push(`- ${pr.exercise}: ${pr.weight} кг × ${pr.reps}`);
+    }
+  }
+
+  if (gam.milestones.length > 0) {
+    lines.push(`\n🎯 Активные достижения:`);
+    for (const m of gam.milestones) {
+      lines.push(`- ${m}`);
+    }
+    lines.push(`\n→ ОБЯЗАТЕЛЬНО поздравь пользователя с этими достижениями если контекст подходит!`);
+  }
+
+  return '\n' + lines.join('\n');
+}
+
+// ─── Block 12: Exercise Substitution Engine ─────────────────────────────────
+
+const EXERCISE_SUBSTITUTIONS: Record<string, { reason: string; alternatives: string[] }> = {
+  'Жим штанги лёжа': {
+    reason: 'плечо/грудь',
+    alternatives: ['Жим гантелей лёжа', 'Жим в тренажёре', 'Жим с пола', 'Отжимания от пола'],
+  },
+  'Приседания со штангой': {
+    reason: 'колено/поясница',
+    alternatives: ['Жим ногами', 'Болгарские сплит-приседания', 'Гоблет-приседания', 'Приседания в Гакк'],
+  },
+  'Становая тяга': {
+    reason: 'поясница',
+    alternatives: ['Румынская тяга', 'Тяга трэп-грифа', 'Гиперэкстензия', 'Тяга гантели в наклоне'],
+  },
+  'Жим штанги стоя': {
+    reason: 'плечо/поясница',
+    alternatives: ['Жим гантелей сидя', 'Жим в тренажёре сидя', 'Подъём гантелей через стороны'],
+  },
+  'Тяга штанги в наклоне': {
+    reason: 'поясница',
+    alternatives: ['Тяга гантели в наклоне', 'Тяга нижнего блока', 'Тяга в тренажёре с упором'],
+  },
+  'Подтягивания': {
+    reason: 'плечо/локоть',
+    alternatives: ['Тяга верхнего блока', 'Подтягивания в гравитроне', 'Тяга верхнего блока обратным хватом'],
+  },
+  'Французский жим': {
+    reason: 'локоть',
+    alternatives: ['Разгибания на блоке', 'Разгибания с гантелей из-за головы', 'Отжимания на брусьях узким хватом'],
+  },
+  'Выпады': {
+    reason: 'колено',
+    alternatives: ['Болгарские сплит-приседания', 'Степ-ап на платформу', 'Жим ногами одной ногой'],
+  },
+};
+
+const BODY_PART_INJURY_KEYWORDS: Record<string, string[]> = {
+  'плечо': ['плеч', 'дельт', 'ротатор', 'импинджмент', 'вращатель'],
+  'колено': ['колен', 'мениск', 'пкс', 'связк колен', 'коленн'],
+  'поясница': ['поясниц', 'спин', 'грыж', 'протруз', 'позвоноч'],
+  'локоть': ['локт', 'эпикондилит', 'теннисн', 'локтев'],
+  'запястье': ['запясть', 'кист', 'лучезапястн'],
+  'грудь': ['груд', 'грудин', 'реберн'],
+};
+
+function detectInjuryZone(message: string, healthRestrictions?: Array<{ description: string; bodyPart: string }>): string[] {
+  const zones: Set<string> = new Set();
+  const text = message.toLowerCase();
+
+  for (const [zone, keywords] of Object.entries(BODY_PART_INJURY_KEYWORDS)) {
+    for (const kw of keywords) {
+      if (text.includes(kw)) {
+        zones.add(zone);
+        break;
+      }
+    }
+  }
+
+  // Check stored health restrictions
+  if (healthRestrictions) {
+    for (const hr of healthRestrictions) {
+      const r = `${hr.description} ${hr.bodyPart}`.toLowerCase();
+      for (const [zone, keywords] of Object.entries(BODY_PART_INJURY_KEYWORDS)) {
+        for (const kw of keywords) {
+          if (r.includes(kw)) { zones.add(zone); break; }
+        }
+      }
+    }
+  }
+
+  return Array.from(zones);
+}
+
+function getSubstitutionAdvice(injuryZones: string[]): string {
+  if (injuryZones.length === 0) return '';
+
+  const lines: string[] = ['\n## 🔄 ЗАМЕНЫ УПРАЖНЕНИЙ (с учётом ограничений)'];
+  lines.push(`Зоны дискомфорта: ${injuryZones.join(', ')}`);
+
+  for (const [exercise, sub] of Object.entries(EXERCISE_SUBSTITUTIONS)) {
+    const affectedZones = sub.reason.split('/');
+    if (affectedZones.some((z) => injuryZones.includes(z))) {
+      lines.push(`- ❌ ${exercise} → ✅ ${sub.alternatives.slice(0, 2).join(' / ')}`);
+    }
+  }
+
+  if (lines.length > 2) {
+    lines.push('\n→ При создании тренировок/программ ИСПОЛЬЗУЙ замены из списка выше.');
+    return lines.join('\n');
+  }
+  return '';
+}
+
+// ─── Block 13: Smart Follow-up Memory ───────────────────────────────────────
+
+function detectPendingFollowups(history: Array<{ role: string; content: string | null }>): string[] {
+  const followups: string[] = [];
+
+  // Scan last 3 AI messages for unanswered questions
+  const recentAiMessages = history
+    .filter((m) => m.role === 'assistant' && m.content)
+    .slice(-3);
+
+  const recentUserMessages = history
+    .filter((m) => m.role === 'user' && m.content)
+    .slice(-3)
+    .map((m) => (m.content || '').toLowerCase());
+
+  for (const aiMsg of recentAiMessages) {
+    const content = aiMsg.content || '';
+
+    // Detect questions AI asked
+    const questions = content.match(/[^.!?\n]*\?/g) || [];
+    for (const q of questions) {
+      const cleanQ = q.trim().toLowerCase();
+      // Skip rhetorical questions
+      if (cleanQ.includes('хочешь') || cleanQ.includes('хотите') || cleanQ.length < 15) continue;
+
+      // Check if user answered this question in subsequent messages
+      const keyWords = cleanQ
+        .replace(/[?.,!]/g, '')
+        .split(/\s+/)
+        .filter((w) => w.length > 3)
+        .slice(0, 3);
+
+      const wasAnswered = recentUserMessages.some((userMsg) =>
+        keyWords.some((kw) => userMsg.includes(kw))
+      );
+
+      if (!wasAnswered) {
+        followups.push(q.trim());
+      }
+    }
+  }
+
+  return followups.slice(0, 2); // max 2 pending follow-ups
+}
+
+// ─── Block 14: Response Anti-Patterns Filter ────────────────────────────────
+
+const BORING_OPENINGS = [
+  /^(конечно|разумеется|безусловно|отличный вопрос|хороший вопрос|отличное решение|ок,?\s*давай)/i,
+  /^(здравствуйте|добрый день),?\s*(рад|приятно)/i,
+  /^(я\s*(бы\s*)?рекомендовал|позвольте\s*мне)/i,
+  /^(как\s*ваш\s*(персональный\s*)?тренер)/i,
+];
+
+const GENERIC_PHRASES = [
+  /важно\s*помнить,?\s*что/gi,
+  /не\s*забывайте?\s*,?\s*что/gi,
+  /стоит\s*отметить,?\s*что/gi,
+  /в\s*первую\s*очередь/gi,
+  /давайте?\s*разберёмся/gi,
+  /хочу\s*подчеркнуть/gi,
+];
+
+function buildAntiPatternDirective(history: Array<{ role: string; content: string | null }>): string {
+  // Check if AI has been repeating openings
+  const lastAiMessages = history
+    .filter((m) => m.role === 'assistant' && m.content)
+    .slice(-3)
+    .map((m) => m.content!);
+
+  if (lastAiMessages.length < 2) return '';
+
+  // Detect repeated first words/phrases
+  const firstPhrases = lastAiMessages.map((msg) => {
+    const firstLine = msg.split('\n')[0].trim().toLowerCase();
+    return firstLine.split(/\s+/).slice(0, 3).join(' ');
+  });
+
+  const hasDuplicateOpening = new Set(firstPhrases).size < firstPhrases.length;
+
+  const directives: string[] = [];
+
+  if (hasDuplicateOpening) {
+    directives.push('⚠️ РАЗНООБРАЗИЕ: Ты повторяешь одинаковые начала ответов. Начни ответ по-другому — сразу с сути, числа, действия или наблюдения из данных.');
+  }
+
+  // Check for generic filler phrases in last response
+  const lastMsg = lastAiMessages[lastAiMessages.length - 1] || '';
+  let genericCount = 0;
+  for (const pattern of GENERIC_PHRASES) {
+    if (pattern.test(lastMsg)) genericCount++;
+    pattern.lastIndex = 0; // reset regex state
+  }
+  if (genericCount >= 2) {
+    directives.push('⚠️ КОНКРЕТНОСТЬ: Предыдущий ответ содержал общие фразы-заполнители. Убери "важно помнить", "стоит отметить" и т.п. — сразу к фактам и числам.');
+  }
+
+  return directives.length > 0
+    ? `\n\n## 🎯 КАЧЕСТВО ОТВЕТА\n${directives.join('\n')}`
+    : '';
+}
+
+// ─── Block 15: AI Confidence & Uncertainty Handling ─────────────────────────
+
+function getConfidenceDirective(user: any, message: string): string {
+  const directives: string[] = [];
+
+  // If user asks about medical/clinical things — lower confidence, recommend specialist
+  const medicalPatterns = /(?:диагноз|лечени[ея]|лекарств|таблетк|уколы?|стероид|гормональн\s*тераpi|курс\s*(?:тест|стероид)|мрт|узи|рентген|анализ\s*(?:кров|мочи))/i;
+  if (medicalPatterns.test(message)) {
+    directives.push('⚠️ ОСТОРОЖНОСТЬ: Вопрос касается медицины. НЕ ставь диагнозы и НЕ назначай лечение. Дай общую информацию и ОБЯЗАТЕЛЬНО рекомендуй обратиться к спортивному врачу / эндокринологу / ортопеду.');
+  }
+
+  // If profile data is very incomplete — flag uncertainty in calculations
+  const missingCritical = [];
+  if (!user?.weightKg) missingCritical.push('вес');
+  if (!user?.heightCm) missingCritical.push('рост');
+  if (!user?.goal) missingCritical.push('цель');
+  if (!user?.gender) missingCritical.push('пол');
+
+  if (missingCritical.length >= 2) {
+    directives.push(`⚠️ НЕПОЛНЫЕ ДАННЫЕ: Не хватает: ${missingCritical.join(', ')}. Любые расчёты (КБЖУ, программа) будут приблизительными — СКАЖИ ОБ ЭТОМ и попроси заполнить профиль.`);
+  }
+
+  // If user mentions contradictory goals
+  const contradictions = [
+    { pattern: /(?:похуде|сушк|дефицит).*(?:набр|масс|объём)/i, msg: 'Пользователь говорит одновременно про похудение и набор массы — уточни приоритет.' },
+    { pattern: /(?:не\s*ем|голода|0\s*калорий).*(?:масс|сил|рос)/i, msg: 'Пользователь хочет расти но не ест — объясни почему это невозможно.' },
+  ];
+  for (const c of contradictions) {
+    if (c.pattern.test(message)) {
+      directives.push(`⚠️ ПРОТИВОРЕЧИЕ: ${c.msg}`);
+    }
+  }
+
+  return directives.length > 0
+    ? `\n\n## ⚖️ УВЕРЕННОСТЬ И ОГРАНИЧЕНИЯ\n${directives.join('\n')}`
+    : '';
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
