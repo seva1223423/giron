@@ -2548,6 +2548,60 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       thisWeekDuration, prevWeekDuration,
     );
 
+    // ─── Block 56: Workout rating feedback loop ──────
+    const ratingFeedbackContext = analyzeWorkoutRatings(
+      recentWorkouts.map((w) => ({
+        name: w.name,
+        rating: (w as any).rating || null, // rating may not be in DB yet
+        totalVolume: w.totalVolume,
+        durationMinutes: w.durationMinutes,
+        exercises: w.exercises.map((e) => ({ exercise: { name: e.exercise.name, primaryMuscles: e.exercise.primaryMuscles } })),
+      })),
+    );
+
+    // ─── Block 57: Calorie burn estimator ──────
+    const calorieBurnContext = estimateCaloriesBurned(
+      lastCompletedWorkout
+        ? {
+            totalVolume: lastCompletedWorkout.totalVolume,
+            durationMinutes: lastCompletedWorkout.durationMinutes,
+            exercises: lastCompletedWorkout.exercises.map((e) => ({
+              exercise: { category: e.exercise.category, type: e.exercise.type },
+            })),
+          }
+        : null,
+      user?.weightKg || null,
+    );
+
+    // ─── Block 58: Exercise variety scorer ──────
+    const exerciseVarietyContext = scoreExerciseVariety(
+      recentWorkouts.map((w) => ({
+        exercises: w.exercises.map((e) => ({ exercise: { name: e.exercise.name, type: e.exercise.type } })),
+      })),
+    );
+
+    // ─── Block 59: Time-of-day performance analyzer ──────
+    const trainingTimeContext = analyzeTrainingTimePerformance(
+      recentWorkouts.map((w) => ({
+        completedAt: w.completedAt,
+        totalVolume: w.totalVolume,
+        durationMinutes: w.durationMinutes,
+      })),
+    );
+
+    // ─── Block 60: Smart deload programming ──────
+    const deloadProgramContext = generateDeloadProgram(
+      deloadRecommendation.shouldDeload,
+      lastCompletedWorkout?.totalVolume || 0,
+      lastCompletedWorkout
+        ? lastCompletedWorkout.exercises.map((e) => ({
+            exercise: { name: e.exercise.name },
+            sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
+          }))
+        : [],
+      user?.goal || null,
+    );
+
     // ─── Block 51: Exercise technique cues ──────
     const lastWorkoutExerciseNames = lastCompletedWorkout
       ? lastCompletedWorkout.exercises.map((e) => e.exercise.name)
@@ -2679,7 +2733,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -2721,6 +2775,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'muscleRecovery', content: muscleRecoveryContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
         { name: 'streakMotivation', content: streakMotivationContext, relevantIntents: new Set(['greeting', 'motivation']), priority: 3 },
         { name: 'trainingAge', content: trainingAgeContext, relevantIntents: new Set(['*']), priority: 1 },
+        { name: 'ratingFeedback', content: ratingFeedbackContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
+        { name: 'calorieBurn', content: calorieBurnContext, relevantIntents: new Set(['nutrition', 'workout']), priority: 3 },
+        { name: 'exerciseVariety', content: exerciseVarietyContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
+        { name: 'trainingTime', content: trainingTimeContext, relevantIntents: new Set(['workout', 'greeting']), priority: 3 },
+        { name: 'deloadProgram', content: deloadProgramContext, relevantIntents: new Set(['workout', 'program_creation', 'health']), priority: 2 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
       ];
@@ -5798,6 +5857,286 @@ function estimateTrainingAge(
   return `\n\n## 🎓 ТРЕНИРОВОЧНЫЙ ОПЫТ
 Оценка: ~${estimatedYears} ${estimatedYears === 1 ? 'год' : estimatedYears < 5 ? 'года' : 'лет'} (${tier})
 ${adviceStyle}`;
+}
+
+// ─── Block 56: Workout Rating Feedback Loop ─────────────────────────────────
+// Use workout ratings to adapt future recommendations
+
+function analyzeWorkoutRatings(
+  recentWorkouts: Array<{
+    name: string;
+    rating?: number | null;
+    totalVolume: number | null;
+    durationMinutes: number | null;
+    exercises: Array<{ exercise: { name: string; primaryMuscles: string[] } }>;
+  }>,
+): string {
+  const ratedWorkouts = recentWorkouts.filter((w) => w.rating && w.rating > 0);
+  if (ratedWorkouts.length < 2) return '';
+
+  const avgRating = ratedWorkouts.reduce((sum, w) => sum + (w.rating || 0), 0) / ratedWorkouts.length;
+
+  // Find best and worst rated workouts
+  const sorted = [...ratedWorkouts].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+
+  const lines: string[] = [];
+  lines.push(`Средняя оценка тренировок: ${avgRating.toFixed(1)}/5`);
+
+  if (best && best.rating && best.rating >= 4) {
+    const muscles = best.exercises.flatMap((e) => e.exercise.primaryMuscles);
+    const uniqueMuscles = [...new Set(muscles)].slice(0, 3);
+    lines.push(`👍 Лучшая: "${best.name}" (${best.rating}/5) — ${uniqueMuscles.join(', ')}`);
+  }
+
+  if (worst && worst.rating && worst.rating <= 2) {
+    lines.push(`👎 Худшая: "${worst.name}" (${worst.rating}/5) — возможно стоит пересмотреть`);
+  }
+
+  // Detect trend
+  if (ratedWorkouts.length >= 4) {
+    const recentAvg = ratedWorkouts.slice(0, 2).reduce((s, w) => s + (w.rating || 0), 0) / 2;
+    const olderAvg = ratedWorkouts.slice(-2).reduce((s, w) => s + (w.rating || 0), 0) / 2;
+    if (recentAvg - olderAvg >= 0.5) {
+      lines.push('📈 Оценки растут — тренировки нравятся всё больше!');
+    } else if (olderAvg - recentAvg >= 0.5) {
+      lines.push('📉 Оценки падают — стоит обсудить что не нравится и скорректировать программу');
+    }
+  }
+
+  return `\n\n## ⭐ ОБРАТНАЯ СВЯЗЬ ПО ТРЕНИРОВКАМ
+${lines.join('\n')}
+→ Используй для адаптации рекомендаций. Больше тренировок, похожих на лучшие. Меньше — на худшие.`;
+}
+
+// ─── Block 57: Calorie Burn Estimator ───────────────────────────────────────
+// Estimate calories burned per workout from volume, duration, and type
+
+function estimateCaloriesBurned(
+  workout: {
+    totalVolume: number | null;
+    durationMinutes: number | null;
+    exercises: Array<{ exercise: { category: string; type: string } }>;
+  } | null,
+  userWeightKg: number | null,
+): string {
+  if (!workout || !workout.durationMinutes || !userWeightKg) return '';
+
+  const duration = workout.durationMinutes;
+  const weight = userWeightKg;
+
+  // Determine workout intensity from exercise types
+  const categories = workout.exercises.map((e) => e.exercise.category);
+  const hasCardio = categories.includes('cardio');
+  const hasStrength = categories.includes('strength');
+
+  // MET values (rough estimates)
+  let met: number;
+  if (hasCardio && !hasStrength) {
+    met = 7.0; // moderate cardio
+  } else if (hasStrength && !hasCardio) {
+    met = 5.0; // strength training
+  } else if (hasCardio && hasStrength) {
+    met = 6.0; // mixed
+  } else {
+    met = 4.5; // flexibility/functional
+  }
+
+  // Adjust for volume (higher volume = more calorie expenditure)
+  if (workout.totalVolume && workout.totalVolume > 10000) {
+    met += 0.5; // heavy session
+  }
+
+  // Calorie estimation: kcal = MET × weight(kg) × duration(hours)
+  const calories = Math.round(met * weight * (duration / 60));
+
+  return `\n\n## 🔥 РАСХОД КАЛОРИЙ (последняя тренировка)
+Примерно ${calories} ккал за ${duration} мин (MET ~${met.toFixed(1)})
+${hasStrength ? '💪 Силовая тренировка сжигает калории ещё 24-48ч после (EPOC-эффект)' : ''}
+⚠️ Грубая оценка. Реальный расход зависит от интенсивности, пауз отдыха, ЧСС.`;
+}
+
+// ─── Block 58: Exercise Variety Scorer ──────────────────────────────────────
+// Detect monotonous routines and suggest adding variety
+
+function scoreExerciseVariety(
+  recentWorkouts: Array<{
+    exercises: Array<{ exercise: { name: string; type: string } }>;
+  }>,
+): string {
+  if (recentWorkouts.length < 3) return '';
+
+  // Count exercise frequency across recent workouts
+  const exerciseCounts: Record<string, number> = {};
+  const typeCounts: Record<string, number> = {};
+  let totalExercises = 0;
+
+  for (const w of recentWorkouts) {
+    for (const e of w.exercises) {
+      exerciseCounts[e.exercise.name] = (exerciseCounts[e.exercise.name] || 0) + 1;
+      typeCounts[e.exercise.type] = (typeCounts[e.exercise.type] || 0) + 1;
+      totalExercises++;
+    }
+  }
+
+  const uniqueExercises = Object.keys(exerciseCounts).length;
+  const varietyRatio = uniqueExercises / Math.max(totalExercises, 1);
+
+  // Find overused exercises (>60% of workouts)
+  const threshold = recentWorkouts.length * 0.6;
+  const overused = Object.entries(exerciseCounts)
+    .filter(([, count]) => count >= threshold)
+    .map(([name]) => name);
+
+  // Find missing equipment types
+  const allTypes = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
+  const missingTypes = allTypes.filter((t) => !typeCounts[t]);
+
+  const lines: string[] = [];
+
+  if (varietyRatio < 0.3) {
+    lines.push(`⚠️ Низкое разнообразие упражнений (${uniqueExercises} уникальных из ${totalExercises} всего)`);
+  }
+
+  if (overused.length > 0) {
+    lines.push(`🔁 Частые упражнения: ${overused.slice(0, 3).join(', ')} — рассмотри замены для новых стимулов`);
+  }
+
+  if (missingTypes.length > 0 && missingTypes.length <= 3) {
+    const typeNames: Record<string, string> = {
+      barbell: 'штанга', dumbbell: 'гантели', machine: 'тренажёры', cable: 'кроссовер', bodyweight: 'собственный вес',
+    };
+    lines.push(`💡 Не используешь: ${missingTypes.map((t) => typeNames[t] || t).join(', ')} — добавь для баланса`);
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\n\n## 🎲 РАЗНООБРАЗИЕ ТРЕНИРОВОК
+${lines.join('\n')}
+→ Разнообразие стимулов важно для прогресса. Предлагай новые упражнения и снаряды.`;
+}
+
+// ─── Block 59: Time-of-Day Performance Analyzer ─────────────────────────────
+// Find user's optimal training window from historical performance
+
+function analyzeTrainingTimePerformance(
+  workouts: Array<{
+    completedAt: Date | null;
+    totalVolume: number | null;
+    durationMinutes: number | null;
+  }>,
+): string {
+  const withTime = workouts
+    .filter((w) => w.completedAt && w.totalVolume && w.totalVolume > 0)
+    .map((w) => ({
+      hour: new Date(w.completedAt!).getHours(),
+      volume: w.totalVolume!,
+      duration: w.durationMinutes || 0,
+    }));
+
+  if (withTime.length < 5) return '';
+
+  // Group by time slots
+  const slots: Record<string, { volumes: number[]; count: number }> = {
+    'утро (6-11)': { volumes: [], count: 0 },
+    'день (11-16)': { volumes: [], count: 0 },
+    'вечер (16-21)': { volumes: [], count: 0 },
+    'ночь (21-6)': { volumes: [], count: 0 },
+  };
+
+  for (const w of withTime) {
+    let slot: string;
+    if (w.hour >= 6 && w.hour < 11) slot = 'утро (6-11)';
+    else if (w.hour >= 11 && w.hour < 16) slot = 'день (11-16)';
+    else if (w.hour >= 16 && w.hour < 21) slot = 'вечер (16-21)';
+    else slot = 'ночь (21-6)';
+
+    slots[slot].volumes.push(w.volume);
+    slots[slot].count++;
+  }
+
+  // Find slot with highest average volume
+  let bestSlot = '';
+  let bestAvg = 0;
+  let preferredSlot = '';
+  let maxCount = 0;
+
+  for (const [slot, data] of Object.entries(slots)) {
+    if (data.count === 0) continue;
+    const avg = data.volumes.reduce((a, b) => a + b, 0) / data.volumes.length;
+    if (avg > bestAvg) {
+      bestAvg = avg;
+      bestSlot = slot;
+    }
+    if (data.count > maxCount) {
+      maxCount = data.count;
+      preferredSlot = slot;
+    }
+  }
+
+  if (!bestSlot) return '';
+
+  const lines: string[] = [];
+  lines.push(`🏆 Лучшие результаты: ${bestSlot} (ср. объём ${Math.round(bestAvg)} кг)`);
+
+  if (preferredSlot !== bestSlot && maxCount > 2) {
+    lines.push(`📅 Обычно тренируется: ${preferredSlot} (${maxCount} раз)`);
+    lines.push(`💡 Попробуй перенести тренировки на ${bestSlot} — объём там выше`);
+  }
+
+  return `\n\n## ⏰ ВРЕМЯ ТРЕНИРОВОК
+${lines.join('\n')}
+→ Учитывай при планировании расписания.`;
+}
+
+// ─── Block 60: Smart Deload Programming ─────────────────────────────────────
+// Generate specific deload parameters when deload is recommended
+
+function generateDeloadProgram(
+  shouldDeload: boolean,
+  lastWorkoutVolume: number,
+  lastWorkoutExercises: Array<{ exercise: { name: string }; sets: Array<{ weight: number | null; reps: number | null }> }>,
+  userGoal: string | null,
+): string {
+  if (!shouldDeload || lastWorkoutExercises.length === 0) return '';
+
+  // Deload strategy depends on goal
+  let volumeReduction: number;
+  let intensityReduction: number;
+  let strategy: string;
+
+  if (userGoal === 'STRENGTH') {
+    // Strength: keep intensity, reduce volume
+    volumeReduction = 0.4; // 40% less sets
+    intensityReduction = 0.1; // 10% less weight
+    strategy = 'Сохраняем веса, снижаем объём (меньше подходов)';
+  } else if (userGoal === 'MUSCLE_GAIN') {
+    // Hypertrophy: reduce both moderately
+    volumeReduction = 0.3;
+    intensityReduction = 0.2;
+    strategy = 'Снижаем веса на 20%, убираем 1-2 подхода в каждом упражнении';
+  } else {
+    // General: reduce everything
+    volumeReduction = 0.5;
+    intensityReduction = 0.3;
+    strategy = 'Лёгкая неделя: 50% объёма, 70% рабочих весов';
+  }
+
+  const deloadExercises = lastWorkoutExercises.slice(0, 4).map((e) => {
+    const maxWeight = Math.max(...e.sets.map((s) => s.weight || 0));
+    const deloadWeight = Math.round((maxWeight * (1 - intensityReduction)) / 2.5) * 2.5; // round to 2.5kg
+    const maxReps = Math.max(...e.sets.map((s) => s.reps || 0));
+    const deloadSets = Math.max(2, Math.round(e.sets.length * (1 - volumeReduction)));
+
+    return `- ${e.exercise.name}: ${deloadSets}×${maxReps} @ ${deloadWeight} кг`;
+  });
+
+  return `\n\n## 🧘 ПРОГРАММА DELOAD НЕДЕЛИ
+Стратегия: ${strategy}
+Пример deload тренировки:
+${deloadExercises.join('\n')}
+→ Предложи эту программу если пользователь спрашивает о deload или когда система рекомендует разгрузку.`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
