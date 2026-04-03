@@ -2391,6 +2391,63 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
     const periodizationContext = buildPeriodizationContext(periodizationAdvice);
 
+    // ─── Block 31: Workout difficulty auto-adjustment ──────
+    const lastCompletedWorkout = recentWorkouts[0];
+    const difficultyAdjustments = lastCompletedWorkout
+      ? analyzeDifficultyAdjustments(
+          lastCompletedWorkout.exercises.map((we) => ({
+            exercise: we.exercise,
+            sets: we.sets.map((s) => ({ weight: s.weight, reps: s.reps, rpe: s.rpe, completed: s.completed })),
+          }))
+        )
+      : [];
+    const difficultyContext = buildDifficultyContext(difficultyAdjustments);
+
+    // ─── Block 32: Contextual exercise alternatives ──────
+    const programExerciseNames = activeProgram
+      ? (await prisma.workoutExercise.findMany({
+          where: { workout: { programId: activeProgram.id } },
+          select: { exercise: { select: { name: true } } },
+        })).map((we) => we.exercise.name)
+      : [];
+    const exerciseAlternatives = getExerciseAlternatives([...new Set(programExerciseNames)], injuryZones);
+    const alternativesContext = buildExerciseAlternativesContext(exerciseAlternatives);
+
+    // ─── Block 33: Weekly training summary ──────
+    const weeklySummary = buildWeeklySummary(
+      weekWorkouts.filter((w) => w.completedAt).map((w) => ({
+        name: w.name,
+        completedAt: w.completedAt,
+        totalVolume: w.totalVolume,
+        durationMinutes: w.durationMinutes,
+        exercises: [], // simplified — full data not loaded for week workouts
+      })),
+      prevWeekVolume,
+      plannedDays,
+    );
+    const weeklySummaryContext = buildWeeklySummaryContext(weeklySummary);
+
+    // ─── Block 34: Goal progress tracker ──────
+    const totalWorkoutsLast30Days = await prisma.workout.count({
+      where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+    });
+    const goalProgress = estimateGoalProgress(
+      { weightKg: user?.weightKg, goal: user?.goal, fitnessLevel: user?.fitnessLevel },
+      bodyWeightHistory,
+      totalWorkoutsLast30Days,
+      thisWeekVolume,
+    );
+    const goalProgressContext = buildGoalProgressContext(goalProgress);
+
+    // ─── Block 35: Smart rest timer suggestion ──────
+    const exerciseTypesInProgram = activeProgram
+      ? [...new Set((await prisma.workoutExercise.findMany({
+          where: { workout: { programId: activeProgram.id } },
+          select: { exercise: { select: { type: true } } },
+        })).map((we) => we.exercise.type))]
+      : [];
+    const restTimerContext = buildRestTimerContext(user?.goal || null, exerciseTypesInProgram);
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2398,7 +2455,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
     const memoryContext = await getMemoryContext(userId);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus, memories: ${extractedMemories.length} new`);
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, overload: ${overloadData.filter((o) => o.status === 'plateau').length} plateaus, memories: ${extractedMemories.length} new, adjustments: ${difficultyAdjustments.length}, alternatives: ${exerciseAlternatives.length}`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -2484,7 +2541,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -4031,6 +4088,439 @@ function buildSmartGreetingDirective(ctx: GreetingContext): string {
   lines.push(`Будь кратким (3-5 предложений), дружелюбным и проактивным. НЕ перечисляй все пункты подряд — выбери 2-3 самых важных.`);
 
   return `\n\n## 🤝 ИНСТРУКЦИЯ ДЛЯ ПРИВЕТСТВИЯ\n${lines.join('\n')}`;
+}
+
+// ─── Block 31: Workout Difficulty Auto-Adjustment ───────────────────────────
+// Analyzes last completed workout RPE and completion rates to suggest weight/rep changes
+
+interface DifficultyAdjustment {
+  exerciseName: string;
+  currentWeight: number;
+  suggestedWeight: number;
+  currentReps: number;
+  suggestedReps: number;
+  reason: string;
+}
+
+function analyzeDifficultyAdjustments(
+  lastWorkoutExercises: Array<{
+    exercise: { name: string };
+    sets: Array<{ weight: number | null; reps: number | null; rpe: number | null; completed: boolean }>;
+  }>
+): DifficultyAdjustment[] {
+  const adjustments: DifficultyAdjustment[] = [];
+
+  for (const we of lastWorkoutExercises) {
+    const completedSets = we.sets.filter((s) => s.completed);
+    if (completedSets.length === 0) continue;
+
+    const avgWeight = completedSets.reduce((s, set) => s + (set.weight || 0), 0) / completedSets.length;
+    const avgReps = completedSets.reduce((s, set) => s + (set.reps || 0), 0) / completedSets.length;
+    const avgRpe = completedSets.filter((s) => s.rpe).reduce((s, set) => s + (set.rpe || 0), 0) / (completedSets.filter((s) => s.rpe).length || 1);
+    const completionRate = completedSets.length / we.sets.length;
+
+    if (avgWeight === 0) continue;
+
+    // Too easy: all sets completed, low RPE
+    if (completionRate === 1 && avgRpe > 0 && avgRpe < 7) {
+      const increase = avgRpe < 5 ? 0.1 : 0.05; // +10% or +5%
+      adjustments.push({
+        exerciseName: we.exercise.name,
+        currentWeight: Math.round(avgWeight),
+        suggestedWeight: Math.round(avgWeight * (1 + increase) / 2.5) * 2.5, // round to 2.5kg
+        currentReps: Math.round(avgReps),
+        suggestedReps: Math.round(avgReps),
+        reason: `RPE ${avgRpe.toFixed(0)} — слишком легко. Увеличь вес на ${Math.round(increase * 100)}%.`,
+      });
+    }
+
+    // Too hard: low completion, high RPE
+    if (completionRate < 0.7 || (avgRpe >= 9.5)) {
+      const decrease = completionRate < 0.5 ? 0.15 : 0.1;
+      adjustments.push({
+        exerciseName: we.exercise.name,
+        currentWeight: Math.round(avgWeight),
+        suggestedWeight: Math.round(avgWeight * (1 - decrease) / 2.5) * 2.5,
+        currentReps: Math.round(avgReps),
+        suggestedReps: Math.round(avgReps),
+        reason: completionRate < 0.7
+          ? `Выполнено только ${Math.round(completionRate * 100)}% подходов — снизь вес на ${Math.round(decrease * 100)}%.`
+          : `RPE ${avgRpe.toFixed(0)} — на пределе. Снизь вес на ${Math.round(decrease * 100)}% для безопасного прогресса.`,
+      });
+    }
+
+    // Rep target not met consistently (completed but fewer reps than planned)
+    if (completionRate >= 0.8 && avgRpe >= 8 && avgRpe < 9.5) {
+      // This is the "productive" zone — just acknowledge it
+      // No adjustment needed
+    }
+  }
+
+  return adjustments;
+}
+
+function buildDifficultyContext(adjustments: DifficultyAdjustment[]): string {
+  if (adjustments.length === 0) return '';
+
+  const lines = adjustments.slice(0, 4).map((a) =>
+    `- **${a.exerciseName}**: ${a.currentWeight}кг → ${a.suggestedWeight}кг (${a.reason})`
+  );
+
+  return `\n\n## ⚖️ РЕКОМЕНДАЦИИ ПО НАГРУЗКЕ (на основе последней тренировки)
+${lines.join('\n')}
+→ Если пользователь спрашивает про веса или программу — предложи эти корректировки.`;
+}
+
+// ─── Block 32: Contextual Exercise Alternatives ─────────────────────────────
+// Suggest exercise swaps based on injuries, equipment, and muscle targeting
+
+interface ExerciseAlternative {
+  original: string;
+  alternatives: string[];
+  reason: string;
+}
+
+const EXERCISE_ALTERNATIVES: Record<string, { alternatives: string[]; muscles: string[] }> = {
+  'Жим штанги лёжа': { alternatives: ['Жим гантелей лёжа', 'Жим в тренажёре Смита', 'Отжимания от пола'], muscles: ['chest', 'triceps'] },
+  'Приседания со штангой': { alternatives: ['Жим ногами', 'Гоблет-приседания', 'Болгарские сплит-приседания'], muscles: ['quadriceps', 'glutes'] },
+  'Становая тяга': { alternatives: ['Румынская тяга', 'Тяга трэп-грифа', 'Гиперэкстензия'], muscles: ['back', 'hamstrings'] },
+  'Жим штанги стоя': { alternatives: ['Жим гантелей сидя', 'Жим Арнольда', 'Жим в тренажёре Смита сидя'], muscles: ['shoulders'] },
+  'Тяга штанги в наклоне': { alternatives: ['Тяга гантелей в наклоне', 'Тяга нижнего блока', 'Тяга Т-грифа'], muscles: ['back', 'biceps'] },
+  'Подтягивания': { alternatives: ['Тяга верхнего блока', 'Подтягивания в гравитроне', 'Тяга гантели одной рукой'], muscles: ['back', 'biceps'] },
+  'Французский жим': { alternatives: ['Разгибания рук на блоке', 'Отжимания на брусьях', 'Жим узким хватом'], muscles: ['triceps'] },
+  'Подъём штанги на бицепс': { alternatives: ['Подъём гантелей на бицепс', 'Молоток', 'Сгибания на блоке'], muscles: ['biceps'] },
+  'Разведение гантелей': { alternatives: ['Сведения в тренажёре Пек-Дек', 'Кроссовер', 'Разведения на наклонной скамье'], muscles: ['chest'] },
+  'Выпады': { alternatives: ['Болгарские сплит-приседания', 'Шаги на платформу', 'Жим одной ногой'], muscles: ['quadriceps', 'glutes'] },
+};
+
+const INJURY_EXERCISE_BLACKLIST: Record<string, string[]> = {
+  'shoulder': ['Жим штанги стоя', 'Жим штанги лёжа', 'Разведение гантелей', 'Французский жим'],
+  'knee': ['Приседания со штангой', 'Выпады', 'Жим ногами'],
+  'lower_back': ['Становая тяга', 'Тяга штанги в наклоне', 'Приседания со штангой'],
+  'wrist': ['Подъём штанги на бицепс', 'Жим штанги лёжа', 'Французский жим'],
+  'elbow': ['Французский жим', 'Подъём штанги на бицепс', 'Жим узким хватом'],
+};
+
+function getExerciseAlternatives(
+  programExercises: string[],
+  injuryZones: string[],
+): ExerciseAlternative[] {
+  const result: ExerciseAlternative[] = [];
+
+  // Find exercises that conflict with injuries
+  for (const zone of injuryZones) {
+    const blacklisted = INJURY_EXERCISE_BLACKLIST[zone] || [];
+    for (const exercise of programExercises) {
+      if (blacklisted.includes(exercise)) {
+        const alts = EXERCISE_ALTERNATIVES[exercise];
+        if (alts) {
+          // Filter out alternatives that are also blacklisted
+          const safeAlts = alts.alternatives.filter((a) =>
+            !blacklisted.includes(a) && !injuryZones.some((z) => (INJURY_EXERCISE_BLACKLIST[z] || []).includes(a))
+          );
+          if (safeAlts.length > 0) {
+            result.push({
+              original: exercise,
+              alternatives: safeAlts,
+              reason: `⚠️ Может усугубить проблему с ${zone === 'shoulder' ? 'плечом' : zone === 'knee' ? 'коленом' : zone === 'lower_back' ? 'поясницей' : zone === 'wrist' ? 'запястьем' : zone === 'elbow' ? 'локтем' : zone}`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+function buildExerciseAlternativesContext(alternatives: ExerciseAlternative[]): string {
+  if (alternatives.length === 0) return '';
+
+  const lines = alternatives.slice(0, 3).map((a) =>
+    `- **${a.original}** → ${a.alternatives.join(' / ')} (${a.reason})`
+  );
+
+  return `\n\n## 🔄 РЕКОМЕНДУЕМЫЕ ЗАМЕНЫ УПРАЖНЕНИЙ
+${lines.join('\n')}
+→ Предлагай замены при обсуждении тренировок. Всегда объясняй почему.`;
+}
+
+// ─── Block 33: Weekly Training Summary ──────────────────────────────────────
+// Auto-generated weekly digest for AI context
+
+interface WeeklySummary {
+  totalWorkouts: number;
+  totalVolume: number;
+  totalDuration: number;
+  musclesWorked: string[];
+  avgRpe: number | null;
+  completionRate: number; // % of planned workouts done
+  volumeChange: number; // % change from prev week
+  highlights: string[];
+}
+
+function buildWeeklySummary(
+  thisWeekWorkouts: Array<{
+    name: string;
+    completedAt: Date | null;
+    totalVolume: number | null;
+    durationMinutes: number | null;
+    exercises: Array<{
+      exercise: { name: string; primaryMuscles: string[] };
+      sets: Array<{ rpe: number | null; completed: boolean }>;
+    }>;
+  }>,
+  prevWeekVolume: number,
+  plannedDays: number,
+): WeeklySummary {
+  const completed = thisWeekWorkouts.filter((w) => w.completedAt);
+  const totalVolume = completed.reduce((s, w) => s + (w.totalVolume || 0), 0);
+  const totalDuration = completed.reduce((s, w) => s + (w.durationMinutes || 0), 0);
+
+  // Muscles worked
+  const muscleSet = new Set<string>();
+  for (const w of completed) {
+    for (const ex of w.exercises) {
+      ex.exercise.primaryMuscles.forEach((m) => muscleSet.add(m));
+    }
+  }
+
+  // Average RPE
+  let rpeSum = 0; let rpeCount = 0;
+  for (const w of completed) {
+    for (const ex of w.exercises) {
+      for (const s of ex.sets) {
+        if (s.rpe) { rpeSum += s.rpe; rpeCount++; }
+      }
+    }
+  }
+
+  const volumeChange = prevWeekVolume > 0
+    ? Math.round(((totalVolume - prevWeekVolume) / prevWeekVolume) * 100)
+    : 0;
+
+  const highlights: string[] = [];
+  if (completed.length >= plannedDays && plannedDays > 0) {
+    highlights.push(`✅ План выполнен: ${completed.length}/${plannedDays} тренировок`);
+  } else if (completed.length > 0 && plannedDays > 0) {
+    highlights.push(`⏳ ${completed.length}/${plannedDays} тренировок на этой неделе`);
+  }
+  if (volumeChange > 10) highlights.push(`📈 Объём +${volumeChange}% к прошлой неделе`);
+  if (volumeChange < -15) highlights.push(`📉 Объём ${volumeChange}% к прошлой неделе`);
+  if (rpeCount > 0 && rpeSum / rpeCount >= 9) highlights.push(`⚠️ Средний RPE ${(rpeSum / rpeCount).toFixed(1)} — возможна перегрузка`);
+
+  return {
+    totalWorkouts: completed.length,
+    totalVolume: Math.round(totalVolume),
+    totalDuration: Math.round(totalDuration),
+    musclesWorked: [...muscleSet],
+    avgRpe: rpeCount > 0 ? Math.round((rpeSum / rpeCount) * 10) / 10 : null,
+    completionRate: plannedDays > 0 ? Math.round((completed.length / plannedDays) * 100) : 0,
+    volumeChange,
+    highlights,
+  };
+}
+
+function buildWeeklySummaryContext(summary: WeeklySummary): string {
+  if (summary.totalWorkouts === 0) return '';
+
+  const lines = [
+    `Тренировок: ${summary.totalWorkouts}, объём: ${summary.totalVolume} кг, длительность: ${summary.totalDuration} мин`,
+    `Мышцы: ${summary.musclesWorked.join(', ')}`,
+    summary.avgRpe ? `Средний RPE: ${summary.avgRpe}` : null,
+    summary.volumeChange !== 0 ? `Изменение объёма: ${summary.volumeChange > 0 ? '+' : ''}${summary.volumeChange}%` : null,
+    ...summary.highlights,
+  ].filter(Boolean);
+
+  return `\n\n## 📊 ИТОГИ НЕДЕЛИ
+${lines.join('\n')}
+→ Используй при ответах о прогрессе, плане и мотивации.`;
+}
+
+// ─── Block 34: Goal Progress Tracker ────────────────────────────────────────
+// Estimates progress toward user's goal and time to achieve it
+
+interface GoalProgress {
+  goal: string;
+  progressPercent: number;
+  estimatedWeeksLeft: number | null;
+  insight: string;
+  onTrack: boolean;
+}
+
+function estimateGoalProgress(
+  user: { weightKg?: number | null; goal?: string | null; fitnessLevel?: string | null },
+  bodyWeightHistory: Array<{ weightKg: number; date: Date }>,
+  totalWorkoutsLast30Days: number,
+  weeklyAvgVolume: number,
+): GoalProgress | null {
+  if (!user.goal) return null;
+
+  const goal = user.goal;
+  const currentWeight = user.weightKg || bodyWeightHistory[0]?.weightKg;
+
+  if (goal === 'WEIGHT_LOSS') {
+    if (!currentWeight || bodyWeightHistory.length < 3) {
+      return { goal: 'Похудение', progressPercent: 0, estimatedWeeksLeft: null, insight: 'Недостаточно данных о весе. Записывай вес регулярно для отслеживания прогресса.', onTrack: false };
+    }
+    // Calculate weekly weight loss rate
+    const oldest = bodyWeightHistory[bodyWeightHistory.length - 1];
+    const weeksBetween = Math.max(1, (Date.now() - new Date(oldest.date).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const totalLoss = oldest.weightKg - currentWeight;
+    const weeklyRate = totalLoss / weeksBetween;
+
+    // Estimate target: ~10-15% body fat reduction for general weight loss
+    const targetWeight = currentWeight * 0.9; // ~10% loss as rough target
+    const remainingLoss = currentWeight - targetWeight;
+
+    if (weeklyRate > 0) {
+      const weeksLeft = Math.round(remainingLoss / weeklyRate);
+      const onTrack = weeklyRate >= 0.3 && weeklyRate <= 1.0;
+      return {
+        goal: 'Похудение',
+        progressPercent: Math.min(100, Math.round((totalLoss / (totalLoss + remainingLoss)) * 100)),
+        estimatedWeeksLeft: weeksLeft > 0 ? weeksLeft : null,
+        insight: onTrack
+          ? `Темп потери: ${weeklyRate.toFixed(1)} кг/нед — оптимально (0.3-1.0 кг/нед).`
+          : weeklyRate > 1.0
+            ? `Темп потери: ${weeklyRate.toFixed(1)} кг/нед — слишком быстро! Риск потери мышц. Добавь 200-300 ккал.`
+            : `Темп потери: ${weeklyRate.toFixed(1)} кг/нед — медленно. Рассмотри снижение калорий на 200 ккал или добавление кардио.`,
+        onTrack,
+      };
+    }
+
+    return { goal: 'Похудение', progressPercent: 0, estimatedWeeksLeft: null, insight: `Вес не снижается или растёт. Проверь калорийность и увеличь активность.`, onTrack: false };
+  }
+
+  if (goal === 'MUSCLE_GAIN') {
+    if (!currentWeight || bodyWeightHistory.length < 3) {
+      return { goal: 'Набор массы', progressPercent: 0, estimatedWeeksLeft: null, insight: 'Записывай вес регулярно для отслеживания набора.', onTrack: false };
+    }
+    const oldest = bodyWeightHistory[bodyWeightHistory.length - 1];
+    const weeksBetween = Math.max(1, (Date.now() - new Date(oldest.date).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const totalGain = currentWeight - oldest.weightKg;
+    const weeklyRate = totalGain / weeksBetween;
+
+    const onTrack = weeklyRate >= 0.2 && weeklyRate <= 0.5;
+    return {
+      goal: 'Набор массы',
+      progressPercent: Math.min(100, Math.round(totalWorkoutsLast30Days / 16 * 100)), // ~4 workouts/week target
+      estimatedWeeksLeft: null,
+      insight: onTrack
+        ? `Набор: ${weeklyRate.toFixed(1)} кг/нед — идеально для чистого набора.`
+        : weeklyRate > 0.5
+          ? `Набор: ${weeklyRate.toFixed(1)} кг/нед — слишком быстро, часть уйдёт в жир. Снизь профицит на 200 ккал.`
+          : weeklyRate < 0.1
+            ? `Набор: ${weeklyRate.toFixed(1)} кг/нед — медленно. Увеличь калорийность на 300 ккал.`
+            : `Набор: ${weeklyRate.toFixed(1)} кг/нед.`,
+      onTrack,
+    };
+  }
+
+  if (goal === 'STRENGTH') {
+    const onTrack = totalWorkoutsLast30Days >= 12 && weeklyAvgVolume > 0;
+    return {
+      goal: 'Сила',
+      progressPercent: Math.min(100, Math.round(totalWorkoutsLast30Days / 16 * 100)),
+      estimatedWeeksLeft: null,
+      insight: onTrack
+        ? `${totalWorkoutsLast30Days} тренировок за 30 дней — отличная регулярность для силового прогресса.`
+        : totalWorkoutsLast30Days < 8
+          ? `Только ${totalWorkoutsLast30Days} тренировок за 30 дней — для силы нужна регулярность (3-4 раза/нед).`
+          : `${totalWorkoutsLast30Days} тренировок за 30 дней — хорошо, но стремись к 4/нед.`,
+      onTrack,
+    };
+  }
+
+  return null;
+}
+
+function buildGoalProgressContext(progress: GoalProgress | null): string {
+  if (!progress) return '';
+
+  return `\n\n## 🎯 ПРОГРЕСС К ЦЕЛИ: ${progress.goal.toUpperCase()}
+Прогресс: ${progress.progressPercent}%${progress.estimatedWeeksLeft ? ` (~${progress.estimatedWeeksLeft} нед до цели)` : ''}
+${progress.insight}
+${progress.onTrack ? '✅ На верном пути' : '⚠️ Требуется корректировка'}
+→ Используй при мотивации и корректировке программы/питания.`;
+}
+
+// ─── Block 35: Smart Rest Timer Suggestion ──────────────────────────────────
+// Suggest rest times based on exercise type, RPE, goals, and set type
+
+function getSmartRestSuggestion(
+  exerciseCategory: string, // strength, cardio, flexibility
+  exerciseType: string, // barbell, dumbbell, machine, bodyweight
+  setType: string, // normal, warmup, dropset, superset
+  lastRpe: number | null,
+  userGoal: string | null,
+): { restSeconds: number; reason: string } {
+  // Base rest by exercise type
+  let baseRest = 90;
+
+  // Compound barbell exercises need more rest
+  if (exerciseType === 'barbell') baseRest = 120;
+  else if (exerciseType === 'machine') baseRest = 60;
+  else if (exerciseType === 'bodyweight') baseRest = 60;
+  else if (exerciseType === 'cable') baseRest = 60;
+
+  // Adjust by set type
+  if (setType === 'warmup') return { restSeconds: 60, reason: 'Разминочный подход — 60 сек достаточно.' };
+  if (setType === 'dropset') return { restSeconds: 15, reason: 'Дроп-сет — минимальный отдых (10-15 сек) для максимального пампинга.' };
+  if (setType === 'superset') return { restSeconds: 30, reason: 'Суперсет — 30 сек между упражнениями, 90 сек между кругами.' };
+
+  // Adjust by goal
+  if (userGoal === 'STRENGTH') {
+    baseRest = Math.max(baseRest, 180); // 3+ min for strength
+  } else if (userGoal === 'MUSCLE_GAIN') {
+    baseRest = Math.min(baseRest, 90); // 60-90s hypertrophy
+  } else if (userGoal === 'WEIGHT_LOSS') {
+    baseRest = Math.min(baseRest, 60); // shorter rest for caloric burn
+  } else if (userGoal === 'ENDURANCE') {
+    baseRest = Math.min(baseRest, 45);
+  }
+
+  // Adjust by RPE (fatigue)
+  if (lastRpe !== null) {
+    if (lastRpe >= 9) baseRest += 60; // very hard — need extra recovery
+    else if (lastRpe >= 8) baseRest += 30;
+  }
+
+  let reason = '';
+  if (userGoal === 'STRENGTH') reason = `Силовая цель — длинный отдых (${baseRest} сек) для полного восстановления АТФ.`;
+  else if (userGoal === 'MUSCLE_GAIN') reason = `Гипертрофия — ${baseRest} сек для оптимального метаболического стресса.`;
+  else if (userGoal === 'WEIGHT_LOSS') reason = `Жиросжигание — ${baseRest} сек для поддержания ЧСС.`;
+  else reason = `Рекомендуемый отдых: ${baseRest} сек.`;
+
+  return { restSeconds: baseRest, reason };
+}
+
+function buildRestTimerContext(
+  userGoal: string | null,
+  exerciseTypes: string[], // types from current program
+): string {
+  if (!userGoal || exerciseTypes.length === 0) return '';
+
+  // Generate general recommendations
+  const recommendations: string[] = [];
+
+  const barbellRest = getSmartRestSuggestion('strength', 'barbell', 'normal', null, userGoal);
+  const machineRest = getSmartRestSuggestion('strength', 'machine', 'normal', null, userGoal);
+
+  if (barbellRest.restSeconds !== machineRest.restSeconds) {
+    recommendations.push(`Базовые (штанга): ${barbellRest.restSeconds} сек — ${barbellRest.reason}`);
+    recommendations.push(`Изоляция (тренажёры): ${machineRest.restSeconds} сек — ${machineRest.reason}`);
+  } else {
+    recommendations.push(`Стандартный отдых: ${barbellRest.restSeconds} сек — ${barbellRest.reason}`);
+  }
+
+  if (userGoal === 'STRENGTH') {
+    recommendations.push('При RPE 9+ — добавь ещё 60 сек для восстановления.');
+  }
+
+  return `\n\n## ⏱ РЕКОМЕНДАЦИИ ПО ОТДЫХУ
+${recommendations.join('\n')}
+→ Предлагай персонализированное время отдыха при обсуждении тренировок.`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
