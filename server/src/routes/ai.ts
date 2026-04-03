@@ -2831,6 +2831,33 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 90: Training volume wave detector ──────
     const volumeWaveContext = detectVolumeWaves(recentWorkouts as any);
 
+    // ─── Block 91: Strength standards comparison ──────
+    const strengthStandardsContext = compareToStrengthStandards(
+      lifetimePRs,
+      user?.weightKg || null,
+      user?.gender || null,
+    );
+
+    // ─── Block 92: Training frequency optimizer ──────
+    const frequencyOptimizerContext = optimizeTrainingFrequency(recentWorkouts as any, user?.goal || null);
+
+    // ─── Block 93: Conversation summary ──────
+    const conversationSummaryContext = buildConversationSummary(
+      history.slice(0, 10).map((m) => ({ role: m.role, content: m.content || '', createdAt: m.createdAt })),
+    );
+
+    // ─── Block 94: Workout efficiency score ──────
+    const efficiencyContext = scoreWorkoutEfficiency(recentWorkouts as any);
+
+    // ─── Block 95: Goal timeline estimator ──────
+    const goalTimelineContext = estimateGoalTimeline(
+      user?.goal || null,
+      user?.weightKg || null,
+      bodyWeightHistory as any,
+      totalWorkoutsEver,
+      weekWorkouts.length,
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2924,7 +2951,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${strengthStandardsContext}${frequencyOptimizerContext}${conversationSummaryContext}${efficiencyContext}${goalTimelineContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -3000,6 +3027,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'moodDetection', content: moodContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'macroQuality', content: macroQualityContext, relevantIntents: new Set(['nutrition', 'data_logging']), priority: 3 },
         { name: 'volumeWave', content: volumeWaveContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
+        { name: 'strengthStandards', content: strengthStandardsContext, relevantIntents: new Set(['workout', 'motivation']), priority: 3 },
+        { name: 'frequencyOptimizer', content: frequencyOptimizerContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'conversationSummary', content: conversationSummaryContext, relevantIntents: new Set(['*']), priority: 2 },
+        { name: 'efficiency', content: efficiencyContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'goalTimeline', content: goalTimelineContext, relevantIntents: new Set(['motivation', 'greeting']), priority: 3 },
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
@@ -7927,6 +7959,308 @@ function detectVolumeWaves(
   return `\n\n## 🌊 ВОЛНА НАГРУЗКИ
 ${lines.join('\n')}
 → Используй для рекомендаций по периодизации объёма.`;
+}
+
+// ─── Block 91: Strength Standards Comparison ────────────────────────────────
+// Compare user's lifts to strength standards (Wilks-based)
+
+function compareToStrengthStandards(
+  lifetimePRs: Record<string, { name: string; bestWeight: number; bestReps: number; est1RM: number }>,
+  userWeightKg: number | null,
+  userGender: string | null,
+): string {
+  if (!userWeightKg || Object.keys(lifetimePRs).length === 0) return '';
+
+  // Approximate strength standards (1RM / bodyweight ratio) for key lifts
+  const standards: Record<string, Record<string, number>> = {
+    MALE: {
+      // novice / intermediate / advanced / elite
+      'Жим штанги лёжа': 1.0,      // 1x BW = intermediate
+      'Приседания со штангой': 1.25, // 1.25x BW = intermediate
+      'Становая тяга': 1.5,         // 1.5x BW = intermediate
+      'Жим штанги стоя': 0.65,      // 0.65x BW = intermediate
+      'Тяга штанги в наклоне': 0.85,
+    },
+    FEMALE: {
+      'Жим штанги лёжа': 0.65,
+      'Приседания со штангой': 0.9,
+      'Становая тяга': 1.1,
+      'Жим штанги стоя': 0.45,
+      'Тяга штанги в наклоне': 0.6,
+    },
+  };
+
+  const genderStandards = standards[userGender || 'MALE'] || standards['MALE'];
+  const lines: string[] = [];
+
+  for (const pr of Object.values(lifetimePRs)) {
+    const standard = genderStandards[pr.name];
+    if (!standard) continue;
+
+    const ratio = pr.est1RM / userWeightKg;
+    const intermediateTarget = standard * userWeightKg;
+
+    let level: string;
+    if (ratio < standard * 0.6) level = 'Новичок';
+    else if (ratio < standard) level = 'Средний';
+    else if (ratio < standard * 1.4) level = 'Продвинутый';
+    else level = 'Элита';
+
+    const pct = Math.round((ratio / standard) * 100);
+    lines.push(`${pr.name}: ${pr.est1RM} кг (${ratio.toFixed(2)}×BW) — ${level} (${pct}% от норм. среднего)`);
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\n\n## 🏆 СИЛОВЫЕ СТАНДАРТЫ
+${lines.slice(0, 5).join('\n')}
+→ Используй для мотивации и постановки целей. «До продвинутого уровня в жиме осталось X кг».`;
+}
+
+// ─── Block 92: Training Frequency Optimizer ─────────────────────────────────
+// Suggest optimal frequency per muscle group based on recovery and volume
+
+function optimizeTrainingFrequency(
+  recentWorkouts: Array<{
+    exercises: Array<{
+      exercise: { primaryMuscles: string[] };
+      sets: Array<{ completed: boolean }>;
+    }>;
+    completedAt: Date | null;
+  }>,
+  userGoal: string | null,
+): string {
+  if (recentWorkouts.length < 3) return '';
+
+  // Count weekly frequency per muscle
+  const now = Date.now();
+  const twoWeeksAgo = now - 14 * 24 * 60 * 60 * 1000;
+  const recentOnly = recentWorkouts.filter((w) => w.completedAt && new Date(w.completedAt).getTime() > twoWeeksAgo);
+  if (recentOnly.length < 2) return '';
+
+  const weeksSpan = Math.max(1, (now - Math.min(...recentOnly.map((w) => new Date(w.completedAt!).getTime()))) / (7 * 24 * 60 * 60 * 1000));
+
+  const muscleFreq: Record<string, number> = {};
+  for (const w of recentOnly) {
+    const musclesThisWorkout = new Set<string>();
+    for (const ex of w.exercises) {
+      for (const m of ex.exercise.primaryMuscles) musclesThisWorkout.add(m);
+    }
+    for (const m of musclesThisWorkout) {
+      muscleFreq[m] = (muscleFreq[m] || 0) + 1;
+    }
+  }
+
+  // Convert to weekly frequency
+  const weeklyFreq: Record<string, number> = {};
+  for (const [m, count] of Object.entries(muscleFreq)) {
+    weeklyFreq[m] = Math.round((count / weeksSpan) * 10) / 10;
+  }
+
+  // Optimal frequency by goal
+  const idealFreq = userGoal === 'MUSCLE_GAIN' ? 2.0 : userGoal === 'STRENGTH' ? 2.5 : 1.5;
+
+  const lines: string[] = [];
+  const tooLow: string[] = [];
+  const tooHigh: string[] = [];
+
+  for (const [muscle, freq] of Object.entries(weeklyFreq)) {
+    if (freq < idealFreq * 0.5) tooLow.push(muscle);
+    else if (freq > idealFreq * 1.5) tooHigh.push(muscle);
+  }
+
+  const muscleRu: Record<string, string> = {
+    chest: 'грудь', back: 'спина', shoulders: 'плечи', biceps: 'бицепс', triceps: 'трицепс',
+    quadriceps: 'квадрицепс', hamstrings: 'бицепс бедра', glutes: 'ягодицы', calves: 'икры',
+    abs: 'пресс', lats: 'широчайшие',
+  };
+
+  if (tooLow.length > 0) {
+    lines.push(`📉 Мало тренируются (< ${(idealFreq * 0.5).toFixed(1)}р/нед): ${tooLow.map((m) => muscleRu[m] || m).join(', ')}`);
+  }
+  if (tooHigh.length > 0) {
+    lines.push(`📈 Слишком часто (> ${(idealFreq * 1.5).toFixed(1)}р/нед): ${tooHigh.map((m) => muscleRu[m] || m).join(', ')}`);
+  }
+
+  if (lines.length === 0) {
+    lines.push(`✅ Частота мышечных групп в оптимальном диапазоне (~${idealFreq}р/нед для цели)`);
+  }
+
+  return `\n\n## 📊 ЧАСТОТА ТРЕНИРОВКИ МЫШЦ
+${lines.join('\n')}
+→ Предлагай изменения в сплите если частота не оптимальна.`;
+}
+
+// ─── Block 93: Smart Conversation Memory Summary ────────────────────────────
+// Summarize key topics from recent chat for continuity
+
+function buildConversationSummary(
+  recentMessages: Array<{ role: string; content: string; createdAt: Date }>,
+): string {
+  if (recentMessages.length < 4) return '';
+
+  // Analyze last 10 user messages for recurring topics
+  const userMessages = recentMessages
+    .filter((m) => m.role === 'user')
+    .slice(0, 10)
+    .map((m) => m.content.toLowerCase());
+
+  const topicPatterns: Record<string, string[]> = {
+    'тренировк': ['тренировка', 'программа', 'упражнение', 'подход', 'повтор', 'вес', 'жим', 'присед', 'тяга'],
+    'питание': ['калори', 'белок', 'жир', 'углевод', 'еда', 'продукт', 'диета', 'кбжу'],
+    'прогресс': ['прогресс', 'рекорд', 'результат', 'рост', 'изменения', 'динамика'],
+    'здоровье': ['боль', 'травм', 'восстановл', 'отдых', 'сон', 'самочувств'],
+    'мотивация': ['мотивац', 'лень', 'не хочу', 'цель', 'результат', 'стрик'],
+  };
+
+  const topicCounts: Record<string, number> = {};
+  for (const msg of userMessages) {
+    for (const [topic, keywords] of Object.entries(topicPatterns)) {
+      if (keywords.some((k) => msg.includes(k))) {
+        topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+      }
+    }
+  }
+
+  const mainTopics = Object.entries(topicCounts)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .map(([topic]) => topic);
+
+  if (mainTopics.length === 0) return '';
+
+  // Check for unanswered questions from user
+  const lastUserMsg = userMessages[0];
+  const hasQuestion = lastUserMsg && (lastUserMsg.includes('?') || lastUserMsg.includes('как') || lastUserMsg.includes('почему') || lastUserMsg.includes('сколько'));
+
+  const lines: string[] = [];
+  lines.push(`Основные темы бесед: ${mainTopics.join(', ')}`);
+
+  if (hasQuestion) {
+    lines.push(`💬 Пользователь задал вопрос — убедись что отвечаешь на него прямо.`);
+  }
+
+  return `\n\n## 💭 КОНТЕКСТ БЕСЕДЫ
+${lines.join('\n')}`;
+}
+
+// ─── Block 94: Workout Efficiency Score ─────────────────────────────────────
+// Score how efficiently user trains (effective sets per minute)
+
+function scoreWorkoutEfficiency(
+  recentWorkouts: Array<{
+    exercises: Array<{
+      sets: Array<{ weight: number | null; reps: number | null; completed: boolean; type: string }>;
+    }>;
+    durationMinutes: number | null;
+    completedAt: Date | null;
+    startedAt: Date | null;
+  }>,
+): string {
+  if (recentWorkouts.length === 0) return '';
+
+  const scores = recentWorkouts.slice(0, 3).map((w) => {
+    const duration = w.durationMinutes ||
+      (w.startedAt && w.completedAt
+        ? Math.round((new Date(w.completedAt).getTime() - new Date(w.startedAt).getTime()) / 60000)
+        : null);
+    if (!duration || duration < 10) return null;
+
+    const workingSets = w.exercises.reduce((sum, ex) =>
+      sum + ex.sets.filter((s) => s.completed && s.type !== 'warmup').length, 0);
+
+    return {
+      setsPerMin: workingSets / duration,
+      sets: workingSets,
+      duration,
+    };
+  }).filter(Boolean) as Array<{ setsPerMin: number; sets: number; duration: number }>;
+
+  if (scores.length === 0) return '';
+
+  const avgSetsPerMin = scores.reduce((sum, s) => sum + s.setsPerMin, 0) / scores.length;
+
+  let rating: string;
+  let advice: string;
+  if (avgSetsPerMin > 0.5) {
+    rating = 'Высокая';
+    advice = 'Отличный темп! Следи за качеством подходов при такой интенсивности.';
+  } else if (avgSetsPerMin > 0.33) {
+    rating = 'Нормальная';
+    advice = 'Хороший баланс между работой и отдыхом.';
+  } else if (avgSetsPerMin > 0.2) {
+    rating = 'Ниже среднего';
+    advice = 'Возможно, слишком длинные перерывы. Попробуй суперсеты или сократи отдых.';
+  } else {
+    rating = 'Низкая';
+    advice = 'Много времени тратится впустую. Сократи отдых, убери телефон, используй суперсеты.';
+  }
+
+  return `\n\n## ⚡ ЭФФЕКТИВНОСТЬ ТРЕНИРОВОК
+${scores.map((s) => `${s.sets} подходов за ${s.duration} мин (${(s.setsPerMin * 60).toFixed(1)} подх/час)`).join(' | ')}
+Оценка: ${rating}
+💡 ${advice}`;
+}
+
+// ─── Block 95: Goal Timeline Estimator ──────────────────────────────────────
+// Estimate time to reach user's goal based on current trajectory
+
+function estimateGoalTimeline(
+  userGoal: string | null,
+  userWeightKg: number | null,
+  bodyWeightHistory: Array<{ weightKg: number; date: Date }>,
+  totalWorkoutsEver: number,
+  weeklyWorkouts: number,
+): string {
+  if (!userGoal || !userWeightKg || bodyWeightHistory.length < 3) return '';
+
+  const lines: string[] = [];
+
+  if (userGoal === 'WEIGHT_LOSS') {
+    // Calculate weight loss rate
+    const oldest = bodyWeightHistory[bodyWeightHistory.length - 1];
+    const newest = bodyWeightHistory[0];
+    const weeksBetween = Math.max(1, (new Date(newest.date).getTime() - new Date(oldest.date).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const weeklyChange = (newest.weightKg - oldest.weightKg) / weeksBetween;
+
+    if (weeklyChange < -0.1) {
+      const rate = Math.abs(weeklyChange);
+      lines.push(`📉 Темп похудения: ${rate.toFixed(2)} кг/нед`);
+      // Healthy target: lose ~10% body weight
+      const targetLoss = userWeightKg * 0.1;
+      const weeksToGoal = Math.ceil(targetLoss / rate);
+      lines.push(`🎯 ~${targetLoss.toFixed(0)} кг до -10%: примерно ${weeksToGoal} недель (${Math.ceil(weeksToGoal / 4)} мес)`);
+      if (rate > 1) {
+        lines.push('⚠️ Слишком быстро! Рекомендуется 0.5-1 кг/нед. Быстрое похудение = потеря мышц.');
+      }
+    } else {
+      lines.push('⚠️ Вес не снижается. Проверь калорийный дефицит и активность.');
+    }
+  } else if (userGoal === 'MUSCLE_GAIN') {
+    const oldest = bodyWeightHistory[bodyWeightHistory.length - 1];
+    const newest = bodyWeightHistory[0];
+    const weeksBetween = Math.max(1, (new Date(newest.date).getTime() - new Date(oldest.date).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const weeklyChange = (newest.weightKg - oldest.weightKg) / weeksBetween;
+
+    if (weeklyChange > 0) {
+      lines.push(`📈 Темп набора: ${weeklyChange.toFixed(2)} кг/нед`);
+      if (weeklyChange > 0.5) {
+        lines.push('⚠️ Слишком быстро — скорее всего набираешь жир. Идеально: 0.2-0.4 кг/нед.');
+      }
+    } else {
+      lines.push('⚠️ Вес не растёт. Увеличь калорийность на 200-300 ккал/день.');
+    }
+  } else if (userGoal === 'STRENGTH') {
+    if (totalWorkoutsEver >= 10 && weeklyWorkouts >= 2) {
+      lines.push('📊 При 3+ тренировках/нед с прогрессивной перегрузкой — заметный рост силы через 4-8 недель');
+    }
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\n\n## 🗓️ ПРОГНОЗ ПО ЦЕЛИ
+${lines.join('\n')}
+→ Используй для мотивации и коррекции стратегии.`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
