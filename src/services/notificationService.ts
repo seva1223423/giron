@@ -17,6 +17,7 @@ export const NOTIFICATION_IDS = {
   DAILY_REMINDER: 'daily-reminder',
   REST_TIMER: 'rest-timer',
   STREAK_RISK: 'streak-risk',
+  WATER_PREFIX: 'water-reminder-',
 };
 
 // Request notification permissions. Returns true if granted.
@@ -134,6 +135,64 @@ export async function scheduleStreakRiskNotification(): Promise<void> {
 
 export async function cancelStreakRiskNotification(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.STREAK_RISK).catch(() => {});
+}
+
+// Schedule water intake reminders every `intervalHours` hours between startHour and endHour
+// Fires as daily repeating at fixed times (e.g., every 2h from 8:00 to 22:00)
+export async function scheduleWaterReminders(
+  intervalHours: number,
+  startHour: number = 8,
+  endHour: number = 22,
+): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    // Cancel existing water reminders first
+    await cancelWaterReminders();
+
+    const messages = [
+      { title: '💧 Время выпить воды', body: 'Не забудь про водный баланс — это важно для восстановления.' },
+      { title: '💦 Выпей стакан воды', body: 'Правильная гидратация ускоряет рост мышц и сжигание жира.' },
+      { title: '🫗 Пора освежиться', body: 'Тело на 70% состоит из воды. Поддерживай баланс!' },
+      { title: '💧 Вода — ключ к силе', body: 'Даже 2% обезвоживания снижают силовые показатели на 10%.' },
+    ];
+
+    let msgIdx = 0;
+    for (let hour = startHour; hour <= endHour; hour += intervalHours) {
+      const msg = messages[msgIdx % messages.length];
+      const id = `${NOTIFICATION_IDS.WATER_PREFIX}${hour}`;
+      await Notifications.scheduleNotificationAsync({
+        identifier: id,
+        content: {
+          title: msg.title,
+          body: msg.body,
+          sound: 'default',
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: Math.floor(hour),
+          minute: 0,
+        },
+      });
+      msgIdx++;
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function cancelWaterReminders(): Promise<void> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const n of scheduled) {
+      if (n.identifier.startsWith(NOTIFICATION_IDS.WATER_PREFIX)) {
+        await Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {});
+      }
+    }
+  } catch {
+    // Silently fail
+  }
 }
 
 // Cancel all scheduled notifications

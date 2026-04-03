@@ -20,6 +20,8 @@ import {
   getNotificationPermissionStatus,
   scheduleDailyWorkoutReminder,
   cancelWorkoutReminders,
+  scheduleWaterReminders,
+  cancelWaterReminders,
 } from '../../services/notificationService';
 
 const REST_TIMER_OPTIONS = [30, 45, 60, 90, 120, 150, 180, 240, 300];
@@ -32,11 +34,15 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     hapticFeedback,
     notificationsEnabled,
     reminderHour,
+    waterRemindersEnabled,
+    waterReminderInterval,
     setUnits,
     setRestTimerDefault,
     setHapticFeedback,
     setNotificationsEnabled,
     setReminderHour,
+    setWaterRemindersEnabled,
+    setWaterReminderInterval,
   } = useSettingsStore();
 
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -72,6 +78,33 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     setShowTimePicker(false);
     if (notificationsEnabled) {
       await scheduleDailyWorkoutReminder(hour, 0);
+    }
+  };
+
+  const handleToggleWaterReminders = async (value: boolean) => {
+    if (hapticFeedback) Haptics.selectionAsync();
+    if (value) {
+      const status = await getNotificationPermissionStatus();
+      let granted = status === 'granted';
+      if (!granted) granted = await requestNotificationPermissions();
+      if (granted) {
+        await scheduleWaterReminders(waterReminderInterval);
+        setWaterRemindersEnabled(true);
+        Alert.alert('Напоминания о воде включены', `Буду напоминать каждые ${waterReminderInterval} ч с 8:00 до 22:00.`);
+      } else {
+        Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства.');
+      }
+    } else {
+      await cancelWaterReminders();
+      setWaterRemindersEnabled(false);
+    }
+  };
+
+  const handleWaterIntervalChange = async (hours: number) => {
+    if (hapticFeedback) Haptics.selectionAsync();
+    setWaterReminderInterval(hours);
+    if (waterRemindersEnabled) {
+      await scheduleWaterReminders(hours);
     }
   };
 
@@ -323,6 +356,51 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               }
             />
           )}
+
+          <SettingRow
+            label="Напоминания о воде"
+            sublabel={waterRemindersEnabled ? `Каждые ${waterReminderInterval} ч (8:00–22:00)` : 'Выключены'}
+            colors={colors}
+            divider
+            right={
+              <Switch
+                value={waterRemindersEnabled}
+                onValueChange={handleToggleWaterReminders}
+                trackColor={{ false: colors.border, true: colors.info + '60' }}
+                thumbColor={waterRemindersEnabled ? colors.info : '#f4f3f4'}
+              />
+            }
+          />
+
+          {waterRemindersEnabled && (
+            <SettingRow
+              label="Интервал напоминаний"
+              sublabel={`Каждые ${waterReminderInterval} часа`}
+              colors={colors}
+              divider
+              right={
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {[1, 2, 3].map((h) => (
+                    <TouchableOpacity
+                      key={h}
+                      onPress={() => handleWaterIntervalChange(h)}
+                      style={[
+                        styles.intervalBtn,
+                        {
+                          backgroundColor: waterReminderInterval === h ? colors.info : colors.surface,
+                          borderColor: waterReminderInterval === h ? colors.info : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[typography.caption, { color: waterReminderInterval === h ? '#fff' : colors.text, fontWeight: '700' }]}>
+                        {h}ч
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              }
+            />
+          )}
         </Card>
       </FadeIn>
 
@@ -467,5 +545,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingBottom: spacing.xl,
+  },
+  intervalBtn: {
+    width: 36,
+    height: 32,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
