@@ -9,7 +9,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useTrainerStore } from '../../store';
 import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
@@ -32,6 +32,7 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { clients, addClient, deleteClient } = useTrainerStore();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -49,7 +50,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
 
   const handleAddClient = () => {
     if (!newName.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     addClient({
       name: newName.trim(),
       phone: newPhone.trim() || undefined,
@@ -71,7 +72,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
           text: 'Удалить',
           style: 'destructive',
           onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            haptic.medium();
             deleteClient(clientId);
           },
         },
@@ -96,7 +97,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
         </TouchableOpacity>
         <Text style={[typography.h3, { color: colors.text }]}>Мои клиенты</Text>
         <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); setShowAddModal(true); }}
+          onPress={() => { haptic.selection(); setShowAddModal(true); }}
           style={[styles.addBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40', borderWidth: 1 }]}
         >
           <Text style={[typography.captionMedium, { color: colors.primary }]}>+ Клиент</Text>

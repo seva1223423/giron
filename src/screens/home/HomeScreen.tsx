@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { userService } from '../../services/userService';
 import { exercises as localExercises } from '../../data/exercises';
@@ -62,6 +62,7 @@ function getDailyQuote() {
 }
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user, setUser } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises } = useWorkoutStore();
@@ -80,7 +81,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     try {
       await userService.addWeight(kg);
       if (user) setUser({ ...user, weightKg: kg });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       setWeightModalVisible(false);
       setWeightInput('');
     } catch {
@@ -133,7 +134,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const handleStartPlannedWorkout = () => {
     if (!todayPlan || todayPlan.exercises.length === 0) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     const allExercises = [...customExercises, ...localExercises];
     const workoutExercises: WorkoutExercise[] = todayPlan.exercises
       .map((exId, index) => {
@@ -158,7 +159,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const handleRepeatWorkout = () => {
     if (!lastWorkout || activeWorkout) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     const workoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((we, index) => {
       const sets: WorkoutSet[] = we.sets.map((s, i) => ({
         id: `set-${Date.now()}-${index}-${i}`,
@@ -337,7 +338,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   const handleWater = (ml: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
     useNutritionStore.getState().addWater(today, ml);
   };
 
@@ -459,7 +460,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     startedAt: undefined,
                     completedAt: undefined,
                   };
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  haptic.medium();
                   startWorkout(fresh as any);
                   navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
                 } else {
@@ -779,7 +780,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => { Haptics.selectionAsync(); setWeightInput(user?.weightKg ? String(user.weightKg) : ''); setWeightModalVisible(true); }}
+              onPress={() => { haptic.selection(); setWeightInput(user?.weightKg ? String(user.weightKg) : ''); setWeightModalVisible(true); }}
               style={[styles.logWeightBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
             >
               <Text style={[typography.buttonSmall, { color: colors.primary }]}>⚖️ Записать</Text>

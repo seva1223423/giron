@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
@@ -153,7 +153,7 @@ const OneRMCalculator: React.FC<{ colors: any }> = ({ colors }) => {
   }, [rmWeight, rmReps]);
 
   const adjustReps = (delta: number) => {
-    Haptics.selectionAsync();
+    haptic.selection();
     const current = parseInt(rmReps) || 1;
     const next = Math.max(1, Math.min(30, current + delta));
     setRmReps(String(next));
@@ -308,6 +308,7 @@ const OneRMCalculator: React.FC<{ colors: any }> = ({ colors }) => {
 };
 
 export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const initialWeight = route?.params?.initialWeight;
   const [activeTab, setActiveTab] = useState<'plates' | 'onerm'>('plates');
@@ -332,7 +333,7 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
   const actualWeight = barbell.weight + totalPlatesWeight;
 
   const adjustWeight = (delta: number) => {
-    Haptics.selectionAsync();
+    haptic.selection();
     const current = parseFloat(targetWeight.replace(',', '.')) || 0;
     const next = Math.max(0, Math.round((current + delta) * 4) / 4);
     setTargetWeight(String(next));
@@ -353,7 +354,7 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
       <View style={[styles.tabBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'plates' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-          onPress={() => { Haptics.selectionAsync(); setActiveTab('plates'); }}
+          onPress={() => { haptic.selection(); setActiveTab('plates'); }}
         >
           <Text style={[typography.bodySemibold, { color: activeTab === 'plates' ? colors.primary : colors.textSecondary }]}>
             🏋️ Блины
@@ -361,7 +362,7 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'onerm' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-          onPress={() => { Haptics.selectionAsync(); setActiveTab('onerm'); }}
+          onPress={() => { haptic.selection(); setActiveTab('onerm'); }}
         >
           <Text style={[typography.bodySemibold, { color: activeTab === 'onerm' ? colors.primary : colors.textSecondary }]}>
             📊 1ПМ
@@ -420,7 +421,7 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
           {BARBELL_OPTIONS.map((opt, i) => (
             <TouchableOpacity
               key={i}
-              onPress={() => { Haptics.selectionAsync(); setBarbellIdx(i); }}
+              onPress={() => { haptic.selection(); setBarbellIdx(i); }}
               style={[
                 styles.barbellRow,
                 { borderColor: barbellIdx === i ? colors.primary : colors.divider },
@@ -506,7 +507,7 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
             {[60, 80, 100, 120, 140, 160, 180, 200].map((w) => (
               <TouchableOpacity
                 key={w}
-                onPress={() => { Haptics.selectionAsync(); setTargetWeight(String(w)); }}
+                onPress={() => { haptic.selection(); setTargetWeight(String(w)); }}
                 style={[styles.presetBtn, {
                   backgroundColor: parseFloat(targetWeight) === w ? colors.primary : colors.surface,
                   borderColor: parseFloat(targetWeight) === w ? colors.primary : colors.border,

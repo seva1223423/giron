@@ -10,7 +10,7 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification } from '../../services';
@@ -21,6 +21,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { restTimerDefault } = useSettingsStore();
   const {
@@ -67,7 +68,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const showPrToast = useCallback((name: string, rm: number) => {
     if (prToastTimer.current) clearTimeout(prToastTimer.current);
     setPrToast({ name, rm });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     Animated.sequence([
       Animated.spring(prToastAnim, { toValue: 1, useNativeDriver: true }),
       Animated.delay(2500),
@@ -92,7 +93,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           setIsResting(false);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          haptic.success();
           return 0;
         }
         return prev - 1;
@@ -142,7 +143,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const totalSets = workout.exercises.reduce((s, ex) => s + ex.sets.length, 0);
 
   const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
 
     // PR detection: compare new 1RM against all-time best for this exercise
@@ -161,7 +162,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       const prevEx = workout.exercises[currentExerciseIndex - 1];
       if (nextEx?.supersetGroupId === groupId) {
         // We're in the first exercise of the pair — jump to partner, no rest
-        Haptics.selectionAsync();
+        haptic.selection();
         setTimeout(() => nextExercise(), 250);
         return;
       } else if (prevEx?.supersetGroupId === groupId) {
@@ -182,7 +183,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         text: 'Завершить',
         onPress: () => {
           cancelRestEndNotification();
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          haptic.success();
           scheduleStreakRiskNotification();
           const completed = finishWorkout();
           if (completed) {
@@ -384,7 +385,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             prevSet={previousSets?.sets[setIndex] ?? null}
             onComplete={(reps, weight) => handleCompleteSet(setIndex, reps, weight)}
             onRpeChange={(rpe) => completeSet(currentExerciseIndex, setIndex, { rpe })}
-            onRemove={currentExercise.sets.length > 1 ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); removeSet(currentExerciseIndex, setIndex); } : undefined}
+            onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
             onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
             onOpenPlates={(w) => navigation.navigate('PlateCalculator', { initialWeight: w })}
             colors={colors}
@@ -405,7 +406,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
               ? (
                 <TouchableOpacity
                   onPress={() => {
-                    Haptics.selectionAsync();
+                    haptic.selection();
                     const workingSet = currentExercise.sets.find((s) => (s.weight || 0) > 0);
                     if (workingSet?.weight) generateWarmupSets(currentExerciseIndex, workingSet.weight);
                   }}
@@ -441,7 +442,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         {/* Superset toggle */}
         {currentExerciseIndex < workout.exercises.length - 1 && (
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); toggleSuperset(currentExerciseIndex); }}
+            onPress={() => { haptic.selection(); toggleSuperset(currentExerciseIndex); }}
             style={[
               styles.supersetToggleBtn,
               {
@@ -463,7 +464,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         {workout.exercises.length > 1 && (
           <TouchableOpacity
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              haptic.medium();
               Alert.alert(
                 'Убрать упражнение?',
                 `«${currentExercise.exercise.name}» будет удалено из тренировки.`,
@@ -473,7 +474,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
                     text: 'Убрать',
                     style: 'destructive',
                     onPress: () => {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      haptic.warning();
                       removeExerciseFromWorkout(currentExerciseIndex);
                     },
                   },
@@ -578,6 +579,7 @@ const SetRow: React.FC<{
   onOpenPlates?: (weight: number) => void;
   colors: any;
 }> = ({ set, setIndex, prevSet, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
+  const haptic = useHaptic();
   // Pre-fill weight from last session if current set has no weight entered yet
   const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
   const initialReps = set.reps ? set.reps.toString() : (prevSet?.reps ? prevSet.reps.toString() : '10');
@@ -596,7 +598,7 @@ const SetRow: React.FC<{
     >
       <TouchableOpacity
         onPress={onTypeChange ? () => {
-          Haptics.selectionAsync();
+          haptic.selection();
           const idx = SET_TYPES.indexOf(currentType as any);
           onTypeChange(SET_TYPES[(idx + 1) % SET_TYPES.length]);
         } : undefined}
@@ -613,7 +615,7 @@ const SetRow: React.FC<{
       </TouchableOpacity>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
         <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); const v = parseFloat(weight) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
+          onPress={() => { haptic.selection(); const v = parseFloat(weight) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
           style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
         >
           <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
@@ -634,7 +636,7 @@ const SetRow: React.FC<{
           placeholderTextColor={prevSet?.weight ? colors.primary + '60' : colors.inputPlaceholder}
         />
         <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); const v = parseFloat(weight) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
+          onPress={() => { haptic.selection(); const v = parseFloat(weight) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
           style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
         >
           <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
@@ -642,7 +644,7 @@ const SetRow: React.FC<{
       </View>
       {onOpenPlates && (
         <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); onOpenPlates(parseFloat(weight) || 0); }}
+          onPress={() => { haptic.selection(); onOpenPlates(parseFloat(weight) || 0); }}
           style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}
           hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
         >
@@ -651,7 +653,7 @@ const SetRow: React.FC<{
       )}
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
         <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); const v = parseInt(reps) || 0; setReps(String(Math.max(1, v - 1))); }}
+          onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(Math.max(1, v - 1))); }}
           style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
         >
           <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
@@ -672,7 +674,7 @@ const SetRow: React.FC<{
           placeholderTextColor={colors.inputPlaceholder}
         />
         <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); const v = parseInt(reps) || 0; setReps(String(v + 1)); }}
+          onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(v + 1)); }}
           style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
         >
           <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
@@ -705,7 +707,7 @@ const SetRow: React.FC<{
             <TouchableOpacity
               key={v}
               onPress={() => {
-                Haptics.selectionAsync();
+                haptic.selection();
                 onRpeChange(v);
                 setShowRpe(false);
               }}

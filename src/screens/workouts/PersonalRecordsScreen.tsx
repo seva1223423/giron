@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -61,6 +61,7 @@ interface PREntry {
 }
 
 export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { workoutHistory, customExercises } = useWorkoutStore();
   const allExercises = useMemo(() => [...customExercises, ...localExercises], [customExercises]);
@@ -249,7 +250,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
           >
             <View style={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs }}>
               <TouchableOpacity
-                onPress={() => { Haptics.selectionAsync(); setSelectedMuscle(null); }}
+                onPress={() => { haptic.selection(); setSelectedMuscle(null); }}
                 style={[
                   styles.chip,
                   {
@@ -265,7 +266,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
               {availableMuscles.map((m) => (
                 <TouchableOpacity
                   key={m}
-                  onPress={() => { Haptics.selectionAsync(); setSelectedMuscle(selectedMuscle === m ? null : m); }}
+                  onPress={() => { haptic.selection(); setSelectedMuscle(selectedMuscle === m ? null : m); }}
                   style={[
                     styles.chip,
                     {
@@ -295,7 +296,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
             return (
               <TouchableOpacity
                 key={s}
-                onPress={() => { Haptics.selectionAsync(); setSortBy(s); }}
+                onPress={() => { haptic.selection(); setSortBy(s); }}
                 style={[
                   styles.sortBtn,
                   {
@@ -346,7 +347,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
               <Card style={{ marginBottom: spacing.sm }}>
                 <TouchableOpacity
                   onPress={() => {
-                    Haptics.selectionAsync();
+                    haptic.selection();
                     setExpandedId(isExpanded ? null : record.exerciseId);
                   }}
                   activeOpacity={0.7}

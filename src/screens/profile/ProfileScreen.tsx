@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -24,6 +24,7 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
@@ -216,7 +217,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               </Text>
             </View>
             {(inProgressAchievements.length > 0 || unlockedAchievements.length > 0) && (
-              <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowAllAchievements((v) => !v); }}>
+              <TouchableOpacity onPress={() => { haptic.selection(); setShowAllAchievements((v) => !v); }}>
                 <Text style={[typography.smallMedium, { color: colors.primary }]}>
                   {showAllAchievements ? 'Свернуть' : 'Все'}
                 </Text>
@@ -307,7 +308,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       {/* Settings link */}
       <Card style={{ marginBottom: spacing.lg }}>
         <TouchableOpacity
-          onPress={() => { Haptics.selectionAsync(); navigation.navigate('Settings'); }}
+          onPress={() => { haptic.selection(); navigation.navigate('Settings'); }}
           style={styles.settingRow}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>

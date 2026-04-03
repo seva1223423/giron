@@ -9,7 +9,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { Card, FadeIn } from '../../components';
@@ -27,6 +27,7 @@ import {
 const REST_TIMER_OPTIONS = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors, isDark, toggleTheme } = useThemeStore();
   const {
     units,
@@ -49,7 +50,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const [showRestPicker, setShowRestPicker] = useState(false);
 
   const handleToggleNotifications = async (value: boolean) => {
-    if (hapticFeedback) Haptics.selectionAsync();
+    haptic.selection();
     if (value) {
       const status = await getNotificationPermissionStatus();
       let granted = status === 'granted';
@@ -73,7 +74,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   };
 
   const handleChangeReminderTime = async (hour: number) => {
-    if (hapticFeedback) Haptics.selectionAsync();
+    haptic.selection();
     setReminderHour(hour);
     setShowTimePicker(false);
     if (notificationsEnabled) {
@@ -82,7 +83,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   };
 
   const handleToggleWaterReminders = async (value: boolean) => {
-    if (hapticFeedback) Haptics.selectionAsync();
+    haptic.selection();
     if (value) {
       const status = await getNotificationPermissionStatus();
       let granted = status === 'granted';
@@ -101,7 +102,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   };
 
   const handleWaterIntervalChange = async (hours: number) => {
-    if (hapticFeedback) Haptics.selectionAsync();
+    haptic.selection();
     setWaterReminderInterval(hours);
     if (waterRemindersEnabled) {
       await scheduleWaterReminders(hours);
@@ -109,7 +110,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   };
 
   const handleToggleHaptic = (value: boolean) => {
-    if (value) Haptics.selectionAsync();
+    if (value) haptic.selection();
     setHapticFeedback(value);
   };
 
@@ -178,7 +179,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               <TouchableOpacity
                 key={sec}
                 onPress={() => {
-                  if (hapticFeedback) Haptics.selectionAsync();
+                  haptic.selection();
                   setRestTimerDefault(sec);
                   setShowRestPicker(false);
                 }}
@@ -233,7 +234,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               <Switch
                 value={isDark}
                 onValueChange={() => {
-                  if (hapticFeedback) Haptics.selectionAsync();
+                  haptic.selection();
                   toggleTheme();
                 }}
                 trackColor={{ false: colors.border, true: colors.primary + '60' }}
@@ -254,7 +255,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           <View style={styles.segmentRow}>
             <TouchableOpacity
               onPress={() => {
-                if (hapticFeedback) Haptics.selectionAsync();
+                haptic.selection();
                 setUnits('metric');
               }}
               style={[
@@ -276,7 +277,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
-                if (hapticFeedback) Haptics.selectionAsync();
+                haptic.selection();
                 setUnits('imperial');
               }}
               style={[

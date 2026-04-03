@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -68,6 +68,7 @@ function formatDate(dateStr: string): string {
 }
 
 export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { getDayLog } = useNutritionStore();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
@@ -268,7 +269,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
               <FadeIn key={date} delay={i * 30}>
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => { Haptics.selectionAsync(); setExpandedDate(isExpanded ? null : date); }}
+                  onPress={() => { haptic.selection(); setExpandedDate(isExpanded ? null : date); }}
                 >
                   <Card style={{ marginBottom: spacing.sm }}>
                     <View style={styles.dayHeader}>

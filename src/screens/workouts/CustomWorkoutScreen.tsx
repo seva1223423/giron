@@ -9,7 +9,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -85,6 +85,7 @@ interface ExConfig {
 const DEFAULT_CONFIG: ExConfig = { sets: 4, reps: 10, rest: 90 };
 
 export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { startWorkout, saveAsTemplate, customExercises, addCustomExercise, deleteCustomExercise } = useWorkoutStore();
   const [workoutName, setWorkoutName] = useState('');
@@ -105,7 +106,7 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   };
 
   const toggleSuperset = (i: number) => {
-    Haptics.selectionAsync();
+    haptic.selection();
     setSupersetPairs((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
@@ -154,7 +155,7 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       instructions: [],
     };
     addCustomExercise(exercise);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     setNewExName('');
     setNewExMuscle('chest');
     setNewExEquipment('barbell');
@@ -170,14 +171,14 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onPress: () => {
           deleteCustomExercise(id);
           setSelectedExercises((prev) => prev.filter((e) => e.id !== id));
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          haptic.medium();
         },
       },
     ]);
   };
 
   const toggleExercise = (exercise: Exercise) => {
-    Haptics.selectionAsync();
+    haptic.selection();
     setSelectedExercises((prev) => {
       const exists = prev.find((e) => e.id === exercise.id);
       if (exists) return prev.filter((e) => e.id !== exercise.id);
@@ -227,7 +228,7 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       Alert.alert('Выбери упражнения', 'Добавь хотя бы одно упражнение в тренировку');
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     startWorkout(buildWorkout());
     navigation.navigate('ActiveWorkout');
   };
@@ -237,13 +238,13 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       Alert.alert('Выбери упражнения', 'Добавь хотя бы одно упражнение');
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     saveAsTemplate(buildWorkout());
     Alert.alert('Сохранено', 'Шаблон добавлен в «Мои шаблоны»');
   };
 
   const moveExercise = (index: number, direction: 'up' | 'down') => {
-    Haptics.selectionAsync();
+    haptic.selection();
     setSelectedExercises((prev) => {
       const arr = [...prev];
       const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -326,14 +327,14 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
                     <Text style={[typography.caption, { color: colors.textTertiary }]}>Подходы</Text>
                     <View style={styles.stepper}>
                       <TouchableOpacity
-                        onPress={() => { Haptics.selectionAsync(); updateConfig(ex.id, { sets: Math.max(1, cfg.sets - 1) }); }}
+                        onPress={() => { haptic.selection(); updateConfig(ex.id, { sets: Math.max(1, cfg.sets - 1) }); }}
                         style={[styles.stepBtn, { backgroundColor: colors.surface }]}
                       >
                         <Text style={[typography.bodySemibold, { color: colors.text }]}>−</Text>
                       </TouchableOpacity>
                       <Text style={[typography.bodySemibold, { color: colors.text, minWidth: 24, textAlign: 'center' }]}>{cfg.sets}</Text>
                       <TouchableOpacity
-                        onPress={() => { Haptics.selectionAsync(); updateConfig(ex.id, { sets: Math.min(20, cfg.sets + 1) }); }}
+                        onPress={() => { haptic.selection(); updateConfig(ex.id, { sets: Math.min(20, cfg.sets + 1) }); }}
                         style={[styles.stepBtn, { backgroundColor: colors.surface }]}
                       >
                         <Text style={[typography.bodySemibold, { color: colors.text }]}>+</Text>
@@ -348,14 +349,14 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
                     <Text style={[typography.caption, { color: colors.textTertiary }]}>Повторения</Text>
                     <View style={styles.stepper}>
                       <TouchableOpacity
-                        onPress={() => { Haptics.selectionAsync(); updateConfig(ex.id, { reps: Math.max(1, cfg.reps - 1) }); }}
+                        onPress={() => { haptic.selection(); updateConfig(ex.id, { reps: Math.max(1, cfg.reps - 1) }); }}
                         style={[styles.stepBtn, { backgroundColor: colors.surface }]}
                       >
                         <Text style={[typography.bodySemibold, { color: colors.text }]}>−</Text>
                       </TouchableOpacity>
                       <Text style={[typography.bodySemibold, { color: colors.text, minWidth: 24, textAlign: 'center' }]}>{cfg.reps}</Text>
                       <TouchableOpacity
-                        onPress={() => { Haptics.selectionAsync(); updateConfig(ex.id, { reps: Math.min(50, cfg.reps + 1) }); }}
+                        onPress={() => { haptic.selection(); updateConfig(ex.id, { reps: Math.min(50, cfg.reps + 1) }); }}
                         style={[styles.stepBtn, { backgroundColor: colors.surface }]}
                       >
                         <Text style={[typography.bodySemibold, { color: colors.text }]}>+</Text>
@@ -370,14 +371,14 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
                     <Text style={[typography.caption, { color: colors.textTertiary }]}>Отдых</Text>
                     <View style={styles.stepper}>
                       <TouchableOpacity
-                        onPress={() => { Haptics.selectionAsync(); updateConfig(ex.id, { rest: Math.max(15, cfg.rest - 15) }); }}
+                        onPress={() => { haptic.selection(); updateConfig(ex.id, { rest: Math.max(15, cfg.rest - 15) }); }}
                         style={[styles.stepBtn, { backgroundColor: colors.surface }]}
                       >
                         <Text style={[typography.bodySemibold, { color: colors.text }]}>−</Text>
                       </TouchableOpacity>
                       <Text style={[typography.bodySemibold, { color: colors.text, minWidth: 32, textAlign: 'center' }]}>{cfg.rest}с</Text>
                       <TouchableOpacity
-                        onPress={() => { Haptics.selectionAsync(); updateConfig(ex.id, { rest: Math.min(300, cfg.rest + 15) }); }}
+                        onPress={() => { haptic.selection(); updateConfig(ex.id, { rest: Math.min(300, cfg.rest + 15) }); }}
                         style={[styles.stepBtn, { backgroundColor: colors.surface }]}
                       >
                         <Text style={[typography.bodySemibold, { color: colors.text }]}>+</Text>
@@ -483,7 +484,7 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         {MUSCLE_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            onPress={() => { Haptics.selectionAsync(); setMuscleFilter(f.key); }}
+            onPress={() => { haptic.selection(); setMuscleFilter(f.key); }}
             style={[
               styles.filterChip,
               {
@@ -508,7 +509,7 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         {EQUIPMENT_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            onPress={() => { Haptics.selectionAsync(); setEquipmentFilter(f.key); }}
+            onPress={() => { haptic.selection(); setEquipmentFilter(f.key); }}
             style={[
               styles.filterChip,
               {

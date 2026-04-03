@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking, Alert, Image } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -70,6 +70,7 @@ const TrendChart: React.FC<{ data: { label: string; value: number }[]; color: st
 };
 
 export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+  const haptic = useHaptic();
   const { exerciseId } = route.params;
   const { colors } = useThemeStore();
   const { workoutHistory, activeWorkout, addExerciseToWorkout, customExercises } = useWorkoutStore();
@@ -179,7 +180,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
                 Alert.alert('Уже добавлено', 'Это упражнение уже есть в текущей тренировке.');
                 return;
               }
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              haptic.success();
               addExerciseToWorkout(exercise);
               Alert.alert('Добавлено!', `${exercise.name} добавлено в тренировку.`, [
                 { text: 'Продолжить просмотр' },

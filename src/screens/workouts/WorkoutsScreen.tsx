@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore, useSubscriptionStore } from '../../store';
 import { Card, Button, FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
@@ -57,6 +57,7 @@ const EQUIPMENT_FILTERS = [
 ];
 
 export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { programs, startWorkout, activeWorkout, fetchPrograms, isLoadingPrograms, savedTemplates, saveAsTemplate, deleteTemplate } = useWorkoutStore();
   const { isPremiumActive } = useSubscriptionStore();
@@ -97,7 +98,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   }, []);
 
   const toggleFavorite = useCallback((exerciseId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
     setFavoriteIds((prev) => {
       const next = new Set(prev);
       if (next.has(exerciseId)) {
@@ -140,7 +141,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   );
 
   const createWorkoutFromTemplate = (template: typeof QUICK_WORKOUTS[0]) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     const workoutExercises: WorkoutExercise[] = template.exercises
       .map((exId, index) => {
         const ex = exerciseList.find((e) => e.id === exId);
@@ -186,33 +187,33 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
         <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); navigation.navigate('WeeklyPlan'); }}
+            onPress={() => { haptic.selection(); navigation.navigate('WeeklyPlan'); }}
           >
             <Text style={[typography.small, { color: colors.textSecondary }]}>📅 План</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); navigation.navigate('PersonalRecords'); }}
+            onPress={() => { haptic.selection(); navigation.navigate('PersonalRecords'); }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
           >
             <Text style={{ fontSize: 18 }}>🏆</Text>
             <Text style={[typography.small, { color: colors.primary }]}>ПР</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); navigation.navigate('WorkoutCalendar'); }}
+            onPress={() => { haptic.selection(); navigation.navigate('WorkoutCalendar'); }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
           >
             <Text style={{ fontSize: 18 }}>🗓</Text>
             <Text style={[typography.small, { color: colors.primary }]}>Календарь</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); navigation.navigate('OneRMCalculator'); }}
+            onPress={() => { haptic.selection(); navigation.navigate('OneRMCalculator'); }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
           >
             <Text style={{ fontSize: 18 }}>📊</Text>
             <Text style={[typography.small, { color: colors.primary }]}>1ПМ</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); navigation.navigate('PlateCalculator'); }}
+            onPress={() => { haptic.selection(); navigation.navigate('PlateCalculator'); }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
           >
             <Text style={{ fontSize: 18 }}>🏋️</Text>
@@ -226,7 +227,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         {tabs.map((t) => (
           <TouchableOpacity
             key={t.key}
-            onPress={() => { Haptics.selectionAsync(); setTab(t.key); }}
+            onPress={() => { haptic.selection(); setTab(t.key); }}
             style={[
               styles.tab,
               tab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
@@ -276,7 +277,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     <FadeIn key={tpl.id} delay={i * 60}>
                       <TouchableOpacity
                         onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          haptic.medium();
                           const workout: Workout = {
                             ...tpl,
                             id: `workout-${Date.now()}`,
@@ -294,7 +295,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                           navigation.navigate('ActiveWorkout');
                         }}
                         onLongPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                          haptic.heavy();
                           Alert.alert(
                             'Удалить шаблон?',
                             `"${tpl.name}" будет удалён из сохранённых`,
@@ -369,7 +370,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     <Card style={{ marginBottom: spacing.md }}>
                       <TouchableOpacity
                         onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          haptic.light();
                           setExpandedProgramId(expandedProgramId === program.id ? null : program.id);
                         }}
                       >
@@ -403,7 +404,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                             <TouchableOpacity
                               key={workout.id}
                               onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                haptic.medium();
                                 const fresh: Workout = {
                                   ...workout,
                                   id: `workout-${Date.now()}`,
@@ -463,7 +464,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               ] as const).map((f) => (
                 <TouchableOpacity
                   key={f.key}
-                  onPress={() => { Haptics.selectionAsync(); setProgramGoalFilter(f.key); }}
+                  onPress={() => { haptic.selection(); setProgramGoalFilter(f.key); }}
                   style={[styles.filterChip, { backgroundColor: programGoalFilter === f.key ? colors.primary : colors.surface, borderColor: programGoalFilter === f.key ? colors.primary : colors.border }]}
                 >
                   <Text style={[typography.captionMedium, { color: programGoalFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
@@ -480,7 +481,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               ] as const).map((f) => (
                 <TouchableOpacity
                   key={f.key}
-                  onPress={() => { Haptics.selectionAsync(); setProgramLevelFilter(f.key); }}
+                  onPress={() => { haptic.selection(); setProgramLevelFilter(f.key); }}
                   style={[styles.filterChip, { backgroundColor: programLevelFilter === f.key ? colors.accent : colors.surface, borderColor: programLevelFilter === f.key ? colors.accent : colors.border }]}
                 >
                   <Text style={[typography.captionMedium, { color: programLevelFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
@@ -514,7 +515,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   <Card
                     style={{ marginBottom: spacing.md, opacity: isLocked ? 0.7 : 1 }}
                     onPress={() => {
-                      if (isLocked) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); setShowPaywall(true); }
+                      if (isLocked) { haptic.warning(); setShowPaywall(true); }
                       else navigation.navigate('ProgramDetail', { program });
                     }}
                   >
@@ -579,7 +580,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               {MUSCLE_FILTERS.map((f) => (
                 <TouchableOpacity
                   key={f.key}
-                  onPress={() => { Haptics.selectionAsync(); setMuscleFilter(f.key); }}
+                  onPress={() => { haptic.selection(); setMuscleFilter(f.key); }}
                   style={[
                     styles.filterChip,
                     {
@@ -604,7 +605,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               {EQUIPMENT_FILTERS.map((f) => (
                 <TouchableOpacity
                   key={f.key}
-                  onPress={() => { Haptics.selectionAsync(); setEquipmentFilter(f.key); }}
+                  onPress={() => { haptic.selection(); setEquipmentFilter(f.key); }}
                   style={[
                     styles.filterChip,
                     {

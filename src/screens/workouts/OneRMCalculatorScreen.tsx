@@ -7,7 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -66,6 +66,7 @@ function oconner(w: number, r: number): number {
 const PERCENTAGES = [100, 97, 95, 92, 90, 87, 85, 80, 75, 70, 65, 60, 55, 50];
 
 export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
   const [weightStr, setWeightStr] = useState('');
@@ -255,7 +256,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
                   {Object.entries(STRENGTH_STANDARDS).map(([key, val]) => (
                     <TouchableOpacity
                       key={key}
-                      onPress={() => { Haptics.selectionAsync(); setSelectedStandard(selectedStandard === key ? null : key); }}
+                      onPress={() => { haptic.selection(); setSelectedStandard(selectedStandard === key ? null : key); }}
                       style={[
                         styles.standardChip,
                         {

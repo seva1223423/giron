@@ -8,7 +8,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useSubscriptionStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -47,13 +47,14 @@ const PLANS = [
 ];
 
 export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { isPremiumActive, activatePremium, deactivatePremium, markTrialUsed, trialUsed } = useSubscriptionStore();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const isActivePro = isPremiumActive();
 
   const handleSubscribe = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     // TODO: Integrate RevenueCat / ЮKassa for real payment processing
     // For now: activate premium locally as a demo/trial
     const daysToAdd = trialUsed ? (selectedPlan === 'annual' ? 365 : 30) : 7;
@@ -143,7 +144,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
                 <TouchableOpacity
                   key={plan.id}
                   onPress={() => {
-                    Haptics.selectionAsync();
+                    haptic.selection();
                     setSelectedPlan(plan.id as 'monthly' | 'annual');
                   }}
                   style={[

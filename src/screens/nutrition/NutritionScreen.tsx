@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../store';
 import { Card, Button, ProgressRing, MacroBar } from '../../components';
 import { typography } from '../../theme';
@@ -66,6 +66,7 @@ const MEAL_TYPES = [
 ] as const;
 
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
   const { dailyLog, getDayLog, addWater, setTargets, removeMeal, addMeal, savedFoods, removeSavedFood } = useNutritionStore();
@@ -88,7 +89,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const fat = parseInt(goalFats) || 70;
     const carb = parseInt(goalCarbs) || 250;
     setTargets(selectedDate, { calories: cal, protein: prot, fats: fat, carbs: carb });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     setShowGoalsModal(false);
   };
 
@@ -141,7 +142,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   };
 
   const handleQuickAdd = (food: NutritionItem) => {
-    Haptics.selectionAsync();
+    haptic.selection();
     setQuickAddFood(food);
     setQuickWeight('100');
     setShowQuickAddModal(true);
@@ -172,7 +173,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       createdAt: new Date().toISOString(),
     };
     addMeal(selectedDate, meal);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     setShowQuickAddModal(false);
 
     // Update tonight's nutrition summary notification (only for today)
@@ -189,13 +190,13 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   };
 
   const handlePrevDay = () => {
-    Haptics.selectionAsync();
+    haptic.selection();
     setSelectedDate((d) => shiftDate(d, -1));
   };
 
   const handleNextDay = () => {
     if (isToday) return;
-    Haptics.selectionAsync();
+    haptic.selection();
     setSelectedDate((d) => shiftDate(d, 1));
   };
 
@@ -222,7 +223,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 setGoalProtein(smart.protein.toString());
                 setGoalFats(smart.fats.toString());
                 setGoalCarbs(smart.carbs.toString());
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                haptic.light();
               }}
               style={[styles.smartBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
             >
@@ -259,10 +260,10 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           <TouchableOpacity onPress={() => navigation.navigate('NutritionHistory')}>
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>История</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.navigate('MacroCalculator'); }}>
+          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }}>
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>🧮</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowGoalsModal(true); }}>
+          <TouchableOpacity onPress={() => { haptic.selection(); setShowGoalsModal(true); }}>
             <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
           </TouchableOpacity>
         </View>
@@ -273,7 +274,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         <TouchableOpacity onPress={handlePrevDay} style={styles.dateNavBtn}>
           <Text style={[typography.h3, { color: colors.primary }]}>‹</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => { if (!isToday) { Haptics.selectionAsync(); setSelectedDate(todayDate()); } }}>
+        <TouchableOpacity onPress={() => { if (!isToday) { haptic.selection(); setSelectedDate(todayDate()); } }}>
           <Text style={[typography.bodySemibold, { color: colors.text }]}>{formatDisplayDate(selectedDate)}</Text>
           {!isToday && (
             <Text style={[typography.caption, { color: colors.primary, textAlign: 'center', marginTop: 1 }]}>
@@ -383,7 +384,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 key={food.id}
                 onPress={() => handleQuickAdd(food)}
                 onLongPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  haptic.medium();
                   removeSavedFood(food.id);
                 }}
                 style={[styles.savedFoodChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -505,7 +506,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                     </View>
                   ))}
                   <TouchableOpacity
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeMeal(selectedDate, meal.id); }}
+                    onPress={() => { haptic.light(); removeMeal(selectedDate, meal.id); }}
                     style={{ alignSelf: 'flex-end', marginTop: 4 }}
                   >
                     <Text style={[typography.caption, { color: colors.error }]}>Удалить</Text>

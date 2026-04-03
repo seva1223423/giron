@@ -9,7 +9,7 @@ import {
   Alert,
   FlatList,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
@@ -133,6 +133,7 @@ const FOOD_DB = [
 ];
 
 export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+  const haptic = useHaptic();
   const mealType = route.params?.mealType || 'snack';
   const routeDate = route.params?.date as string | undefined;
   const { colors } = useThemeStore();
@@ -201,7 +202,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
   }, [selectedFood, weightGrams]);
 
   const handleAdd = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
 
     let item: NutritionItem;
 
@@ -246,7 +247,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
     };
 
     addMeal(today, meal);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
 
     // Update evening nutrition summary notification (only for today)
     const todayStr = new Date().toISOString().split('T')[0];
@@ -287,7 +288,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
         {(['search', 'custom'] as const).map((t) => (
           <TouchableOpacity
             key={t}
-            onPress={() => { Haptics.selectionAsync(); setTab(t); }}
+            onPress={() => { haptic.selection(); setTab(t); }}
             style={[styles.tab, tab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
           >
             <Text style={[typography.smallMedium, { color: tab === t ? colors.primary : colors.textSecondary }]}>
@@ -315,7 +316,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
                     const isSelected = selectedFood?.name === item.name;
                     return (
                       <TouchableOpacity
-                        onPress={() => { Haptics.selectionAsync(); setSelectedFood(item); setWeightGrams('100'); }}
+                        onPress={() => { haptic.selection(); setSelectedFood(item); setWeightGrams('100'); }}
                         style={[
                           styles.recentChip,
                           {
@@ -349,7 +350,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
               return (
                 <TouchableOpacity
                   key={food.name}
-                  onPress={() => { Haptics.selectionAsync(); setSelectedFood(food); }}
+                  onPress={() => { haptic.selection(); setSelectedFood(food); }}
                 >
                   <Card
                     style={{
@@ -383,7 +384,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      haptic.success();
                       saveFoodItem({
                         id: `saved-${selectedFood.name.replace(/\s/g, '-').toLowerCase()}`,
                         name: selectedFood.name,
@@ -494,7 +495,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
             <TouchableOpacity
               onPress={() => {
                 if (!customName.trim()) return;
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                haptic.success();
                 saveFoodItem({
                   id: `saved-${customName.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`,
                   name: customName.trim(),

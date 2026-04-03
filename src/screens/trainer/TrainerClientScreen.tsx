@@ -8,7 +8,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useTrainerStore } from '../../store';
 import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
@@ -57,6 +57,7 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { updateClient } = useTrainerStore();
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
@@ -76,7 +77,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   if (!client) { navigation.goBack(); return null; }
 
   const handleAssignProgram = (program: string) => {
-    Haptics.selectionAsync();
+    haptic.selection();
     const updated = { ...client, assignedProgram: program };
     setClient(updated);
     updateClient(client.id, { assignedProgram: program });
@@ -84,7 +85,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   const handleSaveNotes = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
     const updated = { ...client, notes };
     setClient(updated);
     updateClient(client.id, { notes });
@@ -92,7 +93,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   const handleOpenEditProfile = () => {
-    Haptics.selectionAsync();
+    haptic.selection();
     setEditAge(client.age ? String(client.age) : '');
     setEditGoal(client.goal || '');
     setEditLevel(client.level || '');
@@ -103,7 +104,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   const handleSaveProfile = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     const age = editAge ? parseInt(editAge) || undefined : undefined;
     const patch: Partial<TrainerClient> = {
       name: editName.trim() || client.name,
@@ -122,7 +123,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   const handleMarkTrainingDone = () => {
     const today = new Date().toISOString().split('T')[0];
     if (client.lastVisit === today) return; // already logged today
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     const patch: Partial<TrainerClient> = {
       lastVisit: today,
       totalWorkouts: (client.totalWorkouts || 0) + 1,
@@ -233,7 +234,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
             <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>ПРОГРАММА ТРЕНИРОВОК</Text>
             <TouchableOpacity
-              onPress={() => { Haptics.selectionAsync(); setShowProgramPicker(true); }}
+              onPress={() => { haptic.selection(); setShowProgramPicker(true); }}
               style={[styles.editBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}
             >
               <Text style={[typography.caption, { color: colors.primary }]}>Изменить</Text>
@@ -359,7 +360,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                 );
               })}
               <TouchableOpacity
-                onPress={() => { Haptics.selectionAsync(); setClient((prev) => ({ ...prev, assignedProgram: undefined })); updateClient(client.id, { assignedProgram: undefined }); setShowProgramPicker(false); }}
+                onPress={() => { haptic.selection(); setClient((prev) => ({ ...prev, assignedProgram: undefined })); updateClient(client.id, { assignedProgram: undefined }); setShowProgramPicker(false); }}
                 style={[styles.programRow, { borderBottomColor: colors.divider }]}
               >
                 <Text style={[typography.body, { color: colors.textSecondary }]}>Убрать программу</Text>
@@ -390,7 +391,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                 {EMOJI_OPTIONS.map((em) => (
                   <TouchableOpacity
                     key={em}
-                    onPress={() => { Haptics.selectionAsync(); setEditEmoji(em); }}
+                    onPress={() => { haptic.selection(); setEditEmoji(em); }}
                     style={[
                       styles.emojiOption,
                       {
@@ -442,7 +443,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                 {GOAL_OPTIONS.map((g) => (
                   <TouchableOpacity
                     key={g.value}
-                    onPress={() => { Haptics.selectionAsync(); setEditGoal(editGoal === g.value ? '' : g.value); }}
+                    onPress={() => { haptic.selection(); setEditGoal(editGoal === g.value ? '' : g.value); }}
                     style={[
                       styles.chipOption,
                       {
@@ -464,7 +465,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                 {LEVEL_OPTIONS.map((l) => (
                   <TouchableOpacity
                     key={l.value}
-                    onPress={() => { Haptics.selectionAsync(); setEditLevel(editLevel === l.value ? '' : l.value); }}
+                    onPress={() => { haptic.selection(); setEditLevel(editLevel === l.value ? '' : l.value); }}
                     style={[
                       styles.chipOption,
                       {

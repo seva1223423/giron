@@ -8,7 +8,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -31,6 +31,7 @@ const GOALS = [
 ];
 
 export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { setTargets } = useNutritionStore();
   const { user } = useAuthStore();
@@ -83,7 +84,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   }, [gender, age, weight, height, activityLevel, goal]);
 
   const handleApply = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     const today = new Date().toISOString().split('T')[0];
     setTargets(today, {
       calories: result.targetCal,
@@ -123,7 +124,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
             {(['male', 'female'] as const).map((g) => (
               <TouchableOpacity
                 key={g}
-                onPress={() => { Haptics.selectionAsync(); setGender(g); }}
+                onPress={() => { haptic.selection(); setGender(g); }}
                 style={[
                   styles.segmentBtn,
                   { borderColor: gender === g ? colors.primary : colors.border, backgroundColor: gender === g ? colors.primary + '15' : 'transparent', flex: 1 },
@@ -158,7 +159,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
           {ACTIVITY_LEVELS.map((level) => (
             <TouchableOpacity
               key={level.key}
-              onPress={() => { Haptics.selectionAsync(); setActivityLevel(level.key); }}
+              onPress={() => { haptic.selection(); setActivityLevel(level.key); }}
               style={[
                 styles.optionRow,
                 { borderColor: activityLevel === level.key ? colors.primary : colors.border, backgroundColor: activityLevel === level.key ? colors.primary + '12' : 'transparent' },
@@ -183,7 +184,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
           {GOALS.map((g) => (
             <TouchableOpacity
               key={g.key}
-              onPress={() => { Haptics.selectionAsync(); setGoal(g.key); }}
+              onPress={() => { haptic.selection(); setGoal(g.key); }}
               style={[
                 styles.optionRow,
                 { borderColor: goal === g.key ? colors.primary : colors.border, backgroundColor: goal === g.key ? colors.primary + '12' : 'transparent' },

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { WeekPlanEntry } from '../../store/useWorkoutStore';
 import { Card, Button } from '../../components';
@@ -31,6 +31,7 @@ const TEMPLATES: WeekPlanEntry[] = [
 ];
 
 export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { weekPlan, setWeekPlanDay, startWorkout, savedTemplates, customExercises } = useWorkoutStore();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
@@ -51,14 +52,14 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
 
   const handleSelectTemplate = (template: WeekPlanEntry | null) => {
     if (pickerDay === null) return;
-    Haptics.selectionAsync();
+    haptic.selection();
     setWeekPlanDay(pickerDay, template);
     setPickerDay(null);
   };
 
   const handleStartWorkout = (entry: WeekPlanEntry) => {
     if (entry.exercises.length === 0) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     const workoutExercises: WorkoutExercise[] = entry.exercises
       .map((exId, index) => {
         const ex = allExercises.find((e) => e.id === exId);
@@ -155,7 +156,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
-                    onPress={() => { Haptics.selectionAsync(); setPickerDay(dow); }}
+                    onPress={() => { haptic.selection(); setPickerDay(dow); }}
                     style={[styles.actionBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
                   >
                     <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>✎</Text>
@@ -186,7 +187,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
               </View>
               <TouchableOpacity
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  haptic.medium();
                   // Clear all days first
                   for (let d = 0; d < 7; d++) setWeekPlanDay(d, null);
                   // Apply preset

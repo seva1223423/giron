@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, TextInput, Modal, Alert, ActivityIndicator, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import * as ImagePicker from 'expo-image-picker';
 import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore } from '../../store';
 import { Card, FadeIn } from '../../components';
@@ -187,6 +187,7 @@ const WeeklyHeatmap: React.FC<{
 };
 
 export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
   const { user } = useAuthStore();
@@ -307,7 +308,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       setProgressPhotos(updated);
       setShowPhotoNoteModal(false);
       setPendingPhotoUri(null);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
     } catch {
       Alert.alert('Ошибка', 'Не удалось сохранить фото');
     }
@@ -324,7 +325,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           await AsyncStorage.setItem(PROGRESS_PHOTOS_KEY, JSON.stringify(updated));
           setProgressPhotos(updated);
           if (selectedPhotoId === id) setSelectedPhotoId(null);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          haptic.warning();
         },
       },
     ]);
@@ -398,7 +399,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       setMeasurementHistory(updated);
       setNewMeasurements({});
       setShowMeasurementModal(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
     } catch {
       Alert.alert('Ошибка', 'Не удалось сохранить измерения');
     } finally {
@@ -433,7 +434,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     setSavingWeight(true);
     try {
       await userService.addWeight(kg);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       setShowWeightModal(false);
       setNewWeight('');
       await fetchWeightHistory();
@@ -691,7 +692,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         {tabs.map((t) => (
           <TouchableOpacity
             key={t.key}
-            onPress={() => { Haptics.selectionAsync(); setTab(t.key); }}
+            onPress={() => { haptic.selection(); setTab(t.key); }}
             style={[styles.tab, tab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
           >
             <Text style={[typography.smallMedium, { color: tab === t.key ? colors.primary : colors.textSecondary }]}>
@@ -858,7 +859,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             : [];
 
           const goToPrevMonth = () => {
-            Haptics.selectionAsync();
+            haptic.selection();
             setSelectedDay(null);
             setCalendarMonth((prev) => {
               const d = new Date(prev);
@@ -873,7 +874,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               calendarMonth.getFullYear() === now.getFullYear() &&
               calendarMonth.getMonth() === now.getMonth()
             ) return;
-            Haptics.selectionAsync();
+            haptic.selection();
             setSelectedDay(null);
             setCalendarMonth((prev) => {
               const d = new Date(prev);
@@ -924,7 +925,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                         key={i}
                         onPress={() => {
                           if (!day.date || !day.hasWorkout) return;
-                          Haptics.selectionAsync();
+                          haptic.selection();
                           setSelectedDay(isSelected ? null : day.dateStr);
                         }}
                         activeOpacity={day.hasWorkout ? 0.7 : 1}
@@ -1028,7 +1029,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   <TouchableOpacity
                     key={v}
                     onPress={() => {
-                      Haptics.selectionAsync();
+                      haptic.selection();
                       setRecordsView(v);
                       if (v === 'club') fetchLeaderboard();
                     }}
@@ -1066,7 +1067,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     <FadeIn key={record.exerciseId} delay={i * 60}>
                       <TouchableOpacity
                         onPress={() => {
-                          Haptics.selectionAsync();
+                          haptic.selection();
                           setSelectedExerciseId(isSelected ? null : record.exerciseId);
                         }}
                         activeOpacity={0.85}
@@ -1288,7 +1289,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     })()}
                   </View>
                   <TouchableOpacity
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowWeightModal(true); }}
+                    onPress={() => { haptic.light(); setShowWeightModal(true); }}
                     style={[styles.addWeightBtn, { backgroundColor: colors.primary }]}
                   >
                     <Text style={{ color: '#fff', fontSize: 22, lineHeight: 26 }}>+</Text>
@@ -1361,7 +1362,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
                   <Text style={[typography.h4, { color: colors.text }]}>Обхваты тела</Text>
                   <TouchableOpacity
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowMeasurementModal(true); }}
+                    onPress={() => { haptic.light(); setShowMeasurementModal(true); }}
                     style={[{ backgroundColor: colors.accent + '15', paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.accent + '40' }]}
                   >
                     <Text style={[typography.captionMedium, { color: colors.accent }]}>+ Замер</Text>
@@ -1477,7 +1478,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   {progressPhotos.length >= 2 && (
                     <TouchableOpacity
-                      onPress={() => { Haptics.selectionAsync(); setCompareMode((v) => !v); }}
+                      onPress={() => { haptic.selection(); setCompareMode((v) => !v); }}
                       style={[
                         styles.photoActionBtn,
                         { backgroundColor: compareMode ? colors.primary : colors.surface, borderColor: colors.border },
@@ -1582,7 +1583,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                       <View key={photo.id} style={styles.photoCell}>
                         <TouchableOpacity
                           onPress={() => {
-                            Haptics.selectionAsync();
+                            haptic.selection();
                             setSelectedPhotoId(isSelected ? null : photo.id);
                           }}
                           onLongPress={() => handleDeletePhoto(photo.id)}

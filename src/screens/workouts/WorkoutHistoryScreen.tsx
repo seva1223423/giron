@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Dimensions } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -91,6 +91,7 @@ const VolumeTrendChart: React.FC<{ data: { label: string; value: number }[]; col
 };
 
 export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { workoutHistory, activeWorkout, startWorkout } = useWorkoutStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -99,7 +100,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
   const handleRepeatWorkout = (workout: any) => {
     if (activeWorkout) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     const exercises: WorkoutExercise[] = workout.exercises.map((we: any, index: number) => {
       const sets: WorkoutSet[] = we.sets.map((s: any, i: number) => ({
         id: `set-${Date.now()}-${index}-${i}`,
@@ -235,7 +236,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
               {MUSCLE_FILTERS.map((f) => (
                 <TouchableOpacity
                   key={f.key}
-                  onPress={() => { Haptics.selectionAsync(); setMuscleFilter(f.key); }}
+                  onPress={() => { haptic.selection(); setMuscleFilter(f.key); }}
                   style={[
                     styles.filterChip,
                     {
@@ -293,7 +294,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                     key={workout.id}
                     activeOpacity={0.85}
                     onPress={() => {
-                      Haptics.selectionAsync();
+                      haptic.selection();
                       setExpandedId(isExpanded ? null : workout.id);
                     }}
                   >

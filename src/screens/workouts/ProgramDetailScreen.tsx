@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -30,6 +30,7 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+  const haptic = useHaptic();
   const program: BuiltInProgram = route.params?.program;
   const { colors } = useThemeStore();
   const { startWorkout, setWeekPlanDay } = useWorkoutStore();
@@ -55,7 +56,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
         {
           text: 'Добавить',
           onPress: () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            haptic.success();
             daysToAssign.forEach((day, i) => {
               setWeekPlanDay(slots[i], {
                 name: `${program.name} — ${day.name}`,
@@ -71,7 +72,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   const startProgramDay = (day: typeof program.days[0]) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
 
     const workoutExercises: WorkoutExercise[] = day.exercises
       .map((item, index) => {
@@ -209,7 +210,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           <Card key={dayIndex} style={{ marginBottom: spacing.md }}>
             <TouchableOpacity
               onPress={() => {
-                Haptics.selectionAsync();
+                haptic.selection();
                 setExpandedDay(expandedDay === dayIndex ? null : dayIndex);
               }}
             >

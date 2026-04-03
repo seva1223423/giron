@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useThemeStore, useWorkoutStore, useNutritionStore } from '../../store';
@@ -71,6 +71,7 @@ const PRCelebration: React.FC = () => {
 };
 
 export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { workoutHistory, updateWorkoutInHistory } = useWorkoutStore();
   const { dailyLog } = useNutritionStore();
@@ -150,10 +151,10 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
   useEffect(() => {
     if (newPRs.length > 0 || newAchievements.length > 0) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 400);
+      haptic.success();
+      setTimeout(() => haptic.success(), 400);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
     }
     // Schedule 48h streak-risk reminder so user doesn't miss next workout
     scheduleStreakRiskNotification().catch(() => {});
@@ -229,7 +230,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   });
 
   const handleShare = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
     try {
       const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95, result: 'tmpfile' });
       const canShare = await Sharing.isAvailableAsync();
@@ -562,7 +563,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
               <TouchableOpacity
                 key={star}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  haptic.light();
                   const newRating = rating === star ? 0 : star;
                   setRating(newRating);
                   updateWorkoutInHistory(workout.id, { rating: newRating });

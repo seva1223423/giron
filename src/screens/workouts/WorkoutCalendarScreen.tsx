@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -53,6 +53,7 @@ function formatDuration(minutes: number): string {
 }
 
 export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { workoutHistory, weekPlan } = useWorkoutStore();
 
@@ -91,13 +92,13 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
   const leadingPad = mondayWeekday(days[0]);
 
   const goToPrevMonth = () => {
-    Haptics.selectionAsync();
+    haptic.selection();
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
     else setViewMonth((m) => m - 1);
   };
 
   const goToNextMonth = () => {
-    Haptics.selectionAsync();
+    haptic.selection();
     if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
     else setViewMonth((m) => m + 1);
   };
@@ -105,7 +106,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
   const handleDayPress = (dateStr: string) => {
     const hasWorkout = workoutsByDate.has(dateStr);
     if (!hasWorkout) return;
-    Haptics.selectionAsync();
+    haptic.selection();
     setSelectedDayStr(dateStr);
     setShowModal(true);
   };

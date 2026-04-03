@@ -10,7 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useSubscriptionStore, FREE_LIMITS, useNutritionStore } from '../../store';
 import { FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
@@ -34,6 +34,7 @@ const QUICK_PROMPTS = [
 ];
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user, fetchProfile } = useAuthStore();
   const { workoutHistory, fetchHistory, fetchPrograms, programs, setWeekPlanDay, weekPlan } = useWorkoutStore();
@@ -85,12 +86,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     // Check daily limit for free users
     const allowed = consumeAiMessage();
     if (!allowed) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      haptic.warning();
       setShowPaywall(true);
       return;
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -117,7 +118,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       };
       const response = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
 
       if (response.actions?.length > 0) {
         setLastActions(response.actions);
@@ -180,7 +181,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       setMessages((prev) => [...prev, aiResponse]);
     } catch (e) {
       const apiError = getApiError(e);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: 'assistant',

@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useNutritionStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
@@ -33,6 +33,7 @@ const LEVELS = [
 ];
 
 export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user, setUser } = useAuthStore();
   const { setTargets } = useNutritionStore();
@@ -46,7 +47,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const handleSave = async () => {
     setSaving(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     try {
       const updated = await userService.updateProfile({
         weightKg: weightKg ? parseFloat(weightKg) : undefined,
@@ -82,7 +83,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
         setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: targetCarbs, waterTargetMl });
       }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       navigation.goBack();
     } catch {
       Alert.alert('Ошибка', 'Не удалось сохранить. Проверь подключение к серверу.');
@@ -167,7 +168,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
             return (
               <TouchableOpacity
                 key={g.value}
-                onPress={() => { Haptics.selectionAsync(); setGoal(g.value); }}
+                onPress={() => { haptic.selection(); setGoal(g.value); }}
                 style={[
                   styles.optionCard,
                   {
@@ -196,7 +197,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
           return (
             <TouchableOpacity
               key={l.value}
-              onPress={() => { Haptics.selectionAsync(); setFitnessLevel(l.value); }}
+              onPress={() => { haptic.selection(); setFitnessLevel(l.value); }}
               style={[
                 styles.levelRow,
                 { borderColor: selected ? colors.primary : colors.border },

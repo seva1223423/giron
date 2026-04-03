@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, Share } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
@@ -158,6 +158,7 @@ const FALLBACK_NEWS: NewsArticle[] = [
 ];
 
 export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all' | 'saved'>('all');
   const [news, setNews] = useState<NewsArticle[]>(FALLBACK_NEWS);
@@ -242,7 +243,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   const handleArticlePress = (article: NewsArticle) => {
-    Haptics.selectionAsync();
+    haptic.selection();
     setSelectedArticle(article);
   };
 
