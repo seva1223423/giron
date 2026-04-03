@@ -33,6 +33,74 @@ import {
 const router = Router();
 const prisma = new PrismaClient();
 
+// ─── Block 28: AI Response Cache ────────────────────────────────────────────
+// Cache for technique/general knowledge questions (no personalized data needed)
+// Key: normalized message hash, Value: { response, timestamp }
+interface CachedResponse {
+  response: string;
+  timestamp: number;
+  intent: string;
+}
+
+const AI_RESPONSE_CACHE = new Map<string, CachedResponse>();
+const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+const CACHE_MAX_SIZE = 200;
+const CACHEABLE_INTENTS = new Set(['technique_question', 'general']);
+
+function normalizeForCache(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\wа-яА-ЯёЁ\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash.toString(36);
+}
+
+function getCachedResponse(message: string, intent: string): string | null {
+  if (!CACHEABLE_INTENTS.has(intent)) return null;
+
+  const key = simpleHash(normalizeForCache(message));
+  const cached = AI_RESPONSE_CACHE.get(key);
+  if (!cached) return null;
+
+  if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
+    AI_RESPONSE_CACHE.delete(key);
+    return null;
+  }
+
+  return cached.response;
+}
+
+function setCachedResponse(message: string, intent: string, response: string): void {
+  if (!CACHEABLE_INTENTS.has(intent)) return;
+  if (response.length < 50) return; // don't cache very short responses
+
+  // Evict old entries if at capacity
+  if (AI_RESPONSE_CACHE.size >= CACHE_MAX_SIZE) {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+    for (const [key, val] of AI_RESPONSE_CACHE) {
+      if (val.timestamp < oldestTime) {
+        oldestTime = val.timestamp;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey) AI_RESPONSE_CACHE.delete(oldestKey);
+  }
+
+  const key = simpleHash(normalizeForCache(message));
+  AI_RESPONSE_CACHE.set(key, { response, timestamp: Date.now(), intent });
+}
+
 const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональный тренер в приложении Iron Gym. 15+ лет стажа, образование в спортивной науке (NSCA-CSCS, Precision Nutrition L2). Ты не чат-бот — ты наставник, который знает своего подопечного, видит его данные и реально влияет на его результат.
 
 ## ПРИНЦИП МЫШЛЕНИЯ (ОБЯЗАТЕЛЬНО)
@@ -2052,6 +2120,21 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const intent = classifyIntent(message);
     const intentConfig = INTENT_CONFIGS[intent];
 
+    // ─── Block 28: Check cache for technique/general questions ──────
+    const cachedResponse = getCachedResponse(message, intent);
+    if (cachedResponse) {
+      console.log(`[AI] Cache hit for intent=${intent}`);
+      await prisma.chatMessage.create({
+        data: { role: 'assistant', content: cachedResponse, userId },
+      });
+      return res.json({
+        message: cachedResponse,
+        actions: [],
+        intent,
+        meta: { mood: 'neutral' },
+      });
+    }
+
     // ─── Emotion detection: adapt AI tone to user's mood ──────
     const { mood, directive: moodDirective } = detectMood(message);
 
@@ -2285,6 +2368,15 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
     const recoveryContext = buildRecoveryContext(recovery);
 
+    // ─── Block 27: Muscle balance analysis ──────
+    const muscleBalance = analyzeMuscleBalance(
+      allCompletedExerciseSets.map((we) => ({
+        exercise: we.exercise,
+        sets: we.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
+      }))
+    );
+    const muscleBalanceContext = buildMuscleBalanceContext(muscleBalance);
+
     // ─── Block 25: Deload week auto-detection ──────
     const deloadRecommendation = detectDeloadNeed(
       recentWorkouts.map((w) => ({ name: w.name, completedAt: w.completedAt, totalVolume: w.totalVolume })),
@@ -2292,6 +2384,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       recovery.score,
     );
     const deloadContext = buildDeloadContext(deloadRecommendation);
+
+    // ─── Block 29: Volume periodization advisor ──────
+    const periodizationAdvice = getPeriodizationAdvice(
+      recentWorkouts.map((w) => ({ completedAt: w.completedAt, totalVolume: w.totalVolume }))
+    );
+    const periodizationContext = buildPeriodizationContext(periodizationAdvice);
 
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
@@ -2336,10 +2434,57 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       profileGapsBlock = `\n\n## НЕДОСТАЮЩИЕ ДАННЫЕ ПРОФИЛЯ (если контекст подходит — спроси)\n${topGaps.map((g) => `- ${g.field}: ${g.question}`).join('\n')}`;
     }
 
+    // ─── Block 30: Smart greeting directive ──────
+    let greetingDirective = '';
+    if (intent === 'greeting') {
+      const hour = new Date().getHours();
+      let tod = 'день';
+      if (hour >= 5 && hour < 12) tod = 'утро';
+      else if (hour >= 12 && hour < 17) tod = 'день';
+      else if (hour >= 17 && hour < 22) tod = 'вечер';
+      else tod = 'ночь';
+
+      const lastWo = recentWorkouts[0] || null;
+      const daysSinceLast = lastWo?.completedAt
+        ? Math.floor((Date.now() - new Date(lastWo.completedAt).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      // Check for scheduled workout today
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      const scheduledToday = await prisma.workout.findFirst({
+        where: { userId, scheduledDate: { gte: todayStart, lte: todayEnd }, completedAt: null },
+      });
+
+      // Body weight trend
+      let bwTrend: 'up' | 'down' | 'stable' | null = null;
+      if (bodyWeightHistory.length >= 3) {
+        const last3 = bodyWeightHistory.slice(0, 3).map((bw) => bw.weightKg);
+        const delta = last3[0] - last3[2];
+        if (delta > 0.3) bwTrend = 'up';
+        else if (delta < -0.3) bwTrend = 'down';
+        else bwTrend = 'stable';
+      }
+
+      greetingDirective = buildSmartGreetingDirective({
+        timeOfDay: tod,
+        userName: user?.firstName || 'друг',
+        daysSinceLastWorkout: daysSinceLast,
+        lastWorkoutName: lastWo?.name || null,
+        streak: gamification.currentStreak,
+        scheduledToday: scheduledToday?.name || null,
+        todayMealsCount: todayMeals.length,
+        bodyWeightTrend: bwTrend,
+        newPRs: gamification.newPRsThisWeek.map((pr) => pr.exercise),
+        recoveryScore: recovery.score,
+        deloadNeeded: deloadRecommendation.shouldDeload,
+      });
+    }
+
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -2430,21 +2575,37 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         result = { content: textContent, toolCalls: [], hasToolCalls: false };
       }
     } catch (aiError) {
-      console.error('AI chat call failed, attempting fallback without tools:', aiError);
+      console.error('AI chat call failed, attempting simplified fallback:', aiError);
       try {
+        // Fallback 1: same prompt, no tools, shorter context
+        const shortMessages = messages.slice(-6); // only last 3 exchanges
         const fallbackContent = await chatWithoutTools({
           system: systemPrompt,
-          messages,
+          messages: shortMessages,
           maxTokens: 4096,
           temperature: 0.6,
         });
         result = { content: fallbackContent, toolCalls: [], hasToolCalls: false };
-      } catch (fallbackError) {
-        console.error('AI fallback also failed:', fallbackError);
-        return res.status(503).json({
-          error: 'AI-сервис временно недоступен. Попробуй через минуту.',
-          retryAfter: 60,
-        });
+      } catch (fallback1Error) {
+        console.error('Fallback 1 failed, trying minimal prompt:', fallback1Error);
+        try {
+          // Fallback 2: minimal system prompt, only current message
+          const minimalSystem = `Ты Iron Coach — ИИ-тренер в приложении Iron Gym. Отвечай на русском, коротко и по делу. ${userContext}`;
+          const minimalMessages: DeepSeekMessage[] = [{ role: 'user', content: message }];
+          const fallback2Content = await chatWithoutTools({
+            system: minimalSystem,
+            messages: minimalMessages,
+            maxTokens: 2048,
+            temperature: 0.5,
+          });
+          result = { content: fallback2Content, toolCalls: [], hasToolCalls: false };
+        } catch (fallback2Error) {
+          console.error('All AI fallbacks failed:', fallback2Error);
+          return res.status(503).json({
+            error: 'AI-сервис временно недоступен. Попробуй через минуту.',
+            retryAfter: 60,
+          });
+        }
       }
     }
 
@@ -2472,6 +2633,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
 
     aiContent = cleanResponse(aiContent) || 'Не удалось сгенерировать ответ. Попробуй переформулировать вопрос.';
+
+    // Cache response for technique/general questions (no personal data in response)
+    if (performedActions.length === 0) {
+      setCachedResponse(message, intent, aiContent);
+    }
 
     // Save AI response with actions
     await prisma.chatMessage.create({
@@ -3423,6 +3589,152 @@ async function getMemoryContext(userId: string): Promise<string> {
   }
 }
 
+// ─── Block 27: Muscle Balance Analysis ─────────────────────────────────────
+
+// Map exercises to primary muscle groups
+const EXERCISE_MUSCLE_MAP: Record<string, string[]> = {
+  // Push
+  'жим лёжа': ['грудь', 'трицепс', 'плечи-передние'],
+  'жим лежа': ['грудь', 'трицепс', 'плечи-передние'],
+  'жим штанги': ['грудь', 'трицепс', 'плечи-передние'],
+  'жим гантелей': ['грудь', 'трицепс', 'плечи-передние'],
+  'жим на наклонной': ['грудь-верх', 'трицепс', 'плечи-передние'],
+  'отжимания': ['грудь', 'трицепс'],
+  'жим стоя': ['плечи', 'трицепс'],
+  'жим сидя': ['плечи', 'трицепс'],
+  'армейский жим': ['плечи', 'трицепс'],
+  'разведение гантелей': ['грудь'],
+  'махи гантелями': ['плечи-средние'],
+  'французский жим': ['трицепс'],
+  'разгибание на блоке': ['трицепс'],
+  // Pull
+  'подтягивания': ['спина-широчайшие', 'бицепс'],
+  'тяга верхнего блока': ['спина-широчайшие', 'бицепс'],
+  'тяга штанги в наклоне': ['спина', 'бицепс'],
+  'тяга гантели в наклоне': ['спина', 'бицепс'],
+  'тяга нижнего блока': ['спина'],
+  'становая тяга': ['спина', 'ягодицы', 'бёдра-задние'],
+  'сгибания на бицепс': ['бицепс'],
+  'молотки': ['бицепс', 'предплечья'],
+  'шраги': ['трапеции'],
+  // Legs
+  'приседания': ['квадрицепс', 'ягодицы'],
+  'приседания со штангой': ['квадрицепс', 'ягодицы', 'кор'],
+  'жим ногами': ['квадрицепс', 'ягодицы'],
+  'выпады': ['квадрицепс', 'ягодицы'],
+  'румынская тяга': ['бёдра-задние', 'ягодицы'],
+  'сгибание ног': ['бёдра-задние'],
+  'разгибание ног': ['квадрицепс'],
+  'подъём на носки': ['икры'],
+  'ягодичный мост': ['ягодицы'],
+  'гиперэкстензия': ['поясница', 'бёдра-задние'],
+  // Core
+  'планка': ['кор'],
+  'скручивания': ['пресс'],
+  'подъём ног': ['пресс-нижний'],
+};
+
+const MUSCLE_GROUPS_PUSH = ['грудь', 'грудь-верх', 'плечи', 'плечи-передние', 'плечи-средние', 'трицепс'];
+const MUSCLE_GROUPS_PULL = ['спина', 'спина-широчайшие', 'бицепс', 'трапеции', 'предплечья'];
+const MUSCLE_GROUPS_LEGS = ['квадрицепс', 'ягодицы', 'бёдра-задние', 'икры'];
+
+interface MuscleBalanceResult {
+  pushPullRatio: number; // ideal ~1.0
+  upperLowerRatio: number; // ideal ~1.0-1.5
+  neglectedMuscles: string[];
+  overtrainedMuscles: string[];
+  advice: string;
+}
+
+function analyzeMuscleBalance(
+  exerciseSets: Array<{ exercise: { name: string }; sets: Array<{ weight: number | null; reps: number | null }> }>,
+): MuscleBalanceResult {
+  const muscleVolume: Record<string, number> = {};
+
+  for (const es of exerciseSets) {
+    const name = es.exercise.name.toLowerCase();
+    let muscles: string[] = [];
+
+    // Find matching muscle group
+    for (const [exerciseName, groups] of Object.entries(EXERCISE_MUSCLE_MAP)) {
+      if (name.includes(exerciseName) || exerciseName.includes(name)) {
+        muscles = groups;
+        break;
+      }
+    }
+
+    if (muscles.length === 0) continue;
+
+    // Count total volume (sets * reps * weight) per muscle
+    const totalVol = es.sets.reduce((sum, s) => {
+      return sum + ((s.weight || 0) * (s.reps || 0));
+    }, 0);
+
+    const volPerMuscle = totalVol / muscles.length;
+    for (const m of muscles) {
+      muscleVolume[m] = (muscleVolume[m] || 0) + volPerMuscle;
+    }
+  }
+
+  // Calculate push/pull ratio
+  const pushVol = MUSCLE_GROUPS_PUSH.reduce((s, m) => s + (muscleVolume[m] || 0), 0);
+  const pullVol = MUSCLE_GROUPS_PULL.reduce((s, m) => s + (muscleVolume[m] || 0), 0);
+  const upperVol = pushVol + pullVol;
+  const lowerVol = MUSCLE_GROUPS_LEGS.reduce((s, m) => s + (muscleVolume[m] || 0), 0);
+
+  const pushPullRatio = pullVol > 0 ? pushVol / pullVol : pushVol > 0 ? 5.0 : 1.0;
+  const upperLowerRatio = lowerVol > 0 ? upperVol / lowerVol : upperVol > 0 ? 5.0 : 1.0;
+
+  // Detect neglected muscles (0 volume)
+  const allMuscles = [...MUSCLE_GROUPS_PUSH, ...MUSCLE_GROUPS_PULL, ...MUSCLE_GROUPS_LEGS];
+  const neglectedMuscles = allMuscles.filter((m) => !muscleVolume[m] || muscleVolume[m] === 0);
+
+  // Detect overtrained (>3x average)
+  const volumes = Object.values(muscleVolume).filter((v) => v > 0);
+  const avgVol = volumes.length > 0 ? volumes.reduce((a, b) => a + b, 0) / volumes.length : 0;
+  const overtrainedMuscles = Object.entries(muscleVolume)
+    .filter(([, vol]) => vol > avgVol * 3)
+    .map(([m]) => m);
+
+  // Build advice
+  const adviceParts: string[] = [];
+  if (pushPullRatio > 1.5) {
+    adviceParts.push(`Много жимовых (push:pull = ${pushPullRatio.toFixed(1)}). Добавь тяговые: подтягивания, тяга в наклоне, фейспулл.`);
+  } else if (pushPullRatio < 0.7) {
+    adviceParts.push(`Мало жимовых (push:pull = ${pushPullRatio.toFixed(1)}). Добавь жим, отжимания, разводки.`);
+  }
+  if (upperLowerRatio > 2.0) {
+    adviceParts.push(`Перекос в верх тела (верх:низ = ${upperLowerRatio.toFixed(1)}). Добавь приседания, выпады, румынскую тягу.`);
+  } else if (upperLowerRatio < 0.5) {
+    adviceParts.push(`Много ног, мало верха (верх:низ = ${upperLowerRatio.toFixed(1)}). Баланс по верху: жим, тяги, подтягивания.`);
+  }
+
+  const importantNeglected = neglectedMuscles.filter((m) =>
+    ['спина', 'ягодицы', 'бёдра-задние', 'плечи-средние', 'икры'].includes(m)
+  );
+  if (importantNeglected.length > 0) {
+    adviceParts.push(`Не тренируются: ${importantNeglected.join(', ')}.`);
+  }
+
+  return {
+    pushPullRatio,
+    upperLowerRatio,
+    neglectedMuscles,
+    overtrainedMuscles,
+    advice: adviceParts.join(' '),
+  };
+}
+
+function buildMuscleBalanceContext(balance: MuscleBalanceResult): string {
+  if (!balance.advice) return '';
+
+  return `\n## ⚖️ МЫШЕЧНЫЙ БАЛАНС (анализ за последние 2 недели)
+Push/Pull: ${balance.pushPullRatio.toFixed(1)} (норма: ~1.0)
+Верх/Низ: ${balance.upperLowerRatio.toFixed(1)} (норма: ~1.0-1.5)
+${balance.advice}
+→ Если пользователь спрашивает программу или упражнения — учти этот дисбаланс.`;
+}
+
 // ─── Block 25: Deload Week Auto-Detection ──────────────────────────────────
 
 interface DeloadRecommendation {
@@ -3521,6 +3833,204 @@ function buildDeloadContext(deload: DeloadRecommendation): string {
 Тренировочных недель подряд: ${deload.weeksSinceDeload}
 → ${deload.suggestedAction}
 → Объясни пользователю ЗАЧЕМ нужен deload (суперкомпенсация, адаптация ЦНС, профилактика травм).`;
+}
+
+// ─── Block 29: Volume Periodization Advisor ─────────────────────────────────
+
+type MesocyclePhase = 'accumulation' | 'intensification' | 'deload' | 'peaking' | 'unknown';
+
+interface PeriodizationAdvice {
+  currentPhase: MesocyclePhase;
+  weekInPhase: number;
+  suggestion: string;
+}
+
+/**
+ * Analyze weekly volume trends to determine current training phase
+ * and suggest next phase transitions.
+ */
+function getPeriodizationAdvice(
+  recentWorkouts: Array<{ completedAt: Date | null; totalVolume: number | null }>,
+): PeriodizationAdvice {
+  const now = Date.now();
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+  // Calculate weekly volumes for last 6 weeks
+  const weeklyVolumes: number[] = [];
+  const weeklyWorkoutCounts: number[] = [];
+  for (let w = 0; w < 6; w++) {
+    const weekStart = now - (w + 1) * MS_PER_WEEK;
+    const weekEnd = now - w * MS_PER_WEEK;
+    const weekWorkouts = recentWorkouts.filter((wo) => {
+      const t = wo.completedAt ? wo.completedAt.getTime() : 0;
+      return t >= weekStart && t < weekEnd;
+    });
+    weeklyVolumes.push(weekWorkouts.reduce((sum, wo) => sum + (wo.totalVolume || 0), 0));
+    weeklyWorkoutCounts.push(weekWorkouts.length);
+  }
+
+  // Reverse so [0] = oldest, [5] = most recent
+  weeklyVolumes.reverse();
+  weeklyWorkoutCounts.reverse();
+
+  if (weeklyVolumes.filter((v) => v > 0).length < 3) {
+    return { currentPhase: 'unknown', weekInPhase: 0, suggestion: '' };
+  }
+
+  // Detect volume trend
+  const recent3 = weeklyVolumes.slice(-3);
+  const isIncreasing = recent3[2] > recent3[1] && recent3[1] > recent3[0];
+  const isDecreasing = recent3[2] < recent3[1] && recent3[1] < recent3[0];
+  const isFlat = Math.abs(recent3[2] - recent3[0]) / Math.max(recent3[0], 1) < 0.1;
+
+  // Determine average intensity (volume per workout)
+  const recentAvgVolPerWorkout = weeklyWorkoutCounts[5] > 0
+    ? weeklyVolumes[5] / weeklyWorkoutCounts[5]
+    : 0;
+  const olderAvgVolPerWorkout = weeklyWorkoutCounts[2] > 0
+    ? weeklyVolumes[2] / weeklyWorkoutCounts[2]
+    : 0;
+
+  let currentPhase: MesocyclePhase = 'unknown';
+  let weekInPhase = 0;
+  let suggestion = '';
+
+  if (isIncreasing) {
+    currentPhase = 'accumulation';
+    // Count consecutive increasing weeks
+    for (let i = weeklyVolumes.length - 1; i > 0; i--) {
+      if (weeklyVolumes[i] >= weeklyVolumes[i - 1]) weekInPhase++;
+      else break;
+    }
+
+    if (weekInPhase >= 4) {
+      suggestion = `Уже ${weekInPhase} недель нарастающего объёма. Рекомендуется перейти к фазе интенсификации: снизить объём на 20%, повысить рабочие веса на 5-10%.`;
+    } else if (weekInPhase >= 3) {
+      suggestion = `Фаза накопления (${weekInPhase} недель). Ещё 1-2 недели роста объёма, затем переход к интенсификации.`;
+    }
+  } else if (isDecreasing && recentAvgVolPerWorkout > olderAvgVolPerWorkout * 0.95) {
+    // Volume down but intensity per workout up = intensification
+    currentPhase = 'intensification';
+    weekInPhase = 2;
+    suggestion = `Фаза интенсификации: объём снижается, но интенсивность на тренировку растёт. Это хорошо — через 1-2 недели можно сделать deload.`;
+  } else if (isDecreasing && recentAvgVolPerWorkout <= olderAvgVolPerWorkout * 0.7) {
+    currentPhase = 'deload';
+    weekInPhase = 1;
+    suggestion = `Похоже на разгрузочную неделю. После неё — начинай новый мезоцикл с повышенными весами.`;
+  } else if (isFlat) {
+    currentPhase = 'accumulation';
+    weekInPhase = 3;
+    suggestion = `Объём стабильный — стагнация. Для прогресса нужно либо повышать объём на 5-10% в неделю, либо увеличить рабочие веса.`;
+  }
+
+  return { currentPhase, weekInPhase, suggestion };
+}
+
+function buildPeriodizationContext(advice: PeriodizationAdvice): string {
+  if (!advice.suggestion || advice.currentPhase === 'unknown') return '';
+
+  const phaseLabels: Record<MesocyclePhase, string> = {
+    accumulation: 'Накопление (объём↑)',
+    intensification: 'Интенсификация (вес↑, объём↓)',
+    deload: 'Разгрузка',
+    peaking: 'Пиковая',
+    unknown: '',
+  };
+
+  return `\n## 📈 ПЕРИОДИЗАЦИЯ
+Текущая фаза: ${phaseLabels[advice.currentPhase]} (неделя ${advice.weekInPhase})
+${advice.suggestion}
+→ Учитывай фазу при рекомендациях по программе и нагрузке.`;
+}
+
+// ─── Block 30: Smart Greeting — context-aware first message ─────────────────
+
+interface GreetingContext {
+  timeOfDay: string; // утро/день/вечер/ночь
+  userName: string;
+  daysSinceLastWorkout: number | null;
+  lastWorkoutName: string | null;
+  streak: number;
+  scheduledToday: string | null;
+  todayMealsCount: number;
+  bodyWeightTrend: string | null; // 'up' | 'down' | 'stable' | null
+  newPRs: string[];
+  recoveryScore: number;
+  deloadNeeded: boolean;
+}
+
+function buildSmartGreetingDirective(ctx: GreetingContext): string {
+  const lines: string[] = [];
+
+  // Time-appropriate greeting
+  const greetingMap: Record<string, string> = {
+    'утро': `Доброе утро, ${ctx.userName}!`,
+    'день': `Добрый день, ${ctx.userName}!`,
+    'вечер': `Добрый вечер, ${ctx.userName}!`,
+    'ночь': `${ctx.userName}, не поздновато для тренировки? 😄`,
+  };
+  lines.push(`Начни с приветствия: "${greetingMap[ctx.timeOfDay]}"`);
+
+  // Last workout context
+  if (ctx.daysSinceLastWorkout !== null) {
+    if (ctx.daysSinceLastWorkout === 0) {
+      lines.push(`Пользователь уже тренировался сегодня (${ctx.lastWorkoutName}). Похвали и спроси как самочувствие.`);
+    } else if (ctx.daysSinceLastWorkout === 1) {
+      lines.push(`Вчера была тренировка "${ctx.lastWorkoutName}". Спроси про восстановление или предложи следующую.`);
+    } else if (ctx.daysSinceLastWorkout <= 3) {
+      lines.push(`Последняя тренировка ${ctx.daysSinceLastWorkout} дня назад ("${ctx.lastWorkoutName}"). Мягко предложи тренировку.`);
+    } else if (ctx.daysSinceLastWorkout <= 7) {
+      lines.push(`Перерыв ${ctx.daysSinceLastWorkout} дней. Мотивируй вернуться, но без давления.`);
+    } else {
+      lines.push(`Долгий перерыв (${ctx.daysSinceLastWorkout} дней). Предложи лёгкую тренировку для возвращения в ритм.`);
+    }
+  }
+
+  // Streak
+  if (ctx.streak >= 7) {
+    lines.push(`🔥 Серия ${ctx.streak} дней! Обязательно отметь это достижение.`);
+  } else if (ctx.streak >= 3) {
+    lines.push(`Серия ${ctx.streak} дней — хорошо, поддержи мотивацию.`);
+  }
+
+  // Scheduled workout today
+  if (ctx.scheduledToday) {
+    lines.push(`Сегодня запланирована тренировка "${ctx.scheduledToday}". Напомни и предложи начать.`);
+  }
+
+  // Nutrition check
+  if (ctx.todayMealsCount === 0) {
+    const hour = new Date().getHours();
+    if (hour >= 10) {
+      lines.push(`Пользователь ещё не записал ни одного приёма пищи сегодня. Если уместно — напомни.`);
+    }
+  }
+
+  // Body weight trend
+  if (ctx.bodyWeightTrend === 'down') {
+    lines.push(`Вес снижается — если цель похудение, похвали прогресс.`);
+  } else if (ctx.bodyWeightTrend === 'up') {
+    lines.push(`Вес растёт — если цель набор массы, отметь прогресс. Если похудение — деликатно предложи корректировку.`);
+  }
+
+  // New PRs
+  if (ctx.newPRs.length > 0) {
+    lines.push(`🎉 Недавние рекорды: ${ctx.newPRs.join(', ')}. Обязательно поздравь!`);
+  }
+
+  // Recovery warning
+  if (ctx.recoveryScore < 50) {
+    lines.push(`⚠️ Восстановление ${ctx.recoveryScore}% — предложи лёгкую тренировку или день отдыха.`);
+  }
+
+  // Deload
+  if (ctx.deloadNeeded) {
+    lines.push(`Нужна разгрузочная неделя — мягко предложи deload.`);
+  }
+
+  lines.push(`Будь кратким (3-5 предложений), дружелюбным и проактивным. НЕ перечисляй все пункты подряд — выбери 2-3 самых важных.`);
+
+  return `\n\n## 🤝 ИНСТРУКЦИЯ ДЛЯ ПРИВЕТСТВИЯ\n${lines.join('\n')}`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
