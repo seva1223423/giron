@@ -97,6 +97,39 @@ const FOOD_DB = [
   { name: 'Мёд', calories: 304, protein: 0.8, fats: 0, carbs: 82 },
   { name: 'Шоколад тёмный 70%', calories: 598, protein: 7.8, fats: 43, carbs: 46 },
   { name: 'Шоколад молочный', calories: 550, protein: 6.9, fats: 35, carbs: 52 },
+  // Спортивное питание
+  { name: 'Протеин казеиновый', calories: 370, protein: 76, fats: 4, carbs: 6 },
+  { name: 'Гейнер', calories: 380, protein: 20, fats: 3, carbs: 70 },
+  { name: 'Протеиновый батончик', calories: 370, protein: 30, fats: 12, carbs: 35 },
+  { name: 'Изолят сывороточного белка', calories: 360, protein: 85, fats: 1, carbs: 5 },
+  { name: 'Яичный протеин', calories: 365, protein: 78, fats: 2, carbs: 7 },
+  // Готовые блюда
+  { name: 'Куриная грудка варёная', calories: 137, protein: 27, fats: 3, carbs: 0 },
+  { name: 'Куриная грудка запечённая', calories: 167, protein: 28, fats: 5, carbs: 1 },
+  { name: 'Куриная грудка тушёная', calories: 144, protein: 26, fats: 4, carbs: 1 },
+  { name: 'Котлета домашняя', calories: 230, protein: 15, fats: 16, carbs: 8 },
+  { name: 'Пельмени варёные', calories: 245, protein: 11, fats: 10, carbs: 29 },
+  { name: 'Борщ со сметаной', calories: 55, protein: 2.5, fats: 3, carbs: 5 },
+  { name: 'Окрошка на кефире', calories: 38, protein: 2.2, fats: 1.5, carbs: 3.5 },
+  { name: 'Гречка с куриной грудкой', calories: 130, protein: 14, fats: 2, carbs: 15 },
+  { name: 'Рис с курицей', calories: 140, protein: 13, fats: 2.5, carbs: 17 },
+  { name: 'Овсянка с бананом', calories: 110, protein: 3.5, fats: 2, carbs: 21 },
+  // Молочные продукты
+  { name: 'Сырок творожный глазированный', calories: 330, protein: 8, fats: 20, carbs: 29 },
+  { name: 'Мороженое пломбир', calories: 230, protein: 3.5, fats: 12, carbs: 27 },
+  { name: 'Кефир 2.5%', calories: 53, protein: 3.2, fats: 2.5, carbs: 4.1 },
+  { name: 'Творог с 5% сметаной', calories: 145, protein: 15, fats: 7, carbs: 3 },
+  // Снеки и сладкое
+  { name: 'Хлебцы гречневые', calories: 330, protein: 12, fats: 3, carbs: 64 },
+  { name: 'Крекеры', calories: 440, protein: 9, fats: 17, carbs: 62 },
+  { name: 'Зефир', calories: 304, protein: 0.8, fats: 0, carbs: 77 },
+  { name: 'Финики', calories: 277, protein: 1.8, fats: 0.2, carbs: 75 },
+  { name: 'Курага', calories: 241, protein: 3.4, fats: 0.4, carbs: 60 },
+  { name: 'Чернослив', calories: 240, protein: 2.3, fats: 0.7, carbs: 57 },
+  // Напитки
+  { name: 'Молоко 1.5%', calories: 46, protein: 3, fats: 1.5, carbs: 4.7 },
+  { name: 'Апельсиновый сок', calories: 45, protein: 0.7, fats: 0.2, carbs: 10 },
+  { name: 'Томатный сок', calories: 21, protein: 1, fats: 0.1, carbs: 4.2 },
 ];
 
 export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
