@@ -54,12 +54,17 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = ({ navigation }) 
     const weightVal = parseFloat(weight) || 75;
     const ageVal = parseInt(age) || 25;
 
+    const dateOfBirth = ageVal > 0
+      ? new Date(new Date().getFullYear() - ageVal, 0, 1).toISOString()
+      : undefined;
+
     updateProfile({
       gender: gender || undefined,
       heightCm: heightVal,
       weightKg: weightVal,
       goal: goal || undefined,
       fitnessLevel: level || undefined,
+      dateOfBirth,
     });
 
     // Calculate TDEE (Mifflin-St Jeor) and set initial nutrition targets

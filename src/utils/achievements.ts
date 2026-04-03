@@ -116,9 +116,9 @@ function workoutsThisMonth(history: Workout[]): number {
 }
 
 // ─── SQUAT / BENCH / DEADLIFT exercise IDs ────────────────────────────────────
-const SQUAT_IDS = ['squat', 'front-squat', 'hack-squat', 'box-squat'];
+const SQUAT_IDS = ['squat', 'hack-squat'];
 const BENCH_IDS = ['bench-press', 'incline-bench-press', 'close-grip-bench'];
-const DEADLIFT_IDS = ['deadlift', 'romanian-deadlift', 'sumo-deadlift'];
+const DEADLIFT_IDS = ['deadlift', 'romanian-deadlift'];
 const BIG3_IDS = [...SQUAT_IDS, ...BENCH_IDS, ...DEADLIFT_IDS];
 
 // ─── Achievement Definitions ──────────────────────────────────────────────────

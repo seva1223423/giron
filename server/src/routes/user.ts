@@ -41,6 +41,10 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
     if (data.dateOfBirth) {
       data.dateOfBirth = new Date(data.dateOfBirth);
     }
+    // Normalize enum fields to uppercase for Prisma
+    if (data.goal) data.goal = String(data.goal).toUpperCase();
+    if (data.fitnessLevel) data.fitnessLevel = String(data.fitnessLevel).toUpperCase();
+    if (data.gender) data.gender = String(data.gender).toUpperCase();
 
     const user = await prisma.user.update({
       where: { id: req.userId },

@@ -36,7 +36,10 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   const { user } = useAuthStore();
 
   const [gender, setGender] = useState<'male' | 'female'>(user?.gender === 'female' ? 'female' : 'male');
-  const [age, setAge] = useState(user?.age ? String(user.age) : '28');
+  const userAge = user?.dateOfBirth
+    ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+    : null;
+  const [age, setAge] = useState(userAge ? String(userAge) : '28');
   const [weight, setWeight] = useState(user?.weightKg ? String(user.weightKg) : '80');
   const [height, setHeight] = useState(user?.heightCm ? String(user.heightCm) : '175');
   const [activityLevel, setActivityLevel] = useState('moderate');
