@@ -15,6 +15,7 @@ import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { Meal, NutritionItem } from '../../types';
+import { scheduleNutritionSummaryReminder } from '../../services/notificationService';
 
 // Common foods database (per 100g)
 const FOOD_DB = [
@@ -213,6 +214,21 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
 
     addMeal(today, meal);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Update evening nutrition summary notification (only for today)
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (today === todayStr) {
+      const dayLog = dailyLog[today];
+      const alreadyEaten = dayLog?.meals.reduce((s, m) => s + m.totalCalories, 0) ?? 0;
+      const alreadyProtein = dayLog?.meals.reduce((s, m) => s + m.totalProtein, 0) ?? 0;
+      const calTarget = dayLog?.targetCalories || 2000;
+      const protTarget = dayLog?.targetProtein || 150;
+      scheduleNutritionSummaryReminder(
+        calTarget > 0 ? (alreadyEaten + item.calories) / calTarget : 0,
+        protTarget > 0 ? (alreadyProtein + item.protein) / protTarget : 0,
+      ).catch(() => {});
+    }
+
     navigation.goBack();
   };
 

@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore, useAuthStore, useWorkoutStore } from '../../store';
+import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { computeAchievements } from '../../utils/achievements';
 
 const GOAL_LABELS: Record<string, string> = {
   WEIGHT_LOSS: 'Похудение', weight_loss: 'Похудение',
@@ -26,6 +27,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const { colors } = useThemeStore();
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
+  const { dailyLog } = useNutritionStore();
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
 
   const lifetimeStats = useMemo(() => {
     if (workoutHistory.length === 0) return null;
@@ -75,6 +78,28 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
     return { totalTonnage, totalMinutes, bestStreak, topExercise, avgPerWeek };
   }, [workoutHistory]);
+
+  const achievements = useMemo(() => {
+    const nutritionDaysLogged = Object.values(dailyLog).filter((d) => d.meals.length > 0).length;
+    // Compute current streak
+    const sortedDates = workoutHistory
+      .filter((w) => w.completedAt)
+      .map((w) => w.completedAt!.split('T')[0])
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort((a, b) => b.localeCompare(a));
+    let currentStreak = 0;
+    const today = new Date();
+    for (let i = 0; i < sortedDates.length; i++) {
+      const expected = new Date(today);
+      expected.setDate(today.getDate() - i);
+      if (sortedDates[i] === expected.toISOString().split('T')[0]) currentStreak++;
+      else break;
+    }
+    return computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak });
+  }, [workoutHistory, dailyLog]);
+
+  const unlockedAchievements = achievements.filter((a) => a.unlocked);
+  const inProgressAchievements = achievements.filter((a) => !a.unlocked && (a.progress ?? 0) > 0);
 
   const handleLogout = () => {
     Alert.alert('Выйти из аккаунта?', '', [
@@ -179,6 +204,89 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </Card>
         </FadeIn>
       )}
+
+      {/* Achievements */}
+      <FadeIn delay={180}>
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+            <View>
+              <Text style={[typography.h4, { color: colors.text }]}>Достижения</Text>
+              <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                {unlockedAchievements.length} / {achievements.length} разблокировано
+              </Text>
+            </View>
+            {(inProgressAchievements.length > 0 || unlockedAchievements.length > 0) && (
+              <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowAllAchievements((v) => !v); }}>
+                <Text style={[typography.smallMedium, { color: colors.primary }]}>
+                  {showAllAchievements ? 'Свернуть' : 'Все'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Unlocked badges grid */}
+          {unlockedAchievements.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: inProgressAchievements.length > 0 ? spacing.lg : 0 }}>
+              {(showAllAchievements ? unlockedAchievements : unlockedAchievements.slice(0, 8)).map((a) => (
+                <TouchableOpacity
+                  key={a.id}
+                  onPress={() => Alert.alert(`${a.emoji} ${a.title}`, a.description)}
+                  style={[styles.achievementBadge, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}
+                >
+                  <Text style={{ fontSize: 22 }}>{a.emoji}</Text>
+                  <Text style={[typography.caption, { color: colors.primary, marginTop: 4, textAlign: 'center' }]} numberOfLines={2}>
+                    {a.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              {!showAllAchievements && unlockedAchievements.length > 8 && (
+                <TouchableOpacity
+                  onPress={() => setShowAllAchievements(true)}
+                  style={[styles.achievementBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                >
+                  <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>+{unlockedAchievements.length - 8}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* In-progress achievements */}
+          {showAllAchievements && inProgressAchievements.length > 0 && (
+            <View>
+              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+                В ПРОЦЕССЕ
+              </Text>
+              {inProgressAchievements.slice(0, 4).map((a) => (
+                <View key={a.id} style={{ marginBottom: spacing.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                      <Text style={{ fontSize: 18 }}>{a.emoji}</Text>
+                      <Text style={[typography.small, { color: colors.text }]}>{a.title}</Text>
+                    </View>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]}>{a.progressLabel}</Text>
+                  </View>
+                  <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.border }}>
+                    <View
+                      style={{
+                        height: 4,
+                        borderRadius: 2,
+                        width: `${Math.round((a.progress ?? 0) * 100)}%` as any,
+                        backgroundColor: colors.primary + '80',
+                      }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {unlockedAchievements.length === 0 && inProgressAchievements.length === 0 && (
+            <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', paddingVertical: spacing.md }]}>
+              Заверши первую тренировку — разблокируй первое достижение 🎯
+            </Text>
+          )}
+        </Card>
+      </FadeIn>
 
       {/* Personal info */}
       <Card style={{ marginBottom: spacing.lg }}>
@@ -296,6 +404,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     marginBottom: spacing.xxl,
+  },
+  achievementBadge: {
+    width: 68,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: 4,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
   },
   statItem: { alignItems: 'center' },
   statDivider: { width: 1, height: 30 },
