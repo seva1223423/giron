@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useSubscriptionStore } from '../../store';
@@ -49,25 +50,33 @@ const PLANS = [
 export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { isPremiumActive, activatePremium, deactivatePremium, markTrialUsed, trialUsed } = useSubscriptionStore();
+  const { isPremiumActive, syncWithBackend, activateOnBackend, cancelOnBackend, trialUsed } = useSubscriptionStore();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const [loading, setLoading] = useState(false);
   const isActivePro = isPremiumActive();
 
-  const handleSubscribe = () => {
+  useEffect(() => {
+    syncWithBackend();
+  }, []);
+
+  const handleSubscribe = async () => {
     haptic.success();
-    // TODO: Integrate RevenueCat / ЮKassa for real payment processing
-    // For now: activate premium locally as a demo/trial
-    const daysToAdd = trialUsed ? (selectedPlan === 'annual' ? 365 : 30) : 7;
-    const expiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
-    activatePremium(expiresAt);
-    markTrialUsed();
-    Alert.alert(
-      '🎉 Iron Gym Pro активирован!',
-      trialUsed
-        ? `Подписка активна на ${daysToAdd} дней`
-        : 'Пробный период 7 дней активирован. Все функции Pro открыты!',
-      [{ text: 'Отлично!', onPress: () => navigation.goBack() }]
-    );
+    setLoading(true);
+    try {
+      const durationDays = trialUsed ? (selectedPlan === 'annual' ? 365 : 30) : 7;
+      await activateOnBackend('pro', durationDays);
+      Alert.alert(
+        'Iron Gym Pro активирован!',
+        trialUsed
+          ? `Подписка активна на ${durationDays} дней`
+          : 'Пробный период 7 дней активирован. Все функции Pro открыты!',
+        [{ text: 'Отлично!', onPress: () => navigation.goBack() }]
+      );
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось активировать подписку');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancelPremium = () => {
@@ -79,17 +88,36 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
         {
           text: 'Отменить',
           style: 'destructive',
-          onPress: () => {
-            deactivatePremium();
-            Alert.alert('Подписка отменена', 'Доступ к Pro будет до конца оплаченного периода.');
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const result = await cancelOnBackend();
+              Alert.alert('Подписка отменена', result.message || 'Доступ к Pro будет до конца оплаченного периода.');
+            } catch (e: any) {
+              Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отменить подписку');
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ]
     );
   };
 
-  const handleRestore = () => {
-    Alert.alert('Восстановление покупок', 'Предыдущие покупки не найдены.');
+  const handleRestore = async () => {
+    setLoading(true);
+    try {
+      await syncWithBackend();
+      const isNowPremium = useSubscriptionStore.getState().isPremiumActive();
+      Alert.alert(
+        isNowPremium ? 'Подписка восстановлена!' : 'Покупки не найдены',
+        isNowPremium ? 'Ваша Pro-подписка активна.' : 'Активных подписок не найдено.',
+      );
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось восстановить покупки');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -289,6 +317,12 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
           </Text>
         </FadeIn>
       </ScrollView>
+
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      )}
     </View>
   );
 };
@@ -359,5 +393,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.xl,
     borderWidth: 1,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

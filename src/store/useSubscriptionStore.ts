@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../services/api';
 
 const FREE_AI_MESSAGES_PER_DAY = 10;
 const FREE_FOOD_SCANS_PER_DAY = 5;
@@ -12,6 +13,8 @@ function todayDateStr(): string {
 interface SubscriptionStore {
   isPremium: boolean;
   premiumExpiresAt: string | null; // ISO date string
+  plan: string | null; // 'free' | 'pro' | 'trainer' | 'club'
+  status: string | null; // 'active' | 'cancelled' | 'expired'
   trialUsed: boolean;
 
   // Daily usage counters (reset each day)
@@ -24,6 +27,11 @@ interface SubscriptionStore {
   activatePremium: (expiresAt: string) => void;
   deactivatePremium: () => void;
   markTrialUsed: () => void;
+
+  // Backend sync
+  syncWithBackend: () => Promise<void>;
+  activateOnBackend: (plan: 'pro' | 'trainer' | 'club', durationDays: number) => Promise<void>;
+  cancelOnBackend: () => Promise<{ message?: string }>;
 
   // Counters — return true if allowed, false if limit exceeded
   canSendAiMessage: () => boolean;
@@ -42,6 +50,8 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
     (set, get) => ({
       isPremium: false,
       premiumExpiresAt: null,
+      plan: null,
+      status: null,
       trialUsed: false,
 
       aiMessagesUsedToday: 0,
@@ -53,9 +63,45 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
         set({ isPremium: true, premiumExpiresAt: expiresAt, trialUsed: true }),
 
       deactivatePremium: () =>
-        set({ isPremium: false, premiumExpiresAt: null }),
+        set({ isPremium: false, premiumExpiresAt: null, plan: null, status: null }),
 
       markTrialUsed: () => set({ trialUsed: true }),
+
+      syncWithBackend: async () => {
+        try {
+          const { data } = await api.get('/subscription/status');
+          set({
+            isPremium: data.isPremium,
+            premiumExpiresAt: data.expiresAt || null,
+            plan: data.plan || null,
+            status: data.status || null,
+            trialUsed: data.plan !== 'free',
+          });
+        } catch (e) {
+          console.error('Sync subscription error:', e);
+        }
+      },
+
+      activateOnBackend: async (plan, durationDays) => {
+        const { data } = await api.post('/subscription/activate', { plan, durationDays });
+        set({
+          isPremium: data.isPremium,
+          premiumExpiresAt: data.expiresAt || null,
+          plan: data.plan,
+          status: data.status,
+          trialUsed: true,
+        });
+      },
+
+      cancelOnBackend: async () => {
+        const { data } = await api.post('/subscription/cancel');
+        set({
+          isPremium: data.isPremium,
+          premiumExpiresAt: data.expiresAt || null,
+          status: data.status,
+        });
+        return { message: data.message };
+      },
 
       isPremiumActive: () => {
         const { isPremium, premiumExpiresAt } = get();
@@ -126,6 +172,8 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
       partialize: (state) => ({
         isPremium: state.isPremium,
         premiumExpiresAt: state.premiumExpiresAt,
+        plan: state.plan,
+        status: state.status,
         trialUsed: state.trialUsed,
         aiMessagesUsedToday: state.aiMessagesUsedToday,
         aiMessagesDate: state.aiMessagesDate,

@@ -7,6 +7,7 @@ import { workoutRouter } from './routes/workout';
 import { nutritionRouter } from './routes/nutrition';
 import { aiRouter } from './routes/ai';
 import { newsRouter } from './routes/news';
+import { subscriptionRouter } from './routes/subscription';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 
 dotenv.config();
@@ -30,6 +31,7 @@ app.use('/api/workouts', workoutRouter);
 app.use('/api/nutrition', nutritionRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/subscription', subscriptionRouter);
 
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
