@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import Anthropic from '@anthropic-ai/sdk';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { chat as ollamaChat, analyzeImage, generate as ollamaGenerate, OllamaTool, OllamaMessage } from '../services/localAI';
 import {
   TRAINING_PRINCIPLES,
   NUTRITION_KNOWLEDGE,
@@ -32,10 +32,6 @@ import {
 
 const router = Router();
 const prisma = new PrismaClient();
-
-const getAnthropicClient = () => {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-};
 
 const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тренер мирового уровня в приложении Iron Gym. Ты сочетаешь глубокие научные знания с практическим опытом лучших тренеров мира.
 
@@ -194,256 +190,286 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, персональный ИИ-тре
 4. Предложи альтернативные упражнения, не нагружающие проблемную зону
 5. Дай упражнения на реабилитацию/укрепление (если уместно)`;
 
-// AI tools that Iron Coach can call to modify user data
-const AI_TOOLS: Anthropic.Tool[] = [
+// ─── AI Tools (OpenAI/Ollama format) ─────────────────────────────────────────
+const AI_TOOLS: OllamaTool[] = [
   {
-    name: 'update_user_profile',
-    description: 'Обновить профиль пользователя. Используй когда пользователь сообщает новый вес тела, рост, хочет изменить цель тренировок или уровень подготовки. Можно обновлять одно или несколько полей.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        weightKg: { type: 'number', description: 'Вес тела в кг' },
-        heightCm: { type: 'number', description: 'Рост в см' },
-        goal: {
-          type: 'string',
-          enum: ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'],
-          description: 'Тренировочная цель',
-        },
-        fitnessLevel: {
-          type: 'string',
-          enum: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'],
-          description: 'Уровень подготовки',
-        },
-      },
-    },
-  },
-  {
-    name: 'log_body_weight',
-    description: 'Записать замер веса тела. Используй когда пользователь сообщает свой текущий вес. Автоматически также обновляет вес в профиле.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        weightKg: { type: 'number', description: 'Вес тела в кг' },
-        date: { type: 'string', description: 'Дата в формате YYYY-MM-DD (по умолчанию сегодня)' },
-      },
-      required: ['weightKg'],
-    },
-  },
-  {
-    name: 'create_workout',
-    description: 'Создать тренировку и добавить её в план пользователя. Используй когда составляешь конкретную тренировку по запросу. Упражнения ищутся по названию в базе данных.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'Название тренировки (например "День ног", "Верх тела A", "Full Body")' },
-        exercises: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              exerciseName: { type: 'string', description: 'Название упражнения на русском или английском' },
-              sets: { type: 'number', description: 'Количество подходов' },
-              reps: { type: 'number', description: 'Количество повторений' },
-              weight: { type: 'number', description: 'Вес в кг (если применимо)' },
-              restSeconds: { type: 'number', description: 'Отдых между подходами в секундах' },
-            },
-            required: ['exerciseName', 'sets', 'reps'],
+    type: 'function',
+    function: {
+      name: 'update_user_profile',
+      description: 'Обновить профиль пользователя. Используй когда пользователь сообщает новый вес тела, рост, хочет изменить цель тренировок или уровень подготовки. Можно обновлять одно или несколько полей.',
+      parameters: {
+        type: 'object',
+        properties: {
+          weightKg: { type: 'number', description: 'Вес тела в кг' },
+          heightCm: { type: 'number', description: 'Рост в см' },
+          goal: {
+            type: 'string',
+            enum: ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'],
+            description: 'Тренировочная цель',
           },
-          description: 'Список упражнений тренировки',
+          fitnessLevel: {
+            type: 'string',
+            enum: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'],
+            description: 'Уровень подготовки',
+          },
         },
       },
-      required: ['name', 'exercises'],
     },
   },
   {
-    name: 'create_program',
-    description: 'Создать полноценную программу тренировок с несколькими тренировочными днями. Используй когда пользователь просит составить программу (Пуш/Пул/Ноги, Верх/Низ, 5x5, Full Body и т.д.). Создаёт программу и все входящие в неё тренировки за один вызов. После создания программы вызови set_weekly_plan для расстановки тренировок по дням.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'Название программы (например "Толчок-Тяга-Ноги", "Верх/Низ A/B", "Стартовая сила")' },
-        description: { type: 'string', description: 'Краткое описание программы и её логики' },
-        type: {
-          type: 'string',
-          enum: ['push_pull_legs', 'upper_lower', 'full_body', 'bro_split', 'custom'],
-          description: 'Тип сплита',
+    type: 'function',
+    function: {
+      name: 'log_body_weight',
+      description: 'Записать замер веса тела. Используй когда пользователь сообщает свой текущий вес. Автоматически также обновляет вес в профиле.',
+      parameters: {
+        type: 'object',
+        properties: {
+          weightKg: { type: 'number', description: 'Вес тела в кг' },
+          date: { type: 'string', description: 'Дата в формате YYYY-MM-DD (по умолчанию сегодня)' },
         },
-        goal: {
-          type: 'string',
-          enum: ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'],
-          description: 'Основная цель программы',
+        required: ['weightKg'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_workout',
+      description: 'Создать тренировку и добавить её в план пользователя. Используй когда составляешь конкретную тренировку по запросу. Упражнения ищутся по названию в базе данных.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Название тренировки (например "День ног", "Верх тела A", "Full Body")' },
+          exercises: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                exerciseName: { type: 'string', description: 'Название упражнения на русском или английском' },
+                sets: { type: 'number', description: 'Количество подходов' },
+                reps: { type: 'number', description: 'Количество повторений' },
+                weight: { type: 'number', description: 'Вес в кг (если применимо)' },
+                restSeconds: { type: 'number', description: 'Отдых между подходами в секундах' },
+              },
+              required: ['exerciseName', 'sets', 'reps'],
+            },
+            description: 'Список упражнений тренировки',
+          },
         },
-        level: {
-          type: 'string',
-          enum: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'],
-          description: 'Уровень подготовки',
-        },
-        daysPerWeek: { type: 'number', description: 'Количество тренировок в неделю (2-6)' },
-        workouts: {
-          type: 'array',
-          description: 'Тренировочные дни программы',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', description: 'Название дня (например "День A — Толчок", "Верх тела", "День ног")' },
-              exercises: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    exerciseName: { type: 'string', description: 'Название упражнения на русском или английском' },
-                    sets: { type: 'number', description: 'Количество подходов' },
-                    reps: { type: 'number', description: 'Количество повторений' },
-                    weight: { type: 'number', description: 'Вес в кг (если применимо)' },
-                    restSeconds: { type: 'number', description: 'Отдых между подходами в секундах' },
+        required: ['name', 'exercises'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_program',
+      description: 'Создать полноценную программу тренировок с несколькими тренировочными днями. Используй когда пользователь просит составить программу (Пуш/Пул/Ноги, Верх/Низ, 5x5, Full Body и т.д.). Создаёт программу и все входящие в неё тренировки за один вызов. После создания программы вызови set_weekly_plan для расстановки тренировок по дням.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Название программы (например "Толчок-Тяга-Ноги", "Верх/Низ A/B", "Стартовая сила")' },
+          description: { type: 'string', description: 'Краткое описание программы и её логики' },
+          type: {
+            type: 'string',
+            enum: ['push_pull_legs', 'upper_lower', 'full_body', 'bro_split', 'custom'],
+            description: 'Тип сплита',
+          },
+          goal: {
+            type: 'string',
+            enum: ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'],
+            description: 'Основная цель программы',
+          },
+          level: {
+            type: 'string',
+            enum: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'],
+            description: 'Уровень подготовки',
+          },
+          daysPerWeek: { type: 'number', description: 'Количество тренировок в неделю (2-6)' },
+          workouts: {
+            type: 'array',
+            description: 'Тренировочные дни программы',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Название дня (например "День A — Толчок", "Верх тела", "День ног")' },
+                exercises: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      exerciseName: { type: 'string', description: 'Название упражнения на русском или английском' },
+                      sets: { type: 'number', description: 'Количество подходов' },
+                      reps: { type: 'number', description: 'Количество повторений' },
+                      weight: { type: 'number', description: 'Вес в кг (если применимо)' },
+                      restSeconds: { type: 'number', description: 'Отдых между подходами в секундах' },
+                    },
+                    required: ['exerciseName', 'sets', 'reps'],
                   },
-                  required: ['exerciseName', 'sets', 'reps'],
                 },
               },
+              required: ['name', 'exercises'],
             },
-            required: ['name', 'exercises'],
           },
         },
+        required: ['name', 'type', 'goal', 'level', 'daysPerWeek', 'workouts'],
       },
-      required: ['name', 'type', 'goal', 'level', 'daysPerWeek', 'workouts'],
     },
   },
   {
-    name: 'update_nutrition_targets',
-    description: 'Установить дневные нормы КБЖУ пользователя. Используй когда рассчитываешь TDEE и макросы по запросу или когда пользователь просит изменить нормы питания. Рассчитай точные значения на основе профиля и цели, затем вызови этот инструмент.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        calories: { type: 'number', description: 'Дневная норма калорий в ккал' },
-        protein: { type: 'number', description: 'Дневная норма белка в граммах' },
-        fats: { type: 'number', description: 'Дневная норма жиров в граммах' },
-        carbs: { type: 'number', description: 'Дневная норма углеводов в граммах' },
-      },
-      required: ['calories', 'protein', 'fats', 'carbs'],
-    },
-  },
-  {
-    name: 'log_water',
-    description: 'Записать выпитую воду в дневник пользователя. Используй когда пользователь сообщает что выпил воду или другой напиток (чай, кофе считаются). 1 стакан ≈ 250 мл, 1 бутылка ≈ 500 мл.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        ml: { type: 'number', description: 'Количество воды в миллилитрах' },
-      },
-      required: ['ml'],
-    },
-  },
-  {
-    name: 'delete_meal',
-    description: 'Удалить приём пищи из дневника питания. Используй когда пользователь хочет отменить или удалить ранее записанный приём пищи (например "удали завтрак", "убери последний перекус", "я не ел это"). ID приёма берётся из контекста питания сегодня.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        mealId: { type: 'string', description: 'ID приёма пищи из списка "ПИТАНИЕ СЕГОДНЯ"' },
-      },
-      required: ['mealId'],
-    },
-  },
-  {
-    name: 'modify_workout',
-    description: 'Изменить существующую тренировку в плане: убрать упражнение, добавить упражнение, или обновить подходы/веса. Используй когда: пользователь просит сделать тренировку легче/тяжелее, убрать упражнение (болит что-то), добавить подход/упражнение, изменить нагрузку. Тренировки ищутся в активном плане пользователя.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        workoutName: {
-          type: 'string',
-          description: 'Название тренировки для поиска (например "День ног"). Если не указано — используется последняя тренировка в активном плане.',
+    type: 'function',
+    function: {
+      name: 'update_nutrition_targets',
+      description: 'Установить дневные нормы КБЖУ пользователя. Используй когда рассчитываешь TDEE и макросы по запросу или когда пользователь просит изменить нормы питания. Рассчитай точные значения на основе профиля и цели, затем вызови этот инструмент.',
+      parameters: {
+        type: 'object',
+        properties: {
+          calories: { type: 'number', description: 'Дневная норма калорий в ккал' },
+          protein: { type: 'number', description: 'Дневная норма белка в граммах' },
+          fats: { type: 'number', description: 'Дневная норма жиров в граммах' },
+          carbs: { type: 'number', description: 'Дневная норма углеводов в граммах' },
         },
-        action: {
-          type: 'string',
-          enum: ['remove_exercise', 'add_exercise', 'update_exercise'],
-          description: 'remove_exercise — убрать упражнение из тренировки; add_exercise — добавить новое упражнение; update_exercise — изменить подходы/повторения/веса существующего упражнения',
+        required: ['calories', 'protein', 'fats', 'carbs'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_water',
+      description: 'Записать выпитую воду в дневник пользователя. Используй когда пользователь сообщает что выпил воду или другой напиток (чай, кофе считаются). 1 стакан ≈ 250 мл, 1 бутылка ≈ 500 мл.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ml: { type: 'number', description: 'Количество воды в миллилитрах' },
         },
-        exerciseName: {
-          type: 'string',
-          description: 'Название упражнения на русском или английском',
+        required: ['ml'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_meal',
+      description: 'Удалить приём пищи из дневника питания. Используй когда пользователь хочет отменить или удалить ранее записанный приём пищи (например "удали завтрак", "убери последний перекус", "я не ел это"). ID приёма берётся из контекста питания сегодня.',
+      parameters: {
+        type: 'object',
+        properties: {
+          mealId: { type: 'string', description: 'ID приёма пищи из списка "ПИТАНИЕ СЕГОДНЯ"' },
         },
-        sets: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              reps: { type: 'number', description: 'Повторения' },
-              weight: { type: 'number', description: 'Вес в кг' },
-            },
-            required: ['reps'],
+        required: ['mealId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'modify_workout',
+      description: 'Изменить существующую тренировку в плане: убрать упражнение, добавить упражнение, или обновить подходы/веса. Используй когда: пользователь просит сделать тренировку легче/тяжелее, убрать упражнение (болит что-то), добавить подход/упражнение, изменить нагрузку. Тренировки ищутся в активном плане пользователя.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workoutName: {
+            type: 'string',
+            description: 'Название тренировки для поиска (например "День ног"). Если не указано — используется последняя тренировка в активном плане.',
           },
-          description: 'Новые подходы для update_exercise или add_exercise. Пример: [{reps:8,weight:60},{reps:8,weight:60},{reps:6,weight:60}]',
-        },
-        weightMultiplier: {
-          type: 'number',
-          description: 'Для update_exercise: множитель веса для всех подходов (0.8 = −20%, 0.9 = −10%, 1.1 = +10%). Используй если нужно просто сделать легче/тяжелее без ручного задания весов.',
-        },
-        restSeconds: {
-          type: 'number',
-          description: 'Для add_exercise: отдых между подходами в секундах (по умолчанию 90)',
-        },
-      },
-      required: ['action', 'exerciseName'],
-    },
-  },
-  {
-    name: 'set_weekly_plan',
-    description: 'Установить расписание тренировок на неделю. Используй когда составляешь программу и хочешь сразу распределить тренировки по дням недели. Укажи для каждого дня (0=Пн, 1=Вт, ... 6=Вс) название тренировки и список упражнений. Тренировочные дни должны чередоваться с днями отдыха.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        schedule: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              dayIndex: { type: 'number', description: '0=Понедельник, 1=Вторник, 2=Среда, 3=Четверг, 4=Пятница, 5=Суббота, 6=Воскресенье' },
-              workoutName: { type: 'string', description: 'Название тренировки, например "День ног", "Грудь + Трицепс"' },
-              emoji: { type: 'string', description: 'Эмодзи для тренировки (например 🏋️, 💪, 🦵)' },
-              exerciseNames: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'Список названий упражнений на русском',
+          action: {
+            type: 'string',
+            enum: ['remove_exercise', 'add_exercise', 'update_exercise'],
+            description: 'remove_exercise — убрать упражнение из тренировки; add_exercise — добавить новое упражнение; update_exercise — изменить подходы/повторения/веса существующего упражнения',
+          },
+          exerciseName: {
+            type: 'string',
+            description: 'Название упражнения на русском или английском',
+          },
+          sets: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                reps: { type: 'number', description: 'Повторения' },
+                weight: { type: 'number', description: 'Вес в кг' },
               },
+              required: ['reps'],
             },
-            required: ['dayIndex', 'workoutName', 'exerciseNames'],
+            description: 'Новые подходы для update_exercise или add_exercise. Пример: [{reps:8,weight:60},{reps:8,weight:60},{reps:6,weight:60}]',
           },
-          description: 'Расписание по дням. Указывай только тренировочные дни, не указывай дни отдыха.',
+          weightMultiplier: {
+            type: 'number',
+            description: 'Для update_exercise: множитель веса для всех подходов (0.8 = −20%, 0.9 = −10%, 1.1 = +10%). Используй если нужно просто сделать легче/тяжелее без ручного задания весов.',
+          },
+          restSeconds: {
+            type: 'number',
+            description: 'Для add_exercise: отдых между подходами в секундах (по умолчанию 90)',
+          },
         },
+        required: ['action', 'exerciseName'],
       },
-      required: ['schedule'],
     },
   },
   {
-    name: 'log_meal',
-    description: 'Записать приём пищи в дневник питания пользователя. Используй когда пользователь сообщает что поел или просит записать еду. Рассчитай КБЖУ для каждого продукта на основе указанного веса. Если вес не указан — используй стандартную порцию.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        mealType: {
-          type: 'string',
-          enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-          description: 'Тип приёма пищи: breakfast (завтрак), lunch (обед), dinner (ужин), snack (перекус)',
-        },
-        items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', description: 'Название продукта' },
-              weightGrams: { type: 'number', description: 'Вес порции в граммах' },
-              calories: { type: 'number', description: 'Калорийность данной порции в ккал' },
-              protein: { type: 'number', description: 'Белки данной порции в граммах' },
-              fats: { type: 'number', description: 'Жиры данной порции в граммах' },
-              carbs: { type: 'number', description: 'Углеводы данной порции в граммах' },
+    type: 'function',
+    function: {
+      name: 'set_weekly_plan',
+      description: 'Установить расписание тренировок на неделю. Используй когда составляешь программу и хочешь сразу распределить тренировки по дням недели. Укажи для каждого дня (0=Пн, 1=Вт, ... 6=Вс) название тренировки и список упражнений. Тренировочные дни должны чередоваться с днями отдыха.',
+      parameters: {
+        type: 'object',
+        properties: {
+          schedule: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                dayIndex: { type: 'number', description: '0=Понедельник, 1=Вторник, 2=Среда, 3=Четверг, 4=Пятница, 5=Суббота, 6=Воскресенье' },
+                workoutName: { type: 'string', description: 'Название тренировки, например "День ног", "Грудь + Трицепс"' },
+                emoji: { type: 'string', description: 'Эмодзи для тренировки (например 🏋️, 💪, 🦵)' },
+                exerciseNames: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Список названий упражнений на русском',
+                },
+              },
+              required: ['dayIndex', 'workoutName', 'exerciseNames'],
             },
-            required: ['name', 'weightGrams', 'calories', 'protein', 'fats', 'carbs'],
+            description: 'Расписание по дням. Указывай только тренировочные дни, не указывай дни отдыха.',
           },
-          description: 'Список продуктов в приёме пищи с КБЖУ',
         },
+        required: ['schedule'],
       },
-      required: ['mealType', 'items'],
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_meal',
+      description: 'Записать приём пищи в дневник питания пользователя. Используй когда пользователь сообщает что поел или просит записать еду. Рассчитай КБЖУ для каждого продукта на основе указанного веса. Если вес не указан — используй стандартную порцию.',
+      parameters: {
+        type: 'object',
+        properties: {
+          mealType: {
+            type: 'string',
+            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+            description: 'Тип приёма пищи: breakfast (завтрак), lunch (обед), dinner (ужин), snack (перекус)',
+          },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Название продукта' },
+                weightGrams: { type: 'number', description: 'Вес порции в граммах' },
+                calories: { type: 'number', description: 'Калорийность данной порции в ккал' },
+                protein: { type: 'number', description: 'Белки данной порции в граммах' },
+                fats: { type: 'number', description: 'Жиры данной порции в граммах' },
+                carbs: { type: 'number', description: 'Углеводы данной порции в граммах' },
+              },
+              required: ['name', 'weightGrams', 'calories', 'protein', 'fats', 'carbs'],
+            },
+            description: 'Список продуктов в приёме пищи с КБЖУ',
+          },
+        },
+        required: ['mealType', 'items'],
+      },
     },
   },
 ];
@@ -1670,8 +1696,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       data: { role: 'user', content: message, userId },
     });
 
-    // Build conversation messages
-    const messages: Anthropic.MessageParam[] = history
+    // Build conversation messages (history + current message)
+    const messages: OllamaMessage[] = history
       .reverse()
       .map((m) => ({
         role: m.role as 'user' | 'assistant',
@@ -1681,63 +1707,54 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     const { content: knowledgeContent, topics: relevantTopics } = getRelevantKnowledge(message);
 
-    const systemBlocks: Anthropic.TextBlockParam[] = [
-      { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-      ...(knowledgeContent ? [{ type: 'text' as const, text: knowledgeContent }] : []),
-      { type: 'text', text: `${userContext}\n${programContext}\n${statsContext}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}` },
-    ];
+    const systemPrompt = [
+      SYSTEM_PROMPT,
+      knowledgeContent,
+      `${userContext}\n${programContext}\n${statsContext}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+    ].filter(Boolean).join('\n\n---\n\n');
 
-    const anthropic = getAnthropicClient();
     const performedActions: Array<{ type: string; description: string; data?: Record<string, unknown> }> = [];
 
-    // First API call — may include tool_use
-    let response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      system: systemBlocks,
-      tools: AI_TOOLS,
+    // First Ollama call — may include tool_calls
+    let result = await ollamaChat({
+      system: systemPrompt,
       messages,
+      tools: AI_TOOLS,
     });
 
     // Agentic loop: process tool calls until we get a final text response
-    while (response.stop_reason === 'tool_use') {
-      const toolUseBlocks = response.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-      );
+    while (result.hasToolCalls) {
+      // Append assistant's tool-call message
+      messages.push({
+        role: 'assistant',
+        content: result.content || '',
+        tool_calls: result.toolCalls.map((tc) => ({
+          function: { name: tc.name, arguments: tc.arguments },
+        })),
+      });
 
-      // Execute all tool calls
-      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
-        toolUseBlocks.map(async (block) => {
-          const { resultText, actionDescription, actionData } = await executeTool(
-            block.name,
-            block.input as Record<string, unknown>,
-            userId,
-          );
-          if (actionDescription) {
-            performedActions.push({ type: block.name, description: actionDescription, data: actionData });
-          }
-          return {
-            type: 'tool_result' as const,
-            tool_use_id: block.id,
-            content: resultText,
-          };
-        }),
-      );
+      // Execute all tool calls and append results
+      for (const tc of result.toolCalls) {
+        const { resultText, actionDescription, actionData } = await executeTool(
+          tc.name,
+          tc.arguments,
+          userId,
+        );
+        if (actionDescription) {
+          performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
+        }
+        messages.push({ role: 'tool', content: resultText });
+      }
 
-      // Continue conversation with tool results
-      messages.push({ role: 'assistant', content: response.content });
-      messages.push({ role: 'user', content: toolResults });
-
-      response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system: systemBlocks,
-        tools: AI_TOOLS,
+      // Continue conversation
+      result = await ollamaChat({
+        system: systemPrompt,
         messages,
+        tools: AI_TOOLS,
       });
     }
 
-    const aiContent = response.content.find((b) => b.type === 'text')?.text ?? '';
+    const aiContent = result.content;
 
     // Save AI response with actions
     await prisma.chatMessage.create({
@@ -1768,22 +1785,7 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       ? `Пользователь: ${user.gender === 'MALE' ? 'мужчина' : user.gender === 'FEMALE' ? 'женщина' : ''}, ${user.weightKg ? `вес ${user.weightKg} кг` : ''}, цель: ${user.goal || 'не указана'}.`
       : '';
 
-    const anthropic = getAnthropicClient();
-
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 },
-            },
-            {
-              type: 'text',
-              text: `Ты — эксперт-нутрициолог. Проанализируй фото еды максимально точно.
+    const prompt = `Ты — эксперт-нутрициолог. Проанализируй фото еды максимально точно.
 
 ${userInfo}
 
@@ -1812,14 +1814,9 @@ ${userInfo}
   ]
 }
 
-Только JSON, без комментариев и пояснений.`,
-            },
-          ],
-        },
-      ],
-    });
+Только JSON, без комментариев и пояснений.`;
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    const text = await analyzeImage(imageBase64, prompt);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return res.status(500).json({ error: 'Не удалось распознать еду' });
@@ -1892,14 +1889,7 @@ ${exerciseSummaries}
 
 Ответ строго на русском. Никаких заголовков — просто текст. Структура: 1) что было хорошо, 2) на что обратить внимание, 3) мотивирующий итог.`;
 
-    const anthropic = getAnthropicClient();
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const text = await ollamaGenerate(prompt, { maxTokens: 512, temperature: 0.7 });
     res.json({ insights: text });
   } catch (e) {
     console.error('Workout insights error:', e);
