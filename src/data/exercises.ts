@@ -588,6 +588,7 @@ export const exercises: Exercise[] = [
     type: 'cardio',
     category: 'cardio',
     difficulty: 'beginner',
+    youtubeId: 'lj0TICZ_Xpc',
   },
   {
     id: 'cycling',
@@ -599,6 +600,7 @@ export const exercises: Exercise[] = [
     type: 'cardio',
     category: 'cardio',
     difficulty: 'beginner',
+    youtubeId: 'LRx5PXqFkaw',
   },
   {
     id: 'elliptical',
@@ -610,6 +612,7 @@ export const exercises: Exercise[] = [
     type: 'cardio',
     category: 'cardio',
     difficulty: 'beginner',
+    youtubeId: 'MvBo7m5WRSA',
   },
   {
     id: 'jump-rope',
@@ -621,6 +624,7 @@ export const exercises: Exercise[] = [
     type: 'cardio',
     category: 'cardio',
     difficulty: 'beginner',
+    youtubeId: 'FJmRQ5iTXKE',
   },
   {
     id: 'rowing-machine',
@@ -632,6 +636,7 @@ export const exercises: Exercise[] = [
     type: 'cardio',
     category: 'cardio',
     difficulty: 'beginner',
+    youtubeId: 'H0r5FNLEt3I',
   },
 
   // ============ CABLE / MACHINE ISOLATION ============
