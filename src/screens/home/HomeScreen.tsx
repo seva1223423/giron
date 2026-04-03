@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
+import { userService } from '../../services/userService';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { Card, ProgressRing, MacroBar, FadeIn } from '../../components';
@@ -62,8 +63,32 @@ function getDailyQuote() {
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout } = useWorkoutStore();
+
+  const [weightModalVisible, setWeightModalVisible] = useState(false);
+  const [weightInput, setWeightInput] = useState('');
+  const [savingWeight, setSavingWeight] = useState(false);
+
+  const handleLogWeight = async () => {
+    const kg = parseFloat(weightInput.replace(',', '.'));
+    if (!kg || kg < 20 || kg > 400) {
+      Alert.alert('Некорректный вес', 'Введите вес от 20 до 400 кг');
+      return;
+    }
+    setSavingWeight(true);
+    try {
+      await userService.addWeight(kg);
+      if (user) setUser({ ...user, weightKg: kg });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setWeightModalVisible(false);
+      setWeightInput('');
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось сохранить вес');
+    } finally {
+      setSavingWeight(false);
+    }
+  };
   const { getDayLog } = useNutritionStore();
 
   // Sync data from server on mount
@@ -737,6 +762,65 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </Card>
       </FadeIn>
 
+      {/* Body weight quick-log */}
+      <FadeIn delay={390}>
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={[typography.h4, { color: colors.text }]}>Вес тела</Text>
+              <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                {user?.weightKg ? `${user.weightKg} кг` : 'Не записано'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => { Haptics.selectionAsync(); setWeightInput(user?.weightKg ? String(user.weightKg) : ''); setWeightModalVisible(true); }}
+              style={[styles.logWeightBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
+            >
+              <Text style={[typography.buttonSmall, { color: colors.primary }]}>⚖️ Записать</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+      </FadeIn>
+
+      {/* Weight log modal */}
+      <Modal visible={weightModalVisible} transparent animationType="fade" onRequestClose={() => setWeightModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.sm }]}>Вес тела</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
+              Введите текущий вес для отслеживания прогресса
+            </Text>
+            <View style={[styles.weightInputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <TextInput
+                value={weightInput}
+                onChangeText={setWeightInput}
+                keyboardType="decimal-pad"
+                placeholder="80.5"
+                placeholderTextColor={colors.textTertiary}
+                style={[typography.h2, { color: colors.text, textAlign: 'center', flex: 1 }]}
+                autoFocus
+              />
+              <Text style={[typography.body, { color: colors.textSecondary }]}>кг</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
+              <TouchableOpacity
+                onPress={() => setWeightModalVisible(false)}
+                style={[styles.modalBtn, { backgroundColor: colors.surface, flex: 1 }]}
+              >
+                <Text style={[typography.buttonMedium, { color: colors.textSecondary }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleLogWeight}
+                disabled={savingWeight}
+                style={[styles.modalBtn, { backgroundColor: colors.primary, flex: 1, opacity: savingWeight ? 0.7 : 1 }]}
+              >
+                <Text style={[typography.buttonMedium, { color: '#fff' }]}>{savingWeight ? 'Сохраняю...' : 'Сохранить'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* AI tip */}
       <FadeIn delay={400}>
         <Card
@@ -843,5 +927,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+  },
+  logWeightBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+  },
+  weightInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  modalBtn: {
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
   },
 });
