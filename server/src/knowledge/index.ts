@@ -14,9 +14,18 @@ import { ADVANCED_TECHNIQUES_KNOWLEDGE as ADVANCED_TECHNIQUES } from './advanced
 import { SUPPLEMENTS_DETAILED_KNOWLEDGE as SUPPLEMENTS_DETAILED } from './supplementsDetailed';
 import { WOMENS_PROGRAMMING } from './womensProgramming';
 import { CUTTING_BULKING } from './cuttingBulking';
+import { NUTRITION_DATABASE } from './nutritionDatabase';
+import { SUPPLEMENTS_ENCYCLOPEDIA } from './supplementsEncyclopedia';
+import { SPORTS_SPECIFIC } from './sportsSpecific';
+import { COMBAT_SPORTS } from './combatSports';
+import { ENDURANCE_SPORTS } from './enduranceSports';
+import { INJURY_AND_REHAB } from './injuryAndRehab';
+import { HORMONES_AND_HEALTH } from './hormonesAndHealth';
+import { FLEXIBILITY_MOBILITY } from './flexibilityMobility';
+import { RUSSIAN_SPORTS_SCHOOL } from './russianSportsSchool';
 
 /**
- * Complete AI Trainer Knowledge Base — 16 Modules
+ * Complete AI Trainer Knowledge Base — 25 Modules
  *
  * Compiled from peer-reviewed research and authoritative sources:
  *
@@ -109,6 +118,15 @@ export const FULL_KNOWLEDGE_BASE = [
   SUPPLEMENTS_DETAILED,
   WOMENS_PROGRAMMING,
   CUTTING_BULKING,
+  NUTRITION_DATABASE,
+  SUPPLEMENTS_ENCYCLOPEDIA,
+  SPORTS_SPECIFIC,
+  COMBAT_SPORTS,
+  ENDURANCE_SPORTS,
+  INJURY_AND_REHAB,
+  HORMONES_AND_HEALTH,
+  FLEXIBILITY_MOBILITY,
+  RUSSIAN_SPORTS_SCHOOL,
 ].join('\n\n---\n\n');
 
 export {
@@ -128,4 +146,13 @@ export {
   SUPPLEMENTS_DETAILED,
   WOMENS_PROGRAMMING,
   CUTTING_BULKING,
+  NUTRITION_DATABASE,
+  SUPPLEMENTS_ENCYCLOPEDIA,
+  SPORTS_SPECIFIC,
+  COMBAT_SPORTS,
+  ENDURANCE_SPORTS,
+  INJURY_AND_REHAB,
+  HORMONES_AND_HEALTH,
+  FLEXIBILITY_MOBILITY,
+  RUSSIAN_SPORTS_SCHOOL,
 };
