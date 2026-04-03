@@ -8,6 +8,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { NutritionItem, Meal } from '../../types';
 import { aiService, getApiError } from '../../services';
+import { scheduleNutritionSummaryReminder } from '../../services/notificationService';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
 
@@ -181,22 +182,43 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     );
   }, [itemBases]);
 
+  const removeItem = useCallback((id: string) => {
+    setRecognizedItems((prev) => prev.filter((item) => item.id !== id));
+    setItemBases((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
   const handleSave = () => {
     if (recognizedItems.length === 0) return;
+
+    const totalCal = recognizedItems.reduce((s, i) => s + i.calories, 0);
+    const totalProt = recognizedItems.reduce((s, i) => s + i.protein, 0);
 
     const meal: Meal = {
       id: `meal-${Date.now()}`,
       type: mealType,
       items: recognizedItems,
       photoUrl: imageUri || undefined,
-      totalCalories: recognizedItems.reduce((s, i) => s + i.calories, 0),
-      totalProtein: recognizedItems.reduce((s, i) => s + i.protein, 0),
+      totalCalories: totalCal,
+      totalProtein: totalProt,
       totalFats: recognizedItems.reduce((s, i) => s + i.fats, 0),
       totalCarbs: recognizedItems.reduce((s, i) => s + i.carbs, 0),
       createdAt: new Date().toISOString(),
     };
 
     addMeal(today, meal);
+
+    // Update nutrition summary notification for today
+    const calTarget = dayLog.targetCalories || 2000;
+    const protTarget = dayLog.targetProtein || 150;
+    scheduleNutritionSummaryReminder(
+      calTarget > 0 ? (alreadyEaten + totalCal) / calTarget : 0,
+      protTarget > 0 ? (dayLog.meals.reduce((s, m) => s + m.totalProtein, 0) + totalProt) / protTarget : 0,
+    ).catch(() => {});
+
     navigation.goBack();
   };
 
@@ -331,6 +353,14 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
                 <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}>{item.name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={() => removeItem(item.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <View style={[styles.deleteItemBtn, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
+                      <Text style={{ fontSize: 12, color: colors.error, fontWeight: '700' }}>✕</Text>
+                    </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
                       const base = itemBases[item.id];
@@ -583,5 +613,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
+  },
+  deleteItemBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
