@@ -17,12 +17,36 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
 import { Exercise, Workout, WorkoutExercise, WorkoutSet } from '../../types';
 
+const MUSCLE_LABEL_MAP: Record<string, string> = {
+  chest: 'Грудь',
+  back: 'Спина',
+  lats: 'Широчайшие',
+  lower_back: 'Нижняя спина',
+  shoulders: 'Плечи',
+  traps: 'Трапеции',
+  biceps: 'Бицепс',
+  triceps: 'Трицепс',
+  forearms: 'Предплечья',
+  quadriceps: 'Квадрицепс',
+  hamstrings: 'Задняя поверхность',
+  glutes: 'Ягодицы',
+  calves: 'Икры',
+  abs: 'Пресс',
+  obliques: 'Косые мышцы',
+  hip_flexors: 'Сгибатели бедра',
+  full_body: 'Всё тело',
+};
+
+const getMuscleLabel = (key: string) => MUSCLE_LABEL_MAP[key] || key;
+
 const CREATE_MUSCLE_OPTIONS = [
   { key: 'chest', label: 'Грудь' }, { key: 'back', label: 'Спина' },
   { key: 'shoulders', label: 'Плечи' }, { key: 'biceps', label: 'Бицепс' },
-  { key: 'triceps', label: 'Трицепс' }, { key: 'quadriceps', label: 'Ноги' },
-  { key: 'abs', label: 'Пресс' }, { key: 'glutes', label: 'Ягодицы' },
-  { key: 'calves', label: 'Икры' }, { key: 'full_body', label: 'Всё тело' },
+  { key: 'triceps', label: 'Трицепс' }, { key: 'quadriceps', label: 'Квадрицепс' },
+  { key: 'hamstrings', label: 'Задняя поверхность' }, { key: 'glutes', label: 'Ягодицы' },
+  { key: 'abs', label: 'Пресс' }, { key: 'calves', label: 'Икры' },
+  { key: 'lats', label: 'Широчайшие' }, { key: 'traps', label: 'Трапеции' },
+  { key: 'full_body', label: 'Всё тело' },
 ];
 
 const CREATE_EQUIPMENT_OPTIONS = [
@@ -528,7 +552,7 @@ export const CustomWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
                   )}
                 </View>
                 <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                  {ex.primaryMuscles.join(', ')}
+                  {ex.primaryMuscles.map(getMuscleLabel).join(', ')}
                 </Text>
               </View>
               <View style={[
