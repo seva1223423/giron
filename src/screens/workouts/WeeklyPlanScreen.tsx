@@ -27,7 +27,7 @@ const TEMPLATES: WeekPlanEntry[] = [
   { name: 'Фулбоди', emoji: '⚡', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
   { name: 'Кардио', emoji: '🏃', exercises: [] },
   { name: 'Тяжёлая спина', emoji: '🏋️', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups'] },
-  { name: 'Руки', emoji: '💪', exercises: ['barbell-curl', 'hammer-curl', 'tricep-pushdown', 'skull-crushers'] },
+  { name: 'Руки', emoji: '💪', exercises: ['barbell-curl', 'hammer-curl', 'tricep-pushdown', 'french-press'] },
 ];
 
 export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
