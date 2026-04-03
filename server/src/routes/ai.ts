@@ -1637,4 +1637,64 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
   }
 });
 
+// Post-workout AI insights — fast, targeted analysis of a completed session
+router.post('/workout-insights', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { workout } = req.body as {
+      workout: {
+        name: string;
+        durationMinutes: number;
+        exercises: Array<{
+          name: string;
+          sets: Array<{ weight?: number; reps?: number; completed?: boolean; rpe?: number }>;
+        }>;
+        totalVolume?: number;
+        notes?: string;
+      };
+    };
+
+    if (!workout) return res.status(400).json({ error: 'Данные тренировки обязательны' });
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    // Build a compact workout summary
+    const exerciseSummaries = workout.exercises.map((ex) => {
+      const done = ex.sets.filter((s) => s.completed !== false && (s.weight || s.reps));
+      const avgRpe = done.filter((s) => s.rpe).length > 0
+        ? (done.reduce((sum, s) => sum + (s.rpe ?? 0), 0) / done.filter((s) => s.rpe).length).toFixed(1)
+        : null;
+      const best = done.reduce((b, s) => (!b || (s.weight || 0) > (b.weight || 0) ? s : b), done[0]);
+      return `${ex.name}: ${done.length} подходов${best ? `, лучший ${best.weight} кг × ${best.reps} повт.` : ''}${avgRpe ? `, RPE ${avgRpe}` : ''}`;
+    }).join('\n');
+
+    const userGoal = user?.goal ? { WEIGHT_LOSS: 'похудение', MUSCLE_GAIN: 'набор массы', STRENGTH: 'сила', ENDURANCE: 'выносливость', FLEXIBILITY: 'гибкость', GENERAL_FITNESS: 'общая форма' }[user.goal] ?? user.goal : null;
+
+    const prompt = `Дай краткий профессиональный анализ тренировки (2-3 абзаца, максимум 200 слов). Будь конкретным и мотивирующим.
+
+ТРЕНИРОВКА: ${workout.name}
+Длительность: ${workout.durationMinutes} мин | Объём: ${Math.round(workout.totalVolume || 0)} кг
+Атлет: ${user?.firstName || 'неизвестен'}, цель — ${userGoal || 'не указана'}
+${workout.notes ? `Заметки атлета: "${workout.notes}"` : ''}
+
+УПРАЖНЕНИЯ:
+${exerciseSummaries}
+
+Ответ строго на русском. Никаких заголовков — просто текст. Структура: 1) что было хорошо, 2) на что обратить внимание, 3) мотивирующий итог.`;
+
+    const anthropic = getAnthropicClient();
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 512,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    res.json({ insights: text });
+  } catch (e) {
+    console.error('Workout insights error:', e);
+    res.status(500).json({ error: 'Не удалось получить анализ' });
+  }
+});
+
 export { router as aiRouter };

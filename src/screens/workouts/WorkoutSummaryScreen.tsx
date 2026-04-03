@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Share, Platform, Animated, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
@@ -9,6 +9,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { Workout } from '../../types';
 import { computeAchievements, getNewlyUnlocked } from '../../utils/achievements';
+import { aiService } from '../../services/aiService';
 
 const PR_EMOJIS = ['🏆', '🎉', '⭐', '💪', '🔥', '✨', '🥇', '💫'];
 const PARTICLE_COUNT = 18;
@@ -76,6 +77,8 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   const [rating, setRating] = useState<number>(workout?.rating ?? 0);
   const [sessionNote, setSessionNote] = useState<string>(workout?.notes ?? '');
   const shareCardRef = useRef<View>(null);
+  const [insights, setInsights] = useState<string | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
   // Detect new personal records: compare this workout's 1RM per exercise vs history
   const newPRs = useMemo(() => {
@@ -152,6 +155,31 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [newPRs.length, newAchievements.length]);
+
+  useEffect(() => {
+    if (!workout) return;
+    const fetchInsights = async () => {
+      setLoadingInsights(true);
+      try {
+        const result = await aiService.getWorkoutInsights({
+          name: workout.name,
+          durationMinutes: workout.durationMinutes || 0,
+          totalVolume: workout.totalVolume,
+          notes: workout.notes,
+          exercises: workout.exercises.map((ex) => ({
+            name: ex.exercise.name,
+            sets: ex.sets.map((s) => ({ weight: s.weight, reps: s.reps, completed: s.completed, rpe: s.rpe })),
+          })),
+        });
+        setInsights(result);
+      } catch {
+        // Silently fail — insights are non-critical
+      } finally {
+        setLoadingInsights(false);
+      }
+    };
+    fetchInsights();
+  }, [workout?.id]);
 
   if (!workout) {
     navigation.goBack();
@@ -499,6 +527,26 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
           </FadeIn>
         );
       })()}
+
+      {/* AI Iron Coach Insights */}
+      {(loadingInsights || insights) && (
+        <FadeIn delay={610}>
+          <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: spacing.sm }}>
+              <Text style={{ fontSize: 22 }}>🤖</Text>
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>АНАЛИЗ IRON COACH</Text>
+            </View>
+            {loadingInsights ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[typography.small, { color: colors.textSecondary }]}>Анализирую тренировку...</Text>
+              </View>
+            ) : (
+              <Text style={[typography.body, { color: colors.text, lineHeight: 22 }]}>{insights}</Text>
+            )}
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Workout rating */}
       <FadeIn delay={620}>

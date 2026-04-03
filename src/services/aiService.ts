@@ -40,4 +40,18 @@ export const aiService = {
     const { data } = await api.get('/ai/history');
     return data;
   },
+
+  async getWorkoutInsights(workout: {
+    name: string;
+    durationMinutes: number;
+    totalVolume?: number;
+    notes?: string;
+    exercises: Array<{
+      name: string;
+      sets: Array<{ weight?: number; reps?: number; completed?: boolean; rpe?: number }>;
+    }>;
+  }): Promise<string> {
+    const { data } = await api.post('/ai/workout-insights', { workout });
+    return data.insights as string;
+  },
 };
