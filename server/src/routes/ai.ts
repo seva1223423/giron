@@ -2673,6 +2673,62 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 65: Seasonal training advisor ──────
     const seasonalContext = getSeasonalAdvice();
 
+    // ─── Block 66: Multi-goal conflict detector ──────
+    // Determine training focus from recent exercises (use recentWorkouts which has exercise data)
+    let trainingFocus: 'strength' | 'hypertrophy' | 'cardio' | 'mixed' | null = null;
+    if (recentWorkouts.length > 0) {
+      const allCategories = recentWorkouts.flatMap((w) => w.exercises.map((e) => e.exercise.category));
+      const strengthCount = allCategories.filter((c) => c === 'strength').length;
+      const cardioCount = allCategories.filter((c) => c === 'cardio').length;
+      if (cardioCount > strengthCount) trainingFocus = 'cardio';
+      else if (strengthCount > 0) trainingFocus = 'strength';
+      else trainingFocus = 'mixed';
+    }
+    // Avg calories from recent meals
+    const recentMealsAll = await prisma.meal.findMany({
+      where: { userId, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      select: { totalCalories: true },
+    });
+    const avgCalories = recentMealsAll.length > 0
+      ? recentMealsAll.reduce((s, m) => s + m.totalCalories, 0) / Math.max(recentMealsAll.length / 3, 1) // per day estimate
+      : null;
+    // Body weight trend
+    let bwTrendForGoal: 'up' | 'down' | 'stable' | null = null;
+    if (bodyWeightHistory.length >= 3) {
+      const last3 = bodyWeightHistory.slice(0, 3).map((bw) => bw.weightKg);
+      const delta = last3[0] - last3[2];
+      if (delta > 0.3) bwTrendForGoal = 'up';
+      else if (delta < -0.3) bwTrendForGoal = 'down';
+      else bwTrendForGoal = 'stable';
+    }
+    const goalConflictContext = detectGoalConflicts(user?.goal || null, bwTrendForGoal, avgCalories, trainingFocus);
+
+    // ─── Block 67: Workout density calculator ──────
+    const workoutDensityContext = calculateWorkoutDensity(
+      recentWorkouts.map((w) => ({ name: w.name, totalVolume: w.totalVolume, durationMinutes: w.durationMinutes })),
+    );
+
+    // ─── Block 68: Personalized rep range advisor ──────
+    const estimatedTrainingYears = user?.trainingExperienceYears || 0;
+    const repRangeContext = getRepRangeAdvice(
+      user?.goal || null,
+      estimatedTrainingYears,
+      periodizationAdvice.currentPhase,
+    );
+
+    // ─── Block 69: Training split recommender ──────
+    const splitRecommendationContext = recommendSplit(
+      activeProgram?.daysPerWeek || plannedDays,
+      user?.goal || null,
+      estimatedTrainingYears,
+      muscleRecoveryStatuses,
+    );
+
+    // ─── Block 70: AI response language enforcer ──────
+    const languageEnforcerContext = buildLanguageEnforcer(
+      rawMessages.slice(-6).map((m) => ({ role: m.role, content: m.content || '' })),
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2766,7 +2822,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -2818,6 +2874,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'prPrediction', content: prPredictionContext, relevantIntents: new Set(['workout', 'motivation']), priority: 3 },
         { name: 'durationOptimizer', content: durationOptimizerContext, relevantIntents: new Set(['workout']), priority: 3 },
         { name: 'seasonal', content: seasonalContext, relevantIntents: new Set(['nutrition', 'workout', 'greeting']), priority: 3 },
+        { name: 'goalConflict', content: goalConflictContext, relevantIntents: new Set(['*']), priority: 1 },
+        { name: 'workoutDensity', content: workoutDensityContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'repRange', content: repRangeContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'splitRec', content: splitRecommendationContext, relevantIntents: new Set(['program_creation']), priority: 2 },
+        { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
       ];
@@ -6402,6 +6463,256 @@ function getSeasonalAdvice(): string {
   return `\n\n## 🗓️ СЕЗОННЫЕ РЕКОМЕНДАЦИИ
 ${lines.slice(0, 3).join('\n')}
 → Учитывай при составлении программ и советах по питанию.`;
+}
+
+// ─── Block 66: Multi-Goal Conflict Detector ─────────────────────────────────
+// Warn when user's stated goals conflict with their actual behavior
+
+function detectGoalConflicts(
+  userGoal: string | null,
+  bodyWeightTrend: 'up' | 'down' | 'stable' | null,
+  avgCalories: number | null,
+  trainingFocus: 'strength' | 'hypertrophy' | 'cardio' | 'mixed' | null,
+): string {
+  if (!userGoal) return '';
+
+  const conflicts: string[] = [];
+
+  if (userGoal === 'WEIGHT_LOSS') {
+    if (bodyWeightTrend === 'up') {
+      conflicts.push('⚠️ Цель: похудение, но вес растёт. Проверь дефицит калорий — возможно, слишком много калорий.');
+    }
+    if (avgCalories && avgCalories > 2500) {
+      conflicts.push('⚠️ Цель: похудение, но среднее потребление ~' + Math.round(avgCalories) + ' ккал — многовато для дефицита.');
+    }
+    if (trainingFocus === 'strength') {
+      conflicts.push('💡 Цель: похудение, но фокус на силу. Добавь кардио и увеличь объём (больше повторений, меньше отдых).');
+    }
+  }
+
+  if (userGoal === 'MUSCLE_GAIN') {
+    if (bodyWeightTrend === 'down') {
+      conflicts.push('⚠️ Цель: набор массы, но вес снижается. Увеличь калорийность на 300-500 ккал.');
+    }
+    if (avgCalories && avgCalories < 1800) {
+      conflicts.push('⚠️ Цель: набор массы, но среднее ~' + Math.round(avgCalories) + ' ккал — слишком мало для роста.');
+    }
+    if (trainingFocus === 'cardio') {
+      conflicts.push('💡 Цель: набор массы, но много кардио. Фокусируйся на силовых, кардио — 2-3 раза в неделю по 20 мин.');
+    }
+  }
+
+  if (userGoal === 'STRENGTH') {
+    if (trainingFocus === 'hypertrophy') {
+      conflicts.push('💡 Цель: сила, но тренировки в стиле гипертрофии (10-15 повторений). Переходи на 3-6 повторений с тяжёлыми весами.');
+    }
+  }
+
+  if (conflicts.length === 0) return '';
+
+  return `\n\n## 🎯 КОНФЛИКТЫ ЦЕЛИ И ДЕЙСТВИЙ
+${conflicts.join('\n')}
+→ Деликатно укажи на противоречия и предложи конкретные корректировки.`;
+}
+
+// ─── Block 67: Workout Density Calculator ───────────────────────────────────
+// Volume per minute — key metric for training quality
+
+function calculateWorkoutDensity(
+  recentWorkouts: Array<{
+    name: string;
+    totalVolume: number | null;
+    durationMinutes: number | null;
+  }>,
+): string {
+  const valid = recentWorkouts
+    .filter((w) => w.totalVolume && w.totalVolume > 0 && w.durationMinutes && w.durationMinutes > 0)
+    .map((w) => ({
+      name: w.name,
+      density: (w.totalVolume || 0) / (w.durationMinutes || 1),
+      volume: w.totalVolume || 0,
+      duration: w.durationMinutes || 0,
+    }));
+
+  if (valid.length < 2) return '';
+
+  const avgDensity = valid.reduce((s, w) => s + w.density, 0) / valid.length;
+  const best = valid.reduce((a, b) => (a.density > b.density ? a : b));
+  const worst = valid.reduce((a, b) => (a.density < b.density ? a : b));
+
+  // Trend
+  let trend = '';
+  if (valid.length >= 4) {
+    const recent = valid.slice(0, 2).reduce((s, w) => s + w.density, 0) / 2;
+    const older = valid.slice(-2).reduce((s, w) => s + w.density, 0) / 2;
+    if (recent > older * 1.1) trend = '📈 Плотность растёт — ты работаешь эффективнее!';
+    else if (recent < older * 0.85) trend = '📉 Плотность падает — больше пауз или легче веса.';
+  }
+
+  return `\n\n## 📐 ПЛОТНОСТЬ ТРЕНИРОВОК
+Средняя: ${Math.round(avgDensity)} кг/мин
+Лучшая: "${best.name}" (${Math.round(best.density)} кг/мин)
+${worst.name !== best.name ? `Слабая: "${worst.name}" (${Math.round(worst.density)} кг/мин)` : ''}
+${trend}
+→ Чем выше плотность (при сохранении техники) — тем эффективнее тренировка.`;
+}
+
+// ─── Block 68: Personalized Rep Range Advisor ───────────────────────────────
+// Optimal rep ranges based on goal + experience + current phase
+
+function getRepRangeAdvice(
+  userGoal: string | null,
+  trainingAge: number,
+  currentPhase: string,
+): string {
+  if (!userGoal) return '';
+
+  interface RepRange { main: string; auxiliary: string; rationale: string }
+  const ranges: Record<string, RepRange> = {
+    STRENGTH: {
+      main: '3-5 повторений @ 85-95% 1RM',
+      auxiliary: '6-8 повторений @ 70-80% 1RM',
+      rationale: 'Тяжёлые подходы развивают максимальную силу (нейромышечная адаптация)',
+    },
+    MUSCLE_GAIN: {
+      main: '8-12 повторений @ 65-75% 1RM',
+      auxiliary: '12-15 повторений @ 55-65% 1RM',
+      rationale: 'Средний диапазон оптимален для гипертрофии (механическое напряжение + метаболический стресс)',
+    },
+    WEIGHT_LOSS: {
+      main: '12-15 повторений @ 55-65% 1RM',
+      auxiliary: '15-20 повторений @ 45-55% 1RM',
+      rationale: 'Высокий объём + короткий отдых = больше калорий сожжено + сохранение мышц',
+    },
+    ENDURANCE: {
+      main: '15-25 повторений @ 40-55% 1RM',
+      auxiliary: '25-30+ повторений или время под нагрузкой',
+      rationale: 'Длительная нагрузка развивает мышечную выносливость и капиллярную сеть',
+    },
+    GENERAL_FITNESS: {
+      main: '8-15 повторений @ 60-75% 1RM',
+      auxiliary: '6-8 тяжёлых + 15-20 лёгких (чередование)',
+      rationale: 'Широкий диапазон для всестороннего развития',
+    },
+  };
+
+  const range = ranges[userGoal] || ranges.GENERAL_FITNESS;
+
+  // Adjust for training age
+  let modifier = '';
+  if (trainingAge < 1) {
+    modifier = '\n💡 Для новичка: начинай с верхней границы повторений (больше практики техники).';
+  } else if (trainingAge > 5) {
+    modifier = '\n💡 Для опытных: чередуй диапазоны (DUP — разная нагрузка в разные дни недели).';
+  }
+
+  // Adjust for phase
+  let phaseNote = '';
+  if (currentPhase === 'deload') {
+    phaseNote = '\n⚠️ Сейчас деload: работай на 50-60% от обычных весов, фокус на технику.';
+  } else if (currentPhase === 'peaking') {
+    phaseNote = '\n⚡ Фаза peaking: снижай повторения, увеличивай вес. 1-3 повторения для тестов.';
+  }
+
+  return `\n\n## 🔢 РЕКОМЕНДУЕМЫЕ ДИАПАЗОНЫ ПОВТОРЕНИЙ
+Основные: ${range.main}
+Вспомогательные: ${range.auxiliary}
+Почему: ${range.rationale}${modifier}${phaseNote}
+→ Используй при составлении программ и обсуждении подходов.`;
+}
+
+// ─── Block 69: Training Split Recommender ───────────────────────────────────
+// Suggest optimal split based on frequency, recovery, and goal
+
+function recommendSplit(
+  daysPerWeek: number,
+  userGoal: string | null,
+  trainingAge: number,
+  muscleRecovery: MuscleRecoveryStatus[],
+): string {
+  if (daysPerWeek <= 0) return '';
+
+  interface SplitOption { name: string; description: string; schedule: string }
+  const recommendations: SplitOption[] = [];
+
+  if (daysPerWeek <= 2) {
+    recommendations.push({
+      name: 'Full Body',
+      description: '2 тренировки всё тело — оптимально при низкой частоте',
+      schedule: 'Пн: Full Body A, Чт: Full Body B',
+    });
+  } else if (daysPerWeek === 3) {
+    if (trainingAge < 2) {
+      recommendations.push({
+        name: 'Full Body 3x',
+        description: 'Новичкам лучше полное тело 3 раза — больше практики базовых движений',
+        schedule: 'Пн: Full Body A, Ср: Full Body B, Пт: Full Body C',
+      });
+    } else {
+      recommendations.push({
+        name: 'Push/Pull/Legs',
+        description: 'Классический PPL — каждая мышечная группа 1 раз в неделю',
+        schedule: 'Пн: Push, Ср: Pull, Пт: Legs',
+      });
+    }
+  } else if (daysPerWeek === 4) {
+    recommendations.push({
+      name: 'Upper/Lower',
+      description: 'Верх/Низ 2x — каждая группа 2 раза в неделю, хороший баланс',
+      schedule: 'Пн: Upper, Вт: Lower, Чт: Upper, Пт: Lower',
+    });
+    if (userGoal === 'STRENGTH') {
+      recommendations.push({
+        name: '5/3/1',
+        description: 'Wendler 5/3/1 — проверенная силовая программа с авторегуляцией',
+        schedule: 'Пн: Жим, Вт: Присед, Чт: Жим стоя, Пт: Тяга',
+      });
+    }
+  } else if (daysPerWeek >= 5) {
+    recommendations.push({
+      name: 'PPL 2x',
+      description: 'Push/Pull/Legs дважды в неделю — высокая частота, быстрый прогресс',
+      schedule: 'Пн: Push, Вт: Pull, Ср: Legs, Чт: отдых, Пт: Push, Сб: Pull, Вс: Legs',
+    });
+    if (userGoal === 'MUSCLE_GAIN') {
+      recommendations.push({
+        name: 'Bro Split',
+        description: 'Классический сплит по мышечным группам — максимальный объём на группу',
+        schedule: 'Пн: Грудь, Вт: Спина, Ср: Плечи, Чт: Ноги, Пт: Руки',
+      });
+    }
+  }
+
+  if (recommendations.length === 0) return '';
+
+  const rec = recommendations[0]; // primary recommendation
+  return `\n\n## 📋 РЕКОМЕНДУЕМЫЙ СПЛИТ
+${rec.name}: ${rec.description}
+Расписание: ${rec.schedule}
+${recommendations.length > 1 ? `Альтернатива: ${recommendations[1].name} — ${recommendations[1].description}` : ''}
+→ Предлагай при создании или обсуждении программы.`;
+}
+
+// ─── Block 70: AI Response Language Enforcer ────────────────────────────────
+// Strengthen Russian-only response guarantee in system prompt
+
+function buildLanguageEnforcer(recentMessages: Array<{ role: string; content: string }>): string {
+  // Check if recent AI responses contained English
+  const recentAI = recentMessages.filter((m) => m.role === 'assistant').slice(-3);
+  const hasEnglish = recentAI.some((m) => {
+    const englishWords = (m.content.match(/\b[a-zA-Z]{4,}\b/g) || []).filter(
+      (w) => !['push', 'pull', 'legs', 'full', 'body', 'upper', 'lower', 'rpe', 'rir',
+        'bcaa', 'eaa', 'met', 'epoc', 'dup', 'amrap', 'emom', 'hiit', 'drop', 'super',
+        'set', 'rep', 'max', 'bmi', 'acwr', 'deload', 'rest', 'pause', 'split'].includes(w.toLowerCase())
+    );
+    return englishWords.length > 5;
+  });
+
+  if (hasEnglish) {
+    return '\n\n⚠️ КРИТИЧНО: В предыдущих ответах замечен английский текст. СТРОГО отвечай ТОЛЬКО на русском языке. Англоязычные термины (RPE, AMRAP, HIIT, etc.) допустимы, но предложения и объяснения — ТОЛЬКО по-русски.';
+  }
+
+  return '';
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
