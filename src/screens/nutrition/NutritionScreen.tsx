@@ -6,6 +6,7 @@ import { Card, Button, ProgressRing, MacroBar } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { NutritionItem, Meal } from '../../types';
+import { scheduleNutritionSummaryReminder } from '../../services/notificationService';
 
 function calcSmartTargets(user: { weightKg?: number; heightCm?: number; goal?: string; gender?: string; age?: number } | null) {
   const weight = user?.weightKg || 80;
@@ -171,6 +172,18 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     addMeal(selectedDate, meal);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowQuickAddModal(false);
+
+    // Update tonight's nutrition summary notification (only for today)
+    if (selectedDate === todayDate()) {
+      const newCal = totalCalories + item.calories;
+      const newProt = totalProtein + item.protein;
+      const calTarget = dayLog.targetCalories || 2000;
+      const protTarget = dayLog.targetProtein || 150;
+      scheduleNutritionSummaryReminder(
+        calTarget > 0 ? newCal / calTarget : 0,
+        protTarget > 0 ? newProt / protTarget : 0,
+      ).catch(() => {});
+    }
   };
 
   const handlePrevDay = () => {

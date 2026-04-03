@@ -182,6 +182,53 @@ export async function scheduleWaterReminders(
   }
 }
 
+// Schedule a daily nutrition summary notification at 21:00
+// Shows how calories/protein tracking went that day
+export async function scheduleNutritionSummaryReminder(
+  caloriesPercent: number, // 0-1+, how close to target
+  proteinPercent: number,
+): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    await Notifications.cancelScheduledNotificationAsync('nutrition-summary').catch(() => {});
+
+    let title: string;
+    let body: string;
+
+    if (caloriesPercent >= 0.85 && caloriesPercent <= 1.1 && proteinPercent >= 0.9) {
+      title = '✅ Отличный день по питанию!';
+      body = 'Ты попал в цель по калориям и белку. Так держать!';
+    } else if (proteinPercent < 0.7) {
+      title = '⚠️ Не добрал белок сегодня';
+      body = `Белка ${Math.round(proteinPercent * 100)}% от нормы. Съешь творог, яйца или выпей протеин.`;
+    } else if (caloriesPercent > 1.15) {
+      title = '📊 Вышел за калории сегодня';
+      body = 'Немного превысил норму. Это не страшно — просто учти завтра.';
+    } else if (caloriesPercent < 0.7) {
+      title = '📉 Мало поел сегодня';
+      body = 'Слишком большой дефицит замедляет восстановление. Не забудь поужинать!';
+    } else {
+      title = '📋 Итог питания за день';
+      body = `Калории: ${Math.round(caloriesPercent * 100)}% · Белок: ${Math.round(proteinPercent * 100)}% от нормы.`;
+    }
+
+    // Schedule for 21:00 today
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'nutrition-summary',
+      content: { title, body, sound: 'default' },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 21,
+        minute: 0,
+      },
+    });
+  } catch {
+    // Silently fail
+  }
+}
+
 export async function cancelWaterReminders(): Promise<void> {
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
