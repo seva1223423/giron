@@ -2548,6 +2548,44 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       thisWeekDuration, prevWeekDuration,
     );
 
+    // ─── Block 51: Exercise technique cues ──────
+    const lastWorkoutExerciseNames = lastCompletedWorkout
+      ? lastCompletedWorkout.exercises.map((e) => e.exercise.name)
+      : [];
+    const techniqueCuesContext = getTechniqueCues(lastWorkoutExerciseNames);
+
+    // ─── Block 52: Sleep quality estimator ──────
+    const sleepQualityContext = estimateSleepQuality(
+      recentWorkouts.map((w) => ({
+        completedAt: w.completedAt,
+        totalVolume: w.totalVolume,
+        durationMinutes: w.durationMinutes,
+      })),
+    );
+
+    // ─── Block 53: Muscle recovery tracker ──────
+    const muscleRecoveryStatuses = trackMuscleRecovery(
+      recentWorkouts.map((w) => ({
+        completedAt: w.completedAt,
+        exercises: w.exercises.map((e) => ({ exercise: { primaryMuscles: e.exercise.primaryMuscles } })),
+      })),
+    );
+    const muscleRecoveryContext = buildMuscleRecoveryContext(muscleRecoveryStatuses);
+
+    // ─── Block 54: Workout streak motivator ──────
+    const streakMotivationContext = buildStreakMotivation(gamification.currentStreak, totalWorkoutsLast30Days * 4); // rough estimate of total
+
+    // ─── Block 55: Training age estimator ──────
+    const avgVolumePerWorkout = weekWorkouts.length > 0 ? thisWeekVolume / weekWorkouts.length : 0;
+    const totalWorkoutsEver = await prisma.workout.count({
+      where: { userId, completedAt: { not: null } },
+    });
+    const trainingAgeContext = estimateTrainingAge(
+      { trainingExperienceYears: user?.trainingExperienceYears, fitnessLevel: user?.fitnessLevel },
+      totalWorkoutsEver,
+      avgVolumePerWorkout,
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -2555,7 +2593,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
     const memoryContext = await getMemoryContext(userId);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, warmup: ${todayMuscles.length > 0}, bodyComp: ${!!bodyCompContext}, supplements: ${!!supplementContext}`);
+    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, muscleRecovery: ${muscleRecoveryStatuses.filter(s => !s.readyToTrain).length} recovering`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -2641,7 +2679,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -2678,6 +2716,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'bodyComp', content: bodyCompContext, relevantIntents: new Set(['nutrition', 'motivation']), priority: 3 },
         { name: 'supplements', content: supplementContext, relevantIntents: new Set(['nutrition', 'health']), priority: 3 },
         { name: 'comparison', content: workoutComparisonContext, relevantIntents: new Set(['workout', 'greeting', 'motivation']), priority: 3 },
+        { name: 'techniqueCues', content: techniqueCuesContext, relevantIntents: new Set(['workout', 'technique_question']), priority: 2 },
+        { name: 'sleepQuality', content: sleepQualityContext, relevantIntents: new Set(['health', 'greeting']), priority: 3 },
+        { name: 'muscleRecovery', content: muscleRecoveryContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'streakMotivation', content: streakMotivationContext, relevantIntents: new Set(['greeting', 'motivation']), priority: 3 },
+        { name: 'trainingAge', content: trainingAgeContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
       ];
@@ -5467,6 +5510,294 @@ function optimizeContext(
   }
 
   return included;
+}
+
+// ─── Block 51: Exercise Technique Cues ──────────────────────────────────────
+// Common form mistakes and cues for popular exercises
+
+const TECHNIQUE_CUES: Record<string, { mistakes: string[]; cues: string[] }> = {
+  'жим лёжа': {
+    mistakes: ['Отрыв таза от скамьи', 'Слишком широкий хват', 'Локти 90° — перегрузка плеча', 'Дожим не до конца'],
+    cues: ['Сведи лопатки и вдави в скамью', 'Локти ~75° к корпусу', 'Опускай на нижнюю часть груди', 'Упирайся ногами в пол'],
+  },
+  'приседания': {
+    mistakes: ['Колени заваливаются внутрь', 'Округление поясницы', 'Недостаточная глубина', 'Перенос веса на носки'],
+    cues: ['Раздвигай пол ногами', 'Грудь вверх, взгляд вперёд', 'Опускайся до параллели или ниже', 'Вес на середину стопы'],
+  },
+  'становая тяга': {
+    mistakes: ['Округление спины', 'Штанга далеко от тела', 'Дёргание руками', 'Переразгибание в верхней точке'],
+    cues: ['Напряги широчайшие — «убери штангу в карманы»', 'Штанга скользит по голеням', 'Руки как верёвки, тяни ногами', 'Встань прямо, без отклона назад'],
+  },
+  'подтягивания': {
+    mistakes: ['Раскачивание корпуса', 'Неполная амплитуда', 'Чрезмерный кип', 'Шея вытягивается к перекладине'],
+    cues: ['Напряги пресс, ноги слегка вперёд', 'Подбородок выше перекладины', 'Лопатки вниз перед подъёмом', 'Тяни локти к бёдрам'],
+  },
+  'жим стоя': {
+    mistakes: ['Чрезмерный прогиб поясницы', 'Широкий хват', 'Штанга уходит вперёд', 'Нет фиксации в верхней точке'],
+    cues: ['Напряги ягодицы и пресс', 'Хват чуть шире плеч', 'Штанга над серединой стопы', 'Полностью выпрями руки вверху'],
+  },
+  'тяга штанги в наклоне': {
+    mistakes: ['Слишком вертикальный корпус', 'Рывки и читинг', 'Округление верха спины', 'Локти расходятся в стороны'],
+    cues: ['Наклон ~45°, спина прямая', 'Контролируй негативную фазу', 'Сведи лопатки в верхней точке', 'Тяни к нижней части живота'],
+  },
+  'выпады': {
+    mistakes: ['Колено выходит за носок', 'Узкая стойка — потеря баланса', 'Наклон корпуса вперёд', 'Неравномерная нагрузка на ноги'],
+    cues: ['Шаг достаточно широкий', 'Корпус вертикально', 'Опускайся до 90° в обоих коленях', 'Вставай через пятку передней ноги'],
+  },
+  'отжимания на брусьях': {
+    mistakes: ['Слишком глубокое опускание', 'Локти расходятся в стороны', 'Раскачивание', 'Сутулость в верхней точке'],
+    cues: ['Опускайся до 90° в локтях', 'Локти направлены назад', 'Скрести ноги, напряги пресс', 'Полностью выпрямляй руки вверху'],
+  },
+};
+
+function getTechniqueCues(exerciseNames: string[]): string {
+  if (exerciseNames.length === 0) return '';
+
+  const cues: string[] = [];
+  for (const name of exerciseNames) {
+    const normalized = name.toLowerCase();
+    for (const [exercise, data] of Object.entries(TECHNIQUE_CUES)) {
+      if (normalized.includes(exercise) || exercise.includes(normalized)) {
+        cues.push(`**${exercise}**: ❌ ${data.mistakes[0]} → ✅ ${data.cues[0]}`);
+        if (cues.length >= 3) break;
+      }
+    }
+    if (cues.length >= 3) break;
+  }
+
+  if (cues.length === 0) return '';
+
+  return `\n\n## 🎯 ТЕХНИКА — ЧАСТЫЕ ОШИБКИ
+${cues.join('\n')}
+→ Упоминай при обсуждении техники или когда пользователь делает эти упражнения.`;
+}
+
+// ─── Block 52: Sleep Quality Estimator ──────────────────────────────────────
+// Infer likely sleep quality from workout performance patterns
+
+function estimateSleepQuality(
+  recentWorkouts: Array<{
+    completedAt: Date | null;
+    totalVolume: number | null;
+    durationMinutes: number | null;
+  }>,
+): string {
+  if (recentWorkouts.length < 3) return '';
+
+  const completedWithTime = recentWorkouts
+    .filter((w) => w.completedAt)
+    .map((w) => ({
+      hour: new Date(w.completedAt!).getHours(),
+      volume: w.totalVolume || 0,
+      duration: w.durationMinutes || 0,
+    }));
+
+  if (completedWithTime.length < 3) return '';
+
+  // Detect late-night training pattern (after 22:00)
+  const lateWorkouts = completedWithTime.filter((w) => w.hour >= 22 || w.hour < 5);
+  const lateRatio = lateWorkouts.length / completedWithTime.length;
+
+  // Detect inconsistent training times (high variance in start hour)
+  const hours = completedWithTime.map((w) => w.hour);
+  const avgHour = hours.reduce((a, b) => a + b, 0) / hours.length;
+  const hourVariance = hours.reduce((sum, h) => sum + Math.pow(h - avgHour, 2), 0) / hours.length;
+
+  // Detect performance dips (declining volume over consecutive workouts)
+  const volumes = completedWithTime.map((w) => w.volume);
+  let consecutiveDeclines = 0;
+  for (let i = 1; i < Math.min(volumes.length, 5); i++) {
+    if (volumes[i - 1] > 0 && volumes[i] < volumes[i - 1] * 0.85) consecutiveDeclines++;
+  }
+
+  const warnings: string[] = [];
+
+  if (lateRatio > 0.3) {
+    warnings.push('🌙 Частые тренировки поздно вечером (>22:00) — могут ухудшать качество сна');
+  }
+  if (hourVariance > 20) {
+    warnings.push('🔀 Сильно «плавающее» время тренировок — нестабильный режим может влиять на сон');
+  }
+  if (consecutiveDeclines >= 2) {
+    warnings.push('📉 Падение объёма в последних тренировках — возможный признак недосыпа');
+  }
+
+  if (warnings.length === 0) return '';
+
+  return `\n\n## 😴 КАЧЕСТВО СНА (косвенная оценка)
+${warnings.join('\n')}
+→ Если уместно, спроси пользователя о режиме сна. Рекомендуй 7-9 часов, стабильный график, тренировки не позже чем за 2ч до сна.`;
+}
+
+// ─── Block 53: Muscle Recovery Tracker ──────────────────────────────────────
+// Estimate per-muscle-group recovery status based on last workout date
+
+interface MuscleRecoveryStatus {
+  muscle: string;
+  hoursSinceTraining: number;
+  status: 'fresh' | 'recovering' | 'recovered' | 'detraining';
+  readyToTrain: boolean;
+}
+
+const RECOVERY_HOURS: Record<string, number> = {
+  chest: 48, back: 48, shoulders: 48, quadriceps: 72,
+  hamstrings: 72, glutes: 48, biceps: 36, triceps: 36,
+  abs: 24, calves: 24, traps: 48, lats: 48,
+  forearms: 24, lower_back: 72,
+};
+
+function trackMuscleRecovery(
+  recentWorkouts: Array<{
+    completedAt: Date | null;
+    exercises: Array<{ exercise: { primaryMuscles: string[] } }>;
+  }>,
+): MuscleRecoveryStatus[] {
+  const muscleLastTrained: Record<string, Date> = {};
+
+  for (const workout of recentWorkouts) {
+    if (!workout.completedAt) continue;
+    const completedDate = new Date(workout.completedAt);
+    for (const ex of workout.exercises) {
+      for (const muscle of ex.exercise.primaryMuscles) {
+        const m = muscle.toLowerCase();
+        if (!muscleLastTrained[m] || completedDate > muscleLastTrained[m]) {
+          muscleLastTrained[m] = completedDate;
+        }
+      }
+    }
+  }
+
+  const now = Date.now();
+  const results: MuscleRecoveryStatus[] = [];
+
+  for (const [muscle, lastDate] of Object.entries(muscleLastTrained)) {
+    const hoursSince = (now - lastDate.getTime()) / (1000 * 60 * 60);
+    const recoveryTime = RECOVERY_HOURS[muscle] || 48;
+
+    let status: MuscleRecoveryStatus['status'];
+    if (hoursSince < 12) status = 'fresh';
+    else if (hoursSince < recoveryTime) status = 'recovering';
+    else if (hoursSince < recoveryTime * 3) status = 'recovered';
+    else status = 'detraining';
+
+    results.push({
+      muscle,
+      hoursSinceTraining: Math.round(hoursSince),
+      status,
+      readyToTrain: hoursSince >= recoveryTime,
+    });
+  }
+
+  return results.sort((a, b) => a.hoursSinceTraining - b.hoursSinceTraining);
+}
+
+function buildMuscleRecoveryContext(statuses: MuscleRecoveryStatus[]): string {
+  if (statuses.length === 0) return '';
+
+  const recovering = statuses.filter((s) => s.status === 'recovering');
+  const recovered = statuses.filter((s) => s.status === 'recovered');
+  const detraining = statuses.filter((s) => s.status === 'detraining');
+
+  const lines: string[] = [];
+  if (recovering.length > 0) {
+    lines.push(`⏳ Восстанавливаются: ${recovering.map((s) => `${s.muscle} (${s.hoursSinceTraining}ч)`).join(', ')}`);
+  }
+  if (recovered.length > 0) {
+    lines.push(`✅ Готовы к тренировке: ${recovered.map((s) => s.muscle).join(', ')}`);
+  }
+  if (detraining.length > 0) {
+    lines.push(`⚠️ Давно не тренированы: ${detraining.map((s) => `${s.muscle} (${Math.round(s.hoursSinceTraining / 24)}д)`).join(', ')}`);
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\n\n## 💪 ВОССТАНОВЛЕНИЕ МЫШЦ
+${lines.join('\n')}
+→ Учитывай при рекомендации тренировки на сегодня. Не предлагай нагружать восстанавливающиеся мышцы.`;
+}
+
+// ─── Block 54: Workout Streak Motivator ─────────────────────────────────────
+// Dynamic motivational context based on current streak and milestones
+
+function buildStreakMotivation(streak: number, totalWorkouts: number): string {
+  if (streak <= 0 && totalWorkouts <= 0) return '';
+
+  const lines: string[] = [];
+
+  // Streak-based motivation
+  if (streak === 0) {
+    lines.push('🔄 Серия прервана. Мотивируй вернуться: «Каждый чемпион пропускал тренировки, но возвращался».');
+  } else if (streak <= 3) {
+    lines.push(`🔥 Серия: ${streak} ${streak === 1 ? 'тренировка' : streak <= 4 ? 'тренировки' : 'тренировок'}. Поддержи: «Отличное начало, продолжай!»`);
+  } else if (streak <= 7) {
+    lines.push(`🔥🔥 Серия: ${streak} тренировок! «Ты на волне! Неделя стабильных тренировок — это серьёзно.»`);
+  } else if (streak <= 14) {
+    lines.push(`🔥🔥🔥 Серия: ${streak} тренировок! «Две недели подряд — привычка формируется. Ты молодец!»`);
+  } else if (streak <= 30) {
+    lines.push(`🏆 Серия: ${streak} тренировок! «Месяц регулярных тренировок — это уже образ жизни!»`);
+  } else {
+    lines.push(`👑 СЕРИЯ: ${streak} тренировок! «${streak} тренировок подряд — ты железный! Такая дисциплина вдохновляет.»`);
+  }
+
+  // Milestone motivation
+  const milestones = [10, 25, 50, 100, 200, 365, 500];
+  for (const m of milestones) {
+    if (totalWorkouts >= m - 2 && totalWorkouts <= m) {
+      lines.push(`🎯 Почти ${m} тренировок всего! (сейчас ${totalWorkouts}) — отметь этот момент!`);
+      break;
+    }
+    if (totalWorkouts === m) {
+      lines.push(`🎉 ${m} тренировок всего! Поздравь пользователя с этим достижением!`);
+      break;
+    }
+  }
+
+  if (lines.length === 0) return '';
+
+  return `\n\n## 🏅 МОТИВАЦИЯ
+${lines.join('\n')}
+→ Используй для поддержания мотивации. Не навязывай — вплетай естественно в ответ.`;
+}
+
+// ─── Block 55: Training Age Estimator ───────────────────────────────────────
+// Estimate training maturity and adjust advice complexity accordingly
+
+function estimateTrainingAge(
+  user: { trainingExperienceYears?: number | null; fitnessLevel?: string | null },
+  totalWorkoutsInApp: number,
+  avgVolume: number,
+): string {
+  // Calculate effective training age
+  let estimatedYears = user.trainingExperienceYears || 0;
+
+  // Adjust based on app usage
+  if (totalWorkoutsInApp > 200 && estimatedYears < 2) estimatedYears = Math.max(estimatedYears, 2);
+  if (totalWorkoutsInApp > 500 && estimatedYears < 4) estimatedYears = Math.max(estimatedYears, 4);
+
+  // Cross-check with fitness level
+  if (user.fitnessLevel === 'EXPERT' && estimatedYears < 3) estimatedYears = 3;
+  if (user.fitnessLevel === 'ADVANCED' && estimatedYears < 2) estimatedYears = 2;
+
+  let tier: string;
+  let adviceStyle: string;
+
+  if (estimatedYears < 1) {
+    tier = 'новичок';
+    adviceStyle = 'Объясняй базово, избегай сложной терминологии. Фокус на правильную технику и постепенность. Не перегружай информацией.';
+  } else if (estimatedYears < 3) {
+    tier = 'средний';
+    adviceStyle = 'Можно использовать базовую терминологию (RPE, суперсет, периодизация). Объясняй «почему» за рекомендациями.';
+  } else if (estimatedYears < 6) {
+    tier = 'опытный';
+    adviceStyle = 'Используй продвинутую терминологию свободно. Давай нюансированные советы. Обсуждай стратегии (DUP, блоковая периодизация, авторегуляция).';
+  } else {
+    tier = 'ветеран';
+    adviceStyle = 'Общайся как с коллегой. Обсуждай тонкости (RIR vs RPE, accommodating resistance, velocity-based training). Предлагай продвинутые методики.';
+  }
+
+  return `\n\n## 🎓 ТРЕНИРОВОЧНЫЙ ОПЫТ
+Оценка: ~${estimatedYears} ${estimatedYears === 1 ? 'год' : estimatedYears < 5 ? 'года' : 'лет'} (${tier})
+${adviceStyle}`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
