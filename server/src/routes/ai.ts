@@ -1764,7 +1764,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         role: 'assistant',
         content: aiContent,
         userId,
-        actions: performedActions.length > 0 ? performedActions : undefined,
+        actions: performedActions.length > 0 ? JSON.parse(JSON.stringify(performedActions)) : undefined,
       },
     });
 

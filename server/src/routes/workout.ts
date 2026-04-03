@@ -105,7 +105,7 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
 // Complete workout
 router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { sets } = req.body;
 
     // Update sets in parallel
@@ -126,11 +126,12 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       include: { exercises: { include: { sets: true } } },
     });
 
-    const totalVolume = workout?.exercises.reduce(
-      (total, ex) =>
-        total + ex.sets.filter((s) => s.completed).reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0),
-      0
-    ) || 0;
+    const totalVolume = workout?.exercises
+      .reduce(
+        (total: number, ex: any) =>
+          total + ex.sets.filter((s: any) => s.completed).reduce((sum: number, s: any) => sum + (s.weight || 0) * (s.reps || 0), 0),
+        0
+      ) || 0;
 
     const startedAt = workout?.startedAt;
     const durationMinutes = startedAt ? Math.round((Date.now() - startedAt.getTime()) / 60000) : 0;

@@ -76,7 +76,7 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
 router.delete('/meals/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const deleted = await prisma.meal.deleteMany({
-      where: { id: req.params.id, userId: req.userId },
+      where: { id: req.params.id as string, userId: req.userId },
     });
     if (deleted.count === 0) return res.status(404).json({ error: 'Приём пищи не найден' });
     res.json({ success: true });

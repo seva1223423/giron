@@ -32,7 +32,7 @@ router.get('/', async (req, res: Response) => {
 // Save/unsave article
 router.post('/:id/save', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const existing = await prisma.savedNews.findUnique({
       where: {
