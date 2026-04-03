@@ -4,10 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
 
-// Backend returns Prisma enum values (MALE/FEMALE); normalize to frontend type (male/female)
+// Backend returns Prisma enum values (MALE/FEMALE, MUSCLE_GAIN, BEGINNER); normalize to frontend types
 const normalizeUser = (user: User): User => ({
   ...user,
   gender: user.gender ? (user.gender.toLowerCase() as User['gender']) : user.gender,
+  goal: user.goal ? (user.goal.toLowerCase() as User['goal']) : user.goal,
+  fitnessLevel: user.fitnessLevel ? (user.fitnessLevel.toLowerCase() as User['fitnessLevel']) : user.fitnessLevel,
 });
 
 interface AuthStore {

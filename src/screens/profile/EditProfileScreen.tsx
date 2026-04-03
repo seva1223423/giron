@@ -39,8 +39,8 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const [weightKg, setWeightKg] = useState(user?.weightKg?.toString() || '');
   const [heightCm, setHeightCm] = useState(user?.heightCm?.toString() || '');
-  const [goal, setGoal] = useState(user?.goal || '');
-  const [fitnessLevel, setFitnessLevel] = useState(user?.fitnessLevel || '');
+  const [goal, setGoal] = useState(user?.goal?.toUpperCase() || '');
+  const [fitnessLevel, setFitnessLevel] = useState(user?.fitnessLevel?.toUpperCase() || '');
   const [experienceYears, setExperienceYears] = useState(user?.trainingExperienceYears?.toString() || '');
   const [saving, setSaving] = useState(false);
 
