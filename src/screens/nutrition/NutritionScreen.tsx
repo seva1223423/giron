@@ -212,7 +212,10 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             </Text>
             <TouchableOpacity
               onPress={() => {
-                const smart = calcSmartTargets(user);
+                const computedAge = user?.dateOfBirth
+                  ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
+                  : null;
+                const smart = calcSmartTargets(user ? { ...user, age: computedAge ?? undefined } : null);
                 setGoalCalories(smart.calories.toString());
                 setGoalProtein(smart.protein.toString());
                 setGoalFats(smart.fats.toString());

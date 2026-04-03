@@ -105,6 +105,23 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setRestTime(0);
   };
 
+  // Find previous session sets for the current exercise
+  // Must be before early return to satisfy Rules of Hooks
+  const previousSets = useMemo(() => {
+    if (!activeWorkout) return null;
+    const { workout, currentExerciseIndex } = activeWorkout;
+    const currentEx = workout.exercises[currentExerciseIndex];
+    if (!currentEx) return null;
+    const exId = currentEx.exerciseId;
+    const prev = workoutHistory.find((w) =>
+      w.id !== workout.id && w.exercises.some((e) => e.exerciseId === exId)
+    );
+    if (!prev) return null;
+    const prevEx = prev.exercises.find((e) => e.exerciseId === exId);
+    const done = prevEx?.sets.filter((s) => s.completed && (s.weight || s.reps)) ?? [];
+    return done.length > 0 ? { date: prev.completedAt || prev.startedAt, sets: done } : null;
+  }, [activeWorkout?.workout?.exercises[activeWorkout?.currentExerciseIndex ?? 0]?.exerciseId, workoutHistory, activeWorkout?.workout?.id]);
+
   if (!activeWorkout) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
@@ -117,18 +134,6 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const { workout, currentExerciseIndex, startTime } = activeWorkout;
   const currentExercise = workout.exercises[currentExerciseIndex];
   const elapsed = Math.round((Date.now() - startTime) / 60000);
-
-  // Find previous session sets for the current exercise
-  const previousSets = useMemo(() => {
-    const exId = currentExercise.exerciseId;
-    const prev = workoutHistory.find((w) =>
-      w.id !== workout.id && w.exercises.some((e) => e.exerciseId === exId)
-    );
-    if (!prev) return null;
-    const prevEx = prev.exercises.find((e) => e.exerciseId === exId);
-    const done = prevEx?.sets.filter((s) => s.completed && (s.weight || s.reps)) ?? [];
-    return done.length > 0 ? { date: prev.completedAt || prev.startedAt, sets: done } : null;
-  }, [currentExercise.exerciseId, workoutHistory, workout.id]);
   const totalCompletedSets = workout.exercises.reduce(
     (s, ex) => s + ex.sets.filter((set) => set.completed).length, 0
   );
