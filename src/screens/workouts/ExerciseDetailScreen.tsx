@@ -72,9 +72,10 @@ const TrendChart: React.FC<{ data: { label: string; value: number }[]; color: st
 export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const { exerciseId } = route.params;
   const { colors } = useThemeStore();
-  const { workoutHistory, activeWorkout, addExerciseToWorkout } = useWorkoutStore();
+  const { workoutHistory, activeWorkout, addExerciseToWorkout, customExercises } = useWorkoutStore();
+  const allExercises = useMemo(() => [...customExercises, ...localExercises], [customExercises]);
 
-  const exercise = localExercises.find((e) => e.id === exerciseId);
+  const exercise = allExercises.find((e) => e.id === exerciseId);
   if (!exercise) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>

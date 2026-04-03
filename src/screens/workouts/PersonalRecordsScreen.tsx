@@ -62,7 +62,8 @@ interface PREntry {
 
 export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { workoutHistory } = useWorkoutStore();
+  const { workoutHistory, customExercises } = useWorkoutStore();
+  const allExercises = useMemo(() => [...customExercises, ...localExercises], [customExercises]);
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -117,7 +118,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
 
     const entries: PREntry[] = [];
     map.forEach((data, exerciseId) => {
-      const ex = localExercises.find((e) => e.id === exerciseId);
+      const ex = allExercises.find((e) => e.id === exerciseId);
       const name = ex?.name || exerciseId;
       const muscle = ex?.primaryMuscles?.[0] || 'full_body';
 
@@ -139,7 +140,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
     });
 
     return entries;
-  }, [workoutHistory]);
+  }, [workoutHistory, allExercises]);
 
   // Muscles that actually have records
   const availableMuscles = useMemo(() => {
