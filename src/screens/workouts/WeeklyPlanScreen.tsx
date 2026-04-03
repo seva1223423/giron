@@ -71,7 +71,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           weight: 0,
           completed: false,
         }));
-        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 90 };
+        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
       })
       .filter(Boolean) as WorkoutExercise[];
 

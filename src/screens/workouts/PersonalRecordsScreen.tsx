@@ -415,7 +415,7 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
                     </Text>
                     {[...record.history].reverse().slice(0, 10).map((h, i) => {
                       const isFirst = i === 0;
-                      const barMax = record.history[record.history.length - 1].estimated1RM;
+                      const barMax = record.estimated1RM;
                       const barPct = Math.round((h.estimated1RM / barMax) * 100);
                       return (
                         <View key={h.date} style={{ marginBottom: spacing.xs }}>

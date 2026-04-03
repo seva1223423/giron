@@ -218,7 +218,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
             weight: 0,
             completed: false,
           })),
-          restSeconds: 90,
+          restSeconds: 0,
         };
         workout.exercises = [...workout.exercises, newExercise];
         return { activeWorkout: { ...s.activeWorkout, workout } };

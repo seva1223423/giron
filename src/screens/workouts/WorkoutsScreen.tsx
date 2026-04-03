@@ -159,7 +159,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           exercise: ex,
           order: index,
           sets,
-          restSeconds: 90,
+          restSeconds: 0,
         };
       })
       .filter(Boolean) as WorkoutExercise[];

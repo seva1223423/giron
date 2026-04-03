@@ -143,7 +143,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           id: `set-${Date.now()}-${index}-${i}`,
           setNumber: i + 1, type: 'normal' as const, reps: 10, weight: 0, completed: false,
         }));
-        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 90 };
+        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
       })
       .filter(Boolean) as WorkoutExercise[];
     startWorkout({ id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises });
