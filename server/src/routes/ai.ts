@@ -3611,6 +3611,86 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       daysSinceLastForMotivation,
     );
 
+    // ─── Block 211: Body composition estimator ──────
+    const bodyCompEstimateContext = estimateBodyCompositionSimple(
+      user?.weightKg ?? null,
+      user?.heightCm ?? null,
+      user?.gender ?? null,
+      user?.fitnessLevel ?? null,
+    );
+
+    // ─── Block 212: Goal mismatch detector ──────
+    const allRecentReps = (recentWorkouts as any[]).flatMap(w =>
+      w.exercises.flatMap((e: any) => e.sets.filter((s: any) => s.completed && s.reps).map((s: any) => s.reps as number)),
+    );
+    const avgReps212 = allRecentReps.length > 0
+      ? allRecentReps.reduce((a, b) => a + b, 0) / allRecentReps.length
+      : 0;
+    const goalMismatchContext = detectGoalMismatch(user?.goal ?? null, exerciseNamesForBreathing, avgReps212);
+
+    // ─── Block 213: Monthly challenge ──────
+    const monthlyChallengeContext = generateMonthlyChallenge(
+      user?.fitnessLevel ?? null,
+      user?.goal ?? null,
+      gamification.currentStreak,
+    );
+
+    // ─── Block 214: Overtraining syndrome check ──────
+    const consecutiveHighDays = (recentWorkouts as any[]).reduce((count, wo) => {
+      const sets = wo.exercises.flatMap((e: any) => e.sets);
+      const rpeVals = sets.filter((s: any) => s.rpe != null).map((s: any) => s.rpe as number);
+      const avgRPEWo = rpeVals.length > 0 ? rpeVals.reduce((a: number, b: number) => a + b) / rpeVals.length : 7;
+      return avgRPEWo >= 8 ? count + 1 : count;
+    }, 0);
+    const overtrainingContext = checkOvertainingSyndrome(
+      message,
+      fatigueData.status,
+      false, // sleep issues not tracked
+      consecutiveHighDays,
+    );
+
+    // ─── Block 215: Supplement timing ──────
+    const supplementTimingAdvancedContext = getSupplementTiming(message, workoutTimeHour192);
+
+    // ─── Block 216: Progressive overload tracker ──────
+    const progressiveOverloadSets = (recentWorkouts as any[]).flatMap(wo =>
+      wo.exercises.flatMap((ex: any) =>
+        ex.sets
+          .filter((s: any) => s.completed && s.weight && s.reps)
+          .map((s: any) => ({
+            exercise: ex.exercise.name,
+            weight: s.weight as number,
+            reps: s.reps as number,
+            date: new Date(wo.completedAt),
+          })),
+      ),
+    );
+    const progressiveOverloadContext = trackProgressiveOverloadTrend(progressiveOverloadSets);
+
+    // ─── Block 217: Weekend warrior detector ──────
+    const weekendWarriorContext = detectWeekendWarrior(recentWorkouts as any);
+
+    // ─── Block 218: Nutrition quality score ──────
+    const nutritionQualityContext = scoreNutritionQuality(
+      todayProt,
+      0, // carbs not directly tracked yet
+      0, // fats not directly tracked yet
+      todayCals,
+      nutritionTargets?.protein ?? null,
+      nutritionTargets?.calories ?? null,
+    );
+
+    // ─── Block 219: Tempo training advisor ──────
+    const tempoAdviceContext = getTempoAdvice(user?.goal ?? null, exerciseNamesForBreathing[0] ?? null, message);
+
+    // ─── Block 220: Athlete roadmap ──────
+    const athleteRoadmapContext = buildAthleteRoadmap(
+      totalWorkoutsEver,
+      user?.fitnessLevel ?? null,
+      user?.goal ?? null,
+      weeksSinceStart,
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -3704,7 +3784,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${strengthStandardsContext}${frequencyOptimizerContext}${conversationSummaryContext}${efficiencyContext}${goalTimelineContext}${compoundPriorityContext}${readinessContext}${supplementStackContext}${streakProtectionContext}${followUpQuestionsContext}${complexityContext}${nutritionTimingContext}${rpeContext}${recompContext}${workoutPatternContext}${fatigueAccumulationContext}${executionQualityContext}${socialProofContext}${fiberTypeContext}${responseLengthContext}${deloadPrescriptionContext}${splitAdherenceContext}${volumeDosingContext}${exercisePairingContext}${trainingAgeAdviceContext}${densityOptimizerContext}${streakMotivationMsgContext}${hydrationReminderContext}${sleepImpactContext}${smartWarmupContext}${monotonyContext}${gripStrengthContext}${bilateralContext}${plateauBreakerContext}${cardioFitnessContext}${loadRampContext}${formRiskContext}${nutritionSyncContext}${weeklyReportContext}${injuryPreventionContext}${mindMuscleContext}${supplementTimingContext}${difficultyScaleContext}${recoveryProtocolContext}${personalityContext}${timeAdviceContext}${synergyContext}${mentalTipsContext}${completionPredictorContext}${overloadTrackerContext}${breathingContext}${environmentContext}${calorieBurnDetailContext}${dehydrationContext}${trainingPartnerContext}${postWorkoutNutritionContext}${sorenessContext}${conversationFlowContext}${accessoryContext}${mobilityContext}${frequencyHeatmapContext}${goalAlignmentContext}${etiquetteContext}${intensityDistContext}${recoveryNutritionContext}${variationContext}${confidenceExplainContext}${decisionContext}${healthAlertsContext}${smartGoalsContext}${lastWoRatingContext}${periodizationAdviceContext}${emotionalContext}${knowledgeGapContext}${greetingEnhancedContext}${broscoenceFilterContext}${sessionSummaryContext}${strengthToWeightContext}${volumeForWeekContext}${nutritionMythContext}${russianGymContext}${refinedIntentContext}${difficultyRampContext}${biomechanicsContext}${preWorkoutChecklistContext}${progressNarrativeContext}${nextActionsContext}${macroSplitContext}${smartSubstitutionContext}${muscleActivationContext}${splitOptimizerContext}${caloricStrategyContext}${trainingPhaseContext186}${workoutTemplateContext}${recoveryExplainContext}${goalExercisePriorityContext}${smartRestContext}${workoutTimingContext}${proteinTimingPersonalizedContext}${deloadPlanContext}${muscleGroupRecoveryContext}${adaptiveCoachingContext}${volumeBalanceContext}${nutritionWorkoutSyncContext}${exerciseProgressionContext}${lifestyleRecoveryContext}${milestoneCelebrationContext}${supersetContext}${waterNeedsContext}${compoundFirstContext}${mentalPerformanceContext}${flexibleDietContext}${ageStrengthContext}${programAdjustmentsContext}${earlyInjuryContext}${consistencyScoreContext}${personalizedWarmupContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${strengthStandardsContext}${frequencyOptimizerContext}${conversationSummaryContext}${efficiencyContext}${goalTimelineContext}${compoundPriorityContext}${readinessContext}${supplementStackContext}${streakProtectionContext}${followUpQuestionsContext}${complexityContext}${nutritionTimingContext}${rpeContext}${recompContext}${workoutPatternContext}${fatigueAccumulationContext}${executionQualityContext}${socialProofContext}${fiberTypeContext}${responseLengthContext}${deloadPrescriptionContext}${splitAdherenceContext}${volumeDosingContext}${exercisePairingContext}${trainingAgeAdviceContext}${densityOptimizerContext}${streakMotivationMsgContext}${hydrationReminderContext}${sleepImpactContext}${smartWarmupContext}${monotonyContext}${gripStrengthContext}${bilateralContext}${plateauBreakerContext}${cardioFitnessContext}${loadRampContext}${formRiskContext}${nutritionSyncContext}${weeklyReportContext}${injuryPreventionContext}${mindMuscleContext}${supplementTimingContext}${difficultyScaleContext}${recoveryProtocolContext}${personalityContext}${timeAdviceContext}${synergyContext}${mentalTipsContext}${completionPredictorContext}${overloadTrackerContext}${breathingContext}${environmentContext}${calorieBurnDetailContext}${dehydrationContext}${trainingPartnerContext}${postWorkoutNutritionContext}${sorenessContext}${conversationFlowContext}${accessoryContext}${mobilityContext}${frequencyHeatmapContext}${goalAlignmentContext}${etiquetteContext}${intensityDistContext}${recoveryNutritionContext}${variationContext}${confidenceExplainContext}${decisionContext}${healthAlertsContext}${smartGoalsContext}${lastWoRatingContext}${periodizationAdviceContext}${emotionalContext}${knowledgeGapContext}${greetingEnhancedContext}${broscoenceFilterContext}${sessionSummaryContext}${strengthToWeightContext}${volumeForWeekContext}${nutritionMythContext}${russianGymContext}${refinedIntentContext}${difficultyRampContext}${biomechanicsContext}${preWorkoutChecklistContext}${progressNarrativeContext}${nextActionsContext}${macroSplitContext}${smartSubstitutionContext}${muscleActivationContext}${splitOptimizerContext}${caloricStrategyContext}${trainingPhaseContext186}${workoutTemplateContext}${recoveryExplainContext}${goalExercisePriorityContext}${smartRestContext}${workoutTimingContext}${proteinTimingPersonalizedContext}${deloadPlanContext}${muscleGroupRecoveryContext}${adaptiveCoachingContext}${volumeBalanceContext}${nutritionWorkoutSyncContext}${exerciseProgressionContext}${lifestyleRecoveryContext}${milestoneCelebrationContext}${supersetContext}${waterNeedsContext}${compoundFirstContext}${mentalPerformanceContext}${flexibleDietContext}${ageStrengthContext}${programAdjustmentsContext}${earlyInjuryContext}${consistencyScoreContext}${personalizedWarmupContext}${bodyCompEstimateContext}${goalMismatchContext}${monthlyChallengeContext}${overtrainingContext}${supplementTimingAdvancedContext}${progressiveOverloadContext}${weekendWarriorContext}${nutritionQualityContext}${tempoAdviceContext}${athleteRoadmapContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -3897,6 +3977,16 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'earlyInjury', content: earlyInjuryContext, relevantIntents: new Set(['health', 'workout']), priority: 1 },
         { name: 'consistencyScore', content: consistencyScoreContext, relevantIntents: new Set(['greeting', 'motivation']), priority: 3 },
         { name: 'personalizedWarmup', content: personalizedWarmupContext, relevantIntents: new Set(['workout']), priority: 3 },
+        { name: 'bodyCompEstimate', content: bodyCompEstimateContext, relevantIntents: new Set(['motivation', 'health']), priority: 4 },
+        { name: 'goalMismatch', content: goalMismatchContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 2 },
+        { name: 'monthlyChallenge', content: monthlyChallengeContext, relevantIntents: new Set(['motivation', 'greeting']), priority: 4 },
+        { name: 'overtraining', content: overtrainingContext, relevantIntents: new Set(['health', 'workout']), priority: 1 },
+        { name: 'supplementTimingAdvanced', content: supplementTimingAdvancedContext, relevantIntents: new Set(['nutrition']), priority: 3 },
+        { name: 'progressiveOverload', content: progressiveOverloadContext, relevantIntents: new Set(['workout', 'motivation']), priority: 3 },
+        { name: 'weekendWarrior', content: weekendWarriorContext, relevantIntents: new Set(['workout', 'greeting']), priority: 4 },
+        { name: 'nutritionQuality', content: nutritionQualityContext, relevantIntents: new Set(['nutrition', 'greeting']), priority: 3 },
+        { name: 'tempoAdvice', content: tempoAdviceContext, relevantIntents: new Set(['workout', 'technique']), priority: 4 },
+        { name: 'athleteRoadmap', content: athleteRoadmapContext, relevantIntents: new Set(['motivation', 'greeting']), priority: 3 },
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
@@ -13676,6 +13766,386 @@ function buildPersonalizedWarmup(
   return `\n\n## 🔥 ПЕРСОНАЛЬНАЯ РАЗМИНКА (${warmupTime}+ мин)
 ${exercises.map((e, i) => `${i + 1}. ${e}`).join('\n')}
 ${daysSinceLastWorkout > 3 ? '⚠️ Давно не тренировался — уделяй разминке больше времени.' : ''}`;
+}
+
+// ─── Block 211: Body Composition Estimator ────────────────────────────────────
+// Estimate body fat % from available measurements
+
+function estimateBodyCompositionSimple(
+  weightKg: number | null,
+  heightCm: number | null,
+  gender: string | null,
+  fitnessLevel: string | null,
+): string {
+  if (!weightKg || !heightCm) return '';
+
+  const bmi = weightKg / ((heightCm / 100) ** 2);
+
+  // Navy method approximation without waist measurements
+  // Use BMI + activity level as proxy
+  const activityFactor = fitnessLevel === 'advanced' ? -5 : fitnessLevel === 'intermediate' ? -3 : 0;
+  const genderFactor = gender?.toLowerCase() === 'female' ? 10 : 0;
+  const estimatedBF = Math.round(1.2 * bmi + 0.23 * 30 - 5.4 + genderFactor + activityFactor); // rough estimate
+
+  const clampedBF = Math.max(5, Math.min(50, estimatedBF));
+
+  const category = clampedBF < 10 ? 'Очень низкий (атлет)' :
+    clampedBF < 15 ? 'Низкий (спортивный)' :
+    clampedBF < 20 ? 'Нормальный' :
+    clampedBF < 25 ? 'Умеренный' :
+    clampedBF < 30 ? 'Повышенный' : 'Высокий';
+
+  const leanMass = Math.round(weightKg * (1 - clampedBF / 100));
+
+  return `\n\n## 🏃 СОСТАВ ТЕЛА (оценка)
+ИМТ: ${bmi.toFixed(1)} | ~% жира: ${clampedBF}% (${category})
+Сухая масса: ~${leanMass}кг
+⚠️ Оценка приблизительная. Для точности нужны замеры или DEXA.`;
+}
+
+// ─── Block 212: Smart Goal Updater ────────────────────────────────────────────
+// Detect if user's stated goal matches their training behavior
+
+function detectGoalMismatch(
+  statedGoal: string | null,
+  workoutTypes: string[], // names of exercises
+  avgReps: number,
+): string {
+  if (!statedGoal || workoutTypes.length === 0) return '';
+
+  const isDoingCardio = workoutTypes.some(e => /кардио|бег|велосипед|эллипс|ходьба/i.test(e));
+  const isDoingStrength = workoutTypes.some(e => /жим|присед|становая|тяга|подтягиван/i.test(e));
+  const isHighReps = avgReps > 15;
+  const isLowReps = avgReps > 0 && avgReps < 6;
+
+  const mismatches: string[] = [];
+
+  if (statedGoal === 'muscle_gain' && isHighReps && !isLowReps) {
+    mismatches.push('Для набора мышц работай в диапазоне 6-12 повторений. Сейчас у тебя слишком высокие повторения.');
+  }
+
+  if (statedGoal === 'weight_loss' && !isDoingCardio && isDoingStrength) {
+    mismatches.push('Для похудения добавь кардио (20-30 мин) или переключись на круговые тренировки с коротким отдыхом.');
+  }
+
+  if (statedGoal === 'strength' && isHighReps) {
+    mismatches.push('Для развития силы используй 1-5 повторений с тяжёлым весом (85-95% 1ПМ).');
+  }
+
+  if (mismatches.length === 0) return '';
+
+  return `\n\n## 🎯 ТРЕНИРОВКИ VS ЦЕЛЬ
+Твоя цель: ${statedGoal === 'muscle_gain' ? 'набор мышц' : statedGoal === 'weight_loss' ? 'похудение' : 'сила'}
+${mismatches.join('\n')}`;
+}
+
+// ─── Block 213: Monthly Challenge Generator ───────────────────────────────────
+// Generate a fun monthly challenge to keep user engaged
+
+function generateMonthlyChallenge(
+  fitnessLevel: string | null,
+  goal: string | null,
+  currentStreak: number,
+): string {
+  const challenges: Array<{ level: string; name: string; description: string }> = [
+    {
+      level: 'beginner',
+      name: '30 дней последовательности',
+      description: 'Тренируйся 3 раза в неделю весь месяц. Цель: 12 тренировок.',
+    },
+    {
+      level: 'intermediate',
+      name: 'Месяц базы',
+      description: 'Каждую неделю увеличивай рабочие веса в присяде, жиме лёжа и тяге на 2.5кг.',
+    },
+    {
+      level: 'advanced',
+      name: 'Силовой месяц',
+      description: '4 недели по 5/3/1: неделя 1 (65/75/85%), неделя 2 (70/80/90%), неделя 3 (75/85/95%), неделя 4 deload.',
+    },
+    {
+      level: 'any',
+      name: 'Вызов питания',
+      description: 'Весь месяц записывай каждый приём пищи. Попади в норму белка 25 из 30 дней.',
+    },
+  ];
+
+  const levelChallenges = challenges.filter(c => c.level === (fitnessLevel || 'beginner') || c.level === 'any');
+  const pick = levelChallenges[currentStreak % levelChallenges.length] || levelChallenges[0];
+
+  return `\n\n## 🏆 ВЫЗОВ МЕСЯЦА: ${pick.name}
+${pick.description}
+Хочешь принять вызов? Скажи "да" — и я буду следить за прогрессом.`;
+}
+
+// ─── Block 214: Overtraining Syndrome Checklist ───────────────────────────────
+// Comprehensive overtraining detection
+
+function checkOvertainingSyndrome(
+  message: string,
+  fatigueStatus: string,
+  sleepIssues: boolean,
+  consecutiveHighIntensityDays: number,
+): string {
+  const symptoms: string[] = [];
+
+  const otSymptoms = {
+    mood: /раздражен|злой|депрессия|апатия|не хочу ничего/i,
+    sleep: /плохо сплю|не сплю|бессонниц|усталость после сна/i,
+    performance: /стал слабее|снизились результаты|не могу поднять|регрессирую/i,
+    physical: /постоянно болят мышцы|не восстанавливаюсь|частые простуды|сердце учащённое/i,
+  };
+
+  if (otSymptoms.mood.test(message)) symptoms.push('нарушение настроения/мотивации');
+  if (otSymptoms.sleep.test(message) || sleepIssues) symptoms.push('нарушения сна');
+  if (otSymptoms.performance.test(message)) symptoms.push('снижение результатов');
+  if (otSymptoms.physical.test(message)) symptoms.push('хроническая боль/болезни');
+
+  if (fatigueStatus === 'overreaching' || fatigueStatus === 'dangerous') {
+    symptoms.push('перегрузка по данным тренировок');
+  }
+
+  if (consecutiveHighIntensityDays >= 5) {
+    symptoms.push(`${consecutiveHighIntensityDays} дней высокой интенсивности подряд`);
+  }
+
+  if (symptoms.length < 2) return '';
+
+  return `\n\n## 🚨 ВОЗМОЖНЫЙ СИНДРОМ ПЕРЕТРЕНИРОВАННОСТИ
+Симптомы: ${symptoms.join(', ')}
+Что делать: 1 неделя полного отдыха или очень лёгкой активности.
+Затем постепенное возвращение с 50% объёма.
+Перетренированность — не слабость, это физиология.`;
+}
+
+// ─── Block 215: Creatine & Supplement Timing ──────────────────────────────────
+// Practical supplement timing for Russian gym-goers
+
+function getSupplementTiming(
+  message: string,
+  workoutTimeHour: number | null,
+): string {
+  const suppKeywords = /креатин|кофеин|протеин|bcaa|бета-аланин|предтрен|добавк|спортпит/i;
+  if (!suppKeywords.test(message)) return '';
+
+  const timing: string[] = [];
+
+  if (/креатин/i.test(message)) {
+    timing.push('**Креатин**: 5г в любое время (лучше с едой). Важна регулярность, не время приёма. Нагрузочная фаза (20г/4дня) — опционально.');
+  }
+
+  if (/кофеин|предтрен/i.test(message)) {
+    const preTime = workoutTimeHour !== null ? `за 30-45 мин до (в ${workoutTimeHour - 1}:00)` : 'за 30-45 мин до тренировки';
+    timing.push(`**Кофеин**: 200-400мг ${preTime}. Максимальная доза для спорта: 6 мг/кг веса тела.`);
+  }
+
+  if (/bcaa/i.test(message)) {
+    timing.push('**BCAA**: бесполезны если достаточно белка (1.6+ г/кг). Деньги лучше потратить на протеин/еду.');
+  }
+
+  if (/протеин.*после|после.*протеин/i.test(message)) {
+    timing.push('**Протеин после тренировки**: в течение 2 часов. Анаболическое окно шире чем думали — 2 часа, не 30 мин.');
+  }
+
+  if (/бета-аланин/i.test(message)) {
+    timing.push('**Бета-аланин**: 3.2-6.4г/день. Вызывает покалывание — это нормально. Эффект накопительный (2-4 нед).');
+  }
+
+  if (timing.length === 0) return '';
+
+  return `\n\n## 💊 РАСПИСАНИЕ ДОБАВОК
+${timing.join('\n')}`;
+}
+
+// ─── Block 216: Progressive Overload Tracker ──────────────────────────────────
+// Track and visualize progressive overload trends
+
+function trackProgressiveOverloadTrend(
+  recentSets: Array<{
+    exercise: string;
+    weight: number;
+    reps: number;
+    date: Date;
+  }>,
+): string {
+  if (recentSets.length < 4) return '';
+
+  // Group by exercise
+  const byExercise: Record<string, Array<{ weight: number; reps: number; date: Date }>> = {};
+  for (const s of recentSets) {
+    if (!byExercise[s.exercise]) byExercise[s.exercise] = [];
+    byExercise[s.exercise].push({ weight: s.weight, reps: s.reps, date: s.date });
+  }
+
+  const trends: string[] = [];
+
+  for (const [exercise, sets] of Object.entries(byExercise)) {
+    if (sets.length < 2) continue;
+    const sorted = sets.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+
+    const volumeFirst = first.weight * first.reps;
+    const volumeLast = last.weight * last.reps;
+    const change = Math.round(((volumeLast - volumeFirst) / volumeFirst) * 100);
+
+    if (Math.abs(change) > 5) {
+      const trend = change > 0 ? `📈 +${change}%` : `📉 ${change}%`;
+      trends.push(`${exercise}: ${first.weight}×${first.reps} → ${last.weight}×${last.reps} (${trend})`);
+    }
+  }
+
+  if (trends.length === 0) return '';
+
+  return `\n\n## 📊 ПРОГРЕССИВНАЯ ПЕРЕГРУЗКА
+${trends.slice(0, 3).join('\n')}
+Прогресс есть — продолжай!`;
+}
+
+// ─── Block 217: Weekend Warrior Detector ──────────────────────────────────────
+// Detect and advise users who only train on weekends
+
+function detectWeekendWarrior(
+  workouts: Array<{ completedAt: Date | null }>,
+): string {
+  if (workouts.length < 4) return '';
+
+  const workoutDays = workouts
+    .filter(w => w.completedAt)
+    .map(w => new Date(w.completedAt!).getDay()); // 0=Sun, 6=Sat
+
+  const weekendCount = workoutDays.filter(d => d === 0 || d === 6).length;
+  const weekdayCount = workoutDays.filter(d => d >= 1 && d <= 5).length;
+
+  if (weekendCount === 0 || weekdayCount > weekendCount) return '';
+
+  const ratio = weekendCount / workouts.length;
+  if (ratio < 0.6) return '';
+
+  return `\n\n## 📅 ЗАМЕТИЛ ПАТТЕРН: ТРЕНИРОВКИ В ОСНОВНОМ В ВЫХОДНЫЕ
+Это называется "синдром выходного бойца". Риски: травмы, меньший прогресс.
+Попробуй добавить хотя бы 1-2 тренировки в будни — пусть короткие (30 мин).
+Регулярность > интенсивность для долгосрочного прогресса.`;
+}
+
+// ─── Block 218: Nutrition Quality Score ──────────────────────────────────────
+// Score nutrition quality, not just calories
+
+function scoreNutritionQuality(
+  protein: number,
+  carbs: number,
+  fats: number,
+  calories: number,
+  targetProtein: number | null,
+  targetCalories: number | null,
+): string {
+  if (calories < 100) return ''; // no food today
+
+  const scores: Array<{ name: string; score: number; feedback: string }> = [];
+
+  // Protein adequacy
+  if (targetProtein) {
+    const pScore = Math.min(100, Math.round((protein / targetProtein) * 100));
+    scores.push({
+      name: 'Белок',
+      score: pScore,
+      feedback: pScore >= 90 ? '✅' : pScore >= 60 ? '🟡 немного не хватает' : '🔴 сильно не хватает',
+    });
+  }
+
+  // Caloric balance
+  if (targetCalories) {
+    const diff = Math.abs(calories - targetCalories);
+    const cScore = diff < 100 ? 100 : diff < 200 ? 80 : diff < 400 ? 60 : 30;
+    scores.push({
+      name: 'Калории',
+      score: cScore,
+      feedback: cScore >= 90 ? '✅ в норме' : calories > targetCalories ? `🟡 +${diff} ккал` : `🟡 -${diff} ккал`,
+    });
+  }
+
+  // Macro balance
+  const totalMacros = protein + carbs + fats;
+  if (totalMacros > 0) {
+    const protPct = Math.round((protein * 4 / calories) * 100);
+    const balanced = protPct >= 20 && protPct <= 35;
+    scores.push({
+      name: 'Баланс',
+      score: balanced ? 90 : 60,
+      feedback: balanced ? '✅ сбалансировано' : '🟡 скорректируй макросы',
+    });
+  }
+
+  if (scores.length === 0) return '';
+
+  return `\n\n## 🥗 КАЧЕСТВО ПИТАНИЯ СЕГОДНЯ
+${scores.map(s => `${s.name}: ${s.feedback}`).join(' | ')}`;
+}
+
+// ─── Block 219: Tempo Training Advisor ────────────────────────────────────────
+// Recommend training tempo for better results
+
+function getTempoAdvice(
+  goal: string | null,
+  exerciseName: string | null,
+  message: string,
+): string {
+  const tempoKeyword = /темп|скорость|медленно|быстро|взрывно|опускать|контроль/i;
+  if (!tempoKeyword.test(message) && Math.random() > 0.2) return ''; // Don't show unless asked
+
+  const tempos: Record<string, { tempo: string; example: string; benefit: string }> = {
+    muscle_gain: {
+      tempo: '3-1-2-0',
+      example: '3с вниз → 1с пауза → 2с вверх → 0с пауза',
+      benefit: 'Медленная эксцентрическая фаза → максимальный стресс для гипертрофии',
+    },
+    strength: {
+      tempo: '2-0-X-0',
+      example: '2с вниз → 0 → взрывной подъём → 0',
+      benefit: 'Взрывной концентрик → рекрутирование максимума мотонейронов',
+    },
+    weight_loss: {
+      tempo: '2-0-2-0',
+      example: '2с вниз → 2с вверх → без задержек',
+      benefit: 'Больший тоннаж за тренировку → больше калорий',
+    },
+  };
+
+  const advice = tempos[goal || 'muscle_gain'] || tempos['muscle_gain'];
+
+  return `\n\n## ⏱️ ТЕМП ВЫПОЛНЕНИЯ (${exerciseName || 'упражнение'})
+Рекомендую: **${advice.tempo}** (${advice.example})
+${advice.benefit}`;
+}
+
+// ─── Block 220: Long-term Athlete Roadmap ─────────────────────────────────────
+// Show user where they're headed and what's next in their fitness journey
+
+function buildAthleteRoadmap(
+  totalWorkouts: number,
+  fitnessLevel: string | null,
+  goal: string | null,
+  weeksSinceStart: number,
+): string {
+  if (totalWorkouts < 10) return '';
+
+  const stages: Array<{ name: string; workouts: number; description: string }> = [
+    { name: '🌱 Новичок', workouts: 0, description: 'Освоение техники, привычка, общая форма' },
+    { name: '📈 Прогрессирующий', workouts: 30, description: 'Линейная прогрессия, базовые движения, первые ПРы' },
+    { name: '💪 Промежуточный', workouts: 100, description: 'Периодизация, специализация, понимание тела' },
+    { name: '🏆 Продвинутый', workouts: 300, description: 'Тонкая настройка программы, работа на пике' },
+    { name: '⚡ Элита', workouts: 700, description: 'Соревновательный уровень, тренер рекомендован' },
+  ];
+
+  const current = stages.filter(s => totalWorkouts >= s.workouts).pop() || stages[0];
+  const next = stages.find(s => s.workouts > totalWorkouts);
+
+  const remaining = next ? next.workouts - totalWorkouts : 0;
+
+  return `\n\n## 🗺️ ТВОЙ ПУТЬ СПОРТСМЕНА
+Сейчас: **${current.name}** — ${current.description}
+${next ? `Следующий этап: ${next.name} через ~${remaining} тренировок` : '✅ Элита достигнута!'}
+Ты с нами ${Math.round(weeksSinceStart / 4)} месяцев. Прогресс не линеен, но он есть.`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
