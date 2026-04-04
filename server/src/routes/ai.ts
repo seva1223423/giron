@@ -3386,6 +3386,85 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       todayCals > 0,
     );
 
+    // ─── Block 181: Macro split advisor ──────
+    const macroSplitContext = getMacroSplitAdvice(
+      user?.goal ?? null,
+      user?.weightKg ?? null,
+      plannedDays || 3,
+    );
+
+    // ─── Block 182: Smart substitutions ──────
+    const smartSubstitutionContext = exerciseNamesForBreathing.length > 0
+      ? getSmartSubstitutions(exerciseNamesForBreathing[0])
+      : '';
+
+    // ─── Block 183: Muscle activation cues ──────
+    const muscleActivationContext = buildMuscleActivationContext(exerciseNamesForBreathing);
+
+    // ─── Block 184: Training split optimizer ──────
+    const splitOptimizerContext = optimizeTrainingSplit(
+      plannedDays || 3,
+      user?.goal ?? null,
+      user?.fitnessLevel ?? null,
+    );
+
+    // ─── Block 185: Caloric strategy ──────
+    const userGoalStr = user?.goal as string | null;
+    const tdeeEstimate = user?.weightKg
+      ? Math.round(user.weightKg * (userGoalStr === 'weight_loss' ? 33 : userGoalStr === 'muscle_gain' ? 38 : 35))
+      : null;
+    const caloricStrategyContext = getCaloricStrategyAdvice(
+      tdeeEstimate,
+      todayCals,
+      user?.goal ?? null,
+      user?.weightKg ?? null,
+    );
+
+    // ─── Block 186: Periodization phase detector ──────
+    const avgRPEForPhase = recentWorkouts.length > 0
+      ? (recentWorkouts as any[]).reduce((sum: number, wo: any) => {
+          const sets = wo.exercises.flatMap((e: any) => e.sets);
+          const rpeVals = sets.filter((s: any) => s.rpe != null).map((s: any) => s.rpe as number);
+          return sum + (rpeVals.length > 0 ? rpeVals.reduce((a: number, b: number) => a + b, 0) / rpeVals.length : 7);
+        }, 0) / Math.max(recentWorkouts.length, 1)
+      : null;
+    const completionRate186 = recentWorkouts.length > 0
+      ? (recentWorkouts as any[]).reduce((sum: number, wo: any) => {
+          const sets = wo.exercises.flatMap((e: any) => e.sets);
+          const done = sets.filter((s: any) => s.completed).length;
+          return sum + (sets.length > 0 ? done / sets.length : 1);
+        }, 0) / recentWorkouts.length
+      : 1;
+    const trainingPhaseContext186 = detectTrainingPhaseAdvanced(weeksSinceStart, avgRPEForPhase, completionRate186);
+
+    // ─── Block 187: Workout template suggester ──────
+    const workoutTemplateContext = suggestWorkoutTemplate(
+      60, // default 60 min
+      exerciseNamesForBreathing,
+      'gym',
+    );
+
+    // ─── Block 188: Recovery score explainer ──────
+    const recoveryExplainContext = explainRecoveryScore(
+      recovery.score,
+      daysSinceLastForMotivation,
+      null, // sleep hours not tracked
+      fatigueData.status,
+    );
+
+    // ─── Block 189: Goal-specific exercise priority ──────
+    const goalExercisePriorityContext = rankExercisesByGoal(
+      user?.goal ?? null,
+      exerciseNamesForBreathing,
+    );
+
+    // ─── Block 190: Smart rest advisor ──────
+    const smartRestContext = getSmartRestAdvice(
+      exerciseNamesForBreathing[0] ?? null,
+      user?.goal ?? null,
+      recentWorkouts[0]?.exercises?.[0]?.sets?.length ?? 3,
+    );
+
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
@@ -3479,7 +3558,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${strengthStandardsContext}${frequencyOptimizerContext}${conversationSummaryContext}${efficiencyContext}${goalTimelineContext}${compoundPriorityContext}${readinessContext}${supplementStackContext}${streakProtectionContext}${followUpQuestionsContext}${complexityContext}${nutritionTimingContext}${rpeContext}${recompContext}${workoutPatternContext}${fatigueAccumulationContext}${executionQualityContext}${socialProofContext}${fiberTypeContext}${responseLengthContext}${deloadPrescriptionContext}${splitAdherenceContext}${volumeDosingContext}${exercisePairingContext}${trainingAgeAdviceContext}${densityOptimizerContext}${streakMotivationMsgContext}${hydrationReminderContext}${sleepImpactContext}${smartWarmupContext}${monotonyContext}${gripStrengthContext}${bilateralContext}${plateauBreakerContext}${cardioFitnessContext}${loadRampContext}${formRiskContext}${nutritionSyncContext}${weeklyReportContext}${injuryPreventionContext}${mindMuscleContext}${supplementTimingContext}${difficultyScaleContext}${recoveryProtocolContext}${personalityContext}${timeAdviceContext}${synergyContext}${mentalTipsContext}${completionPredictorContext}${overloadTrackerContext}${breathingContext}${environmentContext}${calorieBurnDetailContext}${dehydrationContext}${trainingPartnerContext}${postWorkoutNutritionContext}${sorenessContext}${conversationFlowContext}${accessoryContext}${mobilityContext}${frequencyHeatmapContext}${goalAlignmentContext}${etiquetteContext}${intensityDistContext}${recoveryNutritionContext}${variationContext}${confidenceExplainContext}${decisionContext}${healthAlertsContext}${smartGoalsContext}${lastWoRatingContext}${periodizationAdviceContext}${emotionalContext}${knowledgeGapContext}${greetingEnhancedContext}${broscoenceFilterContext}${sessionSummaryContext}${strengthToWeightContext}${volumeForWeekContext}${nutritionMythContext}${russianGymContext}${refinedIntentContext}${difficultyRampContext}${biomechanicsContext}${preWorkoutChecklistContext}${progressNarrativeContext}${nextActionsContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${strengthStandardsContext}${frequencyOptimizerContext}${conversationSummaryContext}${efficiencyContext}${goalTimelineContext}${compoundPriorityContext}${readinessContext}${supplementStackContext}${streakProtectionContext}${followUpQuestionsContext}${complexityContext}${nutritionTimingContext}${rpeContext}${recompContext}${workoutPatternContext}${fatigueAccumulationContext}${executionQualityContext}${socialProofContext}${fiberTypeContext}${responseLengthContext}${deloadPrescriptionContext}${splitAdherenceContext}${volumeDosingContext}${exercisePairingContext}${trainingAgeAdviceContext}${densityOptimizerContext}${streakMotivationMsgContext}${hydrationReminderContext}${sleepImpactContext}${smartWarmupContext}${monotonyContext}${gripStrengthContext}${bilateralContext}${plateauBreakerContext}${cardioFitnessContext}${loadRampContext}${formRiskContext}${nutritionSyncContext}${weeklyReportContext}${injuryPreventionContext}${mindMuscleContext}${supplementTimingContext}${difficultyScaleContext}${recoveryProtocolContext}${personalityContext}${timeAdviceContext}${synergyContext}${mentalTipsContext}${completionPredictorContext}${overloadTrackerContext}${breathingContext}${environmentContext}${calorieBurnDetailContext}${dehydrationContext}${trainingPartnerContext}${postWorkoutNutritionContext}${sorenessContext}${conversationFlowContext}${accessoryContext}${mobilityContext}${frequencyHeatmapContext}${goalAlignmentContext}${etiquetteContext}${intensityDistContext}${recoveryNutritionContext}${variationContext}${confidenceExplainContext}${decisionContext}${healthAlertsContext}${smartGoalsContext}${lastWoRatingContext}${periodizationAdviceContext}${emotionalContext}${knowledgeGapContext}${greetingEnhancedContext}${broscoenceFilterContext}${sessionSummaryContext}${strengthToWeightContext}${volumeForWeekContext}${nutritionMythContext}${russianGymContext}${refinedIntentContext}${difficultyRampContext}${biomechanicsContext}${preWorkoutChecklistContext}${progressNarrativeContext}${nextActionsContext}${macroSplitContext}${smartSubstitutionContext}${muscleActivationContext}${splitOptimizerContext}${caloricStrategyContext}${trainingPhaseContext186}${workoutTemplateContext}${recoveryExplainContext}${goalExercisePriorityContext}${smartRestContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -3642,6 +3721,16 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'preWorkoutChecklist', content: preWorkoutChecklistContext, relevantIntents: new Set(['workout', 'greeting']), priority: 4 },
         { name: 'progressNarrative', content: progressNarrativeContext, relevantIntents: new Set(['motivation', 'greeting']), priority: 3 },
         { name: 'nextActions', content: nextActionsContext, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
+        { name: 'macroSplit', content: macroSplitContext, relevantIntents: new Set(['nutrition', 'weight_loss', 'muscle_gain']), priority: 3 },
+        { name: 'smartSubstitution', content: smartSubstitutionContext, relevantIntents: new Set(['workout', 'technique']), priority: 4 },
+        { name: 'muscleActivation', content: muscleActivationContext, relevantIntents: new Set(['workout', 'technique']), priority: 3 },
+        { name: 'splitOptimizer', content: splitOptimizerContext, relevantIntents: new Set(['program_creation', 'workout']), priority: 3 },
+        { name: 'caloricStrategy', content: caloricStrategyContext, relevantIntents: new Set(['nutrition', 'greeting']), priority: 3 },
+        { name: 'trainingPhase186', content: trainingPhaseContext186, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
+        { name: 'workoutTemplate', content: workoutTemplateContext, relevantIntents: new Set(['workout', 'greeting']), priority: 4 },
+        { name: 'recoveryExplain', content: recoveryExplainContext, relevantIntents: new Set(['workout', 'health', 'greeting']), priority: 2 },
+        { name: 'goalExercisePriority', content: goalExercisePriorityContext, relevantIntents: new Set(['workout', 'program_creation']), priority: 3 },
+        { name: 'smartRest', content: smartRestContext, relevantIntents: new Set(['workout']), priority: 4 },
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
@@ -12378,6 +12467,370 @@ function suggestNextActions(
   return `\n\n## 👆 СЛЕДУЮЩИЙ ШАГ В ПРИЛОЖЕНИИ
 ${actions.slice(0, 2).map(a => `- ${a}`).join('\n')}
 Предложи конкретные действия в приложении если уместно.`;
+}
+
+// ─── Block 181: Macro Split Advisor ───────────────────────────────────────────
+// Recommend protein/carb/fat split based on goal and training intensity
+
+function getMacroSplitAdvice(
+  goal: string | null,
+  bodyWeightKg: number | null,
+  trainingDaysPerWeek: number,
+): string {
+  if (!bodyWeightKg) return '';
+
+  const protein = Math.round(bodyWeightKg * (goal === 'weight_loss' ? 2.2 : goal === 'muscle_gain' ? 2.0 : 1.8));
+  let carbPct: number;
+  let fatPct: number;
+
+  if (goal === 'weight_loss') {
+    carbPct = trainingDaysPerWeek >= 4 ? 35 : 30;
+    fatPct = 30;
+  } else if (goal === 'muscle_gain') {
+    carbPct = 45;
+    fatPct = 25;
+  } else {
+    carbPct = 40;
+    fatPct = 30;
+  }
+
+  const proteinPct = 100 - carbPct - fatPct;
+  const cals = protein * 4 + Math.round(bodyWeightKg * 35);
+  const carbs = Math.round((cals * carbPct) / 100 / 4);
+  const fats = Math.round((cals * fatPct) / 100 / 9);
+
+  return `\n\n## 🥩 РЕКОМЕНДУЕМОЕ СООТНОШЕНИЕ МАКРОСОВ
+Цель: ${goal === 'weight_loss' ? 'похудение' : goal === 'muscle_gain' ? 'набор массы' : 'поддержание формы'}
+Белок: ~${protein}г/день (${proteinPct}% калорий)
+Углеводы: ~${carbs}г/день (${carbPct}% калорий)
+Жиры: ~${fats}г/день (${fatPct}% калорий)
+Используй если пользователь спрашивает про питание или похудение.`;
+}
+
+// ─── Block 182: Exercise Substitution Smart List ───────────────────────────────
+// Smart alternatives with WHY this substitution works
+
+function getSmartSubstitutions(exerciseName: string): string {
+  const subs: Record<string, Array<{ name: string; reason: string }>> = {
+    'жим лёжа': [
+      { name: 'Жим гантелей лёжа', reason: 'Большая амплитуда, независимая работа рук' },
+      { name: 'Отжимания на брусьях', reason: 'Похожий паттерн, больше стабилизаторов' },
+      { name: 'Жим в Смите', reason: 'Безопаснее без страховщика' },
+    ],
+    'присед': [
+      { name: 'Жим ног в тренажёре', reason: 'Меньше нагрузки на позвоночник' },
+      { name: 'Болгарские выпады', reason: 'Одностороннее развитие, хороший баланс' },
+      { name: 'Приседания в Смите', reason: 'Фиксированная траектория, безопаснее' },
+    ],
+    'становая тяга': [
+      { name: 'Румынская тяга', reason: 'Акцент на задней поверхности бедра, меньше нагрузки на поясницу' },
+      { name: 'Гиперэкстензия', reason: 'Укрепляет поясницу без осевой нагрузки' },
+      { name: 'Тяга гантелей', reason: 'Снижает нагрузку на позвоночник' },
+    ],
+    'подтягивания': [
+      { name: 'Тяга верхнего блока', reason: 'Тот же паттерн, регулируемый вес' },
+      { name: 'Тяга в тренажёре', reason: 'Изолированная работа широчайших' },
+      { name: 'Австралийские подтягивания', reason: 'Проще, хорошая база' },
+    ],
+  };
+
+  const nameL = exerciseName.toLowerCase();
+  for (const [key, alternatives] of Object.entries(subs)) {
+    if (nameL.includes(key)) {
+      return `\n\n## 🔄 АЛЬТЕРНАТИВЫ: ${exerciseName}
+${alternatives.map(a => `• **${a.name}** — ${a.reason}`).join('\n')}`;
+    }
+  }
+  return '';
+}
+
+// ─── Block 183: Muscle Activation Cues ────────────────────────────────────────
+// Mental cues for better muscle mind-muscle connection
+
+function getMuscleActivationCues(exerciseName: string): string {
+  const cues: Record<string, string[]> = {
+    'жим лёжа': [
+      'Представь, что пытаешься согнуть гриф руками друг к другу — грудь включится сильнее',
+      'Вдавливай лопатки в скамью на протяжении всего движения',
+    ],
+    'присед': [
+      'Раздвигай пол ногами в стороны — ягодицы активируются',
+      'Смотри вперёд и чуть вверх — поможет держать спину прямой',
+    ],
+    'становая тяга': [
+      'Представь, что отталкиваешь пол от себя, а не тянешь гриф вверх',
+      'Перед подъёмом: большой вдох в живот, напряги кор как при ударе',
+    ],
+    'подтягивания': [
+      'Начинай с того, что опускаешь лопатки вниз — потом уже тяни локти',
+      'Представь, что пытаешься засунуть локти в карманы',
+    ],
+    'тяга штанги': [
+      'Веди локти как можно выше — не тяни руками, тяни локтями',
+      'В верхней точке сведи лопатки как будто хочешь зажать карандаш',
+    ],
+  };
+
+  const nameL = exerciseName.toLowerCase();
+  for (const [key, activationCues] of Object.entries(cues)) {
+    if (nameL.includes(key)) {
+      return `\n\n## 🧠 МЕНТАЛЬНЫЕ СИГНАЛЫ: ${exerciseName}
+${activationCues.map(c => `💡 ${c}`).join('\n')}`;
+    }
+  }
+  return '';
+}
+
+function buildMuscleActivationContext(exercises: string[]): string {
+  const all: string[] = [];
+  for (const ex of exercises.slice(0, 2)) {
+    const cue = getMuscleActivationCues(ex);
+    if (cue) all.push(cue);
+  }
+  return all.join('');
+}
+
+// ─── Block 184: Training Split Optimizer ──────────────────────────────────────
+// Recommend optimal split based on available days and goal
+
+function optimizeTrainingSplit(
+  daysPerWeek: number,
+  goal: string | null,
+  experience: string | null,
+): string {
+  if (!daysPerWeek || daysPerWeek < 2) return '';
+
+  const splits: Record<number, Record<string, string>> = {
+    2: {
+      any: 'Full Body × 2 — лучший выбор при 2 днях. A: грудь/спина/плечи, B: ноги/бицепс/трицепс',
+    },
+    3: {
+      beginner: 'Full Body × 3 (пн/ср/пт) — оптимально для начинающих. Каждое упражнение 3×/нед',
+      intermediate: 'Push/Pull/Legs (PPL) — 3 дня. Push: грудь/плечи/трицепс, Pull: спина/бицепс, Legs: ноги',
+      advanced: 'Upper/Lower × 3 — 2× верх + 1× низ или ротация',
+    },
+    4: {
+      any: 'Upper/Lower × 4 (пн/вт/чт/пт) — 2× верх + 2× низ. Лучший баланс частоты и восстановления',
+    },
+    5: {
+      any: 'PPL + Upper/Lower — чередование. Или 5-дневный сплит: грудь/спина/плечи/ноги/руки',
+    },
+    6: {
+      any: 'PPL × 2 (Push A/Pull A/Legs A → Push B/Pull B/Legs B) — продвинутый вариант',
+    },
+  };
+
+  const dayData = splits[Math.min(daysPerWeek, 6)] || splits[3];
+  const split = dayData[experience || 'intermediate'] || dayData['any'] || dayData['beginner'] || Object.values(dayData)[0];
+
+  return `\n\n## 📅 ОПТИМАЛЬНЫЙ СПЛИТ (${daysPerWeek} дн/нед)
+${split}
+Обоснование: высокая частота стимуляции мышц при достаточном восстановлении.`;
+}
+
+// ─── Block 185: Caloric Deficit/Surplus Advisor ────────────────────────────────
+// Calculate optimal caloric deficit or surplus for goal
+
+function getCaloricStrategyAdvice(
+  tdee: number | null,
+  currentCals: number,
+  goal: string | null,
+  bodyWeightKg: number | null,
+): string {
+  if (!tdee || tdee <= 0 || !bodyWeightKg) return '';
+
+  let target: number;
+  let explanation: string;
+
+  if (goal === 'weight_loss') {
+    target = Math.max(tdee - 500, bodyWeightKg * 22); // max 500 kcal deficit, min 22 kcal/kg
+    const deficitPct = Math.round(((tdee - target) / tdee) * 100);
+    explanation = `Дефицит ${tdee - target} ккал/день (~${deficitPct}%) → потеря ~0.5кг/нед`;
+  } else if (goal === 'muscle_gain') {
+    target = tdee + 200; // lean bulk
+    explanation = `Профицит +200 ккал/день → медленный набор мышц без лишнего жира`;
+  } else {
+    target = tdee;
+    explanation = `Поддержание веса: TDEE ≈ расход = потребление`;
+  }
+
+  const diff = currentCals - target;
+  const status = Math.abs(diff) < 100 ? '✅ В норме' :
+    diff > 0 ? `⚠️ Превышение на ${Math.round(diff)} ккал` :
+    `⚠️ Недобор ${Math.abs(Math.round(diff))} ккал`;
+
+  return `\n\n## 🔢 КАЛОРИЙНАЯ СТРАТЕГИЯ
+TDEE: ~${tdee} ккал | Цель: ~${target} ккал | Сегодня: ${currentCals} ккал
+Статус: ${status}
+${explanation}`;
+}
+
+// ─── Block 186: Periodization Phase Detector ───────────────────────────────────
+// Detect what phase of training cycle user is in and give advice
+
+function detectTrainingPhaseAdvanced(
+  weeksSinceStart: number,
+  avgRPE: number | null,
+  completionRate: number,
+): string {
+  if (weeksSinceStart < 2) {
+    return `\n\n## 🗓️ ФАЗА ТРЕНИРОВОК: Адаптация (Неделя ${weeksSinceStart + 1})
+Ты в начале пути. Фокус: техника, связь мозг-мышца, привычка. Не гонись за весами.`;
+  }
+
+  if (avgRPE !== null && avgRPE > 8.5 && completionRate < 0.8) {
+    return `\n\n## 🗓️ ФАЗА ТРЕНИРОВОК: Перегрузка
+Высокий RPE + низкое завершение → сигнал усталости. Рассмотри deload на следующей неделе.`;
+  }
+
+  if (weeksSinceStart % 4 === 3) {
+    return `\n\n## 🗓️ ФАЗА ТРЕНИРОВОК: Разгрузочная неделя
+Снизь объём на 40-50%, сохрани интенсивность. Восстановление = прогресс.`;
+  }
+
+  const phases = ['Накопление объёма', 'Интенсификация', 'Пик силы'];
+  const phase = phases[weeksSinceStart % 3] || phases[0];
+
+  return `\n\n## 🗓️ ФАЗА ТРЕНИРОВОК: ${phase} (Неделя ${weeksSinceStart + 1})
+${phase === 'Накопление объёма' ? 'Больше объёма, умеренная интенсивность (70-75% 1ПМ)' :
+  phase === 'Интенсификация' ? 'Меньше объёма, выше интенсивность (80-85% 1ПМ)' :
+  'Максимальная интенсивность (85-95% 1ПМ), минимальный объём'}`;
+}
+
+// ─── Block 187: Workout Template Suggester ─────────────────────────────────────
+// Quick template recommendations based on time available
+
+function suggestWorkoutTemplate(
+  availableMinutes: number,
+  targetMuscles: string[],
+  equipment: string,
+): string {
+  if (availableMinutes <= 0) return '';
+
+  let template: string;
+
+  if (availableMinutes <= 20) {
+    template = `Экспресс (20 мин): 3 упражнения × 3 подхода по 45 сек работы / 15 сек отдых. HIIT-формат.
+Пример: приседания с весом → отжимания → тяга верхнего блока`;
+  } else if (availableMinutes <= 40) {
+    template = `Короткая (40 мин): 5-6 упражнений × 3 подхода, отдых 60 сек.
+Выбирай базовые многосуставные: жим + тяга + ноги.`;
+  } else if (availableMinutes <= 60) {
+    template = `Стандартная (60 мин): 6-8 упражнений × 3-4 подхода, отдых 90 сек.
+Формула: 2 базовых + 3-4 изолирующих + кардио-финиш.`;
+  } else {
+    template = `Расширенная (${availableMinutes} мин): полный сплит, 8-10 упражнений.
+Можно добавить разминку, растяжку, дополнительные изолирующие.`;
+  }
+
+  return `\n\n## ⏱️ ШАБЛОН ПОД ${availableMinutes} МИНУТ
+${template}`;
+}
+
+// ─── Block 188: Recovery Score Explainer ───────────────────────────────────────
+// Explain recovery score components to user
+
+function explainRecoveryScore(
+  recoveryScore: number,
+  daysSinceLastWorkout: number,
+  avgSleepHours: number | null,
+  fatigueStatus: string,
+): string {
+  if (recoveryScore === 0) return '';
+
+  const grade = recoveryScore >= 80 ? '🟢 Отлично' :
+    recoveryScore >= 60 ? '🟡 Хорошо' :
+    recoveryScore >= 40 ? '🟠 Умеренно' : '🔴 Низко';
+
+  const factors: string[] = [];
+
+  if (daysSinceLastWorkout >= 2) factors.push(`✅ Отдых: ${daysSinceLastWorkout} дней после тренировки`);
+  else if (daysSinceLastWorkout === 1) factors.push('🟡 1 день после тренировки');
+  else factors.push('⚠️ Тренировался сегодня');
+
+  if (avgSleepHours !== null) {
+    if (avgSleepHours >= 7.5) factors.push(`✅ Сон: ${avgSleepHours.toFixed(1)}ч`);
+    else factors.push(`⚠️ Сон: ${avgSleepHours.toFixed(1)}ч (рекомендовано 7.5-9ч)`);
+  }
+
+  if (fatigueStatus === 'overreaching') factors.push('🔴 Признаки перетренированности');
+  else if (fatigueStatus === 'high') factors.push('🟠 Накопленная усталость высокая');
+  else if (fatigueStatus === 'low') factors.push('✅ Усталость низкая');
+
+  return `\n\n## 💤 ГОТОВНОСТЬ К ТРЕНИРОВКЕ: ${grade} (${recoveryScore}/100)
+${factors.join('\n')}`;
+}
+
+// ─── Block 189: Goal-Specific Exercise Priority ──────────────────────────────
+// Rank exercises by relevance to user's goal
+
+function rankExercisesByGoal(
+  goal: string | null,
+  availableExercises: string[],
+): string {
+  if (!goal || availableExercises.length === 0) return '';
+
+  const priorities: Record<string, string[]> = {
+    weight_loss: ['кардио', 'суперсет', 'круговая', 'бёрпи', 'прыжк', 'HIIT', 'выпад', 'приседан'],
+    muscle_gain: ['жим', 'присед', 'становая', 'тяга', 'жим стоя', 'подтягиван', 'брусья'],
+    endurance: ['бег', 'велосипед', 'гребля', 'плавание', 'кардио', 'трастер'],
+    strength: ['присед', 'становая', 'жим лёжа', 'жим стоя', 'рывок', 'толчок'],
+  };
+
+  const prio = priorities[goal] || priorities['muscle_gain'];
+
+  const ranked = availableExercises.filter(ex =>
+    prio.some(p => ex.toLowerCase().includes(p)),
+  ).slice(0, 3);
+
+  if (ranked.length === 0) return '';
+
+  const goalName = goal === 'weight_loss' ? 'похудение' :
+    goal === 'muscle_gain' ? 'набор мышц' :
+    goal === 'endurance' ? 'выносливость' : 'сила';
+
+  return `\n\n## 🎯 ПРИОРИТЕТНЫЕ УПРАЖНЕНИЯ ДЛЯ ЦЕЛИ: ${goalName}
+${ranked.map((e, i) => `${i + 1}. ${e}`).join('\n')}
+Рекомендуй их в первую очередь при составлении тренировки.`;
+}
+
+// ─── Block 190: Smart Rest Between Sets Advisor ───────────────────────────────
+// Recommend optimal rest time based on exercise type and goal
+
+function getSmartRestAdvice(
+  exerciseName: string | null,
+  goal: string | null,
+  setCount: number,
+): string {
+  if (!exerciseName) return '';
+
+  const isCompound = /присед|жим|становая|тяга|подтягиван|жим стоя/i.test(exerciseName);
+  const isHeavy = setCount <= 5; // low reps = heavy
+
+  let restSeconds: number;
+  let rationale: string;
+
+  if (goal === 'strength' || isHeavy) {
+    restSeconds = isCompound ? 180 : 120;
+    rationale = 'Силовая работа требует полного восстановления нервной системы';
+  } else if (goal === 'muscle_gain') {
+    restSeconds = isCompound ? 120 : 90;
+    rationale = 'Гипертрофия: умеренный отдых → накопление метаболитов → рост';
+  } else if (goal === 'weight_loss') {
+    restSeconds = isCompound ? 60 : 45;
+    rationale = 'Короткий отдых → выше интенсивность → больше калорий';
+  } else {
+    restSeconds = 90;
+    rationale = 'Универсальный вариант для смешанных целей';
+  }
+
+  const mins = Math.floor(restSeconds / 60);
+  const secs = restSeconds % 60;
+  const timeStr = mins > 0 ? `${mins}м ${secs > 0 ? secs + 'с' : ''}`.trim() : `${secs}с`;
+
+  return `\n\n## ⏸️ ОТДЫХ МЕЖДУ ПОДХОДАМИ: ${timeStr}
+Упражнение: ${exerciseName} | Цель: ${goal || 'общая форма'}
+${rationale}`;
 }
 
 // ─── Conversation Starters: personalized quick-action suggestions ────────────
