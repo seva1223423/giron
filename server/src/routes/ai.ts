@@ -5737,6 +5737,18 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const preWoMealSciContext = getPreWorkoutMealScience(message);
     const womenTrainCompContext = getTrainingForWomenComplete(message);
 
+    // ─── Block 1171-1180 calls ──────
+    const mechTensionSciContext = getMechanicalTensionScience(message);
+    const phosphoCreatineContext = getPhosphocreatineSystemGuide(message);
+    const detrainRetrainContext = getDetrainingRetrainingGuide(message);
+    const rhodiolaAdaptContext = getRhodiolaAdaptogenMaster(message);
+    const inclinePressAngContext = getInclinePressAngleMaster(message);
+    const nutriTimingMythContext = getNutrientTimingMyths(message);
+    const trainLongevityContext = getTrainingLongevityGuide(message);
+    const myofascialRelContext = getMyofascialReleaseGuide(message);
+    const tutMasterContext = getTimeUnderTensionMaster(message);
+    const periodBlockContext = getPeriodizationBlockGuide(message);
+
     console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, muscleRecovery: ${muscleRecoveryStatuses.filter(s => !s.readyToTrain).length} recovering`);
 
     // No nutrition targets set
@@ -5823,7 +5835,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const systemPrompt = [
       SYSTEM_PROMPT,
       knowledgeContent,
-      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${strengthStandardsContext}${frequencyOptimizerContext}${conversationSummaryContext}${efficiencyContext}${goalTimelineContext}${compoundPriorityContext}${readinessContext}${supplementStackContext}${streakProtectionContext}${followUpQuestionsContext}${complexityContext}${nutritionTimingContext}${rpeContext}${recompContext}${workoutPatternContext}${fatigueAccumulationContext}${executionQualityContext}${socialProofContext}${fiberTypeContext}${responseLengthContext}${deloadPrescriptionContext}${splitAdherenceContext}${volumeDosingContext}${exercisePairingContext}${trainingAgeAdviceContext}${densityOptimizerContext}${streakMotivationMsgContext}${hydrationReminderContext}${sleepImpactContext}${smartWarmupContext}${monotonyContext}${gripStrengthContext}${bilateralContext}${plateauBreakerContext}${cardioFitnessContext}${loadRampContext}${formRiskContext}${nutritionSyncContext}${weeklyReportContext}${injuryPreventionContext}${mindMuscleContext}${supplementTimingContext}${difficultyScaleContext}${recoveryProtocolContext}${personalityContext}${timeAdviceContext}${synergyContext}${mentalTipsContext}${completionPredictorContext}${overloadTrackerContext}${breathingContext}${environmentContext}${calorieBurnDetailContext}${dehydrationContext}${trainingPartnerContext}${postWorkoutNutritionContext}${sorenessContext}${conversationFlowContext}${accessoryContext}${mobilityContext}${frequencyHeatmapContext}${goalAlignmentContext}${etiquetteContext}${intensityDistContext}${recoveryNutritionContext}${variationContext}${confidenceExplainContext}${decisionContext}${healthAlertsContext}${smartGoalsContext}${lastWoRatingContext}${periodizationAdviceContext}${emotionalContext}${knowledgeGapContext}${greetingEnhancedContext}${broscoenceFilterContext}${sessionSummaryContext}${strengthToWeightContext}${volumeForWeekContext}${nutritionMythContext}${russianGymContext}${refinedIntentContext}${difficultyRampContext}${biomechanicsContext}${preWorkoutChecklistContext}${progressNarrativeContext}${nextActionsContext}${macroSplitContext}${smartSubstitutionContext}${muscleActivationContext}${splitOptimizerContext}${caloricStrategyContext}${trainingPhaseContext186}${workoutTemplateContext}${recoveryExplainContext}${goalExercisePriorityContext}${smartRestContext}${workoutTimingContext}${proteinTimingPersonalizedContext}${deloadPlanContext}${muscleGroupRecoveryContext}${adaptiveCoachingContext}${volumeBalanceContext}${nutritionWorkoutSyncContext}${exerciseProgressionContext}${lifestyleRecoveryContext}${milestoneCelebrationContext}${supersetContext}${waterNeedsContext}${compoundFirstContext}${mentalPerformanceContext}${flexibleDietContext}${ageStrengthContext}${programAdjustmentsContext}${earlyInjuryContext}${consistencyScoreContext}${personalizedWarmupContext}${bodyCompEstimateContext}${goalMismatchContext}${monthlyChallengeContext}${overtrainingContext}${supplementTimingAdvancedContext}${progressiveOverloadContext}${weekendWarriorContext}${nutritionQualityContext}${tempoAdviceContext}${athleteRoadmapContext}${exerciseOrderContext}${seasonalAdjustmentsContext}${techniqueIssuesContext}${gymSafetyContext}${microGoalsContext}${rpeEducatorContext}${foodSwapContext}${trainingAgeProtocolContext}${intraWorkoutHydrationContext}${muscleGrowthFundamentalsContext}${energySystemContext}${sleepImpactAlertContext}${postWorkoutWindowContext}${mobilityAssessmentContext}${frequencyPersonalizerContext}${glycogenContext}${lifestyleAuditContext}${barVsDumbbellContext}${habitLoopContext}${populationBenchmarkContext}${deloadDetectorContext}${mealTimingOptimizerContext}${overuseInjuryContext}${monotonyBusterContext}${spotterAdviceContext}${prCelebrationContext}${cardioStrengthContext}${bodyPartSpecContext}${environmentTipsContext}${periodizationExplainerContext}${warmUpProtocolContext}${supplementStackBuilderContext}${injuryComeback253Context}${waterIntakeContext}${tempoEducatorContext}${proteinSourceContext}${splitRecommender257Context}${breathingTechniqueContext}${antiPlateauContext}${macroCalculatorContext}${strengthToWeightContext261}${sleepOptimizationContext}${recoveryModalitiesContext}${mindMuscleConnectionContext}${beginnerMistakeContext}${volumeProgressionContext}${functionalMovementContext}${fastingTrainingContext}${competitionPrepContext}${nutritionLabelContext}${hormonalOptimizationContext}${gutHealthContext}${intraWorkoutFuelContext}${exerciseAnatomyContext}${mealPrepContext}${overttrainingRecoveryContext}${creatineGuideContext}${hiitLissContext}${workoutDensityContext279}${preWorkoutNutritionContext}${timeCrunchedWorkoutContext}${powerliftingTotalContext}${muscleFiberContext}${jointWarmUpContext}${caloricDeficitContext}${gymBagContext}${trainingPartnerAdviceContext}${gripStrengthGuideContext}${nutritionPeriodizationContext}${russianSportsMomentContext}${restDayPlannerContext}${dietTypeContext}${bodyweightProgressionsContext}${seasonalCalendarContext}${micronutrientContext}${stickingPointsContext}${dailyHabitsContext}${bmiDebunkContext}${stretchingProtocolContext}${milestoneRoadmapContext}${foamRollerContext}${ageSpecificContext}${genderNutritionContext}${gymEtiquetteContext}${heartRateZonesContext}${fitnessMythsContext}${workoutJournalingContext}${trainingEconomicsContext}${cognitionTrainingContext}${badWeatherContext}${sleepDebtContext}${postWorkoutStretchContext}${progressionModelContext}${mealFrequencyContext}${muscleFrequencyContext}${warmupWeightContext}${dropSetContext}${pausedRepsContext}${nutrientDeficiencyContext}${splitReviewContext}${carbCyclingContext}${supersetGuideContext}${mindfulEatingContext}${preWorkoutMealContext}${recoveryDrinkContext}${bodyweightProgContext}${coachPersonaContext}${gripVariationsContext}${habitStackingContext}${bodyCompGoalContext}${properSetupContext}${stressRecoveryContext}${speedPowerContext}${enduranceContext}${mobilityAssessmentAdvContext}${trainingLogContext}${proteinQualityContext}${smartSubContext}${cuttingMistakesContext}${bulkingMistakesContext}${morningEveningContext}${mentalToughnessContext}${trackingMetricsContext}${beginnerFrequencyContext}${programDesignContext}${nightNutritionContext}${injuryPrevTop5Context}${fitnessAgeContext}${alcoholContext}${seasonalTrainingFullContext}${caffeineGuideContext}${beltUsageContext}${kettlebellContext}${resistanceBandContext}${coreTrainingContext}${forearmContext}${calvesContext}${homeGymContext}${neckPostureContext}${deloadWeekProtocolContext}${travelWorkoutContext}${officeStretchContext}${womensTrainingContext}${seniorFitnessContext}${creatineFullContext}${proteinPowderContext}${swimmingContext}${runningContext}${yogaContext}${supplementStackGoalContext}${isometricTrainingContext}${calisthenicsContext}${intensityPlateauContext}${macroTrackingContext}${plVsBbContext}${eatingForRecoveryContext}${strengthWeightLossContext}${wearablesContext}${busyScheduleContext}${sleepPerformanceContext}${gripStrengthTrainingContext}${eccentricContext}${contrastTrainingContext}${partialRepsContext}${lowerBackContext}${strengthStandardsWeightContext}${trainingTypeWarmupContext}${gymAnxietyContext}${outdoorTrainingContext}${martialArtsContext}${vegetarianAthleteContext}${gutHealthAthletesContext}${testosteroneContext}${altitudeTrainingContext}${preCompContext}${interSessionContext}${injuryComebackFullContext}${disciplineContext}${activeRecoveryDayContext}${personalizedFrequencyContext}${breathingExerciseContext}${compoundIsolationContext}${refeedContext}${intraWorkoutAdvContext}${bodyFatMeasurementContext}${seniorStrengthContext}${sportConditioningContext}${overloadTrackingContext}${fastedTrainingContext}${mindBodyContext}${volumeByMuscleContext}${wristElbowContext}${shoulderHealthContext}${kneeHealthContext}${macroTimingGoalContext}${dehydrationImpactContext}${foamRollingAdvContext}${illnessTrainingContext}${beginnerSupplementContext}${bodySignalsContext}${pyramidTrainingContext}${workoutDurationContext}${metabolicSyndromeContext}${runningTechniqueContext}${proteinWindowContext}${crossFitContext}${bfrContext}${hipFlexorContext}${calorieAccuracyContext}${domsScienceContext}${ankleMobilityContext}${thoracicMobilityContext}${homeWorkoutNoEquipContext}${stickingPointContext}${seasonalPeriodizationContext}${bodyTypeNutritionContext}${fitnessLevelProtocolContext}${shiftWorkerContext}${smartGoalContext}${restPeriodsContext}${creatineProtocolContext}${trainingBoredomContext}${myofascialContext}${naturalFrequencyContext}${papContext}${digestiveHealthContext}${loadedStretchingContext}${splitsByGoalContext}${fatigueSignalContext}${equipmentAccessoriesContext}${eccentricOverloadAdvContext}${mindfulEatingAdvContext}${gripPullingContext}${muscleBloodFlowContext}${temperatureTherapyContext}${overheadPressingContext}${adaptationTimelineContext}${proteinWeightLossContext}${longevityTrainingContext}${minimalTimeContext}${neckTrainingContext}${hipThrustContext}${benchAngleContext}${valsalvaContext}${sleepMuscleContext}${hypertrophyStrengthSchemeContext}${calvesEffectiveContext}${afterIllnessContext}${intraWorkoutSnacksContext}${competitionPsychContext}${caffeineTimingContext}${rdlGuideContext}${fasciaHealthContext}${cardioFatLossContext}${preWorkoutMealTimingContext}${benchArchContext}${tricepsSpecContext}${bicepsSpecContext}${dehydrationPerfContext}${overloadMethodsContext}${frontSquatContext}${weightedVestContext}${ohsMobilityContext}${supersetsTimeContext}${trainingLogBenefitsContext}${vitaminDContext}${omega3Context}${metabolicFlexibilityContext}${explosiveTrainingContext}${sleepStretchingContext}${collagenJointContext}${magnesiumContext}${homeGymBudgetContext}${cuttingMistakesAdvContext}${shoulderImpingementContext}${proteinAbsorptionContext}${lowerBodyImbalanceContext}${deloadWeekProgramContext}${compoundPriorityAdvContext}${aiCoachingMilestoneContext}${trainingHeatContext}${pullUpProgressionContext}${dipsTechniqueContext}${lateralAgilityContext}${wristElbowRehabContext}${barbellRowVarContext}${ifAthletesContext}${bulkingStrategiesContext}${rackPullsContext}${sustainableRoutineContext}${sprintingBodyCompContext}${overheadMobilityContext}${caloricNeedsContext}${sorenessVsInjuryContext}${latBuildingContext}${kneePainTrainingContext}${powerCleansContext}${flexibilityMuscleGrowthContext}${shoulderExternalRotContext}${domsScienceDetailedContext}${trapTrainingContext}${bloodSugarContext}${muscleMemoryContext}${scoliosisContext}${preExhaustContext}${electrolytesContext}${posteriorChainContext}${stressCortisolContext}${abdominalContext}${plateauPsychContext}${rotatorCuffContext}${ankleStabilityContext}${hormonalOptContext}${equipMaintenanceContext}${deloadIndicatorsContext}${herniaTrainingContext}${reverseDietContext}${breathingPatternsContext}${geneticPotentialContext}${wristWrapsContext}${freqByMuscleContext}${squatDepthContext}${postWorkoutWindowTruthContext}${warmupScienceContext}${imbalanceCorrectionContext}${alcoholFitnessContext}${jointFriendlyContext}${caffeineCyclingContext}${mindMuscleAdvContext}${trainingJournalContext}${periodizationModelsContext}${tendonHealthContext}${sorenessVsGrowthContext}${postureCorrectionContext}${coldWeatherContext}${proteinSourcesContext}${restPauseContext}${foamRollingSciContext}${resistanceBandAdvContext}${carbTimingContext}${glycemicIndexContext}${legPressVarContext}${sleepOptAthletesContext}${boneDensityContext}${machineVsFreeContext}${gutMicrobiomeContext}${volumeAutoregContext}${plyometricsContext}${sodiumWaterContext}${motivationContext}${chestFlyContext}${proteinPowderCompContext}${functionalFitnessContext}${insulinSensitivityContext}${flatFeetContext}${benchGripWidthContext}${antiInflammatoryContext}${cableExercisesContext}${zincMagnesiumContext}${trainingVsChronoContext}${deadliftVarContext}${betaAlanineContext}${bracingContext}${citrullineContext}${ohpFormContext}${metconContext}${shoulderPressVarContext}${calorieTrackingContext}${hipHingeContext}${ironDeficiencyContext}${gluteActivationContext}${vitaminB12Context}${kneePainContext}${mealPrepStrategyContext}${clusterSetsContext}${latPulldownContext}${potassiumContext}${shoulderImpingementAdvContext}${mevContext}${glycogenReplenishContext}${pecTrainingContext}${digestiveEnzymesContext}${trapBarContext}${antiAgingContext}${unilateralContext}${preWorkoutSuppContext}${hamstringContext}${bloodPressureContext}${gripTypesContext}${cortisolMgmtContext}${rearDeltContext}${taurineContext}${dbVsBbContext}${insulinGrowthContext}${beginnerPeriodContext}${recoveryNutrTimingContext}${scapularHealthContext}${tutScienceContext}${proteinTypesContext}${adductorAbductorContext}${sumoVsConvContext}${vitDathleticContext}${cableMachineContext}${tefContext}${progCalisthenicsContext}${neckSafetyContext}${seleniumContext}${smithMachineContext}${sorenessManageContext}${bandsOnlyContext}${legCurlVarContext}${iodineContext}${mechDropSetsContext}${concVsEccContext}${ashwagandhaContext}${chestSupportedContext}${antioxidantsContext}${landmineContext}${carbSourcesContext}${rotationalCoreContext}${properBreathingContext}${fatSourcesContext}${mindBodyConnContext}${backSquatFormContext}${probioticsContext}${frontSquatTechContext}${sodiumIntakeContext}${pendlayRowContext}${fiberIntakeContext}${conjugateContext}${shoulderMobilityContext}${chromiumContext}${rdlVsSldlContext}${postInjuryReturnContext}${seatedVsStandingContext}${coconutWaterContext}${gobletSquatContext}${ironZincContext}${invertedRowContext}${appetiteContext}${trapBarFarmersContext}${zincSuppContext}${sissySquatContext}${colostrumContext}${cableCrossoverContext}${glutamineContext}${bulgarianSplitContext}${phosphatidylserineContext}${meadowsRowContext}${vitaminK2Context}${serratusContext}${carnitineContext}${hipMobilityContext}${rhodiolaContext}${chestDipContext}${coq10Context}${facePullContext}${betaineContext}${hackSquatContext}${taurineAthleticContext}${pendulumSquatContext}${astaxanthinContext}${reverseGripBenchContext}${boronContext}${latPulldownVarContext}${pqqContext}${jeffersonCurlContext}${glycineContext}${zercherContext}${adaptogenicMushroomsContext}${gluteHamContext}${shilajitContext}${closeGripBenchContext}${curcuminContext}${sealRowContext}${electrolyteBalanceContext}${deficitDeadliftContext}${nacContext}${spotoPressContext}${berberineContext}${pinPressContext}${spirulinaContext}${pauseSquatContext}${fulvicAcidContext}${andersonSquatContext}${digestiveHealthAthleteContext}${floorPressContext}${quercetinContext}${goodMorningContext}${resveratrolContext}${ssbContext}${apigeninContext}${snatchGripContext}${eaaContext}${tempoContrastContext}${chlorellaContext}${pendlayStrictContext}${hmbContext}${reverseHyperContext}${alphaGpcContext}${beltSquatContext}${tongkatAliContext}${larsenPressContext}${fenugreekContext}${zPressContext}${elderberryContext}${jmPressContext}${macaContext}${vikingPressContext}${blackSeedContext}${gripStrengthAdvContext}${ashwagandhaCortisolContext}${forwardReverseLungeContext}${omega3AthleteContext}${singleLegRdlContext}${bVitaminsContext}${sissyHackContext}${zincTestosteroneContext}${cablePullThroughContext}${arachidonicContext}${lateralDeltContext}${lTheanineContext}${pausedBulgarianContext}${creatineHclContext}${reverseGripRowContext}${magTaurateContext}${legExtVarContext}${collagenAdvContext}${rearDeltAdvContext}${glucosamineContext}${tricepsCompleteContext}${melatoninRecovContext}${pendulumRevHyperContext}${vitaminEContext}${cableLateralContext}${msmJointsContext}${bicepsAdvContext}${electrolytesEndurContext}${legPressAnglesContext}${pycnogenolContext}${forearmDetailContext}${curcuminPiperineContext}${hackVsLegPressContext}${ironAthletesContext}${inclineCurlContext}${potassiumAthContext}${absScienceContext}${bcaaVsEaaContext}${rdlFormContext}${citrullineAdvContext}${trapCompleteContext}${nacAdvContext}${arnoldPressContext}${paleoDietContext}${oneArmRowContext}${periodNaturalContext}${calvesSciContext}${caseinBedContext}${skullCrushContext}${glycemicLoadContext}${latsSciContext}${alphaLipoicContext}${benchChainsContext}${ketoDietContext}${seatedRowContext}${inositolContext}${invertedRowDetContext}${carnosineContext}${wideGripPullContext}${dietaryFatsContext}${chestSciContext}${psAdvContext}${dipsDeepContext}${ifAthletesGuideContext}${pulloverTechContext}${vitaminAContext}${tbarRowContext}${probioticsAthAdvContext}${inclineBenchContext}${wheyCompleteContext}${deadliftVarsContext}${taurinePerfContext}${frontRaiseSciContext}${copperZincContext}${sumoDeadliftContext}${rhodiolaGuideContext}${cableFlyContext}${digestiveEnzContext}${goodMorningExContext}${betaAlanineComplContext}${hipThrustSciContext}${astaxanthinAdvContext}${facePullAdvContext}${boronTestContext}${boxSquatContext}${shilajitAthContext}${landminePressContext}${cholinePerfContext}${stepUpContext}${glutamineComplContext}${spotoPressAdvContext}${vitaminKContext}${pendlayRowAdvContext}${coq10PerfContext}${zercherSquatAdvContext}${spirulinaChlorContext}${closeGripDetContext}${seleniumThyAthContext}${dbPulloverDetContext}${omega369Context}${deficitDLGuideContext}${pqqMitoContext}${reverseLungeDeepContext}${fishOilQualContext}${floorPressTechContext}${lysineArgContext}${bulgarianSplitAdvContext}${folicAcidContext}${machineChestContext}${carnitineComplContext}${hangCleanContext}${resveratrolAthContext}${cableLateralDetContext}${vitB12AthContext}${trapBarDLContext}${acvContext}${declineBenchContext}${sodiumBicarbContext}${hipFlexorMobContext}${colostrumGuideContext}${kbSwingContext}${phospholipidsContext}${ssbSquatContext}${gingerAthContext}${overheadTriContext}${beetJuiceContext}${hipAbductorContext}${vitCComplContext}${singleArmPressContext}${greenTeaExtContext}${hackSquatBioContext}${ashwagandhaComplContext}${cableRowVarContext}${magTypesContext}${sissySquatSciContext}${electrolyteProtoContext}${dbCurlVarContext}${probioticsComplContext}${legPressComplContext}${mctOilContext}${rdlComplContext}${zincComplContext}${latPullSciContext}${collagenPeptContext}${walkingLungeContext}${ironMineralContext}${chestFlySciContext}${digestiveProtoContext}${tricepPushContext}${adaptogenStackContext}${preacherCurlContext}${vitD3K2Context}${seatedOHPContext}${creatineCompContext}${sumoSquatContext}${potassiumComplContext}${cableKickContext}${sleepSuppContext}${pendulumSquatGContext}${antiInflamFoodsContext}${barbellHTContext}${bVitComplContext}${inclineBenchSciContext}${fiberAthContext}${nordicHamContext}${caffCycleProtoContext}${smithMachComplContext}${pwMealTimContext}${ghdExContext}${suppTimingMatContext}${reverseGripDetContext}${tryptophanAthContext}${tbarRowComplContext}${sodiumAthProtoContext}${bulgarianProgContext}${quercetinPerfContext}${declinePressCompContext}${glucChondAdvContext}${calfRaiseSciContext}${preWoSuppGuideContext}${rackPullBioContext}${melatoninSciContext}${seatedCableAdvContext}${carbLoadContext}${frontSquatMobContext}${coq10UbiContext}${machShoulderContext}${gutBrainContext}${dbLatRaiseSciContext}${recovDrinkContext}${chestSuppRowSciContext}${tyrosinePerfContext}${barbellShrugContext}${waterFastContext}${legExtSciContext}${ashwaKSM66Context}${reverseFlyCDBContext}${citrullineDoseContext}${hipMobRoutContext}${vitETocoContext}${pendlayProgContext}${wristStrContext}${gluteMedMinContext}${hamInjPrevContext}${calciumAthContext}${incDBCurlSciContext}${mctKetoContext}${sumoAdvContext}${lowerBackTrContext}${sleepArchContext}${diabetesTrainContext}${trainLogOptContext}${musclMemMechContext}${overreachDetContext}${cnsRecovContext}${mindMusclNeuroContext}${handGripStrContext}${spinalDecompContext}${trainMaxCalcContext}${antiAgeLongContext}${walkPadIncContext}${stairMasterContext}${rowMachineSciContext}${jumpRopeSciContext}${boxJumpTechContext}${burpeeGuideContext}${battleRopeContext}${cyclingIndContext}${ellipticalContext}${sledPushContext}${trxSuspContext}${probMicroContext}${tbarBioContext}${electroSweatContext}${bulgSplitMCContext}${betaAlanineSciContext}${trapFullContext}${sleepGHContext}${latPullMasterContext}${periodNattyContext}${gluteBridgeVsHTContext}${vitCSportsSciContext}${legPressFootContext}${adaptInjuryContext}${crunchAbSciContext}${omega63BalContext}${pullUpFullProgContext}${circadianTrContext}${dbRowIncCompContext}${carbWindowContext}${valsalvaAdvContext}${taurineComplContext}${deltoid3HContext}${insulinSensTrContext}${sumoVsConvDeepContext}${creatineMTContext}${hamstringCompContext}${calcVitDSynContext}${frontVsBackSqContext}${preWoSuppSciContext}${heatColdContext}${zincTestImmContext}${benchSetupMContext}${reverseDietCompContext}${cableFullBodyContext}${glutamineWhenContext}${bicepsSciCompContext}${sleepRecov7Context}${coreAntiMovContext}${trainPhiloContext}${cardioVascHealthContext}${collagenJointAdvContext}${triceps3HContext}${waterBalCalcContext}${squatDepthKneeContext}${ironFemaleContext}${forearmGripCompContext}${nutriPeriodContext}${deadliftErrorContext}${motivation3MContext}${ohpStVsSeContext}${gluteMaxSciContext}${chestDevMCContext}${bVitAthComplContext}${flexVsMobContext}${plateauBreakAdvContext}${mealPrepMastContext}${burnoutPrevContext}${backSquatBioContext}${proteinMythsContext}${insulinResFixContext}${latDevSciContext}${preWoNutTimContext}${kneeRehabContext}${dbVsBbComplContext}${sleepArchAthContext}${abTrainSciContext}${postWoRecovContext}${trainFreqOptContext}${carbSrcAthRankContext}${hipHingeMovContext}${magFormsAthContext}${rowExCompContext}${fatLossPresMContext}${shoulderImpRecContext}${creatineDeepContext}${splitSelGuideContext}${microNutTimContext}${hamInjPrevProtoContext}${mentalPerfGymContext}${ankleStabProtoContext}${vitDMasteryContext}${trapBarMCContext}${ifTrainComplContext}${pecDevSciContext}${zincImmPerfContext}${splitSquatProgContext}${sleepHygProtoContext}${rotCuffPrehabContext}${protDigAbsContext}${glycogenReplProtoContext}${dlGripStratContext}${antiInflamDietContext}${quadDevMCContext}${electroSweatProtoContext}${hipMobComplContext}${preWoSuppSciAdvContext}${coreStabAntiMovContext}${calfTrainHyperContext}${betaAlaCarnoContext}${volLandmarksContext}${omega3FOMContext}${gluteProgContext}${postureCorrContext}${creatineSafeContext}${tendonLigContext}${trainAroundPainContext}${ironAbsAthContext}${chestPressVarContext}${recovModalRankContext}${deloadSciContext}${vitB6AthGuideContext}${pullUpMCContext}${nutFatLossComplContext}${shoulderPressVarGuideContext}${magGlycinateContext}${beginnerMCContext}${stressCortProtContext}${backDevPlanContext}${hydrationPerfContext}${plateauPsychAdvContext}${legDayComplContext}${vitAAthlGuideContext}${benchFormMastContext}${protVeganGuideContext}${sleepApneaAthContext}${armDevComplContext}${calcBoneAthContext}${cardioEndurSciContext}${glutenFreeAthContext}${overtSignsProtoContext}${sodiumAthComplContext}${abWheelGuideContext}${motivLongTermContext}${copperAthGuideContext}${chinVsPullAdvContext}${postWoShakeSciContext}${sleepPosnRecovContext}${hipFlexReleaseContext}${trainInHeatAdvContext}${kneeWrapSlvContext}${muscAsymCorrContext}${trainingAfter40Context}${vitCTimeSciContext}${dbShouldPrMCContext}${digestStratAthContext}${rowMachineFormContext}${bloodFlowRstrContext}${fitnessMindsetContext}${hamCurlVarGuideContext}${wristMobGuideContext}${diabetesType2TrContext}${legExtFormAdvContext}${probiotStrainContext}${chestWorkoutFullContext}${manganeseGuideContext}${deadliftSetupContext}${stressEatGuideContext}${shoulderMobAdvContext}${trainingJetLagContext}${muscEndurSciContext}${trapezTrainAdvContext}${vitKBoneAthContext}${inclineTreadmillContext}${proteinBreakfastContext}${ankleRehabProtContext}${metabolicRateBoostContext}${landminePressAdvContext}${sleepMelatoninNatContext}${trainingDiaryComContext}${gripStrMasterContext}${electrolyteCompContext}${cableFlyAdvFormContext}${coldWeatherAdvContext}${collagenSuppContext}${bulgSplitMasterContext}${breathTechLiftContext}${ironDefAdvContext}${chestDipAdvGContext}${trainInsomniaContext}${restPauseAdvMethContext}${vitECompleteContext}${seatedLegCurlContext}${shiftWorkGuideContext}${argCitNOContext}${hexBarDLContext}${antiInflamCompContext}${facePullMasterContext}${sleepHygCompContext}${postureTrainContext}${kbSwingAdvContext}${zincTestCompContext}${pecDeckSciContext}${trainFastingContext}${betaAlaTimingContext}${sumoVsConvSciContext}${gutMicroCompContext}${latPullFormContext}${recoveryDayContext}${tallTrainContext}${warmUpProtContext}${seleniumAthContext}${cableRowFormContext}${arthritisTrainContext}${taurineCompContext}${hipThrustAdvMContext}${circadianTrainContext}${tricepLongHContext}${preWoMealSciContext}${womenTrainCompContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
+      `${timeContext}\n${userContext}\n${programContext}\n${statsContext}${gamificationContext}${overloadContext}${recoveryContext}${deloadContext}${muscleBalanceContext}${periodizationContext}${difficultyContext}${alternativesContext}${weeklySummaryContext}${goalProgressContext}${restTimerContext}${fatigueContext}${frequencyContext}${nutritionGapsContext}${workoutTemplatesContext}${chatThemesContext}${plateauContext}${recoveryQuestionnaireContext}${progressionPlanContext}${intensityZoneContext}${warmupContext}${bodyCompContext}${supplementContext}${workoutComparisonContext}${techniqueCuesContext}${sleepQualityContext}${muscleRecoveryContext}${streakMotivationContext}${trainingAgeContext}${ratingFeedbackContext}${calorieBurnContext}${exerciseVarietyContext}${trainingTimeContext}${deloadProgramContext}${hydrationContext}${injuryRiskContext}${prPredictionContext}${durationOptimizerContext}${seasonalContext}${goalConflictContext}${workoutDensityContext}${repRangeContext}${splitRecommendationContext}${weakPointsContext}${restDayContext}${proteinTimingContext}${workoutNamingContext}${confidenceContext}${volumeLandmarkContext}${consistencyContext}${tempoContext}${muscleBalanceScoreContext}${trainingPhaseContext}${caloricBalanceContext}${jointHealthContext}${overloadSuggestionsContext}${recoveryWindowContext}${warmupSetsContext}${pacingContext}${substitutionMapContext}${moodContext}${macroQualityContext}${volumeWaveContext}${strengthStandardsContext}${frequencyOptimizerContext}${conversationSummaryContext}${efficiencyContext}${goalTimelineContext}${compoundPriorityContext}${readinessContext}${supplementStackContext}${streakProtectionContext}${followUpQuestionsContext}${complexityContext}${nutritionTimingContext}${rpeContext}${recompContext}${workoutPatternContext}${fatigueAccumulationContext}${executionQualityContext}${socialProofContext}${fiberTypeContext}${responseLengthContext}${deloadPrescriptionContext}${splitAdherenceContext}${volumeDosingContext}${exercisePairingContext}${trainingAgeAdviceContext}${densityOptimizerContext}${streakMotivationMsgContext}${hydrationReminderContext}${sleepImpactContext}${smartWarmupContext}${monotonyContext}${gripStrengthContext}${bilateralContext}${plateauBreakerContext}${cardioFitnessContext}${loadRampContext}${formRiskContext}${nutritionSyncContext}${weeklyReportContext}${injuryPreventionContext}${mindMuscleContext}${supplementTimingContext}${difficultyScaleContext}${recoveryProtocolContext}${personalityContext}${timeAdviceContext}${synergyContext}${mentalTipsContext}${completionPredictorContext}${overloadTrackerContext}${breathingContext}${environmentContext}${calorieBurnDetailContext}${dehydrationContext}${trainingPartnerContext}${postWorkoutNutritionContext}${sorenessContext}${conversationFlowContext}${accessoryContext}${mobilityContext}${frequencyHeatmapContext}${goalAlignmentContext}${etiquetteContext}${intensityDistContext}${recoveryNutritionContext}${variationContext}${confidenceExplainContext}${decisionContext}${healthAlertsContext}${smartGoalsContext}${lastWoRatingContext}${periodizationAdviceContext}${emotionalContext}${knowledgeGapContext}${greetingEnhancedContext}${broscoenceFilterContext}${sessionSummaryContext}${strengthToWeightContext}${volumeForWeekContext}${nutritionMythContext}${russianGymContext}${refinedIntentContext}${difficultyRampContext}${biomechanicsContext}${preWorkoutChecklistContext}${progressNarrativeContext}${nextActionsContext}${macroSplitContext}${smartSubstitutionContext}${muscleActivationContext}${splitOptimizerContext}${caloricStrategyContext}${trainingPhaseContext186}${workoutTemplateContext}${recoveryExplainContext}${goalExercisePriorityContext}${smartRestContext}${workoutTimingContext}${proteinTimingPersonalizedContext}${deloadPlanContext}${muscleGroupRecoveryContext}${adaptiveCoachingContext}${volumeBalanceContext}${nutritionWorkoutSyncContext}${exerciseProgressionContext}${lifestyleRecoveryContext}${milestoneCelebrationContext}${supersetContext}${waterNeedsContext}${compoundFirstContext}${mentalPerformanceContext}${flexibleDietContext}${ageStrengthContext}${programAdjustmentsContext}${earlyInjuryContext}${consistencyScoreContext}${personalizedWarmupContext}${bodyCompEstimateContext}${goalMismatchContext}${monthlyChallengeContext}${overtrainingContext}${supplementTimingAdvancedContext}${progressiveOverloadContext}${weekendWarriorContext}${nutritionQualityContext}${tempoAdviceContext}${athleteRoadmapContext}${exerciseOrderContext}${seasonalAdjustmentsContext}${techniqueIssuesContext}${gymSafetyContext}${microGoalsContext}${rpeEducatorContext}${foodSwapContext}${trainingAgeProtocolContext}${intraWorkoutHydrationContext}${muscleGrowthFundamentalsContext}${energySystemContext}${sleepImpactAlertContext}${postWorkoutWindowContext}${mobilityAssessmentContext}${frequencyPersonalizerContext}${glycogenContext}${lifestyleAuditContext}${barVsDumbbellContext}${habitLoopContext}${populationBenchmarkContext}${deloadDetectorContext}${mealTimingOptimizerContext}${overuseInjuryContext}${monotonyBusterContext}${spotterAdviceContext}${prCelebrationContext}${cardioStrengthContext}${bodyPartSpecContext}${environmentTipsContext}${periodizationExplainerContext}${warmUpProtocolContext}${supplementStackBuilderContext}${injuryComeback253Context}${waterIntakeContext}${tempoEducatorContext}${proteinSourceContext}${splitRecommender257Context}${breathingTechniqueContext}${antiPlateauContext}${macroCalculatorContext}${strengthToWeightContext261}${sleepOptimizationContext}${recoveryModalitiesContext}${mindMuscleConnectionContext}${beginnerMistakeContext}${volumeProgressionContext}${functionalMovementContext}${fastingTrainingContext}${competitionPrepContext}${nutritionLabelContext}${hormonalOptimizationContext}${gutHealthContext}${intraWorkoutFuelContext}${exerciseAnatomyContext}${mealPrepContext}${overttrainingRecoveryContext}${creatineGuideContext}${hiitLissContext}${workoutDensityContext279}${preWorkoutNutritionContext}${timeCrunchedWorkoutContext}${powerliftingTotalContext}${muscleFiberContext}${jointWarmUpContext}${caloricDeficitContext}${gymBagContext}${trainingPartnerAdviceContext}${gripStrengthGuideContext}${nutritionPeriodizationContext}${russianSportsMomentContext}${restDayPlannerContext}${dietTypeContext}${bodyweightProgressionsContext}${seasonalCalendarContext}${micronutrientContext}${stickingPointsContext}${dailyHabitsContext}${bmiDebunkContext}${stretchingProtocolContext}${milestoneRoadmapContext}${foamRollerContext}${ageSpecificContext}${genderNutritionContext}${gymEtiquetteContext}${heartRateZonesContext}${fitnessMythsContext}${workoutJournalingContext}${trainingEconomicsContext}${cognitionTrainingContext}${badWeatherContext}${sleepDebtContext}${postWorkoutStretchContext}${progressionModelContext}${mealFrequencyContext}${muscleFrequencyContext}${warmupWeightContext}${dropSetContext}${pausedRepsContext}${nutrientDeficiencyContext}${splitReviewContext}${carbCyclingContext}${supersetGuideContext}${mindfulEatingContext}${preWorkoutMealContext}${recoveryDrinkContext}${bodyweightProgContext}${coachPersonaContext}${gripVariationsContext}${habitStackingContext}${bodyCompGoalContext}${properSetupContext}${stressRecoveryContext}${speedPowerContext}${enduranceContext}${mobilityAssessmentAdvContext}${trainingLogContext}${proteinQualityContext}${smartSubContext}${cuttingMistakesContext}${bulkingMistakesContext}${morningEveningContext}${mentalToughnessContext}${trackingMetricsContext}${beginnerFrequencyContext}${programDesignContext}${nightNutritionContext}${injuryPrevTop5Context}${fitnessAgeContext}${alcoholContext}${seasonalTrainingFullContext}${caffeineGuideContext}${beltUsageContext}${kettlebellContext}${resistanceBandContext}${coreTrainingContext}${forearmContext}${calvesContext}${homeGymContext}${neckPostureContext}${deloadWeekProtocolContext}${travelWorkoutContext}${officeStretchContext}${womensTrainingContext}${seniorFitnessContext}${creatineFullContext}${proteinPowderContext}${swimmingContext}${runningContext}${yogaContext}${supplementStackGoalContext}${isometricTrainingContext}${calisthenicsContext}${intensityPlateauContext}${macroTrackingContext}${plVsBbContext}${eatingForRecoveryContext}${strengthWeightLossContext}${wearablesContext}${busyScheduleContext}${sleepPerformanceContext}${gripStrengthTrainingContext}${eccentricContext}${contrastTrainingContext}${partialRepsContext}${lowerBackContext}${strengthStandardsWeightContext}${trainingTypeWarmupContext}${gymAnxietyContext}${outdoorTrainingContext}${martialArtsContext}${vegetarianAthleteContext}${gutHealthAthletesContext}${testosteroneContext}${altitudeTrainingContext}${preCompContext}${interSessionContext}${injuryComebackFullContext}${disciplineContext}${activeRecoveryDayContext}${personalizedFrequencyContext}${breathingExerciseContext}${compoundIsolationContext}${refeedContext}${intraWorkoutAdvContext}${bodyFatMeasurementContext}${seniorStrengthContext}${sportConditioningContext}${overloadTrackingContext}${fastedTrainingContext}${mindBodyContext}${volumeByMuscleContext}${wristElbowContext}${shoulderHealthContext}${kneeHealthContext}${macroTimingGoalContext}${dehydrationImpactContext}${foamRollingAdvContext}${illnessTrainingContext}${beginnerSupplementContext}${bodySignalsContext}${pyramidTrainingContext}${workoutDurationContext}${metabolicSyndromeContext}${runningTechniqueContext}${proteinWindowContext}${crossFitContext}${bfrContext}${hipFlexorContext}${calorieAccuracyContext}${domsScienceContext}${ankleMobilityContext}${thoracicMobilityContext}${homeWorkoutNoEquipContext}${stickingPointContext}${seasonalPeriodizationContext}${bodyTypeNutritionContext}${fitnessLevelProtocolContext}${shiftWorkerContext}${smartGoalContext}${restPeriodsContext}${creatineProtocolContext}${trainingBoredomContext}${myofascialContext}${naturalFrequencyContext}${papContext}${digestiveHealthContext}${loadedStretchingContext}${splitsByGoalContext}${fatigueSignalContext}${equipmentAccessoriesContext}${eccentricOverloadAdvContext}${mindfulEatingAdvContext}${gripPullingContext}${muscleBloodFlowContext}${temperatureTherapyContext}${overheadPressingContext}${adaptationTimelineContext}${proteinWeightLossContext}${longevityTrainingContext}${minimalTimeContext}${neckTrainingContext}${hipThrustContext}${benchAngleContext}${valsalvaContext}${sleepMuscleContext}${hypertrophyStrengthSchemeContext}${calvesEffectiveContext}${afterIllnessContext}${intraWorkoutSnacksContext}${competitionPsychContext}${caffeineTimingContext}${rdlGuideContext}${fasciaHealthContext}${cardioFatLossContext}${preWorkoutMealTimingContext}${benchArchContext}${tricepsSpecContext}${bicepsSpecContext}${dehydrationPerfContext}${overloadMethodsContext}${frontSquatContext}${weightedVestContext}${ohsMobilityContext}${supersetsTimeContext}${trainingLogBenefitsContext}${vitaminDContext}${omega3Context}${metabolicFlexibilityContext}${explosiveTrainingContext}${sleepStretchingContext}${collagenJointContext}${magnesiumContext}${homeGymBudgetContext}${cuttingMistakesAdvContext}${shoulderImpingementContext}${proteinAbsorptionContext}${lowerBodyImbalanceContext}${deloadWeekProgramContext}${compoundPriorityAdvContext}${aiCoachingMilestoneContext}${trainingHeatContext}${pullUpProgressionContext}${dipsTechniqueContext}${lateralAgilityContext}${wristElbowRehabContext}${barbellRowVarContext}${ifAthletesContext}${bulkingStrategiesContext}${rackPullsContext}${sustainableRoutineContext}${sprintingBodyCompContext}${overheadMobilityContext}${caloricNeedsContext}${sorenessVsInjuryContext}${latBuildingContext}${kneePainTrainingContext}${powerCleansContext}${flexibilityMuscleGrowthContext}${shoulderExternalRotContext}${domsScienceDetailedContext}${trapTrainingContext}${bloodSugarContext}${muscleMemoryContext}${scoliosisContext}${preExhaustContext}${electrolytesContext}${posteriorChainContext}${stressCortisolContext}${abdominalContext}${plateauPsychContext}${rotatorCuffContext}${ankleStabilityContext}${hormonalOptContext}${equipMaintenanceContext}${deloadIndicatorsContext}${herniaTrainingContext}${reverseDietContext}${breathingPatternsContext}${geneticPotentialContext}${wristWrapsContext}${freqByMuscleContext}${squatDepthContext}${postWorkoutWindowTruthContext}${warmupScienceContext}${imbalanceCorrectionContext}${alcoholFitnessContext}${jointFriendlyContext}${caffeineCyclingContext}${mindMuscleAdvContext}${trainingJournalContext}${periodizationModelsContext}${tendonHealthContext}${sorenessVsGrowthContext}${postureCorrectionContext}${coldWeatherContext}${proteinSourcesContext}${restPauseContext}${foamRollingSciContext}${resistanceBandAdvContext}${carbTimingContext}${glycemicIndexContext}${legPressVarContext}${sleepOptAthletesContext}${boneDensityContext}${machineVsFreeContext}${gutMicrobiomeContext}${volumeAutoregContext}${plyometricsContext}${sodiumWaterContext}${motivationContext}${chestFlyContext}${proteinPowderCompContext}${functionalFitnessContext}${insulinSensitivityContext}${flatFeetContext}${benchGripWidthContext}${antiInflammatoryContext}${cableExercisesContext}${zincMagnesiumContext}${trainingVsChronoContext}${deadliftVarContext}${betaAlanineContext}${bracingContext}${citrullineContext}${ohpFormContext}${metconContext}${shoulderPressVarContext}${calorieTrackingContext}${hipHingeContext}${ironDeficiencyContext}${gluteActivationContext}${vitaminB12Context}${kneePainContext}${mealPrepStrategyContext}${clusterSetsContext}${latPulldownContext}${potassiumContext}${shoulderImpingementAdvContext}${mevContext}${glycogenReplenishContext}${pecTrainingContext}${digestiveEnzymesContext}${trapBarContext}${antiAgingContext}${unilateralContext}${preWorkoutSuppContext}${hamstringContext}${bloodPressureContext}${gripTypesContext}${cortisolMgmtContext}${rearDeltContext}${taurineContext}${dbVsBbContext}${insulinGrowthContext}${beginnerPeriodContext}${recoveryNutrTimingContext}${scapularHealthContext}${tutScienceContext}${proteinTypesContext}${adductorAbductorContext}${sumoVsConvContext}${vitDathleticContext}${cableMachineContext}${tefContext}${progCalisthenicsContext}${neckSafetyContext}${seleniumContext}${smithMachineContext}${sorenessManageContext}${bandsOnlyContext}${legCurlVarContext}${iodineContext}${mechDropSetsContext}${concVsEccContext}${ashwagandhaContext}${chestSupportedContext}${antioxidantsContext}${landmineContext}${carbSourcesContext}${rotationalCoreContext}${properBreathingContext}${fatSourcesContext}${mindBodyConnContext}${backSquatFormContext}${probioticsContext}${frontSquatTechContext}${sodiumIntakeContext}${pendlayRowContext}${fiberIntakeContext}${conjugateContext}${shoulderMobilityContext}${chromiumContext}${rdlVsSldlContext}${postInjuryReturnContext}${seatedVsStandingContext}${coconutWaterContext}${gobletSquatContext}${ironZincContext}${invertedRowContext}${appetiteContext}${trapBarFarmersContext}${zincSuppContext}${sissySquatContext}${colostrumContext}${cableCrossoverContext}${glutamineContext}${bulgarianSplitContext}${phosphatidylserineContext}${meadowsRowContext}${vitaminK2Context}${serratusContext}${carnitineContext}${hipMobilityContext}${rhodiolaContext}${chestDipContext}${coq10Context}${facePullContext}${betaineContext}${hackSquatContext}${taurineAthleticContext}${pendulumSquatContext}${astaxanthinContext}${reverseGripBenchContext}${boronContext}${latPulldownVarContext}${pqqContext}${jeffersonCurlContext}${glycineContext}${zercherContext}${adaptogenicMushroomsContext}${gluteHamContext}${shilajitContext}${closeGripBenchContext}${curcuminContext}${sealRowContext}${electrolyteBalanceContext}${deficitDeadliftContext}${nacContext}${spotoPressContext}${berberineContext}${pinPressContext}${spirulinaContext}${pauseSquatContext}${fulvicAcidContext}${andersonSquatContext}${digestiveHealthAthleteContext}${floorPressContext}${quercetinContext}${goodMorningContext}${resveratrolContext}${ssbContext}${apigeninContext}${snatchGripContext}${eaaContext}${tempoContrastContext}${chlorellaContext}${pendlayStrictContext}${hmbContext}${reverseHyperContext}${alphaGpcContext}${beltSquatContext}${tongkatAliContext}${larsenPressContext}${fenugreekContext}${zPressContext}${elderberryContext}${jmPressContext}${macaContext}${vikingPressContext}${blackSeedContext}${gripStrengthAdvContext}${ashwagandhaCortisolContext}${forwardReverseLungeContext}${omega3AthleteContext}${singleLegRdlContext}${bVitaminsContext}${sissyHackContext}${zincTestosteroneContext}${cablePullThroughContext}${arachidonicContext}${lateralDeltContext}${lTheanineContext}${pausedBulgarianContext}${creatineHclContext}${reverseGripRowContext}${magTaurateContext}${legExtVarContext}${collagenAdvContext}${rearDeltAdvContext}${glucosamineContext}${tricepsCompleteContext}${melatoninRecovContext}${pendulumRevHyperContext}${vitaminEContext}${cableLateralContext}${msmJointsContext}${bicepsAdvContext}${electrolytesEndurContext}${legPressAnglesContext}${pycnogenolContext}${forearmDetailContext}${curcuminPiperineContext}${hackVsLegPressContext}${ironAthletesContext}${inclineCurlContext}${potassiumAthContext}${absScienceContext}${bcaaVsEaaContext}${rdlFormContext}${citrullineAdvContext}${trapCompleteContext}${nacAdvContext}${arnoldPressContext}${paleoDietContext}${oneArmRowContext}${periodNaturalContext}${calvesSciContext}${caseinBedContext}${skullCrushContext}${glycemicLoadContext}${latsSciContext}${alphaLipoicContext}${benchChainsContext}${ketoDietContext}${seatedRowContext}${inositolContext}${invertedRowDetContext}${carnosineContext}${wideGripPullContext}${dietaryFatsContext}${chestSciContext}${psAdvContext}${dipsDeepContext}${ifAthletesGuideContext}${pulloverTechContext}${vitaminAContext}${tbarRowContext}${probioticsAthAdvContext}${inclineBenchContext}${wheyCompleteContext}${deadliftVarsContext}${taurinePerfContext}${frontRaiseSciContext}${copperZincContext}${sumoDeadliftContext}${rhodiolaGuideContext}${cableFlyContext}${digestiveEnzContext}${goodMorningExContext}${betaAlanineComplContext}${hipThrustSciContext}${astaxanthinAdvContext}${facePullAdvContext}${boronTestContext}${boxSquatContext}${shilajitAthContext}${landminePressContext}${cholinePerfContext}${stepUpContext}${glutamineComplContext}${spotoPressAdvContext}${vitaminKContext}${pendlayRowAdvContext}${coq10PerfContext}${zercherSquatAdvContext}${spirulinaChlorContext}${closeGripDetContext}${seleniumThyAthContext}${dbPulloverDetContext}${omega369Context}${deficitDLGuideContext}${pqqMitoContext}${reverseLungeDeepContext}${fishOilQualContext}${floorPressTechContext}${lysineArgContext}${bulgarianSplitAdvContext}${folicAcidContext}${machineChestContext}${carnitineComplContext}${hangCleanContext}${resveratrolAthContext}${cableLateralDetContext}${vitB12AthContext}${trapBarDLContext}${acvContext}${declineBenchContext}${sodiumBicarbContext}${hipFlexorMobContext}${colostrumGuideContext}${kbSwingContext}${phospholipidsContext}${ssbSquatContext}${gingerAthContext}${overheadTriContext}${beetJuiceContext}${hipAbductorContext}${vitCComplContext}${singleArmPressContext}${greenTeaExtContext}${hackSquatBioContext}${ashwagandhaComplContext}${cableRowVarContext}${magTypesContext}${sissySquatSciContext}${electrolyteProtoContext}${dbCurlVarContext}${probioticsComplContext}${legPressComplContext}${mctOilContext}${rdlComplContext}${zincComplContext}${latPullSciContext}${collagenPeptContext}${walkingLungeContext}${ironMineralContext}${chestFlySciContext}${digestiveProtoContext}${tricepPushContext}${adaptogenStackContext}${preacherCurlContext}${vitD3K2Context}${seatedOHPContext}${creatineCompContext}${sumoSquatContext}${potassiumComplContext}${cableKickContext}${sleepSuppContext}${pendulumSquatGContext}${antiInflamFoodsContext}${barbellHTContext}${bVitComplContext}${inclineBenchSciContext}${fiberAthContext}${nordicHamContext}${caffCycleProtoContext}${smithMachComplContext}${pwMealTimContext}${ghdExContext}${suppTimingMatContext}${reverseGripDetContext}${tryptophanAthContext}${tbarRowComplContext}${sodiumAthProtoContext}${bulgarianProgContext}${quercetinPerfContext}${declinePressCompContext}${glucChondAdvContext}${calfRaiseSciContext}${preWoSuppGuideContext}${rackPullBioContext}${melatoninSciContext}${seatedCableAdvContext}${carbLoadContext}${frontSquatMobContext}${coq10UbiContext}${machShoulderContext}${gutBrainContext}${dbLatRaiseSciContext}${recovDrinkContext}${chestSuppRowSciContext}${tyrosinePerfContext}${barbellShrugContext}${waterFastContext}${legExtSciContext}${ashwaKSM66Context}${reverseFlyCDBContext}${citrullineDoseContext}${hipMobRoutContext}${vitETocoContext}${pendlayProgContext}${wristStrContext}${gluteMedMinContext}${hamInjPrevContext}${calciumAthContext}${incDBCurlSciContext}${mctKetoContext}${sumoAdvContext}${lowerBackTrContext}${sleepArchContext}${diabetesTrainContext}${trainLogOptContext}${musclMemMechContext}${overreachDetContext}${cnsRecovContext}${mindMusclNeuroContext}${handGripStrContext}${spinalDecompContext}${trainMaxCalcContext}${antiAgeLongContext}${walkPadIncContext}${stairMasterContext}${rowMachineSciContext}${jumpRopeSciContext}${boxJumpTechContext}${burpeeGuideContext}${battleRopeContext}${cyclingIndContext}${ellipticalContext}${sledPushContext}${trxSuspContext}${probMicroContext}${tbarBioContext}${electroSweatContext}${bulgSplitMCContext}${betaAlanineSciContext}${trapFullContext}${sleepGHContext}${latPullMasterContext}${periodNattyContext}${gluteBridgeVsHTContext}${vitCSportsSciContext}${legPressFootContext}${adaptInjuryContext}${crunchAbSciContext}${omega63BalContext}${pullUpFullProgContext}${circadianTrContext}${dbRowIncCompContext}${carbWindowContext}${valsalvaAdvContext}${taurineComplContext}${deltoid3HContext}${insulinSensTrContext}${sumoVsConvDeepContext}${creatineMTContext}${hamstringCompContext}${calcVitDSynContext}${frontVsBackSqContext}${preWoSuppSciContext}${heatColdContext}${zincTestImmContext}${benchSetupMContext}${reverseDietCompContext}${cableFullBodyContext}${glutamineWhenContext}${bicepsSciCompContext}${sleepRecov7Context}${coreAntiMovContext}${trainPhiloContext}${cardioVascHealthContext}${collagenJointAdvContext}${triceps3HContext}${waterBalCalcContext}${squatDepthKneeContext}${ironFemaleContext}${forearmGripCompContext}${nutriPeriodContext}${deadliftErrorContext}${motivation3MContext}${ohpStVsSeContext}${gluteMaxSciContext}${chestDevMCContext}${bVitAthComplContext}${flexVsMobContext}${plateauBreakAdvContext}${mealPrepMastContext}${burnoutPrevContext}${backSquatBioContext}${proteinMythsContext}${insulinResFixContext}${latDevSciContext}${preWoNutTimContext}${kneeRehabContext}${dbVsBbComplContext}${sleepArchAthContext}${abTrainSciContext}${postWoRecovContext}${trainFreqOptContext}${carbSrcAthRankContext}${hipHingeMovContext}${magFormsAthContext}${rowExCompContext}${fatLossPresMContext}${shoulderImpRecContext}${creatineDeepContext}${splitSelGuideContext}${microNutTimContext}${hamInjPrevProtoContext}${mentalPerfGymContext}${ankleStabProtoContext}${vitDMasteryContext}${trapBarMCContext}${ifTrainComplContext}${pecDevSciContext}${zincImmPerfContext}${splitSquatProgContext}${sleepHygProtoContext}${rotCuffPrehabContext}${protDigAbsContext}${glycogenReplProtoContext}${dlGripStratContext}${antiInflamDietContext}${quadDevMCContext}${electroSweatProtoContext}${hipMobComplContext}${preWoSuppSciAdvContext}${coreStabAntiMovContext}${calfTrainHyperContext}${betaAlaCarnoContext}${volLandmarksContext}${omega3FOMContext}${gluteProgContext}${postureCorrContext}${creatineSafeContext}${tendonLigContext}${trainAroundPainContext}${ironAbsAthContext}${chestPressVarContext}${recovModalRankContext}${deloadSciContext}${vitB6AthGuideContext}${pullUpMCContext}${nutFatLossComplContext}${shoulderPressVarGuideContext}${magGlycinateContext}${beginnerMCContext}${stressCortProtContext}${backDevPlanContext}${hydrationPerfContext}${plateauPsychAdvContext}${legDayComplContext}${vitAAthlGuideContext}${benchFormMastContext}${protVeganGuideContext}${sleepApneaAthContext}${armDevComplContext}${calcBoneAthContext}${cardioEndurSciContext}${glutenFreeAthContext}${overtSignsProtoContext}${sodiumAthComplContext}${abWheelGuideContext}${motivLongTermContext}${copperAthGuideContext}${chinVsPullAdvContext}${postWoShakeSciContext}${sleepPosnRecovContext}${hipFlexReleaseContext}${trainInHeatAdvContext}${kneeWrapSlvContext}${muscAsymCorrContext}${trainingAfter40Context}${vitCTimeSciContext}${dbShouldPrMCContext}${digestStratAthContext}${rowMachineFormContext}${bloodFlowRstrContext}${fitnessMindsetContext}${hamCurlVarGuideContext}${wristMobGuideContext}${diabetesType2TrContext}${legExtFormAdvContext}${probiotStrainContext}${chestWorkoutFullContext}${manganeseGuideContext}${deadliftSetupContext}${stressEatGuideContext}${shoulderMobAdvContext}${trainingJetLagContext}${muscEndurSciContext}${trapezTrainAdvContext}${vitKBoneAthContext}${inclineTreadmillContext}${proteinBreakfastContext}${ankleRehabProtContext}${metabolicRateBoostContext}${landminePressAdvContext}${sleepMelatoninNatContext}${trainingDiaryComContext}${gripStrMasterContext}${electrolyteCompContext}${cableFlyAdvFormContext}${coldWeatherAdvContext}${collagenSuppContext}${bulgSplitMasterContext}${breathTechLiftContext}${ironDefAdvContext}${chestDipAdvGContext}${trainInsomniaContext}${restPauseAdvMethContext}${vitECompleteContext}${seatedLegCurlContext}${shiftWorkGuideContext}${argCitNOContext}${hexBarDLContext}${antiInflamCompContext}${facePullMasterContext}${sleepHygCompContext}${postureTrainContext}${kbSwingAdvContext}${zincTestCompContext}${pecDeckSciContext}${trainFastingContext}${betaAlaTimingContext}${sumoVsConvSciContext}${gutMicroCompContext}${latPullFormContext}${recoveryDayContext}${tallTrainContext}${warmUpProtContext}${seleniumAthContext}${cableRowFormContext}${arthritisTrainContext}${taurineCompContext}${hipThrustAdvMContext}${circadianTrainContext}${tricepLongHContext}${preWoMealSciContext}${womenTrainCompContext}${mechTensionSciContext}${phosphoCreatineContext}${detrainRetrainContext}${rhodiolaAdaptContext}${inclinePressAngContext}${nutriTimingMythContext}${trainLongevityContext}${myofascialRelContext}${tutMasterContext}${periodBlockContext}${languageEnforcerContext}${memoryContext}${workoutRecommendation}${nutritionTimingAdvice}${substitutionAdvice}${insightsBlock}${followupsBlock}${profileGapsBlock}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
     ].filter(Boolean).join('\n\n---\n\n');
 
     // ─── Block 50: Context size optimizer ──────
@@ -6976,6 +6988,16 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'tricepLongH', content: tricepLongHContext, relevantIntents: new Set(['длинная головка', 'long head', 'трицепс над головой', 'french press']), priority: 4 },
         { name: 'preWoMealSci', content: preWoMealSciContext, relevantIntents: new Set(['еда перед', 'pre workout meal', 'что есть перед', 'питание до']), priority: 3 },
         { name: 'womenTrainComp', content: womenTrainCompContext, relevantIntents: new Set(['женщин', 'women', 'девушк', 'менструальный']), priority: 3 },
+        { name: 'mechTensionSci', content: mechTensionSciContext, relevantIntents: new Set(['механическое напряжение', 'гипертрофия механизм', 'рост мышц']), priority: 3 },
+        { name: 'phosphoCreatine', content: phosphoCreatineContext, relevantIntents: new Set(['фосфокреатин', 'АТФ', 'энергосистем', 'алактатная']), priority: 3 },
+        { name: 'detrainRetrain', content: detrainRetrainContext, relevantIntents: new Set(['перерыв', 'детренированность', 'вернуться', 'давно не трениров']), priority: 3 },
+        { name: 'rhodiolaAdapt', content: rhodiolaAdaptContext, relevantIntents: new Set(['родиола', 'золотой корень', 'адаптоген']), priority: 4 },
+        { name: 'inclinePressAng', content: inclinePressAngContext, relevantIntents: new Set(['угол наклон', 'incline', 'наклонный жим', 'верх грудных']), priority: 3 },
+        { name: 'nutriTimingMyth', content: nutriTimingMythContext, relevantIntents: new Set(['тайминг', 'когда есть', 'белковое окно', 'углеводное окно']), priority: 3 },
+        { name: 'trainLongevity', content: trainLongevityContext, relevantIntents: new Set(['долголетие', 'здоровое старение', 'zone 2', 'для здоровья']), priority: 3 },
+        { name: 'myofascialRel', content: myofascialRelContext, relevantIntents: new Set(['миофасциальный', 'мфр', 'самомассаж', 'триггерные точки', 'ролл']), priority: 3 },
+        { name: 'tutMaster', content: tutMasterContext, relevantIntents: new Set(['время под нагрузкой', 'tut', 'темп', 'медленные повторения']), priority: 3 },
+        { name: 'periodBlock', content: periodBlockContext, relevantIntents: new Set(['блочная периодизация', 'аккумуляция', 'трансмутация', 'мезоцикл']), priority: 3 },
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
@@ -55190,6 +55212,575 @@ function getTrainingForWomenComplete(message: string): string {
 - «Тяжёлые веса = мужская фигура» — НЕТ (нет тестостерона для этого)
 - «Кардио = лучшее для похудения» — НЕТ (силовые ↑ метаболизм на 24-48 часов)
 - «Женщинам нельзя присед/становую» — НЕТ (нужно! безопасно при правильной технике)
+`;
+}
+
+// ─── Block 1171: Mechanical Tension Science ────────────
+function getMechanicalTensionScience(message: string): string {
+  const keywords = ['механическое напряжение', 'mechanical tension', 'гипертрофия механизм', 'рост мышц механизм', 'натяжение мышц', 'мышечное натяжение', 'механика роста'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+🔬 НАУКА МЕХАНИЧЕСКОГО НАПРЯЖЕНИЯ — ГЛАВНЫЙ ДРАЙВЕР ГИПЕРТРОФИИ:
+
+**Три механизма мышечного роста:**
+1. **Механическое напряжение** (основной — 60-70% стимула):
+   - Силовое растяжение саркомеров под нагрузкой
+   - Активация механосенсоров (интегрины, титин, костамеры)
+   - Запуск mTOR-сигнального пути → синтез белка
+   - Оптимальная нагрузка: 60-85% от 1ПМ
+
+2. **Метаболический стресс** (дополнительный — 20-25%):
+   - Накопление лактата, H+, Pi в мышце
+   - «Пампинг» — отёк клеток → механосигнализация
+   - Окклюзионный эффект при 30-50% 1ПМ до отказа
+   - Гормональный ответ: GH ↑, IGF-1 местный ↑
+
+3. **Мышечные повреждения** (минорный — 10-15%):
+   - Микротравмы Z-дисков и саркомерных структур
+   - Активация сателлитных клеток → донорство ядер
+   - Эксцентрические нагрузки = максимум повреждений
+   - Избыточные повреждения = замедление роста!
+
+**Как максимизировать механическое напряжение:**
+- **Полная амплитуда** — растянутая позиция = максимум напряжения
+- **Контролируемый темп** — 2-3 сек эксцентрика, без рывков
+- **Прогрессивная перегрузка** — ↑ вес/повторы каждые 1-2 недели
+- **Время под нагрузкой** — 30-60 сек на подход для гипертрофии
+- **Mind-muscle connection** — осознанное сокращение целевой мышцы
+
+**Упражнения с максимальным механическим напряжением:**
+- Присед (полная глубина) — квадрицепс + ягодичные
+- Жим лёжа (полная амплитуда) — грудные + трицепс
+- Становая тяга — вся задняя цепь
+- Подтягивания (полное разгибание внизу) — широчайшие
+- Румынская тяга — задняя поверхность бедра
+
+**Практические рекомендации:**
+- 65-80% от 1ПМ × 6-12 повторений = золотой стандарт
+- Не гонись за отказом — оставляй 1-2 RIR для качества
+- Растянутая позиция > сокращённая для гипертрофии
+- Компаунд-движения дают больше общего напряжения
+- Изоляция дополняет — фокус на отстающие мышцы
+`;
+}
+
+// ─── Block 1172: Phosphocreatine System Guide ────────────
+function getPhosphocreatineSystemGuide(message: string): string {
+  const keywords = ['фосфокреатин', 'phosphocreatine', 'креатинфосфат', 'АТФ-КФ', 'атф система', 'энергообеспечение мышц', 'алактатная', 'анаэробная алактатная'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+⚡ ФОСФОКРЕАТИНОВАЯ (АТФ-КФ) СИСТЕМА — МГНОВЕННАЯ ЭНЕРГИЯ:
+
+**Три энергосистемы мышц:**
+1. **АТФ-КФ (фосфокреатиновая)** — 0-10 сек:
+   - Мгновенная мощность без кислорода
+   - Запасы: ~5 ммоль АТФ + ~25 ммоль КФ в мышце
+   - Мощность: 36 ккал/мин (максимальная!)
+   - Использование: спринт, 1ПМ, прыжки, броски
+
+2. **Гликолитическая** — 10 сек - 2 мин:
+   - Расщепление гликогена → лактат
+   - Мощность: 16 ккал/мин
+   - Использование: подходы 8-20 повторений, бег 400м
+
+3. **Окислительная** — 2 мин и более:
+   - Жиры + углеводы + O₂ → АТФ
+   - Мощность: 10 ккал/мин
+   - Использование: кардио, длительные нагрузки
+
+**Как работает фосфокреатиновая система:**
+- КФ + ADP → АТФ + креатин (фермент: креатинкиназа)
+- Скорость ресинтеза АТФ: 0.5-1 сек (мгновенно!)
+- Полное истощение КФ: за 6-10 сек максимального усилия
+- Восстановление: 50% за 30 сек, 95% за 3-5 мин
+
+**Практическое применение для тренировок:**
+- **Силовые (1-5 повторений):**
+  - Отдых 3-5 мин между подходами (полное восстановление КФ)
+  - Каждый подход = «свежий старт» энергетически
+  - Почему силовики отдыхают долго — именно поэтому!
+
+- **Гипертрофия (6-12 повторений):**
+  - Отдых 1.5-3 мин — частичное восстановление КФ
+  - Подключается гликолиз → метаболический стресс → пампинг
+  - Баланс между силой и объёмным стимулом
+
+- **Выносливость (15+ повторений):**
+  - Отдых 30-90 сек — минимальное восстановление КФ
+  - Преобладает гликолиз → жжение, закисление
+  - Тренировка буферной ёмкости мышц
+
+**Роль креатина (добавки):**
+- ↑ запасы КФ в мышце на 20-30%
+- ↑ мощность и выносливость на коротких усилиях
+- 5 г/день — поддерживающая доза
+- Загрузка (20 г/день × 5 дней) — быстрый эффект, но не обязательна
+- Моногидрат — лучшая изученная форма
+`;
+}
+
+// ─── Block 1173: Detraining and Retraining Guide ────────────
+function getDetrainingRetrainingGuide(message: string): string {
+  const keywords = ['детренированность', 'detraining', 'перерыв в тренировках', 'возврат после перерыва', 'растренированность', 'потеря формы', 'вернуться после паузы', 'давно не тренировался', 'пропустил тренировки'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+🔄 ДЕТРЕНИРОВАННОСТЬ И ВОЗВРАТ К ТРЕНИРОВКАМ:
+
+**Что теряется и когда:**
+- **1-2 недели без тренировок:**
+  - Сила: практически не теряется (−0-3%)
+  - Мышечная масса: сохраняется
+  - Гликоген: ↓ на 20-30% → мышцы «сдуваются» визуально
+  - Кардио: VO₂max ↓ на 5-7%
+
+- **2-4 недели:**
+  - Сила: ↓ 5-10% (нейромышечная адаптация снижается)
+  - Масса: ↓ 1-3% (в основном гликоген и вода)
+  - Кардио: VO₂max ↓ 10-15%
+  - Гибкость: заметно снижается
+
+- **1-3 месяца:**
+  - Сила: ↓ 15-25% (структурные адаптации начинают уходить)
+  - Масса: ↓ 5-10% реальной мышечной ткани
+  - Кардио: VO₂max ↓ 20-30%
+  - Капилляризация: ↓ 10-15%
+
+- **6+ месяцев:**
+  - Сила: ↓ 30-50%
+  - Масса: значительная потеря, но мышечная память сохраняется!
+  - Кардио: возвращение к нетренированному уровню
+  - Нейромышечные связи: ослабевают, но не исчезают
+
+**Мышечная память — почему возврат быстрее:**
+- Миоядра (ядра мышечных клеток) НЕ теряются при атрофии
+- При возобновлении тренировок — ядра уже на месте
+- Ресинтез белка идёт в 2-3 раза быстрее, чем у новичка
+- Нейромышечные паттерны восстанавливаются за дни
+- Полный возврат формы = 50-70% от времени потери
+
+**Протокол возврата после перерыва:**
+- **После 1-2 недель:** начни с 90% привычных весов, объём 100%
+- **После 2-4 недель:** начни с 70-80% весов, 80% объёма, +10%/неделю
+- **После 1-3 месяцев:** начни с 50-60% весов, 60% объёма, +10%/неделю
+- **После 6+ месяцев:** как «продвинутый новичок» — линейная прогрессия
+
+**Важные правила возврата:**
+- Первые 2 недели — НЕ тренируйся до отказа (DOMS будет жёсткий)
+- Увеличивай объём раньше интенсивности
+- Каждую неделю добавляй не более 10-15% нагрузки
+- Пей больше воды — мышцы восстанавливают гидратацию
+- Сон 7-9 часов — критичен для ресинтеза миоядер
+- Белок 1.8-2.2 г/кг — поддержка восстановления массы
+`;
+}
+
+// ─── Block 1174: Rhodiola Adaptogen Master ────────────
+function getRhodiolaAdaptogenMaster(message: string): string {
+  const keywords = ['родиола розовая', 'rhodiola', 'золотой корень', 'адаптоген спорт', 'розавин', 'салидрозид', 'родиола для спорта'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+🌿 РОДИОЛА РОЗОВАЯ (ЗОЛОТОЙ КОРЕНЬ) — АДАПТОГЕН ДЛЯ АТЛЕТОВ:
+
+**Что это:**
+- Adaptogenic herb — Rhodiola rosea
+- Традиционная российская фитотерапия (Алтай, Сибирь)
+- Активные вещества: розавин (3%), салидрозид (1%)
+- Категория: адаптоген (↑ сопротивляемость стрессу)
+
+**Доказанные эффекты для атлетов:**
+- **Физическая выносливость:** ↑ время до утомления на 3-7%
+- **Когнитивная функция:** ↑ концентрация, ↓ ментальная усталость
+- **Кортизол:** ↓ базальный уровень на 10-20% при хроническом стрессе
+- **Восстановление:** ↓ время восстановления ЧСС после нагрузки
+- **Настроение:** ↓ тревожность, ↑ мотивация (серотонин, дофамин)
+- **VO₂max:** ↑ на 3-5% при регулярном приёме (спорно)
+
+**Дозировка и протокол:**
+- Стандартная доза: 200-600 мг/день (экстракт 3% розавина)
+- Оптимально: 400 мг утром натощак
+- НЕ принимать вечером (может нарушить сон — стимулирующий эффект)
+- Курс: 4-8 недель → перерыв 2 недели (цикличность!)
+- Эффект проявляется через 5-7 дней регулярного приёма
+
+**Когда принимать атлету:**
+- Перед соревнованиями: за 2-4 недели до старта
+- В период высоких нагрузок (интенсивный цикл)
+- При перетренированности / выгорании
+- Зимой при недостатке солнца / сниженном настроении
+- Во время сушки (↑ окисление жиров, ↓ кортизол)
+
+**Сочетания:**
+- ✅ Родиола + ашваганда — комплексная антистрессовая защита
+- ✅ Родиола + кофеин — синергия для выносливости
+- ✅ Родиола + креатин — безопасно, нет конфликтов
+- ⚠️ Родиола + антидепрессанты СИОЗС — консультация врача!
+- ❌ Родиола + стимуляторы (эфедрин) — перестимуляция
+
+**Противопоказания:**
+- Биполярное расстройство (может спровоцировать маниакальную фазу)
+- Аутоиммунные заболевания (стимулирует иммунитет)
+- Беременность и лактация (недостаточно данных)
+- Гипертония (возможно ↑ давления при высоких дозах)
+`;
+}
+
+// ─── Block 1175: Incline Press Angle Master ────────────
+function getInclinePressAngleMaster(message: string): string {
+  const keywords = ['угол наклона жим', 'incline angle', 'наклон скамьи жим', 'угол скамьи', 'наклонный жим угол', '30 градусов жим', '45 градусов жим', 'верхняя часть грудных'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+📐 УГЛЫ НАКЛОНА СКАМЬИ ПРИ ЖИМЕ — ПОЛНЫЙ ГАЙД:
+
+**Влияние угла на активацию мышц (ЭМГ-данные):**
+
+| Угол | Верх грудных | Середина | Низ | Дельты передние | Трицепс |
+|------|-------------|----------|-----|-----------------|---------|
+| −15° (decline) | 20% | 65% | 85% | 15% | 75% |
+| 0° (flat) | 40% | 85% | 60% | 30% | 80% |
+| 15° | 60% | 75% | 40% | 40% | 75% |
+| **30°** | **80%** | **60%** | **25%** | **50%** | **70%** |
+| 45° | 75% | 45% | 15% | 65% | 65% |
+| 60° | 55% | 30% | 10% | 80% | 60% |
+| 75°+ | 30% | 15% | 5% | 90% | 55% |
+
+**Оптимальные углы по целям:**
+- **Верх грудных (clavicular head):** 30° — золотой стандарт
+  - 30° = максимальная активация ключичной порции
+  - 15-30° — диапазон для акцента на верх
+  - >45° — дельты перехватывают нагрузку
+
+- **Общее развитие грудных:** 0° (горизонтальный)
+  - Максимум общей активации грудных
+  - Лучший потенциал для прогрессии весов
+  - Основа любой программы для груди
+
+- **Нижняя часть грудных:** −15° (decline)
+  - Или отжимания на брусьях (лучше!)
+  - Decline bench — спорный, можно заменить
+
+**Практические рекомендации:**
+- Включай 2-3 угла в программу для полного развития
+- Основа: горизонтальный жим (сила и масса)
+- Дополнение: 30° наклон (верх грудных)
+- Опционально: decline или брусья (низ)
+- Меняй углы каждый мезоцикл для разнообразия
+
+**Нюансы по видам снаряда:**
+- **Штанга наклонная:** 30° оптимально, можно 15-45°
+- **Гантели наклонные:** 30-45° (больше ROM, меньше дельт)
+- **Смит-машина наклонная:** 30° (стабилизация не нужна)
+- **Кроссовер снизу:** имитация 30-45° наклона
+
+**Ошибки при наклонном жиме:**
+- Угол >45° → превращается в жим сидя (дельты доминируют)
+- Подъём таза с наклонной скамьи → уменьшение реального угла
+- Слишком широкий хват на наклонной → ↑ нагрузка на плечи
+- Отсутствие ретракции лопаток → ↓ активация грудных
+`;
+}
+
+// ─── Block 1176: Nutrient Timing Myths ────────────
+function getNutrientTimingMyths(message: string): string {
+  const keywords = ['мифы о тайминге', 'nutrient timing myth', 'когда есть миф', 'углеводное окно миф', 'белковое окно миф', 'тайминг питания правда', 'время приёма пищи миф'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+🕐 МИФЫ О ТАЙМИНГЕ НУТРИЕНТОВ — ЧТО РЕАЛЬНО ВАЖНО:
+
+**МИФ 1: «Белковое окно 30 минут после тренировки»**
+❌ Миф: нужно выпить протеин в течение 30 мин или мышцы «сгорят»
+✅ Правда: анаболическое окно = 4-6 часов (а не 30 мин!)
+- Если ел за 2-3 часа до тренировки — аминокислоты ещё в крови
+- Синтез белка ↑ на 24-48 часов после тренировки
+- Важнее: общее суточное потребление белка (1.6-2.2 г/кг)
+- Рекомендация: белок в течение 2-3 часов после тренировки — достаточно
+
+**МИФ 2: «Углеводы вечером превращаются в жир»**
+❌ Миф: углеводы после 18:00 = автоматическое ожирение
+✅ Правда: набор жира = калорийный профицит за СУТКИ
+- Вечерние углеводы ↑ серотонин → мелатонин → лучший сон
+- Гликоген пополняется независимо от времени суток
+- Исследования: распределение калорий не влияет на композицию тела
+- Углеводы на ночь ↑ чувствительность к инсулину утром (!)
+
+**МИФ 3: «6 приёмов пищи = разогнанный метаболизм»**
+❌ Миф: частое питание «ускоряет обмен веществ»
+✅ Правда: TEF (термический эффект пищи) зависит от ОБЪЁМА, не частоты
+- 3 × 800 ккал = 6 × 400 ккал по термическому эффекту
+- 3-6 приёмов — удобство, не метаболическое преимущество
+- Для мышечной массы: 3-5 приёмов с 30-50 г белка каждый — оптимально
+- Частота >6 раз — нет дополнительной пользы
+
+**МИФ 4: «Нельзя есть перед сном»**
+❌ Миф: еда перед сном = жир на животе
+✅ Правда: казеин или творог на ночь = ↑ ночной синтез белка
+- 30-40 г казеина перед сном ↑ MPS на 22% (исследования)
+- Не влияет на набор жира (при соблюдении калорий)
+- ↓ катаболизм за 8 часов голодания во сне
+
+**МИФ 5: «Жиры нельзя с углеводами»**
+❌ Миф: сочетание замедляет жиросжигание
+✅ Правда: замедляет пищеварение → ↓ инсулиновый пик → дольше сытость
+- Нет данных о влиянии на жиронакопление
+- Единственное исключение: перед тренировкой (жиры замедляют усвоение)
+
+**ЧТО РЕАЛЬНО ВАЖНО в тайминге:**
+1. Белок: 0.4-0.5 г/кг за приём, 3-5 раз в день
+2. Углеводы: перед и после тренировки — если важна производительность
+3. Общий суточный калораж > тайминг (на 90%)
+4. Не тренироваться натощак при силовых (↓ производительность)
+5. Кофеин: за 30-60 мин до тренировки — единственный доказанный тайминг
+`;
+}
+
+// ─── Block 1177: Training for Longevity Guide ────────────
+function getTrainingLongevityGuide(message: string): string {
+  const keywords = ['тренировки долголетие', 'training longevity', 'тренировки для здоровья', 'спорт и долголетие', 'фитнес и старение', 'тренировки и возраст', 'здоровое старение', 'zone 2', 'зона 2'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+🧬 ТРЕНИРОВКИ ДЛЯ ДОЛГОЛЕТИЯ — НАУКА ЗДОРОВОГО СТАРЕНИЯ:
+
+**Что говорит наука (мета-анализы 2020-2025):**
+- Силовые тренировки: ↓ смертность на 15% (vs нетренирующиеся)
+- Кардио (150 мин/неделю): ↓ смертность на 20-25%
+- Силовые + кардио: ↓ смертность на 40% (!) — максимальный эффект
+- Grip strength (сила хвата): лучший предиктор долголетия
+- VO₂max: каждый +1 MET = ↓ риск смерти на 12%
+
+**4 столпа тренировок для долголетия:**
+
+1. **Силовые тренировки (2-3 раза/неделю):**
+   - Поддержание мышечной массы (теряется 3-8% за декаду после 30)
+   - Плотность костей (профилактика остеопороза)
+   - Чувствительность к инсулину
+   - Функциональная независимость в старости
+   - Приоритет: приседания, становая, жим, тяги, подъёмы
+
+2. **Zone 2 кардио (3-4 раза/неделю, 30-60 мин):**
+   - Зона 2 = 60-70% от ЧССмакс (можешь говорить, но не петь)
+   - Развитие митохондриальной функции
+   - ↑ окисление жиров → метаболическое здоровье
+   - ↓ воспаление, ↓ риск диабета 2 типа
+   - Быстрая ходьба, лёгкий бег, велосипед, плавание
+
+3. **VO₂max тренировки (1-2 раза/неделю):**
+   - Интервалы: 4×4 мин при 85-95% ЧССмакс
+   - Или 8×30 сек спринт + 90 сек отдых
+   - VO₂max — главный биомаркер кардиореспираторного здоровья
+   - ↓ на 10% каждую декаду — можно замедлить до 5%!
+
+4. **Мобильность и баланс (ежедневно):**
+   - 10-15 мин растяжки / йоги
+   - Упражнения на баланс (стойка на одной ноге, болгарские выпады)
+   - Профилактика падений (главная причина инвалидизации после 65)
+   - Подвижность суставов — «смазка» для долголетия
+
+**Ключевые биомаркеры долголетия для атлета:**
+- VO₂max > 40 мл/кг/мин (мужчины) / > 35 (женщины) — «отлично»
+- Grip strength > 40 кг (мужчины) / > 25 кг (женщины)
+- Вставание с пола без рук — тест функциональности
+- Приседание собственного веса на 5 повторений — минимум
+- Висеть на перекладине > 60 сек — здоровье плеч и хвата
+
+**Что избегать для долголетия:**
+- Хроническое кардио >10 часов/неделю (↑ фиброз сердца)
+- Экстремальные веса без прогрессии (травмы суставов)
+- Полное отсутствие силовых (саркопения после 40)
+- Сидячий образ жизни + «компенсация» 1 тренировкой (weekend warrior)
+`;
+}
+
+// ─── Block 1178: Myofascial Release Guide ────────────
+function getMyofascialReleaseGuide(message: string): string {
+  const keywords = ['миофасциальный релиз', 'myofascial release', 'мфр', 'самомассаж', 'массажный ролл', 'теннисный мяч массаж', 'фасциальный релиз', 'триггерные точки', 'trigger point'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+🎯 МИОФАСЦИАЛЬНЫЙ РЕЛИЗ (МФР) — ПОЛНЫЙ ГАЙД:
+
+**Что такое фасция и зачем её «релизить»:**
+- Фасция — соединительнотканная оболочка мышц, органов, сосудов
+- Образует непрерывную сеть (как «костюм» по всему телу)
+- При перегрузке → адгезии (спайки), триггерные точки, скованность
+- МФР = механическое воздействие для восстановления подвижности фасции
+
+**Инструменты МФР:**
+1. **Пенный ролл (foam roller):**
+   - Мягкий — для новичков и чувствительных зон
+   - Жёсткий — для опытных, глубокий массаж
+   - Рифлёный — точечное воздействие на триггеры
+   - Зоны: квадрицепс, IT-band, широчайшие, грудной отдел
+
+2. **Массажный мяч (lacrosse ball / теннисный):**
+   - Лакросс-мяч: жёсткий, для глубоких мышц
+   - Теннисный: мягче, для чувствительных зон
+   - Зоны: грушевидная мышца, подлопаточная, стопа, ягодичные
+
+3. **Массажный пистолет (перкуссионный массажёр):**
+   - 1-2 мин на мышцу, средняя интенсивность
+   - Не на кости, суставы, нервы!
+   - Эффективен для больших мышечных групп
+
+**Техника выполнения:**
+- Прокатывай медленно: 2-3 см/сек
+- Нашёл болезненную точку → задержись на 20-30 сек
+- Давление: 6-7 из 10 по шкале боли (дискомфорт, не агония)
+- Дыши глубоко — не задерживай дыхание
+- 1-2 мин на каждую мышечную группу
+
+**Когда делать МФР:**
+- **Перед тренировкой (2-5 мин):** ↑ ROM, ↑ кровоток, не ↓ силу
+  - Короткие проходы, не задерживаясь на точках
+  - Затем — динамическая разминка
+- **После тренировки (5-10 мин):** ↓ крепатура (DOMS) на 20-30%
+  - Более глубокая проработка, задержка на триггерах
+  - ↓ мышечное напряжение, ↑ восстановление
+- **В дни отдыха (10-15 мин):** полноценная сессия
+  - Все основные группы мышц
+  - Особенно зажатые / перегруженные зоны
+
+**Зоны по мышечным группам:**
+- **Квадрицепс:** ролл, лёжа на животе, от колена к бедру
+- **IT-band:** бок, от колена к тазу (очень болезненно поначалу!)
+- **Ягодичные:** мяч, сидя, перекатываясь
+- **Грудной отдел:** ролл поперёк, руки за головой, прогиб
+- **Широчайшие:** ролл на боку, рука вытянута
+- **Икры:** ролл, нога на ролле, давление второй ногой сверху
+- **Стопа:** мяч под стопой, стоя (плантарный фасциит!)
+
+**Противопоказания:**
+- Открытые раны, ожоги, острое воспаление
+- Переломы, тромбоз глубоких вен
+- Остеопороз тяжёлой степени
+- Нервы, лимфоузлы, суставные капсулы — обходить!
+`;
+}
+
+// ─── Block 1179: Time Under Tension Master ────────────
+function getTimeUnderTensionMaster(message: string): string {
+  const keywords = ['время под нагрузкой', 'time under tension', 'тут', 'тпн', 'темп подхода', 'медленные повторения', 'скорость повторений', 'темп упражнения'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+⏱️ ВРЕМЯ ПОД НАГРУЗКОЙ (TUT) — НАУКА ТЕМПА:
+
+**Что такое TUT:**
+- Time Under Tension = общее время, которое мышца находится под нагрузкой
+- Считается за один подход (не за тренировку)
+- Формула: количество повторений × темп одного повторения
+- Пример: 10 повторений × 4 сек = 40 сек TUT
+
+**Оптимальные диапазоны TUT:**
+
+| Цель | TUT/подход | Повторения | Темп |
+|------|-----------|------------|------|
+| Сила (нейромышечная) | 10-20 сек | 1-5 | 1/0/1/0 |
+| Гипертрофия | 30-60 сек | 6-12 | 2/1/2/1 |
+| Выносливость | 60-90 сек | 15-25 | 2/0/2/0 |
+| Мощность | 5-15 сек | 1-5 | X/0/1/0 |
+
+**Как читать темп (4 цифры):**
+- Формат: Эксцентрика / Пауза внизу / Концентрика / Пауза вверху
+- 3/1/2/0 = 3 сек опускание, 1 сек пауза, 2 сек подъём, 0 сек вверху
+- X = взрывное (максимально быстро)
+- 0 = без паузы
+
+**Темп для гипертрофии — детали:**
+- **Эксцентрика (негативная фаза): 2-4 сек**
+  - Контролируемое опускание = максимум механического напряжения
+  - Эксцентрика ↑ микроповреждения → ↑ адаптация
+  - Исследования: 3 сек > 1 сек для роста мышц
+
+- **Пауза в растянутой позиции: 0-2 сек**
+  - ↑ механическое напряжение на растянутой длине
+  - ↓ использование упругой энергии (stretch-shortening cycle)
+  - Пауза 1-2 сек = «честная» работа мышцы
+
+- **Концентрика (позитивная фаза): 1-2 сек**
+  - Намеренное замедление НЕ нужно (↓ нагрузку можно поднять)
+  - Контролируемый подъём, но без искусственного замедления
+  - Исследования: быстрая концентрика = больше моторных единиц
+
+- **Пауза в сокращённой позиции: 0-1 сек**
+  - Пиковое сокращение = ↑ метаболический стресс
+  - 1 сек вверху на изоляционных упражнениях — полезно
+
+**Практические рекомендации:**
+- Не считай темп каждого повторения — это утомляет ментально
+- Просто контролируй негативную фазу (2-3 сек)
+- Концентрику делай с усилием, но контролируемо
+- Общее TUT 30-50 сек на подход = зона гипертрофии
+- Тяжёлые базовые (1-5 повторений) — не замедляй искусственно
+- Изоляция (12-20 повторений) — ↑ темп = ↑ метаболический стресс
+
+**Ошибки с TUT:**
+- Сверхмедленные повторения (10 сек+) — ↓ вес слишком сильно
+- Слишком быстрые повторения с «отбивкой» — нет контроля
+- Фокус ТОЛЬКО на TUT, игнорируя прогрессию весов
+- TUT важен, но прогрессивная перегрузка — важнее!
+`;
+}
+
+// ─── Block 1180: Block Periodization Guide ────────────
+function getPeriodizationBlockGuide(message: string): string {
+  const keywords = ['блочная периодизация', 'block periodization', 'блоковая периодизация', 'аккумуляция трансмутация реализация', 'фазы периодизации', 'мезоцикл планирование', 'периодизация для натурала'];
+  if (!keywords.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+📊 БЛОЧНАЯ ПЕРИОДИЗАЦИЯ — СИСТЕМНЫЙ ПОДХОД К ПРОГРЕССУ:
+
+**Что такое блочная периодизация:**
+- Разделение тренировочного цикла на фазы (блоки) с разными целями
+- Каждый блок длится 2-6 недель
+- Фокус на 1-2 качествах в каждом блоке (vs линейная — всё сразу)
+- Автор концепции: Владимир Иссурин (израильский спортивный учёный)
+
+**Три основных блока:**
+
+**1. АККУМУЛЯЦИЯ (объёмный блок) — 3-4 недели:**
+- Цель: набор мышечной массы, рабочая ёмкость
+- Объём: высокий (14-20 подходов/мышцу в неделю)
+- Интенсивность: умеренная (65-75% 1ПМ)
+- Повторения: 8-15
+- RPE: 6-8 (далеко от отказа)
+- Отдых: 1.5-2.5 мин
+
+**2. ТРАНСМУТАЦИЯ (интенсивный блок) — 3-4 недели:**
+- Цель: преобразование объёма в силу
+- Объём: средний (10-14 подходов/мышцу)
+- Интенсивность: высокая (78-88% 1ПМ)
+- Повторения: 4-8
+- RPE: 7-9
+- Отдых: 2-4 мин
+
+**3. РЕАЛИЗАЦИЯ (пиковый блок) — 1-2 недели:**
+- Цель: выход на пиковую силу / тест 1ПМ
+- Объём: низкий (6-10 подходов/мышцу)
+- Интенсивность: максимальная (88-100% 1ПМ)
+- Повторения: 1-4
+- RPE: 9-10
+- Отдых: 3-5 мин
+
+**+ РАЗГРУЗКА (деload) после каждого макроцикла — 1 неделя:**
+- 50-60% объёма и интенсивности
+- Восстановление соединительной ткани и ЦНС
+- Психологическая перезагрузка
+
+**Пример 12-недельного макроцикла:**
+- Недели 1-4: Аккумуляция (объём, гипертрофия)
+- Неделя 5: Деload
+- Недели 6-9: Трансмутация (сила, мощность)
+- Неделя 10: Деload
+- Недели 11-12: Реализация (пиковая сила, тест 1ПМ)
+
+**Блочная vs линейная периодизация:**
+- Линейная: каждую неделю ↑ вес, ↓ повторения (для новичков)
+- Блочная: фазы с разными целями (для среднего+ уровня)
+- Блочная эффективнее для натуральных атлетов со стажем >2 лет
+- Причина: «всё сразу» = ни одно качество не развивается максимально
+
+**Для натурального атлета:**
+- Аккумуляция — самый длинный блок (4 недели)
+- Натуралу нужно больше объёма для роста
+- Реализация — короткий (1-2 недели, иначе суставы страдают)
+- Деload обязателен — натурал не восстанавливается как «химик»
+- Смена блоков = ↓ риск застоя и ↑ мотивация
 `;
 }
 
