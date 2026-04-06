@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useThemeStore, useAuthStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
@@ -66,7 +66,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </Text>
           ) : null}
 
-          <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: spacing.xxl }}>
+          <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: spacing.xxl }} onPress={() => Alert.alert('Восстановление пароля', 'Функция появится в ближайшем обновлении. Если нужна помощь — напишите на support@irongym.app')}>
             <Text style={[typography.smallMedium, { color: colors.primary }]}>
               Забыли пароль?
             </Text>

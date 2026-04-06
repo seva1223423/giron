@@ -162,6 +162,9 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
   useEffect(() => {
     if (!workout) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
     const fetchInsights = async () => {
       setLoadingInsights(true);
       try {
@@ -177,12 +180,15 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
         });
         setInsights(result);
       } catch {
-        // Silently fail — insights are non-critical
+        setInsights('Отличная тренировка! Продолжай в том же духе 💪');
       } finally {
+        clearTimeout(timeout);
         setLoadingInsights(false);
       }
     };
     fetchInsights();
+
+    return () => { clearTimeout(timeout); controller.abort(); };
   }, [workout?.id]);
 
   if (!workout) {
