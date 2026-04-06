@@ -1,19 +1,37 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
+
+const mealItemSchema = z.object({
+  name: z.string().min(1),
+  calories: z.number().min(0).max(10000),
+  protein: z.number().min(0).max(1000),
+  fats: z.number().min(0).max(1000),
+  carbs: z.number().min(0).max(1000),
+  weightGrams: z.number().min(0).max(10000).optional(),
+});
+
+const addMealSchema = z.object({
+  type: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
+  items: z.array(mealItemSchema).min(1).max(50),
+  photoUrl: z.string().optional(),
+});
 
 // Add meal
 router.post('/meals', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { type, items, photoUrl } = req.body;
+    const parsed = addMealSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
 
-    const totalCalories = items.reduce((s: number, i: any) => s + i.calories, 0);
-    const totalProtein = items.reduce((s: number, i: any) => s + i.protein, 0);
-    const totalFats = items.reduce((s: number, i: any) => s + i.fats, 0);
-    const totalCarbs = items.reduce((s: number, i: any) => s + i.carbs, 0);
+    const { type, items, photoUrl } = parsed.data;
+
+    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
+    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
+    const totalFats = items.reduce((s, i) => s + i.fats, 0);
+    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
 
     const meal = await prisma.meal.create({
       data: {

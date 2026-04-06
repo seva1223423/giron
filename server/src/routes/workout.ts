@@ -1,9 +1,32 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
+
+const createProgramSchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  type: z.string().min(1),
+  goal: z.string().min(1),
+  level: z.string().min(1),
+  daysPerWeek: z.number().int().min(1).max(7),
+  durationWeeks: z.number().int().min(1).max(52).optional(),
+});
+
+const startWorkoutSchema = z.object({
+  name: z.string().min(1).max(200),
+  exercises: z.array(z.object({
+    exerciseId: z.string().min(1),
+    restSeconds: z.number().int().min(0).max(600).optional(),
+    sets: z.array(z.object({
+      type: z.string().optional(),
+      reps: z.number().int().min(0).max(999).optional(),
+      weight: z.number().min(0).max(2000).optional(),
+    })).min(1),
+  })).min(1),
+});
 
 // Get all programs
 router.get('/programs', authenticate, async (req: AuthRequest, res: Response) => {
@@ -32,7 +55,10 @@ router.get('/programs', authenticate, async (req: AuthRequest, res: Response) =>
 // Create program
 router.post('/programs', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, type, goal, level, daysPerWeek, durationWeeks } = req.body;
+    const parsed = createProgramSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+
+    const { name, description, type, goal, level, daysPerWeek, durationWeeks } = parsed.data;
 
     // Deactivate current active program
     await prisma.program.updateMany({
@@ -64,7 +90,10 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
 // Start workout
 router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, exercises } = req.body;
+    const parsed = startWorkoutSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+
+    const { name, exercises } = parsed.data;
 
     const workout = await prisma.workout.create({
       data: {

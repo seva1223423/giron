@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../db';
 
 let lastRefreshAt = 0;
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours

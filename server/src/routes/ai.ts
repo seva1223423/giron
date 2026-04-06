@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { prisma } from '../db';
 import { chat, chatWithoutTools, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -31,7 +31,6 @@ import {
 } from '../knowledge';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ─── Block 28: AI Response Cache ────────────────────────────────────────────
 // Cache for technique/general knowledge questions (no personalized data needed)

@@ -1,9 +1,8 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ─── Get subscription status ─────────────────────────────────────────────────
 router.get('/status', authenticate, async (req: AuthRequest, res: Response) => {

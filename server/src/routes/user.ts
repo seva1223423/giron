@@ -1,9 +1,14 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { prisma } from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
+
+const weightSchema = z.object({
+  weightKg: z.number().min(20, 'Вес не может быть менее 20 кг').max(400, 'Вес не может быть более 400 кг'),
+  date: z.string().refine((d) => !isNaN(Date.parse(d)), 'Некорректная дата'),
+});
 
 // Get profile
 router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => {
@@ -63,7 +68,10 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
 // Add body weight
 router.post('/weight', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { weightKg, date } = req.body;
+    const parsed = weightSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+
+    const { weightKg, date } = parsed.data;
     const record = await prisma.bodyWeight.upsert({
       where: {
         userId_date: {
