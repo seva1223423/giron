@@ -11,6 +11,9 @@ import { userService, workoutService } from '../../services';
 import { BodyWeight, BodyMeasurement } from '../../types';
 import { LeaderboardEntry } from '../../services/workoutService';
 import { computeAchievements, ACHIEVEMENT_DEFINITIONS, Achievement } from '../../utils/achievements';
+import { BarChart } from './components/BarChart';
+import { LineChart } from './components/LineChart';
+import { WeeklyHeatmap } from './components/WeeklyHeatmap';
 
 const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
 const PROGRESS_PHOTOS_KEY = 'iron_gym_progress_photos';
@@ -44,147 +47,6 @@ const STRENGTH_STANDARDS = [
 const LEVEL_NAMES = ['Новичок', 'Начинающий', 'Средний', 'Продвинутый', 'Элита'];
 const LEVEL_COLORS = ['#9E9E9E', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0'];
 
-// Simple bar chart component
-const BarChart: React.FC<{
-  data: { label: string; value: number }[];
-  color: string;
-  height?: number;
-  colors: any;
-}> = ({ data, color, height = 140, colors }) => {
-  const maxValue = Math.max(1, ...data.map((d) => d.value));
-
-  return (
-    <View style={{ height, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
-      {data.map((item, i) => {
-        const barHeight = (item.value / maxValue) * (height - 24);
-        return (
-          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-            {item.value > 0 && (
-              <Text style={[typography.small, { color: colors.textTertiary, fontSize: 9, marginBottom: 2 }]}>
-                {item.value >= 1000 ? `${(item.value / 1000).toFixed(1)}k` : item.value}
-              </Text>
-            )}
-            <View
-              style={{
-                width: '70%',
-                height: Math.max(barHeight, 2),
-                backgroundColor: item.value > 0 ? color : colors.border,
-                borderRadius: 4,
-                minHeight: 2,
-              }}
-            />
-            <Text style={[typography.small, { color: colors.textTertiary, fontSize: 10, marginTop: 4 }]}>
-              {item.label}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-};
-
-// Mini line chart
-const LineChart: React.FC<{
-  data: { label: string; value: number }[];
-  color: string;
-  height?: number;
-  colors: any;
-  suffix?: string;
-}> = ({ data, color, height = 120, colors, suffix = '' }) => {
-  if (data.length < 2) return null;
-
-  const maxVal = Math.max(...data.map((d) => d.value));
-  const minVal = Math.min(...data.map((d) => d.value));
-  const range = maxVal - minVal || 1;
-  const chartH = height - 32;
-
-  return (
-    <View style={{ height }}>
-      {/* Y axis labels */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-        <Text style={[typography.small, { color: colors.textTertiary, fontSize: 10 }]}>{maxVal}{suffix}</Text>
-        <Text style={[typography.small, { color: colors.textTertiary, fontSize: 10 }]}>{minVal}{suffix}</Text>
-      </View>
-      {/* Points and lines */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: chartH }}>
-        {data.map((item, i) => {
-          const y = ((item.value - minVal) / range) * (chartH - 16);
-          return (
-            <View key={i} style={{ flex: 1, alignItems: 'center', height: chartH, justifyContent: 'flex-end' }}>
-              <View style={{ position: 'absolute', bottom: y }}>
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: color,
-                  }}
-                />
-              </View>
-            </View>
-          );
-        })}
-      </View>
-      {/* X labels */}
-      <View style={{ flexDirection: 'row', marginTop: 4 }}>
-        {data.map((item, i) => (
-          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[typography.small, { color: colors.textTertiary, fontSize: 9 }]}>{item.label}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-};
-
-// Heatmap for weekly activity
-const WeeklyHeatmap: React.FC<{
-  workoutDates: string[];
-  weeks?: number;
-  colors: any;
-}> = ({ workoutDates, weeks = 12, colors }) => {
-  const today = new Date();
-  const cells: { date: string; count: number; dayOfWeek: number }[] = [];
-
-  for (let i = weeks * 7 - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const count = workoutDates.filter((wd) => wd.startsWith(dateStr)).length;
-    cells.push({ date: dateStr, count, dayOfWeek: d.getDay() });
-  }
-
-  const cellSize = Math.floor((CHART_WIDTH - 24) / weeks) - 2;
-
-  // Group by weeks
-  const weekGroups: typeof cells[] = [];
-  let currentWeek: typeof cells = [];
-  cells.forEach((cell) => {
-    currentWeek.push(cell);
-    if (cell.dayOfWeek === 6 || cells.indexOf(cell) === cells.length - 1) {
-      weekGroups.push(currentWeek);
-      currentWeek = [];
-    }
-  });
-
-  return (
-    <View style={{ flexDirection: 'row', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      {cells.map((cell, i) => (
-        <View
-          key={i}
-          style={{
-            width: cellSize,
-            height: cellSize,
-            borderRadius: 2,
-            backgroundColor: cell.count > 0
-              ? cell.count >= 2 ? colors.success : colors.success + '70'
-              : colors.surface,
-          }}
-        />
-      ))}
-    </View>
-  );
-};
 
 export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
