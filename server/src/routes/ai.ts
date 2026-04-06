@@ -75884,7 +75884,7 @@ function getLongevityExercise(message: string): string {
 `;
 }
 
-function getJointHealthLongevity(message: string): string {
+function getJointHealthLongevityAdvanced(message: string): string {
   const kw = ['здоровье суставов', 'суставы возраст', 'колени берегу', 'артрит тренировки', 'хрящ восстановление'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -76261,7 +76261,7 @@ Calf raises (подъёмы на носки): 3×15 с паузой 2 сек н�
 `;
 }
 
-function getMyofascialRelease(message: string): string {
+function getMyofascialReleaseProtocol(message: string): string {
   const kw = ['миофасциальный релиз', 'foam roller', 'пенный ролл', 'массажный мяч', 'фасции'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -76361,7 +76361,7 @@ Wim Hof: 30 вдохов → задержка → повтор 3 цикла → 
 `;
 }
 
-function getMovementScreening(message: string): string {
+function getMovementScreeningSelfTest(message: string): string {
   const kw = ['оценка движений', 'скрининг тела', 'мышечный дисбаланс', 'асимметрия тела', 'слабые места'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
