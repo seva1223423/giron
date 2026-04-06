@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get('/clients', authenticate, async (req: AuthRequest, res: Response) => 
     });
     res.json(clients);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения клиентов' });
   }
 });
@@ -49,7 +50,7 @@ router.post('/clients', authenticate, async (req: AuthRequest, res: Response) =>
     });
     res.status(201).json(client);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка добавления клиента' });
   }
 });
@@ -72,7 +73,7 @@ router.patch('/clients/:id', authenticate, async (req: AuthRequest, res: Respons
     const updated = await prisma.trainerClient.findUnique({ where: { id: req.params.id } });
     res.json(updated);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления клиента' });
   }
 });
@@ -86,7 +87,7 @@ router.delete('/clients/:id', authenticate, async (req: AuthRequest, res: Respon
     if (deleted.count === 0) return res.status(404).json({ error: 'Клиент не найден' });
     res.json({ success: true });
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка удаления клиента' });
   }
 });

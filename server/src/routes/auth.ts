@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -57,7 +58,7 @@ router.post('/register', async (req: Request, res: Response) => {
     if (e instanceof z.ZodError) {
       return res.status(400).json({ error: e.errors[0].message });
     }
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка регистрации' });
   }
 });
@@ -90,7 +91,7 @@ router.post('/login', async (req: Request, res: Response) => {
     if (e instanceof z.ZodError) {
       return res.status(400).json({ error: e.errors[0].message });
     }
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка входа' });
   }
 });

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -47,7 +48,7 @@ router.get('/status', authenticate, async (req: AuthRequest, res: Response) => {
       startDate: subscription.startDate.toISOString(),
     });
   } catch (e) {
-    console.error('Subscription status error:', e);
+    logger.error('Subscription status error:', e);
     res.status(500).json({ error: 'Ошибка получения подписки' });
   }
 });
@@ -87,7 +88,7 @@ router.post('/activate', authenticate, async (req: AuthRequest, res: Response) =
       },
     });
 
-    console.log(`Subscription activated: user=${userId} plan=${plan} days=${durationDays} txn=${transactionId || 'none'}`);
+    logger.info(`Subscription activated: user=${userId} plan=${plan} days=${durationDays} txn=${transactionId || 'none'}`);
 
     res.json({
       plan: subscription.plan,
@@ -97,7 +98,7 @@ router.post('/activate', authenticate, async (req: AuthRequest, res: Response) =
       startDate: startDate.toISOString(),
     });
   } catch (e) {
-    console.error('Subscription activate error:', e);
+    logger.error('Subscription activate error:', e);
     res.status(500).json({ error: 'Ошибка активации подписки' });
   }
 });
@@ -129,7 +130,7 @@ router.post('/cancel', authenticate, async (req: AuthRequest, res: Response) => 
       message: 'Подписка отменена. Доступ сохранится до окончания оплаченного периода.',
     });
   } catch (e) {
-    console.error('Subscription cancel error:', e);
+    logger.error('Subscription cancel error:', e);
     res.status(500).json({ error: 'Ошибка отмены подписки' });
   }
 });
@@ -144,7 +145,7 @@ router.post('/webhook', async (req, res: Response) => {
     // - RevenueCat: verify X-RevenueCat-Webhook-Auth header
     // - ЮKassa: verify SHA-256 signature
 
-    console.log(`Webhook received: provider=${provider} event=${event} user=${userId}`);
+    logger.info(`Webhook received: provider=${provider} event=${event} user=${userId}`);
 
     if (event === 'subscription_activated' || event === 'subscription_renewed') {
       const startDate = new Date();
@@ -181,7 +182,7 @@ router.post('/webhook', async (req, res: Response) => {
 
     res.json({ received: true });
   } catch (e) {
-    console.error('Webhook error:', e);
+    logger.error('Webhook error:', e);
     res.status(500).json({ error: 'Webhook processing error' });
   }
 });

@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -58,7 +59,7 @@ router.post('/meals', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(meal);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка добавления приёма пищи' });
   }
 });
@@ -85,7 +86,7 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.json(meals);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения приёмов пищи' });
   }
 });
@@ -99,7 +100,7 @@ router.delete('/meals/:id', authenticate, async (req: AuthRequest, res: Response
     if (deleted.count === 0) return res.status(404).json({ error: 'Приём пищи не найден' });
     res.json({ success: true });
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка удаления' });
   }
 });

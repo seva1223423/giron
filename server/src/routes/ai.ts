@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 import { chat, chatWithoutTools, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -2122,7 +2123,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 28: Check cache for technique/general questions ──────
     const cachedResponse = getCachedResponse(message, intent);
     if (cachedResponse) {
-      console.log(`[AI] Cache hit for intent=${intent}`);
+      logger.debug(`[AI] Cache hit for intent=${intent}`);
       await prisma.chatMessage.create({
         data: { role: 'assistant', content: cachedResponse, userId },
       });
@@ -2143,7 +2144,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Profile completeness: detect missing data ──────
     const profileGaps = getProfileGaps(user);
 
-    console.log(`[AI] Intent: ${intent}, mood: ${mood}, gaps: ${profileGaps.length}, tools: ${intentConfig.toolsEnabled}`);
+    logger.debug(`[AI] Intent: ${intent}, mood: ${mood}, gaps: ${profileGaps.length}, tools: ${intentConfig.toolsEnabled}`);
 
     // Build conversation messages (history + current message) with smart trimming
     const rawMessages: DeepSeekMessage[] = history
@@ -6236,7 +6237,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const motivAdvContext = getMotivationAdvanced(message);
     const resilienceContext = getResilienceSport(message);
 
-    console.log(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, muscleRecovery: ${muscleRecoveryStatuses.filter(s => !s.readyToTrain).length} recovering`);
+    logger.debug(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, muscleRecovery: ${muscleRecoveryStatuses.filter(s => !s.readyToTrain).length} recovering`);
 
     // No nutrition targets set
     if (!nutritionTargets && user) {
@@ -7907,7 +7908,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         knowledgeContent,
         `${timeContext}\n${optimizedDynamic}${antiPatternDirective}${confidenceDirective}${moodDirective ? `\n\n${moodDirective}` : ''}${greetingDirective}\n\nРелевантные модули знаний: ${relevantTopics.join(', ')}`,
       ].filter(Boolean).join('\n\n---\n\n');
-      console.log(`[AI+] Context optimized: ${estimatedSystemTokens} → ${estimateTokens(finalSystemPrompt)} tokens`);
+      logger.debug(`[AI+] Context optimized: ${estimatedSystemTokens} → ${estimateTokens(finalSystemPrompt)} tokens`);
     }
 
     // Smart history management — суммаризация старых сообщений + trim
@@ -7957,7 +7958,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
               actionDescription = toolResult.actionDescription;
               actionData = toolResult.actionData;
             } catch (toolError) {
-              console.error(`Tool ${tc.name} failed:`, toolError);
+              logger.error(`Tool ${tc.name} failed:`, toolError);
               resultText = `Ошибка выполнения инструмента ${tc.name}: ${(toolError as Error).message}`;
             }
 
@@ -7977,7 +7978,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         }
 
         if (toolIterations >= MAX_TOOL_ITERATIONS && result.hasToolCalls) {
-          console.warn(`AI tool loop hit limit (${MAX_TOOL_ITERATIONS}), forcing text response`);
+          logger.warn(`AI tool loop hit limit (${MAX_TOOL_ITERATIONS}), forcing text response`);
           const textOnly = await chatWithoutTools({
             system: finalSystemPrompt,
             messages,
@@ -7998,7 +7999,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         result = { content: textContent, toolCalls: [], hasToolCalls: false };
       }
     } catch (aiError) {
-      console.error('AI chat call failed, attempting simplified fallback:', aiError);
+      logger.error('AI chat call failed, attempting simplified fallback:', aiError);
       try {
         // Fallback 1: same prompt, no tools, shorter context
         const shortMessages = messages.slice(-6); // only last 3 exchanges
@@ -8010,7 +8011,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         });
         result = { content: fallbackContent, toolCalls: [], hasToolCalls: false };
       } catch (fallback1Error) {
-        console.error('Fallback 1 failed, trying minimal prompt:', fallback1Error);
+        logger.error('Fallback 1 failed, trying minimal prompt:', fallback1Error);
         try {
           // Fallback 2: minimal system prompt, only current message
           const minimalSystem = `Ты Iron Coach — ИИ-тренер в приложении Iron Gym. Отвечай на русском, коротко и по делу. ${userContext}`;
@@ -8023,7 +8024,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           });
           result = { content: fallback2Content, toolCalls: [], hasToolCalls: false };
         } catch (fallback2Error) {
-          console.error('All AI fallbacks failed:', fallback2Error);
+          logger.error('All AI fallbacks failed:', fallback2Error);
           return res.status(503).json({
             error: 'AI-сервис временно недоступен. Попробуй через минуту.',
             retryAfter: 60,
@@ -8037,7 +8038,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     const validation = validateResponse(aiContent, message);
     if (validation.shouldRegenerate) {
-      console.warn(`AI response failed validation: ${validation.issues.join(', ')}. Regenerating...`);
+      logger.warn(`AI response failed validation: ${validation.issues.join(', ')}. Regenerating...`);
       try {
         // Повторный запрос с hint'ом в системном промпте, temperature ниже чем intent для стабильности
         const regenContent = await chatWithoutTools({
@@ -8051,7 +8052,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           aiContent = regenContent;
         }
       } catch (regenError) {
-        console.warn('Regeneration failed, using original response:', (regenError as Error).message);
+        logger.warn('Regeneration failed, using original response:', (regenError as Error).message);
       }
     }
 
@@ -8061,7 +8062,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const qualityCheck = validateAIResponse(aiContent, intent);
     aiContent = qualityCheck.cleaned;
     if (qualityCheck.warnings.length > 0) {
-      console.log(`[AI Quality] Warnings: ${qualityCheck.warnings.join(', ')}`);
+      logger.debug(`[AI Quality] Warnings: ${qualityCheck.warnings.join(', ')}`);
     }
 
     // Cache response for technique/general questions (no personal data in response)
@@ -8101,7 +8102,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       },
     });
   } catch (e) {
-    console.error('AI Chat error:', e);
+    logger.error('AI Chat error:', e);
     res.status(500).json({ error: 'Ошибка ИИ-ассистента' });
   }
 });
@@ -8971,7 +8972,7 @@ async function saveMemories(userId: string, memories: MemoryExtraction[]): Promi
       }
     } catch (e) {
       // Silently skip if DB issue (table may not exist yet)
-      console.error('AIMemory save error:', e);
+      logger.error('AIMemory save error:', e);
     }
   }
 }
@@ -76481,7 +76482,7 @@ router.get('/starters', authenticate, async (req: AuthRequest, res: Response) =>
 
     res.json({ starters: starters.slice(0, 6) });
   } catch (e) {
-    console.error('Starters error:', e);
+    logger.error('Starters error:', e);
     res.json({ starters: [
       { emoji: '💪', text: 'Составь тренировку на сегодня' },
       { emoji: '🍽️', text: 'Что мне поесть?' },
@@ -76544,7 +76545,7 @@ ${userInfo}
 
         if (!items || items.length === 0) {
           lastError = 'Не удалось распознать JSON из ответа AI';
-          console.warn(`Food analysis attempt ${attempt + 1}: parse failed. Raw: ${text.slice(0, 200)}`);
+          logger.warn(`Food analysis attempt ${attempt + 1}: parse failed. Raw: ${text.slice(0, 200)}`);
           continue;
         }
 
@@ -76557,7 +76558,7 @@ ${userInfo}
         return res.json({ items: validated });
       } catch (analyzeError) {
         lastError = (analyzeError as Error).message;
-        console.warn(`Food analysis attempt ${attempt + 1} failed:`, lastError);
+        logger.warn(`Food analysis attempt ${attempt + 1} failed:`, lastError);
         // Если ошибка сети/таймаут — подождём перед retry
         if (attempt < MAX_FOOD_RETRIES - 1) {
           await new Promise((r) => setTimeout(r, 1000));
@@ -76567,7 +76568,7 @@ ${userInfo}
 
     // Если vision не сработал — fallback на text-only модель с описанием
     try {
-      console.warn('Vision failed, attempting text-only fallback for food analysis');
+      logger.warn('Vision failed, attempting text-only fallback for food analysis');
       const fallbackText = await generate(
         `Пользователь сфотографировал еду. К сожалению, фото не удалось обработать. Попроси пользователя описать еду текстом (что ел, примерный размер порции), и ты рассчитаешь КБЖУ. Ответь на русском, кратко.`,
         { maxTokens: 256, temperature: 0.5 },
@@ -76584,7 +76585,7 @@ ${userInfo}
       });
     }
   } catch (e) {
-    console.error('Food analysis error:', e);
+    logger.error('Food analysis error:', e);
     res.status(500).json({ error: 'Ошибка анализа фото', retryable: true });
   }
 });
@@ -76599,7 +76600,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
     });
     res.json(messages);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения истории чата' });
   }
 });
@@ -76652,7 +76653,7 @@ ${exerciseSummaries}
     const text = await generate(prompt, { maxTokens: 512, temperature: 0.7 });
     res.json({ insights: text });
   } catch (e) {
-    console.error('Workout insights error:', e);
+    logger.error('Workout insights error:', e);
     res.status(500).json({ error: 'Не удалось получить анализ' });
   }
 });

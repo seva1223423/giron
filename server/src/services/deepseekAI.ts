@@ -15,6 +15,8 @@
  *   AI_API_KEY=<deepseek_key>
  */
 
+import { logger } from '../utils/logger';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface DeepSeekTool {
@@ -99,7 +101,7 @@ function safeParseToolArgs(raw: string): Record<string, unknown> {
         .replace(/""(\w+)""/g, '"$1"');   // двойные кавычки
       return JSON.parse(fixed);
     } catch {
-      console.error('Failed to parse tool arguments:', raw);
+      logger.error('Failed to parse tool arguments:', raw);
       return {};
     }
   }
@@ -176,7 +178,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
       if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
         const retryAfter = response.headers.get('retry-after');
         const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : RETRY_DELAY_MS * (attempt + 1);
-        console.warn(`AI API ${response.status}, retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
+        logger.warn(`AI API ${response.status}, retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
         await sleep(delay);
         continue;
       }
@@ -208,7 +210,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
           const args = safeParseToolArgs(tc.function.arguments);
           // Пропускаем tool calls с пустыми аргументами (ошибка парсинга)
           if (Object.keys(args).length === 0 && tc.function.arguments.trim().length > 2) {
-            console.warn(`Skipping malformed tool call: ${tc.function.name}, raw: ${tc.function.arguments}`);
+            logger.warn(`Skipping malformed tool call: ${tc.function.name}, raw: ${tc.function.arguments}`);
             return null;
           }
           return { id: tc.id, name: tc.function.name, arguments: args };
@@ -230,7 +232,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
         (err as Error).message?.includes('ETIMEDOUT');
 
       if (isRetryable && attempt < MAX_RETRIES) {
-        console.warn(`AI API network error, retry ${attempt + 1}/${MAX_RETRIES}: ${(err as Error).message}`);
+        logger.warn(`AI API network error, retry ${attempt + 1}/${MAX_RETRIES}: ${(err as Error).message}`);
         await sleep(RETRY_DELAY_MS * (attempt + 1));
         continue;
       }
@@ -303,7 +305,7 @@ export async function summarizeHistory(
     return trimHistory(result, maxTokens, systemTokens);
   } catch (e) {
     // Если суммаризация сломалась — fallback на обычный trim
-    console.warn('History summarization failed, falling back to trim:', (e as Error).message);
+    logger.warn('History summarization failed, falling back to trim:', (e as Error).message);
     return trimHistory(messages, maxTokens, systemTokens);
   }
 }

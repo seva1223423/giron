@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     const { passwordHash, ...profile } = user;
     res.json(profile);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения профиля' });
   }
 });
@@ -60,7 +61,7 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
     const { passwordHash, ...profile } = user;
     res.json(profile);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления профиля' });
   }
 });
@@ -88,7 +89,7 @@ router.post('/weight', authenticate, async (req: AuthRequest, res: Response) => 
     });
     res.json(record);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка сохранения веса' });
   }
 });
@@ -103,7 +104,7 @@ router.get('/weight', authenticate, async (req: AuthRequest, res: Response) => {
     });
     res.json(records);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения веса' });
   }
 });

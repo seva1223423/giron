@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { refreshNews } from '../services/newsRefreshService';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.get('/', async (req, res: Response) => {
 
     res.json(articles);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения новостей' });
   }
 });
@@ -52,7 +53,7 @@ router.post('/:id/save', authenticate, async (req: AuthRequest, res: Response) =
       res.json({ saved: true });
     }
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка сохранения' });
   }
 });
@@ -67,7 +68,7 @@ router.get('/saved', authenticate, async (req: AuthRequest, res: Response) => {
     });
     res.json(saved.map((s) => s.article));
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения сохранённых' });
   }
 });
@@ -78,7 +79,7 @@ router.post('/refresh', authenticate, async (_req: AuthRequest, res: Response) =
     const result = await refreshNews(true);
     res.json({ success: true, ...result });
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления новостей' });
   }
 });

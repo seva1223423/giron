@@ -1,4 +1,5 @@
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 let lastRefreshAt = 0;
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -123,12 +124,12 @@ export async function refreshNews(force = false): Promise<{ added: number; skipp
         added++;
       }
     } catch (err) {
-      console.warn(`[NewsRefresh] Failed to fetch ${source.url}:`, (err as Error).message);
+      logger.warn(`[NewsRefresh] Failed to fetch ${source.url}:`, (err as Error).message);
     }
   }
 
   lastRefreshAt = Date.now();
-  console.log(`[NewsRefresh] Done: +${added} new, ${skipped} existing`);
+  logger.info(`[NewsRefresh] Done: +${added} new, ${skipped} existing`);
   return { added, skipped };
 }
 
@@ -136,10 +137,10 @@ export async function refreshNews(force = false): Promise<{ added: number; skipp
 export function startNewsRefreshScheduler(): void {
   // Initial refresh after 5s startup delay (non-blocking)
   setTimeout(() => {
-    refreshNews().catch((e) => console.warn('[NewsRefresh] Initial refresh failed:', e.message));
+    refreshNews().catch((e) => logger.warn('[NewsRefresh] Initial refresh failed:', e.message));
   }, 5000);
 
   setInterval(() => {
-    refreshNews().catch((e) => console.warn('[NewsRefresh] Scheduled refresh failed:', e.message));
+    refreshNews().catch((e) => logger.warn('[NewsRefresh] Scheduled refresh failed:', e.message));
   }, REFRESH_INTERVAL_MS);
 }

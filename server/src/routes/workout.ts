@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -47,7 +48,7 @@ router.get('/programs', authenticate, async (req: AuthRequest, res: Response) =>
     });
     res.json(programs);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения программ' });
   }
 });
@@ -82,7 +83,7 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
     });
     res.status(201).json(program);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка создания программы' });
   }
 });
@@ -126,7 +127,7 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
     });
     res.status(201).json(workout);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка старта тренировки' });
   }
 });
@@ -182,7 +183,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
 
     res.json(updated);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка завершения тренировки' });
   }
 });
@@ -205,7 +206,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
     });
     res.json(workouts);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения истории' });
   }
 });
@@ -274,7 +275,7 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
 
     res.json({ leaderboard });
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения лидерборда' });
   }
 });
@@ -287,7 +288,7 @@ router.get('/exercises', async (_req, res: Response) => {
     });
     res.json(exercises);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     res.status(500).json({ error: 'Ошибка получения упражнений' });
   }
 });
