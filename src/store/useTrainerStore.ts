@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { trainerService } from '../services/trainerService';
 
 export interface TrainerClient {
   id: string;
@@ -16,39 +17,85 @@ export interface TrainerClient {
   emoji?: string;
 }
 
-const SAMPLE_CLIENTS: TrainerClient[] = [
-  { id: '1', name: 'Алексей Смирнов', age: 28, goal: 'muscle_gain', level: 'intermediate', lastVisit: '2026-03-31', totalWorkouts: 42, assignedProgram: 'Толчок-Тяга-Ноги', emoji: '💪', phone: '+7 900 000 0001' },
-  { id: '2', name: 'Мария Козлова', age: 24, goal: 'weight_loss', level: 'beginner', lastVisit: '2026-04-01', totalWorkouts: 18, assignedProgram: 'Верх / Низ', emoji: '🏃', phone: '+7 900 000 0002' },
-  { id: '3', name: 'Дмитрий Петров', age: 35, goal: 'strength', level: 'advanced', lastVisit: '2026-03-29', totalWorkouts: 87, assignedProgram: 'Стартовая сила', emoji: '🏋️', phone: '+7 900 000 0003' },
-];
-
 interface TrainerStore {
   clients: TrainerClient[];
-  addClient: (client: Omit<TrainerClient, 'id'>) => void;
-  updateClient: (id: string, data: Partial<TrainerClient>) => void;
-  deleteClient: (id: string) => void;
+  isLoading: boolean;
+
+  fetchClients: () => Promise<void>;
+  addClient: (client: Omit<TrainerClient, 'id'>) => Promise<void>;
+  updateClient: (id: string, data: Partial<TrainerClient>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
 }
 
 export const useTrainerStore = create<TrainerStore>()(
   persist(
-    (set) => ({
-      clients: SAMPLE_CLIENTS,
+    (set, get) => ({
+      clients: [],
+      isLoading: false,
 
-      addClient: (data) => set((s) => ({
-        clients: [...s.clients, { ...data, id: Date.now().toString() }],
-      })),
+      fetchClients: async () => {
+        set({ isLoading: true });
+        try {
+          const clients = await trainerService.getClients();
+          set({ clients, isLoading: false });
+        } catch {
+          set({ isLoading: false });
+        }
+      },
 
-      updateClient: (id, data) => set((s) => ({
-        clients: s.clients.map((c) => c.id === id ? { ...c, ...data } : c),
-      })),
+      addClient: async (data) => {
+        // Optimistic: add locally first
+        const tempId = Date.now().toString();
+        const tempClient: TrainerClient = { ...data, id: tempId };
+        set((s) => ({ clients: [tempClient, ...s.clients] }));
 
-      deleteClient: (id) => set((s) => ({
-        clients: s.clients.filter((c) => c.id !== id),
-      })),
+        try {
+          const serverClient = await trainerService.addClient(data);
+          // Replace temp with server response
+          set((s) => ({
+            clients: s.clients.map((c) => c.id === tempId ? serverClient : c),
+          }));
+        } catch {
+          // Revert on failure
+          set((s) => ({ clients: s.clients.filter((c) => c.id !== tempId) }));
+        }
+      },
+
+      updateClient: async (id, data) => {
+        // Optimistic update
+        const prev = get().clients.find((c) => c.id === id);
+        set((s) => ({
+          clients: s.clients.map((c) => c.id === id ? { ...c, ...data } : c),
+        }));
+
+        try {
+          await trainerService.updateClient(id, data);
+        } catch {
+          // Revert on failure
+          if (prev) {
+            set((s) => ({
+              clients: s.clients.map((c) => c.id === id ? prev : c),
+            }));
+          }
+        }
+      },
+
+      deleteClient: async (id) => {
+        const prev = get().clients;
+        set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }));
+
+        try {
+          await trainerService.deleteClient(id);
+        } catch {
+          // Revert on failure
+          set({ clients: prev });
+        }
+      },
     }),
     {
       name: 'iron-gym-trainer',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ clients: state.clients }),
     }
   )
 );

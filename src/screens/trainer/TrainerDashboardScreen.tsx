@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,8 +34,10 @@ const LEVEL_LABELS: Record<string, string> = {
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { clients, addClient, deleteClient } = useTrainerStore();
+  const { clients, addClient, deleteClient, fetchClients } = useTrainerStore();
   const [showAddModal, setShowAddModal] = useState(false);
+
+  useEffect(() => { fetchClients(); }, []);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
