@@ -187,7 +187,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         )}
 
         {tab === 'records' && (
-          <RecordsTab colors={colors} workoutHistory={workoutHistory} weightHistory={[]} user={user} />
+          <RecordsTab colors={colors} workoutHistory={workoutHistory} user={user} />
         )}
 
         {tab === 'weight' && (

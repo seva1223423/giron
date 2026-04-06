@@ -6,7 +6,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { LineChart } from './LineChart';
 import { workoutService } from '../../../services';
-import { Workout, BodyWeight } from '../../../types';
+import { Workout } from '../../../types';
 import { LeaderboardEntry } from '../../../services/workoutService';
 
 const STRENGTH_STANDARDS = [
@@ -21,11 +21,10 @@ const LEVEL_COLORS = ['#9E9E9E', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0'];
 interface RecordsTabProps {
   colors: any;
   workoutHistory: Workout[];
-  weightHistory: BodyWeight[];
   user: any;
 }
 
-export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, weightHistory, user }) => {
+export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, user }) => {
   const haptic = useHaptic();
 
   const [recordsView, setRecordsView] = useState<'mine' | 'club'>('mine');
@@ -223,9 +222,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
 
       {/* Strength Standards */}
       {recordsView === 'mine' && personalRecords.length > 0 && (() => {
-        const bodyWeightKg = weightHistory.length > 0
-          ? weightHistory[weightHistory.length - 1].weightKg
-          : user?.weightKg || 80;
+        const bodyWeightKg = user?.weightKg || 80;
 
         const standardData = STRENGTH_STANDARDS.map((std) => {
           const pr = personalRecords.find((r) => r.exerciseId === std.exerciseId);
