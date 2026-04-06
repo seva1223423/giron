@@ -5,3 +5,5 @@ export { OverviewTab } from './OverviewTab';
 export { CalendarTab } from './CalendarTab';
 export { AchievementsTab } from './AchievementsTab';
 export { RecordsTab } from './RecordsTab';
+export { WeightTab } from './WeightTab';
+export { PhotosTab } from './PhotosTab';
