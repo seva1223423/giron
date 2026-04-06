@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore } from '../../store';
 import { typography } from '../../theme';
@@ -14,8 +14,6 @@ import {
   PhotosTab,
 } from './components';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 type TabKey = 'overview' | 'calendar' | 'records' | 'weight' | 'achievements' | 'photos';
 
 export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -26,10 +24,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { dailyLog } = useNutritionStore();
   const [tab, setTab] = useState<TabKey>('overview');
 
-  const totalWorkouts = workoutHistory.length;
-  const totalVolume = workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0);
-  const totalDuration = workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0);
-
+  // Achievements need streak + nutritionDays — shared across tabs header
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;
     let s = 0;
@@ -41,83 +36,9 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       const dateStr = date.toISOString().split('T')[0];
       if (workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr))) {
         s++;
-      } else if (i > 0) {
-        break;
-      }
+      } else if (i > 0) break;
     }
     return s;
-  }, [workoutHistory]);
-
-  const weeklyVolumeData = useMemo(() => {
-    const weeks: { label: string; value: number }[] = [];
-    const today = new Date();
-    for (let w = 7; w >= 0; w--) {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - w * 7 - today.getDay() + 1);
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 7);
-      const volume = workoutHistory
-        .filter((wk) => {
-          if (!wk.completedAt) return false;
-          const d = new Date(wk.completedAt);
-          return d >= weekStart && d < weekEnd;
-        })
-        .reduce((s, wk) => s + (wk.totalVolume || 0), 0);
-      weeks.push({ label: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, value: Math.round(volume) });
-    }
-    return weeks;
-  }, [workoutHistory]);
-
-  const weeklyCountData = useMemo(() => {
-    const weeks: { label: string; value: number }[] = [];
-    const today = new Date();
-    for (let w = 7; w >= 0; w--) {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - w * 7 - today.getDay() + 1);
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 7);
-      const count = workoutHistory.filter((wk) => {
-        if (!wk.completedAt) return false;
-        const d = new Date(wk.completedAt);
-        return d >= weekStart && d < weekEnd;
-      }).length;
-      weeks.push({ label: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, value: count });
-    }
-    return weeks;
-  }, [workoutHistory]);
-
-  const durationTrend = useMemo(() => {
-    return workoutHistory
-      .slice(0, 10)
-      .reverse()
-      .map((w, i) => ({ label: `${i + 1}`, value: w.durationMinutes || 0 }));
-  }, [workoutHistory]);
-
-  const workoutDates = useMemo(() => {
-    return workoutHistory.filter((w) => w.completedAt).map((w) => w.completedAt!);
-  }, [workoutHistory]);
-
-  const muscleDistribution = useMemo(() => {
-    const muscles: Record<string, number> = {};
-    const labels: Record<string, string> = {
-      chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
-      triceps: 'Трицепс', quadriceps: 'Ноги', hamstrings: 'Задняя', glutes: 'Ягодицы',
-      abs: 'Пресс', calves: 'Икры',
-    };
-    workoutHistory.forEach((w) => {
-      w.exercises.forEach((ex) => {
-        const completedSets = ex.sets.filter((s) => s.completed).length;
-        ex.exercise.primaryMuscles.forEach((m) => {
-          muscles[m] = (muscles[m] || 0) + completedSets;
-        });
-      });
-    });
-    return Object.entries(muscles)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([key, value]) => ({ label: labels[key] || key, value }));
   }, [workoutHistory]);
 
   const nutritionDaysLogged = useMemo(() => {
@@ -145,7 +66,6 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         Прогресс
       </Text>
 
-      {/* Tabs */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -166,41 +86,12 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       </ScrollView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {tab === 'overview' && (
-          <OverviewTab
-            colors={colors}
-            totalWorkouts={totalWorkouts}
-            streak={streak}
-            totalVolume={totalVolume}
-            totalDuration={totalDuration}
-            workoutDates={workoutDates}
-            weeklyVolumeData={weeklyVolumeData}
-            weeklyCountData={weeklyCountData}
-            muscleDistribution={muscleDistribution}
-            durationTrend={durationTrend}
-            workoutHistory={workoutHistory}
-          />
-        )}
-
-        {tab === 'calendar' && (
-          <CalendarTab colors={colors} workoutHistory={workoutHistory} />
-        )}
-
-        {tab === 'records' && (
-          <RecordsTab colors={colors} workoutHistory={workoutHistory} user={user} />
-        )}
-
-        {tab === 'weight' && (
-          <WeightTab colors={colors} user={user} />
-        )}
-
-        {tab === 'photos' && (
-          <PhotosTab colors={colors} />
-        )}
-
-        {tab === 'achievements' && (
-          <AchievementsTab colors={colors} achievements={achievements} unlockedCount={unlockedCount} />
-        )}
+        {tab === 'overview' && <OverviewTab colors={colors} workoutHistory={workoutHistory} />}
+        {tab === 'calendar' && <CalendarTab colors={colors} workoutHistory={workoutHistory} />}
+        {tab === 'records' && <RecordsTab colors={colors} workoutHistory={workoutHistory} user={user} />}
+        {tab === 'weight' && <WeightTab colors={colors} user={user} />}
+        {tab === 'photos' && <PhotosTab colors={colors} />}
+        {tab === 'achievements' && <AchievementsTab colors={colors} achievements={achievements} unlockedCount={unlockedCount} />}
       </ScrollView>
     </View>
   );
