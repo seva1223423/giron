@@ -38,6 +38,7 @@ model User {
   savedNews               SavedNews[]
   subscription            Subscription?
   aiMemories              AIMemory[]
+  trainerClients          TrainerClient[]
 
   gym                     Gym?      @relation(fields: [gymId], references: [id])
 }
@@ -248,6 +249,27 @@ model AIMemory {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, key])
+}
+
+// ==================== TRAINER ====================
+model TrainerClient {
+  id              String   @id @default(cuid())
+  name            String
+  phone           String?
+  age             Int?
+  goal            String?  // muscle_gain, weight_loss, strength, etc.
+  level           String?  // beginner, intermediate, advanced
+  assignedProgram String?
+  notes           String?
+  emoji           String?  @default("🧑")
+  totalWorkouts   Int      @default(0)
+  lastVisit       DateTime?
+
+  trainerId       String
+  trainer         User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // ==================== NEWS ====================

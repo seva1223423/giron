@@ -8,6 +8,7 @@ import { nutritionRouter } from './routes/nutrition';
 import { aiRouter } from './routes/ai';
 import { newsRouter } from './routes/news';
 import { subscriptionRouter } from './routes/subscription';
+import { trainerRouter } from './routes/trainer';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 
 dotenv.config();
@@ -32,6 +33,7 @@ app.use('/api/nutrition', nutritionRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/subscription', subscriptionRouter);
+app.use('/api/trainer', trainerRouter);
 
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

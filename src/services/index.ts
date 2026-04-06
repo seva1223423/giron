@@ -8,4 +8,5 @@ export { nutritionService } from './nutritionService';
 export { aiService } from './aiService';
 export type { FoodAnalysisItem, FoodAnalysisResult, AIActionResult, AIMeta, AIStarter } from './aiService';
 export { newsService } from './newsService';
+export { trainerService } from './trainerService';
 export * from './notificationService';
