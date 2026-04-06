@@ -10,6 +10,7 @@ import { newsRouter } from './routes/news';
 import { subscriptionRouter } from './routes/subscription';
 import { trainerRouter } from './routes/trainer';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
@@ -35,14 +36,26 @@ app.use('/api/news', newsRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/trainer', trainerRouter);
 
-// Error handler
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Error:', err.message);
-  res.status(500).json({ error: 'Internal server error' });
+// Global error handler (catches both sync and async errors forwarded via next())
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error(`${req.method} ${req.path}:`, err.message);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Process-level crash guards
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception:', err);
+  process.exit(1);
 });
 
 app.listen(PORT, () => {
-  console.log(`Iron Gym API server running on port ${PORT}`);
+  logger.info(`Iron Gym API server running on port ${PORT}`);
   startNewsRefreshScheduler();
 });
 
