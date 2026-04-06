@@ -55,6 +55,16 @@ export const workoutService = {
     return data;
   },
 
+  async autosaveWorkout(id: string, sets: Array<{
+    id: string;
+    reps?: number;
+    weight?: number;
+    completed: boolean;
+    rpe?: number;
+  }>): Promise<void> {
+    await api.post(`/workouts/${id}/autosave`, { sets }).catch(() => {}); // fire-and-forget
+  },
+
   async getHistory(limit = 50, offset = 0): Promise<Workout[]> {
     const { data } = await api.get('/workouts/history', { params: { limit, offset } });
     return data;

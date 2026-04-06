@@ -188,6 +188,38 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
   }
 });
 
+// Autosave workout progress (mid-workout, fire-and-forget from client)
+router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { sets } = req.body;
+
+    if (!sets || !Array.isArray(sets)) {
+      return res.status(400).json({ error: 'Массив sets обязателен' });
+    }
+
+    // Update sets in parallel (only completed/weight/reps)
+    await Promise.all(
+      sets.map((set: any) =>
+        prisma.workoutSet.update({
+          where: { id: set.id },
+          data: {
+            reps: set.reps,
+            weight: set.weight,
+            completed: set.completed,
+            rpe: set.rpe,
+          },
+        }).catch(() => {}) // Ignore individual set errors (may not exist yet)
+      )
+    );
+
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка автосохранения' });
+  }
+});
+
 // Get workout history
 router.get('/history', authenticate, async (req: AuthRequest, res: Response) => {
   try {

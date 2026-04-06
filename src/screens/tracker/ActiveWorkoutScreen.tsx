@@ -13,7 +13,7 @@ import {
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification } from '../../services';
+import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification, workoutService } from '../../services';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -124,6 +124,20 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     const done = prevEx?.sets.filter((s) => s.completed && (s.weight || s.reps)) ?? [];
     return done.length > 0 ? { date: prev.completedAt || prev.startedAt, sets: done } : null;
   }, [activeWorkout?.workout?.exercises[activeWorkout?.currentExerciseIndex ?? 0]?.exerciseId, workoutHistory, activeWorkout?.workout?.id]);
+
+  // Autosave workout to server every 30 seconds
+  useEffect(() => {
+    if (!activeWorkout) return;
+    const interval = setInterval(() => {
+      const allSets = activeWorkout.workout.exercises.flatMap((ex) =>
+        ex.sets.map((s) => ({ id: s.id, reps: s.reps, weight: s.weight, completed: s.completed, rpe: s.rpe }))
+      );
+      if (allSets.length > 0) {
+        workoutService.autosaveWorkout(activeWorkout.workout.id, allSets);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [activeWorkout?.workout?.id]);
 
   if (!activeWorkout) {
     return (
