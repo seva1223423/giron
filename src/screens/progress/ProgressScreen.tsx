@@ -11,7 +11,7 @@ import { userService, workoutService } from '../../services';
 import { BodyWeight, BodyMeasurement } from '../../types';
 import { LeaderboardEntry } from '../../services/workoutService';
 import { computeAchievements, ACHIEVEMENT_DEFINITIONS, Achievement } from '../../utils/achievements';
-import { BarChart, LineChart, WeeklyHeatmap, OverviewTab } from './components';
+import { BarChart, LineChart, WeeklyHeatmap, OverviewTab, CalendarTab, AchievementsTab } from './components';
 
 const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
 const PROGRESS_PHOTOS_KEY = 'iron_gym_progress_photos';
@@ -53,13 +53,6 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { user } = useAuthStore();
   const { dailyLog } = useNutritionStore();
   const [tab, setTab] = useState<'overview' | 'calendar' | 'records' | 'weight' | 'achievements' | 'photos'>('overview');
-  const [calendarMonth, setCalendarMonth] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -397,35 +390,6 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       .map((w) => w.completedAt!);
   }, [workoutHistory]);
 
-  // Get calendar data for a given month
-  const getCalendarData = (monthDate: Date) => {
-    const now = new Date();
-    const year = monthDate.getFullYear();
-    const month = monthDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const days: { date: number; dateStr: string; hasWorkout: boolean; isToday: boolean }[] = [];
-
-    let startDow = firstDay.getDay();
-    if (startDow === 0) startDow = 7;
-    for (let i = 1; i < startDow; i++) {
-      days.push({ date: 0, dateStr: '', hasWorkout: false, isToday: false });
-    }
-
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const hasWorkout = workoutHistory.some(
-        (w) => w.completedAt && w.completedAt.startsWith(dateStr)
-      );
-      const isToday =
-        d === now.getDate() &&
-        month === now.getMonth() &&
-        year === now.getFullYear();
-      days.push({ date: d, dateStr, hasWorkout, isToday });
-    }
-
-    return days;
-  };
 
   // Personal records
   const personalRecords = useMemo(() => {
@@ -531,10 +495,6 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     { key: 'photos', label: '📸 Фото' },
   ] as const;
 
-  const MONTH_NAMES = [
-    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -579,179 +539,9 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           />
         )}
 
-        {tab === 'calendar' && (() => {
-          const calDays = getCalendarData(calendarMonth);
-          const monthStr = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`;
-          const monthWorkouts = workoutHistory.filter(
-            (w) => w.completedAt && w.completedAt.startsWith(monthStr)
-          );
-          const monthVolume = monthWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0);
-          const monthDuration = monthWorkouts.reduce((s, w) => s + (w.durationMinutes || 0), 0);
-          const selectedDayWorkouts = selectedDay
-            ? workoutHistory.filter((w) => w.completedAt && w.completedAt.startsWith(selectedDay))
-            : [];
-
-          const goToPrevMonth = () => {
-            haptic.selection();
-            setSelectedDay(null);
-            setCalendarMonth((prev) => {
-              const d = new Date(prev);
-              d.setMonth(d.getMonth() - 1);
-              return d;
-            });
-          };
-
-          const goToNextMonth = () => {
-            const now = new Date();
-            if (
-              calendarMonth.getFullYear() === now.getFullYear() &&
-              calendarMonth.getMonth() === now.getMonth()
-            ) return;
-            haptic.selection();
-            setSelectedDay(null);
-            setCalendarMonth((prev) => {
-              const d = new Date(prev);
-              d.setMonth(d.getMonth() + 1);
-              return d;
-            });
-          };
-
-          const isCurrentMonth =
-            calendarMonth.getFullYear() === new Date().getFullYear() &&
-            calendarMonth.getMonth() === new Date().getMonth();
-
-          return (
-            <>
-              <FadeIn delay={0}>
-                {/* Month navigation */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-                  <TouchableOpacity onPress={goToPrevMonth} style={styles.monthNavBtn}>
-                    <Text style={[typography.h4, { color: colors.primary }]}>‹</Text>
-                  </TouchableOpacity>
-                  <Text style={[typography.h4, { color: colors.text }]}>
-                    {MONTH_NAMES[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={goToNextMonth}
-                    style={[styles.monthNavBtn, isCurrentMonth && { opacity: 0.3 }]}
-                    disabled={isCurrentMonth}
-                  >
-                    <Text style={[typography.h4, { color: colors.primary }]}>›</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Day labels */}
-                <View style={styles.calendarHeader}>
-                  {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
-                    <Text key={d} style={[typography.captionMedium, { color: colors.textSecondary, width: CELL_SIZE, textAlign: 'center' }]}>
-                      {d}
-                    </Text>
-                  ))}
-                </View>
-
-                {/* Calendar grid */}
-                <View style={styles.calendarGrid}>
-                  {calDays.map((day, i) => {
-                    const isSelected = day.dateStr && selectedDay === day.dateStr;
-                    return (
-                      <TouchableOpacity
-                        key={i}
-                        onPress={() => {
-                          if (!day.date || !day.hasWorkout) return;
-                          haptic.selection();
-                          setSelectedDay(isSelected ? null : day.dateStr);
-                        }}
-                        activeOpacity={day.hasWorkout ? 0.7 : 1}
-                        style={[
-                          styles.calendarCell,
-                          day.isToday && { borderWidth: 2, borderColor: colors.primary },
-                          day.hasWorkout && { backgroundColor: isSelected ? colors.success + '60' : colors.success + '30' },
-                          isSelected && { borderWidth: 2, borderColor: colors.success },
-                        ]}
-                      >
-                        {day.date > 0 && (
-                          <>
-                            <Text style={[typography.smallMedium, { color: day.hasWorkout ? colors.success : colors.text }]}>
-                              {day.date}
-                            </Text>
-                            {day.hasWorkout && (
-                              <View style={[styles.workoutDot, { backgroundColor: colors.success }]} />
-                            )}
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </FadeIn>
-
-              {/* Selected day workouts */}
-              {selectedDay && selectedDayWorkouts.length > 0 && (
-                <FadeIn delay={0}>
-                  <Card style={{ marginTop: spacing.xl }}>
-                    <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
-                      {new Date(selectedDay + 'T12:00:00').toLocaleDateString('ru-RU', {
-                        day: 'numeric',
-                        month: 'long',
-                        weekday: 'long',
-                      })}
-                    </Text>
-                    {selectedDayWorkouts.map((w, i) => (
-                      <View
-                        key={w.id}
-                        style={[
-                          { paddingVertical: spacing.md },
-                          i > 0 && { borderTopWidth: 1, borderTopColor: colors.divider },
-                        ]}
-                      >
-                        <Text style={[typography.bodySemibold, { color: colors.text }]}>{w.name}</Text>
-                        <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                          {w.exercises.length} упр.
-                          {w.durationMinutes ? ` · ${w.durationMinutes} мин` : ''}
-                          {w.totalVolume ? ` · ${Math.round(w.totalVolume)} кг` : ''}
-                        </Text>
-                        {w.exercises.length > 0 && (
-                          <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
-                            {w.exercises.map((ex) => ex.exercise.name).join(', ')}
-                          </Text>
-                        )}
-                      </View>
-                    ))}
-                  </Card>
-                </FadeIn>
-              )}
-
-              {/* Monthly summary */}
-              <FadeIn delay={150}>
-                <Card style={{ marginTop: spacing.xl }}>
-                  <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
-                    {MONTH_NAMES[calendarMonth.getMonth()]}
-                  </Text>
-                  {monthWorkouts.length === 0 ? (
-                    <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-                      Нет тренировок за этот месяц
-                    </Text>
-                  ) : (
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-                      <View style={{ alignItems: 'center' }}>
-                        <Text style={[typography.number, { color: colors.primary }]}>{monthWorkouts.length}</Text>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>тренировок</Text>
-                      </View>
-                      <View style={{ alignItems: 'center' }}>
-                        <Text style={[typography.number, { color: colors.accent }]}>{Math.round(monthVolume)}</Text>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>кг объём</Text>
-                      </View>
-                      <View style={{ alignItems: 'center' }}>
-                        <Text style={[typography.number, { color: colors.success }]}>{monthDuration}</Text>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>минут</Text>
-                      </View>
-                    </View>
-                  )}
-                </Card>
-              </FadeIn>
-            </>
-          );
-        })()}
+        {tab === 'calendar' && (
+          <CalendarTab colors={colors} workoutHistory={workoutHistory} />
+        )}
 
         {tab === 'records' && (
           <>
@@ -1365,112 +1155,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         )}
 
         {tab === 'achievements' && (
-          <>
-            <FadeIn delay={0}>
-              <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-                <Text style={{ fontSize: 48 }}>🏅</Text>
-                <Text style={[typography.h3, { color: colors.text, marginTop: spacing.md }]}>
-                  Достижения
-                </Text>
-                <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-                  {unlockedCount} из {ACHIEVEMENT_DEFINITIONS.length} получено
-                </Text>
-                <View style={[styles.achievementProgressBar, { backgroundColor: colors.border }]}>
-                  <View
-                    style={[
-                      styles.achievementProgressFill,
-                      {
-                        backgroundColor: colors.accent,
-                        width: `${(unlockedCount / ACHIEVEMENT_DEFINITIONS.length) * 100}%` as any,
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            </FadeIn>
-            {(['workout', 'strength', 'streak', 'exploration', 'nutrition'] as const).map((cat) => {
-              const catAchievements = achievements.filter((a) => a.category === cat);
-              const catLabels: Record<string, string> = {
-                workout: '💪 Тренировки',
-                strength: '🏋️ Сила',
-                streak: '🔥 Серии',
-                exploration: '🌟 Разнообразие',
-                nutrition: '🥗 Питание',
-              };
-              return (
-                <FadeIn key={cat} delay={80}>
-                  <Text
-                    style={[
-                      typography.h4,
-                      { color: colors.text, marginBottom: spacing.md, marginTop: spacing.lg },
-                    ]}
-                  >
-                    {catLabels[cat]}
-                  </Text>
-                  {catAchievements.map((a) => (
-                    <Card key={a.id} style={{ marginBottom: spacing.sm, opacity: a.unlocked ? 1 : 0.55 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                        <View
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 24,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: a.unlocked ? colors.accent + '20' : colors.border + '60',
-                          }}
-                        >
-                          <Text style={{ fontSize: 24 }}>{a.emoji}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={[
-                              typography.bodySemibold,
-                              { color: a.unlocked ? colors.text : colors.textSecondary },
-                            ]}
-                          >
-                            {a.title}
-                          </Text>
-                          <Text
-                            style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}
-                          >
-                            {a.description}
-                          </Text>
-                          {!a.unlocked && a.progress !== undefined && (
-                            <>
-                              <View
-                                style={{
-                                  height: 4,
-                                  borderRadius: 2,
-                                  backgroundColor: colors.border,
-                                  marginTop: spacing.sm,
-                                }}
-                              >
-                                <View
-                                  style={{
-                                    height: 4,
-                                    borderRadius: 2,
-                                    backgroundColor: colors.accent,
-                                    width: `${a.progress * 100}%` as any,
-                                  }}
-                                />
-                              </View>
-                              <Text
-                                style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}
-                              >
-                                {a.progressLabel}
-                              </Text>
-                            </>
-                          )}
-                        </View>
-                        {a.unlocked && <Text style={{ fontSize: 20 }}>✅</Text>}
-                      </View>
-                    </Card>
-                  ))}
-                </FadeIn>
-              );
-            })}
-          </>
+          <AchievementsTab colors={colors} achievements={achievements} unlockedCount={unlockedCount} />
         )}
       </ScrollView>
 
