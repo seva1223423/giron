@@ -4,3 +4,4 @@ export { WeeklyHeatmap } from './WeeklyHeatmap';
 export { OverviewTab } from './OverviewTab';
 export { CalendarTab } from './CalendarTab';
 export { AchievementsTab } from './AchievementsTab';
+export { RecordsTab } from './RecordsTab';
