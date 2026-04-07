@@ -132,8 +132,11 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
     }
   };
 
+  useEffect(() => {
+    if (!workout) navigation.goBack();
+  }, [workout, navigation]);
+
   if (!workout) {
-    navigation.goBack();
     return null;
   }
 

@@ -68,18 +68,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     };
   }, [workoutHistory]);
 
-  useEffect(() => {
-    if (daysSinceLastWorkout !== null) {
-      scheduleInactivityReminder(daysSinceLastWorkout);
-    }
-    scheduleWeeklySummaryNotification(weekWorkoutsCount, weekVolume, bestWorkoutName);
-    showTodayPlanNotification(
-      todayPlan?.name ?? null,
-      todayPlan?.exercises?.length ?? 0,
-      streak,
-    );
-  }, [daysSinceLastWorkout, weekWorkoutsCount, weekVolume, bestWorkoutName, todayPlan, streak]);
-
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;
     let s = 0;
@@ -94,6 +82,18 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
     return s;
   }, [workoutHistory]);
+
+  useEffect(() => {
+    if (daysSinceLastWorkout !== null) {
+      scheduleInactivityReminder(daysSinceLastWorkout);
+    }
+    scheduleWeeklySummaryNotification(weekWorkoutsCount, weekVolume, bestWorkoutName);
+    showTodayPlanNotification(
+      todayPlan?.name ?? null,
+      todayPlan?.exercises?.length ?? 0,
+      streak,
+    );
+  }, [daysSinceLastWorkout, weekWorkoutsCount, weekVolume, bestWorkoutName, todayPlan, streak]);
 
   const restDayRecommendation = useMemo(() => {
     if (streak >= 4) return {

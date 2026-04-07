@@ -31,10 +31,10 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   }, []);
 
   const handleFinish = () => {
-    // Apply training days to week plan
-    const newPlan = [...weekPlan];
+    // Apply training days to week plan — ensure 7-element array with null checks
+    const newPlan = Array.from({ length: 7 }, (_, i) => weekPlan[i] ?? null);
     trainingDays.forEach((dayIndex) => {
-      if (!newPlan[dayIndex] || newPlan[dayIndex].exercises.length === 0) {
+      if (!newPlan[dayIndex] || !newPlan[dayIndex]?.exercises?.length) {
         newPlan[dayIndex] = { name: 'Тренировка', emoji: '💪', exercises: [] };
       }
     });

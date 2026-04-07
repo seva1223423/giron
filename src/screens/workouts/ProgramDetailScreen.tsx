@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
@@ -23,7 +23,8 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const { startWorkout, setWeekPlanDay } = useWorkoutStore();
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
 
-  if (!program) { navigation.goBack(); return null; }
+  useEffect(() => { if (!program) navigation.goBack(); }, [program, navigation]);
+  if (!program) return null;
 
   const goalColor = GOAL_COLORS[program.goal] || colors.primary;
 

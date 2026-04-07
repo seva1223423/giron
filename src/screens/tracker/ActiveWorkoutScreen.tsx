@@ -50,14 +50,17 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // Autosave every 30 seconds
+  // Autosave every 30 seconds — use getState() to avoid stale closure
   useEffect(() => {
     if (!activeWorkout) return;
+    const workoutId = activeWorkout.workout.id;
     const interval = setInterval(() => {
-      const allSets = activeWorkout.workout.exercises.flatMap((ex) =>
+      const current = useWorkoutStore.getState().activeWorkout;
+      if (!current || current.workout.id !== workoutId) return;
+      const allSets = current.workout.exercises.flatMap((ex) =>
         ex.sets.map((s) => ({ id: s.id, reps: s.reps, weight: s.weight, completed: s.completed, rpe: s.rpe }))
       );
-      if (allSets.length > 0) workoutService.autosaveWorkout(activeWorkout.workout.id, allSets);
+      if (allSets.length > 0) workoutService.autosaveWorkout(workoutId, allSets);
     }, 30000);
     return () => clearInterval(interval);
   }, [activeWorkout?.workout?.id]);

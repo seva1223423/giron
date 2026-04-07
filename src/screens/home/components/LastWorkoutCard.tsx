@@ -16,10 +16,18 @@ interface Props {
 export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWorkout, activeWorkout, onRepeat }) => {
   const { colors } = useThemeStore();
 
+  const daysWord = (n: number) => {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 14) return 'ДНЕЙ';
+    if (mod10 === 1) return 'ДЕНЬ';
+    if (mod10 >= 2 && mod10 <= 4) return 'ДНЯ';
+    return 'ДНЕЙ';
+  };
   const label =
     daysSinceLastWorkout === 0 ? 'СЕГОДНЯ' :
     daysSinceLastWorkout === 1 ? 'ВЧЕРА' :
-    `${daysSinceLastWorkout} ДНЯ НАЗАД`;
+    `${daysSinceLastWorkout} ${daysWord(daysSinceLastWorkout)} НАЗАД`;
 
   return (
     <Card style={{ marginBottom: spacing.lg }}>
