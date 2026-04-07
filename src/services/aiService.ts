@@ -43,8 +43,9 @@ export const aiService = {
     nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number },
     waterMl?: number,
     weekPlan?: Record<number, { name: string; emoji: string; exercises: string[] } | null>,
+    cardioSessions?: Array<{ type: string; date: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; avgHeartRate?: number }>,
   ): Promise<{ message: string; actions: AIActionResult[]; meta?: AIMeta }> {
-    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan });
+    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan, cardioSessions });
     return { message: data.message, actions: data.actions ?? [], meta: data.meta };
   },
 

@@ -17,6 +17,10 @@ export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.lg }}>
       <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
       <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
+        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('Cardio'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+          <Text style={{ fontSize: 18 }}>🏃</Text>
+          <Text style={[typography.small, { color: colors.primary }]}>Кардио</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('WeeklyPlan'); }}>
           <Text style={[typography.small, { color: colors.textSecondary }]}>📅 План</Text>
         </TouchableOpacity>

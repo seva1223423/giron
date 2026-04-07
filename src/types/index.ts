@@ -198,6 +198,20 @@ export interface BodyMeasurement {
   neck?: number;     // шея, см
 }
 
+export type CardioType = 'running' | 'cycling' | 'swimming' | 'walking' | 'hiit' | 'elliptical' | 'rowing' | 'other';
+
+export interface CardioSession {
+  id: string;
+  type: CardioType;
+  date: string;
+  durationMinutes: number;
+  distanceKm?: number;
+  caloriesBurned?: number;
+  avgHeartRate?: number;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface PersonalRecord {
   exerciseId: string;
   exerciseName: string;

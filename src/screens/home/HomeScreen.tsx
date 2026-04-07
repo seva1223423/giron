@@ -9,7 +9,7 @@ import { spacing } from '../../theme/spacing';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
-  NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard,
+  NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard, CardioWeekCard,
 } from './components';
 
 const SPLITS = [
@@ -214,6 +214,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       <FadeIn delay={390}>
         <WeightCard user={user} setUser={setUser} />
+      </FadeIn>
+
+      <FadeIn delay={395}>
+        <CardioWeekCard navigation={navigation} />
       </FadeIn>
 
       <FadeIn delay={400}>

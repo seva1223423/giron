@@ -6,3 +6,4 @@ export { useTrainerStore } from './useTrainerStore';
 export type { TrainerClient } from './useTrainerStore';
 export { useSubscriptionStore, FREE_LIMITS } from './useSubscriptionStore';
 export { useSettingsStore } from './useSettingsStore';
+export { useCardioStore } from './useCardioStore';

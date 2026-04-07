@@ -40,6 +40,8 @@ import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TrainerDashboardScreen } from '../screens/trainer/TrainerDashboardScreen';
 import { TrainerClientScreen } from '../screens/trainer/TrainerClientScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
+import { CardioScreen } from '../screens/cardio/CardioScreen';
+import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -76,6 +78,8 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} />
       <WorkoutsStack.Screen name="WorkoutCalendar" component={WorkoutCalendarScreen} />
       <WorkoutsStack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
+      <WorkoutsStack.Screen name="Cardio" component={CardioScreen} />
+      <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} />
     </WorkoutsStack.Navigator>
   );
 }

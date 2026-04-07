@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
-import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
+import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
 import { PaywallModal } from '../../components';
 import { ChatMessage } from '../../types';
 import { aiService, getApiError, AIActionResult, AIMeta, AIStarter } from '../../services';
@@ -30,6 +30,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { user, fetchProfile } = useAuthStore();
   const { fetchHistory, fetchPrograms, setWeekPlanDay, weekPlan } = useWorkoutStore();
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
+  const { getWeekSessions } = useCardioStore();
   const { consumeAiMessage } = useSubscriptionStore();
   const scrollRef = useRef<ScrollView>(null);
   const dynamicPrompts = useDynamicPrompts();
@@ -75,13 +76,14 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     try {
       const todayDate = new Date().toISOString().split('T')[0];
       const todayLog = getDayLog(todayDate);
+      const cardioSessions = getWeekSessions().map(({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }) => ({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }));
       const response = await aiService.chat(text.trim(), {
         calories: todayLog.targetCalories,
         protein: todayLog.targetProtein,
         fats: todayLog.targetFats ?? defaultTargets.fats,
         carbs: todayLog.targetCarbs ?? defaultTargets.carbs,
         waterTargetMl: todayLog.waterTargetMl ?? defaultTargets.waterTargetMl,
-      }, todayLog.waterMl, weekPlan);
+      }, todayLog.waterMl, weekPlan, cardioSessions);
 
       haptic.success();
 
