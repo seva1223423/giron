@@ -6286,23 +6286,23 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const postpartumFitContext = getPostpartumFitnessGuide(message);
 
     // ─── Block 1601-1610 calls ──────
-    const seniorStrengthContext = getSeniorStrengthTraining(message);
+    const kbSeniorStrengthContext = getSeniorStrengthTraining(message);
     const boneHealthContext = getBoneHealthTraining(message);
     const balanceFallContext = getBalanceFallPrevention(message);
     const longevityExerContext = getLongevityExercise(message);
     const jointLongevityContext = getJointHealthLongevityAdvanced(message);
     const sleepPerfContext = getSleepAndPerformance(message);
     const stressMgmtFitContext = getStressManagementFitness(message);
-    const cardioVascHealthContext = getCardiovasularHealth(message);
+    const kbCardioVascHealthContext = getCardiovasularHealth(message);
     const metabolicHealthContext = getMetabolicHealthTraining(message);
-    const antiAgingContext = getAntiAgingProtocols(message);
+    const kbAntiAgingContext = getAntiAgingProtocols(message);
 
     // ─── Block 1611-1620 calls ──────
     const functionalTrainContext = getFunctionalTrainingBasics(message);
-    const thoracicMobContext = getThoracicMobility(message);
-    const hipMobContext = getHipMobility(message);
+    const kbThoracicMobContext = getThoracicMobility(message);
+    const kbHipMobContext = getHipMobility(message);
     const shoulderMobContext = getShoulderMobility(message);
-    const ankleMobContext = getAnkleMobility(message);
+    const kbAnkleMobContext = getAnkleMobility(message);
     const myofascialProtContext = getMyofascialReleaseProtocol(message);
     const coreStabilityContext = getCoreStabilityProtocol(message);
     const breathingPerfContext = getBreathingForPerformance(message);
@@ -6316,7 +6316,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const trainingAgeAdaptContext = getTrainingAgeAdaptation(message);
     const responseToTrainContext = getResponseToTraining(message);
     const anthropometryContext = getAnthropometryExercises(message);
-    const hormonalOptContext = getHormonalOptimization(message);
+    const kbHormonalOptContext = getHormonalOptimization(message);
     const geneticTestFitContext = getGeneticTestingFitness(message);
     const personalizedNutrContext = getPersonalizedNutrition(message);
 
@@ -6327,7 +6327,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const metconDesignContext = getMetconDesign(message);
     const gymnasticStrengthContext = getGymnasticsStrength(message);
     const kettlebellTrainContext = getKettlebellTraining(message);
-    const competitionPrepContext = getCompetitionPrep(message);
+    const kbCompetitionPrepContext = getCompetitionPrep(message);
     const hiitProtocolsContext = getHIITProtocols(message);
     const workCapacityContext = getWorkCapacityBuilding(message);
 
@@ -6358,11 +6358,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const kneeInjuryPrevContext = getKneeInjuryPrevention(message);
     const shoulderInjuryPrevContext = getShoulderInjuryPrevention(message);
     const lowBackPainTrainContext = getLowBackPainTraining(message);
-    const tendinopathyContext = getTendinopathyManagement(message);
+    const kbTendinopathyContext = getTendinopathyManagement(message);
     const returnToSportContext = getReturnToSport(message);
-    const posturalCorrContext = getPosturalCorrection(message);
+    const kbPosturalCorrContext = getPosturalCorrection(message);
     const prehabContext = getPrehabilitation(message);
-    const overuseInjuryContext = getOveruseInjuryGuide(message);
+    const kbOveruseInjuryContext = getOveruseInjuryGuide(message);
     const sportsFirstAidContext = getSportsFirstAid(message);
 
     // ─── Block 1671-1680 calls ──────
@@ -6377,11 +6377,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const yogaAthNewContext = getYogaForAthletes(message);
 
     // ─── Block 1681-1690 calls ──────
-    const sleepArchContext = getSleepArchitectureAthletes(message);
+    const kbSleepArchContext = getSleepArchitectureAthletes(message);
     const activeRecovMethodsContext = getActiveRecoveryMethods(message);
     const deloadVariantsContext = getDeloadVariants(message);
     const nutritionRecovContext = getNutritionForRecovery(message);
-    const mindBodyContext = getMindBodyConnection(message);
+    const kbMindBodyContext = getMindBodyConnection(message);
     const suppRecovContext = getSupplementsForRecovery(message);
     const visualizationSportContext = getVisualizationSports(message);
     const thermoregContext = getThermoregulationAthletes(message);
@@ -6391,33 +6391,33 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 1691-1700 calls ──────
     const plyometricContext = getPlyometricTraining(message);
     const isometricContext = getIsometricTraining(message);
-    const bfrContext = getBFRTraining(message);
-    const gripStrengthContext = getGripStrengthTraining(message);
+    const kbBfrContext = getBFRTraining(message);
+    const kbGripStrengthContext = getGripStrengthTraining(message);
     const coreTrainContext = getCoreTrainingScience(message);
     const breathingMechContext = getBreathingMechanics(message);
     const hormonalRespContext = getHormonalResponseTraining(message);
     const musclesFiberContext = getMusclesFiberTypes(message);
-    const dehydrationContext = getDehydrationPerformance(message);
+    const kbDehydrationContext = getDehydrationPerformance(message);
     const functionalPatternsContext = getFunctionalMovementPatterns(message);
 
     // ─── Block 1711-1720 calls ──────
-    const carbCyclingContext = getCarbCycling(message);
+    const kbCarbCyclingContext = getCarbCycling(message);
     const tendonTrainContext = getTendonLigamentTraining(message);
     const mentalVizContext = getMentalVisualization(message);
     const circadianContext = getCircadianTraining(message);
     const popularProgsContext = getPopularPrograms(message);
     const hypertrophyMechContext = getHypertrophyMechanisms(message);
-    const supercompContext = getSupercompensation(message);
+    const kbSupercompContext = getSupercompensation(message);
     const agingTrainContext = getAgingAndTraining(message);
     const blockPeriodContext = getBlockPeriodization(message);
-    const heatColdContext = getTrainingInHeat(message);
+    const kbHeatColdContext = getTrainingInHeat(message);
 
     // ─── Block 1721-1730 calls ──────
     const creatineContext = getCreatineGuide(message);
     const sleepGrowthContext = getSleepAndMuscleGrowth(message);
     const deloadGuideContext = getDeloadWeek(message);
     const proteinTimingGuideContext = getProteinTiming(message);
-    const dropSetSciContext = getDropSetScience(message);
+    const kbDropSetSciContext = getDropSetScience(message);
     const bandsContext = getResistanceBands(message);
     const gutHealthGuideContext = getGutHealthAndPerformance(message);
     const fatLossTrainContext = getTrainingForFatLoss(message);
@@ -6429,7 +6429,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const deadliftMechContext = getDeadliftMechanics(message);
     const preWorkoutNutrContext = getPreWorkoutNutrition(message);
     const dupPeriodContext = getDUPPeriodization(message);
-    const shoulderHealthContext = getShoulderHealth(message);
+    const kbShoulderHealthContext = getShoulderHealth(message);
     const metabolicTrainContext = getMetabolicTraining(message);
     const stretchingSciContext = getStretchingScience(message);
     const trainingVolumeSciContext = getTrainingVolumeScience(message);
@@ -8107,22 +8107,22 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'menopauseFit', content: menopauseFitContext, relevantIntents: new Set(['менопауза тренировки', 'климакс спорт', 'после менопаузы фитнес']), priority: 3 },
         { name: 'postpartumFit', content: postpartumFitContext, relevantIntents: new Set(['тренировки после родов', 'восстановление после родов', 'послеродовой фитнес']), priority: 3 },
         // ─── Block 1601-1610 ──────
-        { name: 'seniorStrength', content: seniorStrengthContext, relevantIntents: new Set(['тренировки пожилых', 'силовые после 60', 'фитнес для пенсионеров']), priority: 3 },
+        { name: 'seniorStrength2', content: kbSeniorStrengthContext, relevantIntents: new Set(['тренировки пожилых', 'силовые после 60', 'фитнес для пенсионеров']), priority: 3 },
         { name: 'boneHealth', content: boneHealthContext, relevantIntents: new Set(['здоровье костей', 'остеопороз профилактика', 'плотность костей']), priority: 3 },
         { name: 'balanceFall', content: balanceFallContext, relevantIntents: new Set(['баланс падения пожилые', 'координация пожилые', 'профилактика падений']), priority: 3 },
         { name: 'longevityExer', content: longevityExerContext, relevantIntents: new Set(['долголетие упражнения', 'longevity тренировки', 'упражнения для долгой жизни']), priority: 3 },
         { name: 'jointLongevity', content: jointLongevityContext, relevantIntents: new Set(['здоровье суставов долгосрочно', 'суставы и возраст', 'профилактика артрита']), priority: 3 },
         { name: 'sleepPerf', content: sleepPerfContext, relevantIntents: new Set(['сон и производительность', 'сон восстановление', 'качество сна атлет']), priority: 3 },
         { name: 'stressMgmtFit', content: stressMgmtFitContext, relevantIntents: new Set(['стресс и тренировки', 'управление стрессом фитнес', 'кортизол снизить']), priority: 3 },
-        { name: 'cardioVascHealth', content: cardioVascHealthContext, relevantIntents: new Set(['сердечно-сосудистое здоровье', 'давление тренировки', 'здоровье сердца спорт']), priority: 3 },
+        { name: 'cardioVascHealth2', content: kbCardioVascHealthContext, relevantIntents: new Set(['сердечно-сосудистое здоровье', 'давление тренировки', 'здоровье сердца спорт']), priority: 3 },
         { name: 'metabolicHealth', content: metabolicHealthContext, relevantIntents: new Set(['метаболическое здоровье', 'инсулинорезистентность', 'метаболизм тренировки']), priority: 3 },
-        { name: 'antiAging', content: antiAgingContext, relevantIntents: new Set(['антиэйджинг протокол', 'замедление старения', 'молодость тренировки']), priority: 3 },
+        { name: 'antiAging2', content: kbAntiAgingContext, relevantIntents: new Set(['антиэйджинг протокол', 'замедление старения', 'молодость тренировки']), priority: 3 },
         // ─── Block 1611-1620 ──────
         { name: 'functionalTrain', content: functionalTrainContext, relevantIntents: new Set(['функциональные тренировки', 'functional fitness', 'функциональное движение']), priority: 3 },
-        { name: 'thoracicMob', content: thoracicMobContext, relevantIntents: new Set(['грудной отдел мобильность', 'грудной позвоночник подвижность', 'thoracic mobility']), priority: 3 },
-        { name: 'hipMob', content: hipMobContext, relevantIntents: new Set(['мобильность бёдер', 'тазобедренный сустав подвижность', 'hip mobility']), priority: 3 },
+        { name: 'thoracicMob2', content: kbThoracicMobContext, relevantIntents: new Set(['грудной отдел мобильность', 'грудной позвоночник подвижность', 'thoracic mobility']), priority: 3 },
+        { name: 'hipMob2', content: kbHipMobContext, relevantIntents: new Set(['мобильность бёдер', 'тазобедренный сустав подвижность', 'hip mobility']), priority: 3 },
         { name: 'shoulderMob', content: shoulderMobContext, relevantIntents: new Set(['мобильность плеч', 'подвижность плечевого', 'shoulder mobility']), priority: 3 },
-        { name: 'ankleMob', content: ankleMobContext, relevantIntents: new Set(['мобильность голеностопа', 'лодыжка подвижность', 'ankle mobility']), priority: 3 },
+        { name: 'ankleMob2', content: kbAnkleMobContext, relevantIntents: new Set(['мобильность голеностопа', 'лодыжка подвижность', 'ankle mobility']), priority: 3 },
         { name: 'myofascialProt', content: myofascialProtContext, relevantIntents: new Set(['миофасциальный релиз', 'foam roller протокол', 'мфр упражнения']), priority: 3 },
         { name: 'coreStability', content: coreStabilityContext, relevantIntents: new Set(['стабильность кора', 'глубокие мышцы живота', 'core stability protocol']), priority: 3 },
         { name: 'breathingPerf', content: breathingPerfContext, relevantIntents: new Set(['дыхание для спорта', 'правильное дыхание тренировки', 'вдох выдох упражнения']), priority: 3 },
@@ -8135,7 +8135,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'trainingAgeAdapt', content: trainingAgeAdaptContext, relevantIntents: new Set(['тренировочный возраст', 'адаптация к тренингу', 'стаж тренировок']), priority: 3 },
         { name: 'responseToTrain', content: responseToTrainContext, relevantIntents: new Set(['реакция на тренинг', 'отклик на нагрузку', 'как организм реагирует']), priority: 3 },
         { name: 'anthropometry', content: anthropometryContext, relevantIntents: new Set(['антропометрия упражнения', 'длина рук ноги технике', 'пропорции тела тренировки']), priority: 3 },
-        { name: 'hormonalOpt', content: hormonalOptContext, relevantIntents: new Set(['оптимизация гормонов', 'тестостерон естественно', 'гормональная оптимизация']), priority: 3 },
+        { name: 'hormonalOpt2', content: kbHormonalOptContext, relevantIntents: new Set(['оптимизация гормонов', 'тестостерон естественно', 'гормональная оптимизация']), priority: 3 },
         { name: 'geneticTestFit', content: geneticTestFitContext, relevantIntents: new Set(['генетическое тестирование спорт', 'ДНК-тест фитнес', 'генотип тренировки']), priority: 3 },
         { name: 'personalizedNutr', content: personalizedNutrContext, relevantIntents: new Set(['персонализированное питание', 'индивидуальный рацион', 'нутригеномика']), priority: 3 },
         // ─── Block 1631-1640 ──────
@@ -8145,7 +8145,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'metconDesign', content: metconDesignContext, relevantIntents: new Set(['metcon кроссфит', 'метаболическое кондиционирование', 'amrap emom']), priority: 3 },
         { name: 'gymnasticStrength', content: gymnasticStrengthContext, relevantIntents: new Set(['гимнастическая сила', 'rings gymnastics', 'упражнения на кольцах']), priority: 3 },
         { name: 'kettlebellTrain', content: kettlebellTrainContext, relevantIntents: new Set(['гиря тренировки', 'kettlebell программа', 'работа с гирями']), priority: 3 },
-        { name: 'competitionPrep', content: competitionPrepContext, relevantIntents: new Set(['подготовка к соревнованиям', 'пик форма', 'competition prep crossfit']), priority: 3 },
+        { name: 'competitionPrep2', content: kbCompetitionPrepContext, relevantIntents: new Set(['подготовка к соревнованиям', 'пик форма', 'competition prep crossfit']), priority: 3 },
         { name: 'hiitProtocols', content: hiitProtocolsContext, relevantIntents: new Set(['hiit протоколы', 'высокоинтенсивный интервальный', 'интервальные тренировки']), priority: 3 },
         { name: 'workCapacity', content: workCapacityContext, relevantIntents: new Set(['работоспособность', 'work capacity', 'объём работы']), priority: 3 },
         // ─── Block 1641-1650 ──────
@@ -8173,11 +8173,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'kneeInjuryPrev', content: kneeInjuryPrevContext, relevantIntents: new Set(['профилактика травм колена', 'колено боль тренировки', 'защита коленей']), priority: 3 },
         { name: 'shoulderInjuryPrev', content: shoulderInjuryPrevContext, relevantIntents: new Set(['профилактика травм плеча', 'плечо укрепление', 'ротаторная манжета']), priority: 3 },
         { name: 'lowBackPainTrain', content: lowBackPainTrainContext, relevantIntents: new Set(['боль в пояснице тренировки', 'спина боль упражнения', 'поясница реабилитация']), priority: 3 },
-        { name: 'tendinopathy', content: tendinopathyContext, relevantIntents: new Set(['тендинопатия', 'тендинит лечение', 'сухожилие воспаление']), priority: 3 },
+        { name: 'tendinopathy2', content: kbTendinopathyContext, relevantIntents: new Set(['тендинопатия', 'тендинит лечение', 'сухожилие воспаление']), priority: 3 },
         { name: 'returnToSport', content: returnToSportContext, relevantIntents: new Set(['возвращение к спорту', 'после травмы тренировки', 'return to sport']), priority: 3 },
-        { name: 'posturalCorr', content: posturalCorrContext, relevantIntents: new Set(['коррекция осанки', 'исправить осанку', 'постуральная коррекция']), priority: 3 },
+        { name: 'posturalCorr2', content: kbPosturalCorrContext, relevantIntents: new Set(['коррекция осанки', 'исправить осанку', 'постуральная коррекция']), priority: 3 },
         { name: 'prehab', content: prehabContext, relevantIntents: new Set(['преабилитация', 'prehab упражнения', 'профилактические упражнения']), priority: 3 },
-        { name: 'overuseInjury', content: overuseInjuryContext, relevantIntents: new Set(['травма от перегрузки', 'overuse injury', 'хроническая спортивная травма']), priority: 3 },
+        { name: 'overuseInjury2', content: kbOveruseInjuryContext, relevantIntents: new Set(['травма от перегрузки', 'overuse injury', 'хроническая спортивная травма']), priority: 3 },
         { name: 'sportsFirstAid', content: sportsFirstAidContext, relevantIntents: new Set(['первая помощь спорт', 'спортивная первая помощь', 'острая травма помощь']), priority: 3 },
         // ─── Block 1671-1680 ──────
         { name: 'soccerCond', content: soccerCondContext, relevantIntents: new Set(['футбол кондиционирование', 'физподготовка футболиста', 'ОФП футбол']), priority: 3 },
@@ -8190,11 +8190,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'cyclingPerf', content: cyclingPerfContext, relevantIntents: new Set(['велоспорт подготовка', 'cycling performance', 'велосипед силовые']), priority: 3 },
         { name: 'yogaAthNew', content: yogaAthNewContext, relevantIntents: new Set(['йога для спортсменов', 'йога и силовые', 'йога восстановление']), priority: 3 },
         // ─── Block 1681-1690 ──────
-        { name: 'sleepArch', content: sleepArchContext, relevantIntents: new Set(['архитектура сна', 'фазы сна спорт', 'глубокий сон атлет']), priority: 3 },
+        { name: 'sleepArch2', content: kbSleepArchContext, relevantIntents: new Set(['архитектура сна', 'фазы сна спорт', 'глубокий сон атлет']), priority: 3 },
         { name: 'activeRecovMethods', content: activeRecovMethodsContext, relevantIntents: new Set(['активное восстановление методы', 'методы восстановления', 'recovery протокол']), priority: 3 },
         { name: 'deloadVariants', content: deloadVariantsContext, relevantIntents: new Set(['варианты разгрузки', 'deload виды', 'когда делать deload']), priority: 3 },
         { name: 'nutritionRecov', content: nutritionRecovContext, relevantIntents: new Set(['питание для восстановления', 'еда после тренировки восстановление', 'антивоспалительное питание']), priority: 3 },
-        { name: 'mindBody', content: mindBodyContext, relevantIntents: new Set(['связь разума и тела', 'психосоматика спорт', 'нейромышечная связь']), priority: 3 },
+        { name: 'mindBody2', content: kbMindBodyContext, relevantIntents: new Set(['связь разума и тела', 'психосоматика спорт', 'нейромышечная связь']), priority: 3 },
         { name: 'suppRecov', content: suppRecovContext, relevantIntents: new Set(['добавки для восстановления', 'спортпит восстановление', 'что пить после тренировки']), priority: 3 },
         { name: 'visualizationSport', content: visualizationSportContext, relevantIntents: new Set(['визуализация спорт', 'ментальные тренировки образы', 'mental imagery']), priority: 3 },
         { name: 'thermoreг', content: thermoregContext, relevantIntents: new Set(['терморегуляция спортсмен', 'тренировки в жару', 'перегрев тренировка']), priority: 3 },
@@ -8203,42 +8203,42 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         // ─── Block 1691-1700 ──────
         { name: 'plyometric', content: plyometricContext, relevantIntents: new Set(['плиометрика', 'прыжковые тренировки', 'взрывная мощь', 'depth jump']), priority: 3 },
         { name: 'isometric', content: isometricContext, relevantIntents: new Set(['изометрические тренировки', 'изометрика', 'статические упражнения']), priority: 3 },
-        { name: 'bfr', content: bfrContext, relevantIntents: new Set(['окклюзионный тренинг', 'bfr тренинг', 'blood flow restriction']), priority: 3 },
-        { name: 'gripStrength', content: gripStrengthContext, relevantIntents: new Set(['сила хвата', 'кисть тренировка', 'предплечья накачать']), priority: 3 },
+        { name: 'bfr2', content: kbBfrContext, relevantIntents: new Set(['окклюзионный тренинг', 'bfr тренинг', 'blood flow restriction']), priority: 3 },
+        { name: 'gripStrength2', content: kbGripStrengthContext, relevantIntents: new Set(['сила хвата', 'кисть тренировка', 'предплечья накачать']), priority: 3 },
         { name: 'coreTrain', content: coreTrainContext, relevantIntents: new Set(['тренировка кора', 'кор мышцы', 'стабилизация позвоночника']), priority: 3 },
         { name: 'breathingMech', content: breathingMechContext, relevantIntents: new Set(['механика дыхания', 'дыхание на тренировке', 'valsalva маневр']), priority: 3 },
         { name: 'hormonalResp', content: hormonalRespContext, relevantIntents: new Set(['гормональный ответ тренировка', 'тестостерон тренировки', 'кортизол тренировка']), priority: 3 },
         { name: 'musclesFiber', content: musclesFiberContext, relevantIntents: new Set(['типы мышечных волокон', 'быстрые медленные волокна', 'slow twitch fast twitch']), priority: 3 },
-        { name: 'dehydration', content: dehydrationContext, relevantIntents: new Set(['обезвоживание тренировка', 'дегидратация спорт', 'вода и производительность']), priority: 3 },
+        { name: 'dehydration2', content: kbDehydrationContext, relevantIntents: new Set(['обезвоживание тренировка', 'дегидратация спорт', 'вода и производительность']), priority: 3 },
         { name: 'functionalPatterns', content: functionalPatternsContext, relevantIntents: new Set(['функциональные паттерны движения', 'базовые паттерны силовой', 'squат hinge push pull']), priority: 3 },
         // ─── Block 1701-1710 ──────
         { name: 'squatBio', content: squatBioContext, relevantIntents: new Set(['техника приседания', 'биомеханика приседа', 'глубина приседа', 'ширина постановки ног']), priority: 3 },
         { name: 'deadliftMech', content: deadliftMechContext, relevantIntents: new Set(['техника становой тяги', 'сумо или классика', 'становая спина']), priority: 3 },
         { name: 'preWorkoutNutr', content: preWorkoutNutrContext, relevantIntents: new Set(['питание перед тренировкой', 'что есть перед тренировкой', 'кофеин тренировка']), priority: 3 },
         { name: 'dupPeriod', content: dupPeriodContext, relevantIntents: new Set(['dup периодизация', 'волновая периодизация', 'нелинейная периодизация']), priority: 3 },
-        { name: 'shoulderHealth', content: shoulderHealthContext, relevantIntents: new Set(['здоровье плеч', 'боль в плече', 'вращательная манжета', 'ротатор']), priority: 3 },
+        { name: 'shoulderHealth2', content: kbShoulderHealthContext, relevantIntents: new Set(['здоровье плеч', 'боль в плече', 'вращательная манжета', 'ротатор']), priority: 3 },
         { name: 'metabolicTrain', content: metabolicTrainContext, relevantIntents: new Set(['метаболический тренинг', 'hiit тренировка', 'круговая тренировка', 'tabata']), priority: 3 },
         { name: 'stretchingSci', content: stretchingSciContext, relevantIntents: new Set(['стретчинг', 'растяжка наука', 'гибкость тренировки', 'мобильность']), priority: 3 },
         { name: 'trainingVolumeSci', content: trainingVolumeSciContext, relevantIntents: new Set(['объём тренировок', 'сколько подходов в неделю', 'mev mav mrv']), priority: 3 },
         { name: 'goalSettingPsych', content: goalSettingPsychContext, relevantIntents: new Set(['психология целей', 'мотивация тренировки', 'привычки тренировки', 'как не бросить']), priority: 3 },
         { name: 'femaleTraining', content: femaleTrainingContext, relevantIntents: new Set(['женский тренинг', 'тренировки для женщин', 'менструальный цикл тренировки']), priority: 3 },
         // ─── Block 1711-1720 ──────
-        { name: 'carbCycling', content: carbCyclingContext, relevantIntents: new Set(['углеводное циклирование', 'карбофазирование', 'углеводная загрузка']), priority: 3 },
+        { name: 'carbCycling2', content: kbCarbCyclingContext, relevantIntents: new Set(['углеводное циклирование', 'карбофазирование', 'углеводная загрузка']), priority: 3 },
         { name: 'tendonTrain', content: tendonTrainContext, relevantIntents: new Set(['сухожилия', 'связки', 'тендинит', 'здоровье суставов']), priority: 3 },
         { name: 'mentalViz', content: mentalVizContext, relevantIntents: new Set(['визуализация', 'ментальная подготовка', 'mind-muscle connection']), priority: 3 },
         { name: 'circadian', content: circadianContext, relevantIntents: new Set(['биологические часы', 'лучшее время для тренировки', 'утро вечер тренировка']), priority: 3 },
         { name: 'popularProgs', content: popularProgsContext, relevantIntents: new Set(['531', 'gzclp', 'stronglifts', 'starting strength', 'программа для начинающих']), priority: 3 },
         { name: 'hypertrophyMech', content: hypertrophyMechContext, relevantIntents: new Set(['механизмы роста мышц', 'как растут мышцы', 'саркоплазматическая гипертрофия']), priority: 3 },
-        { name: 'supercomp', content: supercompContext, relevantIntents: new Set(['суперкомпенсация', 'принцип суперкомпенсации', 'когда тренироваться снова']), priority: 3 },
+        { name: 'supercomp2', content: kbSupercompContext, relevantIntents: new Set(['суперкомпенсация', 'принцип суперкомпенсации', 'когда тренироваться снова']), priority: 3 },
         { name: 'agingTrain', content: agingTrainContext, relevantIntents: new Set(['тренировки в возрасте', 'силовой тренинг после 40', 'саркопения', 'тренировки для пожилых']), priority: 3 },
         { name: 'blockPeriod', content: blockPeriodContext, relevantIntents: new Set(['блоковая периодизация', 'накопление трансформация', 'этапы тренировочного цикла']), priority: 3 },
-        { name: 'heatCold', content: heatColdContext, relevantIntents: new Set(['тренировки в жару', 'тренировки в холод', 'акклиматизация']), priority: 3 },
+        { name: 'heatCold2', content: kbHeatColdContext, relevantIntents: new Set(['тренировки в жару', 'тренировки в холод', 'акклиматизация']), priority: 3 },
         // ─── Block 1721-1730 ──────
         { name: 'creatine', content: creatineContext, relevantIntents: new Set(['креатин', 'creatine', 'креатин моногидрат']), priority: 3 },
         { name: 'sleepGrowth', content: sleepGrowthContext, relevantIntents: new Set(['сон и мышцы', 'сон для роста', 'недосыпание']), priority: 3 },
         { name: 'deload', content: deloadGuideContext, relevantIntents: new Set(['разгрузочная неделя', 'делоад', 'deload', 'перетренированность']), priority: 3 },
         { name: 'proteinTiming', content: proteinTimingGuideContext, relevantIntents: new Set(['когда пить протеин', 'анаболическое окно', 'белковое окно']), priority: 3 },
-        { name: 'dropSet', content: dropSetSciContext, relevantIntents: new Set(['дроп-сеты', 'drop set', 'дропсеты']), priority: 3 },
+        { name: 'dropSet2', content: kbDropSetSciContext, relevantIntents: new Set(['дроп-сеты', 'drop set', 'дропсеты']), priority: 3 },
         { name: 'bands', content: bandsContext, relevantIntents: new Set(['резиновые петли', 'резинки тренировки', 'resistance bands']), priority: 3 },
         { name: 'gutHealth', content: gutHealthGuideContext, relevantIntents: new Set(['кишечник спорт', 'пищеварение', 'пробиотики']), priority: 3 },
         { name: 'fatLossTrain', content: fatLossTrainContext, relevantIntents: new Set(['тренировки для похудения', 'жиросжигание', 'кардио натощак']), priority: 3 },
