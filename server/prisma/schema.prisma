@@ -39,6 +39,7 @@ model User {
   subscription            Subscription?
   aiMemories              AIMemory[]
   trainerClients          TrainerClient[]
+  cardioSessions          CardioSession[]
 
   gym                     Gym?      @relation(fields: [gymId], references: [id])
   passwordResetTokens     PasswordResetToken[]
@@ -311,6 +312,22 @@ model Subscription {
   updatedAt  DateTime @updatedAt
 }
 
+
+// ==================== CARDIO ====================
+model CardioSession {
+  id             String   @id @default(cuid())
+  userId         String
+  type           String   // running, cycling, swimming, walking, hiit, elliptical, rowing, other
+  date           String   // YYYY-MM-DD
+  durationMinutes Int
+  distanceKm     Float?
+  caloriesBurned Int?
+  avgHeartRate   Int?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
 // ==================== PASSWORD RESET ====================
 model PasswordResetToken {

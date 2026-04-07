@@ -40,9 +40,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const todayDow = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
   const todayPlan = weekPlan[todayDow] ?? null;
   const lastWorkout = workoutHistory[0] ?? null;
-  const daysSinceLastWorkout = lastWorkout?.completedAt
-    ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / 86400000)
-    : null;
+  const daysSinceLastWorkout = useMemo(() => {
+    if (!lastWorkout?.completedAt) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const workoutDate = new Date(lastWorkout.completedAt);
+    workoutDate.setHours(0, 0, 0, 0);
+    return Math.round((today.getTime() - workoutDate.getTime()) / 86400000);
+  }, [lastWorkout?.completedAt]);
 
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;

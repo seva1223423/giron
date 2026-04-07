@@ -9,6 +9,7 @@ import { aiRouter } from './routes/ai';
 import { newsRouter } from './routes/news';
 import { subscriptionRouter } from './routes/subscription';
 import { trainerRouter } from './routes/trainer';
+import { cardioRouter } from './routes/cardio';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
 
@@ -19,6 +20,12 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
+// Capture raw body for webhook signature verification (must be before express.json)
+app.use((req, _res, next) => {
+  let data = '';
+  req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+  req.on('end', () => { (req as any).rawBody = data; next(); });
+});
 app.use(express.json({ limit: '10mb' }));
 
 // Health check
@@ -35,6 +42,7 @@ app.use('/api/ai', aiRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/trainer', trainerRouter);
+app.use('/api/cardio', cardioRouter);
 
 // Global error handler (catches both sync and async errors forwarded via next())
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {

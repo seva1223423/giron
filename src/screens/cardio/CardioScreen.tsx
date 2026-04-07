@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert,
 } from 'react-native';
@@ -70,7 +70,9 @@ const SessionCard: React.FC<{ session: CardioSession; onDelete: () => void }> = 
 export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { sessions, removeSession, getWeekSessions } = useCardioStore();
+  const { sessions, removeSession, getWeekSessions, syncFromServer } = useCardioStore();
+
+  useEffect(() => { syncFromServer(); }, []);
 
   const weekSessions = getWeekSessions();
 

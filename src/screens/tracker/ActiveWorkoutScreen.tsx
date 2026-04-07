@@ -132,8 +132,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     // PR detection
     if (weight > 0 && reps > 0) {
       const newRM = weight * (1 + reps / 30);
-      const prevBest = bestRMs[currentExercise.exerciseId] || 0;
-      if (newRM > prevBest && prevBest > 0) {
+      const prevBest = bestRMs[currentExercise.exerciseId] ?? 0;
+      if (newRM > prevBest) {
         showPrToast(currentExercise.exercise.name, Math.round(newRM));
       }
     }

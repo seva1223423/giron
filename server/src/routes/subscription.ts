@@ -1,4 +1,5 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request } from 'express';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -135,15 +136,62 @@ router.post('/cancel', authenticate, async (req: AuthRequest, res: Response) => 
   }
 });
 
+// ─── Webhook signature verification ──────────────────────────────────────────
+
+function verifyRevenueCatSignature(req: Request): boolean {
+  const secret = process.env.REVENUECAT_WEBHOOK_SECRET;
+  if (!secret) return false;
+  const header = req.headers['x-revenuecat-webhook-auth'] as string | undefined;
+  if (!header) return false;
+  try {
+    return timingSafeEqual(Buffer.from(header), Buffer.from(secret));
+  } catch {
+    return false;
+  }
+}
+
+function verifyYukassaSignature(req: Request, rawBody: string): boolean {
+  const secret = process.env.YUKASSA_WEBHOOK_SECRET;
+  if (!secret) return false;
+  const signature = req.headers['x-yukassa-signature'] as string | undefined;
+  if (!signature) return false;
+  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+  try {
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 // ─── Webhook for payment providers (RevenueCat / ЮKassa) ─────────────────────
 // This endpoint doesn't require auth — it's called by the payment provider
-router.post('/webhook', async (req, res: Response) => {
+router.post('/webhook', async (req: Request, res: Response) => {
   try {
+    const rawBody: string = (req as any).rawBody ?? JSON.stringify(req.body);
     const { provider, event, userId, plan, durationDays, transactionId } = req.body;
 
-    // TODO: Verify webhook signature based on provider
-    // - RevenueCat: verify X-RevenueCat-Webhook-Auth header
-    // - ЮKassa: verify SHA-256 signature
+    // Verify signature based on provider
+    if (provider === 'revenuecat') {
+      if (process.env.REVENUECAT_WEBHOOK_SECRET && !verifyRevenueCatSignature(req)) {
+        logger.warn('Webhook: invalid RevenueCat signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    } else if (provider === 'yukassa') {
+      if (process.env.YUKASSA_WEBHOOK_SECRET && !verifyYukassaSignature(req, rawBody)) {
+        logger.warn('Webhook: invalid ЮKassa signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    } else {
+      // Generic secret for other providers or testing
+      const genericSecret = process.env.WEBHOOK_SECRET;
+      if (genericSecret) {
+        const header = req.headers['x-webhook-secret'] as string | undefined;
+        if (!header || !timingSafeEqual(Buffer.from(header), Buffer.from(genericSecret))) {
+          logger.warn('Webhook: invalid generic secret');
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
+      }
+    }
 
     logger.info(`Webhook received: provider=${provider} event=${event} user=${userId}`);
 
