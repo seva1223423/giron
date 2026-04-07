@@ -54,7 +54,12 @@ export const ClubLeaderboard: React.FC = () => {
               {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
             </Text>
             <View style={{ flex: 1, marginLeft: spacing.sm }}>
-              <Text style={[typography.bodySemibold, { color: colors.text }]}>{entry.exerciseName}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                <Text style={[typography.bodySemibold, { color: colors.text }]}>{entry.exerciseName}</Text>
+                {entry.verified && (
+                  <Text style={{ fontSize: 11, color: colors.success, fontWeight: '600' }}>✓</Text>
+                )}
+              </View>
               <Text style={[typography.small, { color: colors.textSecondary }]}>{entry.userName} • {entry.weightKg} кг × {entry.reps}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>

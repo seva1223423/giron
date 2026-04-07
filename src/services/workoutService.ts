@@ -9,6 +9,7 @@ export interface LeaderboardEntry {
   reps: number;
   estimated1RM: number;
   date: string | null;
+  verified: boolean;
 }
 
 export const workoutService = {

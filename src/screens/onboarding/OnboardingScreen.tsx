@@ -49,7 +49,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   const canNext = () => {
     switch (step) {
       case 0: return gender !== null;
-      case 1: return height.length > 0 && weight.length > 0;
+      case 1: return height.length > 0 && weight.length > 0 && age.length > 0;
       case 2: return goal !== null;
       case 3: return level !== null;
       default: return false;

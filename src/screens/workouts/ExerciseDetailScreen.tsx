@@ -81,12 +81,15 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
     return best > 0 ? Math.round(best) : 0;
   }, [workoutHistory, exerciseId]);
 
-  const oneRMTrend = useMemo(() =>
-    [...exerciseHistory].reverse().slice(-10).map((h) => ({
-      label: new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', ''),
+  const oneRMTrend = useMemo(() => {
+    const sessions = [...exerciseHistory].reverse().slice(-30);
+    return sessions.map((h, i) => ({
+      label: sessions.length <= 10 || i % Math.ceil(sessions.length / 10) === 0
+        ? new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', '')
+        : '',
       value: Math.round(h.bestWeight * (1 + h.bestReps / 30)),
-    })),
-  [exerciseHistory]);
+    }));
+  }, [exerciseHistory]);
 
   const difficultyColor = DIFFICULTY_COLORS[exercise.difficulty] || colors.textSecondary;
 

@@ -246,9 +246,35 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
 // Club leaderboard — top lifts per exercise across all users
 router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response) => {
   try {
-    // Fetch completed sets with user and exercise info
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+    // Find users who have at least 10 completed workouts and were active in the last 90 days
+    const activeUsers = await prisma.workout.groupBy({
+      by: ['userId'],
+      where: { completedAt: { not: null } },
+      _count: { id: true },
+      _max: { completedAt: true },
+      having: { id: { _count: { gte: 10 } } },
+    });
+
+    const verifiedUserIds = new Set(
+      activeUsers
+        .filter((u) => u._max.completedAt && u._max.completedAt >= ninetyDaysAgo)
+        .map((u) => u.userId)
+    );
+
+    if (verifiedUserIds.size === 0) {
+      return res.json({ leaderboard: [] });
+    }
+
+    // Fetch completed sets with user and exercise info, only for verified users
     const sets = await prisma.workoutSet.findMany({
-      where: { completed: true, weight: { gt: 0 }, reps: { gt: 0 } },
+      where: {
+        completed: true,
+        weight: { gt: 0 },
+        reps: { gt: 0 },
+        workoutExercise: { workout: { userId: { in: Array.from(verifiedUserIds) }, completedAt: { not: null } } },
+      },
       select: {
         weight: true,
         reps: true,
@@ -257,6 +283,7 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
             exercise: { select: { id: true, name: true } },
             workout: {
               select: {
+                id: true,
                 completedAt: true,
                 user: { select: { id: true, firstName: true } },
               },
@@ -267,6 +294,18 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
       take: 5000,
     });
 
+    // Count how many distinct workouts each user has done per exercise
+    const exerciseWorkoutCount: Map<string, Set<string>> = new Map();
+    sets.forEach((s) => {
+      const ex = s.workoutExercise?.exercise;
+      const workout = s.workoutExercise?.workout;
+      const user = workout?.user;
+      if (!ex || !user || !workout) return;
+      const key = `${user.id}::${ex.id}`;
+      if (!exerciseWorkoutCount.has(key)) exerciseWorkoutCount.set(key, new Set());
+      exerciseWorkoutCount.get(key)!.add(workout.id);
+    });
+
     // Aggregate: best estimated 1RM per (userId, exerciseId)
     const bestMap: Map<string, {
       exerciseName: string;
@@ -275,6 +314,7 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
       reps: number;
       estimated1RM: number;
       date: string | null;
+      verified: boolean;
     }> = new Map();
 
     sets.forEach((s) => {
@@ -287,6 +327,10 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
       const key = `${user.id}::${ex.id}`;
       const existing = bestMap.get(key);
 
+      // Entry is verified if the user did this exercise in 3+ separate workouts
+      const exerciseSessions = exerciseWorkoutCount.get(key)?.size ?? 0;
+      const verified = exerciseSessions >= 3;
+
       if (!existing || est1rm > existing.estimated1RM) {
         bestMap.set(key, {
           exerciseName: ex.name,
@@ -295,6 +339,7 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
           reps: s.reps,
           estimated1RM: est1rm,
           date: workout?.completedAt?.toISOString() ?? null,
+          verified,
         });
       }
     });

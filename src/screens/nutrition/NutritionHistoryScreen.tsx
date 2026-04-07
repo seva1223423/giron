@@ -8,6 +8,13 @@ import { spacing } from '../../theme/spacing';
 import { CalorieBarChart, WeeklyInsightsCard, NutritionDayCard, MacroTrendsChart } from './history';
 import type { WeeklyInsights } from './history';
 
+const PERIODS = [
+  { label: '7 дн', days: 7 },
+  { label: '14 дн', days: 14 },
+  { label: '30 дн', days: 30 },
+  { label: '90 дн', days: 90 },
+];
+
 function getPastDates(days: number): string[] {
   return Array.from({ length: days }, (_, i) => {
     const d = new Date();
@@ -21,19 +28,23 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
   const { colors } = useThemeStore();
   const { getDayLog } = useNutritionStore();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [period, setPeriod] = useState(30);
 
   const logsWithData = useMemo(() =>
-    getPastDates(30).map((date) => ({ date, log: getDayLog(date) })).filter(({ log }) => log.meals.length > 0 || log.waterMl > 0),
-    [getDayLog]
+    getPastDates(period).map((date) => ({ date, log: getDayLog(date) })).filter(({ log }) => log.meals.length > 0 || log.waterMl > 0),
+    [getDayLog, period]
   );
 
+  // Chart shows up to 30 days (capped for readability)
+  const chartDays = Math.min(period, 30);
+
   const chartData = useMemo(() =>
-    getPastDates(14).reverse().map((date) => {
+    getPastDates(chartDays).reverse().map((date) => {
       const log = getDayLog(date);
       const calories = log.meals.reduce((s, m) => s + m.totalCalories, 0);
       return { label: new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }), calories, target: log.targetCalories };
     }),
-    [getDayLog]
+    [getDayLog, chartDays]
   );
 
   const totalCalAvg = useMemo(() => {
@@ -44,7 +55,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
   const daysTracked = chartData.filter((d) => d.calories > 0).length;
 
   const macroChartData = useMemo(() =>
-    getPastDates(14).reverse().map((date) => {
+    getPastDates(chartDays).reverse().map((date) => {
       const log = getDayLog(date);
       return {
         label: new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }),
@@ -53,7 +64,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
         carbs: Math.round(log.meals.reduce((s, m) => s + m.totalCarbs, 0)),
       };
     }),
-    [getDayLog]
+    [getDayLog, chartDays]
   );
 
   const macroTargets = useMemo(() => {
@@ -105,6 +116,18 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
         <View style={{ width: 24 }} />
       </View>
 
+      <View style={[styles.periodRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        {PERIODS.map(({ label, days }) => (
+          <TouchableOpacity
+            key={days}
+            onPress={() => { haptic.selection(); setPeriod(days); }}
+            style={[styles.periodChip, { backgroundColor: period === days ? colors.primary : colors.background, borderColor: period === days ? colors.primary : colors.border }]}
+          >
+            <Text style={[typography.captionMedium, { color: period === days ? '#FFF' : colors.textSecondary }]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {logsWithData.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={{ fontSize: 56, marginBottom: spacing.lg }}>🍽</Text>
@@ -120,8 +143,8 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
             <Card style={{ marginBottom: spacing.xl }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
                 <View>
-                  <Text style={[typography.h4, { color: colors.text }]}>Калории за 2 недели</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>Отслежено {daysTracked} из 14 дней</Text>
+                  <Text style={[typography.h4, { color: colors.text }]}>Калории за {chartDays} дней</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>Отслежено {daysTracked} из {chartDays} дней</Text>
                 </View>
                 {totalCalAvg > 0 && (
                   <View style={{ alignItems: 'flex-end' }}>
@@ -145,7 +168,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
           {hasMacroData && (
             <FadeIn delay={50}>
               <Card style={{ marginBottom: spacing.xl }}>
-                <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Макросы за 2 недели</Text>
+                <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Макросы за {chartDays} дней</Text>
                 <MacroTrendsChart
                   data={macroChartData}
                   targetProtein={macroTargets.protein}
@@ -178,6 +201,8 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  periodRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderBottomWidth: 1 },
+  periodChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: 16, borderWidth: 1 },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
 });
