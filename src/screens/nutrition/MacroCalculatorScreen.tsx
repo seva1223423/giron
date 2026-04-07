@@ -1,18 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
+import { MacroResultCard } from './macro';
 
 const ACTIVITY_LEVELS = [
   { key: 'sedentary', label: 'Малоподвижный', desc: 'Офис, нет спорта', multiplier: 1.2 },
@@ -30,6 +23,16 @@ const GOALS = [
   { key: 'mass', label: 'Быстрый набор', desc: '+0.7–1 кг/нед', calDelta: 700 },
 ];
 
+const InputField: React.FC<{ label: string; unit: string; value: string; onChange: (v: string) => void; colors: any }> = ({ label, unit, value, onChange, colors }) => (
+  <View style={{ flex: 1, alignItems: 'center' }}>
+    <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{label}</Text>
+    <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <TextInput value={value} onChangeText={onChange} keyboardType="numeric" style={[typography.bodyMedium, { color: colors.text, textAlign: 'center', flex: 1 }]} />
+    </View>
+    <Text style={[typography.small, { color: colors.textSecondary, marginTop: 4 }]}>{unit}</Text>
+  </View>
+);
+
 export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
@@ -37,9 +40,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   const { user } = useAuthStore();
 
   const [gender, setGender] = useState<'male' | 'female'>(user?.gender === 'female' ? 'female' : 'male');
-  const userAge = user?.dateOfBirth
-    ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
-    : null;
+  const userAge = user?.dateOfBirth ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
   const [age, setAge] = useState(userAge ? String(userAge) : '28');
   const [weight, setWeight] = useState(user?.weightKg ? String(user.weightKg) : '80');
   const [height, setHeight] = useState(user?.heightCm ? String(user.heightCm) : '175');
@@ -50,48 +51,22 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
     const w = parseFloat(weight) || 80;
     const h = parseFloat(height) || 175;
     const a = parseFloat(age) || 28;
-
-    // Mifflin-St Jeor
-    const bmr = gender === 'female'
-      ? 10 * w + 6.25 * h - 5 * a - 161
-      : 10 * w + 6.25 * h - 5 * a + 5;
-
+    const bmr = gender === 'female' ? 10 * w + 6.25 * h - 5 * a - 161 : 10 * w + 6.25 * h - 5 * a + 5;
     const actInfo = ACTIVITY_LEVELS.find((x) => x.key === activityLevel) ?? ACTIVITY_LEVELS[2];
     const tdee = Math.round(bmr * actInfo.multiplier);
-
     const goalInfo = GOALS.find((x) => x.key === goal) ?? GOALS[2];
     const targetCal = Math.max(1200, tdee + goalInfo.calDelta);
-
-    // Protein: 1.8–2.2g/kg depending on goal
     const proteinPerKg = goal === 'mass' || goal === 'muscle_gain' ? 2.2 : goal === 'recomp' ? 2.0 : 1.8;
     const protein = Math.round(w * proteinPerKg);
-
-    // Fats: 25% of calories
     const fats = Math.round((targetCal * 0.25) / 9);
-
-    // Carbs: remainder
     const carbs = Math.max(50, Math.round((targetCal - protein * 4 - fats * 9) / 4));
-
-    return {
-      bmr: Math.round(bmr),
-      tdee,
-      targetCal,
-      protein,
-      fats,
-      carbs,
-      proteinPerKg,
-    };
+    return { bmr: Math.round(bmr), tdee, targetCal, protein, fats, carbs, proteinPerKg };
   }, [gender, age, weight, height, activityLevel, goal]);
 
   const handleApply = () => {
     haptic.success();
     const today = new Date().toISOString().split('T')[0];
-    setTargets(today, {
-      calories: result.targetCal,
-      protein: result.protein,
-      fats: result.fats,
-      carbs: result.carbs,
-    });
+    setTargets(today, { calories: result.targetCal, protein: result.protein, fats: result.fats, carbs: result.carbs });
     Alert.alert(
       'КБЖУ применены',
       `Цель: ${result.targetCal} ккал · Б: ${result.protein} г · Ж: ${result.fats} г · У: ${result.carbs} г`,
@@ -100,12 +75,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <FadeIn delay={0} from="top">
         <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
           <Text style={{ fontSize: 48 }}>🧮</Text>
@@ -116,7 +86,6 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
         </View>
       </FadeIn>
 
-      {/* Gender */}
       <FadeIn delay={50}>
         <Card style={{ marginBottom: spacing.lg }}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>ПОЛ</Text>
@@ -125,10 +94,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
               <TouchableOpacity
                 key={g}
                 onPress={() => { haptic.selection(); setGender(g); }}
-                style={[
-                  styles.segmentBtn,
-                  { borderColor: gender === g ? colors.primary : colors.border, backgroundColor: gender === g ? colors.primary + '15' : 'transparent', flex: 1 },
-                ]}
+                style={[styles.segmentBtn, { borderColor: gender === g ? colors.primary : colors.border, backgroundColor: gender === g ? colors.primary + '15' : 'transparent', flex: 1 }]}
               >
                 <Text style={{ fontSize: 24 }}>{g === 'male' ? '♂️' : '♀️'}</Text>
                 <Text style={[typography.bodyMedium, { color: gender === g ? colors.primary : colors.text, marginTop: 4 }]}>
@@ -140,7 +106,6 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
         </Card>
       </FadeIn>
 
-      {/* Body metrics */}
       <FadeIn delay={100}>
         <Card style={{ marginBottom: spacing.lg }}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>ПАРАМЕТРЫ ТЕЛА</Text>
@@ -152,7 +117,6 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
         </Card>
       </FadeIn>
 
-      {/* Activity level */}
       <FadeIn delay={150}>
         <Card style={{ marginBottom: spacing.lg }}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>УРОВЕНЬ АКТИВНОСТИ</Text>
@@ -160,10 +124,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
             <TouchableOpacity
               key={level.key}
               onPress={() => { haptic.selection(); setActivityLevel(level.key); }}
-              style={[
-                styles.optionRow,
-                { borderColor: activityLevel === level.key ? colors.primary : colors.border, backgroundColor: activityLevel === level.key ? colors.primary + '12' : 'transparent' },
-              ]}
+              style={[styles.optionRow, { borderColor: activityLevel === level.key ? colors.primary : colors.border, backgroundColor: activityLevel === level.key ? colors.primary + '12' : 'transparent' }]}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodyMedium, { color: activityLevel === level.key ? colors.primary : colors.text }]}>{level.label}</Text>
@@ -177,7 +138,6 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
         </Card>
       </FadeIn>
 
-      {/* Goal */}
       <FadeIn delay={200}>
         <Card style={{ marginBottom: spacing.lg }}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>ЦЕЛЬ</Text>
@@ -185,10 +145,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
             <TouchableOpacity
               key={g.key}
               onPress={() => { haptic.selection(); setGoal(g.key); }}
-              style={[
-                styles.optionRow,
-                { borderColor: goal === g.key ? colors.primary : colors.border, backgroundColor: goal === g.key ? colors.primary + '12' : 'transparent' },
-              ]}
+              style={[styles.optionRow, { borderColor: goal === g.key ? colors.primary : colors.border, backgroundColor: goal === g.key ? colors.primary + '12' : 'transparent' }]}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodyMedium, { color: goal === g.key ? colors.primary : colors.text }]}>{g.label}</Text>
@@ -202,52 +159,10 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
         </Card>
       </FadeIn>
 
-      {/* Results */}
-      <FadeIn delay={250}>
-        <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10', borderLeftWidth: 4, borderLeftColor: colors.primary }}>
-          <Text style={[typography.captionMedium, { color: colors.primary, marginBottom: spacing.md }]}>РЕЗУЛЬТАТ РАСЧЁТА</Text>
+      <MacroResultCard result={result} delay={250} />
 
-          {/* BMR + TDEE row */}
-          <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
-            <View style={{ flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md }}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>Базовый обмен</Text>
-              <Text style={[typography.numberSmall, { color: colors.text, marginTop: 4 }]}>{result.bmr}</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>ккал</Text>
-            </View>
-            <View style={{ flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md }}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>TDEE</Text>
-              <Text style={[typography.numberSmall, { color: colors.text, marginTop: 4 }]}>{result.tdee}</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>ккал</Text>
-            </View>
-          </View>
-
-          {/* Macros */}
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>НОРМА ДЛЯ ТВОЕЙ ЦЕЛИ</Text>
-          <View style={styles.macrosGrid}>
-            <MacroTile value={result.targetCal} label="Калории" unit="ккал" color={colors.calories} />
-            <MacroTile value={result.protein} label="Белок" unit="г" color={colors.protein} extra={`${result.proteinPerKg}г/кг`} />
-            <MacroTile value={result.fats} label="Жиры" unit="г" color={colors.fats} />
-            <MacroTile value={result.carbs} label="Углеводы" unit="г" color={colors.carbs} />
-          </View>
-
-          {/* Protein recommendation note */}
-          <View style={{ backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.md }}>
-            <Text style={[typography.small, { color: colors.textSecondary, lineHeight: 18 }]}>
-              💡 Белок {result.protein} г = {result.proteinPerKg} г на кг веса. Это оптимальный уровень для максимального синтеза мышечного белка при твоей цели.
-            </Text>
-          </View>
-        </Card>
-      </FadeIn>
-
-      {/* Apply button */}
       <FadeIn delay={300}>
-        <Button
-          title="Применить эти нормы КБЖУ"
-          onPress={handleApply}
-          fullWidth
-          size="lg"
-          style={{ marginBottom: spacing.md }}
-        />
+        <Button title="Применить эти нормы КБЖУ" onPress={handleApply} fullWidth size="lg" style={{ marginBottom: spacing.md }} />
         <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.huge }]}>
           Нормы будут установлены в дневнике питания на сегодня
         </Text>
@@ -256,84 +171,12 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   );
 };
 
-const InputField: React.FC<{ label: string; unit: string; value: string; onChange: (v: string) => void; colors: any }> = ({
-  label, unit, value, onChange, colors,
-}) => (
-  <View style={{ flex: 1, alignItems: 'center' }}>
-    <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{label}</Text>
-    <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        keyboardType="numeric"
-        style={[typography.bodyMedium, { color: colors.text, textAlign: 'center', flex: 1 }]}
-      />
-    </View>
-    <Text style={[typography.small, { color: colors.textSecondary, marginTop: 4 }]}>{unit}</Text>
-  </View>
-);
-
-const MacroTile: React.FC<{ value: number; label: string; unit: string; color: string; extra?: string }> = ({
-  value, label, unit, color, extra,
-}) => (
-  <View style={[styles.macroTile, { backgroundColor: color + '15' }]}>
-    <Text style={[typography.h4, { color }]}>{value}</Text>
-    <Text style={[typography.caption, { color }]}>{unit}</Text>
-    <Text style={[typography.small, { color: '#888', marginTop: 2 }]}>{label}</Text>
-    {extra && <Text style={[typography.small, { color: '#888', fontSize: 10 }]}>{extra}</Text>}
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: spacing.huge },
-  segmentBtn: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.sm,
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  inputWrap: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    width: '100%',
-    alignItems: 'center',
-  },
-  macrosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  macroTile: {
-    flex: 1,
-    minWidth: '45%',
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
+  segmentBtn: { flex: 1, borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center' },
+  optionRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: spacing.sm },
+  radioInner: { width: 10, height: 10, borderRadius: 5 },
+  inputWrap: { borderWidth: 1, borderRadius: borderRadius.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.xs, width: '100%', alignItems: 'center' },
 });

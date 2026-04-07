@@ -1,33 +1,21 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { WeekPlanEntry } from '../../store/useWorkoutStore';
-import { Card, Button } from '../../components';
+import { Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
+import { DayPickerModal, TEMPLATES } from './weekly';
 
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const DAY_LABELS_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
-const TEMPLATES: WeekPlanEntry[] = [
-  { name: 'Грудь + Трицепс', emoji: '💪', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown'] },
-  { name: 'Спина + Бицепс', emoji: '🔥', exercises: ['barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl'] },
-  { name: 'Ноги', emoji: '🦵', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'calf-raise'] },
-  { name: 'Плечи + Пресс', emoji: '🎯', exercises: ['overhead-press', 'lateral-raise', 'plank', 'cable-crunch'] },
-  { name: 'Фулбоди', emoji: '⚡', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
-  { name: 'Кардио', emoji: '🏃', exercises: [] },
-  { name: 'Тяжёлая спина', emoji: '🏋️', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups'] },
-  { name: 'Руки', emoji: '💪', exercises: ['barbell-curl', 'hammer-curl', 'tricep-pushdown', 'french-press'] },
+const PRESET_SPLITS = [
+  { name: 'Толчок-Тяга-Ноги 3 дня', plan: [0, 2, 4], templates: [1, 0, 2] },
+  { name: 'Верх / Низ 4 дня', plan: [0, 1, 3, 4], templates: [4, 2, 4, 2] },
+  { name: 'Бро-сплит 5 дней', plan: [0, 1, 2, 3, 4], templates: [0, 1, 2, 3, 7] },
 ];
 
 export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -38,7 +26,6 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
 
   const allExercises = [...customExercises, ...localExercises];
 
-  // Convert saved Workout templates to WeekPlanEntry format
   const userTemplateEntries: WeekPlanEntry[] = savedTemplates.map((tpl) => ({
     name: tpl.name,
     emoji: '📋',
@@ -47,7 +34,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
 
   const todayDow = (() => {
     const d = new Date().getDay();
-    return d === 0 ? 6 : d - 1; // convert Sun=0 → Mon=0 format
+    return d === 0 ? 6 : d - 1;
   })();
 
   const handleSelectTemplate = (template: WeekPlanEntry | null) => {
@@ -76,18 +63,13 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
       })
       .filter(Boolean) as WorkoutExercise[];
 
-    const workout: Workout = {
-      id: `workout-${Date.now()}`,
-      name: entry.name,
-      exercises: workoutExercises,
-    };
+    const workout: Workout = { id: `workout-${Date.now()}`, name: entry.name, exercises: workoutExercises };
     startWorkout(workout);
     navigation.navigate('ActiveWorkout');
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
@@ -104,24 +86,12 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
         {DAY_LABELS.map((label, dow) => {
           const entry = weekPlan[dow] ?? null;
           const isToday = dow === todayDow;
-
           return (
-            <Card
-              key={dow}
-              style={[
-                { marginBottom: spacing.sm },
-                isToday && { borderWidth: 1.5, borderColor: colors.primary },
-              ]}
-            >
+            <Card key={dow} style={[{ marginBottom: spacing.sm }, isToday && { borderWidth: 1.5, borderColor: colors.primary }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {/* Day label */}
                 <View style={[styles.dayBadge, { backgroundColor: isToday ? colors.primary : colors.surface }]}>
-                  <Text style={[typography.captionMedium, { color: isToday ? '#fff' : colors.textSecondary }]}>
-                    {label}
-                  </Text>
+                  <Text style={[typography.captionMedium, { color: isToday ? '#fff' : colors.textSecondary }]}>{label}</Text>
                 </View>
-
-                {/* Workout info or empty */}
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                   {entry ? (
                     <>
@@ -131,11 +101,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                       </View>
                       {entry.exercises.length > 0 && (
                         <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
-                          {entry.exercises
-                            .slice(0, 3)
-                            .map((id) => allExercises.find((e) => e.id === id)?.name)
-                            .filter(Boolean)
-                            .join(', ')}
+                          {entry.exercises.slice(0, 3).map((id) => allExercises.find((e) => e.id === id)?.name).filter(Boolean).join(', ')}
                           {entry.exercises.length > 3 ? ` +${entry.exercises.length - 3}` : ''}
                         </Text>
                       )}
@@ -144,14 +110,9 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                     <Text style={[typography.body, { color: colors.textTertiary }]}>Отдых</Text>
                   )}
                 </View>
-
-                {/* Actions */}
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   {isToday && entry && entry.exercises.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => handleStartWorkout(entry)}
-                      style={[styles.actionBtn, { backgroundColor: colors.success }]}
-                    >
+                    <TouchableOpacity onPress={() => handleStartWorkout(entry)} style={[styles.actionBtn, { backgroundColor: colors.success }]}>
                       <Text style={[typography.captionMedium, { color: '#fff' }]}>▶ Старт</Text>
                     </TouchableOpacity>
                   )}
@@ -167,16 +128,8 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           );
         })}
 
-        {/* Preset splits */}
-        <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.md }]}>
-          Готовые сплиты
-        </Text>
-
-        {[
-          { name: 'Толчок-Тяга-Ноги 3 дня', plan: [0, 2, 4], templates: [1, 0, 2] },
-          { name: 'Верх / Низ 4 дня', plan: [0, 1, 3, 4], templates: [4, 2, 4, 2] },
-          { name: 'Бро-сплит 5 дней', plan: [0, 1, 2, 3, 4], templates: [0, 1, 2, 3, 7] },
-        ].map((preset) => (
+        <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.md }]}>Готовые сплиты</Text>
+        {PRESET_SPLITS.map((preset) => (
           <Card key={preset.name} style={{ marginBottom: spacing.sm }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View>
@@ -188,9 +141,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
               <TouchableOpacity
                 onPress={() => {
                   haptic.medium();
-                  // Clear all days first
                   for (let d = 0; d < 7; d++) setWeekPlanDay(d, null);
-                  // Apply preset
                   preset.plan.forEach((dow, i) => setWeekPlanDay(dow, TEMPLATES[preset.templates[i]]));
                 }}
                 style={[styles.actionBtn, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40' }]}
@@ -202,143 +153,22 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
         ))}
       </ScrollView>
 
-      {/* Day picker modal */}
-      <Modal visible={pickerDay !== null} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
-              {pickerDay !== null ? DAY_LABELS_FULL[pickerDay] : ''}
-            </Text>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
-              <TouchableOpacity
-                onPress={() => handleSelectTemplate(null)}
-                style={[styles.templateRow, { borderBottomColor: colors.divider }]}
-              >
-                <Text style={[typography.body, { color: colors.textSecondary }]}>😴 Отдых</Text>
-                {pickerDay !== null && !weekPlan[pickerDay] && (
-                  <Text style={{ color: colors.primary }}>✓</Text>
-                )}
-              </TouchableOpacity>
-
-              <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>
-                ГОТОВЫЕ ШАБЛОНЫ
-              </Text>
-              {TEMPLATES.map((t) => {
-                const isActive = pickerDay !== null && weekPlan[pickerDay]?.name === t.name;
-                return (
-                  <TouchableOpacity
-                    key={t.name}
-                    onPress={() => handleSelectTemplate(t)}
-                    style={[styles.templateRow, { borderBottomColor: colors.divider }]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                        <Text style={{ fontSize: 18 }}>{t.emoji}</Text>
-                        <Text style={[typography.body, { color: isActive ? colors.primary : colors.text }]}>{t.name}</Text>
-                      </View>
-                      {t.exercises.length > 0 && (
-                        <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]} numberOfLines={1}>
-                          {t.exercises
-                            .slice(0, 3)
-                            .map((id) => localExercises.find((e) => e.id === id)?.name)
-                            .filter(Boolean)
-                            .join(', ')}
-                        </Text>
-                      )}
-                    </View>
-                    {isActive && <Text style={{ color: colors.primary }}>✓</Text>}
-                  </TouchableOpacity>
-                );
-              })}
-              {userTemplateEntries.length > 0 && (
-                <>
-                  <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>
-                    МОИ ШАБЛОНЫ
-                  </Text>
-                  {userTemplateEntries.map((t) => {
-                    const isActive = pickerDay !== null && weekPlan[pickerDay]?.name === t.name;
-                    return (
-                      <TouchableOpacity
-                        key={t.name}
-                        onPress={() => handleSelectTemplate(t)}
-                        style={[styles.templateRow, { borderBottomColor: colors.divider }]}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                            <Text style={{ fontSize: 18 }}>{t.emoji}</Text>
-                            <Text style={[typography.body, { color: isActive ? colors.primary : colors.text }]}>{t.name}</Text>
-                          </View>
-                          {t.exercises.length > 0 && (
-                            <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]} numberOfLines={1}>
-                              {t.exercises.slice(0, 3).map((id) => allExercises.find((e) => e.id === id)?.name).filter(Boolean).join(', ')}
-                            </Text>
-                          )}
-                        </View>
-                        {isActive && <Text style={{ color: colors.primary }}>✓</Text>}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </>
-              )}
-            </ScrollView>
-
-            <Button
-              title="Отмена"
-              variant="ghost"
-              onPress={() => setPickerDay(null)}
-              fullWidth
-              style={{ marginTop: spacing.md }}
-            />
-          </View>
-        </View>
-      </Modal>
+      <DayPickerModal
+        pickerDay={pickerDay}
+        weekPlan={weekPlan}
+        allExercises={allExercises}
+        userTemplateEntries={userTemplateEntries}
+        onSelect={handleSelectTemplate}
+        onClose={() => setPickerDay(null)}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 56,
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderBottomWidth: 1,
-  },
-  content: {
-    padding: spacing.xl,
-    paddingBottom: spacing.huge,
-  },
-  dayBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtn: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: spacing.xl,
-    paddingBottom: 48,
-  },
-  templateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  content: { padding: spacing.xl, paddingBottom: spacing.huge },
+  dayBadge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  actionBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md },
 });
