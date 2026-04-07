@@ -1,49 +1,27 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Dimensions,
-  Animated,
-} from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification, workoutService } from '../../services';
-import { Card, Button } from '../../components';
+import { Button } from '../../components';
 import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { spacing } from '../../theme/spacing';
+import {
+  WorkoutHeader, RestTimerOverlay, ExerciseNavBar, SetsSection, PRToast,
+} from './components';
 
 export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { restTimerDefault } = useSettingsStore();
   const {
-    activeWorkout,
-    workoutHistory,
-    completeSet,
-    addSet,
-    removeSet,
-    nextExercise,
-    prevExercise,
-    finishWorkout,
-    cancelWorkout,
+    activeWorkout, workoutHistory,
+    completeSet, nextExercise, prevExercise, finishWorkout, cancelWorkout,
     setRestTimer,
-    setExerciseNotes,
-    setWorkoutNotes,
-    updateSetData,
-    toggleSuperset,
-    generateWarmupSets,
-    removeExerciseFromWorkout,
   } = useWorkoutStore();
 
-  // Pre-compute best 1RM per exercise to avoid iterating full history on each set completion
+  // Pre-compute best 1RM per exercise from history
   const bestRMs = useMemo(() => {
     const map: Record<string, number> = {};
     workoutHistory.forEach((w) => {
@@ -57,29 +35,37 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return map;
   }, [workoutHistory]);
 
+  // Rest timer state
   const [restTime, setRestTime] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
   const [isResting, setIsResting] = useState(false);
-  const [prToast, setPrToast] = useState<{ name: string; rm: number } | null>(null);
-  const prToastAnim = useRef(new Animated.Value(0)).current;
-  const prToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // PR toast state
+  const [prToast, setPrToast] = useState<{ name: string; rm: number } | null>(null);
+  const prToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  // Autosave every 30 seconds
+  useEffect(() => {
+    if (!activeWorkout) return;
+    const interval = setInterval(() => {
+      const allSets = activeWorkout.workout.exercises.flatMap((ex) =>
+        ex.sets.map((s) => ({ id: s.id, reps: s.reps, weight: s.weight, completed: s.completed, rpe: s.rpe }))
+      );
+      if (allSets.length > 0) workoutService.autosaveWorkout(activeWorkout.workout.id, allSets);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [activeWorkout?.workout?.id]);
 
   const showPrToast = useCallback((name: string, rm: number) => {
     if (prToastTimer.current) clearTimeout(prToastTimer.current);
     setPrToast({ name, rm });
     haptic.success();
-    Animated.sequence([
-      Animated.spring(prToastAnim, { toValue: 1, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(prToastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => setPrToast(null));
-  }, [prToastAnim]);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    prToastTimer.current = setTimeout(() => setPrToast(null), 3500);
   }, []);
 
   const startRest = (seconds: number) => {
@@ -108,8 +94,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setRestTime(0);
   };
 
-  // Find previous session sets for the current exercise
-  // Must be before early return to satisfy Rules of Hooks
+  // Previous session sets for current exercise (must be before early return)
   const previousSets = useMemo(() => {
     if (!activeWorkout) return null;
     const { workout, currentExerciseIndex } = activeWorkout;
@@ -125,23 +110,9 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return done.length > 0 ? { date: prev.completedAt || prev.startedAt, sets: done } : null;
   }, [activeWorkout?.workout?.exercises[activeWorkout?.currentExerciseIndex ?? 0]?.exerciseId, workoutHistory, activeWorkout?.workout?.id]);
 
-  // Autosave workout to server every 30 seconds
-  useEffect(() => {
-    if (!activeWorkout) return;
-    const interval = setInterval(() => {
-      const allSets = activeWorkout.workout.exercises.flatMap((ex) =>
-        ex.sets.map((s) => ({ id: s.id, reps: s.reps, weight: s.weight, completed: s.completed, rpe: s.rpe }))
-      );
-      if (allSets.length > 0) {
-        workoutService.autosaveWorkout(activeWorkout.workout.id, allSets);
-      }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [activeWorkout?.workout?.id]);
-
   if (!activeWorkout) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={[typography.h3, { color: colors.text }]}>Нет активной тренировки</Text>
         <Button title="К тренировкам" onPress={() => navigation.goBack()} style={{ marginTop: spacing.xl }} />
       </View>
@@ -151,16 +122,14 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const { workout, currentExerciseIndex, startTime } = activeWorkout;
   const currentExercise = workout.exercises[currentExerciseIndex];
   const elapsed = Math.round((Date.now() - startTime) / 60000);
-  const totalCompletedSets = workout.exercises.reduce(
-    (s, ex) => s + ex.sets.filter((set) => set.completed).length, 0
-  );
+  const totalCompletedSets = workout.exercises.reduce((s, ex) => s + ex.sets.filter((set) => set.completed).length, 0);
   const totalSets = workout.exercises.reduce((s, ex) => s + ex.sets.length, 0);
 
   const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
     haptic.medium();
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
 
-    // PR detection: compare new 1RM against all-time best for this exercise
+    // PR detection
     if (weight > 0 && reps > 0) {
       const newRM = weight * (1 + reps / 30);
       const prevBest = bestRMs[currentExercise.exerciseId] || 0;
@@ -169,18 +138,16 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       }
     }
 
-    // Superset auto-navigation: skip rest and jump to partner exercise
+    // Superset auto-navigation
     const groupId = currentExercise.supersetGroupId;
     if (groupId) {
       const nextEx = workout.exercises[currentExerciseIndex + 1];
       const prevEx = workout.exercises[currentExerciseIndex - 1];
       if (nextEx?.supersetGroupId === groupId) {
-        // We're in the first exercise of the pair — jump to partner, no rest
         haptic.selection();
         setTimeout(() => nextExercise(), 250);
         return;
       } else if (prevEx?.supersetGroupId === groupId) {
-        // We're in the second exercise — start rest and jump back
         startRest(currentExercise.restSeconds || restTimerDefault);
         setTimeout(() => prevExercise(), 250);
         return;
@@ -200,11 +167,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
           haptic.success();
           scheduleStreakRiskNotification();
           const completed = finishWorkout();
-          if (completed) {
-            navigation.replace('WorkoutSummary', { workout: completed });
-          } else {
-            navigation.goBack();
-          }
+          if (completed) navigation.replace('WorkoutSummary', { workout: completed });
+          else navigation.goBack();
         },
       },
     ]);
@@ -216,694 +180,55 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       {
         text: 'Да, отменить',
         style: 'destructive',
-        onPress: () => {
-          cancelRestEndNotification();
-          cancelWorkout();
-          navigation.goBack();
-        },
+        onPress: () => { cancelRestEndNotification(); cancelWorkout(); navigation.goBack(); },
       },
     ]);
   };
 
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={handleCancel}>
-          <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
-        </TouchableOpacity>
-        <View style={{ alignItems: 'center', flex: 1 }}>
-          <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{workout.name}</Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-            {elapsed} мин {'\u2022'} {totalCompletedSets}/{totalSets} подходов
-          </Text>
-        </View>
-        <TouchableOpacity onPress={handleFinish}>
-          <Text style={[typography.bodySemibold, { color: colors.success }]}>Готово</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <WorkoutHeader
+        workout={workout}
+        elapsed={elapsed}
+        totalCompletedSets={totalCompletedSets}
+        totalSets={totalSets}
+        onCancel={handleCancel}
+        onFinish={handleFinish}
+      />
 
-      {/* Rest timer overlay */}
-      {isResting && (
-        <View style={[styles.restOverlay, { backgroundColor: colors.primary }]}>
-          <Text style={[typography.captionMedium, { color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }]}>ОТДЫХ</Text>
-          {/* Circular progress */}
-          <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center', marginVertical: spacing.xl }}>
-            {/* Background ring */}
-            <View style={{
-              position: 'absolute',
-              width: 180,
-              height: 180,
-              borderRadius: 90,
-              borderWidth: 8,
-              borderColor: 'rgba(255,255,255,0.2)',
-            }} />
-            {/* Progress segments */}
-            {(() => {
-              const progress = restTotal > 0 ? restTime / restTotal : 0;
-              const segments = 60;
-              return Array.from({ length: segments }).map((_, i) => {
-                const angle = (i / segments) * 360 - 90;
-                const rad = (angle * Math.PI) / 180;
-                const isActive = i / segments <= progress;
-                const cx = 90 + Math.cos(rad) * 82;
-                const cy = 90 + Math.sin(rad) * 82;
-                return (
-                  <View
-                    key={i}
-                    style={{
-                      position: 'absolute',
-                      left: cx - 3,
-                      top: cy - 3,
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: isActive ? '#FFF' : 'rgba(255,255,255,0.15)',
-                    }}
-                  />
-                );
-              });
-            })()}
-            <Text style={[{ fontSize: 48, fontWeight: '800', color: '#FFF' }]}>
-              {formatTime(restTime)}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <TouchableOpacity
-              onPress={() => { setRestTime((r) => r + 30); setRestTotal((t) => t + 30); }}
-              style={[styles.restBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-            >
-              <Text style={[typography.buttonSmall, { color: '#FFF' }]}>+30с</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={skipRest}
-              style={[styles.restBtn, { backgroundColor: '#FFF' }]}
-            >
-              <Text style={[typography.buttonSmall, { color: colors.primary }]}>Пропустить</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      <RestTimerOverlay
+        isResting={isResting}
+        restTime={restTime}
+        restTotal={restTotal}
+        onSkip={skipRest}
+        onAddTime={(sec) => { setRestTime((r) => r + sec); setRestTotal((t) => t + sec); }}
+      />
 
       {/* Overall progress bar */}
       <View style={{ paddingHorizontal: spacing.xl, backgroundColor: colors.surface }}>
         <View style={{ height: 3, borderRadius: 1.5, backgroundColor: colors.border }}>
-          <View
-            style={{
-              height: 3,
-              borderRadius: 1.5,
-              backgroundColor: colors.primary,
-              width: `${totalSets > 0 ? (totalCompletedSets / totalSets) * 100 : 0}%`,
-            }}
-          />
+          <View style={{ height: 3, borderRadius: 1.5, backgroundColor: colors.primary, width: `${totalSets > 0 ? (totalCompletedSets / totalSets) * 100 : 0}%` }} />
         </View>
       </View>
 
-      {/* Exercise navigation */}
-      <View style={[styles.exerciseNav, { backgroundColor: colors.surface }]}>
-        <TouchableOpacity
-          onPress={prevExercise}
-          disabled={currentExerciseIndex === 0}
-          style={{ opacity: currentExerciseIndex === 0 ? 0.3 : 1 }}
-        >
-          <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
-        </TouchableOpacity>
-        <View style={{ alignItems: 'center', flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: 2 }}>
-            <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>
-              {currentExerciseIndex + 1} из {workout.exercises.length}
-            </Text>
-            {currentExercise.supersetGroupId && (
-              <View style={[styles.supersetBadge, { backgroundColor: colors.accent + '20', borderColor: colors.accent + '60' }]}>
-                <Text style={[{ fontSize: 9, fontWeight: '800', color: colors.accent, letterSpacing: 0.5 }]}>⚡ СУПЕРСЕТ</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>
-            {currentExercise.exercise.name}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={nextExercise}
-          disabled={currentExerciseIndex === workout.exercises.length - 1}
-          style={{ opacity: currentExerciseIndex === workout.exercises.length - 1 ? 0.3 : 1 }}
-        >
-          <Text style={[typography.h3, { color: colors.primary }]}>{'›'}</Text>
-        </TouchableOpacity>
-      </View>
+      <ExerciseNavBar
+        currentExercise={currentExercise}
+        currentExerciseIndex={currentExerciseIndex}
+        totalExercises={workout.exercises.length}
+        onPrev={prevExercise}
+        onNext={nextExercise}
+      />
 
-      {/* Sets */}
-      <ScrollView contentContainerStyle={styles.setsContainer} showsVerticalScrollIndicator={false}>
-        {/* Previous session summary */}
-        {previousSets && (
-          <View style={[styles.prevSessionRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.captionMedium, { color: colors.textTertiary, marginRight: spacing.sm }]}>
-              {'↩ '}
-              {new Date(previousSets.date!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}:
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                {previousSets.sets.slice(0, 6).map((s, i) => (
-                  <Text key={i} style={[typography.captionMedium, { color: colors.textSecondary }]}>
-                    {s.weight ? `${s.weight}×${s.reps}` : `${s.reps} пвт`}
-                  </Text>
-                ))}
-                {previousSets.sets.length > 6 && (
-                  <Text style={[typography.caption, { color: colors.textTertiary }]}>+{previousSets.sets.length - 6}</Text>
-                )}
-              </View>
-            </ScrollView>
-          </View>
-        )}
+      <SetsSection
+        currentExercise={currentExercise}
+        currentExerciseIndex={currentExerciseIndex}
+        workout={workout}
+        previousSets={previousSets}
+        navigation={navigation}
+        onCompleteSet={handleCompleteSet}
+      />
 
-        {/* Table header */}
-        <View style={styles.setRow}>
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40 }]}>Сет</Text>
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>Вес (кг)</Text>
-          <View style={{ width: 28 }} />
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>Повт.</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        {currentExercise.sets.map((set, setIndex) => (
-          <SetRow
-            key={set.id}
-            set={set}
-            setIndex={setIndex}
-            prevSet={previousSets?.sets[setIndex] ?? null}
-            onComplete={(reps, weight) => handleCompleteSet(setIndex, reps, weight)}
-            onRpeChange={(rpe) => updateSetData(currentExerciseIndex, setIndex, { rpe })}
-            onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
-            onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
-            onOpenPlates={(w) => navigation.navigate('PlateCalculator', { initialWeight: w })}
-            colors={colors}
-          />
-        ))}
-
-        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
-          <Button
-            title="+ Подход"
-            variant="ghost"
-            size="sm"
-            onPress={() => addSet(currentExerciseIndex)}
-            style={{ flex: 1 }}
-          />
-          {/* Show warmup generator only if no warmup sets exist yet */}
-          {!currentExercise.sets.some((s) => s.type === 'warmup') && (
-            currentExercise.sets.some((s) => (s.weight || 0) > 0)
-              ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    haptic.selection();
-                    const workingSet = currentExercise.sets.find((s) => (s.weight || 0) > 0);
-                    if (workingSet?.weight) generateWarmupSets(currentExerciseIndex, workingSet.weight);
-                  }}
-                  style={[
-                    styles.warmupBtn,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                  ]}
-                >
-                  <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>🔥 Разминка</Text>
-                </TouchableOpacity>
-              ) : null
-          )}
-        </View>
-
-        {/* Exercise notes */}
-        <TextInput
-          style={[
-            styles.notesInput,
-            {
-              backgroundColor: colors.inputBackground,
-              borderColor: colors.inputBorder,
-              color: colors.text,
-            },
-          ]}
-          value={currentExercise.notes || ''}
-          onChangeText={(text) => setExerciseNotes(currentExerciseIndex, text)}
-          placeholder="Заметки к упражнению..."
-          placeholderTextColor={colors.inputPlaceholder}
-          multiline
-          maxLength={300}
-        />
-
-        {/* Superset toggle */}
-        {currentExerciseIndex < workout.exercises.length - 1 && (
-          <TouchableOpacity
-            onPress={() => { haptic.selection(); toggleSuperset(currentExerciseIndex); }}
-            style={[
-              styles.supersetToggleBtn,
-              {
-                backgroundColor: currentExercise.supersetGroupId ? colors.accent + '15' : colors.surface,
-                borderColor: currentExercise.supersetGroupId ? colors.accent + '80' : colors.border,
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 14, marginRight: spacing.xs }}>⚡</Text>
-            <Text style={[typography.small, { color: currentExercise.supersetGroupId ? colors.accent : colors.textSecondary }]}>
-              {currentExercise.supersetGroupId
-                ? `Суперсет со «${workout.exercises[currentExerciseIndex + 1]?.exercise.name}» — отменить`
-                : `Суперсет со следующим: ${workout.exercises[currentExerciseIndex + 1]?.exercise.name}`}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Remove exercise button (shown only when >1 exercise) */}
-        {workout.exercises.length > 1 && (
-          <TouchableOpacity
-            onPress={() => {
-              haptic.medium();
-              Alert.alert(
-                'Убрать упражнение?',
-                `«${currentExercise.exercise.name}» будет удалено из тренировки.`,
-                [
-                  { text: 'Отмена', style: 'cancel' },
-                  {
-                    text: 'Убрать',
-                    style: 'destructive',
-                    onPress: () => {
-                      haptic.warning();
-                      removeExerciseFromWorkout(currentExerciseIndex);
-                    },
-                  },
-                ]
-              );
-            }}
-            style={[
-              styles.removeExerciseBtn,
-              { borderColor: colors.error + '50' },
-            ]}
-          >
-            <Text style={{ fontSize: 14, marginRight: spacing.xs }}>🗑</Text>
-            <Text style={[typography.small, { color: colors.error }]}>Убрать упражнение</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Session notes (global) */}
-        <TextInput
-          style={[
-            styles.notesInput,
-            {
-              backgroundColor: colors.inputBackground,
-              borderColor: colors.primary + '30',
-              color: colors.text,
-              marginTop: spacing.sm,
-            },
-          ]}
-          value={workout.notes || ''}
-          onChangeText={(text) => setWorkoutNotes(text)}
-          placeholder="Общие заметки к тренировке..."
-          placeholderTextColor={colors.inputPlaceholder}
-          multiline
-          maxLength={500}
-        />
-
-        {/* Exercise description */}
-        <Card style={{ marginTop: spacing.md }}>
-          <Text style={[typography.smallMedium, { color: colors.text, marginBottom: spacing.sm }]}>Техника:</Text>
-          {currentExercise.exercise.instructions.map((inst, i) => (
-            <Text key={i} style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
-              {i + 1}. {inst}
-            </Text>
-          ))}
-        </Card>
-      </ScrollView>
-
-      {/* PR Toast */}
-      {prToast && (
-        <Animated.View
-          style={[
-            styles.prToast,
-            {
-              backgroundColor: colors.accent,
-              transform: [{
-                translateY: prToastAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-80, 0],
-                }),
-              }],
-              opacity: prToastAnim,
-            },
-          ]}
-        >
-          <Text style={{ fontSize: 20 }}>🏆</Text>
-          <View style={{ marginLeft: spacing.sm }}>
-            <Text style={[typography.captionMedium, { color: '#fff', letterSpacing: 1 }]}>ЛИЧНЫЙ РЕКОРД!</Text>
-            <Text style={[typography.small, { color: 'rgba(255,255,255,0.85)' }]}>
-              {prToast.name} — ~{prToast.rm} кг 1ПМ
-            </Text>
-          </View>
-        </Animated.View>
-      )}
+      <PRToast toast={prToast} />
     </View>
   );
 };
-
-const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
-const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  normal:  { label: 'РАБ',  color: '#9E9E9E' },
-  warmup:  { label: 'РАЗМ', color: '#FF9800' },
-  dropset: { label: 'ДРОП', color: '#9C27B0' },
-};
-
-const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
-
-const rpeColor = (rpe: number): string => {
-  if (rpe <= 7) return '#3BC46E';   // green — easy
-  if (rpe <= 8) return '#F0A832';   // orange — moderate
-  if (rpe <= 9) return '#F06432';   // dark orange — hard
-  return '#E8364F';                 // red — max
-};
-
-// Individual set row component
-const SetRow: React.FC<{
-  set: any;
-  setIndex: number;
-  prevSet?: { weight?: number; reps?: number } | null;
-  onComplete: (reps: number, weight: number) => void;
-  onRpeChange: (rpe: number) => void;
-  onRemove?: () => void;
-  onTypeChange?: (type: string) => void;
-  onOpenPlates?: (weight: number) => void;
-  colors: any;
-}> = ({ set, setIndex, prevSet, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
-  const haptic = useHaptic();
-  // Pre-fill weight from last session if current set has no weight entered yet
-  const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
-  const initialReps = set.reps ? set.reps.toString() : (prevSet?.reps ? prevSet.reps.toString() : '10');
-  const [weight, setWeight] = useState(initialWeight);
-  const [reps, setReps] = useState(initialReps);
-  const [showRpe, setShowRpe] = useState(false);
-  const currentType = set.type || 'normal';
-
-  return (
-    <View style={{ backgroundColor: set.completed ? colors.success + '10' : 'transparent', borderRadius: borderRadius.sm, marginBottom: 2 }}>
-    <View
-      style={[
-        styles.setRow,
-        { paddingVertical: spacing.sm },
-      ]}
-    >
-      <TouchableOpacity
-        onPress={onTypeChange ? () => {
-          haptic.selection();
-          const idx = SET_TYPES.indexOf(currentType as any);
-          onTypeChange(SET_TYPES[(idx + 1) % SET_TYPES.length]);
-        } : undefined}
-        onLongPress={onRemove}
-        delayLongPress={500}
-        style={{ width: 40, alignItems: 'center' }}
-      >
-        <Text style={[{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 1 }, { color: SET_TYPE_CONFIG[currentType].color }]}>
-          {SET_TYPE_CONFIG[currentType].label}
-        </Text>
-        <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>
-          {setIndex + 1}
-        </Text>
-      </TouchableOpacity>
-      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); const v = parseFloat(weight) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
-          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
-        >
-          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={[
-            styles.setInput,
-            {
-              backgroundColor: colors.inputBackground,
-              borderColor: colors.inputBorder,
-              color: colors.text,
-            },
-          ]}
-          value={weight}
-          onChangeText={setWeight}
-          keyboardType="numeric"
-          placeholder={prevSet?.weight ? prevSet.weight.toString() : '0'}
-          placeholderTextColor={prevSet?.weight ? colors.primary + '60' : colors.inputPlaceholder}
-        />
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); const v = parseFloat(weight) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
-          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
-        >
-          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
-        </TouchableOpacity>
-      </View>
-      {onOpenPlates && (
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); onOpenPlates(parseFloat(weight) || 0); }}
-          style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}
-          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-        >
-          <Text style={{ fontSize: 16 }}>🏋️</Text>
-        </TouchableOpacity>
-      )}
-      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(Math.max(1, v - 1))); }}
-          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
-        >
-          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={[
-            styles.setInput,
-            {
-              backgroundColor: colors.inputBackground,
-              borderColor: colors.inputBorder,
-              color: colors.text,
-            },
-          ]}
-          value={reps}
-          onChangeText={setReps}
-          keyboardType="numeric"
-          placeholder="10"
-          placeholderTextColor={colors.inputPlaceholder}
-        />
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(v + 1)); }}
-          style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
-        >
-          <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity
-        style={[
-          styles.checkBtn,
-          {
-            backgroundColor: set.completed ? colors.success : colors.inputBackground,
-            borderColor: set.completed ? colors.success : colors.border,
-          },
-        ]}
-        onPress={() => {
-          onComplete(parseInt(reps) || 0, parseFloat(weight) || 0);
-          setShowRpe(true);
-        }}
-      >
-        <Text style={{ color: set.completed ? '#FFF' : colors.textSecondary, fontWeight: '700' }}>
-          ✓
-        </Text>
-      </TouchableOpacity>
-    </View>
-
-      {/* RPE picker — shown inline below set row after completion */}
-      {set.completed && showRpe && (
-        <View style={[styles.rpePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[typography.caption, { color: colors.textTertiary, marginRight: spacing.sm }]}>RPE</Text>
-          {RPE_VALUES.map((v) => (
-            <TouchableOpacity
-              key={v}
-              onPress={() => {
-                haptic.selection();
-                onRpeChange(v);
-                setShowRpe(false);
-              }}
-              style={[
-                styles.rpeBtn,
-                {
-                  backgroundColor: set.rpe === v ? rpeColor(v) : colors.inputBackground,
-                  borderColor: set.rpe === v ? rpeColor(v) : colors.border,
-                },
-              ]}
-            >
-              <Text style={[typography.small, { color: set.rpe === v ? '#fff' : colors.textSecondary, fontWeight: '700' }]}>
-                {v}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {set.rpe && (
-            <Text style={[typography.caption, { color: rpeColor(set.rpe), marginLeft: spacing.xs, fontWeight: '700' }]}>
-              {set.rpe >= 10 ? 'Макс' : set.rpe >= 9 ? 'Тяжело' : set.rpe >= 8 ? 'Сложно' : 'Легко'}
-            </Text>
-          )}
-        </View>
-      )}
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 56,
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderBottomWidth: 1,
-  },
-  restOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    alignItems: 'center',
-    paddingTop: 100,
-    paddingBottom: spacing.xxxl,
-  },
-  restBtn: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.md,
-  },
-  exerciseNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  setsContainer: {
-    padding: spacing.xl,
-    paddingBottom: spacing.huge * 2,
-  },
-  setRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    gap: spacing.md,
-  },
-  setInput: {
-    flex: 1,
-    textAlign: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  checkBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-  },
-  notesInput: {
-    marginTop: spacing.xl,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: 14,
-    minHeight: 40,
-    maxHeight: 80,
-  },
-  rpePicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    marginTop: 2,
-    marginBottom: spacing.xs,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  rpeBtn: {
-    width: 34,
-    height: 28,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  prToast: {
-    position: 'absolute',
-    top: 110,
-    left: spacing.xl,
-    right: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.xl,
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  supersetBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-  },
-  supersetToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-  },
-  removeExerciseBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-  },
-  stepBtn: {
-    width: 26,
-    height: 36,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  warmupBtn: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  prevSessionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    marginBottom: spacing.sm,
-  },
-});
