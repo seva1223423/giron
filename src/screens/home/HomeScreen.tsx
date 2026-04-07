@@ -1,98 +1,34 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { ScrollView } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
-import { userService } from '../../services/userService';
 import { exercises as localExercises } from '../../data/exercises';
-import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
-import { Card, ProgressRing, MacroBar, FadeIn } from '../../components';
-import { typography } from '../../theme';
-import { spacing, borderRadius } from '../../theme/spacing';
+import { WorkoutExercise, WorkoutSet } from '../../types';
+import { FadeIn } from '../../components';
+import { spacing } from '../../theme/spacing';
+import {
+  HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
+  StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
+  NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard,
+} from './components';
 
-// Hours of recovery each muscle group needs after training
-const MUSCLE_RECOVERY_HOURS: Record<string, number> = {
-  chest: 48, back: 48, shoulders: 48, biceps: 36, triceps: 36,
-  quadriceps: 72, hamstrings: 72, glutes: 72, calves: 36, abs: 24,
-};
-const MUSCLE_LABELS: Record<string, string> = {
-  chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
-  triceps: 'Трицепс', quadriceps: 'Квадрицепс', hamstrings: 'Бицепс бедра',
-  glutes: 'Ягодицы', calves: 'Икры', abs: 'Пресс',
-};
-
-const todayDate = () => new Date().toISOString().split('T')[0];
-
-const DAILY_QUOTES = [
-  { text: 'Штанга не знает сколько ты устал. Она знает только сколько ты поднял.', author: 'Iron Coach' },
-  { text: 'Прогресс — это не прямая линия. Это серпантин в гору.', author: 'Iron Coach' },
-  { text: 'Дисциплина — это выбор между тем чего ты хочешь сейчас и тем чего хочешь по-настоящему.', author: 'Iron Coach' },
-  { text: 'Тело всегда слушается мозга. Натренируй оба.', author: 'Iron Coach' },
-  { text: 'Каждый профессионал когда-то был новичком, который не бросил.', author: 'Iron Coach' },
-  { text: 'Мышцы не растут во время тренировки. Они растут пока ты спишь и ешь правильно.', author: 'Спортивная наука' },
-  { text: 'Не ищи мотивацию. Создавай дисциплину. Мотивация уйдёт — дисциплина останется.', author: 'Iron Coach' },
-  { text: 'Слабые моменты строят сильных людей.', author: 'Iron Coach' },
-  { text: 'Каждый день маленький шаг вперёд — через год ты не узнаешь себя.', author: 'Iron Coach' },
-  { text: 'Сравнивай себя только с собой вчерашним.', author: 'Iron Coach' },
-  { text: 'Боль от тренировки временна. Гордость от результата навсегда.', author: 'Iron Coach' },
-  { text: 'Ты не проигрываешь. Ты либо выигрываешь, либо учишься.', author: 'Iron Coach' },
-  { text: 'Когда ты думаешь что достиг предела — ты использовал только 40% своих возможностей.', author: 'Iron Coach' },
-  { text: 'Тело достигает того, что задумал разум.', author: 'Iron Coach' },
-  { text: 'Нет плохих тренировок. Есть только тренировки которые ты не сделал.', author: 'Iron Coach' },
-  { text: 'Каждый подход — это голосование за того человека которым ты хочешь стать.', author: 'Iron Coach' },
-  { text: 'Восстановление — часть тренировки. Пренебрегать им — значит тренироваться неправильно.', author: 'Спортивная наука' },
-  { text: 'Великие результаты требуют великого отношения к базовым вещам: сон, белок, объём.', author: 'Спортивная наука' },
-  { text: 'Сила — это не только мышцы. Это привычка не отступать.', author: 'Iron Coach' },
-  { text: 'Начни там где ты есть. Используй то что имеешь. Делай что можешь.', author: 'Iron Coach' },
-  { text: 'Тренировка без цели — это просто усталость. Тренировка с целью — инвестиция.', author: 'Iron Coach' },
-  { text: 'Гравитация одинакова для всех. Работа со штангой — честный бизнес.', author: 'Iron Coach' },
-  { text: 'Никогда не пропускай понедельник. И среду. И пятницу.', author: 'Iron Coach' },
-  { text: 'Тело — это долгосрочный проект. Не спринт.', author: 'Iron Coach' },
-  { text: 'Лучшая программа — та, которой ты придерживаешься. Лучшая диета — тоже.', author: 'Спортивная наука' },
-  { text: 'Страдания сейчас, преимущество потом.', author: 'Iron Coach' },
-  { text: 'Тренировки не делают тебя лучше. Восстановление после тренировок — делает.', author: 'Спортивная наука' },
-  { text: 'Маленький прогресс каждый день складывается в большие результаты.', author: 'Iron Coach' },
-  { text: 'Делай сложное пока оно не стало лёгким.', author: 'Iron Coach' },
-  { text: 'Подними больше. Спи дольше. Ешь лучше. Повтори.', author: 'Iron Coach' },
+const SPLITS = [
+  { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
+  { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '🏋️' },
+  { name: 'Ноги', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], emoji: '🦵' },
+  { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], emoji: '🎯' },
+  { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '⚡' },
 ];
 
-function getDailyQuote() {
-  const start = new Date(2024, 0, 1).getTime();
-  const dayIndex = Math.floor((Date.now() - start) / 86400000);
-  return DAILY_QUOTES[dayIndex % DAILY_QUOTES.length];
-}
+const todayDate = () => new Date().toISOString().split('T')[0];
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user, setUser } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises } = useWorkoutStore();
-
-  const [weightModalVisible, setWeightModalVisible] = useState(false);
-  const [weightInput, setWeightInput] = useState('');
-  const [savingWeight, setSavingWeight] = useState(false);
-
-  const handleLogWeight = async () => {
-    const kg = parseFloat(weightInput.replace(',', '.'));
-    if (!kg || kg < 20 || kg > 400) {
-      Alert.alert('Некорректный вес', 'Введите вес от 20 до 400 кг');
-      return;
-    }
-    setSavingWeight(true);
-    try {
-      await userService.addWeight(kg);
-      if (user) setUser({ ...user, weightKg: kg });
-      haptic.success();
-      setWeightModalVisible(false);
-      setWeightInput('');
-    } catch {
-      Alert.alert('Ошибка', 'Не удалось сохранить вес');
-    } finally {
-      setSavingWeight(false);
-    }
-  };
   const { getDayLog } = useNutritionStore();
 
-  // Sync data from server on mount
   useEffect(() => {
     fetchPrograms();
     fetchHistory();
@@ -100,14 +36,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const today = todayDate();
   const dayLog = getDayLog(today);
-  const { todayCalories, todayProtein, todayFats, todayCarbs } = useMemo(() => ({
-    todayCalories: dayLog.meals.reduce((sum, m) => sum + m.totalCalories, 0),
-    todayProtein: dayLog.meals.reduce((sum, m) => sum + m.totalProtein, 0),
-    todayFats: dayLog.meals.reduce((sum, m) => sum + m.totalFats, 0),
-    todayCarbs: dayLog.meals.reduce((sum, m) => sum + m.totalCarbs, 0),
-  }), [dayLog.meals]);
+  const activeProgram = programs.find((p) => p.isActive) ?? null;
+  const todayDow = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+  const todayPlan = weekPlan[todayDow] ?? null;
+  const lastWorkout = workoutHistory[0] ?? null;
+  const daysSinceLastWorkout = lastWorkout?.completedAt
+    ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / 86400000)
+    : null;
 
-  const activeProgram = programs.find((p) => p.isActive);
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;
     let s = 0;
@@ -117,93 +53,33 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const ds = d.toISOString().split('T')[0];
-      if (workoutHistory.some((w) => w.completedAt?.startsWith(ds))) {
-        s++;
-      } else if (i > 0) {
-        break;
-      }
+      if (workoutHistory.some((w) => w.completedAt?.startsWith(ds))) s++;
+      else if (i > 0) break;
     }
     return s;
   }, [workoutHistory]);
 
-  const quote = getDailyQuote();
-
-  // Today's planned workout (Mon=0 … Sun=6)
-  const todayDow = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
-  const todayPlan = weekPlan[todayDow] ?? null;
-
-  const handleStartPlannedWorkout = () => {
-    if (!todayPlan || todayPlan.exercises.length === 0) return;
-    haptic.medium();
-    const allExercises = [...customExercises, ...localExercises];
-    const workoutExercises: WorkoutExercise[] = todayPlan.exercises
-      .map((exId, index) => {
-        const ex = allExercises.find((e) => e.id === exId);
-        if (!ex) return null;
-        const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
-          id: `set-${Date.now()}-${index}-${i}`,
-          setNumber: i + 1, type: 'normal' as const, reps: 10, weight: 0, completed: false,
-        }));
-        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
-      })
-      .filter(Boolean) as WorkoutExercise[];
-    startWorkout({ id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises });
-    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  };
-
-  // Last workout
-  const lastWorkout = workoutHistory[0] || null;
-  const daysSinceLastWorkout = lastWorkout?.completedAt
-    ? Math.floor((Date.now() - new Date(lastWorkout.completedAt).getTime()) / 86400000)
-    : null;
-
-  const handleRepeatWorkout = () => {
-    if (!lastWorkout || activeWorkout) return;
-    haptic.medium();
-    const workoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((we, index) => {
-      const sets: WorkoutSet[] = we.sets.map((s, i) => ({
-        id: `set-${Date.now()}-${index}-${i}`,
-        setNumber: i + 1,
-        type: s.type,
-        reps: s.reps,
-        weight: s.weight,
-        completed: false,
-      }));
-      return { ...we, id: `we-${Date.now()}-${index}`, sets };
-    });
-    startWorkout({ id: `workout-${Date.now()}`, name: lastWorkout.name, exercises: workoutExercises });
-    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  };
-
   const restDayRecommendation = useMemo(() => {
-    if (streak >= 4) {
-      return {
-        reason: `Вы тренируетесь ${streak} ${streak < 5 ? 'дня' : 'дней'} подряд`,
-        tip: 'Мышцы растут во время отдыха. Дайте телу восстановиться сегодня.',
-      };
-    }
+    if (streak >= 4) return {
+      reason: `Вы тренируетесь ${streak} ${streak < 5 ? 'дня' : 'дней'} подряд`,
+      tip: 'Мышцы растут во время отдыха. Дайте телу восстановиться сегодня.',
+    };
     if (lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 1) {
-      const completedSets = lastWorkout.exercises
-        .flatMap((ex) => ex.sets)
-        .filter((s) => s.completed && s.rpe != null);
+      const completedSets = lastWorkout.exercises.flatMap((ex) => ex.sets).filter((s) => s.completed && s.rpe != null);
       if (completedSets.length >= 3) {
         const avgRpe = completedSets.reduce((sum, s) => sum + (s.rpe ?? 0), 0) / completedSets.length;
-        if (avgRpe >= 8.5) {
-          return {
-            reason: `Последняя тренировка была очень тяжёлой (RPE ${avgRpe.toFixed(1)})`,
-            tip: 'Высокая нагрузка требует полного восстановления. Отдохни сегодня.',
-          };
-        }
+        if (avgRpe >= 8.5) return {
+          reason: `Последняя тренировка была очень тяжёлой (RPE ${avgRpe.toFixed(1)})`,
+          tip: 'Высокая нагрузка требует полного восстановления. Отдохни сегодня.',
+        };
       }
     }
     return null;
   }, [streak, lastWorkout, daysSinceLastWorkout]);
 
   const workoutRecommendation = useMemo(() => {
-    // If user has an active program with workouts, recommend the next one in sequence
-    if (activeProgram && activeProgram.workouts && activeProgram.workouts.length > 0) {
-      // Find workout that was completed least recently (or never)
-      const workoutsWithLastDone = activeProgram.workouts.map((pw) => {
+    if (activeProgram?.workouts?.length) {
+      const withLastDone = activeProgram.workouts.map((pw: any) => {
         const lastMatch = workoutHistory
           .filter((h) => h.completedAt && h.name === pw.name)
           .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
@@ -212,22 +88,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           : 999;
         return { name: pw.name, id: pw.id, daysSince: daysAgo, programWorkout: pw };
       });
-      const next = workoutsWithLastDone.sort((a, b) => b.daysSince - a.daysSince)[0];
-      const daysLabel = next.daysSince >= 999
-        ? 'Ещё не делал'
+      const next = withLastDone.sort((a: any, b: any) => b.daysSince - a.daysSince)[0];
+      const daysLabel = next.daysSince >= 999 ? 'Ещё не делал'
         : next.daysSince === 0 ? 'Уже сегодня'
         : `${next.daysSince} ${next.daysSince === 1 ? 'день' : next.daysSince < 5 ? 'дня' : 'дней'} назад`;
       return { name: next.name, emoji: '🏋️', daysLabel, programWorkout: next.programWorkout };
     }
-
-    // Fallback: muscle group heuristic
-    const SPLITS = [
-      { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
-      { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '🏋️' },
-      { name: 'Ноги', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], emoji: '🦵' },
-      { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], emoji: '🎯' },
-      { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '⚡' },
-    ];
     const splitLastDays = SPLITS.map((split) => {
       let lastDay = 999;
       workoutHistory.forEach((w) => {
@@ -242,729 +108,125 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       });
       return { ...split, daysSince: lastDay };
     });
-    const recommended = splitLastDays.sort((a, b) => b.daysSince - a.daysSince)[0];
-    const daysLabel = recommended.daysSince >= 999
-      ? 'Ещё не тренировал'
-      : recommended.daysSince === 0 ? 'Уже сегодня'
-      : `${recommended.daysSince} ${recommended.daysSince === 1 ? 'день' : recommended.daysSince < 5 ? 'дня' : 'дней'} назад`;
-    return { ...recommended, daysLabel, programWorkout: null };
+    const rec = splitLastDays.sort((a, b) => b.daysSince - a.daysSince)[0];
+    const daysLabel = rec.daysSince >= 999 ? 'Ещё не тренировал'
+      : rec.daysSince === 0 ? 'Уже сегодня'
+      : `${rec.daysSince} ${rec.daysSince === 1 ? 'день' : rec.daysSince < 5 ? 'дня' : 'дней'} назад`;
+    return { name: rec.name, emoji: rec.emoji, daysLabel, programWorkout: null };
   }, [workoutHistory, activeProgram]);
 
-  const weekWorkouts = useMemo(() => workoutHistory.filter((w) => {
-    if (!w.completedAt) return false;
-    const d = new Date(w.completedAt);
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    return d >= weekAgo;
-  }), [workoutHistory]);
-
-  // Weekly plan adherence: how many planned workouts (past days) were completed this week
-  const weekAdherence = useMemo(() => {
-    const now = new Date();
-    const currentDow = now.getDay() === 0 ? 6 : now.getDay() - 1; // Mon=0…Sun=6
-    const mondayDate = new Date(now);
-    mondayDate.setDate(now.getDate() - currentDow);
-    mondayDate.setHours(0, 0, 0, 0);
-
-    let planned = 0;
-    let done = 0;
-
-    for (let i = 0; i <= 6; i++) {
-      if (!weekPlan[i]) continue;
-      planned++;
-      if (i > currentDow) continue; // future day — not counted yet
-      const dayDate = new Date(mondayDate);
-      dayDate.setDate(mondayDate.getDate() + i);
-      const dayStr = dayDate.toISOString().split('T')[0];
-      if (workoutHistory.some((w) => w.completedAt?.startsWith(dayStr))) {
-        done++;
-      }
-    }
-
-    return { planned, done, pastPlanned: Math.min(planned, currentDow + 1) };
-  }, [weekPlan, workoutHistory]);
-
-  const prevWeekWorkouts = useMemo(() => workoutHistory.filter((w) => {
-    if (!w.completedAt) return false;
-    const d = new Date(w.completedAt);
-    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    return d >= twoWeeksAgo && d < oneWeekAgo;
-  }), [workoutHistory]);
-
-  const weekVolume = useMemo(() =>
-    weekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0),
-    [weekWorkouts]
-  );
-  const prevWeekVolume = useMemo(() =>
-    prevWeekWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0),
-    [prevWeekWorkouts]
-  );
-  const volumeDeltaPct = prevWeekVolume > 0
-    ? Math.round(((weekVolume - prevWeekVolume) / prevWeekVolume) * 100)
-    : null;
-
-  // Muscle recovery status: for each muscle, find hours since last trained
-  const muscleReadiness = useMemo(() => {
-    const lastTrained: Record<string, number> = {};
-    workoutHistory.forEach((w) => {
-      if (!w.completedAt) return;
-      const completedMs = new Date(w.completedAt).getTime();
-      w.exercises.forEach((ex) => {
-        ex.exercise.primaryMuscles.forEach((m) => {
-          if (!lastTrained[m] || completedMs > lastTrained[m]) {
-            lastTrained[m] = completedMs;
-          }
-        });
-      });
-    });
-    const now = Date.now();
-    return Object.keys(MUSCLE_RECOVERY_HOURS).map((muscle) => {
-      const lastMs = lastTrained[muscle];
-      if (!lastMs) return { muscle, status: 'ready' as const, hoursLeft: 0 };
-      const hoursSince = (now - lastMs) / 3600000;
-      const needed = MUSCLE_RECOVERY_HOURS[muscle];
-      const hoursLeft = Math.max(0, needed - hoursSince);
-      const status = hoursLeft > 12 ? 'recovering' as const : hoursLeft > 0 ? 'almost' as const : 'ready' as const;
-      return { muscle, status, hoursLeft: Math.round(hoursLeft) };
-    });
-  }, [workoutHistory]);
-
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 6) return 'Доброй ночи';
-    if (h < 12) return 'Доброе утро';
-    if (h < 18) return 'Добрый день';
-    return 'Добрый вечер';
+  const handleStartPlannedWorkout = () => {
+    if (!todayPlan || todayPlan.exercises.length === 0) return;
+    haptic.medium();
+    const allExercises = [...customExercises, ...localExercises];
+    const workoutExercises: WorkoutExercise[] = todayPlan.exercises
+      .map((exId: string, index: number) => {
+        const ex = allExercises.find((e) => e.id === exId);
+        if (!ex) return null;
+        const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
+          id: `set-${Date.now()}-${index}-${i}`,
+          setNumber: i + 1, type: 'normal' as const, reps: 10, weight: 0, completed: false,
+        }));
+        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
+      })
+      .filter(Boolean) as WorkoutExercise[];
+    startWorkout({ id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises });
+    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
   };
 
-  const handleWater = (ml: number) => {
-    haptic.light();
-    useNutritionStore.getState().addWater(today, ml);
+  const handleRepeatWorkout = () => {
+    if (!lastWorkout || activeWorkout) return;
+    haptic.medium();
+    const workoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((we, index) => {
+      const sets: WorkoutSet[] = we.sets.map((s, i) => ({
+        id: `set-${Date.now()}-${index}-${i}`,
+        setNumber: i + 1, type: s.type, reps: s.reps, weight: s.weight, completed: false,
+      }));
+      return { ...we, id: `we-${Date.now()}-${index}`, sets };
+    });
+    startWorkout({ id: `workout-${Date.now()}`, name: lastWorkout.name, exercises: workoutExercises });
+    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
   };
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <FadeIn delay={0} from="top">
-        <View style={styles.header}>
-          <View>
-            <Text style={[typography.small, { color: colors.textSecondary }]}>{greeting()}</Text>
-            <Text style={[typography.h2, { color: colors.text }]}>
-              {user?.firstName || 'Атлет'}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ProfileTab')}
-            style={[styles.avatar, { backgroundColor: colors.primary }]}
-          >
-            <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>
-              {(user?.firstName?.[0] || 'A').toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <HomeHeader navigation={navigation} />
       </FadeIn>
 
-      {/* Quick Start */}
       <FadeIn delay={100}>
-        {activeWorkout ? (
-          <Card
-            style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.success }}
-            onPress={() => navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' })}
-          >
-            <Text style={[typography.captionMedium, { color: colors.success }]}>АКТИВНАЯ ТРЕНИРОВКА</Text>
-            <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xs }]}>
-              {activeWorkout.workout.name}
-            </Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-              Нажми, чтобы продолжить
-            </Text>
-          </Card>
-        ) : (
-          <Card
-            style={{ marginBottom: spacing.lg }}
-            onPress={() => navigation.navigate('WorkoutsTab')}
-          >
-            <Text style={[typography.h4, { color: colors.text }]}>Начать тренировку</Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-              {activeProgram
-                ? `Программа: ${activeProgram.name}`
-                : 'Выбери программу или создай свою'}
-            </Text>
-          </Card>
-        )}
+        <WorkoutStatusCard navigation={navigation} />
       </FadeIn>
 
-      {/* Today's planned workout */}
       {!activeWorkout && todayPlan && (
         <FadeIn delay={140}>
-          <Card
-            style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent }}
-            onPress={todayPlan.exercises.length > 0 ? handleStartPlannedWorkout : undefined}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.captionMedium, { color: colors.accent }]}>ПЛАН НА СЕГОДНЯ</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
-                  <Text style={{ fontSize: 20 }}>{todayPlan.emoji}</Text>
-                  <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
-                </View>
-              </View>
-              {todayPlan.exercises.length > 0 && (
-                <Text style={[typography.bodySemibold, { color: colors.accent }]}>▶ Начать</Text>
-              )}
-            </View>
-          </Card>
+          <TodayPlanCard todayPlan={todayPlan} onStart={handleStartPlannedWorkout} />
         </FadeIn>
       )}
 
-      {/* Smart recommendation or Rest day */}
       {!activeWorkout && (
         <FadeIn delay={150}>
-          {restDayRecommendation ? (
-            <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
-                <Text style={{ fontSize: 28 }}>🛌</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.captionMedium, { color: colors.accent }]}>ДЕНЬ ОТДЫХА</Text>
-                  <Text style={[typography.bodyMedium, { color: colors.text, marginTop: spacing.xs }]}>
-                    {restDayRecommendation.reason}
-                  </Text>
-                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: 4 }]}>
-                    {restDayRecommendation.tip}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          ) : (
-            <Card
-              style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}
-              onPress={() => {
-                if (workoutRecommendation.programWorkout) {
-                  const pw = workoutRecommendation.programWorkout as any;
-                  const fresh = {
-                    id: `workout-${Date.now()}`,
-                    name: pw.name,
-                    exercises: (pw.exercises || []).map((we: any, idx: number) => ({
-                      ...we,
-                      id: `we-${Date.now()}-${idx}`,
-                      sets: (we.sets || []).map((s: any, si: number) => ({
-                        ...s,
-                        id: `set-${Date.now()}-${idx}-${si}`,
-                        completed: false,
-                      })),
-                    })),
-                    startedAt: undefined,
-                    completedAt: undefined,
-                  };
-                  haptic.medium();
-                  startWorkout(fresh as any);
-                  navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-                } else {
-                  navigation.navigate('WorkoutsTab');
-                }
-              }}
-            >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.captionMedium, { color: colors.success }]}>
-                    {workoutRecommendation.programWorkout ? 'СЛЕДУЮЩАЯ ТРЕНИРОВКА' : 'РЕКОМЕНДУЕМ СЕГОДНЯ'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
-                    <Text style={{ fontSize: 20 }}>{workoutRecommendation.emoji}</Text>
-                    <Text style={[typography.h4, { color: colors.text }]}>{workoutRecommendation.name}</Text>
-                  </View>
-                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                    {workoutRecommendation.daysLabel}
-                    {workoutRecommendation.programWorkout ? ` · ${activeProgram?.name}` : ''}
-                  </Text>
-                </View>
-                <Text style={[typography.body, { color: colors.primary, marginTop: spacing.sm }]}>▶</Text>
-              </View>
-            </Card>
-          )}
+          <RecommendationCard
+            restDayRecommendation={restDayRecommendation}
+            workoutRecommendation={workoutRecommendation}
+            activeProgram={activeProgram}
+            haptic={haptic}
+            startWorkout={startWorkout}
+            navigation={navigation}
+          />
         </FadeIn>
       )}
 
-      {/* Streak at risk warning */}
       {!activeWorkout && streak > 0 && daysSinceLastWorkout !== null && daysSinceLastWorkout >= 2 && (
         <FadeIn delay={180}>
-          <Card
-            style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.error }}
-            onPress={() => navigation.navigate('WorkoutsTab')}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 24 }}>⚡</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.captionMedium, { color: colors.error }]}>СЕРИЯ ПОД УГРОЗОЙ!</Text>
-                <Text style={[typography.bodyMedium, { color: colors.text, marginTop: 2 }]}>
-                  Серия {streak} {streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней'} — потренируйся сегодня
-                </Text>
-              </View>
-              <Text style={[typography.bodySemibold, { color: colors.error }]}>▶</Text>
-            </View>
-          </Card>
+          <StreakWarningCard streak={streak} navigation={navigation} />
         </FadeIn>
       )}
 
-      {/* Last workout recap */}
       {lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 7 && (
         <FadeIn delay={175}>
-          <Card style={{ marginBottom: spacing.lg }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
-              <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>
-                {daysSinceLastWorkout === 0 ? 'СЕГОДНЯ' : daysSinceLastWorkout === 1 ? 'ВЧЕРА' : `${daysSinceLastWorkout} ДНЯ НАЗАД`}
-              </Text>
-              {!activeWorkout && (
-                <TouchableOpacity onPress={handleRepeatWorkout} style={[{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm }]}>
-                  <Text style={[typography.captionMedium, { color: colors.primary }]}>🔁 Повторить</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <Text style={[typography.bodySemibold, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={1}>
-              {lastWorkout.name}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
-              {lastWorkout.exercises.length > 0 && (
-                <View>
-                  <Text style={[typography.numberSmall, { color: colors.primary, fontSize: 18 }]}>{lastWorkout.exercises.length}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>упр.</Text>
-                </View>
-              )}
-              {lastWorkout.durationMinutes && (
-                <View>
-                  <Text style={[typography.numberSmall, { color: colors.accent, fontSize: 18 }]}>{lastWorkout.durationMinutes}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>мин</Text>
-                </View>
-              )}
-              {lastWorkout.totalVolume ? (
-                <View>
-                  <Text style={[typography.numberSmall, { color: colors.success, fontSize: 18 }]}>{Math.round(lastWorkout.totalVolume)}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>кг объём</Text>
-                </View>
-              ) : null}
-            </View>
-          </Card>
+          <LastWorkoutCard
+            lastWorkout={lastWorkout}
+            daysSinceLastWorkout={daysSinceLastWorkout}
+            activeWorkout={activeWorkout}
+            onRepeat={handleRepeatWorkout}
+          />
         </FadeIn>
       )}
 
-      {/* Weekly stats */}
       <FadeIn delay={200}>
-        <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <Text style={[typography.h4, { color: colors.text }]}>Эта неделя</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutHistory' })}>
-              <Text style={[typography.smallMedium, { color: colors.primary }]}>История</Text>
-            </TouchableOpacity>
-          </View>
-          {/* Week day dots */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day, i) => {
-              const now = new Date();
-              const currentDow = now.getDay() === 0 ? 6 : now.getDay() - 1;
-              const dayDate = new Date(now);
-              dayDate.setDate(now.getDate() - currentDow + i);
-              const dateStr = dayDate.toISOString().split('T')[0];
-              const hadWorkout = workoutHistory.some(
-                (w) => w.completedAt && w.completedAt.startsWith(dateStr)
-              );
-              const isToday = i === currentDow;
-              const hasPlan = !!weekPlan[i];
-              const isPast = i < currentDow;
-              return (
-                <View key={day} style={{ alignItems: 'center', gap: 4 }}>
-                  <Text style={[typography.small, { color: isToday ? colors.primary : colors.textTertiary, fontSize: 10 }]}>
-                    {day}
-                  </Text>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: hadWorkout ? colors.success : isToday ? colors.primary + '15' : colors.surface,
-                      borderWidth: isToday ? 2 : hasPlan && !hadWorkout && !isPast ? 1.5 : 0,
-                      borderColor: isToday ? colors.primary : colors.accent,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {hadWorkout ? (
-                      <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12 }}>{'✓'}</Text>
-                    ) : hasPlan && !isPast ? (
-                      <Text style={{ fontSize: 14 }}>{weekPlan[i]?.emoji || '🏋️'}</Text>
-                    ) : (
-                      <Text style={[typography.small, { color: isToday ? colors.primary : colors.textTertiary }]}>
-                        {dayDate.getDate()}
-                      </Text>
-                    )}
-                  </View>
-                  {hasPlan && !hadWorkout && !isPast && (
-                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />
-                  )}
-                </View>
-              );
-            })}
-          </View>
-          {weekAdherence.planned > 0 && weekAdherence.pastPlanned > 0 && (
-            <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Text style={[typography.small, { color: colors.textSecondary }]}>Выполнение плана</Text>
-                <Text style={[typography.small, { color: weekAdherence.done === weekAdherence.pastPlanned ? colors.success : colors.textSecondary, fontWeight: '700' }]}>
-                  {weekAdherence.done}/{weekAdherence.pastPlanned}
-                </Text>
-              </View>
-              <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.border }}>
-                <View style={{ height: 4, borderRadius: 2, backgroundColor: weekAdherence.done === weekAdherence.pastPlanned ? colors.success : colors.primary, width: `${(weekAdherence.done / weekAdherence.pastPlanned) * 100}%` }} />
-              </View>
-            </View>
-          )}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Text style={[typography.number, { color: colors.primary }]}>
-                  {weekWorkouts.length}
-                </Text>
-                {prevWeekWorkouts.length > 0 && weekWorkouts.length !== prevWeekWorkouts.length && (
-                  <Text style={[typography.small, {
-                    color: weekWorkouts.length >= prevWeekWorkouts.length ? colors.success : colors.error,
-                    fontSize: 10, fontWeight: '700',
-                  }]}>
-                    {weekWorkouts.length >= prevWeekWorkouts.length ? '▲' : '▼'}{Math.abs(weekWorkouts.length - prevWeekWorkouts.length)}
-                  </Text>
-                )}
-              </View>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
-            </View>
-            <View style={styles.statItem}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Text style={[typography.number, { color: colors.accent }]}>
-                  {Math.round(weekVolume / 1000)}
-                </Text>
-                {volumeDeltaPct !== null && (
-                  <Text style={[typography.small, {
-                    color: volumeDeltaPct >= 0 ? colors.success : colors.error,
-                    fontSize: 10, fontWeight: '700',
-                  }]}>
-                    {volumeDeltaPct >= 0 ? '▲' : '▼'}{Math.abs(volumeDeltaPct)}%
-                  </Text>
-                )}
-              </View>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>Тонн</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.success }]}>
-                {weekWorkouts.reduce((s, w) => s + (w.durationMinutes || 0), 0)}
-              </Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>Минут</Text>
-            </View>
-            {streak > 0 && (
-              <View style={styles.statItem}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={[typography.number, { color: colors.error }]}>{streak}</Text>
-                  <Text style={{ fontSize: 14 }}>🔥</Text>
-                </View>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>Дней</Text>
-              </View>
-            )}
-          </View>
-        </Card>
+        <WeeklyStatsCard workoutHistory={workoutHistory} weekPlan={weekPlan} streak={streak} navigation={navigation} />
       </FadeIn>
 
-      {/* Muscle recovery widget — only show if user has workout history */}
       {workoutHistory.length > 0 && (
         <FadeIn delay={260}>
-          <Card style={{ marginBottom: spacing.lg }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-              <Text style={[typography.h4, { color: colors.text }]}>Готовность мышц</Text>
-              <Text style={[typography.small, { color: colors.textSecondary }]}>
-                {muscleReadiness.filter((m) => m.status === 'ready').length}/{muscleReadiness.length} готовы
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {muscleReadiness.map(({ muscle, status, hoursLeft }) => {
-                const dotColor = status === 'ready' ? colors.success : status === 'almost' ? colors.warning : colors.error;
-                const bgColor = dotColor + '18';
-                return (
-                  <View
-                    key={muscle}
-                    style={{
-                      flexDirection: 'row', alignItems: 'center', gap: 5,
-                      backgroundColor: bgColor, borderRadius: borderRadius.sm,
-                      paddingVertical: 4, paddingHorizontal: spacing.sm,
-                    }}
-                  >
-                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />
-                    <Text style={[typography.caption, { color: colors.text, fontSize: 11 }]}>
-                      {MUSCLE_LABELS[muscle]}
-                    </Text>
-                    {status !== 'ready' && (
-                      <Text style={[typography.caption, { color: dotColor, fontSize: 10 }]}>
-                        {hoursLeft}ч
-                      </Text>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-            <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success }} />
-                <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Готова</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.warning }} />
-                <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Почти</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error }} />
-                <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>Восстанавливается</Text>
-              </View>
-            </View>
-          </Card>
+          <MuscleReadinessCard workoutHistory={workoutHistory} />
         </FadeIn>
       )}
 
-      {/* Nutrition today */}
       <FadeIn delay={300}>
-        <Card style={{ marginBottom: spacing.lg }}>
-          <View style={styles.nutritionHeader}>
-            <Text style={[typography.h4, { color: colors.text }]}>Питание сегодня</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('NutritionTab')}>
-              <Text style={[typography.smallMedium, { color: colors.primary }]}>Подробнее</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.calorieRow}>
-            <ProgressRing
-              progress={dayLog.targetCalories > 0 ? todayCalories / dayLog.targetCalories : 0}
-              size={90}
-              strokeWidth={8}
-              value={`${todayCalories}`}
-              label="ккал"
-            />
-            <View style={{ flex: 1, marginLeft: spacing.xl }}>
-              <MacroBar
-                label="Белки"
-                current={todayProtein}
-                target={dayLog.targetProtein}
-                color={colors.protein}
-              />
-              <MacroBar
-                label="Жиры"
-                current={todayFats}
-                target={dayLog.targetFats}
-                color={colors.fats}
-              />
-              <MacroBar
-                label="Углеводы"
-                current={todayCarbs}
-                target={dayLog.targetCarbs}
-                color={colors.carbs}
-              />
-            </View>
-          </View>
-        </Card>
+        <NutritionCard dayLog={dayLog} navigation={navigation} />
       </FadeIn>
 
-      {/* Body weight quick-log */}
       <FadeIn delay={390}>
-        <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View>
-              <Text style={[typography.h4, { color: colors.text }]}>Вес тела</Text>
-              <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                {user?.weightKg ? `${user.weightKg} кг` : 'Не записано'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => { haptic.selection(); setWeightInput(user?.weightKg ? String(user.weightKg) : ''); setWeightModalVisible(true); }}
-              style={[styles.logWeightBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
-            >
-              <Text style={[typography.buttonSmall, { color: colors.primary }]}>⚖️ Записать</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
+        <WeightCard user={user} setUser={setUser} />
       </FadeIn>
 
-      {/* Weight log modal */}
-      <Modal visible={weightModalVisible} transparent animationType="fade" onRequestClose={() => setWeightModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
-            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.sm }]}>Вес тела</Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
-              Введите текущий вес для отслеживания прогресса
-            </Text>
-            <View style={[styles.weightInputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <TextInput
-                value={weightInput}
-                onChangeText={setWeightInput}
-                keyboardType="decimal-pad"
-                placeholder="80.5"
-                placeholderTextColor={colors.textTertiary}
-                style={[typography.h2, { color: colors.text, textAlign: 'center', flex: 1 }]}
-                autoFocus
-              />
-              <Text style={[typography.body, { color: colors.textSecondary }]}>кг</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
-              <TouchableOpacity
-                onPress={() => setWeightModalVisible(false)}
-                style={[styles.modalBtn, { backgroundColor: colors.surface, flex: 1 }]}
-              >
-                <Text style={[typography.buttonMedium, { color: colors.textSecondary }]}>Отмена</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleLogWeight}
-                disabled={savingWeight}
-                style={[styles.modalBtn, { backgroundColor: colors.primary, flex: 1, opacity: savingWeight ? 0.7 : 1 }]}
-              >
-                <Text style={[typography.buttonMedium, { color: '#fff' }]}>{savingWeight ? 'Сохраняю...' : 'Сохранить'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* AI tip */}
       <FadeIn delay={400}>
-        <Card
-          style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.accent }}
-          onPress={() => navigation.navigate('AITab')}
-        >
-          <Text style={[typography.captionMedium, { color: colors.accent }]}>ИИ-ТРЕНЕР</Text>
-          <Text style={[typography.body, { color: colors.text, marginTop: spacing.sm }]}>
-            Спроси что угодно о тренировках, питании или технике упражнений
-          </Text>
-          <Text style={[typography.smallMedium, { color: colors.primary, marginTop: spacing.sm }]}>
-            Открыть чат
-          </Text>
-        </Card>
+        <AITipCard navigation={navigation} />
       </FadeIn>
 
-      {/* Daily quote */}
       <FadeIn delay={450}>
-        <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '08' }}>
-          <Text style={[typography.captionMedium, { color: colors.primary, marginBottom: spacing.sm }]}>
-            ЦИТАТА ДНЯ
-          </Text>
-          <Text style={[typography.body, { color: colors.text, fontStyle: 'italic', lineHeight: 22 }]}>
-            "{quote.text}"
-          </Text>
-          <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.sm }]}>
-            — {quote.author}
-          </Text>
-        </Card>
+        <DailyQuoteCard />
       </FadeIn>
 
-      {/* Water tracker mini */}
       <FadeIn delay={500}>
-        <Card style={{ marginBottom: spacing.xxxl }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-            <View>
-              <Text style={[typography.h4, { color: colors.text }]}>Вода</Text>
-              <Text style={[typography.small, { color: colors.textSecondary }]}>
-                {dayLog.waterMl} / {dayLog.waterTargetMl ?? 2500} мл
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              {[250, 500].map((ml) => (
-                <TouchableOpacity
-                  key={ml}
-                  style={[styles.waterBtn, { backgroundColor: colors.info + '15', borderColor: colors.info }]}
-                  onPress={() => handleWater(ml)}
-                >
-                  <Text style={[typography.buttonSmall, { color: colors.info }]}>+{ml}мл</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          {/* Water progress bar */}
-          <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surface }}>
-            <View
-              style={{
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: colors.info,
-                width: `${Math.min((dayLog.waterMl / (dayLog.waterTargetMl ?? 2500)) * 100, 100)}%`,
-              }}
-            />
-          </View>
-        </Card>
+        <WaterCard dayLog={dayLog} today={today} />
       </FadeIn>
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xxl,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: { alignItems: 'center' },
-  nutritionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  calorieRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  waterBtn: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-  },
-  logWeightBtn: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  modalCard: {
-    width: '100%',
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-  },
-  weightInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  modalBtn: {
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-  },
-});
