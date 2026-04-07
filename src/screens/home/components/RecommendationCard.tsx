@@ -85,6 +85,13 @@ export const RecommendationCard: React.FC<Props> = ({
             {workoutRecommendation.daysLabel}
             {workoutRecommendation.programWorkout ? ` · ${activeProgram?.name}` : ''}
           </Text>
+          {!workoutRecommendation.programWorkout && workoutRecommendation.daysLabel !== 'Уже сегодня' && (
+            <View style={[{ alignSelf: 'flex-start', marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.success + '15' }]}>
+              <Text style={[typography.caption, { color: colors.success, fontSize: 11 }]}>
+                {workoutRecommendation.daysLabel === 'Ещё не тренировал' ? '✓ Мышцы полностью отдохнули' : '✓ Мышцы восстановились'}
+              </Text>
+            </View>
+          )}
         </View>
         <Text style={[typography.body, { color: colors.primary, marginTop: spacing.sm }]}>▶</Text>
       </View>

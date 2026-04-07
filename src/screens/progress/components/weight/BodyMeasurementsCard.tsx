@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView } from 'react-native';
 import { useThemeStore } from '../../../../store';
 import { Card, FadeIn } from '../../../../components';
+import { LineChart } from '../LineChart';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
 import type { BodyMeasurement } from '../../../../types';
@@ -16,6 +17,7 @@ interface Props {
 
 export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user, onAddPress, delay = 250 }) => {
   const { colors } = useThemeStore();
+  const [selectedMeasure, setSelectedMeasure] = useState<keyof BodyMeasurement>('waist');
 
   const bodyFatEstimate = useMemo((): { pct: number; category: string; color: string } | null => {
     if (measurementHistory.length === 0) return null;
@@ -93,24 +95,41 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                   );
                 })}
               </View>
-              {measurementHistory.length >= 2 && (
-                <TouchableOpacity
-                  onPress={() => {
-                    Alert.alert(
-                      'История замеров',
-                      [...measurementHistory].reverse().slice(0, 10).map((m) => {
-                        const parts = MEASUREMENT_FIELDS.filter(({ key }) => m[key] != null).map(({ key, label }) => `${label}: ${m[key]} см`);
-                        return `${new Date(m.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}\n${parts.join(', ')}`;
-                      }).join('\n\n')
-                    );
-                  }}
-                  style={{ marginTop: spacing.md }}
-                >
-                  <Text style={[typography.caption, { color: colors.primary, textAlign: 'center' }]}>
-                    История ({measurementHistory.length} замеров) ›
-                  </Text>
-                </TouchableOpacity>
-              )}
+              {measurementHistory.length >= 2 && (() => {
+                const fieldsWithData = MEASUREMENT_FIELDS.filter(({ key }) =>
+                  measurementHistory.filter((m) => m[key] != null).length >= 2
+                );
+                if (fieldsWithData.length === 0) return null;
+                const chartData = measurementHistory
+                  .filter((m) => m[selectedMeasure] != null)
+                  .map((m) => ({
+                    label: new Date(m.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+                    value: m[selectedMeasure] as number,
+                  }));
+                return (
+                  <View style={{ marginTop: spacing.lg }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.sm }}>
+                      {fieldsWithData.map(({ key, label }) => (
+                        <TouchableOpacity
+                          key={key}
+                          onPress={() => setSelectedMeasure(key)}
+                          style={[styles.measureChip, {
+                            backgroundColor: selectedMeasure === key ? colors.accent : colors.surface,
+                            borderColor: selectedMeasure === key ? colors.accent : colors.border,
+                          }]}
+                        >
+                          <Text style={[typography.captionMedium, { color: selectedMeasure === key ? '#fff' : colors.textSecondary }]}>
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {chartData.length >= 2 && (
+                      <LineChart data={chartData} color={colors.accent} colors={colors} suffix=" см" height={100} />
+                    )}
+                  </View>
+                );
+              })()}
             </>
           )}
         </Card>
@@ -145,4 +164,5 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
 const styles = StyleSheet.create({
   addBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
   measureBox: { borderRadius: borderRadius.md, padding: spacing.sm, minWidth: 90, alignItems: 'center' },
+  measureChip: { paddingVertical: 5, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
 });

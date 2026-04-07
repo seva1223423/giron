@@ -5,7 +5,7 @@ import { useThemeStore, useNutritionStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
-import { CalorieBarChart, WeeklyInsightsCard, NutritionDayCard } from './history';
+import { CalorieBarChart, WeeklyInsightsCard, NutritionDayCard, MacroTrendsChart } from './history';
 import type { WeeklyInsights } from './history';
 
 function getPastDates(days: number): string[] {
@@ -42,6 +42,27 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
   }, [chartData]);
 
   const daysTracked = chartData.filter((d) => d.calories > 0).length;
+
+  const macroChartData = useMemo(() =>
+    getPastDates(14).reverse().map((date) => {
+      const log = getDayLog(date);
+      return {
+        label: new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }),
+        protein: Math.round(log.meals.reduce((s, m) => s + m.totalProtein, 0)),
+        fats: Math.round(log.meals.reduce((s, m) => s + m.totalFats, 0)),
+        carbs: Math.round(log.meals.reduce((s, m) => s + m.totalCarbs, 0)),
+      };
+    }),
+    [getDayLog]
+  );
+
+  const macroTargets = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const log = getDayLog(today);
+    return { protein: log.targetProtein, fats: log.targetFats, carbs: log.targetCarbs };
+  }, [getDayLog]);
+
+  const hasMacroData = macroChartData.some((d) => d.protein > 0 || d.fats > 0 || d.carbs > 0);
 
   const weeklyInsights = useMemo((): WeeklyInsights | null => {
     const week = getPastDates(7).map((date) => {
@@ -120,6 +141,21 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
               </View>
             </Card>
           </FadeIn>
+
+          {hasMacroData && (
+            <FadeIn delay={50}>
+              <Card style={{ marginBottom: spacing.xl }}>
+                <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Макросы за 2 недели</Text>
+                <MacroTrendsChart
+                  data={macroChartData}
+                  targetProtein={macroTargets.protein}
+                  targetFats={macroTargets.fats}
+                  targetCarbs={macroTargets.carbs}
+                  colors={colors}
+                />
+              </Card>
+            </FadeIn>
+          )}
 
           {weeklyInsights && <WeeklyInsightsCard insights={weeklyInsights} delay={80} />}
 
