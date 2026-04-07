@@ -40,6 +40,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [barcodeScanned, setBarcodeScanned] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const [isBarcodeResult, setIsBarcodeResult] = useState(false);
 
   const analyzeFood = async (base64: string) => {
     setLoading(true);
@@ -108,6 +109,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         const item: NutritionItem = { id: `item-${Date.now()}-barcode`, name: p.product_name_ru || p.product_name || 'Продукт', calories: cal, protein: prot, fats, carbs, weightGrams: 100 };
         setItemBases({ [item.id]: { cal, prot, fats, carbs } });
         setRecognizedItems([item]);
+        setIsBarcodeResult(true);
         setShowBarcodeScanner(false);
       } else {
         Alert.alert('Не найдено', 'Продукт не найден в базе данных.', [{ text: 'ОК', onPress: () => setBarcodeScanned(false) }]);
@@ -221,6 +223,14 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               ))}
             </View>
 
+            {isBarcodeResult && (
+              <View style={[{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.md }, { backgroundColor: colors.accent + '15' }]}>
+                <Text style={{ fontSize: 16, marginRight: spacing.sm }}>💡</Text>
+                <Text style={[typography.small, { color: colors.accent, flex: 1 }]}>
+                  КБЖУ указано на 100г. Измените вес в поле справа от названия продукта.
+                </Text>
+              </View>
+            )}
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Распознано:</Text>
             {recognizedItems.map((item) => (
               <RecognizedItemCard key={item.id} item={item} base={itemBases[item.id]} onWeightChange={updateItemWeight} onRemove={removeItem} />

@@ -23,6 +23,11 @@ export const nutritionService = {
     return data;
   },
 
+  async updateMeal(id: string, items: Array<{ name: string; calories: number; protein: number; fats: number; carbs: number; weightGrams?: number }>): Promise<Meal> {
+    const { data } = await api.patch(`/nutrition/meals/${id}`, { items });
+    return data;
+  },
+
   async deleteMeal(id: string): Promise<void> {
     await api.delete(`/nutrition/meals/${id}`);
   },

@@ -91,6 +91,39 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Update meal items (recalculate totals)
+router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const meal = await prisma.meal.findFirst({ where: { id: req.params.id, userId: req.userId } });
+    if (!meal) return res.status(404).json({ error: 'Приём пищи не найден' });
+
+    const parsed = z.object({ items: z.array(mealItemSchema).min(1).max(50) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+
+    const { items } = parsed.data;
+    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
+    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
+    const totalFats = items.reduce((s, i) => s + i.fats, 0);
+    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+
+    // Replace all items and update totals atomically
+    await prisma.mealItem.deleteMany({ where: { mealId: meal.id } });
+    const updated = await prisma.meal.update({
+      where: { id: meal.id },
+      data: {
+        totalCalories, totalProtein, totalFats, totalCarbs,
+        items: { create: items.map((item) => ({ name: item.name, calories: item.calories, protein: item.protein, fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams })) },
+      },
+      include: { items: true },
+    });
+
+    res.json(updated);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка обновления приёма пищи' });
+  }
+});
+
 // Delete meal
 router.delete('/meals/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {

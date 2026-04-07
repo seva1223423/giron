@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
-import { spacing } from '../../../theme/spacing';
+import { spacing, borderRadius } from '../../../theme/spacing';
+import type { NutritionItem } from '../../../types';
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Завтрак', emoji: '🌅' },
@@ -25,11 +26,33 @@ interface Props {
 export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigation, onPhotoScan }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { getDayLog, removeMeal } = useNutritionStore();
+  const { getDayLog, removeMeal, updateMealItem } = useNutritionStore();
   const dayLog = getDayLog(selectedDate);
   const meals = dayLog.meals.filter((m) => m.type === mealType);
   const typeCalories = meals.reduce((s, m) => s + m.totalCalories, 0);
   const meta = MEAL_TYPES.find((t) => t.key === mealType)!;
+
+  const [editingItem, setEditingItem] = useState<{ mealId: string; item: NutritionItem } | null>(null);
+
+  const handleWeightEdit = (mealId: string, item: NutritionItem) => {
+    if (!item.weightGrams) return;
+    setEditingItem({ mealId, item });
+  };
+
+  const handleWeightChange = (mealId: string, item: NutritionItem, newWeightStr: string) => {
+    const newWeight = parseInt(newWeightStr) || 0;
+    if (newWeight <= 0 || !item.weightGrams) return;
+    const ratio = newWeight / item.weightGrams;
+    haptic.light();
+    updateMealItem(selectedDate, mealId, item.id, {
+      weightGrams: newWeight,
+      calories: Math.round(item.calories * ratio),
+      protein: Math.round(item.protein * ratio * 10) / 10,
+      fats: Math.round(item.fats * ratio * 10) / 10,
+      carbs: Math.round(item.carbs * ratio),
+    });
+    setEditingItem(null);
+  };
 
   return (
     <Card style={{ marginBottom: spacing.md }}>
@@ -42,9 +65,30 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
         meals.map((meal) => (
           <View key={meal.id} style={[styles.mealItem, { borderTopColor: colors.divider }]}>
             {meal.items.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
-                <Text style={[typography.body, { color: colors.text, flex: 1 }]}>{item.name}</Text>
-                <Text style={[typography.small, { color: colors.textSecondary }]}>{item.calories} ккал</Text>
+              <View key={item.id}>
+                <View style={styles.itemRow}>
+                  <Text style={[typography.body, { color: colors.text, flex: 1 }]}>{item.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    {item.weightGrams ? (
+                      editingItem?.mealId === meal.id && editingItem?.item.id === item.id ? (
+                        <TextInput
+                          style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.primary, color: colors.text }]}
+                          defaultValue={String(item.weightGrams)}
+                          keyboardType="numeric"
+                          autoFocus
+                          selectTextOnFocus
+                          onBlur={(e) => handleWeightChange(meal.id, item, e.nativeEvent.text)}
+                          onSubmitEditing={(e) => handleWeightChange(meal.id, item, e.nativeEvent.text)}
+                        />
+                      ) : (
+                        <TouchableOpacity onPress={() => handleWeightEdit(meal.id, item)}>
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.weightGrams}г</Text>
+                        </TouchableOpacity>
+                      )
+                    ) : null}
+                    <Text style={[typography.small, { color: colors.textSecondary }]}>{item.calories} ккал</Text>
+                  </View>
+                </View>
               </View>
             ))}
             <TouchableOpacity onPress={() => { haptic.light(); removeMeal(selectedDate, meal.id); }} style={{ alignSelf: 'flex-end', marginTop: 4 }}>
@@ -72,6 +116,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mealItem: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1 },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },
+  weightInput: { width: 52, height: 26, borderRadius: borderRadius.sm, borderWidth: 1, paddingHorizontal: spacing.xs, textAlign: 'center', fontSize: 13, fontWeight: '600' },
 });
 
 export { MEAL_TYPES };

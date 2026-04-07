@@ -95,28 +95,30 @@ export const useNutritionStore = create<NutritionStore>()(
         nutritionService.deleteMeal(mealId).catch(() => {});
       },
 
-      updateMealItem: (date, mealId, itemId, data) => set((s) => {
-        const dayLog = s.dailyLog[date];
-        if (!dayLog) return s;
-        return {
-          dailyLog: {
-            ...s.dailyLog,
-            [date]: {
-              ...dayLog,
-              meals: dayLog.meals.map((meal) =>
-                meal.id === mealId
-                  ? {
-                      ...meal,
-                      items: meal.items.map((item) =>
-                        item.id === itemId ? { ...item, ...data } : item
-                      ),
-                    }
-                  : meal
-              ),
-            },
-          },
-        };
-      }),
+      updateMealItem: (date, mealId, itemId, data) => {
+        set((s) => {
+          const dayLog = s.dailyLog[date];
+          if (!dayLog) return s;
+          const updatedMeals = dayLog.meals.map((meal) => {
+            if (meal.id !== mealId) return meal;
+            const updatedItems = meal.items.map((item) => item.id === itemId ? { ...item, ...data } : item);
+            return {
+              ...meal,
+              items: updatedItems,
+              totalCalories: updatedItems.reduce((s, i) => s + i.calories, 0),
+              totalProtein: updatedItems.reduce((s, i) => s + i.protein, 0),
+              totalFats: updatedItems.reduce((s, i) => s + i.fats, 0),
+              totalCarbs: updatedItems.reduce((s, i) => s + i.carbs, 0),
+            };
+          });
+          // Sync to server (fire-and-forget)
+          const updatedMeal = updatedMeals.find((m) => m.id === mealId);
+          if (updatedMeal && !mealId.startsWith('meal-')) {
+            nutritionService.updateMeal(mealId, updatedMeal.items).catch(() => {});
+          }
+          return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: updatedMeals } } };
+        });
+      },
 
       addWater: (date, ml) => set((s) => {
         const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
