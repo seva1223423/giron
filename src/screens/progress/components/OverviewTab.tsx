@@ -9,6 +9,7 @@ import { WeeklyHeatmap } from './WeeklyHeatmap';
 import { MuscleDistributionCard, computeMuscleDistribution } from './MuscleDistributionCard';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { useCardioStore } from '../../../store';
+import { getMonday, localDateStr } from '../../../utils/date';
 import type { Workout } from '../../../types';
 
 interface OverviewTabProps {
@@ -43,11 +44,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
 
   const weeklyVolumeData = useMemo(() => {
     const weeks: { label: string; value: number }[] = [];
-    const today = new Date();
+    const thisMonday = getMonday();
     for (let w = 7; w >= 0; w--) {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - w * 7 - today.getDay() + 1);
-      weekStart.setHours(0, 0, 0, 0);
+      const weekStart = new Date(thisMonday);
+      weekStart.setDate(thisMonday.getDate() - w * 7);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
       const volume = workoutHistory
@@ -60,11 +60,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
 
   const weeklyCountData = useMemo(() => {
     const weeks: { label: string; value: number }[] = [];
-    const today = new Date();
+    const thisMonday = getMonday();
     for (let w = 7; w >= 0; w--) {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - w * 7 - today.getDay() + 1);
-      weekStart.setHours(0, 0, 0, 0);
+      const weekStart = new Date(thisMonday);
+      weekStart.setDate(thisMonday.getDate() - w * 7);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
       const count = workoutHistory.filter((wk) => { if (!wk.completedAt) return false; const d = new Date(wk.completedAt); return d >= weekStart && d < weekEnd; }).length;
@@ -84,9 +83,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
   };
 
   const weeklyMuscleVolume = useMemo(() => {
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-    weekStart.setHours(0, 0, 0, 0);
+    const weekStart = getMonday();
 
     const volumeMap: Record<string, number> = {};
     workoutHistory
@@ -113,10 +110,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
   }, [workoutHistory]);
 
   const weekComparison = useMemo(() => {
-    const now = new Date();
-    const thisWeekStart = new Date(now);
-    thisWeekStart.setDate(now.getDate() - now.getDay() + 1);
-    thisWeekStart.setHours(0, 0, 0, 0);
+    const thisWeekStart = getMonday();
     const lastWeekStart = new Date(thisWeekStart);
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 

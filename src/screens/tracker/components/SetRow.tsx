@@ -64,7 +64,7 @@ export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, suggestedRpe, 
         {/* Weight stepper */}
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
           <TouchableOpacity
-            onPress={() => { haptic.selection(); const v = parseFloat(weight) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
+            onPress={() => { haptic.selection(); const v = parseFloat(weight.replace(',', '.')) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
             style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
           >
             <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
@@ -78,7 +78,7 @@ export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, suggestedRpe, 
             placeholderTextColor={prevSet?.weight ? colors.primary + '60' : colors.inputPlaceholder}
           />
           <TouchableOpacity
-            onPress={() => { haptic.selection(); const v = parseFloat(weight) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
+            onPress={() => { haptic.selection(); const v = parseFloat(weight.replace(',', '.')) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
             style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
           >
             <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
@@ -124,7 +124,7 @@ export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, suggestedRpe, 
         <TouchableOpacity
           style={[styles.checkBtn, { backgroundColor: set.completed ? colors.success : colors.inputBackground, borderColor: set.completed ? colors.success : colors.border }]}
           onPress={() => {
-            onComplete(parseInt(reps) || 0, parseFloat(weight) || 0);
+            onComplete(parseInt(reps) || 0, parseFloat(weight.replace(',', '.')) || 0);
             setShowRpe(true);
           }}
         >

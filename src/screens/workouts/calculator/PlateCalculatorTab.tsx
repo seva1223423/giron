@@ -80,7 +80,7 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
 
   const adjustWeight = (delta: number) => {
     haptic.selection();
-    const next = Math.max(0, Math.round((parseFloat(targetWeight.replace(',', '.')) || 0 + delta) * 4) / 4);
+    const next = Math.max(0, Math.round(((parseFloat(targetWeight.replace(',', '.')) || 0) + delta) * 4) / 4);
     setTargetWeight(String(next));
   };
 

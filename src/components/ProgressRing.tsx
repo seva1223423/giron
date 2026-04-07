@@ -25,7 +25,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
   const ringColor = color || colors.primary;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const strokeDashoffset = circumference - Math.min(progress, 1) * circumference;
+  const strokeDashoffset = circumference - Math.min(Math.max(progress, 0), 1) * circumference;
 
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', width: size, height: size }}>

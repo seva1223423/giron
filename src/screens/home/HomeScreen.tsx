@@ -22,7 +22,8 @@ const SPLITS = [
   { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '⚡' },
 ];
 
-const todayDate = () => new Date().toISOString().split('T')[0];
+import { todayDateStr, localDateStr } from '../../utils/date';
+const todayDate = todayDateStr;
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
@@ -76,7 +77,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     for (let i = 0; i < 365; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const ds = d.toISOString().split('T')[0];
+      const ds = localDateStr(d);
       if (workoutHistory.some((w) => w.completedAt?.startsWith(ds))) s++;
       else if (i > 0) break;
     }
