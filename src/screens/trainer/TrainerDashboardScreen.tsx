@@ -1,340 +1,97 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Modal,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useTrainerStore } from '../../store';
-import { TrainerClient } from '../../store';
-import { Card, Button } from '../../components';
+import { Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-
-const GOAL_LABELS: Record<string, string> = {
-  weight_loss: 'Похудение',
-  muscle_gain: 'Набор массы',
-  strength: 'Сила',
-  endurance: 'Выносливость',
-  general_fitness: 'Общая форма',
-};
-
-const LEVEL_LABELS: Record<string, string> = {
-  beginner: 'Новичок',
-  intermediate: 'Средний',
-  advanced: 'Продвинутый',
-  expert: 'Эксперт',
-};
+import { AddClientModal, ClientCard } from './components';
 
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { clients, addClient, deleteClient, fetchClients } = useTrainerStore();
+  const { clients, deleteClient, fetchClients } = useTrainerStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { fetchClients(); }, []);
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
 
   const today = new Date().toISOString().split('T')[0];
   const todayClients = clients.filter((c) => c.lastVisit === today).length;
   const totalWorkoutsAll = clients.reduce((s, c) => s + (c.totalWorkouts || 0), 0);
-
-  const filteredClients = clients.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleAddClient = () => {
-    if (!newName.trim()) return;
-    haptic.medium();
-    addClient({
-      name: newName.trim(),
-      phone: newPhone.trim() || undefined,
-      totalWorkouts: 0,
-      emoji: '🧑',
-    });
-    setNewName('');
-    setNewPhone('');
-    setShowAddModal(false);
-  };
+  const filteredClients = clients.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleDeleteClient = (clientId: string, clientName: string) => {
-    Alert.alert(
-      'Удалить клиента',
-      `Убрать ${clientName} из списка?`,
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Удалить',
-          style: 'destructive',
-          onPress: () => {
-            haptic.medium();
-            deleteClient(clientId);
-          },
-        },
-      ]
-    );
-  };
-
-  const daysSince = (dateStr?: string) => {
-    if (!dateStr) return null;
-    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-    if (diff === 0) return 'сегодня';
-    if (diff === 1) return 'вчера';
-    return `${diff} дн. назад`;
+    Alert.alert('Удалить клиента', `Убрать ${clientName} из списка?`, [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Удалить', style: 'destructive', onPress: () => { haptic.medium(); deleteClient(clientId); } },
+    ]);
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
         <Text style={[typography.h3, { color: colors.text }]}>Мои клиенты</Text>
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); setShowAddModal(true); }}
-          style={[styles.addBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40', borderWidth: 1 }]}
-        >
+        <TouchableOpacity onPress={() => { haptic.selection(); setShowAddModal(true); }} style={[styles.addBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40', borderWidth: 1 }]}>
           <Text style={[typography.captionMedium, { color: colors.primary }]}>+ Клиент</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Stats row */}
         <View style={styles.statsRow}>
-          <Card style={[styles.statCard, { flex: 1 }]}>
-            <Text style={[typography.number, { color: colors.primary, fontSize: 28 }]}>{clients.length}</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>клиентов</Text>
-          </Card>
-          <Card style={[styles.statCard, { flex: 1, marginHorizontal: spacing.sm }]}>
-            <Text style={[typography.number, { color: colors.success, fontSize: 28 }]}>{todayClients}</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>сегодня</Text>
-          </Card>
-          <Card style={[styles.statCard, { flex: 1 }]}>
-            <Text style={[typography.number, { color: colors.accent, fontSize: 28 }]}>{totalWorkoutsAll}</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>всего трен.</Text>
-          </Card>
+          {[
+            { value: clients.length, label: 'клиентов', color: colors.primary },
+            { value: todayClients, label: 'сегодня', color: colors.success },
+            { value: totalWorkoutsAll, label: 'всего трен.', color: colors.accent },
+          ].map(({ value, label, color }, i) => (
+            <Card key={label} style={[styles.statCard, { flex: 1, marginHorizontal: i === 1 ? spacing.sm : 0 }]}>
+              <Text style={[typography.number, { color, fontSize: 28 }]}>{value}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
+            </Card>
+          ))}
         </View>
 
-        {/* Search */}
         <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={{ color: colors.textTertiary, marginRight: spacing.sm }}>🔍</Text>
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Найти клиента..."
-            placeholderTextColor={colors.textTertiary}
-            style={[typography.body, { color: colors.text, flex: 1 }]}
-          />
+          <TextInput value={searchQuery} onChangeText={setSearchQuery} placeholder="Найти клиента..." placeholderTextColor={colors.textTertiary} style={[typography.body, { color: colors.text, flex: 1 }]} />
         </View>
 
-        {/* Client list */}
-        {filteredClients.length === 0 ? (
-          <Card style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
-            <Text style={{ fontSize: 40, marginBottom: spacing.md }}>👥</Text>
-            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-              {searchQuery ? 'Клиент не найден' : 'Добавьте первого клиента'}
-            </Text>
-          </Card>
-        ) : (
-          filteredClients.map((client) => {
-            const lastVisitLabel = daysSince(client.lastVisit);
-            const isToday = client.lastVisit === today;
-            return (
-              <TouchableOpacity
+        {filteredClients.length === 0
+          ? <Card style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
+              <Text style={{ fontSize: 40, marginBottom: spacing.md }}>👥</Text>
+              <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                {searchQuery ? 'Клиент не найден' : 'Добавьте первого клиента'}
+              </Text>
+            </Card>
+          : filteredClients.map((client) => (
+              <ClientCard
                 key={client.id}
+                client={client}
                 onPress={() => navigation.navigate('TrainerClient', { client })}
                 onLongPress={() => handleDeleteClient(client.id, client.name)}
-                activeOpacity={0.7}
-              >
-                <Card style={[styles.clientCard, isToday && { borderWidth: 1.5, borderColor: colors.success + '60' }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {/* Avatar */}
-                    <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
-                      <Text style={{ fontSize: 22 }}>{client.emoji || '🧑'}</Text>
-                    </View>
-
-                    {/* Info */}
-                    <View style={{ flex: 1, marginLeft: spacing.md }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                        <Text style={[typography.bodySemibold, { color: colors.text }]}>{client.name}</Text>
-                        {isToday && (
-                          <View style={[styles.todayBadge, { backgroundColor: colors.success + '20' }]}>
-                            <Text style={[typography.caption, { color: colors.success, fontSize: 10 }]}>сегодня</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: 2, flexWrap: 'wrap' }}>
-                        {client.goal && (
-                          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                            🎯 {GOAL_LABELS[client.goal] ?? client.goal}
-                          </Text>
-                        )}
-                        {client.level && (
-                          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                            📊 {LEVEL_LABELS[client.level] ?? client.level}
-                          </Text>
-                        )}
-                      </View>
-                      {client.assignedProgram && (
-                        <Text style={[typography.caption, { color: colors.primary, marginTop: 2 }]}>
-                          📋 {client.assignedProgram}
-                        </Text>
-                      )}
-                    </View>
-
-                    {/* Right side */}
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[typography.numberSmall, { color: colors.primary, fontSize: 18 }]}>
-                        {client.totalWorkouts || 0}
-                      </Text>
-                      <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 10 }]}>трен.</Text>
-                      {lastVisitLabel && (
-                        <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2, fontSize: 10 }]}>
-                          {lastVisitLabel}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </Card>
-              </TouchableOpacity>
-            );
-          })
-        )}
+              />
+            ))
+        }
 
         <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.lg }]}>
           Удержите карточку клиента для удаления
         </Text>
       </ScrollView>
 
-      {/* Add Client Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
-              Новый клиент
-            </Text>
-
-            <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
-              ИМЯ И ФАМИЛИЯ *
-            </Text>
-            <TextInput
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="Иван Иванов"
-              placeholderTextColor={colors.textTertiary}
-              style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
-              autoFocus
-            />
-
-            <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md }]}>
-              ТЕЛЕФОН
-            </Text>
-            <TextInput
-              value={newPhone}
-              onChangeText={setNewPhone}
-              placeholder="+7 900 000 0000"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="phone-pad"
-              style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
-            />
-
-            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
-              <Button
-                title="Отмена"
-                variant="ghost"
-                onPress={() => { setShowAddModal(false); setNewName(''); setNewPhone(''); }}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Добавить"
-                onPress={handleAddClient}
-                style={{ flex: 1 }}
-                disabled={!newName.trim()}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AddClientModal visible={showAddModal} onClose={() => setShowAddModal(false)} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 56,
-    paddingBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderBottomWidth: 1,
-  },
-  addBtn: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  content: {
-    padding: spacing.xl,
-    paddingBottom: spacing.huge,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.lg,
-  },
-  statCard: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  clientCard: {
-    marginBottom: spacing.sm,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  todayBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: spacing.xl,
-    paddingBottom: 48,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: 16,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  addBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md },
+  content: { padding: spacing.xl, paddingBottom: spacing.huge },
+  statsRow: { flexDirection: 'row', marginBottom: spacing.lg },
+  statCard: { alignItems: 'center', paddingVertical: spacing.md },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.lg },
 });
