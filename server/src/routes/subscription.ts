@@ -55,17 +55,32 @@ router.get('/status', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // ─── Activate subscription (called after successful payment) ─────────────────
+// NOTE: In production, this endpoint should verify payment with the payment provider.
+// Currently only allows trial (7 days) without transactionId. Real payments require webhook confirmation.
 router.post('/activate', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
     const { plan, durationDays, transactionId } = req.body as {
       plan: 'pro' | 'trainer' | 'club';
-      durationDays: number; // 30 for monthly, 365 for annual, 7 for trial
+      durationDays: number;
       transactionId?: string;
     };
 
     if (!plan || !durationDays) {
       return res.status(400).json({ error: 'Необходимо указать plan и durationDays' });
+    }
+
+    // Only allow trial (7 days) without payment verification
+    if (!transactionId && durationDays > 7) {
+      return res.status(403).json({ error: 'Для активации подписки требуется подтверждение оплаты' });
+    }
+
+    // Prevent duplicate trials
+    if (!transactionId) {
+      const existing = await prisma.subscription.findUnique({ where: { userId } });
+      if (existing) {
+        return res.status(400).json({ error: 'Пробный период уже использован' });
+      }
     }
 
     const startDate = new Date();
@@ -170,26 +185,36 @@ router.post('/webhook', async (req: Request, res: Response) => {
     const rawBody: string = (req as any).rawBody ?? JSON.stringify(req.body);
     const { provider, event, userId, plan, durationDays, transactionId } = req.body;
 
-    // Verify signature based on provider
+    // Verify signature based on provider — ALWAYS require secret to be configured
     if (provider === 'revenuecat') {
-      if (process.env.REVENUECAT_WEBHOOK_SECRET && !verifyRevenueCatSignature(req)) {
+      if (!process.env.REVENUECAT_WEBHOOK_SECRET) {
+        logger.warn('Webhook: REVENUECAT_WEBHOOK_SECRET not configured, rejecting');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+      if (!verifyRevenueCatSignature(req)) {
         logger.warn('Webhook: invalid RevenueCat signature');
         return res.status(401).json({ error: 'Invalid signature' });
       }
     } else if (provider === 'yukassa') {
-      if (process.env.YUKASSA_WEBHOOK_SECRET && !verifyYukassaSignature(req, rawBody)) {
+      if (!process.env.YUKASSA_WEBHOOK_SECRET) {
+        logger.warn('Webhook: YUKASSA_WEBHOOK_SECRET not configured, rejecting');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+      if (!verifyYukassaSignature(req, rawBody)) {
         logger.warn('Webhook: invalid ЮKassa signature');
         return res.status(401).json({ error: 'Invalid signature' });
       }
     } else {
-      // Generic secret for other providers or testing
+      // Generic secret — always required
       const genericSecret = process.env.WEBHOOK_SECRET;
-      if (genericSecret) {
-        const header = req.headers['x-webhook-secret'] as string | undefined;
-        if (!header || !timingSafeEqual(Buffer.from(header), Buffer.from(genericSecret))) {
-          logger.warn('Webhook: invalid generic secret');
-          return res.status(401).json({ error: 'Invalid signature' });
-        }
+      if (!genericSecret) {
+        logger.warn('Webhook: WEBHOOK_SECRET not configured, rejecting');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+      const header = req.headers['x-webhook-secret'] as string | undefined;
+      if (!header || !timingSafeEqual(Buffer.from(header), Buffer.from(genericSecret))) {
+        logger.warn('Webhook: invalid generic secret');
+        return res.status(401).json({ error: 'Invalid signature' });
       }
     }
 

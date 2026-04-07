@@ -20,13 +20,11 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-// Capture raw body for webhook signature verification (must be before express.json)
-app.use((req, _res, next) => {
-  let data = '';
-  req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-  req.on('end', () => { (req as any).rawBody = data; next(); });
-});
-app.use(express.json({ limit: '10mb' }));
+// Capture raw body for webhook signature verification via verify callback
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => { (req as any).rawBody = buf.toString(); },
+}));
 
 // Health check
 app.get('/health', (_, res) => {

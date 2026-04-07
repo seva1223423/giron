@@ -138,10 +138,20 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     const id = req.params.id as string;
     const { sets } = req.body;
 
-    // Update sets in parallel
+    // Verify ownership
+    const workout = await prisma.workout.findUnique({
+      where: { id },
+      include: { exercises: { include: { sets: true } } },
+    });
+    if (!workout || workout.userId !== req.userId) {
+      return res.status(404).json({ error: 'Тренировка не найдена' });
+    }
+
+    // Update sets in parallel (only sets belonging to this workout)
+    const validSetIds = new Set(workout.exercises.flatMap((ex: any) => ex.sets.map((s: any) => s.id)));
     if (sets) {
       await Promise.all(
-        sets.map((set: any) =>
+        sets.filter((set: any) => validSetIds.has(set.id)).map((set: any) =>
           prisma.workoutSet.update({
             where: { id: set.id },
             data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
@@ -150,20 +160,19 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       );
     }
 
-    // Calculate total volume
-    const workout = await prisma.workout.findUnique({
+    // Refetch sets after update
+    const refreshed = await prisma.workout.findUnique({
       where: { id },
       include: { exercises: { include: { sets: true } } },
     });
-
-    const totalVolume = workout?.exercises
+    const totalVolume = refreshed?.exercises
       .reduce(
         (total: number, ex: any) =>
           total + ex.sets.filter((s: any) => s.completed).reduce((sum: number, s: any) => sum + (s.weight || 0) * (s.reps || 0), 0),
         0
       ) || 0;
 
-    const startedAt = workout?.startedAt;
+    const startedAt = refreshed?.startedAt;
     const durationMinutes = startedAt ? Math.round((Date.now() - startedAt.getTime()) / 60000) : 0;
 
     const updated = await prisma.workout.update({
@@ -198,18 +207,23 @@ router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Respons
       return res.status(400).json({ error: 'Массив sets обязателен' });
     }
 
-    // Update sets in parallel (only completed/weight/reps)
+    // Verify ownership
+    const workout = await prisma.workout.findUnique({
+      where: { id },
+      select: { userId: true, exercises: { select: { sets: { select: { id: true } } } } },
+    });
+    if (!workout || workout.userId !== req.userId) {
+      return res.status(404).json({ error: 'Тренировка не найдена' });
+    }
+
+    // Only update sets belonging to this workout
+    const validSetIds = new Set(workout.exercises.flatMap((ex: any) => ex.sets.map((s: any) => s.id)));
     await Promise.all(
-      sets.map((set: any) =>
+      sets.filter((set: any) => validSetIds.has(set.id)).map((set: any) =>
         prisma.workoutSet.update({
           where: { id: set.id },
-          data: {
-            reps: set.reps,
-            weight: set.weight,
-            completed: set.completed,
-            rpe: set.rpe,
-          },
-        }).catch(() => {}) // Ignore individual set errors (may not exist yet)
+          data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
+        }).catch(() => {})
       )
     );
 
@@ -223,7 +237,9 @@ router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Respons
 // Get workout history
 router.get('/history', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { limit = '50', offset = '0' } = req.query;
+    const { limit: rawLimit = '50', offset: rawOffset = '0' } = req.query;
+    const limit = Math.min(Math.max(parseInt(rawLimit as string) || 50, 1), 200);
+    const offset = Math.max(parseInt(rawOffset as string) || 0, 0);
     const workouts = await prisma.workout.findMany({
       where: { userId: req.userId, completedAt: { not: null } },
       include: {
@@ -233,8 +249,8 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
         },
       },
       orderBy: { completedAt: 'desc' },
-      take: parseInt(limit as string),
-      skip: parseInt(offset as string),
+      take: limit,
+      skip: offset,
     });
     res.json(workouts);
   } catch (e) {

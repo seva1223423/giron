@@ -106,15 +106,17 @@ router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response)
     const totalFats = items.reduce((s, i) => s + i.fats, 0);
     const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
 
-    // Replace all items and update totals atomically
-    await prisma.mealItem.deleteMany({ where: { mealId: meal.id } });
-    const updated = await prisma.meal.update({
-      where: { id: meal.id },
-      data: {
-        totalCalories, totalProtein, totalFats, totalCarbs,
-        items: { create: items.map((item) => ({ name: item.name, calories: item.calories, protein: item.protein, fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams })) },
-      },
-      include: { items: true },
+    // Replace all items and update totals atomically in a transaction
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.mealItem.deleteMany({ where: { mealId: meal.id } });
+      return tx.meal.update({
+        where: { id: meal.id },
+        data: {
+          totalCalories, totalProtein, totalFats, totalCarbs,
+          items: { create: items.map((item) => ({ name: item.name, calories: item.calories, protein: item.protein, fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams })) },
+        },
+        include: { items: true },
+      });
     });
 
     res.json(updated);

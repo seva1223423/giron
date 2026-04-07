@@ -6,6 +6,21 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
+// Middleware: check that user has trainer role or active trainer subscription
+async function requireTrainerRole(req: AuthRequest, res: Response, next: Function) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
+    const sub = await prisma.subscription.findUnique({ where: { userId: req.userId! } });
+    const isTrainer = user?.role === 'TRAINER' || (sub?.plan === 'trainer' && sub?.status === 'active');
+    if (!isTrainer) {
+      return res.status(403).json({ error: 'Доступ только для тренеров' });
+    }
+    next();
+  } catch {
+    return res.status(500).json({ error: 'Ошибка проверки прав' });
+  }
+}
+
 const addClientSchema = z.object({
   name: z.string().min(1).max(200),
   phone: z.string().max(50).optional(),
@@ -23,7 +38,7 @@ const updateClientSchema = addClientSchema.partial().extend({
 });
 
 // Get all clients for current trainer
-router.get('/clients', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/clients', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
   try {
     const clients = await prisma.trainerClient.findMany({
       where: { trainerId: req.userId! },
@@ -37,7 +52,7 @@ router.get('/clients', authenticate, async (req: AuthRequest, res: Response) => 
 });
 
 // Add client
-router.post('/clients', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/clients', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
   try {
     const parsed = addClientSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
@@ -56,7 +71,7 @@ router.post('/clients', authenticate, async (req: AuthRequest, res: Response) =>
 });
 
 // Update client
-router.patch('/clients/:id', authenticate, async (req: AuthRequest, res: Response) => {
+router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
   try {
     const parsed = updateClientSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
@@ -79,7 +94,7 @@ router.patch('/clients/:id', authenticate, async (req: AuthRequest, res: Respons
 });
 
 // Delete client
-router.delete('/clients/:id', authenticate, async (req: AuthRequest, res: Response) => {
+router.delete('/clients/:id', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
   try {
     const deleted = await prisma.trainerClient.deleteMany({
       where: { id: req.params.id, trainerId: req.userId! },
