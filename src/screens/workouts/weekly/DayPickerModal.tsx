@@ -10,16 +10,27 @@ import { exercises as localExercises } from '../../../data/exercises';
 
 const DAY_LABELS_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
-const TEMPLATES: WeekPlanEntry[] = [
+const WORKOUT_TEMPLATES: WeekPlanEntry[] = [
   { name: 'Грудь + Трицепс', emoji: '💪', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown'] },
   { name: 'Спина + Бицепс', emoji: '🔥', exercises: ['barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl'] },
   { name: 'Ноги', emoji: '🦵', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'calf-raise'] },
   { name: 'Плечи + Пресс', emoji: '🎯', exercises: ['overhead-press', 'lateral-raise', 'plank', 'cable-crunch'] },
   { name: 'Фулбоди', emoji: '⚡', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
-  { name: 'Кардио', emoji: '🏃', exercises: [] },
   { name: 'Тяжёлая спина', emoji: '🏋️', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups'] },
   { name: 'Руки', emoji: '💪', exercises: ['barbell-curl', 'hammer-curl', 'tricep-pushdown', 'french-press'] },
 ];
+
+const CARDIO_TEMPLATES: WeekPlanEntry[] = [
+  { name: 'Бег', emoji: '🏃', exercises: [], type: 'cardio' },
+  { name: 'Велосипед', emoji: '🚴', exercises: [], type: 'cardio' },
+  { name: 'HIIT', emoji: '⚡', exercises: [], type: 'cardio' },
+  { name: 'Ходьба', emoji: '🚶', exercises: [], type: 'cardio' },
+  { name: 'Плавание', emoji: '🏊', exercises: [], type: 'cardio' },
+  { name: 'Кардио день', emoji: '❤️', exercises: [], type: 'cardio' },
+];
+
+// Keep for export compatibility
+const TEMPLATES: WeekPlanEntry[] = [...WORKOUT_TEMPLATES, ...CARDIO_TEMPLATES];
 
 export { TEMPLATES };
 
@@ -69,8 +80,11 @@ export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExerci
               {pickerDay !== null && !weekPlan[pickerDay] && <Text style={{ color: colors.primary }}>✓</Text>}
             </TouchableOpacity>
 
-            <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>ГОТОВЫЕ ШАБЛОНЫ</Text>
-            {TEMPLATES.map((t) => <TemplateRow key={t.name} template={t} exercises={localExercises} />)}
+            <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>СИЛОВЫЕ</Text>
+            {WORKOUT_TEMPLATES.map((t) => <TemplateRow key={t.name} template={t} exercises={localExercises} />)}
+
+            <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>КАРДИО</Text>
+            {CARDIO_TEMPLATES.map((t) => <TemplateRow key={t.name} template={t} exercises={localExercises} />)}
 
             {userTemplateEntries.length > 0 && (
               <>

@@ -479,6 +479,59 @@ export async function analyzeImage(
   return data.choices?.[0]?.message?.content || '';
 }
 
+// ─── Streaming chat (no tools) ───────────────────────────────────────────────
+
+export async function* chatStream(
+  options: Omit<ChatOptions, 'tools'>,
+): AsyncGenerator<string> {
+  const model = options.model || DEFAULT_MODEL;
+  const messages: DeepSeekMessage[] = [
+    { role: 'system', content: options.system },
+    ...options.messages,
+  ];
+
+  const response = await fetchWithTimeout(
+    `${AI_BASE_URL}/chat/completions`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getApiKey()}` },
+      body: JSON.stringify({ model, messages, stream: true, max_tokens: options.maxTokens || 4096, temperature: options.temperature ?? 0.7 }),
+    },
+    REQUEST_TIMEOUT_MS,
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`AI stream error ${response.status}: ${errorText}`);
+  }
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') return;
+        try {
+          const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+          const chunk = parsed.choices?.[0]?.delta?.content;
+          if (chunk) yield chunk;
+        } catch { /* skip malformed chunk */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 // ─── Simple generation (no tools) ────────────────────────────────────────────
 
 export async function generate(

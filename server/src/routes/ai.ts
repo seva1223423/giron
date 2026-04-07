@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
-import { chat, chatWithoutTools, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
+import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
   NUTRITION_KNOWLEDGE,
@@ -1854,14 +1854,23 @@ async function executeTool(
 // Chat with AI
 router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions } = req.body as {
+    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, stream: streamMode } = req.body as {
       message: string;
       nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number };
       waterMl?: number;
       weekPlan?: Record<string, { name: string; emoji: string; exercises: string[] } | null>;
       cardioSessions?: Array<{ type: string; date: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; avgHeartRate?: number }>;
+      stream?: boolean;
     };
     if (!message) return res.status(400).json({ error: 'Сообщение обязательно' });
+
+    // Set SSE headers early if streaming requested
+    if (streamMode) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+    }
 
     const userId = req.userId!;
 
@@ -3813,6 +3822,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
       saveMemories(userId, extractedMemories).catch(() => {}); // fire-and-forget
+      // Periodically cleanup stale memories (roughly every 10 requests)
+      if (Math.random() < 0.1) cleanupStaleMemories(userId).catch(() => {});
     }
     const memoryContext = await getMemoryContext(userId);
 
@@ -8281,13 +8292,29 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       } else {
         // Intent is info-only (technique_question, analytics, greeting, motivation)
         // Skip tools entirely — faster response, lower cost
-        const textContent = await chatWithoutTools({
-          system: finalSystemPrompt,
-          messages,
-          maxTokens: intentConfig.maxTokens,
-          temperature: intentConfig.temperature,
-        });
-        result = { content: textContent, toolCalls: [], hasToolCalls: false };
+        if (streamMode) {
+          // Stream response chunk by chunk via SSE
+          let fullContent = '';
+          try {
+            for await (const chunk of chatStream({ system: finalSystemPrompt, messages, maxTokens: intentConfig.maxTokens, temperature: intentConfig.temperature })) {
+              fullContent += chunk;
+              res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
+            }
+          } catch (streamError) {
+            // Fallback: get full response and send at once
+            fullContent = await chatWithoutTools({ system: finalSystemPrompt, messages, maxTokens: intentConfig.maxTokens, temperature: intentConfig.temperature });
+            res.write(`data: ${JSON.stringify({ type: 'chunk', content: fullContent })}\n\n`);
+          }
+          result = { content: fullContent, toolCalls: [], hasToolCalls: false };
+        } else {
+          const textContent = await chatWithoutTools({
+            system: finalSystemPrompt,
+            messages,
+            maxTokens: intentConfig.maxTokens,
+            temperature: intentConfig.temperature,
+          });
+          result = { content: textContent, toolCalls: [], hasToolCalls: false };
+        }
       }
     } catch (aiError) {
       logger.error('AI chat call failed, attempting simplified fallback:', aiError);
@@ -8375,7 +8402,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const contextTokens = estimateTokens(finalSystemPrompt);
     const responseTokens = estimateTokens(aiContent);
 
-    res.json({
+    const responsePayload = {
       message: aiContent,
       actions: performedActions,
       intent,
@@ -8391,7 +8418,18 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           ? gamification.newPRsThisWeek.map((pr) => `${pr.exercise}: ${pr.weight}кг`)
           : undefined,
       },
-    });
+    };
+
+    if (streamMode) {
+      // For tool intents the full content wasn't streamed yet — send it now
+      if (intentConfig.toolsEnabled) {
+        res.write(`data: ${JSON.stringify({ type: 'chunk', content: aiContent })}\n\n`);
+      }
+      res.write(`data: ${JSON.stringify({ type: 'done', ...responsePayload })}\n\n`);
+      res.end();
+    } else {
+      res.json(responsePayload);
+    }
   } catch (e) {
     logger.error('AI Chat error:', e);
     res.status(500).json({ error: 'Ошибка ИИ-ассистента' });
@@ -9229,6 +9267,24 @@ function extractMemories(message: string): MemoryExtraction[] {
  * Save or update extracted memories in the database.
  * Upsert: if key exists, increase confidence; if new, create.
  */
+async function cleanupStaleMemories(userId: string): Promise<void> {
+  try {
+    // Remove memories with very low confidence
+    await prisma.aIMemory.deleteMany({ where: { userId, confidence: { lt: 0.1 } } });
+    // Cap total memories per user at 100 — remove oldest lowest-confidence ones
+    const count = await prisma.aIMemory.count({ where: { userId } });
+    if (count > 100) {
+      const excess = await prisma.aIMemory.findMany({
+        where: { userId },
+        orderBy: [{ confidence: 'asc' }, { updatedAt: 'asc' }],
+        take: count - 100,
+        select: { id: true },
+      });
+      await prisma.aIMemory.deleteMany({ where: { id: { in: excess.map((m) => m.id) } } });
+    }
+  } catch { /* non-critical */ }
+}
+
 async function saveMemories(userId: string, memories: MemoryExtraction[]): Promise<void> {
   for (const mem of memories) {
     try {

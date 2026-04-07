@@ -77,17 +77,38 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const todayDate = new Date().toISOString().split('T')[0];
       const todayLog = getDayLog(todayDate);
       const cardioSessions = getWeekSessions().map(({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }) => ({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }));
-      const response = await aiService.chat(text.trim(), {
-        calories: todayLog.targetCalories,
-        protein: todayLog.targetProtein,
-        fats: todayLog.targetFats ?? defaultTargets.fats,
-        carbs: todayLog.targetCarbs ?? defaultTargets.carbs,
-        waterTargetMl: todayLog.waterTargetMl ?? defaultTargets.waterTargetMl,
-      }, todayLog.waterMl, weekPlan, cardioSessions);
+      const nutritionTargets = { calories: todayLog.targetCalories, protein: todayLog.targetProtein, fats: todayLog.targetFats ?? defaultTargets.fats, carbs: todayLog.targetCarbs ?? defaultTargets.carbs, waterTargetMl: todayLog.waterTargetMl ?? defaultTargets.waterTargetMl };
+
+      // Streaming message placeholder
+      const streamMsgId = `ai-${Date.now()}`;
+      setMessages((prev) => [...prev, { id: streamMsgId, role: 'assistant', content: '', createdAt: new Date().toISOString() }]);
+      setIsTyping(false);
+
+      let response: { message: string; actions: AIActionResult[]; meta?: AIMeta } | null = null;
+
+      try {
+        const stream = aiService.chatStream(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, (result) => {
+          response = { message: '', actions: result.actions, meta: result.meta };
+        });
+
+        for await (const chunk of stream) {
+          setMessages((prev) => prev.map((m) =>
+            m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
+          ));
+          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 0);
+        }
+      } catch {
+        // Streaming failed — fall back to regular request
+        const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions);
+        response = fallback;
+        setMessages((prev) => prev.map((m) =>
+          m.id === streamMsgId ? { ...m, content: fallback.message } : m
+        ));
+      }
 
       haptic.success();
 
-      if (response.meta) {
+      if (response?.meta) {
         setLastMeta(response.meta);
         const cel = { milestones: response.meta.milestones ?? [], prs: response.meta.newPRs ?? [] };
         if (cel.milestones.length > 0 || cel.prs.length > 0) {
@@ -96,7 +117,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
       }
 
-      if (response.actions?.length > 0) {
+      if (response?.actions?.length > 0) {
         setLastActions(response.actions);
         setTimeout(() => setLastActions([]), 6000);
         const types = response.actions.map((a) => a.type);
@@ -120,8 +141,6 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '🏋️', exercises: day.exerciseIds }));
         }
       }
-
-      setMessages((prev) => [...prev, { id: `ai-${Date.now()}`, role: 'assistant', content: response.message, createdAt: new Date().toISOString() }]);
     } catch (e) {
       const apiError = getApiError(e);
       haptic.error();

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useAchievementCheck } from '../../hooks/useAchievementCheck';
 import { useThemeStore } from '../../store';
+import type { Achievement } from '../../utils/achievements';
 import { Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -20,6 +22,14 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [quickAddFood, setQuickAddFood] = useState<NutritionItem | null>(null);
+
+  const handleAchievementsUnlocked = useCallback((achievements: Achievement[]) => {
+    haptic.success();
+    const titles = achievements.map((a) => `${a.emoji} ${a.title}`).join('\n');
+    Alert.alert('Ачивка разблокирована!', titles, [{ text: 'Отлично!' }]);
+  }, []);
+
+  useAchievementCheck(handleAchievementsUnlocked);
 
   const handleQuickAdd = (food: NutritionItem) => {
     haptic.selection();

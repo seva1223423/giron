@@ -16,6 +16,7 @@ export interface WeekPlanEntry {
   name: string;
   emoji: string;
   exercises: string[]; // exercise IDs
+  type?: 'workout' | 'cardio'; // default is 'workout'
 }
 
 interface WorkoutStore {

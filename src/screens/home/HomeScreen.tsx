@@ -4,7 +4,8 @@ import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
 import { WorkoutExercise, WorkoutSet } from '../../types';
-import { FadeIn } from '../../components';
+import { FadeIn, Card, Button } from '../../components';
+import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
@@ -167,9 +168,20 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <WorkoutStatusCard navigation={navigation} />
       </FadeIn>
 
-      {!activeWorkout && todayPlan && (
+      {!activeWorkout && todayPlan && todayPlan.type !== 'cardio' && (
         <FadeIn delay={140}>
           <TodayPlanCard todayPlan={todayPlan} onStart={handleStartPlannedWorkout} />
+        </FadeIn>
+      )}
+
+      {!activeWorkout && todayPlan?.type === 'cardio' && (
+        <FadeIn delay={140}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={{ fontSize: 32, marginBottom: spacing.sm }}>{todayPlan.emoji}</Text>
+            <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>Запланировано на сегодня</Text>
+            <Button title="Открыть кардио" onPress={() => navigation.navigate('CardioTab')} fullWidth />
+          </Card>
         </FadeIn>
       )}
 
