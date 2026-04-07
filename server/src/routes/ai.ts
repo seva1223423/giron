@@ -6237,6 +6237,121 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const motivAdvContext = getMotivationAdvanced(message);
     const resilienceContext = getResilienceSport(message);
 
+    // ─── Block 1591-1600 calls ──────
+    const menstrualCycleContext = getMenstrualCycleTraining(message);
+    const femaleHormonesContext = getFemaleHormonesFitness(message);
+    const femaleStrengthAdvContext = getFemaleStrengthAdvantage(message);
+    const femaleBodyCompContext = getFemaleBodyComposition(message);
+    const redsSyndromeContext = getREDSSyndrome(message);
+    const femaleNutritionContext = getFemaleNutritionSpec(message);
+    const cycleBasedTrainContext = getCycleBasedTraining(message);
+    const femaleIronContext = getFemaleIronProtocol(message);
+    const menopauseFitContext = getMenopauseFitness(message);
+    const postpartumFitContext = getPostpartumFitnessGuide(message);
+
+    // ─── Block 1601-1610 calls ──────
+    const seniorStrengthContext = getSeniorStrengthTraining(message);
+    const boneHealthContext = getBoneHealthTraining(message);
+    const balanceFallContext = getBalanceFallPrevention(message);
+    const longevityExerContext = getLongevityExercise(message);
+    const jointLongevityContext = getJointHealthLongevityAdvanced(message);
+    const sleepPerfContext = getSleepAndPerformance(message);
+    const stressMgmtFitContext = getStressManagementFitness(message);
+    const cardioVascHealthContext = getCardiovasularHealth(message);
+    const metabolicHealthContext = getMetabolicHealthTraining(message);
+    const antiAgingContext = getAntiAgingProtocols(message);
+
+    // ─── Block 1611-1620 calls ──────
+    const functionalTrainContext = getFunctionalTrainingBasics(message);
+    const thoracicMobContext = getThoracicMobility(message);
+    const hipMobContext = getHipMobility(message);
+    const shoulderMobContext = getShoulderMobility(message);
+    const ankleMobContext = getAnkleMobility(message);
+    const myofascialProtContext = getMyofascialReleaseProtocol(message);
+    const coreStabilityContext = getCoreStabilityProtocol(message);
+    const breathingPerfContext = getBreathingForPerformance(message);
+    const movScreenSelfContext = getMovementScreeningSelfTest(message);
+
+    // ─── Block 1621-1630 calls ──────
+    const geneticsMuscleContext = getGeneticsAndMuscleType(message);
+    const geneticBuildContext = getGeneticMuscleBuilding(message);
+    const bodyTypeTrainContext = getBodyTypeTraining(message);
+    const individualRecovContext = getIndividualRecovery(message);
+    const trainingAgeAdaptContext = getTrainingAgeAdaptation(message);
+    const responseToTrainContext = getResponseToTraining(message);
+    const anthropometryContext = getAnthropometryExercises(message);
+    const hormonalOptContext = getHormonalOptimization(message);
+    const geneticTestFitContext = getGeneticTestingFitness(message);
+    const personalizedNutrContext = getPersonalizedNutrition(message);
+
+    // ─── Block 1631-1640 calls ──────
+    const crossfitFundContext = getCrossfitFundamentals(message);
+    const hybridTrainContext = getHybridTraining(message);
+    const olympicLiftContext = getOlympicLifting(message);
+    const metconDesignContext = getMetconDesign(message);
+    const gymnasticStrengthContext = getGymnasticsStrength(message);
+    const kettlebellTrainContext = getKettlebellTraining(message);
+    const competitionPrepContext = getCompetitionPrep(message);
+    const hiitProtocolsContext = getHIITProtocols(message);
+    const workCapacityContext = getWorkCapacityBuilding(message);
+
+    // ─── Block 1641-1650 calls ──────
+    const nutrientTimingAdvContext = getNutrientTiming(message);
+    const reverseDietingContext = getReversDieting(message);
+    const carbCyclingAdvContext2 = getCarbCycling(message);
+    const gutHealthFitContext = getGutHealthFitness(message);
+    const suppStackGuideContext = getSupplementStackGuide(message);
+    const alcoholFitNewContext = getAlcoholAndFitness(message);
+    const waterElectrolytesContext = getWaterAndElectrolytes(message);
+    const mealPrepStratContext = getMealPrepStrategies(message);
+    const refeedCheatContext = getRefeedAndCheatMeals(message);
+    const plantBasedAthContext = getPlantBasedAthletes(message);
+
+    // ─── Block 1651-1660 calls ──────
+    const coldExposureContext = getColdExposureProtocol(message);
+    const saunaHeatContext = getSaunaAndHeatTherapy(message);
+    const sunlightCircadianContext = getSunlightAndCircadianRhythm(message);
+    const breathworkBiohackContext = getBreathworkBiohacking(message);
+    const neuroplasticityContext = getNeuroplasticityFitness(message);
+    const mindfulnessPerfContext = getMindfulnessPerformance(message);
+    const bloodworkAthContext = getBloodworkForAthletes(message);
+    const trackerOptContext = getTrackerOptimization(message);
+    const longevitySuppContext = getLongevitySupplements(message);
+
+    // ─── Block 1661-1670 calls ──────
+    const kneeInjuryPrevContext = getKneeInjuryPrevention(message);
+    const shoulderInjuryPrevContext = getShoulderInjuryPrevention(message);
+    const lowBackPainTrainContext = getLowBackPainTraining(message);
+    const tendinopathyContext = getTendinopathyManagement(message);
+    const returnToSportContext = getReturnToSport(message);
+    const posturalCorrContext = getPosturalCorrection(message);
+    const prehabContext = getPrehabilitation(message);
+    const overuseInjuryContext = getOveruseInjuryGuide(message);
+    const sportsFirstAidContext = getSportsFirstAid(message);
+
+    // ─── Block 1671-1680 calls ──────
+    const soccerCondContext = getSoccerConditioning(message);
+    const basketballTrainContext = getBasketballTraining(message);
+    const swimmingDrylandContext = getSwimmingDryland(message);
+    const runningStrengthContext = getRunningStrengthWork(message);
+    const martialArtsCondContext = getMartialArtsConditioning(message);
+    const tennisCondContext = getTennisConditioning(message);
+    const climbingStrengthContext = getClimbingStrength(message);
+    const cyclingPerfContext = getCyclingPerformance(message);
+    const yogaAthNewContext = getYogaForAthletes(message);
+
+    // ─── Block 1681-1690 calls ──────
+    const sleepArchContext = getSleepArchitectureAthletes(message);
+    const activeRecovMethodsContext = getActiveRecoveryMethods(message);
+    const deloadVariantsContext = getDeloadVariants(message);
+    const nutritionRecovContext = getNutritionForRecovery(message);
+    const mindBodyContext = getMindBodyConnection(message);
+    const suppRecovContext = getSupplementsForRecovery(message);
+    const visualizationSportContext = getVisualizationSports(message);
+    const thermoregContext = getThermoregulationAthletes(message);
+    const altitudeContext = getAltitudeTraining(message);
+    const energySystemsContext = getEnergySystemsTraining(message);
+
     logger.debug(`[AI+] streak: ${gamification.currentStreak}, PRs: ${gamification.newPRsThisWeek.length}, injuries: ${injuryZones.join(',') || 'none'}, recovery: ${recovery.score}, fatigue: ${fatigueData.status} (ACWR ${fatigueData.ratio}), plateaus: ${plateauStrategies.length}, memories: ${extractedMemories.length} new, muscleRecovery: ${muscleRecoveryStatuses.filter(s => !s.readyToTrain).length} recovering`);
 
     // No nutrition targets set
@@ -7896,6 +8011,111 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'groupDyn', content: groupDynContext, relevantIntents: new Set(['групповая динамика спорт', 'тренировки в группе', 'social loafing']), priority: 3 },
         { name: 'motivAdv', content: motivAdvContext, relevantIntents: new Set(['мотивация психология спорт', 'внутренняя мотивация', 'теория самодетерминации']), priority: 3 },
         { name: 'resilience', content: resilienceContext, relevantIntents: new Set(['устойчивость спортсмен', 'resilience', 'психологическая стойкость']), priority: 3 },
+        // ─── Block 1591-1600 ──────
+        { name: 'menstrualCycle', content: menstrualCycleContext, relevantIntents: new Set(['менструальный цикл тренировки', 'цикл и спорт', 'тренировки при месячных']), priority: 3 },
+        { name: 'femaleHormones', content: femaleHormonesContext, relevantIntents: new Set(['женские гормоны фитнес', 'эстроген спорт', 'прогестерон тренировки']), priority: 3 },
+        { name: 'femaleStrengthAdv', content: femaleStrengthAdvContext, relevantIntents: new Set(['женская сила', 'силовые для девушек', 'женщины и штанга']), priority: 3 },
+        { name: 'femaleBodyComp', content: femaleBodyCompContext, relevantIntents: new Set(['женский состав тела', 'жировая женщины', 'сухая масса девушки']), priority: 3 },
+        { name: 'redsSyndrome', content: redsSyndromeContext, relevantIntents: new Set(['reds синдром', 'дефицит энергии спортсменки', 'red-s']), priority: 3 },
+        { name: 'femaleNutrition', content: femaleNutritionContext, relevantIntents: new Set(['питание для женщин', 'диета девушки', 'женское питание спорт']), priority: 3 },
+        { name: 'cycleBasedTrain', content: cycleBasedTrainContext, relevantIntents: new Set(['тренировки по циклу', 'фолликулярная фаза', 'лютеиновая фаза спорт']), priority: 3 },
+        { name: 'femaleIron', content: femaleIronContext, relevantIntents: new Set(['железо женщины', 'анемия спортсменки', 'гемоглобин девушки']), priority: 3 },
+        { name: 'menopauseFit', content: menopauseFitContext, relevantIntents: new Set(['менопауза тренировки', 'климакс спорт', 'после менопаузы фитнес']), priority: 3 },
+        { name: 'postpartumFit', content: postpartumFitContext, relevantIntents: new Set(['тренировки после родов', 'восстановление после родов', 'послеродовой фитнес']), priority: 3 },
+        // ─── Block 1601-1610 ──────
+        { name: 'seniorStrength', content: seniorStrengthContext, relevantIntents: new Set(['тренировки пожилых', 'силовые после 60', 'фитнес для пенсионеров']), priority: 3 },
+        { name: 'boneHealth', content: boneHealthContext, relevantIntents: new Set(['здоровье костей', 'остеопороз профилактика', 'плотность костей']), priority: 3 },
+        { name: 'balanceFall', content: balanceFallContext, relevantIntents: new Set(['баланс падения пожилые', 'координация пожилые', 'профилактика падений']), priority: 3 },
+        { name: 'longevityExer', content: longevityExerContext, relevantIntents: new Set(['долголетие упражнения', 'longevity тренировки', 'упражнения для долгой жизни']), priority: 3 },
+        { name: 'jointLongevity', content: jointLongevityContext, relevantIntents: new Set(['здоровье суставов долгосрочно', 'суставы и возраст', 'профилактика артрита']), priority: 3 },
+        { name: 'sleepPerf', content: sleepPerfContext, relevantIntents: new Set(['сон и производительность', 'сон восстановление', 'качество сна атлет']), priority: 3 },
+        { name: 'stressMgmtFit', content: stressMgmtFitContext, relevantIntents: new Set(['стресс и тренировки', 'управление стрессом фитнес', 'кортизол снизить']), priority: 3 },
+        { name: 'cardioVascHealth', content: cardioVascHealthContext, relevantIntents: new Set(['сердечно-сосудистое здоровье', 'давление тренировки', 'здоровье сердца спорт']), priority: 3 },
+        { name: 'metabolicHealth', content: metabolicHealthContext, relevantIntents: new Set(['метаболическое здоровье', 'инсулинорезистентность', 'метаболизм тренировки']), priority: 3 },
+        { name: 'antiAging', content: antiAgingContext, relevantIntents: new Set(['антиэйджинг протокол', 'замедление старения', 'молодость тренировки']), priority: 3 },
+        // ─── Block 1611-1620 ──────
+        { name: 'functionalTrain', content: functionalTrainContext, relevantIntents: new Set(['функциональные тренировки', 'functional fitness', 'функциональное движение']), priority: 3 },
+        { name: 'thoracicMob', content: thoracicMobContext, relevantIntents: new Set(['грудной отдел мобильность', 'грудной позвоночник подвижность', 'thoracic mobility']), priority: 3 },
+        { name: 'hipMob', content: hipMobContext, relevantIntents: new Set(['мобильность бёдер', 'тазобедренный сустав подвижность', 'hip mobility']), priority: 3 },
+        { name: 'shoulderMob', content: shoulderMobContext, relevantIntents: new Set(['мобильность плеч', 'подвижность плечевого', 'shoulder mobility']), priority: 3 },
+        { name: 'ankleMob', content: ankleMobContext, relevantIntents: new Set(['мобильность голеностопа', 'лодыжка подвижность', 'ankle mobility']), priority: 3 },
+        { name: 'myofascialProt', content: myofascialProtContext, relevantIntents: new Set(['миофасциальный релиз', 'foam roller протокол', 'мфр упражнения']), priority: 3 },
+        { name: 'coreStability', content: coreStabilityContext, relevantIntents: new Set(['стабильность кора', 'глубокие мышцы живота', 'core stability protocol']), priority: 3 },
+        { name: 'breathingPerf', content: breathingPerfContext, relevantIntents: new Set(['дыхание для спорта', 'правильное дыхание тренировки', 'вдох выдох упражнения']), priority: 3 },
+        { name: 'movScreenSelf', content: movScreenSelfContext, relevantIntents: new Set(['оценка движений', 'фмс самодиагностика', 'movement screening']), priority: 3 },
+        // ─── Block 1621-1630 ──────
+        { name: 'geneticsMuscle', content: geneticsMuscleContext, relevantIntents: new Set(['генетика мышц', 'тип мышечных волокон', 'генетика в спорте']), priority: 3 },
+        { name: 'geneticBuild', content: geneticBuildContext, relevantIntents: new Set(['генетика набор массы', 'генетический потенциал', 'мышечный потенциал генетика']), priority: 3 },
+        { name: 'bodyTypeTrain', content: bodyTypeTrainContext, relevantIntents: new Set(['тренировки по типу тела', 'эктоморф тренировки', 'мезоморф эндоморф']), priority: 3 },
+        { name: 'individualRecov', content: individualRecovContext, relevantIntents: new Set(['индивидуальное восстановление', 'персональный восстановительный', 'скорость восстановления']), priority: 3 },
+        { name: 'trainingAgeAdapt', content: trainingAgeAdaptContext, relevantIntents: new Set(['тренировочный возраст', 'адаптация к тренингу', 'стаж тренировок']), priority: 3 },
+        { name: 'responseToTrain', content: responseToTrainContext, relevantIntents: new Set(['реакция на тренинг', 'отклик на нагрузку', 'как организм реагирует']), priority: 3 },
+        { name: 'anthropometry', content: anthropometryContext, relevantIntents: new Set(['антропометрия упражнения', 'длина рук ноги технике', 'пропорции тела тренировки']), priority: 3 },
+        { name: 'hormonalOpt', content: hormonalOptContext, relevantIntents: new Set(['оптимизация гормонов', 'тестостерон естественно', 'гормональная оптимизация']), priority: 3 },
+        { name: 'geneticTestFit', content: geneticTestFitContext, relevantIntents: new Set(['генетическое тестирование спорт', 'ДНК-тест фитнес', 'генотип тренировки']), priority: 3 },
+        { name: 'personalizedNutr', content: personalizedNutrContext, relevantIntents: new Set(['персонализированное питание', 'индивидуальный рацион', 'нутригеномика']), priority: 3 },
+        // ─── Block 1631-1640 ──────
+        { name: 'crossfitFund', content: crossfitFundContext, relevantIntents: new Set(['кроссфит основы', 'crossfit fundamentals', 'кроссфит для новичков']), priority: 3 },
+        { name: 'hybridTrain', content: hybridTrainContext, relevantIntents: new Set(['гибридный тренинг', 'hybrid training', 'сила и выносливость']), priority: 3 },
+        { name: 'olympicLift', content: olympicLiftContext, relevantIntents: new Set(['тяжёлая атлетика', 'рывок толчок', 'olympic lifting']), priority: 3 },
+        { name: 'metconDesign', content: metconDesignContext, relevantIntents: new Set(['metcon кроссфит', 'метаболическое кондиционирование', 'amrap emom']), priority: 3 },
+        { name: 'gymnasticStrength', content: gymnasticStrengthContext, relevantIntents: new Set(['гимнастическая сила', 'rings gymnastics', 'упражнения на кольцах']), priority: 3 },
+        { name: 'kettlebellTrain', content: kettlebellTrainContext, relevantIntents: new Set(['гиря тренировки', 'kettlebell программа', 'работа с гирями']), priority: 3 },
+        { name: 'competitionPrep', content: competitionPrepContext, relevantIntents: new Set(['подготовка к соревнованиям', 'пик форма', 'competition prep crossfit']), priority: 3 },
+        { name: 'hiitProtocols', content: hiitProtocolsContext, relevantIntents: new Set(['hiit протоколы', 'высокоинтенсивный интервальный', 'интервальные тренировки']), priority: 3 },
+        { name: 'workCapacity', content: workCapacityContext, relevantIntents: new Set(['работоспособность', 'work capacity', 'объём работы']), priority: 3 },
+        // ─── Block 1641-1650 ──────
+        { name: 'nutrientTimingAdv', content: nutrientTimingAdvContext, relevantIntents: new Set(['нутриент тайминг', 'время приёма питательных', 'nutrient timing']), priority: 3 },
+        { name: 'reverseDieting', content: reverseDietingContext, relevantIntents: new Set(['обратная диета', 'reverse dieting', 'выход из дефицита']), priority: 3 },
+        { name: 'carbCyclingAdv2', content: carbCyclingAdvContext2, relevantIntents: new Set(['углеводное чередование', 'carb cycling программа', 'цикл углеводов']), priority: 3 },
+        { name: 'gutHealthFit', content: gutHealthFitContext, relevantIntents: new Set(['здоровье кишечника спорт', 'микробиом атлет', 'пробиотики тренировки']), priority: 3 },
+        { name: 'suppStackGuide', content: suppStackGuideContext, relevantIntents: new Set(['стак добавок', 'supplement stack', 'комбинация спортпита']), priority: 3 },
+        { name: 'alcoholFitNew', content: alcoholFitNewContext, relevantIntents: new Set(['алкоголь тренировки влияние', 'пиво и спорт', 'алкоголь восстановление']), priority: 3 },
+        { name: 'waterElectrolytes', content: waterElectrolytesContext, relevantIntents: new Set(['вода и электролиты', 'гидратация электролиты', 'натрий калий спорт']), priority: 3 },
+        { name: 'mealPrepStrat', content: mealPrepStratContext, relevantIntents: new Set(['приготовление еды заранее', 'meal prep', 'планирование питания']), priority: 3 },
+        { name: 'refeedCheat', content: refeedCheatContext, relevantIntents: new Set(['рефид и читмил', 'cheat meal', 'загрузочный день']), priority: 3 },
+        { name: 'plantBasedAth', content: plantBasedAthContext, relevantIntents: new Set(['растительная диета атлет', 'веганский спорт', 'plant-based атлет']), priority: 3 },
+        // ─── Block 1651-1660 ──────
+        { name: 'coldExposure', content: coldExposureContext, relevantIntents: new Set(['холодовое воздействие', 'криотерапия', 'ледяная ванна спорт']), priority: 3 },
+        { name: 'saunaHeat', content: saunaHeatContext, relevantIntents: new Set(['сауна для атлета', 'баня восстановление', 'тепловая терапия']), priority: 3 },
+        { name: 'sunlightCircadian', content: sunlightCircadianContext, relevantIntents: new Set(['солнечный свет циркадный', 'circadian rhythm', 'биоритм и тренировки']), priority: 3 },
+        { name: 'breathworkBiohack', content: breathworkBiohackContext, relevantIntents: new Set(['дыхательные практики биохакинг', 'wim hof дыхание', 'пранаяма спорт']), priority: 3 },
+        { name: 'neuroplasticity', content: neuroplasticityContext, relevantIntents: new Set(['нейропластичность спорт', 'мозг и тренировки', 'нейроспорт']), priority: 3 },
+        { name: 'mindfulnessPerf', content: mindfulnessPerfContext, relevantIntents: new Set(['осознанность выступление', 'медитация спорт', 'mindfulness атлет']), priority: 3 },
+        { name: 'bloodworkAth', content: bloodworkAthContext, relevantIntents: new Set(['анализы крови спортсмен', 'кровь для атлета', 'лабораторные показатели спорт']), priority: 3 },
+        { name: 'trackerOpt', content: trackerOptContext, relevantIntents: new Set(['трекер оптимизация', 'фитнес-браслет данные', 'garmin polar whoop']), priority: 3 },
+        { name: 'longevitySupp', content: longevitySuppContext, relevantIntents: new Set(['добавки долголетие', 'longevity supplements', 'НМН ресвератрол']), priority: 3 },
+        // ─── Block 1661-1670 ──────
+        { name: 'kneeInjuryPrev', content: kneeInjuryPrevContext, relevantIntents: new Set(['профилактика травм колена', 'колено боль тренировки', 'защита коленей']), priority: 3 },
+        { name: 'shoulderInjuryPrev', content: shoulderInjuryPrevContext, relevantIntents: new Set(['профилактика травм плеча', 'плечо укрепление', 'ротаторная манжета']), priority: 3 },
+        { name: 'lowBackPainTrain', content: lowBackPainTrainContext, relevantIntents: new Set(['боль в пояснице тренировки', 'спина боль упражнения', 'поясница реабилитация']), priority: 3 },
+        { name: 'tendinopathy', content: tendinopathyContext, relevantIntents: new Set(['тендинопатия', 'тендинит лечение', 'сухожилие воспаление']), priority: 3 },
+        { name: 'returnToSport', content: returnToSportContext, relevantIntents: new Set(['возвращение к спорту', 'после травмы тренировки', 'return to sport']), priority: 3 },
+        { name: 'posturalCorr', content: posturalCorrContext, relevantIntents: new Set(['коррекция осанки', 'исправить осанку', 'постуральная коррекция']), priority: 3 },
+        { name: 'prehab', content: prehabContext, relevantIntents: new Set(['преабилитация', 'prehab упражнения', 'профилактические упражнения']), priority: 3 },
+        { name: 'overuseInjury', content: overuseInjuryContext, relevantIntents: new Set(['травма от перегрузки', 'overuse injury', 'хроническая спортивная травма']), priority: 3 },
+        { name: 'sportsFirstAid', content: sportsFirstAidContext, relevantIntents: new Set(['первая помощь спорт', 'спортивная первая помощь', 'острая травма помощь']), priority: 3 },
+        // ─── Block 1671-1680 ──────
+        { name: 'soccerCond', content: soccerCondContext, relevantIntents: new Set(['футбол кондиционирование', 'физподготовка футболиста', 'ОФП футбол']), priority: 3 },
+        { name: 'basketballTrain', content: basketballTrainContext, relevantIntents: new Set(['баскетбол тренировки', 'прыжок баскетбол', 'физподготовка баскетбол']), priority: 3 },
+        { name: 'swimmingDryland', content: swimmingDrylandContext, relevantIntents: new Set(['плавание суша тренировки', 'dryland swimming', 'ОФП пловца']), priority: 3 },
+        { name: 'runningStrength', content: runningStrengthContext, relevantIntents: new Set(['бег силовые тренировки', 'running strength', 'ОФП бегуна']), priority: 3 },
+        { name: 'martialArtsCond', content: martialArtsCondContext, relevantIntents: new Set(['единоборства кондиционирование', 'бокс физподготовка', 'бойцовская форма']), priority: 3 },
+        { name: 'tennisCond', content: tennisCondContext, relevantIntents: new Set(['теннис физподготовка', 'tennis conditioning', 'ОФП теннисист']), priority: 3 },
+        { name: 'climbingStrength', content: climbingStrengthContext, relevantIntents: new Set(['скалолазание сила', 'climbing strength', 'пальцы лазание']), priority: 3 },
+        { name: 'cyclingPerf', content: cyclingPerfContext, relevantIntents: new Set(['велоспорт подготовка', 'cycling performance', 'велосипед силовые']), priority: 3 },
+        { name: 'yogaAthNew', content: yogaAthNewContext, relevantIntents: new Set(['йога для спортсменов', 'йога и силовые', 'йога восстановление']), priority: 3 },
+        // ─── Block 1681-1690 ──────
+        { name: 'sleepArch', content: sleepArchContext, relevantIntents: new Set(['архитектура сна', 'фазы сна спорт', 'глубокий сон атлет']), priority: 3 },
+        { name: 'activeRecovMethods', content: activeRecovMethodsContext, relevantIntents: new Set(['активное восстановление методы', 'методы восстановления', 'recovery протокол']), priority: 3 },
+        { name: 'deloadVariants', content: deloadVariantsContext, relevantIntents: new Set(['варианты разгрузки', 'deload виды', 'когда делать deload']), priority: 3 },
+        { name: 'nutritionRecov', content: nutritionRecovContext, relevantIntents: new Set(['питание для восстановления', 'еда после тренировки восстановление', 'антивоспалительное питание']), priority: 3 },
+        { name: 'mindBody', content: mindBodyContext, relevantIntents: new Set(['связь разума и тела', 'психосоматика спорт', 'нейромышечная связь']), priority: 3 },
+        { name: 'suppRecov', content: suppRecovContext, relevantIntents: new Set(['добавки для восстановления', 'спортпит восстановление', 'что пить после тренировки']), priority: 3 },
+        { name: 'visualizationSport', content: visualizationSportContext, relevantIntents: new Set(['визуализация спорт', 'ментальные тренировки образы', 'mental imagery']), priority: 3 },
+        { name: 'thermoreг', content: thermoregContext, relevantIntents: new Set(['терморегуляция спортсмен', 'тренировки в жару', 'перегрев тренировка']), priority: 3 },
+        { name: 'altitude', content: altitudeContext, relevantIntents: new Set(['тренировки на высоте', 'altitude training', 'горный тренинг']), priority: 3 },
+        { name: 'energySystems', content: energySystemsContext, relevantIntents: new Set(['энергетические системы', 'аэробный порог анаэробный', 'алактатная гликолитическая']), priority: 3 },
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
@@ -78429,6 +78649,342 @@ function getYogaForAthletes(message: string): string {
 После тренировки: 10 мин Yin (восстановление)
 Перед сном: 10 мин + дыхание (парасимпатика)
 Отдельная сессия: 30-60 мин (1-2 раза/нед)
+`;
+}
+
+// ─── Knowledge Block 1681-1690: Восстановление и регенерация — мастер-уровень ──
+
+function getSleepArchitectureAthletes(message: string): string {
+  const kw = ['архитектура сна', 'фазы сна спорт', 'глубокий сон атлет', 'rem сон восстановление', 'дельта сон спортсмен'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Архитектура сна для атлетов:**
+
+**Фазы и их роль в восстановлении:**
+NREM 1-2 (лёгкий сон): переход, консолидация навыков движения
+NREM 3 (глубокий/дельта): основной — ↑ ГР, восстановление мышц, иммунитет
+REM: когнитивное восстановление, моторное обучение, управление стрессом
+
+**Оптимальная структура:**
+Взрослый: 7-9ч. Атлет интенсивных нагрузок: 8-10ч
+Первые циклы (23:00-03:00): больше дельта-сна → ПРИОРИТЕТ
+Поздние циклы (03:00-07:00): больше REM → память + навыки
+
+**Что нарушает архитектуру:**
+- Алкоголь: ↓ REM в первой половине ночи на 40%
+- Синий свет за 2ч до сна: задержка мелатонина на 1.5ч
+- Кофеин >300мг после 14:00: удвоение времени засыпания
+- Ночные тренировки после 21:00: ↑ кортизол, ↓ дельта-сон
+
+**Протокол оптимизации:**
+Темп. спальни: 16-19°C (критично для дельта-сна)
+Блокировка света: шторы + маска = +20 мин глубокого сна
+Магний глицинат 300-400мг за 1ч: ↑ NREM 3 на 17%
+Постоянство: разница в ±30 мин — не нарушает циркадный ритм
+Дневной сон: 20-30 мин до 15:00 (не нарушает ночной)
+
+**Мониторинг:**
+Whoop/Oura Ring: отслеживание HRV + глубокий сон
+HRV утром: <20% ниже базы → снизить нагрузку
+`;
+}
+
+function getActiveRecoveryMethods(message: string): string {
+  const kw = ['активное восстановление методы', 'методы восстановления спортсмен', 'recovery протокол атлет', 'восстановительная тренировка'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Активное восстановление — научно обоснованные методы:**
+
+**Рейтинг по эффективности (мета-анализы 2020-2024):**
+1. Сон 8-10ч — базовый, заменить нечем
+2. Компрессионная одежда 24ч после — ↓ DOMS на 20-30%
+3. Контрастный душ (1мин холод / 2мин тепло, 3 цикла) — ↓ маркеры воспаления
+4. Лёгкое кардио 20-30 мин (50-60% ЧССмакс) — ↑ кровоток, ↑ удаление лактата
+5. Массаж/пеноролл 10-15 мин — ↓ субъективная болезненность (DOMS)
+6. Ледяная ванна 10-15°C / 10-15мин — спорно при гипертрофии (↓ синтез белка)
+
+**❌ Что НЕ работает:**
+- Статическая растяжка сразу после: не снижает DOMS
+- "Дни отдыха" с полным бездействием: хуже, чем лёгкая активность
+
+**Протокол на день после тяжёлой тренировки:**
+Утро: 10мин ходьба + динамическая разминка
+День: пеноролл 15мин на нагруженные мышцы
+Вечер: контрастный душ
+Питание: 40-50г белка + углеводы для восполнения гликогена
+
+**Для соревновательного периода:**
+За 48-72ч до старта: только лёгкое плавание / велосипед 20мин
+Компрессия постоянно
+Избегать массажа > 10-15мин (риск микроповреждений)
+`;
+}
+
+function getDeloadVariants(message: string): string {
+  const kw = ['варианты разгрузки', 'deload виды', 'разгрузочная неделя как', 'когда делать deload', 'признаки перетренированности'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Типы deload и когда применять каждый:**
+
+**Тип 1 — Снижение объёма (рекомендуемый):**
+Вес: 100% рабочего
+Подходы: 50% от обычного объёма
+Когда: после 4-8 недель интенсивного блока
+
+**Тип 2 — Снижение интенсивности:**
+Вес: 50-60% от рабочего
+Подходы: нормальное количество
+Когда: суставные боли, накопленная усталость ЦНС
+
+**Тип 3 — Полный отдых (неделя без зала):**
+Когда: выгорание, болезнь, жизненный стресс, 2+ недели плохого сна
+
+**Тип 4 — Смена активности:**
+Замена тренировок: плавание, велосипед, йога
+Когда: психологическое выгорание от тренажёрного зала
+
+**Признаки необходимости deload:**
+✓ Стагнация или регресс нагрузок 2+ тренировки
+✓ Постоянная болезненность мышц (DOMS >72ч)
+✓ Нарушение сна несмотря на усталость
+✓ Снижение мотивации / раздражительность
+✓ ЧСС покоя ↑ на 5+ уд/мин от базы
+✓ HRV ↓ на >15% от 7-дневной скользящей средней
+
+**Частота:**
+Новичок: раз в 8-12 недель
+Промежуточный: раз в 6-8 недель
+Продвинутый: раз в 4-6 недель или по HRV
+`;
+}
+
+function getNutritionForRecovery(message: string): string {
+  const kw = ['питание для восстановления', 'еда после тренировки восстановление', 'нутриенты восстановление мышц', 'антивоспалительное питание спорт'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Питание для максимального восстановления:**
+
+**Протокол 30-минутное окно после тренировки:**
+Белок: 30-40г быстроусвояемого (сывороточный, яйца)
+Углеводы: 1-1.2г/кг для восполнения гликогена (критично если тренировки 2× в день)
+Лейцин ≥3г — триггер синтеза белка
+
+**В течение 24ч:**
+Белок: 0.4г/кг каждые 3-4ч (равномерное распределение)
+Углеводы: 5-8г/кг при высоком объёме тренинга
+Жиры: не ограничивать — омега-3 снижают воспаление
+
+**Антивоспалительные продукты:**
+Вишня/черешня: ↓ DOMS на 20% (антоцианины)
+Куркума + чёрный перец: ↓ CRP маркер воспаления
+Жирная рыба (лосось, скумбрия): 2-3г ЭПК+ДГК
+Черника, гранат: полифенолы → ↓ оксидативный стресс
+
+**Микронутриенты для восстановления:**
+Магний 400-600мг: синтез белка, сон, ↓ спазмы
+Цинк 25-30мг: тестостерон, иммунитет, заживление
+Витамин C 500-1000мг: синтез коллагена
+Витамин D 2000-4000 МЕ: противовоспалительный эффект
+
+**Гидратация:**
+1.5× объём потерянного пота (взвешивайся до/после)
+Электролиты если потерено >1% массы тела
+`;
+}
+
+function getMindBodyConnection(message: string): string {
+  const kw = ['связь разума и тела', 'психосоматика спорт', 'ментальное восстановление', 'нейромышечная связь'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Нейромышечная связь и психосоматика в спорте:**
+
+**Нейромышечная связь (Mind-Muscle Connection):**
+Фокус на целевой мышце во время движения ↑ её активацию на 10-15% (ЭМГ данные)
+Как тренировать: работа с 40-60% 1ПМ без темпа, полная концентрация
+Применение: изолирующие упражнения — ДА. Базовые движения — нет (↓ производительность)
+
+**Влияние психологического стресса на физическое восстановление:**
+Кортизол от работы/отношений = кортизол от перетренированности
+При высоком стрессе в жизни: снижай объём тренировок на 20-30%
+Психологическое выгорание предшествует физическому
+
+**Техники ментального восстановления:**
+Прогрессивная мышечная релаксация: 10-15 мин → ↓ кортизол
+Нидра-йога (Yoga Nidra): 20 мин = 1-2ч сна по восстановительному эффекту
+Биофидбэк дыхание (4-7-8): активация парасимпатики за 5 мин
+
+**Признаки ментального перетренирования:**
+- Потеря удовольствия от тренировок (была мотивация — пропала)
+- Тревожность, раздражительность без причины
+- Навязчивые мысли о тренировках/диете
+- Ухудшение когнитивных функций: память, концентрация
+`;
+}
+
+function getSupplementsForRecovery(message: string): string {
+  const kw = ['добавки для восстановления', 'спортпит восстановление', 'supplements recovery', 'что пить после тренировки'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Добавки для восстановления — доказательная база:**
+
+**Уровень А (сильные доказательства):**
+Креатин 3-5г/день: ↑ синтез гликогена, ↑ регенерация, ↓ воспаление
+Омега-3 (ЭПК+ДГК) 2-4г/день: ↓ мышечная болезненность, ↓ DOMS
+Магний 300-400мг (глицинат/малат): сон, ↓ судороги, ↓ воспаление
+
+**Уровень Б (умеренные доказательства):**
+Витамин D 2000-4000 МЕ: иммунитет, ↓ воспаление
+Коллаген 10-15г + вит. C за 1ч до тренировки: ↑ синтез коллагена сухожилий
+Ашвагандha 600мг: ↓ кортизол, ↑ качество сна, ↑ сила
+
+**Уровень В (ограниченные доказательства):**
+Куркумин 500-1000мг: антиоксидант, ↓ DOMS (НО ↓ адаптацию при длительном приёме!)
+Цинк+магний (ZMA): если есть дефицит — да. Без дефицита — нет эффекта
+Теанин 200мг + кофеин: ↑ качество фокуса, ↓ тревога
+
+**❌ Что не работает:**
+- Глютамин (у здоровых атлетов без пользы)
+- Антиоксиданты в больших дозах (вит. C >1г, вит. E): ↓ долгосрочная адаптация!
+
+**Оптимальное время приёма:**
+Утро: витамин D, омега-3, ашвагандha
+До тренировки: кофеин, бета-аланин
+После тренировки: белок + углеводы (главное)
+Перед сном: магний глицинат, ZMA (если принимаешь)
+`;
+}
+
+function getVisualizationSports(message: string): string {
+  const kw = ['визуализация спорт', 'ментальные тренировки образы', 'mental imagery спорт', 'воображение тренировок'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Визуализация и ментальные тренировки:**
+
+**Научная база:**
+МРТ: визуализация движения активирует те же нейронные паттерны, что и реальное движение
+Эффект: 10-45% улучшения навыка без физической практики (зависит от сложности движения)
+Лучше всего работает: для технических навыков, не для развития силы
+
+**PETTLEP-модель (наиболее эффективная):**
+P — Physical: имитируй положение тела при визуализации
+E — Environment: представляй реальное место (зал, арена)
+T — Task: фокус на конкретном движении
+T — Timing: в реальном темпе (не ускоренно)
+L — Learning: корректируй по мере прогресса
+E — Emotion: включай эмоции (азарт, концентрация)
+P — Perspective: от первого лица наиболее эффективно
+
+**Практика:**
+5-10 мин перед тренировкой или соревнованием
+Специфично: не "я тренируюсь", а "присед: вдох, упор ног, бёдра вниз, взрыв"
+Кинестетическое + визуальное = лучше, чем только визуальное
+
+**Применение в зале:**
+Перед подходом: 30 сек визуализации идеального выполнения → ↑ активация ЦНС
+Для технических упражнений (рывок, толчок, гимнастика): ежедневная практика
+`;
+}
+
+function getThermoregulationAthletes(message: string): string {
+  const kw = ['терморегуляция спортсмен', 'перегрев тренировка', 'тренировки в жару', 'акклиматизация жара спорт'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Терморегуляция и тренировки в жару:**
+
+**Физиология:**
+Тело производит 15-20× больше тепла во время тренировки
+Потоотделение: до 2-3 л/ч при интенсивной работе в жару
+Температура ядра >40°C → тепловой удар (неотложная помощь!)
+
+**Акклиматизация к жаре:**
+Срок: 10-14 дней постепенного воздействия
+Адаптации: ↑ объём плазмы, ↑ скорость потоотделения, ↓ ЧСС при той же нагрузке
+Протокол: начни с 50% нагрузки в жару, +10-15% каждые 2 дня
+
+**Стратегии охлаждения:**
+Прекулинг (до тренировки): холодный жилет 15 мин → ↑ производительность на 3-7%
+Во время: ледяная вода, опрыскивание шеи (крупные сосуды)
+Охлаждение ладоней: крупные артерио-венозные анастомозы → эффективный теплосброс
+
+**Гидратация в жару:**
+500мл за 2ч до
+150-250мл каждые 15-20 мин тренировки
+Натрий 500-700мг/л если тренировка >1ч
+Вода без электролитов при обильном потоотделении → гипонатриемия!
+
+**Признаки теплового стресса:**
+Прекратить и охладить: головная боль, тошнота, дезориентация
+Скорая помощь: отсутствие потоотделения при жаре, потеря сознания
+`;
+}
+
+function getAltitudeTraining(message: string): string {
+  const kw = ['тренировки на высоте', 'altitude training', 'горный тренинг', 'высокогорье спорт', 'эритропоэтин натуральный'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Высотные тренировки (Altitude Training):**
+
+**Физиологические адаптации:**
+↑ ЭПО (эритропоэтин) → ↑ эритроциты → ↑ перенос O2
+↑ Плотность митохондрий
+Улучшение на уровне моря: ↑ VO2max на 1-3% за 3-4 недели на высоте
+
+**Модели:**
+Live High — Train Low (LHTL): жить на 2000-2500м, тренироваться на <1500м
+Наиболее научно обоснована: сохраняет качество тренировки + даёт высотную адаптацию
+Гипоксические палатки: умеренный эффект (~30-50% от натуральной высоты)
+
+**Оптимальные параметры:**
+Высота: 2000-2500м (выше — слишком нарушается тренировочный процесс)
+Продолжительность: минимум 3-4 недели
+Возвращение на уровень моря: пик эффекта через 2-4 недели после
+
+**Практические рекомендации:**
+↑ потребление железа и белка на высоте
+↑ углеводы (↑ зависимость от гликолиза при гипоксии)
+Мониторинг HRV и качества сна (снижаются первые 1-2 недели)
+Ожидать: первые 5-7 дней — снижение производительности, затем адаптация
+
+**Для большинства спортсменов:**
+Сборы в горах 1-2 раза/год = разумный вариант
+Гипоксические маски на уровне моря: НЕ создают высотную адаптацию
+`;
+}
+
+function getEnergySystemsTraining(message: string): string {
+  const kw = ['энергетические системы тренировки', 'алактатная гликолитическая аэробная', 'системы энергообеспечения', 'фосфокреатиновая система', 'аэробный порог анаэробный'];
+  if (!kw.some(k => message.toLowerCase().includes(k))) return '';
+  return `
+**Энергетические системы и их тренировка:**
+
+**3 системы:**
+
+**1. Фосфокреатиновая (алактатная, АТФ-КФ):**
+Длительность: 0-10 сек максимального усилия
+Восстановление: 3-5 мин полное
+Тренировка: спринты 5-8 сек, максимальные прыжки, подъёмы ⟵ МОЩНОСТЬ
+Пример: рывок штанги, спринт 40м
+
+**2. Гликолитическая (лактатная):**
+Длительность: 10 сек — 2 мин
+Восстановление: 1-4 мин
+Тренировка: работа 30-120 сек на 90-95% интенсивности ⟵ МОЩНОСТЬ + БУФЕРИЗАЦИЯ
+Пример: Tabata, интервалы 400м, подходы до отказа
+
+**3. Аэробная (окислительная):**
+Длительность: 2 мин и более
+Восстановление: часы
+Тренировка: зона 2 (60-70% ЧССмакс, 80% общего объёма кардио), темповые бег, ЛИСС ⟵ ЁМКОСТЬ
+Пример: бег 30 мин в умеренном темпе
+
+**Принцип 80/20 (Polarized Training):**
+80% тренировок — зона 2 (разговорный темп, аэробная база)
+20% — зона 4-5 (выше анаэробного порога)
+Пороговый тренинг (зона 3) — минимально
+
+**Аэробная база для силовых:**
+Зона 2 кардио 2-3×/нед по 30-45 мин = ↑ восстановление между подходами
+↑ митохондриальная функция → ↑ использование жиров → легче сушка
 `;
 }
 
