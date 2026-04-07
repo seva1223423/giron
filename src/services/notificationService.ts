@@ -246,3 +246,43 @@ export async function cancelWaterReminders(): Promise<void> {
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
+
+// Schedule an inactivity reminder based on how many days since last workout.
+// Call this when the app opens. Fires tomorrow morning at 9:00 if user hasn't trained.
+export async function scheduleInactivityReminder(daysSinceLastWorkout: number): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    await Notifications.cancelScheduledNotificationAsync('inactivity-reminder').catch(() => {});
+
+    // Only schedule if user has been inactive for 2+ days
+    if (daysSinceLastWorkout < 2) return;
+
+    let title: string;
+    let body: string;
+
+    if (daysSinceLastWorkout >= 7) {
+      title = '😴 Неделя без тренировок';
+      body = 'Мышцы начинают терять силу после 7 дней отдыха. Вернись в зал — даже короткая тренировка считается!';
+    } else if (daysSinceLastWorkout >= 4) {
+      title = '⚠️ Ты не тренировался 4+ дня';
+      body = 'Серия прервалась. Начни заново сегодня — одна тренировка сбросит счётчик.';
+    } else {
+      title = '💪 Пора в зал!';
+      body = `Ты не тренировался ${daysSinceLastWorkout} дня. Открой Iron Gym и запусти тренировку.`;
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'inactivity-reminder',
+      content: { title, body, sound: 'default' },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 9,
+        minute: 0,
+      },
+    });
+  } catch {
+    // Silently fail
+  }
+}

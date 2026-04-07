@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../../store';
@@ -27,6 +27,19 @@ export const SetsSection: React.FC<Props> = ({
 }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
+
+  // Progressive overload suggestion: if all prev sets hit target reps, suggest +2.5kg
+  const overloadSuggestion = useMemo(() => {
+    if (!previousSets || previousSets.sets.length === 0) return null;
+    const completedPrev = previousSets.sets.filter((s) => s.weight && s.reps);
+    if (completedPrev.length === 0) return null;
+    const firstWorking = currentExercise.sets.find((s) => s.type !== 'warmup');
+    const targetReps = firstWorking?.reps || 8;
+    const allHitTarget = completedPrev.every((s) => (s.reps || 0) >= targetReps);
+    const prevMaxWeight = Math.max(...completedPrev.map((s) => s.weight || 0));
+    if (allHitTarget && prevMaxWeight > 0) return prevMaxWeight + 2.5;
+    return null;
+  }, [previousSets, currentExercise.sets]);
   const {
     addSet, removeSet, updateSetData, setExerciseNotes, setWorkoutNotes,
     toggleSuperset, generateWarmupSets, removeExerciseFromWorkout,
@@ -57,6 +70,23 @@ export const SetsSection: React.FC<Props> = ({
               )}
             </View>
           </ScrollView>
+        </View>
+      )}
+
+      {/* Progressive overload suggestion */}
+      {overloadSuggestion !== null && (
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+          paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+          borderRadius: borderRadius.md, borderWidth: 1,
+          backgroundColor: colors.success + '12', borderColor: colors.success + '40',
+          marginBottom: spacing.sm,
+        }}>
+          <Text style={{ fontSize: 16 }}>📈</Text>
+          <Text style={[typography.caption, { color: colors.success, flex: 1 }]}>
+            В прошлый раз все подходы выполнены — попробуй{' '}
+            <Text style={{ fontWeight: '700' }}>{overloadSuggestion} кг</Text> сегодня (+2.5)
+          </Text>
         </View>
       )}
 

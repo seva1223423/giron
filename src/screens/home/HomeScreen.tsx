@@ -7,6 +7,7 @@ import { WorkoutExercise, WorkoutSet } from '../../types';
 import { FadeIn, Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
+import { scheduleInactivityReminder } from '../../services/notificationService';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
@@ -34,6 +35,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchPrograms();
     fetchHistory();
   }, []);
+
+  useEffect(() => {
+    if (daysSinceLastWorkout !== null) {
+      scheduleInactivityReminder(daysSinceLastWorkout);
+    }
+  }, [daysSinceLastWorkout]);
 
   const today = todayDate();
   const dayLog = getDayLog(today);

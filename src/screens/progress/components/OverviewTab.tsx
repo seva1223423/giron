@@ -77,6 +77,41 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
   const workoutDates = useMemo(() => workoutHistory.filter((w) => w.completedAt).map((w) => w.completedAt!), [workoutHistory]);
   const muscleDistribution = useMemo(() => computeMuscleDistribution(workoutHistory), [workoutHistory]);
 
+  const MUSCLE_LABELS: Record<string, string> = {
+    chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
+    triceps: 'Трицепс', quadriceps: 'Квадр.', hamstrings: 'Бицепс б.', glutes: 'Ягодицы',
+    calves: 'Икры', abs: 'Пресс', lats: 'Широч.', traps: 'Трапеции',
+  };
+
+  const weeklyMuscleVolume = useMemo(() => {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const volumeMap: Record<string, number> = {};
+    workoutHistory
+      .filter((w) => w.completedAt && new Date(w.completedAt) >= weekStart)
+      .forEach((w) => {
+        w.exercises.forEach((ex) => {
+          const vol = ex.sets
+            .filter((s) => s.completed && s.weight && s.reps)
+            .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
+          if (vol === 0) return;
+          ex.exercise.primaryMuscles.forEach((m) => {
+            volumeMap[m] = (volumeMap[m] || 0) + vol;
+          });
+        });
+      });
+
+    return Object.entries(volumeMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8)
+      .map(([muscle, volume]) => ({
+        label: MUSCLE_LABELS[muscle] || muscle,
+        value: Math.round(volume),
+      }));
+  }, [workoutHistory]);
+
   return (
     <>
       <FadeIn delay={0}>
@@ -135,6 +170,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
           <BarChart data={weeklyCountData} color={colors.success} height={100} colors={colors} />
         </Card>
       </FadeIn>
+
+      {weeklyMuscleVolume.length > 0 && (
+        <FadeIn delay={380}>
+          <Card style={{ marginTop: spacing.lg }}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Объём за неделю по мышцам (кг)</Text>
+            <BarChart data={weeklyMuscleVolume} color={colors.accent} height={120} colors={colors} />
+          </Card>
+        </FadeIn>
+      )}
 
       <MuscleDistributionCard distribution={muscleDistribution} delay={400} />
 
