@@ -112,6 +112,31 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
       }));
   }, [workoutHistory]);
 
+  const weekComparison = useMemo(() => {
+    const now = new Date();
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(now.getDate() - now.getDay() + 1);
+    thisWeekStart.setHours(0, 0, 0, 0);
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+    const thisWeek = workoutHistory.filter(w => w.completedAt && new Date(w.completedAt) >= thisWeekStart);
+    const lastWeek = workoutHistory.filter(w => {
+      if (!w.completedAt) return false;
+      const d = new Date(w.completedAt);
+      return d >= lastWeekStart && d < thisWeekStart;
+    });
+
+    const thisCount = thisWeek.length;
+    const lastCount = lastWeek.length;
+    const thisVol = thisWeek.reduce((s, w) => s + (w.totalVolume || 0), 0);
+    const lastVol = lastWeek.reduce((s, w) => s + (w.totalVolume || 0), 0);
+    const thisDur = thisWeek.reduce((s, w) => s + (w.durationMinutes || 0), 0);
+    const lastDur = lastWeek.reduce((s, w) => s + (w.durationMinutes || 0), 0);
+
+    return { thisCount, lastCount, thisVol, lastVol, thisDur, lastDur };
+  }, [workoutHistory]);
+
   return (
     <>
       <FadeIn delay={0}>
@@ -170,6 +195,41 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
           <BarChart data={weeklyCountData} color={colors.success} height={100} colors={colors} />
         </Card>
       </FadeIn>
+
+      {(weekComparison.lastCount > 0 || weekComparison.thisCount > 0) && (
+        <FadeIn delay={350}>
+          <Card style={{ marginTop: spacing.lg }}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Неделя vs неделя</Text>
+            {(() => {
+              const comparisonIcon = (current: number, previous: number): { icon: string; color: string; pct: string } => {
+                if (previous === 0) return { icon: '—', color: colors.textTertiary, pct: '' };
+                const pct = Math.round(((current - previous) / previous) * 100);
+                if (pct > 0) return { icon: '▲', color: colors.success, pct: `+${pct}%` };
+                if (pct < 0) return { icon: '▼', color: colors.error, pct: `${pct}%` };
+                return { icon: '=', color: colors.textTertiary, pct: '0%' };
+              };
+              const rows = [
+                { label: 'Тренировок', current: weekComparison.thisCount, previous: weekComparison.lastCount, suffix: '' },
+                { label: 'Объём', current: Math.round(weekComparison.thisVol), previous: Math.round(weekComparison.lastVol), suffix: ' кг' },
+                { label: 'Время', current: weekComparison.thisDur, previous: weekComparison.lastDur, suffix: ' мин' },
+              ];
+              return rows.map((row) => {
+                const cmp = comparisonIcon(row.current, row.previous);
+                return (
+                  <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                    <Text style={[typography.body, { color: colors.text, flex: 1 }]}>
+                      {row.label}: <Text style={{ fontWeight: '700' }}>{row.current}{row.suffix}</Text> vs {row.previous}{row.suffix}
+                    </Text>
+                    <Text style={{ color: cmp.color, fontWeight: '700', fontSize: 13 }}>
+                      {cmp.icon} {cmp.pct}
+                    </Text>
+                  </View>
+                );
+              });
+            })()}
+          </Card>
+        </FadeIn>
+      )}
 
       {weeklyMuscleVolume.length > 0 && (
         <FadeIn delay={380}>

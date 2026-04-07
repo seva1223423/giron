@@ -41,6 +41,25 @@ export const SetsSection: React.FC<Props> = ({
     if (allHitTarget && prevMaxWeight > 0) return prevMaxWeight + 2.5;
     return null;
   }, [previousSets, currentExercise.sets]);
+  const suggestedRpe = useMemo(() => {
+    const { workoutHistory } = useWorkoutStore.getState();
+    const exId = currentExercise.exerciseId;
+    const rpes: number[] = [];
+    const relevantWorkouts = workoutHistory
+      .filter((w) => w.exercises.some((e) => e.exerciseId === exId))
+      .slice(0, 3);
+    relevantWorkouts.forEach((w) => {
+      w.exercises
+        .filter((e) => e.exerciseId === exId)
+        .forEach((e) => {
+          e.sets.filter((s) => s.completed && s.rpe).forEach((s) => rpes.push(s.rpe!));
+        });
+    });
+    if (rpes.length === 0) return undefined;
+    const avg = rpes.reduce((a, b) => a + b, 0) / rpes.length;
+    return Math.round(avg * 2) / 2; // round to nearest 0.5
+  }, [currentExercise.exerciseId]);
+
   const {
     addSet, removeSet, updateSetData, setExerciseNotes, setWorkoutNotes,
     toggleSuperset, generateWarmupSets, removeExerciseFromWorkout,
@@ -107,6 +126,7 @@ export const SetsSection: React.FC<Props> = ({
           set={set}
           setIndex={setIndex}
           prevSet={previousSets?.sets[setIndex] ?? null}
+          suggestedRpe={suggestedRpe}
           onComplete={(reps, weight) => onCompleteSet(setIndex, reps, weight)}
           onRpeChange={(rpe) => { updateSetData(currentExerciseIndex, setIndex, { rpe }); onRpeSelected?.(rpe); }}
           onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}

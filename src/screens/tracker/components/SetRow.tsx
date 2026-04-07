@@ -23,6 +23,7 @@ interface Props {
   set: any;
   setIndex: number;
   prevSet?: { weight?: number; reps?: number } | null;
+  suggestedRpe?: number;
   onComplete: (reps: number, weight: number) => void;
   onRpeChange: (rpe: number) => void;
   onRemove?: () => void;
@@ -31,7 +32,7 @@ interface Props {
   colors: any;
 }
 
-export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
+export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, suggestedRpe, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const haptic = useHaptic();
   const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
   const initialReps = set.reps ? set.reps.toString() : (prevSet?.reps ? prevSet.reps.toString() : '10');
@@ -136,13 +137,17 @@ export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, onComplete, on
         <View style={[styles.rpePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[typography.caption, { color: colors.textTertiary, marginRight: spacing.sm }]}>RPE</Text>
           {RPE_VALUES.map((v) => (
-            <TouchableOpacity
-              key={v}
-              onPress={() => { haptic.selection(); onRpeChange(v); setShowRpe(false); }}
-              style={[styles.rpeBtn, { backgroundColor: set.rpe === v ? rpeColor(v) : colors.inputBackground, borderColor: set.rpe === v ? rpeColor(v) : colors.border }]}
-            >
-              <Text style={[typography.small, { color: set.rpe === v ? '#fff' : colors.textSecondary, fontWeight: '700' }]}>{v}</Text>
-            </TouchableOpacity>
+            <View key={v} style={{ alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => { haptic.selection(); onRpeChange(v); setShowRpe(false); }}
+                style={[styles.rpeBtn, { backgroundColor: set.rpe === v ? rpeColor(v) : colors.inputBackground, borderColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary : colors.border, borderWidth: suggestedRpe === v && set.rpe !== v ? 1.5 : 1 }]}
+              >
+                <Text style={[typography.small, { color: set.rpe === v ? '#fff' : colors.textSecondary, fontWeight: '700' }]}>{v}</Text>
+              </TouchableOpacity>
+              {suggestedRpe === v && set.rpe !== v && (
+                <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', marginTop: 1 }}>ожид.</Text>
+              )}
+            </View>
           ))}
           {set.rpe && (
             <Text style={[typography.caption, { color: rpeColor(set.rpe), marginLeft: spacing.xs, fontWeight: '700' }]}>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
 import { PaywallModal } from '../../components';
@@ -46,6 +47,26 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [lastMeta, setLastMeta] = useState<AIMeta | null>(null);
   const [serverStarters, setServerStarters] = useState<AIStarter[]>([]);
   const [celebration, setCelebration] = useState<{ milestones: string[]; prs: string[] } | null>(null);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+
+  // Stop speech on unmount
+  useEffect(() => () => { Speech.stop(); }, []);
+
+  const handleSpeak = (id: string, text: string) => {
+    if (speakingId === id) {
+      Speech.stop();
+      setSpeakingId(null);
+    } else {
+      Speech.stop();
+      setSpeakingId(id);
+      Speech.speak(text, {
+        language: 'ru-RU',
+        rate: 0.9,
+        onDone: () => setSpeakingId(null),
+        onStopped: () => setSpeakingId(null),
+      });
+    }
+  };
 
   useEffect(() => {
     aiService.getChatHistory().then((history) => {
@@ -160,7 +181,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="ai_limit" navigation={navigation} />
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
-        {messages.map((msg, i) => <MessageBubble key={msg.id} message={msg} isLast={i === messages.length - 1} />)}
+        {messages.map((msg, i) => <MessageBubble key={msg.id} message={msg} isLast={i === messages.length - 1} speakingId={speakingId} onSpeak={handleSpeak} />)}
         {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
         {isTyping && <TypingIndicator />}
       </ScrollView>
