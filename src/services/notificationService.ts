@@ -289,6 +289,54 @@ export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
+// Show a persistent "widget-like" notification with today's workout plan
+// Call on app open to update the notification with current plan
+export async function showTodayPlanNotification(
+  planName: string | null,
+  exerciseCount: number,
+  streak: number,
+): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    await Notifications.dismissNotificationAsync('today-plan').catch(() => {});
+
+    if (!planName) {
+      // Rest day
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'today-plan',
+        content: {
+          title: `🏠 Сегодня: день отдыха${streak > 0 ? ` | 🔥 ${streak} дней подряд` : ''}`,
+          body: 'Мышцы растут во время отдыха. Отдохни и вернись завтра сильнее!',
+          sound: null,
+          sticky: true,
+          priority: Notifications.AndroidNotificationPriority.LOW,
+        },
+        trigger: null,
+      });
+    } else {
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'today-plan',
+        content: {
+          title: `💪 Сегодня: ${planName}${streak > 0 ? ` | 🔥 ${streak}` : ''}`,
+          body: exerciseCount > 0 ? `${exerciseCount} упражнений. Открой Iron Gym чтобы начать!` : 'Тренировка запланирована. Готов?',
+          sound: null,
+          sticky: true,
+          priority: Notifications.AndroidNotificationPriority.LOW,
+        },
+        trigger: null,
+      });
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function dismissTodayPlanNotification(): Promise<void> {
+  await Notifications.dismissNotificationAsync('today-plan').catch(() => {});
+}
+
 // Schedule an inactivity reminder based on how many days since last workout.
 // Call this when the app opens. Fires tomorrow morning at 9:00 if user hasn't trained.
 export async function scheduleInactivityReminder(daysSinceLastWorkout: number): Promise<void> {

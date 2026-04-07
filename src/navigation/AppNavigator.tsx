@@ -66,21 +66,21 @@ const TabIcon: React.FC<{ label: string; emoji: string; focused: boolean }> = ({
 // Workouts Stack
 function WorkoutsStackNavigator() {
   return (
-    <WorkoutsStack.Navigator screenOptions={{ headerShown: false }}>
+    <WorkoutsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <WorkoutsStack.Screen name="WorkoutsList" component={WorkoutsScreen} />
-      <WorkoutsStack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} />
+      <WorkoutsStack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} options={{ animation: 'fade_from_bottom' }} />
       <WorkoutsStack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
-      <WorkoutsStack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} />
+      <WorkoutsStack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <WorkoutsStack.Screen name="CustomWorkout" component={CustomWorkoutScreen} />
-      <WorkoutsStack.Screen name="PlateCalculator" component={PlateCalculatorScreen} />
+      <WorkoutsStack.Screen name="PlateCalculator" component={PlateCalculatorScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <WorkoutsStack.Screen name="ProgramDetail" component={ProgramDetailScreen} />
       <WorkoutsStack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
       <WorkoutsStack.Screen name="WeeklyPlan" component={WeeklyPlanScreen} />
-      <WorkoutsStack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} />
+      <WorkoutsStack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <WorkoutsStack.Screen name="WorkoutCalendar" component={WorkoutCalendarScreen} />
       <WorkoutsStack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
       <WorkoutsStack.Screen name="Cardio" component={CardioScreen} />
-      <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} />
+      <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} options={{ animation: 'slide_from_bottom' }} />
     </WorkoutsStack.Navigator>
   );
 }
@@ -88,12 +88,12 @@ function WorkoutsStackNavigator() {
 // Nutrition Stack
 function NutritionStackNavigator() {
   return (
-    <NutritionStack.Navigator screenOptions={{ headerShown: false }}>
+    <NutritionStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <NutritionStack.Screen name="NutritionMain" component={NutritionScreen} />
-      <NutritionStack.Screen name="FoodScanner" component={FoodScannerScreen} />
-      <NutritionStack.Screen name="ManualFoodAdd" component={ManualFoodAddScreen} />
+      <NutritionStack.Screen name="FoodScanner" component={FoodScannerScreen} options={{ animation: 'fade_from_bottom' }} />
+      <NutritionStack.Screen name="ManualFoodAdd" component={ManualFoodAddScreen} options={{ animation: 'slide_from_bottom' }} />
       <NutritionStack.Screen name="NutritionHistory" component={NutritionHistoryScreen} />
-      <NutritionStack.Screen name="MacroCalculator" component={MacroCalculatorScreen} />
+      <NutritionStack.Screen name="MacroCalculator" component={MacroCalculatorScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
     </NutritionStack.Navigator>
   );
 }
@@ -101,9 +101,9 @@ function NutritionStackNavigator() {
 // Profile Stack
 function ProfileStackNavigator() {
   return (
-    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProfileStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
-      <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} />
+      <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="TrainerDashboard" component={TrainerDashboardScreen} />
       <ProfileStack.Screen name="TrainerClient" component={TrainerClientScreen} />
@@ -187,11 +187,11 @@ function MainTabs() {
 // Auth Stack
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
       <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }
@@ -225,7 +225,7 @@ export const AppNavigator: React.FC = () => {
             <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>⚠️ Нет соединения — данные сохраняются локально</Text>
           </View>
         )}
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
           {!isAuthenticated ? (
             <Stack.Screen name="Auth" component={AuthStack} />
           ) : !isOnboarded ? (

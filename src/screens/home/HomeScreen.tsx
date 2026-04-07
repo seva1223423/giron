@@ -7,7 +7,7 @@ import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { FadeIn, Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
-import { scheduleInactivityReminder, scheduleWeeklySummaryNotification } from '../../services/notificationService';
+import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showTodayPlanNotification } from '../../services/notificationService';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
@@ -73,7 +73,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       scheduleInactivityReminder(daysSinceLastWorkout);
     }
     scheduleWeeklySummaryNotification(weekWorkoutsCount, weekVolume, bestWorkoutName);
-  }, [daysSinceLastWorkout, weekWorkoutsCount, weekVolume, bestWorkoutName]);
+    showTodayPlanNotification(
+      todayPlan?.name ?? null,
+      todayPlan?.exercises?.length ?? 0,
+      streak,
+    );
+  }, [daysSinceLastWorkout, weekWorkoutsCount, weekVolume, bestWorkoutName, todayPlan, streak]);
 
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;

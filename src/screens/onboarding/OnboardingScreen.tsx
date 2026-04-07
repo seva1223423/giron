@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { useThemeStore, useAuthStore, useNutritionStore } from '../../store';
+import { useThemeStore, useAuthStore, useNutritionStore, useWorkoutStore } from '../../store';
 import { Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { TrainingGoal, FitnessLevel, Gender } from '../../types';
-import { GenderStep, BodyStep, GoalStep, LevelStep } from './steps';
+import { GenderStep, BodyStep, GoalStep, LevelStep, DaysStep } from './steps';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   const { colors } = useThemeStore();
   const { updateProfile, completeOnboarding } = useAuthStore();
   const { setTargets } = useNutritionStore();
+  const { setWeekPlan, weekPlan } = useWorkoutStore();
   const [step, setStep] = useState(0);
 
   const [gender, setGender] = useState<Gender | null>(null);
@@ -21,8 +22,23 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   const [age, setAge] = useState('');
   const [goal, setGoal] = useState<TrainingGoal | null>(null);
   const [level, setLevel] = useState<FitnessLevel | null>(null);
+  const [trainingDays, setTrainingDays] = useState<number[]>([0, 2, 4]); // Mon, Wed, Fri default
+
+  const toggleDay = useCallback((dayIndex: number) => {
+    setTrainingDays((prev) =>
+      prev.includes(dayIndex) ? prev.filter((d) => d !== dayIndex) : [...prev, dayIndex].sort()
+    );
+  }, []);
 
   const handleFinish = () => {
+    // Apply training days to week plan
+    const newPlan = [...weekPlan];
+    trainingDays.forEach((dayIndex) => {
+      if (!newPlan[dayIndex] || newPlan[dayIndex].exercises.length === 0) {
+        newPlan[dayIndex] = { name: 'Тренировка', emoji: '💪', exercises: [] };
+      }
+    });
+    setWeekPlan(newPlan);
     const heightVal = parseInt(height) || 175;
     const weightVal = parseFloat(weight) || 75;
     const ageVal = parseInt(age) || 25;
@@ -52,6 +68,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
       case 1: return height.length > 0 && weight.length > 0 && age.length > 0;
       case 2: return goal !== null;
       case 3: return level !== null;
+      case 4: return trainingDays.length > 0;
       default: return false;
     }
   };
@@ -62,6 +79,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
       case 1: return <BodyStep height={height} weight={weight} age={age} onHeightChange={setHeight} onWeightChange={setWeight} onAgeChange={setAge} />;
       case 2: return <GoalStep goal={goal} onSelect={setGoal} />;
       case 3: return <LevelStep level={level} onSelect={setLevel} />;
+      case 4: return <DaysStep selectedDays={trainingDays} onToggle={toggleDay} />;
     }
   };
 
