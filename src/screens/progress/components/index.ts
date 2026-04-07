@@ -7,3 +7,5 @@ export { AchievementsTab } from './AchievementsTab';
 export { RecordsTab } from './RecordsTab';
 export { WeightTab } from './WeightTab';
 export { PhotosTab } from './PhotosTab';
+export { MuscleDistributionCard } from './MuscleDistributionCard';
+export { WorkoutHistoryList } from './WorkoutHistoryList';

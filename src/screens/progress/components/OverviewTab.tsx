@@ -6,6 +6,8 @@ import { spacing } from '../../../theme/spacing';
 import { BarChart } from './BarChart';
 import { LineChart } from './LineChart';
 import { WeeklyHeatmap } from './WeeklyHeatmap';
+import { MuscleDistributionCard, computeMuscleDistribution } from './MuscleDistributionCard';
+import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { useCardioStore } from '../../../store';
 import type { Workout } from '../../../types';
 
@@ -33,11 +35,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      if (workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr))) {
-        s++;
-      } else if (i > 0) {
-        break;
-      }
+      if (workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr))) s++;
+      else if (i > 0) break;
     }
     return s;
   }, [workoutHistory]);
@@ -52,11 +51,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
       const volume = workoutHistory
-        .filter((wk) => {
-          if (!wk.completedAt) return false;
-          const d = new Date(wk.completedAt);
-          return d >= weekStart && d < weekEnd;
-        })
+        .filter((wk) => { if (!wk.completedAt) return false; const d = new Date(wk.completedAt); return d >= weekStart && d < weekEnd; })
         .reduce((s, wk) => s + (wk.totalVolume || 0), 0);
       weeks.push({ label: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, value: Math.round(volume) });
     }
@@ -72,47 +67,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
       weekStart.setHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
-      const count = workoutHistory.filter((wk) => {
-        if (!wk.completedAt) return false;
-        const d = new Date(wk.completedAt);
-        return d >= weekStart && d < weekEnd;
-      }).length;
+      const count = workoutHistory.filter((wk) => { if (!wk.completedAt) return false; const d = new Date(wk.completedAt); return d >= weekStart && d < weekEnd; }).length;
       weeks.push({ label: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, value: count });
     }
     return weeks;
   }, [workoutHistory]);
 
-  const durationTrend = useMemo(() => {
-    return workoutHistory
-      .slice(0, 10)
-      .reverse()
-      .map((w, i) => ({ label: `${i + 1}`, value: w.durationMinutes || 0 }));
-  }, [workoutHistory]);
-
-  const workoutDates = useMemo(() => {
-    return workoutHistory.filter((w) => w.completedAt).map((w) => w.completedAt!);
-  }, [workoutHistory]);
-
-  const muscleDistribution = useMemo(() => {
-    const muscles: Record<string, number> = {};
-    const labels: Record<string, string> = {
-      chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
-      triceps: 'Трицепс', quadriceps: 'Ноги', hamstrings: 'Задняя', glutes: 'Ягодицы',
-      abs: 'Пресс', calves: 'Икры',
-    };
-    workoutHistory.forEach((w) => {
-      w.exercises.forEach((ex) => {
-        const completedSets = ex.sets.filter((s) => s.completed).length;
-        ex.exercise.primaryMuscles.forEach((m) => {
-          muscles[m] = (muscles[m] || 0) + completedSets;
-        });
-      });
-    });
-    return Object.entries(muscles)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([key, value]) => ({ label: labels[key] || key, value }));
-  }, [workoutHistory]);
+  const durationTrend = useMemo(() => workoutHistory.slice(0, 10).reverse().map((w, i) => ({ label: `${i + 1}`, value: w.durationMinutes || 0 })), [workoutHistory]);
+  const workoutDates = useMemo(() => workoutHistory.filter((w) => w.completedAt).map((w) => w.completedAt!), [workoutHistory]);
+  const muscleDistribution = useMemo(() => computeMuscleDistribution(workoutHistory), [workoutHistory]);
 
   return (
     <>
@@ -173,28 +136,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
         </Card>
       </FadeIn>
 
-      {muscleDistribution.length > 0 && (
-        <FadeIn delay={400}>
-          <Card style={{ marginTop: spacing.lg }}>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Распределение нагрузки</Text>
-            {muscleDistribution.map((m, i) => {
-              const maxSets = Math.max(1, muscleDistribution[0].value);
-              const pct = (m.value / maxSets) * 100;
-              return (
-                <View key={i} style={{ marginBottom: spacing.sm }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <Text style={[typography.smallMedium, { color: colors.text }]}>{m.label}</Text>
-                    <Text style={[typography.small, { color: colors.textSecondary }]}>{m.value} подх.</Text>
-                  </View>
-                  <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surface }}>
-                    <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.primary, width: `${pct}%` }} />
-                  </View>
-                </View>
-              );
-            })}
-          </Card>
-        </FadeIn>
-      )}
+      <MuscleDistributionCard distribution={muscleDistribution} delay={400} />
 
       {durationTrend.length >= 2 && (
         <FadeIn delay={500}>
@@ -205,39 +147,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
         </FadeIn>
       )}
 
-      <FadeIn delay={600}>
-        <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xxl, marginBottom: spacing.md }]}>
-          Последние тренировки
-        </Text>
-        {workoutHistory.length === 0 ? (
-          <Card>
-            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-              Нет завершённых тренировок. Начни первую!
-            </Text>
-          </Card>
-        ) : (
-          workoutHistory.slice(0, 10).map((workout, i) => (
-            <FadeIn key={workout.id} delay={650 + i * 50}>
-              <Card style={{ marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodySemibold, { color: colors.text }]}>{workout.name}</Text>
-                    <Text style={[typography.small, { color: colors.textSecondary }]}>
-                      {workout.exercises.length} упр. {'\u2022'} {workout.durationMinutes || 0} мин
-                      {workout.totalVolume ? ` \u2022 ${Math.round(workout.totalVolume)} кг` : ''}
-                    </Text>
-                  </View>
-                  <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                    {workout.completedAt
-                      ? new Date(workout.completedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
-                      : ''}
-                  </Text>
-                </View>
-              </Card>
-            </FadeIn>
-          ))
-        )}
-      </FadeIn>
+      <WorkoutHistoryList workouts={workoutHistory} delay={600} />
     </>
   );
 };
