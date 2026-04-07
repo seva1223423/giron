@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { Card, FadeIn } from '../../../components';
+import { FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { SelectedDayCard } from './SelectedDayCard';
+import { MonthStatsCard } from './MonthStatsCard';
 import type { Workout } from '../../../types';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -35,9 +37,7 @@ function getCalendarData(monthDate: Date, workoutHistory: Workout[]) {
 
   for (let d = 1; d <= lastDay.getDate(); d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const hasWorkout = workoutHistory.some(
-      (w) => w.completedAt && w.completedAt.startsWith(dateStr)
-    );
+    const hasWorkout = workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr));
     const isToday = d === now.getDate() && month === now.getMonth() && year === now.getFullYear();
     days.push({ date: d, dateStr, hasWorkout, isToday });
   }
@@ -58,37 +58,26 @@ export const CalendarTab: React.FC<CalendarTabProps> = ({ colors, workoutHistory
   const calDays = getCalendarData(calendarMonth, workoutHistory);
   const monthStr = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`;
   const monthWorkouts = workoutHistory.filter((w) => w.completedAt && w.completedAt.startsWith(monthStr));
-  const monthVolume = monthWorkouts.reduce((s, w) => s + (w.totalVolume || 0), 0);
-  const monthDuration = monthWorkouts.reduce((s, w) => s + (w.durationMinutes || 0), 0);
   const selectedDayWorkouts = selectedDay
     ? workoutHistory.filter((w) => w.completedAt && w.completedAt.startsWith(selectedDay))
     : [];
 
-  const goToPrevMonth = () => {
-    haptic.selection();
-    setSelectedDay(null);
-    setCalendarMonth((prev) => {
-      const d = new Date(prev);
-      d.setMonth(d.getMonth() - 1);
-      return d;
-    });
-  };
-
-  const goToNextMonth = () => {
-    const now = new Date();
-    if (calendarMonth.getFullYear() === now.getFullYear() && calendarMonth.getMonth() === now.getMonth()) return;
-    haptic.selection();
-    setSelectedDay(null);
-    setCalendarMonth((prev) => {
-      const d = new Date(prev);
-      d.setMonth(d.getMonth() + 1);
-      return d;
-    });
-  };
-
   const isCurrentMonth =
     calendarMonth.getFullYear() === new Date().getFullYear() &&
     calendarMonth.getMonth() === new Date().getMonth();
+
+  const goToPrevMonth = () => {
+    haptic.selection();
+    setSelectedDay(null);
+    setCalendarMonth((prev) => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; });
+  };
+
+  const goToNextMonth = () => {
+    if (isCurrentMonth) return;
+    haptic.selection();
+    setSelectedDay(null);
+    setCalendarMonth((prev) => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; });
+  };
 
   return (
     <>
@@ -152,68 +141,11 @@ export const CalendarTab: React.FC<CalendarTabProps> = ({ colors, workoutHistory
         </View>
       </FadeIn>
 
-      {selectedDay && selectedDayWorkouts.length > 0 && (
-        <FadeIn delay={0}>
-          <Card style={{ marginTop: spacing.xl }}>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
-              {new Date(selectedDay + 'T12:00:00').toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                weekday: 'long',
-              })}
-            </Text>
-            {selectedDayWorkouts.map((w, i) => (
-              <View
-                key={w.id}
-                style={[
-                  { paddingVertical: spacing.md },
-                  i > 0 && { borderTopWidth: 1, borderTopColor: colors.divider },
-                ]}
-              >
-                <Text style={[typography.bodySemibold, { color: colors.text }]}>{w.name}</Text>
-                <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                  {w.exercises.length} упр.
-                  {w.durationMinutes ? ` · ${w.durationMinutes} мин` : ''}
-                  {w.totalVolume ? ` · ${Math.round(w.totalVolume)} кг` : ''}
-                </Text>
-                {w.exercises.length > 0 && (
-                  <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
-                    {w.exercises.map((ex) => ex.exercise.name).join(', ')}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </Card>
-        </FadeIn>
+      {selectedDay && (
+        <SelectedDayCard selectedDay={selectedDay} workouts={selectedDayWorkouts} colors={colors} />
       )}
 
-      <FadeIn delay={150}>
-        <Card style={{ marginTop: spacing.xl }}>
-          <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
-            {MONTH_NAMES[calendarMonth.getMonth()]}
-          </Text>
-          {monthWorkouts.length === 0 ? (
-            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-              Нет тренировок за этот месяц
-            </Text>
-          ) : (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={[typography.number, { color: colors.primary }]}>{monthWorkouts.length}</Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>тренировок</Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={[typography.number, { color: colors.accent }]}>{Math.round(monthVolume)}</Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>кг объём</Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={[typography.number, { color: colors.success }]}>{monthDuration}</Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>минут</Text>
-              </View>
-            </View>
-          )}
-        </Card>
-      </FadeIn>
+      <MonthStatsCard monthDate={calendarMonth} workouts={monthWorkouts} colors={colors} />
     </>
   );
 };

@@ -9,3 +9,5 @@ export { WeightTab } from './WeightTab';
 export { PhotosTab } from './PhotosTab';
 export { MuscleDistributionCard } from './MuscleDistributionCard';
 export { WorkoutHistoryList } from './WorkoutHistoryList';
+export { SelectedDayCard } from './SelectedDayCard';
+export { MonthStatsCard } from './MonthStatsCard';

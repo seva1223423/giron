@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useTrainerStore } from '../../store';
 import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { ProgramPickerModal, EditClientModal } from './components';
+import { ProgramPickerModal, EditClientModal, ClientNotesCard } from './components';
 
 const GOAL_LABELS: Record<string, string> = {
   weight_loss: 'Похудение', muscle_gain: 'Набор массы', strength: 'Сила',
@@ -30,9 +30,6 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
   const [showProgramPicker, setShowProgramPicker] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [notes, setNotes] = useState(client.notes || '');
-  const [notesEditing, setNotesEditing] = useState(false);
-
   if (!client) { navigation.goBack(); return null; }
 
   const today = new Date().toISOString().split('T')[0];
@@ -49,13 +46,6 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
     setClient((prev) => ({ ...prev, assignedProgram: undefined }));
     updateClient(client.id, { assignedProgram: undefined });
     setShowProgramPicker(false);
-  };
-
-  const handleSaveNotes = () => {
-    haptic.light();
-    setClient((prev) => ({ ...prev, notes }));
-    updateClient(client.id, { notes });
-    setNotesEditing(false);
   };
 
   const handleSaveProfile = (patch: Partial<TrainerClient>) => {
@@ -138,22 +128,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
             : <Text style={[typography.body, { color: colors.textTertiary }]}>Программа не назначена</Text>}
         </Card>
 
-        {/* Notes */}
-        <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-            <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>ЗАМЕТКИ ТРЕНЕРА</Text>
-            {!notesEditing
-              ? <TouchableOpacity onPress={() => setNotesEditing(true)} style={[styles.editBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>✎ Редактировать</Text>
-                </TouchableOpacity>
-              : <TouchableOpacity onPress={handleSaveNotes} style={[styles.editBtn, { backgroundColor: colors.success + '20', borderColor: colors.success + '40' }]}>
-                  <Text style={[typography.caption, { color: colors.success }]}>✓ Сохранить</Text>
-                </TouchableOpacity>}
-          </View>
-          {notesEditing
-            ? <TextInput value={notes} onChangeText={setNotes} multiline numberOfLines={4} placeholder="Особенности клиента, противопоказания, цели..." placeholderTextColor={colors.textTertiary} style={[styles.notesInput, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} autoFocus />
-            : <Text style={[typography.body, { color: client.notes ? colors.text : colors.textTertiary }]}>{client.notes || 'Нет заметок'}</Text>}
-        </Card>
+        <ClientNotesCard clientId={client.id} initialNotes={client.notes || ''} />
 
         {/* Recent workouts */}
         <Card style={{ marginBottom: spacing.lg }}>
@@ -214,6 +189,5 @@ const styles = StyleSheet.create({
   tag: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm },
   editBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm, borderWidth: 1 },
   workoutRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
-  notesInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, minHeight: 100, textAlignVertical: 'top', fontSize: 15 },
   markDoneBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: borderRadius.xl, borderWidth: 1.5, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
 });
