@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, Switch } from 'react-native';
+import { Text, Switch, Share } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { Card, FadeIn } from '../../../components';
@@ -12,6 +13,27 @@ export const SystemSection: React.FC = () => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { hapticFeedback, setHapticFeedback } = useSettingsStore();
+
+  const handleExport = async () => {
+    try {
+      const [workouts, auth, nutrition, settings] = await Promise.all([
+        AsyncStorage.getItem('iron-gym-workouts'),
+        AsyncStorage.getItem('iron-gym-auth'),
+        AsyncStorage.getItem('iron-gym-nutrition'),
+        AsyncStorage.getItem('iron-gym-settings'),
+      ]);
+      const data = {
+        exportedAt: new Date().toISOString(),
+        workouts: workouts ? JSON.parse(workouts) : null,
+        auth: auth ? JSON.parse(auth) : null,
+        nutrition: nutrition ? JSON.parse(nutrition) : null,
+        settings: settings ? JSON.parse(settings) : null,
+      };
+      await Share.share({ message: JSON.stringify(data, null, 2), title: 'Iron Gym Backup' });
+    } catch {
+      // Silently fail
+    }
+  };
 
   return (
     <FadeIn delay={240}>
@@ -33,6 +55,13 @@ export const SystemSection: React.FC = () => {
           sublabel="Русский"
           divider
           right={<Text style={[typography.body, { color: colors.textSecondary }]}>Русский</Text>}
+        />
+        <SettingRow
+          label="Экспорт данных"
+          sublabel="JSON бэкап всех данных"
+          divider
+          onPress={handleExport}
+          right={<Text style={[typography.body, { color: colors.primary }]}>→</Text>}
         />
       </Card>
     </FadeIn>

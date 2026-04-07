@@ -11,9 +11,10 @@ interface Props {
   totalExercises: number;
   onPrev: () => void;
   onNext: () => void;
+  onSubstitute?: () => void;
 }
 
-export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerciseIndex, totalExercises, onPrev, onNext }) => {
+export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerciseIndex, totalExercises, onPrev, onNext, onSubstitute }) => {
   const { colors } = useThemeStore();
 
   return (
@@ -40,6 +41,11 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>
           {currentExercise.exercise.name}
         </Text>
+        {onSubstitute && (
+          <TouchableOpacity onPress={onSubstitute} style={{ marginTop: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>🔄 замена</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <TouchableOpacity

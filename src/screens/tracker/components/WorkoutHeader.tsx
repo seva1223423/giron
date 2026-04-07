@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useThemeStore } from '../../../store';
+import { useSettingsStore } from '../../../store/useSettingsStore';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { Workout } from '../../../types';
@@ -16,6 +17,15 @@ interface Props {
 
 export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalCompletedSets, totalSets, onCancel, onFinish }) => {
   const { colors } = useThemeStore();
+  const { workoutDurationGoal } = useSettingsStore();
+
+  const goalText = workoutDurationGoal > 0 ? (() => {
+    const remaining = workoutDurationGoal - elapsed;
+    if (remaining > 0) {
+      return { text: `осталось ${remaining} мин`, color: colors.success };
+    }
+    return { text: `\u2212${Math.abs(remaining)} мин (перебор)`, color: '#F59E0B' };
+  })() : null;
 
   return (
     <View style={{
@@ -30,8 +40,10 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
         <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>
           {workout.name}
         </Text>
-        <Text style={[typography.caption, { color: colors.textSecondary }]}>
+        <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
           {elapsed} мин {'\u2022'} {totalCompletedSets}/{totalSets} подходов
+          {goalText ? ` \u2022 ` : ''}
+          {goalText && <Text style={{ color: goalText.color }}>{goalText.text}</Text>}
         </Text>
       </View>
       <TouchableOpacity onPress={onFinish}>

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
 import { Card, ProgressRing, MacroBar } from '../../../components';
 import { typography } from '../../../theme';
@@ -8,6 +8,23 @@ import { spacing } from '../../../theme/spacing';
 interface Props {
   selectedDate: string;
 }
+
+const macroStyles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  segment: {
+    height: 8,
+  },
+  label: {
+    fontSize: 11,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+});
 
 export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
   const { colors } = useThemeStore();
@@ -48,6 +65,30 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
           <MacroBar label="Углеводы" current={totalCarbs} target={dayLog.targetCarbs} color={colors.carbs} />
         </View>
       </View>
+
+      {/* Macro calorie breakdown bar */}
+      {(() => {
+        const proteinCal = totalProtein * 4;
+        const fatCal = totalFats * 9;
+        const carbCal = totalCarbs * 4;
+        const totalMacroCal = proteinCal + fatCal + carbCal;
+        if (totalMacroCal <= 0) return null;
+        const pPct = Math.round((proteinCal / totalMacroCal) * 100);
+        const fPct = Math.round((fatCal / totalMacroCal) * 100);
+        const cPct = 100 - pPct - fPct;
+        return (
+          <View style={{ marginTop: spacing.md }}>
+            <View style={macroStyles.bar}>
+              <View style={[macroStyles.segment, { flex: proteinCal, backgroundColor: colors.protein, borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }]} />
+              <View style={[macroStyles.segment, { flex: fatCal, backgroundColor: colors.fats }]} />
+              <View style={[macroStyles.segment, { flex: carbCal, backgroundColor: colors.carbs, borderTopRightRadius: 4, borderBottomRightRadius: 4 }]} />
+            </View>
+            <Text style={[macroStyles.label, { color: colors.textSecondary }]}>
+              {`Б ${pPct}% \u2022 Ж ${fPct}% \u2022 У ${cPct}%`}
+            </Text>
+          </View>
+        );
+      })()}
     </Card>
   );
 };

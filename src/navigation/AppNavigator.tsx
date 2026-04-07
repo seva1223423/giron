@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, AppState } from 'react-native';
 import { useThemeStore, useAuthStore } from '../store';
+import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
 import { requestNotificationPermissions } from '../services/notificationService';
 
@@ -198,6 +199,7 @@ function AuthStack() {
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isOnboarded } = useAuthStore();
   const { colors, applyAutoTheme } = useThemeStore();
+  const { isOnline } = useConnectionStore();
 
   // Request notification permissions once on first authenticated launch
   useEffect(() => {
@@ -217,15 +219,22 @@ export const AppNavigator: React.FC = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isAuthenticated ? (
-          <Stack.Screen name="Auth" component={AuthStack} />
-        ) : !isOnboarded ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : (
-          <Stack.Screen name="Main" component={MainTabs} />
+      <View style={{ flex: 1 }}>
+        {!isOnline && (
+          <View style={{ backgroundColor: '#F59E0B', paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>⚠️ Нет соединения — данные сохраняются локально</Text>
+          </View>
         )}
-      </Stack.Navigator>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!isAuthenticated ? (
+            <Stack.Screen name="Auth" component={AuthStack} />
+          ) : !isOnboarded ? (
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          ) : (
+            <Stack.Screen name="Main" component={MainTabs} />
+          )}
+        </Stack.Navigator>
+      </View>
     </NavigationContainer>
   );
 };

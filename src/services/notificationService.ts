@@ -18,6 +18,7 @@ export const NOTIFICATION_IDS = {
   REST_TIMER: 'rest-timer',
   STREAK_RISK: 'streak-risk',
   WATER_PREFIX: 'water-reminder-',
+  WEEKLY_SUMMARY: 'weekly-summary',
 };
 
 // Request notification permissions. Returns true if granted.
@@ -221,6 +222,47 @@ export async function scheduleNutritionSummaryReminder(
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: 21,
+        minute: 0,
+      },
+    });
+  } catch {
+    // Silently fail
+  }
+}
+
+export async function scheduleWeeklySummaryNotification(
+  workoutsThisWeek: number,
+  totalVolumeKg: number,
+  bestWorkoutName?: string,
+): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.WEEKLY_SUMMARY).catch(() => {});
+
+    if (workoutsThisWeek <= 0) return;
+
+    let title: string;
+    let body: string;
+
+    if (workoutsThisWeek <= 2) {
+      title = '📊 Итоги недели';
+      body = `Ты потренировался ${workoutsThisWeek} ${workoutsThisWeek === 1 ? 'раз' : 'раза'} — хорошее начало! Объём: ${totalVolumeKg} кг. На следующей неделе попробуй добавить ещё одну тренировку.`;
+    } else if (workoutsThisWeek <= 4) {
+      title = '💪 Отличная неделя!';
+      body = `${workoutsThisWeek} тренировок, объём ${totalVolumeKg} кг${bestWorkoutName ? `, лучшая: ${bestWorkoutName}` : ''}. Ты в топ-форме — продолжай!`;
+    } else {
+      title = '🔥 Легенда!';
+      body = `${workoutsThisWeek} тренировок за неделю! Объём ${totalVolumeKg} кг. Феноменальная работа!`;
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: NOTIFICATION_IDS.WEEKLY_SUMMARY,
+      content: { title, body, sound: 'default' },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 20,
         minute: 0,
       },
     });

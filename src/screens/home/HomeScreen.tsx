@@ -3,11 +3,11 @@ import { ScrollView } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
-import { WorkoutExercise, WorkoutSet } from '../../types';
+import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { FadeIn, Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
-import { scheduleInactivityReminder } from '../../services/notificationService';
+import { scheduleInactivityReminder, scheduleWeeklySummaryNotification } from '../../services/notificationService';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
@@ -36,12 +36,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchHistory();
   }, []);
 
-  useEffect(() => {
-    if (daysSinceLastWorkout !== null) {
-      scheduleInactivityReminder(daysSinceLastWorkout);
-    }
-  }, [daysSinceLastWorkout]);
-
   const today = todayDate();
   const dayLog = getDayLog(today);
   const activeProgram = programs.find((p) => p.isActive) ?? null;
@@ -56,6 +50,30 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     workoutDate.setHours(0, 0, 0, 0);
     return Math.round((today.getTime() - workoutDate.getTime()) / 86400000);
   }, [lastWorkout?.completedAt]);
+
+  const { weekWorkoutsCount, weekVolume, bestWorkoutName } = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    const weekWorkouts = workoutHistory.filter(
+      (w) => w.completedAt && new Date(w.completedAt).getTime() >= sevenDaysAgo
+    );
+    const vol = weekWorkouts.reduce((s, w) => s + (w.totalVolume ?? 0), 0);
+    const best = weekWorkouts.reduce<Workout | null>(
+      (prev, curr) => (!prev || (curr.totalVolume ?? 0) > (prev.totalVolume ?? 0) ? curr : prev),
+      null
+    );
+    return {
+      weekWorkoutsCount: weekWorkouts.length,
+      weekVolume: Math.round(vol),
+      bestWorkoutName: best?.name,
+    };
+  }, [workoutHistory]);
+
+  useEffect(() => {
+    if (daysSinceLastWorkout !== null) {
+      scheduleInactivityReminder(daysSinceLastWorkout);
+    }
+    scheduleWeeklySummaryNotification(weekWorkoutsCount, weekVolume, bestWorkoutName);
+  }, [daysSinceLastWorkout, weekWorkoutsCount, weekVolume, bestWorkoutName]);
 
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;

@@ -102,6 +102,46 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
         </FadeIn>
       ) : null}
 
+      {/* Weight trend prediction */}
+      {weightHistory.length >= 4 && (() => {
+        const sample = weightHistory.slice(-8);
+        const firstWeight = sample[0].weightKg;
+        const lastWeight = sample[sample.length - 1].weightKg;
+        const firstDate = new Date(sample[0].date).getTime();
+        const lastDate = new Date(sample[sample.length - 1].date).getTime();
+        const weeks = (lastDate - firstDate) / (7 * 24 * 60 * 60 * 1000) || 1;
+        const weeklyRate = (lastWeight - firstWeight) / weeks;
+
+        let icon: string;
+        let message: string;
+        let trendColor: string;
+
+        if (Math.abs(weeklyRate) < 0.05) {
+          icon = '⚖️';
+          message = 'Вес стабилен последние несколько недель';
+          trendColor = colors.textSecondary;
+        } else if (weeklyRate < 0) {
+          icon = '📉';
+          message = `Темп: \u2212${Math.abs(weeklyRate).toFixed(1)} кг/нед → \u2212${(Math.abs(weeklyRate) * 4).toFixed(1)} кг/мес`;
+          trendColor = colors.success;
+        } else {
+          icon = '📈';
+          message = `Темп: +${weeklyRate.toFixed(1)} кг/нед → +${(weeklyRate * 4).toFixed(1)} кг/мес`;
+          trendColor = colors.error;
+        }
+
+        return (
+          <FadeIn delay={150}>
+            <Card style={{ marginBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Text style={{ fontSize: 18 }}>{icon}</Text>
+                <Text style={[typography.small, { color: trendColor, flex: 1 }]}>{message}</Text>
+              </View>
+            </Card>
+          </FadeIn>
+        );
+      })()}
+
       {/* Weight history list */}
       {weightHistory.length > 0 && (
         <FadeIn delay={200}>

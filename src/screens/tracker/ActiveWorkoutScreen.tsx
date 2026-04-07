@@ -3,6 +3,7 @@ import { View, Text, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { exercises as localExercises } from '../../data/exercises';
 import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification, workoutService } from '../../services';
 import { Button } from '../../components';
 import { typography } from '../../theme';
@@ -18,7 +19,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const {
     activeWorkout, workoutHistory,
     completeSet, nextExercise, prevExercise, finishWorkout, cancelWorkout,
-    setRestTimer,
+    setRestTimer, addExerciseToWorkout,
   } = useWorkoutStore();
 
   // Pre-compute best 1RM per exercise from history
@@ -207,6 +208,29 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     ]);
   };
 
+  const handleSubstitute = () => {
+    const primaryMuscle = currentExercise.exercise.primaryMuscles?.[0];
+    const alternatives = localExercises
+      .filter((ex) => ex.id !== currentExercise.exerciseId && ex.primaryMuscles?.includes(primaryMuscle as string))
+      .slice(0, 3);
+
+    if (alternatives.length === 0) {
+      Alert.alert('Замена', 'Не найдено альтернативных упражнений');
+      return;
+    }
+
+    const buttons = alternatives.map((ex) => ({
+      text: ex.name,
+      onPress: () => {
+        addExerciseToWorkout(ex);
+        Alert.alert('Готово', `"${ex.name}" добавлено в тренировку`);
+      },
+    }));
+    buttons.push({ text: 'Отмена', onPress: () => {} } as any);
+
+    Alert.alert('Альтернативы', `Похожие упражнения (${primaryMuscle}):`, buttons);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <WorkoutHeader
@@ -239,6 +263,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         totalExercises={workout.exercises.length}
         onPrev={prevExercise}
         onNext={nextExercise}
+        onSubstitute={handleSubstitute}
       />
 
       <SetsSection

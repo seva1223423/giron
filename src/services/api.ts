@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { setOnlineStatus } from '../store/useConnectionStore';
 
 // Android emulator uses 10.0.2.2 for localhost, iOS simulator uses localhost
 const BASE_URL = Platform.select({
@@ -46,8 +47,13 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => { setOnlineStatus(true); return response; },
   async (error: AxiosError) => {
+    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
+      setOnlineStatus(false);
+    } else {
+      setOnlineStatus(true);
+    }
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
