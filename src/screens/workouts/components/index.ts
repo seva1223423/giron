@@ -4,3 +4,6 @@ export type { WorkoutsTab } from './WorkoutsTabBar';
 export { QuickStartTab } from './QuickStartTab';
 export { ProgramsTab } from './ProgramsTab';
 export { ExercisesTab } from './ExercisesTab';
+export { ExerciseSelectStep } from './ExerciseSelectStep';
+export { ConfigureStepContainer } from './ConfigureStep';
+export { CreateExerciseModal } from './CreateExerciseModal';
