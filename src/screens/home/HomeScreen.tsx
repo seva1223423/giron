@@ -128,6 +128,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return { name: rec.name, emoji: rec.emoji, daysLabel, programWorkout: null };
   }, [workoutHistory, activeProgram]);
 
+  // Check if all program workouts done this week → show progression suggestion
+  const weekCompletionSuggestion = useMemo(() => {
+    if (!activeProgram || activeProgram.workouts.length === 0) return null;
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    weekStart.setHours(0, 0, 0, 0);
+    const thisWeekNames = new Set(
+      workoutHistory
+        .filter((w) => w.completedAt && new Date(w.completedAt) >= weekStart)
+        .map((w) => w.name)
+    );
+    const allDone = activeProgram.workouts.every((pw: any) => thisWeekNames.has(pw.name));
+    return allDone ? activeProgram.name : null;
+  }, [activeProgram, workoutHistory]);
+
   const handleStartPlannedWorkout = () => {
     if (!todayPlan || todayPlan.exercises.length === 0) return;
     haptic.medium();
@@ -219,6 +234,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             activeWorkout={activeWorkout}
             onRepeat={handleRepeatWorkout}
           />
+        </FadeIn>
+      )}
+
+      {weekCompletionSuggestion && !activeWorkout && (
+        <FadeIn delay={195}>
+          <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}>
+            <Text style={{ fontSize: 28, marginBottom: spacing.sm }}>🎉</Text>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.xs }]}>Неделя завершена!</Text>
+            <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+              Все тренировки программы «{weekCompletionSuggestion}» выполнены на этой неделе.
+            </Text>
+            <Text style={[typography.bodyMedium, { color: colors.success }]}>
+              💡 На следующей неделе добавь +2.5 кг на основных упражнениях для прогрессии.
+            </Text>
+          </Card>
         </FadeIn>
       )}
 

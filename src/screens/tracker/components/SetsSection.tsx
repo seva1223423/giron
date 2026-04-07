@@ -20,10 +20,11 @@ interface Props {
   previousSets: PreviousSets | null;
   navigation: any;
   onCompleteSet: (setIndex: number, reps: number, weight: number) => void;
+  onRpeSelected?: (rpe: number) => void;
 }
 
 export const SetsSection: React.FC<Props> = ({
-  currentExercise, currentExerciseIndex, workout, previousSets, navigation, onCompleteSet,
+  currentExercise, currentExerciseIndex, workout, previousSets, navigation, onCompleteSet, onRpeSelected,
 }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
@@ -107,7 +108,7 @@ export const SetsSection: React.FC<Props> = ({
           setIndex={setIndex}
           prevSet={previousSets?.sets[setIndex] ?? null}
           onComplete={(reps, weight) => onCompleteSet(setIndex, reps, weight)}
-          onRpeChange={(rpe) => updateSetData(currentExerciseIndex, setIndex, { rpe })}
+          onRpeChange={(rpe) => { updateSetData(currentExerciseIndex, setIndex, { rpe }); onRpeSelected?.(rpe); }}
           onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
           onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
           onOpenPlates={(w) => navigation.navigate('PlateCalculator', { initialWeight: w })}

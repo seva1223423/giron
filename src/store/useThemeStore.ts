@@ -3,12 +3,18 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { lightColors, darkColors, Colors } from '../theme/colors';
 
+function isNightTime(): boolean {
+  const hour = new Date().getHours();
+  return hour >= 21 || hour < 7;
+}
+
 interface ThemeStore {
-  mode: 'light' | 'dark' | 'system';
+  mode: 'light' | 'dark' | 'auto';
   colors: Colors;
   isDark: boolean;
-  setMode: (mode: 'light' | 'dark' | 'system') => void;
+  setMode: (mode: 'light' | 'dark' | 'auto') => void;
   toggleTheme: () => void;
+  applyAutoTheme: () => void;
 }
 
 export const useThemeStore = create<ThemeStore>()(
@@ -18,17 +24,24 @@ export const useThemeStore = create<ThemeStore>()(
       colors: lightColors,
       isDark: false,
       setMode: (mode) => {
-        const isDark = mode === 'dark';
-        set({
-          mode,
-          isDark,
-          colors: isDark ? darkColors : lightColors,
-        });
+        const isDark = mode === 'auto' ? isNightTime() : mode === 'dark';
+        set({ mode, isDark, colors: isDark ? darkColors : lightColors });
       },
       toggleTheme: () => {
         const current = get().mode;
-        const next = current === 'light' ? 'dark' : 'light';
-        get().setMode(next);
+        if (current === 'auto') {
+          get().setMode('light');
+        } else {
+          const next = current === 'light' ? 'dark' : 'light';
+          get().setMode(next);
+        }
+      },
+      applyAutoTheme: () => {
+        if (get().mode !== 'auto') return;
+        const isDark = isNightTime();
+        if (get().isDark !== isDark) {
+          set({ isDark, colors: isDark ? darkColors : lightColors });
+        }
       },
     }),
     {
@@ -37,7 +50,7 @@ export const useThemeStore = create<ThemeStore>()(
       partialize: (state) => ({ mode: state.mode }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          const isDark = state.mode === 'dark';
+          const isDark = state.mode === 'auto' ? isNightTime() : state.mode === 'dark';
           state.isDark = isDark;
           state.colors = isDark ? darkColors : lightColors;
         }

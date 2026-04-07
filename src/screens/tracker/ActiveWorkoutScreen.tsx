@@ -125,6 +125,24 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const totalCompletedSets = workout.exercises.reduce((s, ex) => s + ex.sets.filter((set) => set.completed).length, 0);
   const totalSets = workout.exercises.reduce((s, ex) => s + ex.sets.length, 0);
 
+  const handleRpeSelected = (rpe: number) => {
+    // Adjust active rest timer based on RPE
+    setRestTime((current) => {
+      if (current <= 0) return current;
+      if (rpe >= 9.5) return current + 45;
+      if (rpe >= 8.5) return current + 30;
+      if (rpe <= 6) return Math.max(10, current - 30);
+      return current;
+    });
+    setRestTotal((total) => {
+      if (total <= 0) return total;
+      if (rpe >= 9.5) return total + 45;
+      if (rpe >= 8.5) return total + 30;
+      if (rpe <= 6) return Math.max(10, total - 30);
+      return total;
+    });
+  };
+
   const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
     haptic.medium();
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
@@ -148,13 +166,17 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         setTimeout(() => nextExercise(), 250);
         return;
       } else if (prevEx?.supersetGroupId === groupId) {
-        startRest(currentExercise.restSeconds || restTimerDefault);
+        const setType = currentExercise.sets[setIndex]?.type;
+        const restDur = setType === 'warmup' ? Math.max(30, Math.round(restTimerDefault * 0.4)) : (currentExercise.restSeconds || restTimerDefault);
+        startRest(restDur);
         setTimeout(() => prevExercise(), 250);
         return;
       }
     }
 
-    startRest(currentExercise.restSeconds || restTimerDefault);
+    const setType = currentExercise.sets[setIndex]?.type;
+    const restDur = setType === 'warmup' ? Math.max(30, Math.round(restTimerDefault * 0.4)) : (currentExercise.restSeconds || restTimerDefault);
+    startRest(restDur);
   };
 
   const handleFinish = () => {
@@ -226,6 +248,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         previousSets={previousSets}
         navigation={navigation}
         onCompleteSet={handleCompleteSet}
+        onRpeSelected={handleRpeSelected}
       />
 
       <PRToast toast={prToast} />
