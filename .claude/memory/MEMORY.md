@@ -1,0 +1,3 @@
+- [User Profile](user_sevka.md) — sevka, Windows 10, стиль работы, предпочтения
+- [Working Rules](feedback_rules.md) — git push сразу, memory оба места, краткие ответы, паттерн рефакторинга
+- [Project Status & All Ideas](project_status.md) — всё сделанное, в процессе, идеи на будущее, техдолг
