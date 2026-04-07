@@ -83,24 +83,34 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
       },
 
       activateOnBackend: async (plan, durationDays) => {
-        const { data } = await api.post('/subscription/activate', { plan, durationDays });
-        set({
-          isPremium: data.isPremium,
-          premiumExpiresAt: data.expiresAt || null,
-          plan: data.plan,
-          status: data.status,
-          trialUsed: true,
-        });
+        try {
+          const { data } = await api.post('/subscription/activate', { plan, durationDays });
+          set({
+            isPremium: data.isPremium,
+            premiumExpiresAt: data.expiresAt || null,
+            plan: data.plan,
+            status: data.status,
+            trialUsed: true,
+          });
+        } catch (e) {
+          console.error('Activate subscription error:', e);
+          throw e;
+        }
       },
 
       cancelOnBackend: async () => {
-        const { data } = await api.post('/subscription/cancel');
-        set({
-          isPremium: data.isPremium,
-          premiumExpiresAt: data.expiresAt || null,
-          status: data.status,
-        });
-        return { message: data.message };
+        try {
+          const { data } = await api.post('/subscription/cancel');
+          set({
+            isPremium: data.isPremium,
+            premiumExpiresAt: data.expiresAt || null,
+            status: data.status,
+          });
+          return { message: data.message };
+        } catch (e) {
+          console.error('Cancel subscription error:', e);
+          throw e;
+        }
       },
 
       isPremiumActive: () => {

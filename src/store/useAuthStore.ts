@@ -99,9 +99,13 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const updated = await userService.updateProfile(data);
           set({ user: normalizeUser({ ...user, ...updated }) });
-        } catch {
-          // Fallback to local update if server is unavailable
-          set({ user: { ...user, ...data } });
+        } catch (e: any) {
+          // Only fallback to local update on network errors, not validation errors
+          const isNetworkError = !e?.response || e?.code === 'ECONNABORTED' || e?.code === 'ERR_NETWORK';
+          if (isNetworkError) {
+            set({ user: { ...user, ...data } });
+          }
+          // Server validation errors (4xx) are silently ignored — data stays unchanged
         }
       },
 

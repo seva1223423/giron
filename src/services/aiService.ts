@@ -88,7 +88,27 @@ export const aiService = {
 
     if (!response.ok) throw new Error(`AI stream error ${response.status}`);
 
-    const reader = response.body!.getReader();
+    // React Native may not support ReadableStream — fallback to text parsing
+    if (!response.body || typeof response.body.getReader !== 'function') {
+      // Fallback: read entire response as text and parse SSE events
+      const text = await response.text();
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        try {
+          const parsed = JSON.parse(data) as { type: string; content?: string; actions?: AIActionResult[]; meta?: AIMeta };
+          if (parsed.type === 'chunk' && parsed.content) {
+            yield parsed.content;
+          } else if (parsed.type === 'done') {
+            onDone?.({ actions: parsed.actions ?? [], meta: parsed.meta });
+          }
+        } catch { /* skip malformed */ }
+      }
+      return;
+    }
+
+    const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useWorkoutStore, useNutritionStore } from '../store';
 import { computeAchievements, getNewlyUnlocked, Achievement } from '../utils/achievements';
 
@@ -11,6 +11,8 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
   const { dailyLog } = useNutritionStore();
 
   const prevUnlockedRef = useRef<string[]>([]);
+  const onUnlockedRef = useRef(onUnlocked);
+  onUnlockedRef.current = onUnlocked;
 
   const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => d.meals.length > 0).length;
 
@@ -34,8 +36,8 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
     const current = computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak: streak });
     const newlyUnlocked = getNewlyUnlocked(prevUnlockedRef.current, current);
     if (newlyUnlocked.length > 0) {
-      onUnlocked(newlyUnlocked);
+      onUnlockedRef.current(newlyUnlocked);
     }
     prevUnlockedRef.current = current.filter((a) => a.unlocked).map((a) => a.id);
-  }, [nutritionDaysLogged, workoutHistory.length]);
+  }, [nutritionDaysLogged, workoutHistory.length, streak]);
 }

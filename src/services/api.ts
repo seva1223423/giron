@@ -90,17 +90,22 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Clear auth state on failed refresh
-        const stored = await AsyncStorage.getItem('iron-gym-auth');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed?.state) {
-            parsed.state.token = null;
-            parsed.state.refreshToken = null;
-            parsed.state.isAuthenticated = false;
-            await AsyncStorage.setItem('iron-gym-auth', JSON.stringify(parsed));
+        // Clear auth state on failed refresh — update both AsyncStorage AND in-memory Zustand store
+        try {
+          const stored = await AsyncStorage.getItem('iron-gym-auth');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed?.state) {
+              parsed.state.token = null;
+              parsed.state.refreshToken = null;
+              parsed.state.isAuthenticated = false;
+              await AsyncStorage.setItem('iron-gym-auth', JSON.stringify(parsed));
+            }
           }
-        }
+          // Also update Zustand in-memory store to trigger UI re-render
+          const { useAuthStore } = require('../store');
+          useAuthStore.getState().logout();
+        } catch { /* best effort */ }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
