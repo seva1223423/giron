@@ -163,7 +163,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               const rm = (st.weight!) * (1 + (st.reps!) / 30);
               return rm > best ? rm : best;
             }, 0);
-          completedSet.isPR = newRM > historyBest && historyBest > 0;
+          completedSet.isPR = newRM > historyBest;
         }
 
         sets[setIndex] = completedSet;

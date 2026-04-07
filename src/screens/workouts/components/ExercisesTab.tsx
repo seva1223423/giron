@@ -156,17 +156,20 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
               key={ex.id}
               style={{ marginBottom: spacing.sm }}
               padding={spacing.md}
-              onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ flex: 1 }}>
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
+                >
                   <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
                     {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
                   </Text>
-                </View>
+                </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={(e) => { e.stopPropagation(); toggleFavorite(ex.id); }}
+                  onPress={() => toggleFavorite(ex.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={{ paddingLeft: spacing.md }}
                 >

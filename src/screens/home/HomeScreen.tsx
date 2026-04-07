@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, Text, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
@@ -226,7 +226,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Text style={{ fontSize: 32, marginBottom: spacing.sm }}>{todayPlan.emoji}</Text>
             <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
             <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>Запланировано на сегодня</Text>
-            <Button title="Открыть кардио" onPress={() => navigation.navigate('CardioTab')} fullWidth />
+            <Button title="Открыть кардио" onPress={() => navigation.navigate('WorkoutsTab', { screen: 'Cardio' })} fullWidth />
           </Card>
         </FadeIn>
       )}
