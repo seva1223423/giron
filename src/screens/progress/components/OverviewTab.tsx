@@ -6,6 +6,7 @@ import { spacing } from '../../../theme/spacing';
 import { BarChart } from './BarChart';
 import { LineChart } from './LineChart';
 import { WeeklyHeatmap } from './WeeklyHeatmap';
+import { useCardioStore } from '../../../store';
 import type { Workout } from '../../../types';
 
 interface OverviewTabProps {
@@ -14,6 +15,11 @@ interface OverviewTabProps {
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory }) => {
+  const { getWeekSessions } = useCardioStore();
+  const weekCardio = getWeekSessions();
+  const cardioWeekMinutes = weekCardio.reduce((s, c) => s + c.durationMinutes, 0);
+  const cardioWeekKm = weekCardio.reduce((s, c) => s + (c.distanceKm ?? 0), 0);
+
   const totalWorkouts = workoutHistory.length;
   const totalVolume = workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0);
   const totalDuration = workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0);
@@ -128,6 +134,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
             <Text style={[typography.number, { color: colors.primary }]}>{totalDuration}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Минут</Text>
           </Card>
+          {cardioWeekMinutes > 0 && (
+            <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center' }}>
+              <Text style={[typography.number, { color: colors.info }]}>{cardioWeekMinutes}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {cardioWeekKm > 0 ? `Кардио мин (${cardioWeekKm.toFixed(1)}км)` : 'Кардио мин/нед'}
+              </Text>
+            </Card>
+          )}
         </View>
       </FadeIn>
 
