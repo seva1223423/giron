@@ -42,31 +42,13 @@ type: project
 | ProgressScreen | 1993 строки | 105 строк | OverviewTab, CalendarTab, AchievementsTab, RecordsTab, WeightTab, PhotosTab, BarChart, LineChart, WeeklyHeatmap |
 | HomeScreen | 970 строк | 232 строки | HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard, StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard, NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard |
 | ActiveWorkoutScreen | 909 строк | 234 строки | WorkoutHeader, RestTimerOverlay, ExerciseNavBar, SetRow, SetsSection, PRToast |
+| WorkoutSummaryScreen | 908 строк | ~130 строк | PRCelebration, PRsCard, AchievementsCard, StatsCard, VolumeCard, ComparisonCard, BestSetCard, ExercisesCard, ProgressionCard, AIInsightsCard, WorkoutRatingCard, SessionNoteCard, ShareImageCard |
 
 ---
 
 ## В процессе (незаконченное)
 
-### WorkoutSummaryScreen рефакторинг (ПРЕРВАН)
-Компоненты **уже созданы** в `src/screens/workouts/summary/`:
-- `PRCelebration.tsx` — конфетти анимация (18 частиц)
-- `PRsCard.tsx` — карточка личных рекордов
-- `AchievementsCard.tsx` — карточка достижений
-- `StatsCard.tsx` — основная статистика (минуты, упражнения, подходы, повторения)
-- `VolumeCard.tsx` — общий объём + средний RPE
-- `ComparisonCard.tsx` — сравнение с прошлой тренировкой
-- `BestSetCard.tsx` — лучший подход
-- `ExercisesCard.tsx` — разбивка по упражнениям
-- `ProgressionCard.tsx` — рекомендации по прогрессивной нагрузке
-- `AIInsightsCard.tsx` — AI анализ тренировки (со своим state + fetch)
-- `WorkoutRatingCard.tsx` — рейтинг звёздами (со своим state)
-- `SessionNoteCard.tsx` — заметки (со своим state)
-
-**Что ещё нужно сделать:**
-1. Создать `ShareImageCard.tsx` (forwardRef для captureRef)
-2. Создать `index.ts` с re-exports
-3. Переписать `WorkoutSummaryScreen.tsx` как оркестратор (~100 строк)
-4. Коммит + пуш
+_Нет активных незаконченных задач._
 
 ---
 
