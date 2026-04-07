@@ -7,6 +7,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { builtInPrograms } from '../../../data/programs';
 import { Workout } from '../../../types';
+import { UserProgramsList } from './UserProgramsList';
 
 const GOAL_FILTERS = [
   { key: 'all', label: 'Все' },
@@ -23,6 +24,9 @@ const LEVEL_FILTERS = [
   { key: 'advanced', label: 'Продвинутый' },
 ] as const;
 
+const GOAL_LABELS: Record<string, string> = { strength: 'Сила', muscle: 'Масса', fat_loss: 'Похудение', endurance: 'Выносливость' };
+const LEVEL_LABELS: Record<string, string> = { beginner: 'Новичок', intermediate: 'Средний', advanced: 'Продвинутый' };
+
 interface Props {
   navigation: any;
 }
@@ -35,7 +39,6 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
   const [showPaywall, setShowPaywall] = useState(false);
   const [goalFilter, setGoalFilter] = useState<typeof GOAL_FILTERS[number]['key']>('all');
   const [levelFilter, setLevelFilter] = useState<typeof LEVEL_FILTERS[number]['key']>('all');
-  const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
 
   const filteredPrograms = useMemo(() =>
     builtInPrograms.filter((p) => {
@@ -55,11 +58,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
         ...ex,
         id: `we-${Date.now()}-${ei}`,
         sets: ex.sets.map((s: any, si: number) => ({
-          ...s,
-          id: `set-${Date.now()}-${ei}-${si}`,
-          completed: false,
-          weight: s.weight ?? undefined,
-          rpe: s.rpe ?? undefined,
+          ...s, id: `set-${Date.now()}-${ei}-${si}`, completed: false, weight: s.weight ?? undefined, rpe: s.rpe ?? undefined,
         })),
       })),
       startedAt: undefined,
@@ -71,64 +70,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
 
   return (
     <>
-      {programs.length > 0 && (
-        <>
-          <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Мои программы</Text>
-          {programs.map((program, i) => (
-            <FadeIn key={program.id} delay={i * 60}>
-              <Card style={{ marginBottom: spacing.md }}>
-                <TouchableOpacity onPress={() => { haptic.light(); setExpandedProgramId(expandedProgramId === program.id ? null : program.id); }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 28, marginRight: spacing.md }}>{program.createdBy === 'ai' ? '🤖' : '📋'}</Text>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                        <Text style={[typography.bodySemibold, { color: colors.text }]}>{program.name}</Text>
-                        {program.isActive && (
-                          <View style={[styles.miniTag, { backgroundColor: colors.success + '20' }]}>
-                            <Text style={[typography.captionMedium, { color: colors.success, fontSize: 10 }]}>Активная</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                        {program.workouts.length} тренировок{program.description ? ` • ${program.description}` : ''}
-                      </Text>
-                    </View>
-                    <Text style={[typography.body, { color: colors.textTertiary }]}>
-                      {expandedProgramId === program.id ? '∧' : '∨'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {expandedProgramId === program.id && program.workouts.length > 0 && (
-                  <View style={{ marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md, gap: spacing.sm }}>
-                    {program.workouts.map((workout) => (
-                      <TouchableOpacity
-                        key={workout.id}
-                        onPress={() => startProgramWorkout(workout)}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, gap: spacing.md }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={[typography.bodyMedium, { color: colors.text }]}>{workout.name}</Text>
-                          <Text style={[typography.small, { color: colors.textSecondary }]}>{workout.exercises.length} упражнений</Text>
-                        </View>
-                        <View style={[styles.miniTag, { backgroundColor: colors.primary + '15' }]}>
-                          <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 10 }]}>Начать</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                {expandedProgramId === program.id && program.workouts.length === 0 && (
-                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.md }]}>
-                    Нет тренировок — попроси Iron Coach составить тренировку
-                  </Text>
-                )}
-              </Card>
-            </FadeIn>
-          ))}
-          <View style={{ height: 1, backgroundColor: colors.border, marginBottom: spacing.lg }} />
-        </>
-      )}
+      <UserProgramsList programs={programs} onStartWorkout={startProgramWorkout} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xs }}>
         {GOAL_FILTERS.map((f) => (
@@ -194,12 +136,12 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
                     <View style={[styles.miniTag, { backgroundColor: isLocked ? colors.border : colors.primary + '15' }]}>
                       <Text style={[typography.captionMedium, { color: isLocked ? colors.textTertiary : colors.primary, fontSize: 10 }]}>
-                        {program.level === 'beginner' ? 'Новичок' : program.level === 'intermediate' ? 'Средний' : 'Продвинутый'}
+                        {LEVEL_LABELS[program.level] || program.level}
                       </Text>
                     </View>
                     <View style={[styles.miniTag, { backgroundColor: colors.surface }]}>
                       <Text style={[typography.captionMedium, { color: colors.textSecondary, fontSize: 10 }]}>
-                        {program.goal === 'strength' ? 'Сила' : program.goal === 'muscle' ? 'Масса' : program.goal === 'fat_loss' ? 'Похудение' : 'Выносливость'}
+                        {GOAL_LABELS[program.goal] || program.goal}
                       </Text>
                     </View>
                     {isLocked && (

@@ -7,3 +7,4 @@ export { ExercisesTab } from './ExercisesTab';
 export { ExerciseSelectStep } from './ExerciseSelectStep';
 export { ConfigureStepContainer } from './ConfigureStep';
 export { CreateExerciseModal } from './CreateExerciseModal';
+export { UserProgramsList } from './UserProgramsList';
