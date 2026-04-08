@@ -86,7 +86,7 @@ export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, on
   // ConfigureStep needs navigation to start workout — pass it via context or prop
   // Since this is called from CustomWorkoutScreen which has navigation, we use a callback
   return (
-    <ConfigureStepInner
+    <ConfigureStepView
       selectedExercises={selectedExercises}
       onRemove={onRemove}
       onMove={onMove}
@@ -132,7 +132,7 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge }}
+      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.huge }}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
