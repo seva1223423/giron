@@ -158,6 +158,12 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **log_water** — записать воду
 - **delete_meal** — удалить ошибочный приём пищи
 - **set_weekly_plan** — расписание тренировок по дням недели
+- **delete_program** — удалить/деактивировать текущую программу
+- **adjust_all_weights** — массово изменить веса во всей программе (деload, прогрессия)
+- **log_cardio** — записать кардио сессию (бег, вело, плавание)
+- **modify_meal** — изменить существующий приём пищи
+- **log_body_measurement** — записать замеры тела (обхваты)
+- **set_water_target** — установить дневную норму воды
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
@@ -166,6 +172,12 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - "рассчитай КБЖУ" → рассчитай по Миффлину-Сан Жеору, СРАЗУ вызови update_nutrition_targets
 - "сделай легче" → modify_workout с weightMultiplier 0.85
 - "выпил стакан воды" → log_water(250)
+- "удали программу" / "программа не подходит" → delete_program + предложи новую
+- "бегал 30 минут 5 км" → СРАЗУ log_cardio(running, 30, 5)
+- "деload неделя" / "сделай разгрузочную" → adjust_all_weights(multiplier: 0.6)
+- "прибавь 2.5 кг на всё" → adjust_all_weights(deltaKg: 2.5)
+- "на самом деле было 200г курицы" → modify_meal с обновлёнными КБЖУ
+- "талия 82 см, грудь 100" → log_body_measurement(waist: 82, chest: 100)
 
 После действия — кратко подтверди: "Записал вес 85 кг ✓" или "Программа создана — 4 тренировки уже в твоём плане ✓". Никаких технических деталей.
 
@@ -538,6 +550,112 @@ const AI_TOOLS: DeepSeekTool[] = [
           },
         },
         required: ['mealType', 'items'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_program',
+      description: 'Деактивировать или удалить текущую программу тренировок. Используй когда пользователь хочет сменить программу, начать заново, или говорит что программа не подходит.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_all_weights',
+      description: 'Массово изменить веса во всех упражнениях активной программы. Используй для: деload недели (multiplier 0.6), лёгкой недели (0.8), прогрессии (+2.5 кг или multiplier 1.05). Можно также задать конкретную дельту в кг.',
+      parameters: {
+        type: 'object',
+        properties: {
+          multiplier: { type: 'number', description: 'Множитель веса для всех подходов (0.6 = деload, 0.8 = лёгкая, 1.05 = +5%)' },
+          deltaKg: { type: 'number', description: 'Добавить/убавить фиксированное количество кг ко всем весам (например +2.5 или -5)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_cardio',
+      description: 'Записать кардио сессию. Используй когда пользователь сообщает о пробежке, велосипеде, плавании, ходьбе, HIIT и т.д.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'], description: 'Тип кардио' },
+          durationMinutes: { type: 'number', description: 'Длительность в минутах' },
+          distanceKm: { type: 'number', description: 'Дистанция в км (если применимо)' },
+          caloriesBurned: { type: 'number', description: 'Сожжённые калории (если известно)' },
+          date: { type: 'string', description: 'Дата YYYY-MM-DD (по умолчанию сегодня)' },
+        },
+        required: ['type', 'durationMinutes'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'modify_meal',
+      description: 'Изменить существующий приём пищи — обновить вес порции, заменить продукт, добавить продукт. Используй когда пользователь говорит "на самом деле было 200г", "замени курицу на рыбу", "добавь ещё хлеб".',
+      parameters: {
+        type: 'object',
+        properties: {
+          mealId: { type: 'string', description: 'ID приёма пищи' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                weightGrams: { type: 'number' },
+                calories: { type: 'number' },
+                protein: { type: 'number' },
+                fats: { type: 'number' },
+                carbs: { type: 'number' },
+              },
+              required: ['name', 'weightGrams', 'calories', 'protein', 'fats', 'carbs'],
+            },
+            description: 'Полный обновлённый список продуктов (заменяет все текущие)',
+          },
+        },
+        required: ['mealId', 'items'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_body_measurement',
+      description: 'Записать замеры тела (обхваты). Используй когда пользователь сообщает свои замеры: "талия 80 см", "бицепс 38", "грудь 100 см".',
+      parameters: {
+        type: 'object',
+        properties: {
+          chest: { type: 'number', description: 'Обхват груди в см' },
+          waist: { type: 'number', description: 'Обхват талии в см' },
+          hips: { type: 'number', description: 'Обхват бёдер в см' },
+          bicepLeft: { type: 'number', description: 'Обхват левого бицепса в см' },
+          bicepRight: { type: 'number', description: 'Обхват правого бицепса в см' },
+          thighLeft: { type: 'number', description: 'Обхват левого бедра в см' },
+          thighRight: { type: 'number', description: 'Обхват правого бедра в см' },
+          neck: { type: 'number', description: 'Обхват шеи в см' },
+          calfLeft: { type: 'number', description: 'Обхват левой икры в см' },
+          calfRight: { type: 'number', description: 'Обхват правой икры в см' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_water_target',
+      description: 'Установить дневную норму воды в мл. Используй когда пользователь просит изменить целевое количество воды.',
+      parameters: {
+        type: 'object',
+        properties: {
+          targetMl: { type: 'number', description: 'Дневная норма воды в мл (например 2500)' },
+        },
+        required: ['targetMl'],
       },
     },
   },
@@ -1845,6 +1963,115 @@ async function executeTool(
       resultText: `Расписание установлено: ${summary}`,
       actionDescription: `Расписание на неделю обновлено`,
       actionData: { schedule: resolvedSchedule },
+    };
+  }
+
+  if (toolName === 'delete_program') {
+    const active = await prisma.program.findFirst({ where: { userId, isActive: true } });
+    if (!active) return { resultText: 'Нет активной программы для удаления', actionDescription: '' };
+    await prisma.program.update({ where: { id: active.id }, data: { isActive: false } });
+    return {
+      resultText: `Программа "${active.name}" деактивирована`,
+      actionDescription: `Программа "${active.name}" удалена`,
+      actionData: { programId: active.id },
+    };
+  }
+
+  if (toolName === 'adjust_all_weights') {
+    const { multiplier, deltaKg } = toolInput as { multiplier?: number; deltaKg?: number };
+    const active = await prisma.program.findFirst({
+      where: { userId, isActive: true },
+      include: { workouts: { include: { exercises: { include: { sets: true } } } } },
+    });
+    if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
+
+    let updatedCount = 0;
+    for (const workout of active.workouts) {
+      for (const exercise of workout.exercises) {
+        for (const set of exercise.sets) {
+          if (set.weight && set.weight > 0) {
+            let newWeight = set.weight;
+            if (multiplier) newWeight = Math.round(newWeight * multiplier * 4) / 4;
+            if (deltaKg) newWeight = Math.round((newWeight + deltaKg) * 4) / 4;
+            newWeight = Math.max(0, newWeight);
+            if (newWeight !== set.weight) {
+              await prisma.workoutSet.update({ where: { id: set.id }, data: { weight: newWeight } });
+              updatedCount++;
+            }
+          }
+        }
+      }
+    }
+
+    const desc = multiplier ? `×${multiplier}` : `${deltaKg! > 0 ? '+' : ''}${deltaKg} кг`;
+    return {
+      resultText: `Веса обновлены (${desc}) в ${updatedCount} подходах программы "${active.name}"`,
+      actionDescription: `Веса скорректированы ${desc} в программе "${active.name}"`,
+      actionData: { programId: active.id, updatedSets: updatedCount },
+    };
+  }
+
+  if (toolName === 'log_cardio') {
+    const { type, durationMinutes, distanceKm, caloriesBurned, date } = toolInput as {
+      type: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; date?: string;
+    };
+    const sessionDate = date || new Date().toISOString().split('T')[0];
+    const session = await prisma.cardioSession.create({
+      data: { userId, type, date: sessionDate, durationMinutes, distanceKm, caloriesBurned },
+    });
+    const distText = distanceKm ? `, ${distanceKm} км` : '';
+    const calText = caloriesBurned ? `, ~${caloriesBurned} ккал` : '';
+    return {
+      resultText: `Кардио записано: ${type} ${durationMinutes} мин${distText}${calText}`,
+      actionDescription: `Кардио: ${type} ${durationMinutes} мин`,
+      actionData: { sessionId: session.id, type, durationMinutes },
+    };
+  }
+
+  if (toolName === 'modify_meal') {
+    const { mealId, items } = toolInput as { mealId: string; items: Array<{ name: string; weightGrams: number; calories: number; protein: number; fats: number; carbs: number }> };
+    const meal = await prisma.meal.findFirst({ where: { id: mealId, userId } });
+    if (!meal) return { resultText: 'Приём пищи не найден', actionDescription: '' };
+
+    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
+    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
+    const totalFats = items.reduce((s, i) => s + i.fats, 0);
+    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.mealItem.deleteMany({ where: { mealId: meal.id } });
+      await tx.meal.update({
+        where: { id: meal.id },
+        data: { totalCalories, totalProtein, totalFats, totalCarbs, items: { create: items.map((i) => ({ name: i.name, calories: i.calories, protein: i.protein, fats: i.fats, carbs: i.carbs, weightGrams: i.weightGrams })) } },
+      });
+    });
+
+    return {
+      resultText: `Приём пищи обновлён: ${items.map(i => i.name).join(', ')} (${Math.round(totalCalories)} ккал)`,
+      actionDescription: 'Приём пищи изменён',
+      actionData: { mealId, totalCalories },
+    };
+  }
+
+  if (toolName === 'log_body_measurement') {
+    const measurements = toolInput as Record<string, number>;
+    const fields = Object.entries(measurements).filter(([_, v]) => typeof v === 'number' && v > 0);
+    if (fields.length === 0) return { resultText: 'Нет данных для записи', actionDescription: '' };
+    const labels: Record<string, string> = { chest: 'грудь', waist: 'талия', hips: 'бёдра', bicepLeft: 'бицепс Л', bicepRight: 'бицепс П', thighLeft: 'бедро Л', thighRight: 'бедро П', neck: 'шея', calfLeft: 'икра Л', calfRight: 'икра П' };
+    const summary = fields.map(([k, v]) => `${labels[k] || k}: ${v} см`).join(', ');
+    return {
+      resultText: `Замеры записаны: ${summary}`,
+      actionDescription: `Замеры тела: ${summary}`,
+      actionData: { date: new Date().toISOString().split('T')[0], ...measurements },
+    };
+  }
+
+  if (toolName === 'set_water_target') {
+    const { targetMl } = toolInput as { targetMl: number };
+    return {
+      resultText: `Дневная норма воды установлена: ${targetMl} мл`,
+      actionDescription: `Норма воды: ${targetMl} мл`,
+      actionData: { waterTargetMl: targetMl },
     };
   }
 
