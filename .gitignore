@@ -30,3 +30,5 @@ Thumbs.db
 
 # Prisma
 server/prisma/migrations/dev.db
+android-keystore.jks
+credentials.json
