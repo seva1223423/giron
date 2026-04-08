@@ -9,6 +9,7 @@ import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { CardioSession, CardioType } from '../../types';
+import { formatNum } from '../../utils/date';
 
 const TYPE_META: Record<CardioType, { emoji: string; label: string }> = {
   running:    { emoji: '🏃', label: 'Бег' },
@@ -128,7 +129,7 @@ export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               {[
                 { label: 'Сессий', value: weekStats.count.toString(), color: colors.primary },
                 { label: 'Минут', value: weekStats.totalMinutes.toString(), color: colors.success },
-                ...(weekStats.totalKm > 0 ? [{ label: 'Км', value: weekStats.totalKm.toFixed(1), color: colors.accent }] : []),
+                ...(weekStats.totalKm > 0 ? [{ label: 'Км', value: formatNum(weekStats.totalKm), color: colors.accent }] : []),
                 ...(weekStats.totalCal > 0 ? [{ label: 'Ккал', value: weekStats.totalCal.toString(), color: colors.warning }] : []),
               ].map(({ label, value, color }) => (
                 <View key={label} style={{ alignItems: 'center', flex: 1 }}>

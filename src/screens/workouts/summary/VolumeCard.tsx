@@ -5,6 +5,7 @@ import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { Workout } from '../../../types';
+import { formatNum } from '../../../utils/date';
 
 interface Props { workout: Workout }
 
@@ -15,7 +16,7 @@ export const VolumeCard: React.FC<Props> = ({ workout }) => {
     .flatMap((e) => e.sets.filter((s) => s.completed && s.rpe))
     .map((s) => s.rpe as number);
   const avgRpe = rpeValues.length > 0
-    ? (rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length).toFixed(1)
+    ? formatNum(rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length)
     : null;
 
   return (
@@ -27,7 +28,7 @@ export const VolumeCard: React.FC<Props> = ({ workout }) => {
             {Math.round(workout.totalVolume || 0).toLocaleString()} кг
           </Text>
           <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-            {((workout.totalVolume || 0) / 1000).toFixed(1)} тонн
+            {formatNum((workout.totalVolume || 0) / 1000)} тонн
           </Text>
         </View>
         {avgRpe && (

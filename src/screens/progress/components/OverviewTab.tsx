@@ -9,7 +9,7 @@ import { WeeklyHeatmap } from './WeeklyHeatmap';
 import { MuscleDistributionCard, computeMuscleDistribution } from './MuscleDistributionCard';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { useCardioStore } from '../../../store';
-import { getMonday, localDateStr } from '../../../utils/date';
+import { getMonday, localDateStr, formatNum } from '../../../utils/date';
 import type { Workout } from '../../../types';
 
 interface OverviewTabProps {
@@ -155,7 +155,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
             <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center' }}>
               <Text style={[typography.number, { color: colors.info }]}>{cardioWeekMinutes}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                {cardioWeekKm > 0 ? `Кардио мин (${cardioWeekKm.toFixed(1)}км)` : 'Кардио мин/нед'}
+                {cardioWeekKm > 0 ? `Кардио мин (${formatNum(cardioWeekKm)}км)` : 'Кардио мин/нед'}
               </Text>
             </Card>
           )}

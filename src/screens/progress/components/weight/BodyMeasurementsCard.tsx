@@ -7,6 +7,7 @@ import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
 import type { BodyMeasurement } from '../../../../types';
 import { MEASUREMENT_FIELDS } from './AddMeasurementsModal';
+import { formatNum } from '../../../../utils/date';
 
 interface Props {
   measurementHistory: BodyMeasurement[];
@@ -88,7 +89,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                       <Text style={[typography.bodySemibold, { color: colors.primary }]}>{val} см</Text>
                       {diff != null && diff !== 0 && (
                         <Text style={[typography.caption, { color: diff < 0 ? colors.success : colors.error, fontSize: 10 }]}>
-                          {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+                          {diff > 0 ? '+' : ''}{formatNum(diff)}
                         </Text>
                       )}
                     </View>

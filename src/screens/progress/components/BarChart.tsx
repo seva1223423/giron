@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { typography } from '../../../theme';
+import { formatNum } from '../../../utils/date';
 
 interface BarChartProps {
   data: { label: string; value: number }[];
@@ -20,7 +21,7 @@ export const BarChart: React.FC<BarChartProps> = ({ data, color, height = 140, c
           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
             {item.value > 0 && (
               <Text style={[typography.small, { color: colors.textTertiary, fontSize: 9, marginBottom: 2 }]}>
-                {item.value >= 1000 ? `${(item.value / 1000).toFixed(1)}k` : item.value}
+                {item.value >= 1000 ? `${formatNum(item.value / 1000)}k` : item.value}
               </Text>
             )}
             <View

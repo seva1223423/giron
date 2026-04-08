@@ -5,6 +5,7 @@ import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { CardioType } from '../../../types';
+import { formatNum } from '../../../utils/date';
 
 const TYPE_EMOJI: Record<CardioType, string> = {
   running: '🏃', cycling: '🚴', walking: '🚶', swimming: '🏊',
@@ -57,7 +58,7 @@ export const CardioWeekCard: React.FC<Props> = ({ navigation }) => {
               <View style={styles.statsRow}>
                 <Stat label="Сессий" value={stats.count.toString()} color={colors.primary} />
                 <Stat label="Минут" value={stats.totalMinutes.toString()} color={colors.success} />
-                {stats.totalKm > 0 && <Stat label="Км" value={stats.totalKm.toFixed(1)} color={colors.accent} />}
+                {stats.totalKm > 0 && <Stat label="Км" value={formatNum(stats.totalKm)} color={colors.accent} />}
                 {stats.totalCal > 0 && <Stat label="Ккал" value={stats.totalCal.toString()} color={colors.warning} />}
               </View>
             )}

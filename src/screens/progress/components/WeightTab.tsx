@@ -7,6 +7,7 @@ import { LineChart } from './LineChart';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { userService } from '../../../services';
+import { formatNum } from '../../../utils/date';
 import type { BodyWeight, BodyMeasurement } from '../../../types';
 import { AddWeightModal, AddMeasurementsModal, BodyMeasurementsCard, MEASUREMENTS_KEY } from './weight';
 
@@ -63,7 +64,7 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
                 const diff = weightHistory[weightHistory.length - 1].weightKg - weightHistory[weightHistory.length - 2].weightKg;
                 const sign = diff > 0 ? '+' : '';
                 const color = diff < 0 ? colors.success : diff > 0 ? colors.error : colors.textSecondary;
-                return <Text style={[typography.small, { color, marginTop: 2 }]}>{sign}{diff.toFixed(1)} кг с прошлого замера</Text>;
+                return <Text style={[typography.small, { color, marginTop: 2 }]}>{sign}{formatNum(diff)} кг с прошлого замера</Text>;
               })()}
             </View>
             <TouchableOpacity onPress={() => { haptic.light(); setShowWeightModal(true); }} style={[styles.addWeightBtn, { backgroundColor: colors.primary }]}>
@@ -122,11 +123,11 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
           trendColor = colors.textSecondary;
         } else if (weeklyRate < 0) {
           icon = '📉';
-          message = `Темп: \u2212${Math.abs(weeklyRate).toFixed(1)} кг/нед → \u2212${(Math.abs(weeklyRate) * 4).toFixed(1)} кг/мес`;
+          message = `Темп: \u2212${formatNum(Math.abs(weeklyRate))} кг/нед → \u2212${formatNum(Math.abs(weeklyRate) * 4)} кг/мес`;
           trendColor = colors.success;
         } else {
           icon = '📈';
-          message = `Темп: +${weeklyRate.toFixed(1)} кг/нед → +${(weeklyRate * 4).toFixed(1)} кг/мес`;
+          message = `Темп: +${formatNum(weeklyRate)} кг/нед → +${formatNum(weeklyRate * 4)} кг/мес`;
           trendColor = colors.error;
         }
 
