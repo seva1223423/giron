@@ -164,6 +164,14 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **modify_meal** — изменить существующий приём пищи
 - **log_body_measurement** — записать замеры тела (обхваты)
 - **set_water_target** — установить дневную норму воды
+- **set_rest_timer** — установить время отдыха между подходами
+- **set_notifications** — настроить напоминания (время, вода)
+- **swap_exercise** — заменить упражнение в программе на другое
+- **add_superset** — объединить два упражнения в суперсет
+- **generate_warmup** — информация о разминочных подходах
+- **set_workout_duration_goal** — установить цель по длительности тренировки
+- **analyze_progress** — подробный анализ прогресса за период
+- **suggest_next_workout** — предложить следующую тренировку
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
@@ -178,6 +186,13 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - "прибавь 2.5 кг на всё" → adjust_all_weights(deltaKg: 2.5)
 - "на самом деле было 200г курицы" → modify_meal с обновлёнными КБЖУ
 - "талия 82 см, грудь 100" → log_body_measurement(waist: 82, chest: 100)
+- "отдых 2 минуты" → set_rest_timer(120)
+- "напоминай в 7 утра" → set_notifications(reminderHour: 7, enabled: true)
+- "замени жим штанги на гантели" → swap_exercise("Жим штанги лёжа", "Жим гантелей лёжа")
+- "суперсет жим + разведение" → add_superset("Жим лёжа", "Разведение гантелей")
+- "тренируюсь максимум час" → set_workout_duration_goal(60)
+- "как мой прогресс за месяц?" → analyze_progress(month)
+- "что тренировать сегодня?" → suggest_next_workout
 
 После действия — кратко подтверди: "Записал вес 85 кг ✓" или "Программа создана — 4 тренировки уже в твоём плане ✓". Никаких технических деталей.
 
@@ -656,6 +671,118 @@ const AI_TOOLS: DeepSeekTool[] = [
           targetMl: { type: 'number', description: 'Дневная норма воды в мл (например 2500)' },
         },
         required: ['targetMl'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_rest_timer',
+      description: 'Установить время отдыха по умолчанию между подходами. Используй когда пользователь просит изменить таймер отдыха ("отдых 2 минуты", "поставь отдых 90 секунд").',
+      parameters: {
+        type: 'object',
+        properties: {
+          seconds: { type: 'number', description: 'Время отдыха в секундах (например 60, 90, 120, 180)' },
+        },
+        required: ['seconds'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_notifications',
+      description: 'Настроить уведомления: включить/выключить напоминания, установить время напоминания, включить напоминания о воде.',
+      parameters: {
+        type: 'object',
+        properties: {
+          enabled: { type: 'boolean', description: 'Включить/выключить напоминания' },
+          reminderHour: { type: 'number', description: 'Час напоминания (0-23)' },
+          waterReminders: { type: 'boolean', description: 'Включить напоминания о воде' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'swap_exercise',
+      description: 'Заменить одно упражнение на другое во всей программе или конкретной тренировке. Используй когда: "замени жим штанги на жим гантелей", "болит плечо — замени жим", "нет этого тренажёра".',
+      parameters: {
+        type: 'object',
+        properties: {
+          oldExerciseName: { type: 'string', description: 'Название текущего упражнения' },
+          newExerciseName: { type: 'string', description: 'Название нового упражнения' },
+          workoutName: { type: 'string', description: 'Название тренировки (если нужно заменить только в одной)' },
+        },
+        required: ['oldExerciseName', 'newExerciseName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_superset',
+      description: 'Объединить два упражнения в суперсет в тренировке. Используй когда пользователь просит: "сделай суперсет жим + разведение", "объедини в суперсет".',
+      parameters: {
+        type: 'object',
+        properties: {
+          exercise1Name: { type: 'string', description: 'Название первого упражнения' },
+          exercise2Name: { type: 'string', description: 'Название второго упражнения' },
+          workoutName: { type: 'string', description: 'Название тренировки (если нужно указать конкретную)' },
+        },
+        required: ['exercise1Name', 'exercise2Name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'generate_warmup',
+      description: 'Сгенерировать разминку для текущей тренировки на основе рабочих весов. Используй когда пользователь говорит: "добавь разминку", "нужна разминка перед тренировкой".',
+      parameters: {
+        type: 'object',
+        properties: {
+          workoutName: { type: 'string', description: 'Название тренировки' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_workout_duration_goal',
+      description: 'Установить целевую длительность тренировки. Используй когда: "хочу тренироваться 60 минут", "ограничь тренировку 45 минутами".',
+      parameters: {
+        type: 'object',
+        properties: {
+          minutes: { type: 'number', description: 'Целевая длительность в минутах (0 = убрать цель)' },
+        },
+        required: ['minutes'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'analyze_progress',
+      description: 'Проанализировать прогресс пользователя за указанный период и дать развёрнутую оценку. Используй когда: "как мой прогресс", "что с моими результатами", "оцени мою динамику".',
+      parameters: {
+        type: 'object',
+        properties: {
+          period: { type: 'string', enum: ['week', 'month', '3months'], description: 'Период анализа (по умолчанию month)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'suggest_next_workout',
+      description: 'Предложить следующую тренировку на основе истории и плана. Используй когда: "что тренировать сегодня?", "какую тренировку делать?", "что дальше?".',
+      parameters: {
+        type: 'object',
+        properties: {},
       },
     },
   },
@@ -2073,6 +2200,159 @@ async function executeTool(
       actionDescription: `Норма воды: ${targetMl} мл`,
       actionData: { waterTargetMl: targetMl },
     };
+  }
+
+  if (toolName === 'set_rest_timer') {
+    const { seconds } = toolInput as { seconds: number };
+    const clamped = Math.min(Math.max(seconds, 15), 600);
+    return { resultText: `Таймер отдыха установлен: ${clamped} сек`, actionDescription: `Отдых: ${clamped} сек`, actionData: { restTimerSeconds: clamped } };
+  }
+
+  if (toolName === 'set_notifications') {
+    const { enabled, reminderHour, waterReminders } = toolInput as { enabled?: boolean; reminderHour?: number; waterReminders?: boolean };
+    const parts: string[] = [];
+    if (enabled !== undefined) parts.push(enabled ? 'Напоминания включены' : 'Напоминания выключены');
+    if (reminderHour !== undefined) parts.push(`Время напоминания: ${reminderHour}:00`);
+    if (waterReminders !== undefined) parts.push(waterReminders ? 'Напоминания о воде включены' : 'Напоминания о воде выключены');
+    return { resultText: parts.join('. '), actionDescription: parts.join(', '), actionData: { notificationsEnabled: enabled, reminderHour, waterRemindersEnabled: waterReminders } };
+  }
+
+  if (toolName === 'swap_exercise') {
+    const { oldExerciseName, newExerciseName, workoutName } = toolInput as { oldExerciseName: string; newExerciseName: string; workoutName?: string };
+    const active = await prisma.program.findFirst({
+      where: { userId, isActive: true },
+      include: { workouts: { include: { exercises: { include: { exercise: true } } } } },
+    });
+    if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
+
+    const newEx = await prisma.exercise.findFirst({
+      where: { name: { contains: newExerciseName, mode: 'insensitive' } },
+    });
+    if (!newEx) return { resultText: `Упражнение "${newExerciseName}" не найдено в базе`, actionDescription: '' };
+
+    let swapped = 0;
+    for (const workout of active.workouts) {
+      if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
+      for (const we of workout.exercises) {
+        if (we.exercise.name.toLowerCase().includes(oldExerciseName.toLowerCase())) {
+          await prisma.workoutExercise.update({ where: { id: we.id }, data: { exerciseId: newEx.id } });
+          swapped++;
+        }
+      }
+    }
+    if (swapped === 0) return { resultText: `Упражнение "${oldExerciseName}" не найдено в программе`, actionDescription: '' };
+    return { resultText: `Заменено: "${oldExerciseName}" → "${newEx.name}" (${swapped} шт.)`, actionDescription: `Замена: ${oldExerciseName} → ${newEx.name}`, actionData: { oldName: oldExerciseName, newName: newEx.name, count: swapped } };
+  }
+
+  if (toolName === 'add_superset') {
+    const { exercise1Name, exercise2Name, workoutName } = toolInput as { exercise1Name: string; exercise2Name: string; workoutName?: string };
+    const active = await prisma.program.findFirst({
+      where: { userId, isActive: true },
+      include: { workouts: { include: { exercises: { include: { exercise: true } } } } },
+    });
+    if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
+
+    const groupId = `superset-${Date.now()}`;
+    let found = false;
+    for (const workout of active.workouts) {
+      if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
+      const ex1 = workout.exercises.find((e) => e.exercise.name.toLowerCase().includes(exercise1Name.toLowerCase()));
+      const ex2 = workout.exercises.find((e) => e.exercise.name.toLowerCase().includes(exercise2Name.toLowerCase()));
+      if (ex1 && ex2) {
+        await prisma.workoutExercise.update({ where: { id: ex1.id }, data: { supersetGroupId: groupId } });
+        await prisma.workoutExercise.update({ where: { id: ex2.id }, data: { supersetGroupId: groupId } });
+        found = true;
+        break;
+      }
+    }
+    if (!found) return { resultText: 'Не удалось найти оба упражнения в одной тренировке', actionDescription: '' };
+    return { resultText: `Суперсет создан: ${exercise1Name} + ${exercise2Name}`, actionDescription: `Суперсет: ${exercise1Name} + ${exercise2Name}`, actionData: { groupId } };
+  }
+
+  if (toolName === 'generate_warmup') {
+    const { workoutName } = toolInput as { workoutName?: string };
+    return { resultText: 'Разминочные подходы будут автоматически добавлены при начале тренировки через кнопку "🔥 Разминка"', actionDescription: 'Информация о разминке', actionData: { workoutName } };
+  }
+
+  if (toolName === 'set_workout_duration_goal') {
+    const { minutes } = toolInput as { minutes: number };
+    return { resultText: minutes > 0 ? `Цель тренировки: ${minutes} минут` : 'Цель по длительности убрана', actionDescription: minutes > 0 ? `Цель: ${minutes} мин` : 'Цель длительности снята', actionData: { durationGoalMinutes: minutes } };
+  }
+
+  if (toolName === 'analyze_progress') {
+    const { period = 'month' } = toolInput as { period?: string };
+    const days = period === 'week' ? 7 : period === '3months' ? 90 : 30;
+    const since = new Date(Date.now() - days * 86400000);
+
+    const workouts = await prisma.workout.findMany({
+      where: { userId, completedAt: { gte: since } },
+      include: { exercises: { include: { sets: true, exercise: true } } },
+    });
+
+    const totalWorkouts = workouts.length;
+    const totalVolume = workouts.reduce((s, w) => s + (w.totalVolume || 0), 0);
+    const totalDuration = workouts.reduce((s, w) => s + (w.durationMinutes || 0), 0);
+    const avgVolume = totalWorkouts > 0 ? Math.round(totalVolume / totalWorkouts) : 0;
+
+    // Find PRs
+    const bestByExercise: Record<string, { name: string; rm: number; weight: number; reps: number }> = {};
+    workouts.forEach((w) => {
+      w.exercises.forEach((ex) => {
+        ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((s) => {
+          const rm = (s.weight!) * (1 + (s.reps!) / 30);
+          const key = ex.exercise.name;
+          if (!bestByExercise[key] || rm > bestByExercise[key].rm) {
+            bestByExercise[key] = { name: key, rm: Math.round(rm), weight: s.weight!, reps: s.reps! };
+          }
+        });
+      });
+    });
+
+    const topPRs = Object.values(bestByExercise).sort((a, b) => b.rm - a.rm).slice(0, 5);
+    const prText = topPRs.map((p) => `${p.name}: ${p.weight}кг×${p.reps} (~${p.rm}кг 1ПМ)`).join('\n');
+
+    const weights = await prisma.bodyWeight.findMany({ where: { userId, date: { gte: since } }, orderBy: { date: 'asc' } });
+    const weightChange = weights.length >= 2 ? (weights[weights.length - 1].weightKg - weights[0].weightKg).toFixed(1) : null;
+
+    const periodLabel = period === 'week' ? 'неделю' : period === '3months' ? '3 месяца' : 'месяц';
+    let analysis = `📊 Прогресс за ${periodLabel}:\n\nТренировок: ${totalWorkouts}\nОбщий объём: ${Math.round(totalVolume)} кг\nСреднее время: ${totalWorkouts > 0 ? Math.round(totalDuration / totalWorkouts) : 0} мин\nСредний объём: ${avgVolume} кг/тренировка`;
+    if (weightChange) analysis += `\nИзменение веса: ${parseFloat(weightChange) > 0 ? '+' : ''}${weightChange} кг`;
+    if (topPRs.length > 0) analysis += `\n\nТоп рекорды:\n${prText}`;
+
+    return { resultText: analysis, actionDescription: `Анализ прогресса за ${periodLabel}`, actionData: { totalWorkouts, totalVolume, period } };
+  }
+
+  if (toolName === 'suggest_next_workout') {
+    const recent = await prisma.workout.findMany({
+      where: { userId, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      take: 7,
+      include: { exercises: { include: { exercise: true } } },
+    });
+
+    // Count muscle groups in last 7 workouts
+    const muscleCount: Record<string, number> = {};
+    recent.forEach((w) => {
+      w.exercises.forEach((ex) => {
+        ex.exercise.primaryMuscles.forEach((m: string) => {
+          muscleCount[m] = (muscleCount[m] || 0) + 1;
+        });
+      });
+    });
+
+    const labels: Record<string, string> = { chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', quadriceps: 'Ноги', biceps: 'Бицепс', triceps: 'Трицепс', abs: 'Пресс', glutes: 'Ягодицы' };
+    const sorted = Object.entries(muscleCount).sort(([,a], [,b]) => a - b);
+    const leastTrained = sorted.slice(0, 3).map(([m]) => labels[m] || m);
+
+    const lastDate = recent[0]?.completedAt;
+    const daysSince = lastDate ? Math.round((Date.now() - new Date(lastDate).getTime()) / 86400000) : 999;
+
+    let suggestion = '';
+    if (daysSince >= 3) suggestion = `Ты не тренировался ${daysSince} дней. Рекомендую начать с лёгкой тренировки на всё тело.`;
+    else if (leastTrained.length > 0) suggestion = `Наименее нагруженные мышцы за последние тренировки: ${leastTrained.join(', ')}. Рекомендую сфокусироваться на них.`;
+    else suggestion = 'Все мышечные группы хорошо прокачаны. Продолжай по плану!';
+
+    return { resultText: suggestion, actionDescription: 'Рекомендация тренировки', actionData: { leastTrained, daysSinceLastWorkout: daysSince } };
   }
 
   return { resultText: 'Неизвестный инструмент', actionDescription: '' };
