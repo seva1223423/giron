@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: iron-gym-api
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        value: https://api.mistral.ai/v1
+      - key: AI_MODEL
+        value: mistral-small-latest
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
