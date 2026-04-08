@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useThemeStore } from '../../../../store';
-import { Card, FadeIn } from '../../../../components';
+import { Card, FadeIn, SkeletonLoader } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing } from '../../../../theme/spacing';
 import { workoutService } from '../../../../services';
@@ -28,7 +28,20 @@ export const ClubLeaderboard: React.FC = () => {
   // Auto-fetch on mount
   React.useEffect(() => { fetch(); }, [fetch]);
 
-  if (loading) return <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />;
+  if (loading) return (
+    <Card style={{ marginTop: spacing.lg }}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.md }}>
+          <SkeletonLoader width={32} height={32} borderRadius={16} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <SkeletonLoader width="70%" height={14} />
+            <SkeletonLoader width="40%" height={10} />
+          </View>
+          <SkeletonLoader width={50} height={20} />
+        </View>
+      ))}
+    </Card>
+  );
 
   if (leaderboard.length === 0) {
     return (

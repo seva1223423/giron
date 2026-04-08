@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { Card, FadeIn } from '../../../components';
+import { Card, FadeIn, SkeletonLoader } from '../../../components';
 import { LineChart } from './LineChart';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -76,7 +76,21 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
 
       {/* Weight chart */}
       {loadingWeight ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <FadeIn delay={0}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ gap: 8 }}>
+                <SkeletonLoader width={80} height={12} />
+                <SkeletonLoader width={120} height={32} />
+              </View>
+              <SkeletonLoader width={48} height={48} borderRadius={24} />
+            </View>
+          </Card>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <SkeletonLoader width="50%" height={16} style={{ marginBottom: spacing.md }} />
+            <SkeletonLoader width="100%" height={140} />
+          </Card>
+        </FadeIn>
       ) : weightHistory.length >= 2 ? (
         <FadeIn delay={100}>
           <Card style={{ marginBottom: spacing.lg }}>

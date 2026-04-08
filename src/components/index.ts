@@ -6,3 +6,4 @@ export { MacroBar } from './MacroBar';
 export { AnimatedPressable } from './AnimatedPressable';
 export { FadeIn } from './FadeIn';
 export { PaywallModal } from './PaywallModal';
+export { SkeletonLoader } from './SkeletonLoader';

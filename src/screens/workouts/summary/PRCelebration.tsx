@@ -1,53 +1,92 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 
-const PR_EMOJIS = ['🏆', '🎉', '⭐', '💪', '🔥', '✨', '🥇', '💫'];
-const PARTICLE_COUNT = 18;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const COLORS = ['#FF6B35', '#FFD700', '#FF3B55', '#3BC46E', '#3B82F6', '#9C27B0', '#FF9800'];
+const PARTICLE_COUNT = 30;
 
-export const PRCelebration: React.FC = () => {
-  const particles = useRef(
-    Array.from({ length: PARTICLE_COUNT }, (_, i) => {
-      const angle = (i / PARTICLE_COUNT) * Math.PI * 2;
-      return {
-        anim: new Animated.Value(0),
-        angle,
-        distance: 90 + Math.floor(i * 17 % 100),
-        emoji: PR_EMOJIS[i % PR_EMOJIS.length],
-        size: 18 + (i % 3) * 6,
-      };
-    })
-  ).current;
+interface Particle {
+  x: number;
+  delay: number;
+  color: string;
+  size: number;
+  rotation: number;
+}
+
+const ConfettiParticle: React.FC<{ particle: Particle }> = ({ particle }) => {
+  const translateY = useSharedValue(-50);
+  const opacity = useSharedValue(1);
+  const rotate = useSharedValue(0);
 
   useEffect(() => {
-    Animated.parallel(
-      particles.map((p) =>
-        Animated.timing(p.anim, {
-          toValue: 1,
-          duration: 900 + (p.size % 4) * 150,
-          useNativeDriver: true,
-        })
-      )
-    ).start();
+    translateY.value = withDelay(
+      particle.delay,
+      withTiming(SCREEN_HEIGHT + 100, {
+        duration: 2500 + Math.random() * 1500,
+        easing: Easing.out(Easing.quad),
+      }),
+    );
+    opacity.value = withDelay(
+      particle.delay + 2000,
+      withTiming(0, { duration: 1000 }),
+    );
+    rotate.value = withDelay(
+      particle.delay,
+      withTiming(particle.rotation * 360, { duration: 3000 }),
+    );
   }, []);
 
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { rotate: `${rotate.value}deg` },
+    ],
+    opacity: opacity.value,
+  }));
+
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {particles.map((p, i) => {
-        const destX = Math.cos(p.angle) * p.distance;
-        const destY = Math.sin(p.angle) * p.distance;
-        const translateX = p.anim.interpolate({ inputRange: [0, 1], outputRange: [0, destX] });
-        const translateY = p.anim.interpolate({ inputRange: [0, 1], outputRange: [0, destY] });
-        const opacity = p.anim.interpolate({ inputRange: [0, 0.15, 0.65, 1], outputRange: [0, 1, 1, 0] });
-        const scale = p.anim.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0.4, 1.4, 0.7] });
-        return (
-          <Animated.Text
-            key={i}
-            style={{ position: 'absolute', top: '25%', left: '50%', fontSize: p.size, transform: [{ translateX }, { translateY }, { scale }], opacity }}
-          >
-            {p.emoji}
-          </Animated.Text>
-        );
-      })}
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: particle.x,
+          top: -20,
+          width: particle.size,
+          height: particle.size * 0.6,
+          backgroundColor: particle.color,
+          borderRadius: 2,
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+export const PRCelebration: React.FC = () => {
+  const particles = useMemo<Particle[]>(
+    () =>
+      Array.from({ length: PARTICLE_COUNT }, () => ({
+        x: Math.random() * SCREEN_WIDTH,
+        delay: Math.random() * 500,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        size: 8 + Math.random() * 8,
+        rotation: 2 + Math.random() * 4,
+      })),
+    [],
+  );
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {particles.map((p, i) => (
+        <ConfettiParticle key={i} particle={p} />
+      ))}
     </View>
   );
 };
