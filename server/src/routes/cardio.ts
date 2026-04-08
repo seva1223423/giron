@@ -56,10 +56,10 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const { id } = req.params;
 
-    const session = await prisma.cardioSession.findFirst({ where: { id, userId } });
+    const session = await prisma.cardioSession.findFirst({ where: { id: id as string, userId } });
     if (!session) return res.status(404).json({ error: 'Сессия не найдена' });
 
-    await prisma.cardioSession.delete({ where: { id } });
+    await prisma.cardioSession.delete({ where: { id: id as string } });
     res.json({ success: true });
   } catch (e) {
     logger.error('Delete cardio session error:', e);

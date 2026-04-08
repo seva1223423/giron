@@ -85,7 +85,7 @@ router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req
     });
     if (client.count === 0) return res.status(404).json({ error: 'Клиент не найден' });
 
-    const updated = await prisma.trainerClient.findUnique({ where: { id: req.params.id as string } });
+    const updated = await prisma.trainerClient.findUnique({ where: { id: req.params.id } });
     res.json(updated);
   } catch (e) {
     logger.error(e);

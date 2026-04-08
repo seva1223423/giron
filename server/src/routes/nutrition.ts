@@ -94,7 +94,7 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
 // Update meal items (recalculate totals)
 router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const meal = await prisma.meal.findFirst({ where: { id: req.params.id, userId: req.userId } });
+    const meal = await prisma.meal.findFirst({ where: { id: req.params.id as string, userId: req.userId } as any });
     if (!meal) return res.status(404).json({ error: 'Приём пищи не найден' });
 
     const parsed = z.object({ items: z.array(mealItemSchema).min(1).max(50) }).safeParse(req.body);
