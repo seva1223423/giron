@@ -31,7 +31,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { user, fetchProfile } = useAuthStore();
   const { fetchHistory, fetchPrograms, setWeekPlanDay, weekPlan } = useWorkoutStore();
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
-  const { getWeekSessions } = useCardioStore();
+  const { getWeekSessions, syncFromServer: syncCardio, addSession: addCardioSession } = useCardioStore();
   const { consumeAiMessage } = useSubscriptionStore();
   const scrollRef = useRef<ScrollView>(null);
   const dynamicPrompts = useDynamicPrompts();
@@ -143,12 +143,13 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setLastActions(actions);
         setTimeout(() => setLastActions([]), 6000);
         const types = actions.map((act) => act.type);
-        if (types.includes('create_workout') || types.includes('modify_workout') || types.includes('create_program')) {
+        if (types.includes('create_workout') || types.includes('modify_workout') || types.includes('create_program') || types.includes('delete_program') || types.includes('adjust_all_weights')) {
           fetchPrograms().catch(() => {});
           fetchHistory().catch(() => {});
         }
         if (types.includes('update_user_profile') || types.includes('log_body_weight')) fetchProfile().catch(() => {});
-        if (types.includes('log_meal') || types.includes('delete_meal')) syncMealsFromServer(new Date().toISOString().split('T')[0]).catch(() => {});
+        if (types.includes('log_meal') || types.includes('delete_meal') || types.includes('modify_meal')) syncMealsFromServer(new Date().toISOString().split('T')[0]).catch(() => {});
+        if (types.includes('log_cardio')) syncCardio().catch(() => {});
         if (types.includes('log_water')) {
           const waterAction = actions.find((act) => act.type === 'log_water');
           if (waterAction?.data?.ml) addWater(new Date().toISOString().split('T')[0], waterAction.data.ml as number);
@@ -156,6 +157,13 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (types.includes('update_nutrition_targets')) {
           const nutrAction = actions.find((act) => act.type === 'update_nutrition_targets');
           if (nutrAction?.data) setTargets(new Date().toISOString().split('T')[0], { calories: nutrAction.data.calories as number, protein: nutrAction.data.protein as number, fats: nutrAction.data.fats as number, carbs: nutrAction.data.carbs as number });
+        }
+        if (types.includes('set_water_target')) {
+          const wtAction = actions.find((act) => act.type === 'set_water_target');
+          if (wtAction?.data?.waterTargetMl) {
+            const today = new Date().toISOString().split('T')[0];
+            setTargets(today, { waterTargetMl: wtAction.data.waterTargetMl as number });
+          }
         }
         if (types.includes('set_weekly_plan')) {
           const planAction = actions.find((act) => act.type === 'set_weekly_plan');
