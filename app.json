@@ -17,6 +17,7 @@
       "icon": "./assets/icon.png"
     },
     "android": {
+      "package": "com.irongym.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF6B35"
@@ -32,6 +33,12 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8b6fa1fd-4943-4185-bf1a-ea14bc70cfc4"
+      }
+    },
+    "owner": "memno666"
   }
 }
