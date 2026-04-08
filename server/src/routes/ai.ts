@@ -77673,7 +77673,7 @@ CLA (минимальный эффект, дорого)
 `;
 }
 
-function getAlcoholAndFitness(message: string): string {
+function getAlcoholAndFitnessV2(message: string): string {
   const kw = ['алкоголь и спорт', 'алкоголь мышцы', 'можно ли пить', 'пиво после тренировки', 'алкоголь тестосте��он'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -77742,7 +77742,7 @@ function getWaterAndElectrolytes(message: string): string {
 `;
 }
 
-function getMealPrepStrategies(message: string): string {
+function getMealPrepStrategiesV2(message: string): string {
   const kw = ['мил преп', 'meal prep', 'готовка на неделю', 'заготовки еды', 'контейнеры еда'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -78786,7 +78786,7 @@ Dead bug: 3×10
 `;
 }
 
-function getYogaForAthletes(message: string): string {
+function getYogaForAthletesV2(message: string): string {
   const kw = ['йога для спортсменов', 'йога и силовые', 'йога восстановление', 'йога гибкость'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -78827,7 +78827,7 @@ function getYogaForAthletes(message: string): string {
 
 // ─── Knowledge Block 1681-1690: Восстановление и регенерация — мастер-уровень ──
 
-function getSleepArchitectureAthletes(message: string): string {
+function getSleepArchitectureAthletesV2(message: string): string {
   const kw = ['архитектура сна', 'фазы сна спорт', 'глубокий сон атлет', 'rem сон восстановление', 'дельта сон спортсмен'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -78965,7 +78965,7 @@ function getNutritionForRecovery(message: string): string {
 `;
 }
 
-function getMindBodyConnection(message: string): string {
+function getMindBodyConnectionV2(message: string): string {
   const kw = ['связь разума и тела', 'психосоматика спорт', 'ментальное восстановление', 'нейромышечная связь'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -79091,7 +79091,7 @@ function getThermoregulationAthletes(message: string): string {
 `;
 }
 
-function getAltitudeTraining(message: string): string {
+function getAltitudeTrainingV2(message: string): string {
   const kw = ['тренировки на высоте', 'altitude training', 'горный тренинг', 'высокогорье спорт', 'эритропоэтин натуральный'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -79228,7 +79228,7 @@ Hip thrust iso → ягодицы без осевой нагрузки на по
 `;
 }
 
-function getBFRTraining(message: string): string {
+function getBFRTrainingV2(message: string): string {
   const kw = ['окклюзионный тренинг', 'bfr', 'blood flow restriction', 'жгут тренировка', 'тренировка с ограничением кровотока', 'kaatsu'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -79264,7 +79264,7 @@ function getBFRTraining(message: string): string {
 `;
 }
 
-function getGripStrengthTraining(message: string): string {
+function getGripStrengthTrainingV2(message: string): string {
   const kw = ['сила хвата', 'кисть тренировка', 'grip strength', 'forearm training', 'пальцы сила', 'предплечья накачать', 'висение на перекладине'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -79437,7 +79437,7 @@ I → II: НЕВОЗМОЖНО у взрослых в значимом масш�
 `;
 }
 
-function getDehydrationPerformance(message: string): string {
+function getDehydrationPerformanceV2(message: string): string {
   const kw = ['обезвоживание тренировка', 'дегидратация спорт', 'вода и производительность', 'сколько пить на тренировке', 'потеря воды сила'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -80105,7 +80105,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
 
 // ─── Knowledge Block 1711-1720: Продвинутые стратегии и физиология ──────
 
-function getCarbCycling(message: string): string {
+function getCarbCyclingV2(message: string): string {
   const kw = ['углеводное циклирование', 'карбофазирование', 'углеводная загрузка', 'carb cycling', 'загрузочный день'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -80296,7 +80296,7 @@ function getHypertrophyMechanisms(message: string): string {
 `;
 }
 
-function getSupercompensation(message: string): string {
+function getSupercompensationV2(message: string): string {
   const kw = ['суперкомпенсация', 'принцип суперкомпенсации', 'период восстановления', 'когда тренироваться снова', 'переутомление адаптация'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -80392,7 +80392,7 @@ function getBlockPeriodization(message: string): string {
 `;
 }
 
-function getTrainingInHeat(message: string): string {
+function getTrainingInHeatV2(message: string): string {
   const kw = ['тренировки в жару', 'тренировки в холод', 'акклиматизация', 'тренировка в жаркую погоду', 'перегрев на тренировке'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -80565,7 +80565,7 @@ Snijders et al. (2015): группа с казеином перед сном п�
 `;
 }
 
-function getDropSetScience(message: string): string {
+function getDropSetScienceV2(message: string): string {
   const kw = ['дроп-сеты', 'drop set', 'дропсеты наука', 'механический дроп-сет'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
