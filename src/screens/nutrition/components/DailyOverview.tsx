@@ -40,7 +40,7 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
   }), [dayLog.meals]);
 
   const remaining = dayLog.targetCalories - totalCalories;
-  const isGain = user?.goal === 'muscle_gain' || user?.goal === 'MUSCLE_GAIN' || user?.goal === 'strength' || user?.goal === 'STRENGTH';
+  const isGain = user?.goal === 'muscle_gain' || (user?.goal as string) === 'MUSCLE_GAIN' || user?.goal === 'strength' || (user?.goal as string) === 'STRENGTH';
 
   return (
     <Card style={{ marginBottom: spacing.lg }}>

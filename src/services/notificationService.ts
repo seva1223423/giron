@@ -316,7 +316,7 @@ export async function showTodayPlanNotification(
         content: {
           title: `🏠 Сегодня: день отдыха${streak > 0 ? ` | 🔥 ${streak} дней подряд` : ''}`,
           body: 'Мышцы растут во время отдыха. Отдохни и вернись завтра сильнее!',
-          sound: null,
+          sound: undefined,
           sticky: true,
           priority: Notifications.AndroidNotificationPriority.LOW,
         },
@@ -328,7 +328,7 @@ export async function showTodayPlanNotification(
         content: {
           title: `💪 Сегодня: ${planName}${streak > 0 ? ` | 🔥 ${streak}` : ''}`,
           body: exerciseCount > 0 ? `${exerciseCount} упражнений. Открой Iron Gym чтобы начать!` : 'Тренировка запланирована. Готов?',
-          sound: null,
+          sound: undefined,
           sticky: true,
           priority: Notifications.AndroidNotificationPriority.LOW,
         },

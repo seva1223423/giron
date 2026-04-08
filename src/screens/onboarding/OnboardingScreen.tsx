@@ -13,7 +13,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   const { colors } = useThemeStore();
   const { updateProfile, completeOnboarding } = useAuthStore();
   const { setTargets } = useNutritionStore();
-  const { setWeekPlan, weekPlan } = useWorkoutStore();
+  const { setWeekPlanDay, weekPlan } = useWorkoutStore();
   const [step, setStep] = useState(0);
 
   const [gender, setGender] = useState<Gender | null>(null);
@@ -31,14 +31,13 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   }, []);
 
   const handleFinish = () => {
-    // Apply training days to week plan — ensure 7-element array with null checks
-    const newPlan = Array.from({ length: 7 }, (_, i) => weekPlan[i] ?? null);
+    // Apply training days to week plan
     trainingDays.forEach((dayIndex) => {
-      if (!newPlan[dayIndex] || !newPlan[dayIndex]?.exercises?.length) {
-        newPlan[dayIndex] = { name: 'Тренировка', emoji: '💪', exercises: [] };
+      const existing = weekPlan[dayIndex];
+      if (!existing || !existing.exercises?.length) {
+        setWeekPlanDay(dayIndex, { name: 'Тренировка', emoji: '💪', exercises: [] });
       }
     });
-    setWeekPlan(newPlan);
     const heightVal = parseInt(height) || 175;
     const weightVal = parseFloat(weight) || 75;
     const ageVal = parseInt(age) || 25;

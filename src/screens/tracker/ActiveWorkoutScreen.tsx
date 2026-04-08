@@ -214,7 +214,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const handleSubstitute = () => {
     const primaryMuscle = currentExercise.exercise.primaryMuscles?.[0];
     const alternatives = localExercises
-      .filter((ex) => ex.id !== currentExercise.exerciseId && ex.primaryMuscles?.includes(primaryMuscle as string))
+      .filter((ex) => ex.id !== currentExercise.exerciseId && ex.primaryMuscles?.includes(primaryMuscle as any))
       .slice(0, 3);
 
     if (alternatives.length === 0) {

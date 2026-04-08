@@ -138,10 +138,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
       }
 
-      if (response?.actions?.length > 0) {
-        setLastActions(response.actions);
+      if (response && response.actions && response.actions.length > 0) {
+        const actions = response.actions;
+        setLastActions(actions);
         setTimeout(() => setLastActions([]), 6000);
-        const types = response.actions.map((a) => a.type);
+        const types = actions.map((act) => act.type);
         if (types.includes('create_workout') || types.includes('modify_workout') || types.includes('create_program')) {
           fetchPrograms().catch(() => {});
           fetchHistory().catch(() => {});
@@ -149,16 +150,16 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (types.includes('update_user_profile') || types.includes('log_body_weight')) fetchProfile().catch(() => {});
         if (types.includes('log_meal') || types.includes('delete_meal')) syncMealsFromServer(new Date().toISOString().split('T')[0]).catch(() => {});
         if (types.includes('log_water')) {
-          const a = response.actions.find((a) => a.type === 'log_water');
-          if (a?.data?.ml) addWater(new Date().toISOString().split('T')[0], a.data.ml as number);
+          const waterAction = actions.find((act) => act.type === 'log_water');
+          if (waterAction?.data?.ml) addWater(new Date().toISOString().split('T')[0], waterAction.data.ml as number);
         }
         if (types.includes('update_nutrition_targets')) {
-          const a = response.actions.find((a) => a.type === 'update_nutrition_targets');
-          if (a?.data) setTargets(new Date().toISOString().split('T')[0], { calories: a.data.calories as number, protein: a.data.protein as number, fats: a.data.fats as number, carbs: a.data.carbs as number });
+          const nutrAction = actions.find((act) => act.type === 'update_nutrition_targets');
+          if (nutrAction?.data) setTargets(new Date().toISOString().split('T')[0], { calories: nutrAction.data.calories as number, protein: nutrAction.data.protein as number, fats: nutrAction.data.fats as number, carbs: nutrAction.data.carbs as number });
         }
         if (types.includes('set_weekly_plan')) {
-          const a = response.actions.find((a) => a.type === 'set_weekly_plan');
-          const schedule = a?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[] }> | undefined;
+          const planAction = actions.find((act) => act.type === 'set_weekly_plan');
+          const schedule = planAction?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[] }> | undefined;
           if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '🏋️', exercises: day.exerciseIds }));
         }
       }

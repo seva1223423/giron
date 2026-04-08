@@ -77,8 +77,8 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                           keyboardType="numeric"
                           autoFocus
                           selectTextOnFocus
-                          onBlur={(e) => handleWeightChange(meal.id, item, e.nativeEvent.text)}
-                          onSubmitEditing={(e) => handleWeightChange(meal.id, item, e.nativeEvent.text)}
+                          onBlur={(e) => handleWeightChange(meal.id, item, (e.nativeEvent as any).text)}
+                          onSubmitEditing={(e) => handleWeightChange(meal.id, item, (e.nativeEvent as any).text)}
                         />
                       ) : (
                         <TouchableOpacity onPress={() => handleWeightEdit(meal.id, item)}>
