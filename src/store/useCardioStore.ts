@@ -58,8 +58,11 @@ export const useCardioStore = create<CardioStore>()(
 
       syncFromServer: async () => {
         try {
-          const sessions = await cardioService.getSessions();
-          set({ sessions });
+          const serverSessions = await cardioService.getSessions();
+          // Merge: keep local-only sessions (prefixed with 'local-')
+          const serverIds = new Set(serverSessions.map((s) => s.id));
+          const localOnly = get().sessions.filter((s) => s.id.startsWith('local-') && !serverIds.has(s.id));
+          set({ sessions: [...serverSessions, ...localOnly] });
         } catch {
           // Keep local sessions if server unreachable
         }

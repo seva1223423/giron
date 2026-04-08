@@ -427,7 +427,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
         try {
           const history = await workoutService.getHistory();
           if (history.length > 0) {
-            set({ workoutHistory: history, isLoadingHistory: false });
+            // Merge: keep local-only workouts that server doesn't know about
+            const serverIds = new Set(history.map((w) => w.id));
+            const localOnly = get().workoutHistory.filter((w) => !serverIds.has(w.id));
+            const merged = [...history, ...localOnly].sort((a, b) =>
+              new Date(b.completedAt || b.startedAt || 0).getTime() - new Date(a.completedAt || a.startedAt || 0).getTime()
+            );
+            set({ workoutHistory: merged, isLoadingHistory: false });
           } else {
             set({ isLoadingHistory: false });
           }
@@ -447,6 +453,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         savedTemplates: state.savedTemplates,
         customExercises: state.customExercises,
       }),
+      version: 1,
     }
   )
 );

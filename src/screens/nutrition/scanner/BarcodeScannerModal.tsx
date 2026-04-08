@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, ActivityIndicator, StyleSheet } from 'react-native';
-import { CameraView } from 'expo-camera';
+import { View, Text, TouchableOpacity, Modal, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useThemeStore } from '../../../store';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -15,10 +16,29 @@ interface Props {
 
 export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned, onClose, onScan }) => {
   const { colors } = useThemeStore();
+  const safeTop = useSafeTop();
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const handleRequestPermission = async () => {
+    const result = await requestPermission();
+    if (!result.granted) {
+      Alert.alert('Камера', 'Для сканирования штрих-кода нужен доступ к камере. Разрешите в настройках.', [
+        { text: 'OK', onPress: onClose },
+      ]);
+    }
+  };
 
   return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent>
+    <Modal visible={visible} animationType="slide" statusBarTranslucent onShow={() => { if (!permission?.granted) handleRequestPermission(); }}>
       <View style={[styles.modal, { backgroundColor: '#000' }]}>
+        {!permission?.granted ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
+            <Text style={[typography.body, { color: '#FFF', textAlign: 'center' }]}>Ожидание разрешения камеры...</Text>
+            <TouchableOpacity onPress={onClose} style={{ marginTop: spacing.xl }}>
+              <Text style={{ color: '#FFF', fontSize: 16 }}>Закрыть</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
         <CameraView
           style={StyleSheet.absoluteFillObject}
           barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'] }}
@@ -26,7 +46,7 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
           facing="back"
         />
         <View style={styles.overlay}>
-          <View style={styles.topArea}>
+          <View style={[styles.topArea, { paddingTop: safeTop }]}>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Text style={{ color: '#FFF', fontSize: 16 }}>✕  Закрыть</Text>
             </TouchableOpacity>
@@ -54,6 +74,7 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
             )}
           </View>
         </View>
+        )}
       </View>
     </Modal>
   );
@@ -62,7 +83,7 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
 const styles = StyleSheet.create({
   modal: { flex: 1 },
   overlay: { flex: 1 },
-  topArea: { paddingTop: 56, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, backgroundColor: 'rgba(0,0,0,0.6)' },
+  topArea: { paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, backgroundColor: 'rgba(0,0,0,0.6)' },
   closeBtn: { alignSelf: 'flex-start', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: borderRadius.full, marginBottom: spacing.md, backgroundColor: 'rgba(255,255,255,0.15)' },
   scanFrame: { flex: 1, margin: spacing.xl * 2, position: 'relative' },
   corner: { position: 'absolute', width: 28, height: 28, borderColor: '#FFF' },

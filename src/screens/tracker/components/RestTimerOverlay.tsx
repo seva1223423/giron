@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useThemeStore } from '../../../store';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -22,6 +23,7 @@ const SEGMENTS = 60;
 
 export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTotal, onSkip, onAddTime }) => {
   const { colors } = useThemeStore();
+  const safeTop = useSafeTop();
 
   if (!isResting) return null;
 
@@ -31,7 +33,7 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
     <View style={{
       position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
       backgroundColor: colors.primary, alignItems: 'center',
-      paddingTop: 100, paddingBottom: spacing.xxxl,
+      paddingTop: safeTop + 20, paddingBottom: spacing.xxxl,
     }}>
       <Text style={[typography.captionMedium, { color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }]}>ОТДЫХ</Text>
 

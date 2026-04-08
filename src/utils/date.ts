@@ -28,6 +28,11 @@ export function getMonday(d: Date = new Date()): Date {
   return result;
 }
 
+/** Format number with comma as decimal separator for Russian locale */
+export function formatNum(n: number, decimals = 1): string {
+  return n.toFixed(decimals).replace('.', ',');
+}
+
 /** Get past N dates as YYYY-MM-DD strings (local timezone) */
 export function getPastDates(days: number): string[] {
   return Array.from({ length: days }, (_, i) => {

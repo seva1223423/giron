@@ -168,10 +168,13 @@ export const useNutritionStore = create<NutritionStore>()(
           if (meals.length > 0) {
             set((s) => {
               const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
+              // Merge: keep local-only meals (IDs starting with 'meal-') that server doesn't know about
+              const serverIds = new Set(meals.map((m) => m.id));
+              const localOnly = dayLog.meals.filter((m) => m.id.startsWith('meal-') && !serverIds.has(m.id));
               return {
                 dailyLog: {
                   ...s.dailyLog,
-                  [date]: { ...dayLog, meals },
+                  [date]: { ...dayLog, meals: [...meals, ...localOnly] },
                 },
               };
             });
@@ -182,6 +185,7 @@ export const useNutritionStore = create<NutritionStore>()(
     {
       name: 'iron-gym-nutrition',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
     }
   )
 );
