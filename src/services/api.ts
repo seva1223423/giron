@@ -3,12 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { setOnlineStatus } from '../store/useConnectionStore';
 
-// Android emulator uses 10.0.2.2 for localhost, iOS simulator uses localhost
-const BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:3001/api',
-  ios: 'http://localhost:3001/api',
-  default: 'http://localhost:3001/api',
-});
+// Production server on Render (works from any device/network)
+const BASE_URL = 'https://iron-gym-swoe.onrender.com/api';
 
 export const api = axios.create({
   baseURL: BASE_URL,

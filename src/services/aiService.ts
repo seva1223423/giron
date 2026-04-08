@@ -3,11 +3,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatMessage } from '../types';
 
-const BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:3001/api',
-  ios: 'http://localhost:3001/api',
-  default: 'http://localhost:3001/api',
-});
+const BASE_URL = 'https://iron-gym-swoe.onrender.com/api';
 
 async function getAuthToken(): Promise<string | null> {
   try {
