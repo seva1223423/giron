@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore } from '../../store';
 import { FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -10,12 +11,13 @@ import {
 } from './components';
 
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
@@ -45,7 +47,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
   appInfo: { alignItems: 'center', gap: spacing.xs, paddingBottom: spacing.xl },
 });

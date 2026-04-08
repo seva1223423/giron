@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useSubscriptionStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -13,6 +14,7 @@ const TESTIMONIALS = [
 ];
 
 export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { isPremiumActive, syncWithBackend, activateOnBackend, cancelOnBackend, trialUsed } = useSubscriptionStore();
@@ -72,7 +74,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 60 }}>
           <Text style={[typography.body, { color: colors.primary }]}>← Назад</Text>
         </TouchableOpacity>
@@ -169,7 +171,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.md, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingBottom: spacing.md, borderBottomWidth: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   hero: { alignItems: 'center', paddingVertical: spacing.xxl },
   crownBadge: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, Alert } from 'react-native';
+import { View, Text, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -235,7 +235,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <WorkoutHeader
         workout={workout}
         elapsed={elapsed}
@@ -280,6 +280,6 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       />
 
       <PRToast toast={prToast} />
-    </View>
+    </KeyboardAvoidingView>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -17,6 +18,7 @@ import {
 type TabKey = 'overview' | 'calendar' | 'records' | 'weight' | 'achievements' | 'photos';
 
 export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
@@ -62,7 +64,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[typography.h2, { color: colors.text, paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.md }]}>
+      <Text style={[typography.h2, { color: colors.text, paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.md }]}>
         Прогресс
       </Text>
 

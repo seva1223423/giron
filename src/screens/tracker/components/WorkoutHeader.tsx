@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { Workout } from '../../../types';
@@ -18,6 +19,7 @@ interface Props {
 export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalCompletedSets, totalSets, onCancel, onFinish }) => {
   const { colors } = useThemeStore();
   const { workoutDurationGoal } = useSettingsStore();
+  const safeTop = useSafeTop();
 
   const goalText = workoutDurationGoal > 0 ? (() => {
     const remaining = workoutDurationGoal - elapsed;
@@ -30,7 +32,7 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
   return (
     <View style={{
       flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl,
+      paddingTop: safeTop, paddingBottom: spacing.md, paddingHorizontal: spacing.xl,
       backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
     }}>
       <TouchableOpacity onPress={onCancel}>

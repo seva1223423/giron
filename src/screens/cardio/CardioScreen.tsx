@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert,
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useCardioStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -68,6 +69,7 @@ const SessionCard: React.FC<{ session: CardioSession; onDelete: () => void }> = 
 };
 
 export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { sessions, removeSession, getWeekSessions, syncFromServer } = useCardioStore();
@@ -104,7 +106,7 @@ export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>‹</Text>
         </TouchableOpacity>
@@ -173,7 +175,7 @@ export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.md, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingBottom: spacing.md, borderBottomWidth: 1 },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around' },

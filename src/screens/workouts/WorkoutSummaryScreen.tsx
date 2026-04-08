@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, Share } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useThemeStore, useWorkoutStore, useNutritionStore } from '../../store';
@@ -26,6 +27,7 @@ import {
 } from './summary';
 
 export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
@@ -142,7 +144,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
         <FadeIn delay={0} from="top">
           <View style={styles.trophySection}>
             <Text style={{ fontSize: 64 }}>🏆</Text>
@@ -186,6 +188,6 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   trophySection: { alignItems: 'center', marginBottom: spacing.xxl },
 });

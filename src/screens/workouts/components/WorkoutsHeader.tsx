@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -10,11 +11,12 @@ interface Props {
 }
 
 export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const haptic = useHaptic();
 
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.lg }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.lg }}>
       <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
       <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('Cardio'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>

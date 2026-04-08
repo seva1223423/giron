@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
@@ -32,6 +33,7 @@ const ProfileRow: React.FC<{ label: string; value: string; colors: any; isLast?:
 );
 
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user, logout } = useAuthStore();
@@ -64,7 +66,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
       {/* Profile header */}
       <View style={styles.profileHeader}>
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
@@ -151,7 +153,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   profileHeader: { alignItems: 'center', marginBottom: spacing.xxl },
   avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: spacing.xxl },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useNutritionStore } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
@@ -9,6 +10,7 @@ import { userService } from '../../services';
 import { GoalSelectorCard, LevelSelectorCard } from './components';
 
 export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { user, setUser } = useAuthStore();
@@ -66,7 +68,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
@@ -108,7 +110,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.lg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.lg },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end' },
   input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, fontWeight: '500' },
 });

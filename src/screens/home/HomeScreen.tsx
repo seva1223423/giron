@@ -23,10 +23,12 @@ const SPLITS = [
 ];
 
 import { todayDateStr, localDateStr } from '../../utils/date';
+import { useSafeTop } from '../../hooks/useSafeTop';
 const todayDate = todayDateStr;
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { user, setUser } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises } = useWorkoutStore();
@@ -203,7 +205,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge }}
+      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.huge }}
       showsVerticalScrollIndicator={false}
     >
       <FadeIn delay={0} from="top">

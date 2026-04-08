@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore, useSubscriptionStore, FREE_LIMITS } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -24,11 +25,12 @@ interface Props {
 }
 
 export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { isPremiumActive, aiMessagesLeft } = useSubscriptionStore();
 
   return (
-    <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+    <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
       <View style={{ alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Text style={[typography.h3, { color: colors.text }]}>Iron Coach</Text>
@@ -64,7 +66,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
 };
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'center', justifyContent: 'center', paddingTop: 56, paddingBottom: spacing.md, borderBottomWidth: 1 },
+  header: { alignItems: 'center', justifyContent: 'center', paddingBottom: spacing.md, borderBottomWidth: 1 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
 });

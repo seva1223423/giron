@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useAchievementCheck } from '../../hooks/useAchievementCheck';
 import { useThemeStore } from '../../store';
 import type { Achievement } from '../../utils/achievements';
@@ -16,6 +17,7 @@ import {
 const todayDate = () => new Date().toISOString().split('T')[0];
 
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const [selectedDate, setSelectedDate] = useState(todayDate);
@@ -42,7 +44,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
       showsVerticalScrollIndicator={false}
     >
       <GoalsModal visible={showGoalsModal} onClose={() => setShowGoalsModal(false)} selectedDate={selectedDate} />
@@ -86,6 +88,6 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
 });

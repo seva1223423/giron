@@ -67,6 +67,7 @@ export async function scheduleDailyWorkoutReminder(hour: number, minute: number)
       title: msg.title,
       body: msg.body,
       sound: 'default',
+      ...(Platform.OS === 'android' && { channelId: 'reminders' }),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -79,7 +80,7 @@ export async function scheduleDailyWorkoutReminder(hour: number, minute: number)
 // Schedule a one-time notification right away (e.g., for testing or instant reminders)
 export async function sendImmediateNotification(title: string, body: string): Promise<void> {
   await Notifications.scheduleNotificationAsync({
-    content: { title, body, sound: 'default' },
+    content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
     trigger: null, // fires immediately
   });
 }
@@ -96,6 +97,7 @@ export async function scheduleRestEndNotification(seconds: number): Promise<stri
         title: '💪 Отдых закончился!',
         body: 'Время следующего подхода.',
         sound: 'default',
+        ...(Platform.OS === 'android' && { channelId: 'reminders' }),
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },
     });
@@ -126,6 +128,7 @@ export async function scheduleStreakRiskNotification(): Promise<void> {
         title: '⚡ Серия под угрозой!',
         body: 'Ты не тренировался 2 дня. Не дай серии прерваться — открой Iron Gym!',
         sound: 'default',
+        ...(Platform.OS === 'android' && { channelId: 'reminders' }),
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 48 * 3600 },
     });
@@ -169,6 +172,7 @@ export async function scheduleWaterReminders(
           title: msg.title,
           body: msg.body,
           sound: 'default',
+          ...(Platform.OS === 'android' && { channelId: 'reminders' }),
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -218,7 +222,7 @@ export async function scheduleNutritionSummaryReminder(
     // Schedule for 21:00 today
     await Notifications.scheduleNotificationAsync({
       identifier: 'nutrition-summary',
-      content: { title, body, sound: 'default' },
+      content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: 21,
@@ -267,7 +271,7 @@ export async function scheduleWeeklySummaryNotification(
 
     await Notifications.scheduleNotificationAsync({
       identifier: NOTIFICATION_IDS.WEEKLY_SUMMARY,
-      content: { title, body, sound: 'default' },
+      content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: secondsUntilSunday,
@@ -319,6 +323,7 @@ export async function showTodayPlanNotification(
           sound: undefined,
           sticky: true,
           priority: Notifications.AndroidNotificationPriority.LOW,
+          ...(Platform.OS === 'android' && { channelId: 'reminders' }),
         },
         trigger: null,
       });
@@ -331,6 +336,7 @@ export async function showTodayPlanNotification(
           sound: undefined,
           sticky: true,
           priority: Notifications.AndroidNotificationPriority.LOW,
+          ...(Platform.OS === 'android' && { channelId: 'reminders' }),
         },
         trigger: null,
       });
@@ -372,7 +378,7 @@ export async function scheduleInactivityReminder(daysSinceLastWorkout: number): 
 
     await Notifications.scheduleNotificationAsync({
       identifier: 'inactivity-reminder',
-      content: { title, body, sound: 'default' },
+      content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: 9,

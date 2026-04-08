@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useNutritionStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -24,6 +25,7 @@ function getPastDates(days: number): string[] {
 }
 
 export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { getDayLog } = useNutritionStore();
@@ -108,7 +110,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
@@ -200,7 +202,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
   periodRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderBottomWidth: 1 },
   periodChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: 16, borderWidth: 1 },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },

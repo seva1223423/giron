@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
@@ -18,6 +19,7 @@ const CATEGORIES: { key: NewsCategory | 'all' | 'saved'; label: string }[] = [
 ];
 
 export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all' | 'saved'>('all');
@@ -62,7 +64,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.md }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.md }}>
         <Text style={[typography.h2, { color: colors.text }]}>Новости</Text>
         <TouchableOpacity onPress={onFetchFreshNews} disabled={refreshing}>
           <Text style={[typography.small, { color: refreshing ? colors.textTertiary : colors.primary }]}>{refreshing ? 'Обновление...' : '↻ Обновить'}</Text>

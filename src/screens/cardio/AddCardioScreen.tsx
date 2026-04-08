@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert,
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useCardioStore } from '../../store';
 import { Button } from '../../components';
 import { typography } from '../../theme';
@@ -29,6 +30,7 @@ const MET: Record<CardioType, number> = {
 const todayDate = () => new Date().toISOString().split('T')[0];
 
 export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { addSession } = useCardioStore();
@@ -74,7 +76,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
@@ -191,7 +193,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   typeBtn: {
