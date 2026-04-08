@@ -39,6 +39,7 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
             </TouchableOpacity>
           </View>
         ) : (
+        <>
         <CameraView
           style={StyleSheet.absoluteFillObject}
           barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'] }}
@@ -74,6 +75,7 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
             )}
           </View>
         </View>
+        </>
         )}
       </View>
     </Modal>
