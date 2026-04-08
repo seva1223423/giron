@@ -3,6 +3,7 @@ import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-na
 import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
+import { useSettingsStore } from '../../store/useSettingsStore';
 import { PaywallModal } from '../../components';
 import { ChatMessage } from '../../types';
 import { aiService, getApiError, AIActionResult, AIMeta, AIStarter } from '../../services';
@@ -33,6 +34,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
   const { getWeekSessions, syncFromServer: syncCardio, addSession: addCardioSession } = useCardioStore();
   const { consumeAiMessage } = useSubscriptionStore();
+  const { setRestTimerDefault, setNotificationsEnabled, setReminderHour, setWaterRemindersEnabled, setWorkoutDurationGoal } = useSettingsStore();
   const scrollRef = useRef<ScrollView>(null);
   const dynamicPrompts = useDynamicPrompts();
 
@@ -143,7 +145,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setLastActions(actions);
         setTimeout(() => setLastActions([]), 6000);
         const types = actions.map((act) => act.type);
-        if (types.includes('create_workout') || types.includes('modify_workout') || types.includes('create_program') || types.includes('delete_program') || types.includes('adjust_all_weights')) {
+        if (types.includes('create_workout') || types.includes('modify_workout') || types.includes('create_program') || types.includes('delete_program') || types.includes('adjust_all_weights') || types.includes('swap_exercise') || types.includes('add_superset')) {
           fetchPrograms().catch(() => {});
           fetchHistory().catch(() => {});
         }
@@ -164,6 +166,22 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             const today = new Date().toISOString().split('T')[0];
             setTargets(today, { waterTargetMl: wtAction.data.waterTargetMl as number });
           }
+        }
+        if (types.includes('set_rest_timer')) {
+          const rtAction = actions.find((act) => act.type === 'set_rest_timer');
+          if (rtAction?.data?.restTimerSeconds) setRestTimerDefault(rtAction.data.restTimerSeconds as number);
+        }
+        if (types.includes('set_notifications')) {
+          const notifAction = actions.find((act) => act.type === 'set_notifications');
+          if (notifAction?.data) {
+            if (notifAction.data.notificationsEnabled !== undefined) setNotificationsEnabled(notifAction.data.notificationsEnabled as boolean);
+            if (notifAction.data.reminderHour !== undefined) setReminderHour(notifAction.data.reminderHour as number);
+            if (notifAction.data.waterRemindersEnabled !== undefined) setWaterRemindersEnabled(notifAction.data.waterRemindersEnabled as boolean);
+          }
+        }
+        if (types.includes('set_workout_duration_goal')) {
+          const durAction = actions.find((act) => act.type === 'set_workout_duration_goal');
+          if (durAction?.data?.durationGoalMinutes !== undefined) setWorkoutDurationGoal(durAction.data.durationGoalMinutes as number);
         }
         if (types.includes('set_weekly_plan')) {
           const planAction = actions.find((act) => act.type === 'set_weekly_plan');
