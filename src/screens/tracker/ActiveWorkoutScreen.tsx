@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Alert, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -113,6 +114,28 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     const done = prevEx?.sets.filter((s) => s.completed && (s.weight || s.reps)) ?? [];
     return done.length > 0 ? { date: prev.completedAt || prev.startedAt, sets: done } : null;
   }, [activeWorkout?.workout?.exercises[activeWorkout?.currentExerciseIndex ?? 0]?.exerciseId, workoutHistory, activeWorkout?.workout?.id]);
+
+  // Swipe hint opacity (fade out after 3 seconds)
+  const swipeHintOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.timing(swipeHintOpacity, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Swipe gesture for exercise navigation
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-30, 30])
+    .onEnd((event) => {
+      const aw = useWorkoutStore.getState().activeWorkout;
+      if (!aw) return;
+      if (event.translationX < -80 && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
+        nextExercise();
+      } else if (event.translationX > 80 && aw.currentExerciseIndex > 0) {
+        prevExercise();
+      }
+    });
 
   if (!activeWorkout) {
     return (
@@ -269,15 +292,28 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onSubstitute={handleSubstitute}
       />
 
-      <SetsSection
-        currentExercise={currentExercise}
-        currentExerciseIndex={currentExerciseIndex}
-        workout={workout}
-        previousSets={previousSets}
-        navigation={navigation}
-        onCompleteSet={handleCompleteSet}
-        onRpeSelected={handleRpeSelected}
-      />
+      {workout.exercises.length > 1 && (
+        <Animated.Text
+          style={[
+            typography.small,
+            { color: colors.textTertiary, textAlign: 'center', paddingVertical: 2, opacity: swipeHintOpacity },
+          ]}
+        >
+          {'← свайпни для переключения →'}
+        </Animated.Text>
+      )}
+
+      <GestureDetector gesture={swipeGesture}>
+        <SetsSection
+          currentExercise={currentExercise}
+          currentExerciseIndex={currentExerciseIndex}
+          workout={workout}
+          previousSets={previousSets}
+          navigation={navigation}
+          onCompleteSet={handleCompleteSet}
+          onRpeSelected={handleRpeSelected}
+        />
+      </GestureDetector>
 
       <PRToast toast={prToast} />
     </KeyboardAvoidingView>

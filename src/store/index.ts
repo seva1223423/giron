@@ -8,3 +8,5 @@ export { useSubscriptionStore, FREE_LIMITS } from './useSubscriptionStore';
 export { useSettingsStore } from './useSettingsStore';
 export { useCardioStore } from './useCardioStore';
 export { useConnectionStore } from './useConnectionStore';
+export { useSleepStore } from './useSleepStore';
+export type { SleepEntry } from './useSleepStore';

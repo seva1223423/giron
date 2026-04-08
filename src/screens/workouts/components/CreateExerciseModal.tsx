@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -29,6 +30,7 @@ interface Props {
 
 export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { addCustomExercise } = useWorkoutStore();
   const [name, setName] = useState('');
@@ -62,7 +64,7 @@ export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: safeTop }]}>
           <TouchableOpacity onPress={onClose}>
             <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
           </TouchableOpacity>
@@ -120,7 +122,7 @@ export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
   input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16 },
   chip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
 });

@@ -1,6 +1,8 @@
 import React from 'react';
-import { Text, Switch, Share } from 'react-native';
+import { Text, Switch, Share, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useThemeStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { Card, FadeIn } from '../../../components';
@@ -13,6 +15,33 @@ export const SystemSection: React.FC = () => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { hapticFeedback, setHapticFeedback } = useSettingsStore();
+
+  const handleImport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
+      if (result.canceled) return;
+      const uri = result.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(uri);
+      const data = JSON.parse(content);
+
+      if (!data.exportedAt) {
+        Alert.alert('Ошибка', 'Неверный формат файла');
+        return;
+      }
+
+      Alert.alert('Восстановить данные?', 'Текущие данные будут заменены.', [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Восстановить', style: 'destructive', onPress: async () => {
+          if (data.workouts) await AsyncStorage.setItem('iron-gym-workouts', JSON.stringify(data.workouts));
+          if (data.nutrition) await AsyncStorage.setItem('iron-gym-nutrition', JSON.stringify(data.nutrition));
+          if (data.settings) await AsyncStorage.setItem('iron-gym-settings', JSON.stringify(data.settings));
+          Alert.alert('Готово', 'Данные восстановлены. Перезапустите приложение для применения.');
+        }},
+      ]);
+    } catch (e) {
+      Alert.alert('Ошибка', 'Не удалось прочитать файл');
+    }
+  };
 
   const handleExport = async () => {
     try {
@@ -61,6 +90,13 @@ export const SystemSection: React.FC = () => {
           sublabel="JSON бэкап всех данных"
           divider
           onPress={handleExport}
+          right={<Text style={[typography.body, { color: colors.primary }]}>→</Text>}
+        />
+        <SettingRow
+          label="Импорт данных"
+          sublabel="Восстановить из JSON бэкапа"
+          divider
+          onPress={handleImport}
           right={<Text style={[typography.body, { color: colors.primary }]}>→</Text>}
         />
       </Card>

@@ -11,7 +11,7 @@ import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showToda
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
-  NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard, CardioWeekCard,
+  NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard, CardioWeekCard, SleepCard,
 } from './components';
 
 const SPLITS = [
@@ -294,6 +294,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       <FadeIn delay={390}>
         <WeightCard user={user} setUser={setUser} />
+      </FadeIn>
+
+      <FadeIn delay={393}>
+        <SleepCard />
       </FadeIn>
 
       <FadeIn delay={395}>

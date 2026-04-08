@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -37,6 +38,7 @@ interface Props {
 
 export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onNext, onCancel }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { customExercises, deleteCustomExercise } = useWorkoutStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,7 +67,7 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={onCancel}>
           <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
         </TouchableOpacity>
@@ -153,7 +155,7 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
 };
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
   searchInput: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16 },
   chip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   exerciseItem: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1.5, marginBottom: spacing.sm },

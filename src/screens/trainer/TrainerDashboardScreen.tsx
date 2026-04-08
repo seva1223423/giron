@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useTrainerStore } from '../../store';
 import { Card } from '../../components';
 import { typography } from '../../theme';
@@ -9,6 +10,7 @@ import { AddClientModal, ClientCard } from './components';
 
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { clients, deleteClient, fetchClients } = useTrainerStore();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -30,7 +32,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
@@ -88,7 +90,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
   addBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   statsRow: { flexDirection: 'row', marginBottom: spacing.lg },

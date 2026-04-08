@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -8,12 +9,13 @@ import { PlateCalculatorTab, OneRMCalculatorTab } from './calculator';
 
 export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const [activeTab, setActiveTab] = useState<'plates' | 'onerm'>('plates');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 60 }}>
           <Text style={[typography.body, { color: colors.primary }]}>← Назад</Text>
         </TouchableOpacity>
@@ -45,7 +47,7 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.md, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingBottom: spacing.md, borderBottomWidth: 1 },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },

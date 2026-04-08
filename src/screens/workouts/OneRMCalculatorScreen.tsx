@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { useThemeStore, useAuthStore } from '../../store';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -12,6 +13,7 @@ function lander(w: number, r: number) { return r === 1 ? w : Math.round((100 * w
 function oconner(w: number, r: number) { return r === 1 ? w : Math.round(w * (1 + r / 40)); }
 
 export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
   const [weightStr, setWeightStr] = useState('');
@@ -37,7 +39,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   const userGender: 'male' | 'female' = user?.gender === 'female' ? 'female' : 'male';
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
@@ -88,7 +90,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
   input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 18, fontWeight: '600', textAlign: 'center' },
   emptyState: { alignItems: 'center', paddingTop: spacing.huge },

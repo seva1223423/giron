@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -18,6 +19,7 @@ const LEVEL_LABELS: Record<string, string> = { beginner: 'Новичок', inter
 
 export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const program: BuiltInProgram = route.params?.program;
   const { colors } = useThemeStore();
   const { startWorkout, setWeekPlanDay } = useWorkoutStore();
@@ -55,7 +57,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
       <FadeIn delay={0} from="top">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -143,7 +145,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.lg, gap: spacing.sm },
   tagsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, flexWrap: 'wrap' },
   tag: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm },

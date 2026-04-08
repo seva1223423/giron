@@ -12,3 +12,4 @@ export { AITipCard } from './AITipCard';
 export { DailyQuoteCard } from './DailyQuoteCard';
 export { WaterCard } from './WaterCard';
 export { CardioWeekCard } from './CardioWeekCard';
+export { SleepCard } from './SleepCard';

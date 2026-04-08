@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useTrainerStore } from '../../store';
 import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
@@ -25,6 +26,7 @@ const FAKE_HISTORY = [
 
 export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { updateClient } = useTrainerStore();
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
@@ -67,7 +69,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
@@ -182,7 +184,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

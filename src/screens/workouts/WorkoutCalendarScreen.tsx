@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -9,6 +10,7 @@ import { CalendarGrid, WorkoutDayModal, WEEKDAY_LABELS, MONTH_NAMES, toDateStr, 
 
 export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { workoutHistory, weekPlan } = useWorkoutStore();
 
@@ -81,7 +83,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
   const selectedWorkouts = selectedDayStr ? (workoutsByDate.get(selectedDayStr) || []) : [];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
@@ -186,7 +188,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
   todayBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },

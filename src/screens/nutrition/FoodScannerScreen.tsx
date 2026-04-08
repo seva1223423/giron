@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, Act
 import * as ImagePicker from 'expo-image-picker';
 import { useCameraPermissions } from 'expo-camera';
 import { useThemeStore, useNutritionStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { Button, Card, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -21,6 +22,7 @@ const MEAL_TYPES = [
 ] as const;
 
 export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { addMeal, getDayLog } = useNutritionStore();
   const today = todayDate();
@@ -161,7 +163,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   return (
     <React.Fragment>
-      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
           <Text style={[typography.h2, { color: colors.text }]}>КБЖУ по фото</Text>
           <View style={[styles.badge, { backgroundColor: (isPremiumActive() ? colors.accent : foodScansLeft() === 0 ? colors.error : colors.accent) + '15' }]}>
@@ -284,7 +286,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: spacing.xl, paddingTop: 60, paddingBottom: spacing.huge },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   imageContainer: { marginBottom: spacing.lg, borderRadius: borderRadius.lg, overflow: 'hidden' },
   image: { width: '100%', height: 250, borderRadius: borderRadius.lg },
   retakeBtn: { position: 'absolute', top: spacing.md, right: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm },

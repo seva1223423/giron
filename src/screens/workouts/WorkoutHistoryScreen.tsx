@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { FadeIn } from '../../components';
 import { typography } from '../../theme';
@@ -28,6 +29,7 @@ function groupByMonth(workouts: any[]) {
 
 export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>‹</Text>
         </TouchableOpacity>
@@ -121,7 +123,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   search: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, marginBottom: spacing.md },
