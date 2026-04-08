@@ -50,7 +50,7 @@ router.post('/meals', authenticate, async (req: AuthRequest, res: Response) => {
             protein: item.protein,
             fats: item.fats,
             carbs: item.carbs,
-            weightGrams: item.weightGrams,
+            weightGrams: item.weightGrams ?? 0,
           })),
         },
       },
@@ -113,7 +113,7 @@ router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response)
         where: { id: meal.id },
         data: {
           totalCalories, totalProtein, totalFats, totalCarbs,
-          items: { create: items.map((item) => ({ name: item.name, calories: item.calories, protein: item.protein, fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams })) },
+          items: { create: items.map((item) => ({ name: item.name, calories: item.calories, protein: item.protein, fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams ?? 0 })) },
         },
         include: { items: true },
       });

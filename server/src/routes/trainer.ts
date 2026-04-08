@@ -80,12 +80,12 @@ router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req
     if (data.lastVisit) data.lastVisit = new Date(data.lastVisit);
 
     const client = await prisma.trainerClient.updateMany({
-      where: { id: req.params.id, trainerId: req.userId! },
+      where: { id: req.params.id as string, trainerId: req.userId! } as any,
       data,
     });
     if (client.count === 0) return res.status(404).json({ error: 'Клиент не найден' });
 
-    const updated = await prisma.trainerClient.findUnique({ where: { id: req.params.id } });
+    const updated = await prisma.trainerClient.findUnique({ where: { id: req.params.id as string } });
     res.json(updated);
   } catch (e) {
     logger.error(e);
@@ -97,7 +97,7 @@ router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req
 router.delete('/clients/:id', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
   try {
     const deleted = await prisma.trainerClient.deleteMany({
-      where: { id: req.params.id, trainerId: req.userId! },
+      where: { id: req.params.id as string, trainerId: req.userId! } as any,
     });
     if (deleted.count === 0) return res.status(404).json({ error: 'Клиент не найден' });
     res.json({ success: true });
