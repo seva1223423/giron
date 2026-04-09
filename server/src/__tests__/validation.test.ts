@@ -360,25 +360,25 @@ describe('Validation Schemas', () => {
     // Cardio route does manual validation, not zod. Test the logic.
 
     it('should require type field', () => {
-      const body = { date: '2026-04-01', durationMinutes: 30 };
+      const body: Record<string, any> = { date: '2026-04-01', durationMinutes: 30 };
       const hasType = !!body.type;
       expect(hasType).toBe(false);
     });
 
     it('should require date field', () => {
-      const body = { type: 'running', durationMinutes: 30 };
+      const body: Record<string, any> = { type: 'running', durationMinutes: 30 };
       const hasDate = !!body.date;
       expect(hasDate).toBe(false);
     });
 
     it('should require durationMinutes field', () => {
-      const body = { type: 'running', date: '2026-04-01' };
-      const hasDuration = !!(body as any).durationMinutes;
+      const body: Record<string, any> = { type: 'running', date: '2026-04-01' };
+      const hasDuration = !!body.durationMinutes;
       expect(hasDuration).toBe(false);
     });
 
     it('should accept valid cardio input', () => {
-      const body = { type: 'running', date: '2026-04-01', durationMinutes: 45 };
+      const body: Record<string, any> = { type: 'running', date: '2026-04-01', durationMinutes: 45 };
       const valid = !!(body.type && body.date && body.durationMinutes);
       expect(valid).toBe(true);
     });
