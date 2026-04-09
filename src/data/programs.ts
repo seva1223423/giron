@@ -1106,4 +1106,235 @@ export const builtInPrograms: BuiltInProgram[] = [
       },
     ],
   },
+
+  // ─── PPL 6-day ───────────────────────────────────────────────────────────────
+  {
+    id: 'ppl-6day',
+    name: 'Push Pull Legs',
+    description: 'Классический 6-дневный сплит. Каждая мышечная группа тренируется 2 раза в неделю.',
+    goal: 'muscle',
+    level: 'intermediate',
+    daysPerWeek: 6,
+    durationWeeks: 12,
+    split: 'Push / Pull / Legs × 2',
+    emoji: '💪',
+    days: [
+      {
+        name: 'Push A',
+        exercises: [
+          { exerciseId: 'bench-press', sets: 4, reps: '6-8', rest: 120 },
+          { exerciseId: 'incline-bench-press', sets: 3, reps: '8-10', rest: 90 },
+          { exerciseId: 'dumbbell-fly', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '8-10', rest: 90 },
+          { exerciseId: 'lateral-raise', sets: 3, reps: '15-20', rest: 60 },
+          { exerciseId: 'tricep-pushdown', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'french-press', sets: 3, reps: '12-15', rest: 60 },
+        ],
+      },
+      {
+        name: 'Pull A',
+        exercises: [
+          { exerciseId: 'deadlift', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'pull-ups', sets: 3, reps: '8-12', rest: 90 },
+          { exerciseId: 'barbell-row', sets: 4, reps: '6-8', rest: 120 },
+          { exerciseId: 'seated-row', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'shrugs', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'barbell-curl', sets: 3, reps: '10-12', rest: 60 },
+          { exerciseId: 'hammer-curl', sets: 3, reps: '12-15', rest: 60 },
+        ],
+      },
+      {
+        name: 'Legs A',
+        exercises: [
+          { exerciseId: 'squat', sets: 4, reps: '6-8', rest: 180 },
+          { exerciseId: 'leg-press', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'lunges', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'leg-extension', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'leg-curl', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'calf-raise', sets: 4, reps: '15-20', rest: 60 },
+        ],
+      },
+      {
+        name: 'Push B',
+        exercises: [
+          { exerciseId: 'dumbbell-bench-press', sets: 4, reps: '8-10', rest: 90 },
+          { exerciseId: 'incline-bench-press', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'cable-crossover', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '8-10', rest: 90 },
+          { exerciseId: 'reverse-fly', sets: 3, reps: '15-20', rest: 60 },
+          { exerciseId: 'dips', sets: 3, reps: '10-15', rest: 60 },
+          { exerciseId: 'tricep-pushdown', sets: 3, reps: '12-15', rest: 60 },
+        ],
+      },
+      {
+        name: 'Pull B',
+        exercises: [
+          { exerciseId: 'barbell-row', sets: 4, reps: '8-10', rest: 90 },
+          { exerciseId: 'lat-pulldown', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'dumbbell-row', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'pullover', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'dumbbell-shrugs', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'barbell-curl', sets: 3, reps: '10-12', rest: 60 },
+          { exerciseId: 'concentration-curl', sets: 3, reps: '12-15', rest: 60 },
+        ],
+      },
+      {
+        name: 'Legs B',
+        exercises: [
+          { exerciseId: 'goblet-squat', sets: 4, reps: '8-10', rest: 120 },
+          { exerciseId: 'romanian-deadlift', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'bulgarian-split-squat', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'hack-squat', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'leg-curl', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'seated-calf-raise', sets: 4, reps: '15-20', rest: 60 },
+        ],
+      },
+    ],
+  },
+
+  // ─── Upper/Lower 4-day ───────────────────────────────────────────────────────
+  {
+    id: 'upper-lower-4day',
+    name: 'Верх / Низ',
+    description: '4-дневный сплит. Отличный баланс между объёмом и восстановлением.',
+    goal: 'muscle',
+    level: 'intermediate',
+    daysPerWeek: 4,
+    durationWeeks: 12,
+    split: 'Верх / Низ × 2',
+    emoji: '⚡',
+    days: [
+      {
+        name: 'Верх A (Сила)',
+        exercises: [
+          { exerciseId: 'bench-press', sets: 4, reps: '4-6', rest: 180 },
+          { exerciseId: 'barbell-row', sets: 4, reps: '4-6', rest: 180 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '6-8', rest: 120 },
+          { exerciseId: 'pull-ups', sets: 3, reps: '6-8', rest: 120 },
+          { exerciseId: 'barbell-curl', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'tricep-pushdown', sets: 3, reps: '10-12', rest: 90 },
+        ],
+      },
+      {
+        name: 'Низ A (Сила)',
+        exercises: [
+          { exerciseId: 'squat', sets: 4, reps: '4-6', rest: 180 },
+          { exerciseId: 'romanian-deadlift', sets: 3, reps: '6-8', rest: 120 },
+          { exerciseId: 'leg-press', sets: 3, reps: '8-10', rest: 90 },
+          { exerciseId: 'leg-extension', sets: 3, reps: '10-12', rest: 60 },
+          { exerciseId: 'leg-curl', sets: 3, reps: '10-12', rest: 60 },
+          { exerciseId: 'calf-raise', sets: 4, reps: '15-20', rest: 60 },
+        ],
+      },
+      {
+        name: 'Верх B (Объём)',
+        exercises: [
+          { exerciseId: 'incline-bench-press', sets: 4, reps: '8-12', rest: 90 },
+          { exerciseId: 'lat-pulldown', sets: 4, reps: '8-12', rest: 90 },
+          { exerciseId: 'dumbbell-fly', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'seated-row', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'lateral-raise', sets: 3, reps: '15-20', rest: 60 },
+          { exerciseId: 'french-press', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'hammer-curl', sets: 3, reps: '12-15', rest: 60 },
+        ],
+      },
+      {
+        name: 'Низ B (Объём)',
+        exercises: [
+          { exerciseId: 'goblet-squat', sets: 4, reps: '10-12', rest: 90 },
+          { exerciseId: 'deadlift', sets: 3, reps: '4-6', rest: 180 },
+          { exerciseId: 'lunges', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'bulgarian-split-squat', sets: 3, reps: '10-12', rest: 90 },
+          { exerciseId: 'leg-curl', sets: 3, reps: '12-15', rest: 60 },
+          { exerciseId: 'seated-calf-raise', sets: 4, reps: '15-20', rest: 60 },
+        ],
+      },
+    ],
+  },
+
+  // ─── Starting Strength (alternative) ─────────────────────────────────────────
+  {
+    id: 'starting-strength-classic',
+    name: 'Стартовая сила (классика)',
+    description: 'Программа для новичков Марка Риппето. 3 базовых упражнения, линейная прогрессия +2.5 кг каждую тренировку.',
+    goal: 'strength',
+    level: 'beginner',
+    daysPerWeek: 3,
+    durationWeeks: 12,
+    split: 'Фулбоди A/B',
+    emoji: '🏋️',
+    days: [
+      {
+        name: 'День A',
+        exercises: [
+          { exerciseId: 'squat', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'bench-press', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'deadlift', sets: 1, reps: '5', rest: 300 },
+        ],
+      },
+      {
+        name: 'День B',
+        exercises: [
+          { exerciseId: 'squat', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '5', rest: 180 },
+          { exerciseId: 'barbell-row', sets: 3, reps: '5', rest: 180 },
+        ],
+      },
+    ],
+  },
+
+  // ─── Fat Loss 4-day ──────────────────────────────────────────────────────────
+  {
+    id: 'fat-loss-4day',
+    name: 'Жиросжигание',
+    description: 'Комбинация силовых и кардио для максимального жиросжигания. Суперсеты и минимальный отдых.',
+    goal: 'fat_loss',
+    level: 'beginner',
+    daysPerWeek: 4,
+    durationWeeks: 8,
+    split: 'Верх + Ноги + Тяга + Фулбоди',
+    emoji: '🔥',
+    days: [
+      {
+        name: 'Верх + HIIT',
+        exercises: [
+          { exerciseId: 'dumbbell-bench-press', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'lat-pulldown', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'barbell-curl', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'tricep-pushdown', sets: 3, reps: '15', rest: 60 },
+        ],
+      },
+      {
+        name: 'Ноги + Кор',
+        exercises: [
+          { exerciseId: 'squat', sets: 4, reps: '12', rest: 75 },
+          { exerciseId: 'lunges', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'leg-press', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'plank', sets: 3, reps: '60с', rest: 45 },
+          { exerciseId: 'cable-crunch', sets: 3, reps: '20', rest: 45 },
+        ],
+      },
+      {
+        name: 'Тяговый + HIIT',
+        exercises: [
+          { exerciseId: 'deadlift', sets: 3, reps: '8', rest: 120 },
+          { exerciseId: 'pull-ups', sets: 3, reps: '8-12', rest: 90 },
+          { exerciseId: 'seated-row', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'shrugs', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'jump-rope', sets: 5, reps: '2 мин', rest: 30 },
+        ],
+      },
+      {
+        name: 'Fullbody круговая',
+        exercises: [
+          { exerciseId: 'goblet-squat', sets: 3, reps: '15', rest: 60 },
+          { exerciseId: 'push-ups', sets: 3, reps: '15-20', rest: 60 },
+          { exerciseId: 'dumbbell-row', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'overhead-press', sets: 3, reps: '12', rest: 60 },
+          { exerciseId: 'plank', sets: 3, reps: '60с', rest: 45 },
+        ],
+      },
+    ],
+  },
 ];
