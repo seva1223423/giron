@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -24,22 +25,37 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate, notes } = req.body;
 
-    if (!type || !date || !durationMinutes) {
-      return res.status(400).json({ error: 'type, date и durationMinutes обязательны' });
+    const cardioSchema = z.object({
+      type: z.enum(['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other']),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате YYYY-MM-DD').refine((d) => {
+        const parsed = new Date(d + 'T00:00:00Z');
+        return !isNaN(parsed.getTime()) && parsed <= new Date();
+      }, 'Некорректная или будущая дата'),
+      durationMinutes: z.number().int().min(1, 'Минимум 1 минута').max(1440, 'Максимум 24 часа'),
+      distanceKm: z.number().min(0).max(500).optional().nullable(),
+      caloriesBurned: z.number().int().min(0).max(50000).optional().nullable(),
+      avgHeartRate: z.number().int().min(30).max(250).optional().nullable(),
+      notes: z.string().max(2000).optional().nullable(),
+    });
+
+    const parsed = cardioSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
     }
+
+    const { type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate, notes } = parsed.data;
 
     const session = await prisma.cardioSession.create({
       data: {
         userId,
         type,
         date,
-        durationMinutes: Number(durationMinutes),
-        distanceKm: distanceKm ? Number(distanceKm) : null,
-        caloriesBurned: caloriesBurned ? Number(caloriesBurned) : null,
-        avgHeartRate: avgHeartRate ? Number(avgHeartRate) : null,
-        notes: notes || null,
+        durationMinutes,
+        distanceKm: distanceKm ?? null,
+        caloriesBurned: caloriesBurned ?? null,
+        avgHeartRate: avgHeartRate ?? null,
+        notes: notes ?? null,
       },
     });
 

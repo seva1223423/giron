@@ -70,17 +70,21 @@ router.post('/activate', authenticate, async (req: AuthRequest, res: Response) =
       return res.status(400).json({ error: 'Необходимо указать plan и durationDays' });
     }
 
-    // Only allow trial (7 days) without payment verification
-    if (!transactionId && durationDays > 7) {
-      return res.status(403).json({ error: 'Для активации подписки требуется подтверждение оплаты' });
+    // With transactionId: only allow activation via webhook (server-to-server).
+    // The /activate endpoint from the client can ONLY start a trial.
+    if (transactionId) {
+      return res.status(403).json({ error: 'Активация платных подписок доступна только через webhook после подтверждения оплаты' });
     }
 
-    // Prevent duplicate trials
-    if (!transactionId) {
-      const existing = await prisma.subscription.findUnique({ where: { userId } });
-      if (existing) {
-        return res.status(400).json({ error: 'Пробный период уже использован' });
-      }
+    // Trial: max 7 days
+    if (durationDays > 7) {
+      return res.status(403).json({ error: 'Пробный период — максимум 7 дней' });
+    }
+
+    // Prevent duplicate trials — block if user ever had any subscription
+    const existing = await prisma.subscription.findUnique({ where: { userId } });
+    if (existing) {
+      return res.status(400).json({ error: 'Пробный период уже использован' });
     }
 
     const startDate = new Date();

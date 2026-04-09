@@ -15,11 +15,14 @@ router.get('/', async (req, res: Response) => {
       ? { categories: { has: category as string } }
       : {};
 
+    const take = Math.min(Math.max(parseInt(limit as string) || 20, 1), 100);
+    const skip = Math.max(parseInt(offset as string) || 0, 0);
+
     const articles = await prisma.newsArticle.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
-      take: parseInt(limit as string),
-      skip: parseInt(offset as string),
+      take,
+      skip,
     });
 
     res.json(articles);

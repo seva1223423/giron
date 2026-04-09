@@ -61,25 +61,27 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
 
     const { name, description, type, goal, level, daysPerWeek, durationWeeks } = parsed.data;
 
-    // Deactivate current active program
-    await prisma.program.updateMany({
-      where: { userId: req.userId, isActive: true },
-      data: { isActive: false },
-    });
+    // Deactivate current active program and create new one atomically
+    const program = await prisma.$transaction(async (tx) => {
+      await tx.program.updateMany({
+        where: { userId: req.userId, isActive: true },
+        data: { isActive: false },
+      });
 
-    const program = await prisma.program.create({
-      data: {
-        name,
-        description,
-        type,
-        goal: goal as any,
-        level: level as any,
-        daysPerWeek,
-        durationWeeks,
-        isActive: true,
-        createdBy: 'user',
-        userId: req.userId!,
-      },
+      return tx.program.create({
+        data: {
+          name,
+          description,
+          type,
+          goal: goal as any,
+          level: level as any,
+          daysPerWeek,
+          durationWeeks,
+          isActive: true,
+          createdBy: 'user',
+          userId: req.userId!,
+        },
+      });
     });
     res.status(201).json(program);
   } catch (e) {
