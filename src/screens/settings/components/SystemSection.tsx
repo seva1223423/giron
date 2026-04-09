@@ -3,7 +3,7 @@ import { Text, Switch, Share, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { useThemeStore } from '../../../store';
+import { useThemeStore, useWorkoutStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useNutritionStore } from '../../../store/useNutritionStore';
 import { Card, FadeIn } from '../../../components';
@@ -22,6 +22,27 @@ export const SystemSection: React.FC = () => {
   useEffect(() => {
     getStorageUsage().then(setStorageInfo).catch(() => {});
   }, []);
+
+  const handleExportCSV = async () => {
+    const { workoutHistory } = useWorkoutStore.getState();
+    if (workoutHistory.length === 0) {
+      Alert.alert('Нет данных', 'Пока нет завершённых тренировок для экспорта.');
+      return;
+    }
+
+    const headers = 'Дата,Тренировка,Длительность (мин),Объём (кг),Упражнений,Подходов';
+    const rows = workoutHistory.map((w) => {
+      const date = w.completedAt ? new Date(w.completedAt).toLocaleDateString('ru-RU') : '';
+      const sets = w.exercises.reduce((s, ex) => s + ex.sets.filter((set) => set.completed).length, 0);
+      return `${date},"${w.name}",${w.durationMinutes || 0},${Math.round(w.totalVolume || 0)},${w.exercises.length},${sets}`;
+    });
+
+    const csv = [headers, ...rows].join('\n');
+
+    try {
+      await Share.share({ message: csv, title: 'Iron Gym Workouts.csv' });
+    } catch {}
+  };
 
   const handleImport = async () => {
     try {
@@ -98,6 +119,13 @@ export const SystemSection: React.FC = () => {
           divider
           onPress={handleExport}
           right={<Text style={[typography.body, { color: colors.primary }]}>→</Text>}
+        />
+        <SettingRow
+          label="Экспорт тренировок"
+          sublabel="CSV таблица для Excel"
+          divider
+          onPress={handleExportCSV}
+          right={<Text style={[typography.body, { color: colors.primary }]}>📊</Text>}
         />
         <SettingRow
           label="Импорт данных"

@@ -15,9 +15,10 @@ import type { Workout } from '../../../types';
 interface OverviewTabProps {
   colors: any;
   workoutHistory: Workout[];
+  navigation?: any;
 }
 
-export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory }) => {
+export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory, navigation }) => {
   const { getWeekSessions } = useCardioStore();
   const weekCardio = getWeekSessions();
   const cardioWeekMinutes = weekCardio.reduce((s, c) => s + c.durationMinutes, 0);
@@ -236,7 +237,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
         </FadeIn>
       )}
 
-      <WorkoutHistoryList workouts={workoutHistory} delay={600} />
+      <WorkoutHistoryList workouts={workoutHistory} delay={600} navigation={navigation} />
     </>
   );
 };
