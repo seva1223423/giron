@@ -107,6 +107,13 @@ router.post('/refresh', async (req: Request, res: Response) => {
     }
 
     const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { userId: string };
+
+    // Verify user still exists (could have been deleted)
+    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true } });
+    if (!user) {
+      return res.status(401).json({ error: 'Пользователь не найден' });
+    }
+
     const token = jwt.sign({ userId: payload.userId }, process.env.JWT_SECRET!, { expiresIn: '7d' });
     const newRefreshToken = jwt.sign({ userId: payload.userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d' });
 

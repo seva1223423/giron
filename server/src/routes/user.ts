@@ -37,12 +37,25 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       'trainingExperienceYears', 'avatarUrl',
     ];
 
-    const data: Record<string, any> = {};
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        data[field] = req.body[field];
-      }
+    const profileUpdateSchema = z.object({
+      firstName: z.string().min(1).max(100).optional(),
+      lastName: z.string().max(100).optional(),
+      dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), 'Некорректная дата').optional(),
+      gender: z.string().max(20).optional(),
+      heightCm: z.number().min(50).max(300).optional(),
+      weightKg: z.number().min(20).max(400).optional(),
+      goal: z.string().max(50).optional(),
+      fitnessLevel: z.string().max(50).optional(),
+      trainingExperienceYears: z.number().min(0).max(80).optional(),
+      avatarUrl: z.string().url('Некорректный URL').max(2048).optional(),
+    });
+
+    const parsed = profileUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
     }
+
+    const data: Record<string, any> = { ...parsed.data };
 
     if (data.dateOfBirth) {
       data.dateOfBirth = new Date(data.dateOfBirth);
