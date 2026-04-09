@@ -5,7 +5,7 @@ import { useSafeTop } from '../../hooks/useSafeTop';
 import { useAchievementCheck } from '../../hooks/useAchievementCheck';
 import { useThemeStore } from '../../store';
 import type { Achievement } from '../../utils/achievements';
-import { Button } from '../../components';
+import { Button, Tooltip } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { NutritionItem } from '../../types';
@@ -72,6 +72,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
       <DailyOverview selectedDate={selectedDate} />
+      <Tooltip tipId="nutrition-scan" text="📸 Нажми + чтобы сканировать штрих-код продукта или сфотографировать еду" />
 
       <Button title="📸 Сканировать еду по фото" onPress={handlePhotoScan} fullWidth size="lg" style={{ marginBottom: spacing.lg }} />
 

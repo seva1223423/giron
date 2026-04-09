@@ -6,7 +6,7 @@ import { useThemeStore, useWorkoutStore } from '../../store';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { exercises as localExercises } from '../../data/exercises';
 import { scheduleRestEndNotification, cancelRestEndNotification, scheduleStreakRiskNotification, workoutService } from '../../services';
-import { Button } from '../../components';
+import { Button, Tooltip } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import {
@@ -135,8 +135,10 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       if (!aw) return;
       if (event.translationX < -80 && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
         nextExercise();
+        haptic.light();
       } else if (event.translationX > 80 && aw.currentExerciseIndex > 0) {
         prevExercise();
+        haptic.light();
       }
     });
 
@@ -294,6 +296,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onNext={nextExercise}
         onSubstitute={handleSubstitute}
       />
+      <Tooltip tipId="workout-swipe" text="👆 Свайпни влево/вправо для переключения между упражнениями" position="top" />
 
       {workout.exercises.length > 1 && (
         <Animated.Text

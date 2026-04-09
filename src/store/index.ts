@@ -10,3 +10,4 @@ export { useCardioStore } from './useCardioStore';
 export { useConnectionStore } from './useConnectionStore';
 export { useSleepStore } from './useSleepStore';
 export type { SleepEntry } from './useSleepStore';
+export { useOnboardingTipsStore } from './useOnboardingTipsStore';
