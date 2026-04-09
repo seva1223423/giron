@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { ScrollView, Text, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
@@ -169,7 +169,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return allDone ? activeProgram.name : null;
   }, [activeProgram, workoutHistory]);
 
-  const handleStartPlannedWorkout = () => {
+  const handleStartPlannedWorkout = useCallback(() => {
     if (!todayPlan || todayPlan.exercises.length === 0) return;
     haptic.medium();
     const allExercises = [...customExercises, ...localExercises];
@@ -186,9 +186,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       .filter(Boolean) as WorkoutExercise[];
     startWorkout({ id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises });
     navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  };
+  }, [todayPlan, customExercises, startWorkout, navigation, haptic]);
 
-  const handleRepeatWorkout = () => {
+  const handleRepeatWorkout = useCallback(() => {
     if (!lastWorkout || activeWorkout) return;
     haptic.medium();
     const workoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((we, index) => {
@@ -200,7 +200,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     });
     startWorkout({ id: `workout-${Date.now()}`, name: lastWorkout.name, exercises: workoutExercises });
     navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  };
+  }, [lastWorkout, activeWorkout, startWorkout, navigation, haptic]);
 
   return (
     <ScrollView

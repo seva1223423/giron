@@ -42,34 +42,25 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
     return s;
   }, [workoutHistory]);
 
-  const weeklyVolumeData = useMemo(() => {
-    const weeks: { label: string; value: number }[] = [];
+  const { weeklyVolumeData, weeklyCountData } = useMemo(() => {
+    const volumes: { label: string; value: number }[] = [];
+    const counts: { label: string; value: number }[] = [];
     const thisMonday = getMonday();
     for (let w = 7; w >= 0; w--) {
       const weekStart = new Date(thisMonday);
       weekStart.setDate(thisMonday.getDate() - w * 7);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
-      const volume = workoutHistory
-        .filter((wk) => { if (!wk.completedAt) return false; const d = new Date(wk.completedAt); return d >= weekStart && d < weekEnd; })
-        .reduce((s, wk) => s + (wk.totalVolume || 0), 0);
-      weeks.push({ label: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, value: Math.round(volume) });
+      const weekWorkouts = workoutHistory.filter((wk) => {
+        if (!wk.completedAt) return false;
+        const d = new Date(wk.completedAt);
+        return d >= weekStart && d < weekEnd;
+      });
+      const label = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
+      volumes.push({ label, value: Math.round(weekWorkouts.reduce((s, wk) => s + (wk.totalVolume || 0), 0)) });
+      counts.push({ label, value: weekWorkouts.length });
     }
-    return weeks;
-  }, [workoutHistory]);
-
-  const weeklyCountData = useMemo(() => {
-    const weeks: { label: string; value: number }[] = [];
-    const thisMonday = getMonday();
-    for (let w = 7; w >= 0; w--) {
-      const weekStart = new Date(thisMonday);
-      weekStart.setDate(thisMonday.getDate() - w * 7);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 7);
-      const count = workoutHistory.filter((wk) => { if (!wk.completedAt) return false; const d = new Date(wk.completedAt); return d >= weekStart && d < weekEnd; }).length;
-      weeks.push({ label: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, value: count });
-    }
-    return weeks;
+    return { weeklyVolumeData: volumes, weeklyCountData: counts };
   }, [workoutHistory]);
 
   const durationTrend = useMemo(() => workoutHistory.slice(0, 10).reverse().map((w, i) => ({ label: `${i + 1}`, value: w.durationMinutes || 0 })), [workoutHistory]);

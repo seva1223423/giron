@@ -2,6 +2,7 @@
   "expo": {
     "name": "iron-gym",
     "slug": "iron-gym",
+    "scheme": "irongym",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,7 +26,14 @@
       "splash": {
         "backgroundColor": "#FF6B35"
       },
-      "edgeToEdgeEnabled": false
+      "edgeToEdgeEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [{ "scheme": "irongym" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

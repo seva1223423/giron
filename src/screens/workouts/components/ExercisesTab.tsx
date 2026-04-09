@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
@@ -99,8 +99,42 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
     [exerciseList, searchQuery, muscleFilter, equipmentFilter, favoriteIds]
   );
 
-  return (
-    <>
+  const renderExerciseCard = useCallback(({ item: ex }: { item: Exercise }) => {
+    const isFav = favoriteIds.has(ex.id);
+    return (
+      <Card
+        style={{ marginBottom: spacing.sm }}
+        padding={spacing.md}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
+          >
+            <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+              {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => toggleFavorite(ex.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ paddingLeft: spacing.md }}
+          >
+            <Text style={{ fontSize: 18, color: isFav ? '#FF3B55' : colors.textTertiary }}>
+              {isFav ? '❤️' : '🤍'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+    );
+  }, [favoriteIds, colors, navigation, toggleFavorite]);
+
+  const keyExtractor = useCallback((ex: Exercise) => ex.id, []);
+
+  const listHeader = useMemo(() => (
+    <View style={{ padding: spacing.xl, paddingBottom: 0 }}>
       <TextInput
         style={[styles.searchInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
         value={searchQuery}
@@ -136,53 +170,39 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
       <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>
         {filteredExercises.length} упражнений
       </Text>
+    </View>
+  ), [searchQuery, muscleFilter, equipmentFilter, colors, filteredExercises.length]);
 
-      {muscleFilter === 'favorites' && filteredExercises.length === 0 && (
+  const listEmpty = useMemo(() => {
+    if (loadingExercises) {
+      return <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />;
+    }
+    if (muscleFilter === 'favorites') {
+      return (
         <View style={styles.emptyState}>
-          <Text style={{ fontSize: 40, marginBottom: spacing.md }}>❤️</Text>
+          <Text style={{ fontSize: 40, marginBottom: spacing.md }}>{'❤️'}</Text>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-            Нажмите ❤️ на упражнении, чтобы добавить в избранное
+            Нажмите {'❤️'} на упражнении, чтобы добавить в избранное
           </Text>
         </View>
-      )}
+      );
+    }
+    return null;
+  }, [loadingExercises, muscleFilter, colors]);
 
-      {loadingExercises ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
-      ) : (
-        filteredExercises.map((ex) => {
-          const isFav = favoriteIds.has(ex.id);
-          return (
-            <Card
-              key={ex.id}
-              style={{ marginBottom: spacing.sm }}
-              padding={spacing.md}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <TouchableOpacity
-                  style={{ flex: 1 }}
-                  activeOpacity={0.7}
-                  onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
-                >
-                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                    {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => toggleFavorite(ex.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={{ paddingLeft: spacing.md }}
-                >
-                  <Text style={{ fontSize: 18, color: isFav ? '#FF3B55' : colors.textTertiary }}>
-                    {isFav ? '❤️' : '🤍'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </Card>
-          );
-        })
-      )}
-    </>
+  return (
+    <FlatList
+      data={loadingExercises ? [] : filteredExercises}
+      keyExtractor={keyExtractor}
+      renderItem={renderExerciseCard}
+      ListHeaderComponent={listHeader}
+      ListEmptyComponent={listEmpty}
+      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.huge }}
+      showsVerticalScrollIndicator={false}
+      initialNumToRender={15}
+      maxToRenderPerBatch={10}
+      windowSize={5}
+    />
   );
 };
 

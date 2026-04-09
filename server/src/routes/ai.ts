@@ -6977,14 +6977,14 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 1751-1760 calls ──────
     const restPauseAdvContext = getRestPauseSets(message);
-    const clusterSetsContext = getClusterSets(message);
-    const mechDropSetContext = getMechanicalDropSets(message);
+    const clusterSetsAdvContext = getClusterSetsAdv(message);
+    const mechDropSetAdvContext = getMechanicalDropSetsAdv(message);
     const giantSetsContext = getGiantSets(message);
     const bfrDetailContext = getBloodFlowRestriction(message);
-    const eccentricContext = getEccentricTraining(message);
+    const eccentricAdvContext = getEccentricTrainingAdv(message);
     const isoHoldsContext = getIsometricHolds(message);
-    const tempoTrainContext = getTempoTraining(message);
-    const unilateralContext = getUnilateralTraining(message);
+    const tempoTrainAdvContext = getTempoTrainingAdv(message);
+    const unilateralAdvContext = getUnilateralTrainingAdv(message);
     const conjugateAdvContext = getConjugateMethodAdv(message);
 
     // ─── Block 1761-1770 calls ──────
@@ -8843,14 +8843,14 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'progressTrack', content: progressTrackContext, relevantIntents: new Set(['отслеживать прогресс', 'прогресс не виден', 'стоит на месте']), priority: 3 },
         // ─── Block 1751-1760 ──────
         { name: 'restPauseAdv', content: restPauseAdvContext, relevantIntents: new Set(['рест-пауз', 'rest pause', 'отдых-пауза']), priority: 3 },
-        { name: 'clusterSets', content: clusterSetsContext, relevantIntents: new Set(['кластерные сеты', 'cluster sets', 'интрасет отдых']), priority: 3 },
-        { name: 'mechDropSet', content: mechDropSetContext, relevantIntents: new Set(['механический дроп-сет', 'mechanical drop set']), priority: 3 },
+        { name: 'clusterSetsAdv', content: clusterSetsAdvContext, relevantIntents: new Set(['кластерные сеты', 'cluster sets', 'интрасет отдых']), priority: 3 },
+        { name: 'mechDropSetAdv', content: mechDropSetAdvContext, relevantIntents: new Set(['механический дроп-сет', 'mechanical drop set']), priority: 3 },
         { name: 'giantSets', content: giantSetsContext, relevantIntents: new Set(['гигантские сеты', 'giant sets', '4 упражнения подряд']), priority: 3 },
         { name: 'bfrDetail', content: bfrDetailContext, relevantIntents: new Set(['окклюзионный тренинг', 'bfr', 'тренировки с жгутом']), priority: 3 },
-        { name: 'eccentric', content: eccentricContext, relevantIntents: new Set(['эксцентрическая тренировка', 'негативы', 'eccentric training']), priority: 3 },
+        { name: 'eccentricAdv', content: eccentricAdvContext, relevantIntents: new Set(['эксцентрическая тренировка', 'негативы', 'eccentric training']), priority: 3 },
         { name: 'isoHolds', content: isoHoldsContext, relevantIntents: new Set(['изометрические удержания', 'изометрика', 'паузы в упражнениях']), priority: 3 },
-        { name: 'tempoTrain', content: tempoTrainContext, relevantIntents: new Set(['темповые тренировки', 'контролируемый темп', '4010 темп']), priority: 3 },
-        { name: 'unilateral', content: unilateralContext, relevantIntents: new Set(['односторонние упражнения', 'унилатеральные', 'одной рукой']), priority: 3 },
+        { name: 'tempoTrainAdv', content: tempoTrainAdvContext, relevantIntents: new Set(['темповые тренировки', 'контролируемый темп', '4010 темп']), priority: 3 },
+        { name: 'unilateralAdv', content: unilateralAdvContext, relevantIntents: new Set(['односторонние упражнения', 'унилатеральные', 'одной рукой']), priority: 3 },
         { name: 'conjugateAdv', content: conjugateAdvContext, relevantIntents: new Set(['сопряжённый метод', 'вестсайд', 'conjugate method']), priority: 3 },
         // ─── Block 1761-1770 ──────
         { name: 'stressCortisol', content: stressCortisolContext, relevantIntents: new Set(['стресс и тренировки', 'кортизол', 'перетренированность']), priority: 3 },
@@ -83064,7 +83064,7 @@ RICE/POLICE протокол: Protection, Optimal Loading, Ice, Compression, Ele
 `;
 }
 
-function getBurnoutPrevention(message: string): string {
+function getBurnoutPreventionAdv(message: string): string {
   const kw = ['выгорание от тренировок', 'надоело тренироваться', 'потерял мотивацию'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `

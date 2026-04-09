@@ -199,6 +199,33 @@ function AuthStack() {
   );
 }
 
+const linking = {
+  prefixes: ['irongym://', 'https://irongym.app'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          HomeTab: 'home',
+          WorkoutsTab: {
+            screens: {
+              WorkoutsList: 'workouts',
+              ActiveWorkout: 'workout/active',
+              ExerciseDetail: 'exercise/:exerciseId',
+            },
+          },
+          NutritionTab: {
+            screens: {
+              NutritionMain: 'nutrition',
+            },
+          },
+          ProgressTab: 'progress',
+          AITab: 'ai',
+        },
+      },
+    },
+  },
+};
+
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isOnboarded } = useAuthStore();
   const { colors, applyAutoTheme } = useThemeStore();
@@ -221,7 +248,7 @@ export const AppNavigator: React.FC = () => {
   }, [applyAutoTheme]);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <View style={{ flex: 1 }}>
         {!isOnline && (
           <View style={{ backgroundColor: '#F59E0B', paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
