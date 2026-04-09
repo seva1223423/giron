@@ -6988,14 +6988,14 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const conjugateAdvContext = getConjugateMethodAdv(message);
 
     // ─── Block 1761-1770 calls ──────
-    const stressCortisolContext = getStressAndCortisol(message);
+    const stressCortisolAdvContext = getStressAndCortisol(message);
     const digestiveContext = getDigestiveHealth(message);
     const jointHealthDetContext = getJointHealth(message);
     const sleepOptContext = getSleepOptimization(message);
-    const mindsetGrowthContext = getMindsetGrowth(message);
+    const mindsetGrowthAdvContext = getMindsetGrowth(message);
     const compPrepDetContext = getCompetitionPreparation(message);
     const trainingSickContext = getTrainingWhileSick(message);
-    const postInjuryContext = getPostInjuryReturn(message);
+    const postInjuryAdvContext = getPostInjuryReturnAdv(message);
     const burnoutPrevAdvContext = getBurnoutPreventionAdv(message);
     const socialFitnessContext = getSocialFitness(message);
 
@@ -8853,14 +8853,14 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'unilateralAdv', content: unilateralAdvContext, relevantIntents: new Set(['односторонние упражнения', 'унилатеральные', 'одной рукой']), priority: 3 },
         { name: 'conjugateAdv', content: conjugateAdvContext, relevantIntents: new Set(['сопряжённый метод', 'вестсайд', 'conjugate method']), priority: 3 },
         // ─── Block 1761-1770 ──────
-        { name: 'stressCortisol', content: stressCortisolContext, relevantIntents: new Set(['стресс и тренировки', 'кортизол', 'перетренированность']), priority: 3 },
+        { name: 'stressCortisolAdv', content: stressCortisolAdvContext, relevantIntents: new Set(['стресс и тренировки', 'кортизол', 'перетренированность']), priority: 3 },
         { name: 'digestive', content: digestiveContext, relevantIntents: new Set(['пищеварение и спорт', 'желудок после тренировки', 'вздутие']), priority: 3 },
         { name: 'jointHealthDet', content: jointHealthDetContext, relevantIntents: new Set(['здоровье суставов', 'хруст в суставах', 'профилактика суставов']), priority: 3 },
         { name: 'sleepOpt', content: sleepOptContext, relevantIntents: new Set(['оптимизация сна', 'как лучше спать', 'гигиена сна']), priority: 3 },
-        { name: 'mindsetGrowth', content: mindsetGrowthContext, relevantIntents: new Set(['мышление роста', 'growth mindset', 'менталитет спортсмена']), priority: 3 },
+        { name: 'mindsetGrowthAdv', content: mindsetGrowthAdvContext, relevantIntents: new Set(['мышление роста', 'growth mindset', 'менталитет спортсмена']), priority: 3 },
         { name: 'compPrepDet', content: compPrepDetContext, relevantIntents: new Set(['подготовка к соревнованиям', 'пик формы', 'тейпер']), priority: 3 },
         { name: 'trainingSick', content: trainingSickContext, relevantIntents: new Set(['тренировки при болезни', 'тренироваться с простудой', 'тренировка при температуре']), priority: 3 },
-        { name: 'postInjury', content: postInjuryContext, relevantIntents: new Set(['возвращение после травмы', 'тренировки после травмы', 'реабилитация']), priority: 3 },
+        { name: 'postInjuryAdv', content: postInjuryAdvContext, relevantIntents: new Set(['возвращение после травмы', 'тренировки после травмы', 'реабилитация']), priority: 3 },
         { name: 'burnoutPrevAdv', content: burnoutPrevAdvContext, relevantIntents: new Set(['выгорание от тренировок', 'надоело тренироваться', 'потерял мотивацию']), priority: 3 },
         { name: 'socialFitness', content: socialFitnessContext, relevantIntents: new Set(['тренировки с друзьями', 'фитнес сообщество', 'групповые тренировки']), priority: 3 },
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
@@ -82362,7 +82362,7 @@ function getRestPauseSets(message: string): string {
 `;
 }
 
-function getClusterSets(message: string): string {
+function getClusterSetsAdv(message: string): string {
   const kw = ['кластерные сеты', 'cluster sets', 'интрасет отдых'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -82391,7 +82391,7 @@ function getClusterSets(message: string): string {
 `;
 }
 
-function getMechanicalDropSets(message: string): string {
+function getMechanicalDropSetsAdv(message: string): string {
   const kw = ['механический дроп-сет', 'mechanical drop set'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -82502,7 +82502,7 @@ function getBloodFlowRestriction(message: string): string {
 `;
 }
 
-function getEccentricTraining(message: string): string {
+function getEccentricTrainingAdv(message: string): string {
   const kw = ['эксцентрическая тренировка', 'негативы', 'eccentric training', 'негативные повторения'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -82584,7 +82584,7 @@ L-sit на брусьях: развитие кора и плеч
 `;
 }
 
-function getTempoTraining(message: string): string {
+function getTempoTrainingAdv(message: string): string {
   const kw = ['темповые тренировки', 'контролируемый темп', '4010 темп'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -82632,7 +82632,7 @@ Mind-muscle connection: медленный темп заставляет фок�
 `;
 }
 
-function getUnilateralTraining(message: string): string {
+function getUnilateralTrainingAdv(message: string): string {
   const kw = ['односторонние упражнения', 'унилатеральные', 'одной рукой', 'одной ногой'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
@@ -83024,7 +83024,7 @@ function getTrainingWhileSick(message: string): string {
 `;
 }
 
-function getPostInjuryReturn(message: string): string {
+function getPostInjuryReturnAdv(message: string): string {
   const kw = ['возвращение после травмы', 'тренировки после травмы', 'реабилитация спорт'];
   if (!kw.some(k => message.toLowerCase().includes(k))) return '';
   return `
