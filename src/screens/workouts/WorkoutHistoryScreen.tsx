@@ -37,7 +37,8 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
   const [muscleFilter, setMuscleFilter] = useState('all');
 
   const filtered = useMemo(() => workoutHistory.filter((w) => {
-    const matchSearch = !searchQuery || w.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !searchQuery || w.name.toLowerCase().includes(q) || w.exercises.some((ex: any) => ex.exercise?.name?.toLowerCase().includes(q));
     const matchMuscle = muscleFilter === 'all' || w.exercises.some((ex: any) => ex.exercise?.primaryMuscles?.includes(muscleFilter));
     return matchSearch && matchMuscle;
   }), [workoutHistory, searchQuery, muscleFilter]);
@@ -70,7 +71,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
             <TextInput
               style={[styles.search, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
               value={searchQuery} onChangeText={setSearchQuery}
-              placeholder="Поиск по названию..." placeholderTextColor={colors.inputPlaceholder}
+              placeholder="Поиск по названию или упражнению..." placeholderTextColor={colors.inputPlaceholder}
             />
           </FadeIn>
 

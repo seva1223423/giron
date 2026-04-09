@@ -194,6 +194,39 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
       </FadeIn>
 
       <ExerciseStatsCard exerciseHistory={exerciseHistory} maxWeight={maxWeight} estimated1RM={estimated1RM} oneRMTrend={oneRMTrend} />
+
+      {exerciseHistory.length > 0 && (
+        <FadeIn delay={280}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
+              История ({exerciseHistory.length} тренировок)
+            </Text>
+            {exerciseHistory.slice(0, 10).map((h, i) => (
+              <View key={i} style={[
+                { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm },
+                i < Math.min(exerciseHistory.length, 10) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
+              ]}>
+                <View>
+                  <Text style={[typography.small, { color: colors.textSecondary }]}>
+                    {new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Text>
+                  <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>
+                    {h.sets.length} подходов • {Math.round(h.totalVolume)} кг объём
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[typography.bodySemibold, { color: colors.primary }]}>
+                    {h.bestWeight} кг × {h.bestReps}
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                    ~{Math.round(h.bestWeight * (1 + h.bestReps / 30))} кг 1ПМ
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </Card>
+        </FadeIn>
+      )}
     </ScrollView>
   );
 };
