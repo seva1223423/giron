@@ -62,7 +62,17 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
         </Text>
       </View>
 
+      <Text style={[typography.caption, { color: 'rgba(255,255,255,0.5)', marginTop: spacing.xs }]}>
+        {Math.round((1 - progress) * 100)}% отдыха
+      </Text>
+
       <View style={{ flexDirection: 'row', gap: spacing.md }}>
+        <TouchableOpacity
+          onPress={() => onAddTime(15)}
+          style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.2)' }}
+        >
+          <Text style={[typography.buttonSmall, { color: '#FFF' }]}>+15с</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onAddTime(30)}
           style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.2)' }}
