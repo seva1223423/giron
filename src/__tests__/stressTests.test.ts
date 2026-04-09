@@ -12,6 +12,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 jest.mock('../services', () => ({
   workoutService: {
     completeWorkout: jest.fn(() => Promise.resolve()),
+    syncWorkout: jest.fn(() => Promise.resolve()),
     autosaveWorkout: jest.fn(() => Promise.resolve()),
     getHistory: jest.fn(() => Promise.resolve([])),
     getPrograms: jest.fn(() => Promise.resolve([])),
