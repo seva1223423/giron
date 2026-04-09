@@ -134,6 +134,66 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Sync a locally-completed workout to the server (offline-first pattern)
+router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = req.body;
+
+    if (!name || !exercises || !Array.isArray(exercises)) {
+      return res.status(400).json({ error: 'Название и упражнения обязательны' });
+    }
+
+    // Find or get active program
+    const activeProgram = await prisma.program.findFirst({
+      where: { userId: req.userId, isActive: true },
+    });
+
+    const workout = await prisma.workout.create({
+      data: {
+        name,
+        notes: notes || null,
+        startedAt: startedAt ? new Date(startedAt) : new Date(),
+        completedAt: completedAt ? new Date(completedAt) : new Date(),
+        durationMinutes: durationMinutes || 0,
+        totalVolume: totalVolume || 0,
+        userId: req.userId!,
+        programId: activeProgram?.id || null,
+        exercises: {
+          create: exercises.map((ex: any, i: number) => ({
+            order: i,
+            exerciseId: ex.exerciseId,
+            restSeconds: ex.restSeconds || 90,
+            supersetGroupId: ex.supersetGroupId || null,
+            notes: ex.notes || null,
+            sets: {
+              create: (ex.sets || []).map((s: any, j: number) => ({
+                setNumber: j + 1,
+                type: s.type || 'normal',
+                reps: s.reps || null,
+                weight: s.weight || null,
+                rpe: s.rpe || null,
+                completed: s.completed || false,
+                notes: s.notes || null,
+              })),
+            },
+          })),
+        },
+      },
+      include: {
+        exercises: {
+          include: { exercise: true, sets: true },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    res.status(201).json(workout);
+  } catch (e) {
+    logger.error('Workout sync error:', e);
+    res.status(500).json({ error: 'Ошибка синхронизации тренировки' });
+  }
+});
+
 // Complete workout
 router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Response) => {
   try {
