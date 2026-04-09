@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, TouchableOpacity, Share } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
@@ -15,6 +15,21 @@ interface Props {
 
 export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWorkout, activeWorkout, onRepeat }) => {
   const { colors } = useThemeStore();
+
+  const handleShare = useCallback(async () => {
+    const totalSets = lastWorkout.exercises.reduce(
+      (sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0
+    );
+    const message = [
+      `🏋️ Моя тренировка: ${lastWorkout.name}`,
+      `⏱ ${lastWorkout.durationMinutes || 0} мин • 📦 ${Math.round(lastWorkout.totalVolume || 0)} кг`,
+      `${lastWorkout.exercises.length} упражнений • ${totalSets} подходов`,
+      `💪 Тренируйся с Iron Gym`,
+    ].join('\n');
+    try {
+      await Share.share({ message });
+    } catch {}
+  }, [lastWorkout]);
 
   const daysWord = (n: number) => {
     const mod10 = n % 10;
@@ -33,14 +48,22 @@ export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWor
     <Card style={{ marginBottom: spacing.lg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
         <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>{label}</Text>
-        {!activeWorkout && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <TouchableOpacity
-            onPress={onRepeat}
-            style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm }}
+            onPress={handleShare}
+            style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: borderRadius.sm }}
           >
-            <Text style={[typography.captionMedium, { color: colors.primary }]}>🔁 Повторить</Text>
+            <Text style={[typography.captionMedium, { color: colors.primary }]}>📤</Text>
           </TouchableOpacity>
-        )}
+          {!activeWorkout && (
+            <TouchableOpacity
+              onPress={onRepeat}
+              style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm }}
+            >
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>🔁 Повторить</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       <Text style={[typography.bodySemibold, { color: colors.text, marginTop: spacing.xs }]} numberOfLines={1}>
         {lastWorkout.name}
