@@ -45,6 +45,31 @@ export const workoutService = {
     return data;
   },
 
+  async syncWorkout(workout: any): Promise<any> {
+    const { data } = await api.post('/workouts/sync', {
+      name: workout.name,
+      exercises: workout.exercises.map((ex: any) => ({
+        exerciseId: ex.exerciseId,
+        restSeconds: ex.restSeconds,
+        supersetGroupId: ex.supersetGroupId,
+        notes: ex.notes,
+        sets: ex.sets.map((s: any) => ({
+          type: s.type,
+          reps: s.reps,
+          weight: s.weight,
+          rpe: s.rpe,
+          completed: s.completed,
+        })),
+      })),
+      completedAt: workout.completedAt,
+      startedAt: workout.startedAt,
+      durationMinutes: workout.durationMinutes,
+      totalVolume: workout.totalVolume,
+      notes: workout.notes,
+    });
+    return data;
+  },
+
   async completeWorkout(id: string, sets?: Array<{
     id: string;
     reps?: number;

@@ -380,17 +380,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         }));
 
         // Sync completed workout to server in background
-        workoutService.completeWorkout(completed.id,
-          completed.exercises.flatMap((ex) =>
-            ex.sets.map((s) => ({
-              id: s.id,
-              reps: s.reps,
-              weight: s.weight,
-              completed: s.completed,
-              rpe: s.rpe,
-            }))
-          )
-        ).catch(() => {});
+        workoutService.syncWorkout(completed).catch(() => {});
 
         return completed;
       },

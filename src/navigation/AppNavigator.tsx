@@ -7,6 +7,7 @@ import { useThemeStore, useAuthStore } from '../store';
 import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
 import { requestNotificationPermissions } from '../services/notificationService';
+import { ErrorBoundary } from '../components';
 
 // Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -117,6 +118,7 @@ function MainTabs() {
   const { colors } = useThemeStore();
 
   return (
+    <ErrorBoundary>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -181,6 +183,7 @@ function MainTabs() {
         }}
       />
     </Tab.Navigator>
+    </ErrorBoundary>
   );
 }
 
