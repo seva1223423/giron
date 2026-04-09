@@ -43,6 +43,17 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
   const [goalFats, setGoalFats] = useState(dayLog.targetFats?.toString() || '70');
   const [goalCarbs, setGoalCarbs] = useState(dayLog.targetCarbs?.toString() || '250');
 
+  // Reset state when modal opens or selectedDate changes
+  React.useEffect(() => {
+    if (visible) {
+      const log = getDayLog(selectedDate);
+      setGoalCalories(log.targetCalories.toString());
+      setGoalProtein(log.targetProtein.toString());
+      setGoalFats(log.targetFats?.toString() || '70');
+      setGoalCarbs(log.targetCarbs?.toString() || '250');
+    }
+  }, [visible, selectedDate]);
+
   const handleSave = () => {
     setTargets(selectedDate, {
       calories: parseInt(goalCalories) || 2000,
