@@ -25,8 +25,7 @@
       "splash": {
         "backgroundColor": "#FF6B35"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "edgeToEdgeEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
