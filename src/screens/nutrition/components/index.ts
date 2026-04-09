@@ -6,3 +6,4 @@ export { WeekStats } from './WeekStats';
 export { SavedFoodsQuickAdd } from './SavedFoodsQuickAdd';
 export { MealSection, MEAL_TYPES } from './MealSection';
 export { DateNavigator } from './DateNavigator';
+export { QuickMeals } from './QuickMeals';
