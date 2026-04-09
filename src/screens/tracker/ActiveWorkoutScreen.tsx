@@ -48,7 +48,10 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const prToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (prToastTimer.current) clearTimeout(prToastTimer.current);
+    };
   }, []);
 
   // Autosave every 30 seconds — use getState() to avoid stale closure

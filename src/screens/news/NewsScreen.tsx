@@ -52,9 +52,11 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   const toggleSave = async (id: string) => {
-    setSavedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+    const wasSaved = savedIds.has(id);
+    setSavedIds((prev) => { const next = new Set(prev); wasSaved ? next.delete(id) : next.add(id); return next; });
     try { await newsService.toggleSave(id); } catch {
-      setSavedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+      // Revert: restore previous state
+      setSavedIds((prev) => { const next = new Set(prev); wasSaved ? next.add(id) : next.delete(id); return next; });
     }
   };
 

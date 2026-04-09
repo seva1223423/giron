@@ -70,7 +70,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const pickImage = async (useCamera: boolean) => {
-    if (!consumeFoodScan()) { setShowPaywall(true); return; }
+    if (foodScansLeft() === 0 && !isPremiumActive()) { setShowPaywall(true); return; }
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -79,6 +79,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       ? await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true })
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, base64: true });
     if (!result.canceled && result.assets[0]) {
+      // Consume scan credit only after user actually picked an image
+      if (!consumeFoodScan()) { setShowPaywall(true); return; }
       setImageUri(result.assets[0].uri);
       setError('');
       analyzeFood(result.assets[0].base64 || '');

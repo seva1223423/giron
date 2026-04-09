@@ -50,9 +50,15 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [serverStarters, setServerStarters] = useState<AIStarter[]>([]);
   const [celebration, setCelebration] = useState<{ milestones: string[]; prs: string[] } | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actionsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Stop speech on unmount
-  useEffect(() => () => { Speech.stop(); }, []);
+  // Stop speech and clear timers on unmount
+  useEffect(() => () => {
+    Speech.stop();
+    if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+    if (actionsTimerRef.current) clearTimeout(actionsTimerRef.current);
+  }, []);
 
   const handleSpeak = (id: string, text: string) => {
     if (speakingId === id) {
@@ -136,14 +142,16 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         const cel = { milestones: response.meta.milestones ?? [], prs: response.meta.newPRs ?? [] };
         if (cel.milestones.length > 0 || cel.prs.length > 0) {
           setCelebration(cel);
-          setTimeout(() => setCelebration(null), 8000);
+          if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+          celebrationTimerRef.current = setTimeout(() => setCelebration(null), 8000);
         }
       }
 
       if (response && response.actions && response.actions.length > 0) {
         const actions = response.actions;
         setLastActions(actions);
-        setTimeout(() => setLastActions([]), 6000);
+        if (actionsTimerRef.current) clearTimeout(actionsTimerRef.current);
+        actionsTimerRef.current = setTimeout(() => setLastActions([]), 6000);
         const types = actions.map((act) => act.type);
         if (types.includes('create_workout') || types.includes('modify_workout') || types.includes('create_program') || types.includes('delete_program') || types.includes('adjust_all_weights') || types.includes('swap_exercise') || types.includes('add_superset')) {
           fetchPrograms().catch(() => {});

@@ -31,6 +31,14 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
   const [quickWeight, setQuickWeight] = useState('100');
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
 
+  // Reset state when modal opens with new food
+  React.useEffect(() => {
+    if (visible) {
+      setQuickWeight(food?.weightGrams?.toString() || '100');
+      setMealType('breakfast');
+    }
+  }, [visible, food?.id]);
+
   const dayLog = getDayLog(selectedDate);
   const totalCalories = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
   const totalProtein = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0);
