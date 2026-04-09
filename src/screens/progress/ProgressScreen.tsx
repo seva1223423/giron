@@ -88,7 +88,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       </ScrollView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {tab === 'overview' && <OverviewTab colors={colors} workoutHistory={workoutHistory} />}
+        {tab === 'overview' && <OverviewTab colors={colors} workoutHistory={workoutHistory} navigation={navigation} />}
         {tab === 'calendar' && <CalendarTab colors={colors} workoutHistory={workoutHistory} />}
         {tab === 'records' && <RecordsTab colors={colors} workoutHistory={workoutHistory} user={user} />}
         {tab === 'weight' && <WeightTab colors={colors} user={user} />}

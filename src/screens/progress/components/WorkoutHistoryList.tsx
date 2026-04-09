@@ -9,6 +9,7 @@ import type { Workout } from '../../../types';
 interface Props {
   workouts: Workout[];
   delay?: number;
+  navigation?: any;
 }
 
 const MUSCLE_CHIPS = [
@@ -39,7 +40,7 @@ function workoutMatchesMuscle(workout: Workout, muscleKey: string): boolean {
   );
 }
 
-export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600 }) => {
+export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600, navigation }) => {
   const { colors } = useThemeStore();
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState<MuscleKey>(null);
@@ -117,7 +118,10 @@ export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600 }) =
         <>
           {visible.map((workout, i) => (
             <FadeIn key={workout.id} delay={delay + 50 + i * 50}>
-              <Card style={{ marginBottom: spacing.sm }}>
+              <Card
+                style={{ marginBottom: spacing.sm }}
+                onPress={navigation ? () => navigation.navigate('WorkoutsTab', { screen: 'WorkoutSummary', params: { workout } }) : undefined}
+              >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <View style={{ flex: 1 }}>
                     <Text style={[typography.bodySemibold, { color: colors.text }]}>{workout.name}</Text>
