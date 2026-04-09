@@ -12,6 +12,7 @@ import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
   NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard, CardioWeekCard, SleepCard,
+  RecoveryScoreCard,
 } from './components';
 
 const SPLITS = [
@@ -251,6 +252,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <StreakWarningCard streak={streak} navigation={navigation} />
         </FadeIn>
       )}
+
+      <RecoveryScoreCard />
 
       {lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 7 && (
         <FadeIn delay={175}>

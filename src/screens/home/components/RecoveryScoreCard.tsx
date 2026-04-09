@@ -1,0 +1,81 @@
+import React, { useMemo } from 'react';
+import { View, Text } from 'react-native';
+import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useSleepStore } from '../../../store/useSleepStore';
+import { Card, FadeIn } from '../../../components';
+import { typography } from '../../../theme';
+import { spacing } from '../../../theme/spacing';
+
+export const RecoveryScoreCard: React.FC = () => {
+  const { colors } = useThemeStore();
+  const { workoutHistory } = useWorkoutStore();
+  const { getAverageDuration, getLastEntries } = useSleepStore();
+
+  const recovery = useMemo(() => {
+    let score = 100;
+    const reasons: string[] = [];
+
+    // Factor 1: Days since last workout (0-2 = good, 3+ = rested)
+    const lastWorkout = workoutHistory[0];
+    const daysSince = lastWorkout?.completedAt
+      ? Math.round((Date.now() - new Date(lastWorkout.completedAt).getTime()) / 86400000)
+      : 999;
+
+    if (daysSince === 0) { score -= 30; reasons.push('Тренировался сегодня'); }
+    else if (daysSince === 1) { score -= 15; reasons.push('Тренировался вчера'); }
+
+    // Factor 2: Training frequency (last 7 days)
+    const weekAgo = Date.now() - 7 * 86400000;
+    const weekWorkouts = workoutHistory.filter(w => w.completedAt && new Date(w.completedAt).getTime() > weekAgo).length;
+    if (weekWorkouts >= 6) { score -= 25; reasons.push(`${weekWorkouts} тренировок за неделю`); }
+    else if (weekWorkouts >= 5) { score -= 15; reasons.push(`${weekWorkouts} тренировок за неделю`); }
+
+    // Factor 3: Average RPE last workout
+    if (lastWorkout && daysSince <= 2) {
+      const rpes = lastWorkout.exercises.flatMap(e => e.sets.filter(s => s.rpe).map(s => s.rpe!));
+      if (rpes.length > 0) {
+        const avgRpe = rpes.reduce((a, b) => a + b, 0) / rpes.length;
+        if (avgRpe >= 9) { score -= 20; reasons.push(`Высокий RPE: ${avgRpe.toFixed(1)}`); }
+        else if (avgRpe >= 8) { score -= 10; reasons.push(`RPE: ${avgRpe.toFixed(1)}`); }
+      }
+    }
+
+    // Factor 4: Sleep
+    const avgSleep = getAverageDuration(3);
+    if (avgSleep > 0 && avgSleep < 6) { score -= 20; reasons.push(`Мало сна: ${avgSleep}ч`); }
+    else if (avgSleep > 0 && avgSleep < 7) { score -= 10; reasons.push(`Недостаточно сна: ${avgSleep}ч`); }
+
+    score = Math.max(0, Math.min(100, score));
+
+    const level = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
+    const label = score >= 80 ? 'Готов к тренировке' : score >= 50 ? 'Умеренное восстановление' : 'Нужен отдых';
+    const color = score >= 80 ? colors.success : score >= 50 ? '#F59E0B' : colors.error;
+    const emoji = score >= 80 ? '💪' : score >= 50 ? '⚡' : '😴';
+
+    return { score, level, label, color, emoji, reasons };
+  }, [workoutHistory, getAverageDuration]);
+
+  return (
+    <FadeIn delay={180}>
+      <Card style={{ marginBottom: spacing.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <Text style={{ fontSize: 32 }}>{recovery.emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
+              <Text style={[typography.h3, { color: recovery.color }]}>{recovery.score}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>/ 100</Text>
+            </View>
+            <Text style={[typography.smallMedium, { color: recovery.color }]}>{recovery.label}</Text>
+          </View>
+        </View>
+        {recovery.reasons.length > 0 && (
+          <View style={{ marginTop: spacing.sm }}>
+            {recovery.reasons.map((r, i) => (
+              <Text key={i} style={[typography.small, { color: colors.textTertiary }]}>• {r}</Text>
+            ))}
+          </View>
+        )}
+      </Card>
+    </FadeIn>
+  );
+};
