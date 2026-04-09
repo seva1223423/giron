@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeStore, useNutritionStore } from '../../../store';
+import { useHaptic } from '../../../hooks/useHaptic';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -11,6 +12,7 @@ interface Props {
 
 export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
   const { colors } = useThemeStore();
+  const haptic = useHaptic();
   const { getDayLog, addWater } = useNutritionStore();
   const dayLog = getDayLog(selectedDate);
   const waterTarget = dayLog.waterTargetMl ?? 2500;
@@ -29,7 +31,7 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
             <TouchableOpacity
               key={ml}
               style={[styles.waterBtn, { backgroundColor: colors.info + '15', borderColor: colors.info }]}
-              onPress={() => addWater(selectedDate, ml)}
+              onPress={() => { haptic.light(); addWater(selectedDate, ml); }}
             >
               <Text style={[typography.buttonSmall, { color: colors.info }]}>+{ml}</Text>
             </TouchableOpacity>

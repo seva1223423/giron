@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useThemeStore } from '../../../store';
+import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { WorkoutExercise } from '../../../types';
@@ -16,11 +17,12 @@ interface Props {
 
 export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerciseIndex, totalExercises, onPrev, onNext, onSubstitute }) => {
   const { colors } = useThemeStore();
+  const haptic = useHaptic();
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.xl, backgroundColor: colors.surface }}>
       <TouchableOpacity
-        onPress={onPrev}
+        onPress={() => { haptic.selection(); onPrev(); }}
         disabled={currentExerciseIndex === 0}
         style={{ opacity: currentExerciseIndex === 0 ? 0.3 : 1 }}
       >
@@ -49,7 +51,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
       </View>
 
       <TouchableOpacity
-        onPress={onNext}
+        onPress={() => { haptic.selection(); onNext(); }}
         disabled={currentExerciseIndex === totalExercises - 1}
         style={{ opacity: currentExerciseIndex === totalExercises - 1 ? 0.3 : 1 }}
       >

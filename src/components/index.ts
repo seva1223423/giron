@@ -8,3 +8,4 @@ export { FadeIn } from './FadeIn';
 export { PaywallModal } from './PaywallModal';
 export { SkeletonLoader } from './SkeletonLoader';
 export { ErrorBoundary } from './ErrorBoundary';
+export { Tooltip } from './Tooltip';

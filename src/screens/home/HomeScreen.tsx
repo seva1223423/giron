@@ -4,7 +4,7 @@ import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
-import { FadeIn, Card, Button } from '../../components';
+import { FadeIn, Card, Button, Tooltip } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showTodayPlanNotification } from '../../services/notificationService';
@@ -280,6 +280,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       <FadeIn delay={200}>
         <WeeklyStatsCard workoutHistory={workoutHistory} weekPlan={weekPlan} streak={streak} navigation={navigation} />
+        <Tooltip tipId="home-weekly" text="📊 Здесь твоя недельная статистика. Тренируйся регулярно!" />
       </FadeIn>
 
       {workoutHistory.length > 0 && (
