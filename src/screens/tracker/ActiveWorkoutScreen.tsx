@@ -37,6 +37,24 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return map;
   }, [workoutHistory]);
 
+  // Live elapsed time counter
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!activeWorkout) return;
+    const startTime = activeWorkout.startTime;
+
+    // Update immediately
+    setElapsed(Math.round((Date.now() - startTime) / 60000));
+
+    // Update every 30 seconds
+    const interval = setInterval(() => {
+      setElapsed(Math.round((Date.now() - startTime) / 60000));
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [activeWorkout?.startTime]);
+
   // Rest timer state
   const [restTime, setRestTime] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
@@ -153,7 +171,6 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
   const { workout, currentExerciseIndex, startTime } = activeWorkout;
   const currentExercise = workout.exercises[currentExerciseIndex];
-  const elapsed = Math.round((Date.now() - startTime) / 60000);
   const totalCompletedSets = workout.exercises.reduce((s, ex) => s + ex.sets.filter((set) => set.completed).length, 0);
   const totalSets = workout.exercises.reduce((s, ex) => s + ex.sets.length, 0);
 
