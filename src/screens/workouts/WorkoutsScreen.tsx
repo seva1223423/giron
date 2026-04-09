@@ -24,11 +24,15 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <WorkoutsHeader navigation={navigation} />
       <WorkoutsTabBar activeTab={tab} onTabChange={setTab} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {tab === 'quick' && <QuickStartTab navigation={navigation} />}
-        {tab === 'programs' && <ProgramsTab navigation={navigation} />}
-        {tab === 'exercises' && <ExercisesTab navigation={navigation} />}
-      </ScrollView>
+      {/* ExercisesTab uses FlatList internally for virtualization, so it must not be wrapped in ScrollView */}
+      {tab === 'exercises' ? (
+        <ExercisesTab navigation={navigation} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {tab === 'quick' && <QuickStartTab navigation={navigation} />}
+          {tab === 'programs' && <ProgramsTab navigation={navigation} />}
+        </ScrollView>
+      )}
     </View>
   );
 };

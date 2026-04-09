@@ -32,7 +32,7 @@ interface Props {
   colors: any;
 }
 
-export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, suggestedRpe, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
+export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const haptic = useHaptic();
   const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
   const initialReps = set.reps ? set.reps.toString() : (prevSet?.reps ? prevSet.reps.toString() : '10');
@@ -158,7 +158,7 @@ export const SetRow: React.FC<Props> = ({ set, setIndex, prevSet, suggestedRpe, 
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   setRow: {
