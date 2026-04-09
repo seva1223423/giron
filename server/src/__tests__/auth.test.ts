@@ -205,9 +205,13 @@ describe('Auth Routes', () => {
 
   describe('POST /api/auth/refresh', () => {
     it('should issue new tokens with valid refresh token', async () => {
+      // Mock user existence check (refresh route verifies user still exists)
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1' });
+
+      const secret = process.env.JWT_REFRESH_SECRET!;
       const refreshToken = jwt.sign(
         { userId: 'user-1' },
-        process.env.JWT_REFRESH_SECRET!,
+        secret,
         { expiresIn: '30d' },
       );
 
@@ -224,9 +228,10 @@ describe('Auth Routes', () => {
     });
 
     it('should reject expired refresh token', async () => {
+      const secret = process.env.JWT_REFRESH_SECRET!;
       const expiredToken = jwt.sign(
         { userId: 'user-1' },
-        process.env.JWT_REFRESH_SECRET!,
+        secret,
         { expiresIn: '-1s' }, // already expired
       );
 
