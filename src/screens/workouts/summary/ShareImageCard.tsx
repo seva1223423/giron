@@ -12,63 +12,72 @@ interface Props {
 
 export const ShareImageCard = React.forwardRef<View, Props>(
   ({ workout, totalSets, totalReps, newPRs, dateStr }, ref) => {
+    const exerciseCount = workout.exercises.length;
+    const volumeTons = ((workout.totalVolume || 0) / 1000).toFixed(1);
+
     return (
       <View style={styles.wrapper}>
         <View ref={ref} style={styles.card} collapsable={false}>
-          {/* Background */}
+          {/* Background glows */}
           <View style={StyleSheet.absoluteFillObject}>
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0D0D0D' }]} />
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0F0F1A' }]} />
             <View style={styles.glow} />
             <View style={styles.glow2} />
           </View>
 
-          {/* Header */}
+          {/* Header: branding + date */}
           <View style={styles.header}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 14 }}>🏋️</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 16 }}>🏋️</Text>
               <Text style={styles.brand}>IRON GYM</Text>
             </View>
             <Text style={styles.date}>{dateStr}</Text>
           </View>
 
-          {/* Title */}
+          {/* Workout name */}
           <Text style={styles.title}>{workout.name}</Text>
 
-          {/* PR badge */}
+          {/* PR badges */}
           {newPRs.length > 0 && (
-            <View style={styles.prBadge}>
-              <Text style={styles.prText}>
-                🏆 {newPRs.length === 1 ? `ЛИЧНЫЙ РЕКОРД • ${newPRs[0].name}` : `${newPRs.length} ЛИЧНЫХ РЕКОРДА`}
-              </Text>
+            <View style={styles.prSection}>
+              {newPRs.map((pr, i) => (
+                <View key={i} style={styles.prBadge}>
+                  <Text style={styles.prText}>
+                    🏆 {pr.name} — {pr.weight}кг × {pr.reps}
+                  </Text>
+                </View>
+              ))}
             </View>
           )}
 
-          {/* Stats row */}
-          <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{workout.durationMinutes || 0}</Text>
-              <Text style={styles.statLabel}>МИН</Text>
+          {/* Stats grid: 2x2 */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statsRow}>
+              <View style={styles.statCell}>
+                <Text style={styles.statValue}>{workout.durationMinutes || 0}</Text>
+                <Text style={styles.statLabel}>МИНУТ</Text>
+              </View>
+              <View style={styles.statCellDivider} />
+              <View style={styles.statCell}>
+                <Text style={[styles.statValue, { color: '#4FC3F7' }]}>{volumeTons}т</Text>
+                <Text style={styles.statLabel}>ОБЪЁМ</Text>
+              </View>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{totalSets}</Text>
-              <Text style={styles.statLabel}>ПОДХ.</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{totalReps}</Text>
-              <Text style={styles.statLabel}>ПОВТ.</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: '#4FC3F7' }]}>
-                {((workout.totalVolume || 0) / 1000).toFixed(1)}т
-              </Text>
-              <Text style={styles.statLabel}>ОБЪЁМ</Text>
+            <View style={styles.statsRowDivider} />
+            <View style={styles.statsRow}>
+              <View style={styles.statCell}>
+                <Text style={styles.statValue}>{totalSets}</Text>
+                <Text style={styles.statLabel}>ПОДХОДОВ</Text>
+              </View>
+              <View style={styles.statCellDivider} />
+              <View style={styles.statCell}>
+                <Text style={styles.statValue}>{exerciseCount}</Text>
+                <Text style={styles.statLabel}>УПРАЖНЕНИЙ</Text>
+              </View>
             </View>
           </View>
 
-          {/* Exercises (top 5) */}
+          {/* Exercises list (top 5) */}
           <View style={styles.exercises}>
             {workout.exercises.slice(0, 5).map((ex, i) => {
               const completedSets = ex.sets.filter((s) => s.completed);
@@ -80,7 +89,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
               return (
                 <View key={i} style={styles.exRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 5 }}>
-                    {isExPR && <Text style={{ fontSize: 10 }}>🏆</Text>}
+                    {isExPR && <Text style={{ fontSize: 11 }}>🏆</Text>}
                     <Text style={[styles.exName, isExPR && { color: '#FFD700' }]} numberOfLines={1}>
                       {ex.exercise.name}
                     </Text>
@@ -100,11 +109,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
 
           {/* Footer */}
           <View style={styles.footer}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 9, color: '#333' }}>●</Text>
-              <Text style={styles.footerText}>СДЕЛАНО В IRON GYM</Text>
-              <Text style={{ fontSize: 9, color: '#333' }}>●</Text>
-            </View>
+            <Text style={styles.footerText}>Тренируйся с Iron Gym 💪</Text>
           </View>
         </View>
       </View>
@@ -120,7 +125,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: 360,
-    backgroundColor: '#0D0D0D',
+    backgroundColor: '#0F0F1A',
     borderRadius: 24,
     padding: 28,
     overflow: 'hidden',
@@ -132,8 +137,8 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: '#E53935',
-    opacity: 0.18,
+    backgroundColor: '#FF6B35',
+    opacity: 0.15,
   },
   glow2: {
     position: 'absolute',
@@ -143,77 +148,85 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 100,
     backgroundColor: '#1565C0',
-    opacity: 0.14,
+    opacity: 0.12,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 22,
   },
   brand: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 3,
-    color: '#E53935',
+    color: '#FF6B35',
   },
   date: {
     fontSize: 12,
-    color: '#666',
+    color: '#888',
     fontWeight: '500',
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 14,
+    marginBottom: 16,
     letterSpacing: -0.5,
   },
-  prBadge: {
-    backgroundColor: '#FFD70022',
-    borderWidth: 1,
-    borderColor: '#FFD70060',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    alignSelf: 'flex-start',
+  prSection: {
     marginBottom: 20,
+    gap: 6,
+  },
+  prBadge: {
+    backgroundColor: '#FFD70018',
+    borderWidth: 1,
+    borderColor: '#FFD70050',
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
   },
   prText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#FFD700',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  stats: {
-    flexDirection: 'row',
-    backgroundColor: '#1A1A1A',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 8,
+  statsGrid: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 16,
     marginBottom: 20,
-    alignItems: 'center',
+    overflow: 'hidden',
   },
-  stat: {
+  statsRow: {
+    flexDirection: 'row',
+  },
+  statsRowDivider: {
+    height: 1,
+    backgroundColor: '#2A2A3E',
+  },
+  statCell: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 16,
+  },
+  statCellDivider: {
+    width: 1,
+    backgroundColor: '#2A2A3E',
+    marginVertical: 10,
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 9,
     fontWeight: '600',
-    color: '#555',
-    letterSpacing: 0.5,
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: '#2A2A2A',
+    color: '#666',
+    letterSpacing: 1,
+    marginTop: 3,
   },
   exercises: {
     marginBottom: 20,
@@ -222,9 +235,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: '#1E1E2E',
   },
   exName: {
     flex: 1,
@@ -234,7 +247,7 @@ const styles = StyleSheet.create({
   },
   exSet: {
     fontSize: 13,
-    color: '#E53935',
+    color: '#FF6B35',
     fontWeight: '700',
     marginLeft: 8,
   },
@@ -246,15 +259,15 @@ const styles = StyleSheet.create({
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
-    paddingTop: 12,
+    borderTopColor: '#1E1E2E',
+    paddingTop: 14,
     alignItems: 'center',
     marginTop: 4,
   },
   footerText: {
-    fontSize: 10,
-    color: '#444',
+    fontSize: 13,
+    color: '#FF6B35',
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 0.5,
   },
 });
