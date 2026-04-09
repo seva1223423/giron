@@ -11,7 +11,7 @@ import { spacing } from '../../theme/spacing';
 import { NutritionItem } from '../../types';
 import {
   GoalsModal, QuickAddModal, DailyOverview, WaterTracker, WeekStats,
-  SavedFoodsQuickAdd, MealSection, DateNavigator, MEAL_TYPES,
+  SavedFoodsQuickAdd, MealSection, DateNavigator, MEAL_TYPES, QuickMeals,
 } from './components';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
@@ -72,6 +72,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
       <DailyOverview selectedDate={selectedDate} />
+      <QuickMeals />
       <Tooltip tipId="nutrition-scan" text="📸 Нажми + чтобы сканировать штрих-код продукта или сфотографировать еду" />
 
       <Button title="📸 Сканировать еду по фото" onPress={handlePhotoScan} fullWidth size="lg" style={{ marginBottom: spacing.lg }} />
