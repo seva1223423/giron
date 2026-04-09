@@ -19,6 +19,7 @@ interface NutritionStore {
   syncMealsFromServer: (date: string) => Promise<void>;
   saveFoodItem: (item: NutritionItem) => void;
   removeSavedFood: (id: string) => void;
+  cleanupOldLogs: (keepDays?: number) => void;
 }
 
 const getDefaultDayLog = (date: string, defaults?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number }): DailyNutrition => ({
@@ -161,6 +162,23 @@ export const useNutritionStore = create<NutritionStore>()(
       removeSavedFood: (id) => set((s) => ({
         savedFoods: s.savedFoods.filter((f) => f.id !== id),
       })),
+
+      cleanupOldLogs: (keepDays: number = 90) => {
+        set((s) => {
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - keepDays);
+          const cutoffStr = cutoff.toISOString().split('T')[0];
+
+          const cleaned: typeof s.dailyLog = {};
+          for (const [date, log] of Object.entries(s.dailyLog)) {
+            if (date >= cutoffStr) {
+              cleaned[date] = log;
+            }
+          }
+
+          return { dailyLog: cleaned };
+        });
+      },
 
       syncMealsFromServer: async (date) => {
         try {

@@ -1,20 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, Switch, Share, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useThemeStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
+import { useNutritionStore } from '../../../store/useNutritionStore';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { SettingRow } from './SettingRow';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { getStorageUsage, StorageUsage } from '../../../utils/storage';
 
 export const SystemSection: React.FC = () => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { hapticFeedback, setHapticFeedback } = useSettingsStore();
+  const [storageInfo, setStorageInfo] = useState<StorageUsage | null>(null);
+
+  useEffect(() => {
+    getStorageUsage().then(setStorageInfo).catch(() => {});
+  }, []);
 
   const handleImport = async () => {
     try {
@@ -98,6 +105,33 @@ export const SystemSection: React.FC = () => {
           divider
           onPress={handleImport}
           right={<Text style={[typography.body, { color: colors.primary }]}>→</Text>}
+        />
+        {storageInfo && (
+          <SettingRow
+            label="Использование хранилища"
+            sublabel={`${storageInfo.totalMB} МБ из 6 МБ`}
+            divider
+            right={
+              <Text style={[typography.body, { color: storageInfo.warningLevel === 'critical' ? colors.error : storageInfo.warningLevel === 'warning' ? '#F59E0B' : colors.success }]}>
+                {storageInfo.warningLevel === 'ok' ? '✓' : storageInfo.warningLevel === 'warning' ? '⚠️' : '🔴'}
+              </Text>
+            }
+          />
+        )}
+        <SettingRow
+          label="Очистить старые данные"
+          sublabel="Удалить записи питания старше 90 дней"
+          onPress={() => {
+            Alert.alert('Очистить?', 'Записи питания старше 90 дней будут удалены.', [
+              { text: 'Отмена', style: 'cancel' },
+              { text: 'Очистить', style: 'destructive', onPress: () => {
+                useNutritionStore.getState().cleanupOldLogs(90);
+                getStorageUsage().then(setStorageInfo);
+                haptic.success();
+              }},
+            ]);
+          }}
+          right={<Text style={[typography.body, { color: colors.error }]}>🗑</Text>}
         />
       </Card>
     </FadeIn>
