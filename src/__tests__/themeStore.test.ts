@@ -24,7 +24,7 @@ describe('useThemeStore', () => {
     const state = useThemeStore.getState();
     expect(state.mode).toBe('light');
     expect(state.isDark).toBe(false);
-    expect(state.colors.background).toBe('#F8F9FA');
+    expect(state.colors.background).toBe('#F5F5F7');
   });
 
   test('setMode dark changes colors to dark palette', () => {
