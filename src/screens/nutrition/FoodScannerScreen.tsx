@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCameraPermissions } from 'expo-camera';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore, useNutritionStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { Button, Card, PaywallModal } from '../../components';
@@ -13,6 +14,34 @@ import { scheduleNutritionSummaryReminder } from '../../services/notificationSer
 import { BarcodeScannerModal, RecognizedItemCard } from './scanner';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
+const todayDateStr = () => new Date().toISOString().split('T')[0];
+
+// Barcode cache helpers
+const BARCODE_CACHE_KEY = 'iron_gym_barcode_cache';
+
+async function getCachedProduct(barcode: string) {
+  try {
+    const cache = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
+    if (!cache) return null;
+    const parsed = JSON.parse(cache);
+    return parsed[barcode] || null;
+  } catch { return null; }
+}
+
+async function cacheProduct(barcode: string, product: any) {
+  try {
+    const cache = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
+    const parsed = cache ? JSON.parse(cache) : {};
+    parsed[barcode] = { ...product, cachedAt: Date.now() };
+    // Keep max 200 cached products
+    const keys = Object.keys(parsed);
+    if (keys.length > 200) {
+      const sorted = keys.sort((a, b) => (parsed[a].cachedAt || 0) - (parsed[b].cachedAt || 0));
+      sorted.slice(0, keys.length - 200).forEach(k => delete parsed[k]);
+    }
+    await AsyncStorage.setItem(BARCODE_CACHE_KEY, JSON.stringify(parsed));
+  } catch {}
+}
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Завтрак' },
@@ -43,6 +72,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [barcodeScanned, setBarcodeScanned] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [isBarcodeResult, setIsBarcodeResult] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState('');
+  const [lastBarcode, setLastBarcode] = useState('');
+  const [notFound, setNotFound] = useState(false);
 
   const analyzeFood = async (base64: string) => {
     setLoading(true);
@@ -97,7 +129,26 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setShowBarcodeScanner(true);
   };
 
+  const applyBarcodeProduct = (product: { name: string; cal: number; prot: number; fats: number; carbs: number }) => {
+    const item: NutritionItem = { id: `item-${Date.now()}-barcode`, name: product.name, calories: product.cal, protein: product.prot, fats: product.fats, carbs: product.carbs, weightGrams: 100 };
+    setItemBases({ [item.id]: { cal: product.cal, prot: product.prot, fats: product.fats, carbs: product.carbs } });
+    setRecognizedItems([item]);
+    setIsBarcodeResult(true);
+    setNotFound(false);
+    setShowBarcodeScanner(false);
+  };
+
   const lookupBarcode = async (barcode: string) => {
+    setLastBarcode(barcode);
+    setNotFound(false);
+
+    // Check cache first
+    const cached = await getCachedProduct(barcode);
+    if (cached) {
+      applyBarcodeProduct(cached);
+      return;
+    }
+
     if (!consumeFoodScan()) { setShowBarcodeScanner(false); setShowPaywall(true); return; }
     setBarcodeLoading(true);
     try {
@@ -111,19 +162,24 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         const fats = Math.round((n.fat_100g || 0) * 10) / 10;
         const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
         const productName = p.product_name_ru || p.product_name || p.brands || 'Неизвестный продукт';
-        const item: NutritionItem = { id: `item-${Date.now()}-barcode`, name: productName, calories: cal, protein: prot, fats, carbs, weightGrams: 100 };
-        setItemBases({ [item.id]: { cal, prot, fats, carbs } });
-        setRecognizedItems([item]);
-        setIsBarcodeResult(true);
-        setShowBarcodeScanner(false);
+        const product = { name: productName, cal, prot, fats, carbs };
+        await cacheProduct(barcode, product);
+        applyBarcodeProduct(product);
       } else {
-        Alert.alert('Не найдено', 'Продукт не найден в базе данных.', [{ text: 'ОК', onPress: () => setBarcodeScanned(false) }]);
+        setShowBarcodeScanner(false);
+        setNotFound(true);
       }
     } catch {
       Alert.alert('Ошибка', 'Не удалось получить данные.', [{ text: 'ОК', onPress: () => setBarcodeScanned(false) }]);
     } finally {
       setBarcodeLoading(false);
     }
+  };
+
+  const handleBarcodeScan = (barcode: string) => {
+    setBarcodeScanned(true);
+    setManualBarcode('');
+    lookupBarcode(barcode);
   };
 
   const updateItemWeight = useCallback((id: string, newWeight: string) => {
@@ -200,6 +256,24 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 <Text style={[typography.caption, { color: colors.textSecondary }]}>Для упакованных продуктов</Text>
               </View>
             </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+              <TextInput
+                style={[styles.manualInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text, flex: 1 }]}
+                value={manualBarcode}
+                onChangeText={setManualBarcode}
+                placeholder="Введите штрих-код вручную"
+                placeholderTextColor={colors.inputPlaceholder}
+                keyboardType="numeric"
+                maxLength={13}
+              />
+              <TouchableOpacity
+                onPress={() => { if (manualBarcode.length >= 8) handleBarcodeScan(manualBarcode); }}
+                disabled={manualBarcode.length < 8}
+                style={{ paddingHorizontal: spacing.lg, justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: manualBarcode.length >= 8 ? colors.primary : colors.border }}
+              >
+                <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>
+              </TouchableOpacity>
+            </View>
           </Card>
         )}
 
@@ -217,6 +291,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <Button title="Попробовать снова" variant="outline" onPress={() => { setImageUri(null); setError(''); }} style={{ marginTop: spacing.md }} />
           </Card>
         ) : null}
+
+        {notFound && (
+          <Card style={{ marginTop: spacing.lg }}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Продукт не найден</Text>
+            <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+              Штрих-код {lastBarcode} не найден в базе данных.
+            </Text>
+            <Button title="Добавить вручную" onPress={() => navigation.navigate('ManualFoodAdd', { mealType: 'snack', date: todayDateStr() })} fullWidth />
+            <TouchableOpacity style={{ marginTop: spacing.md, alignItems: 'center' }} onPress={() => { setNotFound(false); setShowBarcodeScanner(true); }}>
+              <Text style={[typography.smallMedium, { color: colors.primary }]}>Сканировать другой код</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
 
         {recognizedItems.length > 0 && (
           <>
@@ -281,7 +368,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         loading={barcodeLoading}
         scanned={barcodeScanned}
         onClose={() => setShowBarcodeScanner(false)}
-        onScan={(barcode) => { setBarcodeScanned(true); lookupBarcode(barcode); }}
+        onScan={(barcode) => handleBarcodeScan(barcode)}
       />
     </React.Fragment>
   );
@@ -298,4 +385,5 @@ const styles = StyleSheet.create({
   nutritionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   badge: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.full },
   barcodeBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
+  manualInput: { height: 44, borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, fontSize: 16 },
 });
