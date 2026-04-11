@@ -12,7 +12,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'BYKScL2sgCs',
+    youtubeId: 'rT7DgCr-3pg',
   },
   {
     id: 'incline-bench-press',
@@ -24,7 +24,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: '8iPEnn-ltC8',
+    youtubeId: 'SrqOu55lrYU',
   },
   {
     id: 'dumbbell-fly',
@@ -60,7 +60,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'intermediate',
-    youtubeId: '2z8JmcrW-As',
+    youtubeId: 'dX_nSOOJIsE',
   },
   {
     id: 'dumbbell-bench-press',
@@ -72,7 +72,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'QsYre__-aro',
+    youtubeId: 'VmB1G1K7v94',
   },
   {
     id: 'cable-crossover',
@@ -110,7 +110,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
-    youtubeId: 'ytGaGIn3SjE',
+    youtubeId: '1ZXobu7JvvE',
   },
   {
     id: 'barbell-row',
@@ -208,7 +208,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
-    youtubeId: '5yWaNOvgFCM',
+    youtubeId: '2yjwXTZQDDI',
   },
   {
     id: 'lateral-raise',
@@ -220,7 +220,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'FeCtMNOsYKc',
+    youtubeId: 'geenhiHju-o',
   },
   {
     id: 'arnold-press',
@@ -256,7 +256,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'ndFbKZmWBR0',
+    youtubeId: 'oLrwxDEzw6A',
   },
   {
     id: 'upright-row',
@@ -306,7 +306,7 @@ export const exercises: Exercise[] = [
     type: 'dumbbell',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'zC3nLlEvin4',
+    youtubeId: 'TwD-YGVP4Bk',
   },
   {
     id: 'preacher-curl',
@@ -330,7 +330,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'vB5OHsJ3EME',
+    youtubeId: '2-LAMcpzODU',
   },
   {
     id: 'french-press',
@@ -342,7 +342,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
-    youtubeId: 'd_KuTom_vQo',
+    youtubeId: 'Nbcf9Vr4vU0',
   },
   {
     id: 'close-grip-bench',
@@ -392,7 +392,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
-    youtubeId: 'bEv6CCg2BC8',
+    youtubeId: 'ultWZbUMPL8',
   },
   {
     id: 'leg-press',
@@ -404,7 +404,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'IZxyjW7SKSA',
+    youtubeId: 'IZxyjW7MPJQ',
   },
   {
     id: 'romanian-deadlift',
@@ -416,7 +416,7 @@ export const exercises: Exercise[] = [
     type: 'barbell',
     category: 'strength',
     difficulty: 'intermediate',
-    youtubeId: 'JCXUYuzwNrM',
+    youtubeId: 'jEy_czb3RKA',
   },
   {
     id: 'leg-curl',
@@ -428,7 +428,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'ELOCsoDSmrg',
+    youtubeId: '1Tq3QdYUuHs',
   },
   {
     id: 'leg-extension',
@@ -452,7 +452,7 @@ export const exercises: Exercise[] = [
     type: 'machine',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'gwLzBJYoWlA',
+    youtubeId: 'gwLzBJYoWlI',
   },
   {
     id: 'lunges',
@@ -514,7 +514,7 @@ export const exercises: Exercise[] = [
     type: 'bodyweight',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'pSHjTRCQxIw',
+    youtubeId: 'ASdvN_XEl_c',
   },
   {
     id: 'cable-crunch',
@@ -526,7 +526,7 @@ export const exercises: Exercise[] = [
     type: 'cable',
     category: 'strength',
     difficulty: 'beginner',
-    youtubeId: 'AV5PnGzHm3g',
+    youtubeId: 'AV5PmknhYgU',
   },
   {
     id: 'hanging-leg-raise',
