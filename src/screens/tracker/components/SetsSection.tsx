@@ -41,6 +41,20 @@ export const SetsSection: React.FC<Props> = ({
     if (allHitTarget && prevMaxWeight > 0) return prevMaxWeight + 2.5;
     return null;
   }, [previousSets, currentExercise.sets]);
+
+  // Suggested weights per set from previous session + overload
+  const suggestedWeights = useMemo(() => {
+    if (!previousSets) return null;
+    return currentExercise.sets.map((_, i) => {
+      const prev = previousSets.sets[i];
+      if (!prev?.weight) return null;
+      if (overloadSuggestion !== null) {
+        return { weight: prev.weight + 2.5, reps: prev.reps || 0, isOverload: true };
+      }
+      return { weight: prev.weight, reps: prev.reps || 0, isOverload: false };
+    });
+  }, [previousSets, overloadSuggestion, currentExercise.sets]);
+
   const suggestedRpe = useMemo(() => {
     const { workoutHistory } = useWorkoutStore.getState();
     const exId = currentExercise.exerciseId;
@@ -65,6 +79,20 @@ export const SetsSection: React.FC<Props> = ({
     toggleSuperset, generateWarmupSets, removeExerciseFromWorkout,
   } = useWorkoutStore();
 
+  // "Copy from last" handler
+  const handleCopyFromLast = () => {
+    if (!previousSets) return;
+    haptic.medium();
+    previousSets.sets.forEach((prev, i) => {
+      if (i < currentExercise.sets.length && !currentExercise.sets[i].completed) {
+        updateSetData(currentExerciseIndex, i, {
+          weight: prev.weight || 0,
+          reps: prev.reps || 0,
+        });
+      }
+    });
+  };
+
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.huge * 2 }} showsVerticalScrollIndicator={false}>
       {/* Previous session summary */}
@@ -75,14 +103,14 @@ export const SetsSection: React.FC<Props> = ({
           backgroundColor: colors.surface, borderColor: colors.border, marginBottom: spacing.sm,
         }}>
           <Text style={[typography.captionMedium, { color: colors.textTertiary, marginRight: spacing.sm }]}>
-            {'↩ '}
+            {'\u21A9 '}
             {previousSets.date ? new Date(previousSets.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : ''}:
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               {previousSets.sets.slice(0, 6).map((s, i) => (
                 <Text key={i} style={[typography.captionMedium, { color: colors.textSecondary }]}>
-                  {s.weight ? `${s.weight}×${s.reps}` : `${s.reps} пвт`}
+                  {s.weight ? `${s.weight}\u00D7${s.reps}` : `${s.reps} \u043F\u0432\u0442`}
                 </Text>
               ))}
               {previousSets.sets.length > 6 && (
@@ -90,6 +118,26 @@ export const SetsSection: React.FC<Props> = ({
               )}
             </View>
           </ScrollView>
+        </View>
+      )}
+
+      {/* Suggested weights per set from previous session */}
+      {suggestedWeights && suggestedWeights.some((s) => s !== null) && (
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+          paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+          borderRadius: borderRadius.md, borderWidth: 1,
+          backgroundColor: colors.primary + '08', borderColor: colors.primary + '30',
+          marginBottom: spacing.sm,
+        }}>
+          <Text style={[typography.caption, { color: colors.primary }]}>
+            {'\u{1F3AF} '}
+            {suggestedWeights.map((s, i) => {
+              if (!s) return null;
+              return `${i + 1}: ${s.weight}\u043A\u0433`;
+            }).filter(Boolean).join(' \u2022 ')}
+            {overloadSuggestion !== null ? ' (+2.5)' : ''}
+          </Text>
         </View>
       )}
 
@@ -102,20 +150,37 @@ export const SetsSection: React.FC<Props> = ({
           backgroundColor: colors.success + '12', borderColor: colors.success + '40',
           marginBottom: spacing.sm,
         }}>
-          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>▲</Text></View>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>{'\u25B2'}</Text></View>
           <Text style={[typography.caption, { color: colors.success, flex: 1 }]}>
-            В прошлый раз все подходы выполнены — попробуй{' '}
-            <Text style={{ fontWeight: '700' }}>{overloadSuggestion} кг</Text> сегодня (+2.5)
+            {'\u0412 \u043F\u0440\u043E\u0448\u043B\u044B\u0439 \u0440\u0430\u0437 \u0432\u0441\u0435 \u043F\u043E\u0434\u0445\u043E\u0434\u044B \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u044B \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 '}
+            <Text style={{ fontWeight: '700' }}>{overloadSuggestion} {'\u043A\u0433'}</Text> {'\u0441\u0435\u0433\u043E\u0434\u043D\u044F (+2.5)'}
           </Text>
         </View>
       )}
 
+      {/* Copy from last button */}
+      {previousSets && previousSets.sets.length > 0 && currentExercise.sets.some((s) => !s.completed) && (
+        <TouchableOpacity
+          onPress={handleCopyFromLast}
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+            paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+            borderRadius: borderRadius.md, borderWidth: 1, borderStyle: 'dashed',
+            borderColor: colors.primary + '60', marginBottom: spacing.md,
+          }}
+        >
+          <Text style={[typography.smallMedium, { color: colors.primary }]}>
+            {'\u21A9 \u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0438\u0437 \u043F\u0440\u043E\u0448\u043B\u043E\u0433\u043E \u0440\u0430\u0437\u0430'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Table header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.md }}>
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40 }]}>Сет</Text>
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>Вес (кг)</Text>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40 }]}>{'\u0421\u0435\u0442'}</Text>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>{'\u0412\u0435\u0441 (\u043A\u0433)'}</Text>
         <View style={{ width: 28 }} />
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>Повт.</Text>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>{'\u041F\u043E\u0432\u0442.'}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -139,7 +204,7 @@ export const SetsSection: React.FC<Props> = ({
       {/* Add set + warmup */}
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
         <Button
-          title="+ Подход"
+          title="+ \u041F\u043E\u0434\u0445\u043E\u0434"
           variant="ghost"
           size="sm"
           onPress={() => addSet(currentExerciseIndex)}
@@ -155,7 +220,7 @@ export const SetsSection: React.FC<Props> = ({
               }}
               style={{ flex: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }}
             >
-              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Разминка</Text>
+              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>{'\u0420\u0430\u0437\u043C\u0438\u043D\u043A\u0430'}</Text>
             </TouchableOpacity>
           )}
       </View>
@@ -165,7 +230,7 @@ export const SetsSection: React.FC<Props> = ({
         style={{ marginTop: spacing.xl, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: 14, minHeight: 40, maxHeight: 80, backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }}
         value={currentExercise.notes || ''}
         onChangeText={(text) => setExerciseNotes(currentExerciseIndex, text)}
-        placeholder="Заметки к упражнению..."
+        placeholder={'\u0417\u0430\u043C\u0435\u0442\u043A\u0438 \u043A \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u044E...'}
         placeholderTextColor={colors.inputPlaceholder}
         multiline
         maxLength={300}
@@ -180,8 +245,8 @@ export const SetsSection: React.FC<Props> = ({
           <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs }}><Text style={{ fontSize: 10, fontWeight: '800', color: colors.accent }}>SS</Text></View>
           <Text style={[typography.small, { color: currentExercise.supersetGroupId ? colors.accent : colors.textSecondary }]}>
             {currentExercise.supersetGroupId
-              ? `Суперсет со «${workout.exercises[currentExerciseIndex + 1]?.exercise.name}» — отменить`
-              : `Суперсет со следующим: ${workout.exercises[currentExerciseIndex + 1]?.exercise.name}`}
+              ? `\u0421\u0443\u043F\u0435\u0440\u0441\u0435\u0442 \u0441\u043E \u00AB${workout.exercises[currentExerciseIndex + 1]?.exercise.name}\u00BB \u2014 \u043E\u0442\u043C\u0435\u043D\u0438\u0442\u044C`
+              : `\u0421\u0443\u043F\u0435\u0440\u0441\u0435\u0442 \u0441\u043E \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u043C: ${workout.exercises[currentExerciseIndex + 1]?.exercise.name}`}
           </Text>
         </TouchableOpacity>
       )}
@@ -192,18 +257,18 @@ export const SetsSection: React.FC<Props> = ({
           onPress={() => {
             haptic.medium();
             Alert.alert(
-              'Убрать упражнение?',
-              `«${currentExercise.exercise.name}» будет удалено из тренировки.`,
+              '\u0423\u0431\u0440\u0430\u0442\u044C \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0435?',
+              `\u00AB${currentExercise.exercise.name}\u00BB \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043B\u0435\u043D\u043E \u0438\u0437 \u0442\u0440\u0435\u043D\u0438\u0440\u043E\u0432\u043A\u0438.`,
               [
-                { text: 'Отмена', style: 'cancel' },
-                { text: 'Убрать', style: 'destructive', onPress: () => { haptic.warning(); removeExerciseFromWorkout(currentExerciseIndex); } },
+                { text: '\u041E\u0442\u043C\u0435\u043D\u0430', style: 'cancel' },
+                { text: '\u0423\u0431\u0440\u0430\u0442\u044C', style: 'destructive', onPress: () => { haptic.warning(); removeExerciseFromWorkout(currentExerciseIndex); } },
               ]
             );
           }}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.error + '50' }}
         >
-          <Text style={{ fontSize: 14, marginRight: spacing.xs }}>🗑</Text>
-          <Text style={[typography.small, { color: colors.error }]}>Убрать упражнение</Text>
+          <Text style={{ fontSize: 14, marginRight: spacing.xs }}>{'\uD83D\uDDD1'}</Text>
+          <Text style={[typography.small, { color: colors.error }]}>{'\u0423\u0431\u0440\u0430\u0442\u044C \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0435'}</Text>
         </TouchableOpacity>
       )}
 
@@ -212,7 +277,7 @@ export const SetsSection: React.FC<Props> = ({
         style={{ marginTop: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: 14, minHeight: 40, maxHeight: 80, backgroundColor: colors.inputBackground, borderColor: colors.primary + '30', color: colors.text }}
         value={workout.notes || ''}
         onChangeText={(text) => setWorkoutNotes(text)}
-        placeholder="Общие заметки к тренировке..."
+        placeholder={'\u041E\u0431\u0449\u0438\u0435 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u043A \u0442\u0440\u0435\u043D\u0438\u0440\u043E\u0432\u043A\u0435...'}
         placeholderTextColor={colors.inputPlaceholder}
         multiline
         maxLength={500}
@@ -220,7 +285,7 @@ export const SetsSection: React.FC<Props> = ({
 
       {/* Exercise instructions */}
       <Card style={{ marginTop: spacing.md }}>
-        <Text style={[typography.smallMedium, { color: colors.text, marginBottom: spacing.sm }]}>Техника:</Text>
+        <Text style={[typography.smallMedium, { color: colors.text, marginBottom: spacing.sm }]}>{'\u0422\u0435\u0445\u043D\u0438\u043A\u0430:'}</Text>
         {currentExercise.exercise.instructions.map((inst, i) => (
           <Text key={i} style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
             {i + 1}. {inst}

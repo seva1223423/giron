@@ -37,6 +37,9 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return map;
   }, [workoutHistory]);
 
+  // Track which exercises got PRs in this session
+  const [sessionPRs, setSessionPRs] = useState<Set<string>>(new Set());
+
   // Live elapsed time counter
   const [elapsed, setElapsed] = useState(0);
 
@@ -59,6 +62,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const [restTime, setRestTime] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
   const [isResting, setIsResting] = useState(false);
+  const [restingAfterLastSet, setRestingAfterLastSet] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // PR toast state
@@ -94,18 +98,31 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     prToastTimer.current = setTimeout(() => setPrToast(null), 3500);
   }, []);
 
-  const startRest = (seconds: number) => {
+  // Auto-advance to next exercise when rest is done after last set
+  const handleRestEnd = useCallback(() => {
+    setIsResting(false);
+    haptic.success();
+    const aw = useWorkoutStore.getState().activeWorkout;
+    if (restingAfterLastSet && aw && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
+      nextExercise();
+      haptic.light();
+    }
+    setRestingAfterLastSet(false);
+  }, [restingAfterLastSet]);
+
+  const startRest = (seconds: number, isLastSet: boolean = false) => {
     setRestTime(seconds);
     setRestTotal(seconds);
     setIsResting(true);
+    setRestingAfterLastSet(isLastSet);
     scheduleRestEndNotification(seconds);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setRestTime((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
-          setIsResting(false);
-          haptic.success();
+          // Use setTimeout to avoid state update during render
+          setTimeout(() => handleRestEnd(), 0);
           return 0;
         }
         return prev - 1;
@@ -116,8 +133,14 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const skipRest = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     cancelRestEndNotification();
+    const aw = useWorkoutStore.getState().activeWorkout;
+    if (restingAfterLastSet && aw && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
+      nextExercise();
+      haptic.light();
+    }
     setIsResting(false);
     setRestTime(0);
+    setRestingAfterLastSet(false);
   };
 
   // Previous session sets for current exercise (must be before early return)
@@ -174,6 +197,18 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const totalCompletedSets = workout.exercises.reduce((s, ex) => s + ex.sets.filter((set) => set.completed).length, 0);
   const totalSets = workout.exercises.reduce((s, ex) => s + ex.sets.length, 0);
 
+  // Check if current exercise is on its last set
+  const completedSetsInCurrent = currentExercise.sets.filter((s) => s.completed).length;
+  const isLastSetOfExercise = completedSetsInCurrent >= currentExercise.sets.length - 1;
+
+  // Next exercise name for rest overlay
+  const nextExerciseName = currentExerciseIndex < workout.exercises.length - 1
+    ? workout.exercises[currentExerciseIndex + 1]?.exercise.name
+    : null;
+
+  // Check if current exercise has a PR from this session
+  const currentExHasSessionPR = sessionPRs.has(currentExercise.exerciseId);
+
   const handleRpeSelected = (rpe: number) => {
     // Adjust active rest timer based on RPE
     setRestTime((current) => {
@@ -202,8 +237,14 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       const prevBest = bestRMs[currentExercise.exerciseId] ?? 0;
       if (newRM > prevBest) {
         showPrToast(currentExercise.exercise.name, Math.round(newRM));
+        setSessionPRs((prev) => new Set(prev).add(currentExercise.exerciseId));
       }
     }
+
+    // Check if this was the last set of the exercise
+    const updatedAw = useWorkoutStore.getState().activeWorkout;
+    const updatedEx = updatedAw?.workout.exercises[currentExerciseIndex];
+    const allSetsCompleted = updatedEx?.sets.every((s) => s.completed) ?? false;
 
     // Superset auto-navigation
     const groupId = currentExercise.supersetGroupId;
@@ -217,7 +258,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       } else if (prevEx?.supersetGroupId === groupId) {
         const setType = currentExercise.sets[setIndex]?.type;
         const restDur = setType === 'warmup' ? Math.max(30, Math.round(restTimerDefault * 0.4)) : (currentExercise.restSeconds || restTimerDefault);
-        startRest(restDur);
+        startRest(restDur, allSetsCompleted);
         setTimeout(() => prevExercise(), 250);
         return;
       }
@@ -225,7 +266,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
     const setType = currentExercise.sets[setIndex]?.type;
     const restDur = setType === 'warmup' ? Math.max(30, Math.round(restTimerDefault * 0.4)) : (currentExercise.restSeconds || restTimerDefault);
-    startRest(restDur);
+    startRest(restDur, allSetsCompleted);
   };
 
   const handleFinish = () => {
@@ -296,6 +337,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         restTotal={restTotal}
         onSkip={skipRest}
         onAddTime={(sec) => { setRestTime((r) => r + sec); setRestTotal((t) => t + sec); }}
+        nextExerciseName={nextExerciseName}
+        isLastSetOfExercise={restingAfterLastSet}
       />
 
       {/* Overall progress bar */}
@@ -312,8 +355,9 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onPrev={prevExercise}
         onNext={nextExercise}
         onSubstitute={handleSubstitute}
+        hasSessionPR={currentExHasSessionPR}
       />
-      <Tooltip tipId="workout-swipe" text="👆 Свайпни влево/вправо для переключения между упражнениями" position="top" />
+      <Tooltip tipId="workout-swipe" text="Свайпни влево/вправо для переключения между упражнениями" position="top" />
 
       {workout.exercises.length > 1 && (
         <Animated.Text
@@ -322,7 +366,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
             { color: colors.textTertiary, textAlign: 'center', paddingVertical: 2, opacity: swipeHintOpacity },
           ]}
         >
-          {'← свайпни для переключения →'}
+          {'<- свайпни для переключения ->'}
         </Animated.Text>
       )}
 

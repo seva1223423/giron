@@ -6,9 +6,9 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 
 const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
 const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  normal:  { label: 'РАБ',  color: '#9E9E9E' },
-  warmup:  { label: 'РАЗМ', color: '#FF9800' },
-  dropset: { label: 'ДРОП', color: '#9C27B0' },
+  normal:  { label: '\u0420\u0410\u0411',  color: '#9E9E9E' },
+  warmup:  { label: '\u0420\u0410\u0417\u041C', color: '#FF9800' },
+  dropset: { label: '\u0414\u0420\u041E\u041F', color: '#9C27B0' },
 };
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 const SHOW_PLATE_CALC = Dimensions.get('window').width > 360;
@@ -43,7 +43,13 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
   const currentType = set.type || 'normal';
 
   return (
-    <View style={{ backgroundColor: set.completed ? colors.success + '10' : 'transparent', borderRadius: borderRadius.sm, marginBottom: 2 }}>
+    <View style={{
+      backgroundColor: set.completed ? colors.success + '10' : 'transparent',
+      borderRadius: borderRadius.sm,
+      marginBottom: 2,
+      borderLeftWidth: set.completed ? 3 : 0,
+      borderLeftColor: set.completed ? colors.success : 'transparent',
+    }}>
       <View style={[styles.setRow, { paddingVertical: spacing.sm }]}>
         {/* Set number / type badge */}
         <TouchableOpacity
@@ -68,7 +74,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             onPress={() => { haptic.selection(); const v = parseFloat(weight.replace(',', '.')) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
             style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
           >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
+            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>{'\u2212'}</Text>
           </TouchableOpacity>
           <TextInput
             style={[styles.setInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
@@ -93,7 +99,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>◎</Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>{'\u25CE'}</Text>
           </TouchableOpacity>
         )}
 
@@ -103,7 +109,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(Math.max(1, v - 1))); }}
             style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
           >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>−</Text>
+            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>{'\u2212'}</Text>
           </TouchableOpacity>
           <TextInput
             style={[styles.setInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
@@ -129,7 +135,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             setShowRpe(true);
           }}
         >
-          <Text style={{ color: set.completed ? '#FFF' : colors.textSecondary, fontWeight: '700' }}>✓</Text>
+          <Text style={{ color: set.completed ? '#FFF' : colors.textSecondary, fontWeight: '700' }}>{'\u2713'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -146,13 +152,13 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
                 <Text style={[typography.small, { color: set.rpe === v ? '#fff' : colors.textSecondary, fontWeight: '700' }]}>{v}</Text>
               </TouchableOpacity>
               {suggestedRpe === v && set.rpe !== v && (
-                <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', marginTop: 1 }}>ожид.</Text>
+                <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', marginTop: 1 }}>{'\u043E\u0436\u0438\u0434.'}</Text>
               )}
             </View>
           ))}
           {set.rpe && (
             <Text style={[typography.caption, { color: rpeColor(set.rpe), marginLeft: spacing.xs, fontWeight: '700' }]}>
-              {set.rpe >= 10 ? 'Макс' : set.rpe >= 9 ? 'Тяжело' : set.rpe >= 8 ? 'Сложно' : 'Легко'}
+              {set.rpe >= 10 ? '\u041C\u0430\u043A\u0441' : set.rpe >= 9 ? '\u0422\u044F\u0436\u0435\u043B\u043E' : set.rpe >= 8 ? '\u0421\u043B\u043E\u0436\u043D\u043E' : '\u041B\u0435\u0433\u043A\u043E'}
             </Text>
           )}
         </View>
