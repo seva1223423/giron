@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
@@ -150,7 +150,25 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
       </FadeIn>
 
       <FadeIn delay={200}>
-        <ExerciseVideoCard exerciseName={exercise.name} youtubeId={exercise.youtubeId} primaryMuscles={exercise.primaryMuscles} muscleLabels={MUSCLE_LABELS} />
+        {exercise.imageUrl ? (
+          <View style={[styles.illustrationCard, { borderColor: colors.border }]}>
+            <Image
+              source={{ uri: exercise.imageUrl }}
+              style={styles.illustrationImage}
+              resizeMode="contain"
+            />
+            <View style={[styles.illustrationInfo, { backgroundColor: colors.surface }]}>
+              <Text style={[typography.smallMedium, { color: colors.text }]} numberOfLines={1}>
+                {exercise.name} — иллюстрация
+              </Text>
+              <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
+                {exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m] || m).join(' · ')}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <ExerciseVideoCard exerciseName={exercise.name} youtubeId={exercise.youtubeId} primaryMuscles={exercise.primaryMuscles} muscleLabels={MUSCLE_LABELS} />
+        )}
       </FadeIn>
 
       <FadeIn delay={240}>
@@ -241,4 +259,7 @@ const styles = StyleSheet.create({
   muscleChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
   instructionRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.md, gap: spacing.md },
   stepNumber: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  illustrationCard: { borderRadius: borderRadius.lg, borderWidth: 1, overflow: 'hidden', marginBottom: spacing.xl },
+  illustrationImage: { width: '100%', height: 200, backgroundColor: '#F0F0F0' },
+  illustrationInfo: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
 });
