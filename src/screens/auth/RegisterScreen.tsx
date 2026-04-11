@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useThemeStore, useAuthStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
@@ -113,6 +113,26 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           size="lg"
           style={{ marginTop: spacing.xxl }}
         />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xxl }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+          <Text style={[typography.small, { color: colors.textTertiary, marginHorizontal: spacing.lg }]}>или</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+        </View>
+
+        <TouchableOpacity
+          onPress={() => Alert.alert('Скоро', 'Авторизация через Google будет доступна в следующем обновлении.')}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', backgroundColor: colors.surface, marginBottom: spacing.md }}
+        >
+          <Text style={{ fontSize: 18, marginRight: spacing.sm }}>G</Text>
+          <Text style={[typography.bodySemibold, { color: colors.text }]}>Регистрация через Google</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => Alert.alert('Скоро', 'Авторизация через VK будет доступна в следующем обновлении.')}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: '#0077FF' }}
+        >
+          <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через VK</Text>
+        </TouchableOpacity>
 
         <View style={styles.footer}>
           <Text style={[typography.body, { color: colors.textSecondary }]}>

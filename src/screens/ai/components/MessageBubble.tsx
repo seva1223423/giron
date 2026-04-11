@@ -24,16 +24,22 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
         styles.bubble,
         isUser
           ? { alignSelf: 'flex-end', backgroundColor: colors.primary, borderBottomRightRadius: 4 }
-          : { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 4 },
+          : { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
       ]}>
         {!isUser && (
-          <Text style={[typography.captionMedium, { color: colors.primary, marginBottom: 4 }]}>Iron Coach</Text>
+          <View style={styles.coachHeader}>
+            <Text style={{ fontSize: 16, marginRight: 6 }}>🤖</Text>
+            <Text style={[typography.captionMedium, { color: colors.primary, fontWeight: '700' }]}>Iron Coach</Text>
+          </View>
         )}
-        <Text style={[typography.body, { color: isUser ? '#FFF' : colors.text, lineHeight: 22 }]}>
+        <Text style={[
+          styles.messageText,
+          { color: isUser ? '#FFF' : colors.text },
+        ]}>
           {message.content}
         </Text>
         <View style={styles.footer}>
-          <Text style={[typography.small, { color: isUser ? 'rgba(255,255,255,0.5)' : colors.textTertiary, fontSize: 10, flex: 1, textAlign: 'right' }]}>
+          <Text style={[styles.time, { color: isUser ? 'rgba(255,255,255,0.5)' : colors.textTertiary }]}>
             {new Date(message.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
           </Text>
           {!isUser && message.content.length > 0 && onSpeak && (
@@ -42,7 +48,7 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.speakButton}
             >
-              <Text style={{ fontSize: 14 }}>{isSpeaking ? '\uD83D\uDD07' : '\uD83D\uDD0A'}</Text>
+              <Text style={{ fontSize: 14 }}>{isSpeaking ? '🔇' : '🔊'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -52,7 +58,33 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
 };
 
 const styles = StyleSheet.create({
-  bubble: { maxWidth: '85%', padding: spacing.md, borderRadius: borderRadius.lg, marginBottom: spacing.md },
-  footer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
+  bubble: {
+    maxWidth: '82%',
+    padding: spacing.md + 2,
+    borderRadius: borderRadius.lg + 2,
+    marginBottom: spacing.md,
+  },
+  coachHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '400',
+    letterSpacing: 0.1,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
+  },
+  time: {
+    fontSize: 10,
+    flex: 1,
+    textAlign: 'right',
+  },
   speakButton: { paddingLeft: 4 },
 });

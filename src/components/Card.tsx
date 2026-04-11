@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, ViewStyle, StyleProp, Pressable } from 'react-native';
+import { View, ViewStyle, StyleProp, Pressable, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -26,7 +26,7 @@ export const Card: React.FC<CardProps> = ({
   padding = spacing.lg,
   elevated = false,
 }) => {
-  const { colors } = useThemeStore();
+  const { colors, isDark } = useThemeStore();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -50,11 +50,17 @@ export const Card: React.FC<CardProps> = ({
     backgroundColor: elevated ? colors.surfaceElevated : colors.card,
     borderRadius: borderRadius.lg,
     padding,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: elevated ? 4 : 2,
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        }
+      : {
+          elevation: elevated ? 4 : 2,
+        }),
+    ...(!isDark && { borderWidth: 1, borderColor: colors.border }),
   };
 
   if (onPress) {

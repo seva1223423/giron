@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useThemeStore, useAuthStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
@@ -35,9 +35,10 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[typography.h1, { color: colors.primary }]}>Iron Gym</Text>
-          <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm }]}>
-            Войди в аккаунт, чтобы продолжить
+          <Text style={{ fontSize: 48, marginBottom: spacing.sm }}>🏋️</Text>
+          <Text style={{ fontSize: 36, fontWeight: '800', color: colors.primary, letterSpacing: -1 }}>Iron Gym</Text>
+          <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+            Твой персональный AI-тренер
           </Text>
         </View>
 
@@ -88,19 +89,19 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
-          <Button
-            title="Войти через Google"
-            variant="secondary"
-            onPress={() => {}}
-            fullWidth
-            style={{ marginBottom: spacing.md }}
-          />
-          <Button
-            title="Войти через Apple"
-            variant="secondary"
-            onPress={() => {}}
-            fullWidth
-          />
+          <TouchableOpacity
+            onPress={() => Alert.alert('Скоро', 'Авторизация через Google будет доступна в следующем обновлении.')}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', backgroundColor: colors.surface, marginBottom: spacing.md }}
+          >
+            <Text style={{ fontSize: 18, marginRight: spacing.sm }}>G</Text>
+            <Text style={[typography.bodySemibold, { color: colors.text }]}>Войти через Google</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => Alert.alert('Скоро', 'Авторизация через VK будет доступна в следующем обновлении.')}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: '#0077FF' }}
+          >
+            <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Войти через VK</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
@@ -113,6 +114,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
         </View>
+        <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.xl }]}>v1.0.0</Text>
       </View>
     </KeyboardAvoidingView>
   );

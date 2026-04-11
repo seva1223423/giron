@@ -33,30 +33,31 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
     <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
       <View style={{ alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Text style={[typography.h3, { color: colors.text }]}>Iron Coach</Text>
+          <Text style={{ fontSize: 20 }}>🤖</Text>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 }}>Iron Coach</Text>
           <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
           {isPremiumActive() && (
             <View style={[styles.badge, { backgroundColor: colors.accent }]}>
               <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' }}>PRO</Text>
             </View>
           )}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 4 }}>
+          <Text style={[typography.caption, { color: colors.textTertiary }]}>
+            {isPremiumActive()
+              ? '∞ Безлимитный доступ'
+              : `${aiMessagesLeft()} / ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}
+          </Text>
           {lastMeta?.recovery != null && (
-            <View style={[styles.badge, { backgroundColor: getRecoveryColor(lastMeta.recovery) + '20', borderWidth: 1, borderColor: getRecoveryColor(lastMeta.recovery) + '60' }]}>
-              <Text style={{ fontSize: 10, color: getRecoveryColor(lastMeta.recovery), fontWeight: '700' }}>
+            <View style={[styles.badge, { backgroundColor: getRecoveryColor(lastMeta.recovery) + '15', borderWidth: 1, borderColor: getRecoveryColor(lastMeta.recovery) + '40' }]}>
+              <Text style={{ fontSize: 10, color: getRecoveryColor(lastMeta.recovery), fontWeight: '600' }}>
                 {getRecoveryLabel(lastMeta.recovery)} {lastMeta.recovery}%
               </Text>
             </View>
           )}
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2 }]}>
-            {isPremiumActive()
-              ? 'Безлимитный доступ'
-              : `Осталось ${aiMessagesLeft()} из ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}
-          </Text>
           {lastMeta?.streak != null && lastMeta.streak > 0 && (
-            <Text style={[typography.small, { color: colors.accent, marginTop: 2, fontWeight: '600' }]}>
-              🔥 {lastMeta.streak} дн
+            <Text style={[typography.caption, { color: colors.accent, fontWeight: '600' }]}>
+              🔥 {lastMeta.streak}
             </Text>
           )}
         </View>
@@ -68,5 +69,5 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
 const styles = StyleSheet.create({
   header: { alignItems: 'center', justifyContent: 'center', paddingBottom: spacing.md, borderBottomWidth: 1 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
 });
