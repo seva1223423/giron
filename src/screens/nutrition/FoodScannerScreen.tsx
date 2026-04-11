@@ -101,7 +101,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     if (!consumeFoodScan()) { setShowBarcodeScanner(false); setShowPaywall(true); return; }
     setBarcodeLoading(true);
     try {
-      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
       const data = await response.json();
       if (data.status === 1 && data.product) {
         const p = data.product;
@@ -110,7 +110,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
         const fats = Math.round((n.fat_100g || 0) * 10) / 10;
         const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
-        const item: NutritionItem = { id: `item-${Date.now()}-barcode`, name: p.product_name_ru || p.product_name || 'Продукт', calories: cal, protein: prot, fats, carbs, weightGrams: 100 };
+        const productName = p.product_name_ru || p.product_name || p.brands || 'Неизвестный продукт';
+        const item: NutritionItem = { id: `item-${Date.now()}-barcode`, name: productName, calories: cal, protein: prot, fats, carbs, weightGrams: 100 };
         setItemBases({ [item.id]: { cal, prot, fats, carbs } });
         setRecognizedItems([item]);
         setIsBarcodeResult(true);

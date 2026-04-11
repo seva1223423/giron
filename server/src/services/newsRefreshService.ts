@@ -4,23 +4,31 @@ import { logger } from '../utils/logger';
 let lastRefreshAt = 0;
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-// RSS sources: search queries → categories
+// RSS sources: Russian fitness/sport news
 const RSS_SOURCES = [
   {
-    url: 'https://news.google.com/rss/search?q=пауэрлифтинг+рекорд&hl=ru&gl=RU&ceid=RU:ru',
-    categories: ['powerlifting', 'records'],
+    url: 'https://www.championat.com/lifestyle/rss.xml',
+    category: 'fitness',
+    source: 'Чемпионат',
+    categories: ['fitness', 'russian'],
   },
   {
-    url: 'https://news.google.com/rss/search?q=чемпионат+пауэрлифтинг&hl=ru&gl=RU&ceid=RU:ru',
-    categories: ['powerlifting', 'championships'],
+    url: 'https://sport.rbc.ru/rss',
+    category: 'sport',
+    source: 'РБК Спорт',
+    categories: ['sport', 'russian'],
   },
   {
-    url: 'https://news.google.com/rss/search?q=тренировки+силовой+спорт+Россия&hl=ru&gl=RU&ceid=RU:ru',
-    categories: ['russian'],
+    url: 'https://rsport.ria.ru/rsport_news/index.rss',
+    category: 'sport',
+    source: 'РИА Спорт',
+    categories: ['sport', 'russian'],
   },
   {
-    url: 'https://news.google.com/rss/search?q=мировой+рекорд+штанга+тяжёлая+атлетика&hl=ru&gl=RU&ceid=RU:ru',
-    categories: ['records'],
+    url: 'https://www.sports.ru/rss/main.xml',
+    category: 'sport',
+    source: 'Sports.ru',
+    categories: ['sport', 'russian'],
   },
 ];
 
