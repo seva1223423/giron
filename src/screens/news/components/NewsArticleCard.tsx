@@ -7,12 +7,22 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import type { NewsArticle } from '../../../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
+  fitness: 'Фитнес', nutrition: 'Питание', sport: 'Спорт',
+  health: 'Здоровье', science: 'Наука',
   russian: 'Россия', powerlifting: 'Силовые', records: 'Рекорды',
   championships: 'Чемпионаты', club: 'Клуб',
 };
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+function formatArticleDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffDays === 0) return 'Сегодня';
+  if (diffDays === 1) return 'Вчера';
+  if (diffDays < 7) return `${diffDays} дн. назад`;
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
 interface Props {
@@ -43,7 +53,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
         <Text style={[typography.h4, { color: colors.text, marginTop: spacing.sm }]}>{article.title}</Text>
         <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]} numberOfLines={2}>{article.summary}</Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md }}>
-          <Text style={[typography.caption, { color: colors.textTertiary }]}>{formatDate(article.publishedAt)}</Text>
+          <Text style={[typography.caption, { color: colors.textTertiary }]}>{formatArticleDate(article.publishedAt)}</Text>
           {article.content ? <Text style={[typography.caption, { color: colors.primary }]}>Читать →</Text> : null}
         </View>
       </Card>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -11,18 +11,21 @@ import { newsService } from '../../services';
 import { ArticleDetailModal, NewsArticleCard } from './components';
 import { FALLBACK_NEWS } from './components/fallbackNews';
 
-const CATEGORIES: { key: NewsCategory | 'all' | 'saved'; label: string }[] = [
-  { key: 'all', label: 'Все' }, { key: 'saved', label: '🔖 Сохранённые' },
-  { key: 'russian', label: 'Россия' }, { key: 'powerlifting', label: 'Силовые' },
-  { key: 'records', label: 'Рекорды' }, { key: 'championships', label: 'Чемпионаты' },
-  { key: 'club', label: 'Клуб' },
+const CATEGORIES: { key: NewsCategory | 'all'; label: string }[] = [
+  { key: 'all', label: 'Все' },
+  { key: 'fitness', label: 'Фитнес' },
+  { key: 'nutrition', label: 'Питание' },
+  { key: 'sport', label: 'Спорт' },
+  { key: 'health', label: 'Здоровье' },
+  { key: 'science', label: 'Наука' },
 ];
 
 export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all' | 'saved'>('all');
+  const [tab, setTab] = useState<'feed' | 'saved'>('feed');
+  const [activeCategory, setActiveCategory] = useState<NewsCategory | 'all'>('all');
   const [news, setNews] = useState<NewsArticle[]>(FALLBACK_NEWS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -31,7 +34,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const fetchNews = useCallback(async () => {
     try {
-      const category = activeCategory === 'all' || activeCategory === 'saved' ? undefined : activeCategory;
+      const category = activeCategory === 'all' ? undefined : activeCategory;
       const articles = await newsService.getNews({ category });
       if (articles.length > 0) setNews(articles);
       try { const saved = await newsService.getSaved(); setSavedIds(new Set(saved.map((a) => a.id))); } catch {}
@@ -60,9 +63,18 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  const filteredNews = activeCategory === 'all' ? news
-    : activeCategory === 'saved' ? news.filter((n) => savedIds.has(n.id))
-    : news.filter((n) => n.category?.includes(activeCategory as NewsCategory));
+  const filteredNews = useMemo(() => {
+    let result = news;
+    // Filter by tab
+    if (tab === 'saved') {
+      result = result.filter((n) => savedIds.has(n.id));
+    }
+    // Filter by category
+    if (activeCategory !== 'all') {
+      result = result.filter((n) => n.category?.includes(activeCategory as NewsCategory));
+    }
+    return result;
+  }, [news, tab, activeCategory, savedIds]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -70,6 +82,21 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <Text style={[typography.h2, { color: colors.text }]}>Новости</Text>
         <TouchableOpacity onPress={onFetchFreshNews} disabled={refreshing}>
           <Text style={[typography.small, { color: refreshing ? colors.textTertiary : colors.primary }]}>{refreshing ? 'Обновление...' : '↻ Обновить'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.tabRow, { paddingHorizontal: spacing.xl }]}>
+        <TouchableOpacity
+          onPress={() => setTab('feed')}
+          style={[styles.tabButton, { backgroundColor: tab === 'feed' ? colors.primary : colors.surface, borderRadius: borderRadius.md }]}
+        >
+          <Text style={[typography.smallMedium, { color: tab === 'feed' ? '#FFF' : colors.textSecondary, fontWeight: '600' }]}>Лента</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setTab('saved')}
+          style={[styles.tabButton, { backgroundColor: tab === 'saved' ? colors.primary : colors.surface, borderRadius: borderRadius.md }]}
+        >
+          <Text style={[typography.smallMedium, { color: tab === 'saved' ? '#FFF' : colors.textSecondary, fontWeight: '600' }]}>Сохранённое</Text>
         </TouchableOpacity>
       </View>
 
@@ -97,7 +124,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.huge }} />
         ) : (
           <>
-            {activeCategory !== 'saved' && (
+            {tab !== 'saved' && (
               <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
                 <Text style={[typography.captionMedium, { color: colors.accent }]}>РЕКОРД ДНЯ</Text>
                 <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xs }]}>Присед 350 кг — Андрей Маланичев</Text>
@@ -105,10 +132,16 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </Card>
             )}
 
-            {filteredNews.length === 0 && activeCategory === 'saved' && (
+            {filteredNews.length === 0 && tab === 'saved' && (
               <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
                 <Text style={{ fontSize: 48, marginBottom: spacing.md }}>🔖</Text>
                 <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>Пока нет сохранённых статей.{'\n'}Нажми 📌 на любой статье чтобы сохранить.</Text>
+              </View>
+            )}
+
+            {filteredNews.length === 0 && tab === 'feed' && !loading && (
+              <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
+                <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>Нет новостей в этой категории</Text>
               </View>
             )}
 
@@ -130,6 +163,8 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  tabRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  tabButton: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center' },
   categories: { paddingHorizontal: spacing.xl, gap: spacing.sm, marginBottom: spacing.lg },
   categoryChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: borderRadius.full, borderWidth: 1 },
   newsList: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
