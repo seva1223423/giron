@@ -6,11 +6,11 @@ import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { AIMeta } from '../../../services';
 
-function getRecoveryColor(score: number): string {
-  if (score >= 80) return '#4CAF50';
-  if (score >= 60) return '#FF9800';
-  if (score >= 40) return '#FF5722';
-  return '#F44336';
+function getRecoveryColor(score: number, colors: { success: string; warning: string; error: string }): string {
+  if (score >= 80) return colors.success;
+  if (score >= 60) return colors.warning;
+  if (score >= 40) return colors.error;
+  return colors.error;
 }
 
 function getRecoveryLabel(score: number): string {
@@ -49,8 +49,8 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
               : `${aiMessagesLeft()} / ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}
           </Text>
           {lastMeta?.recovery != null && (
-            <View style={[styles.badge, { backgroundColor: getRecoveryColor(lastMeta.recovery) + '15', borderWidth: 1, borderColor: getRecoveryColor(lastMeta.recovery) + '40' }]}>
-              <Text style={{ fontSize: 10, color: getRecoveryColor(lastMeta.recovery), fontWeight: '600' }}>
+            <View style={[styles.badge, { backgroundColor: getRecoveryColor(lastMeta.recovery, colors) + '15', borderWidth: 1, borderColor: getRecoveryColor(lastMeta.recovery, colors) + '40' }]}>
+              <Text style={{ fontSize: 10, color: getRecoveryColor(lastMeta.recovery, colors), fontWeight: '600' }}>
                 {getRecoveryLabel(lastMeta.recovery)} {lastMeta.recovery}%
               </Text>
             </View>

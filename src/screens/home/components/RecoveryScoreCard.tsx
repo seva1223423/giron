@@ -49,7 +49,7 @@ export const RecoveryScoreCard: React.FC = () => {
 
     const level = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
     const label = score >= 80 ? 'Готов к тренировке' : score >= 50 ? 'Умеренное восстановление' : 'Нужен отдых';
-    const color = score >= 80 ? colors.success : score >= 50 ? '#F59E0B' : colors.error;
+    const color = score >= 80 ? colors.success : score >= 50 ? colors.warning : colors.error;
     const icon = score >= 80 ? '▲' : score >= 50 ? '●' : '▼';
 
     return { score, level, label, color, icon, reasons };

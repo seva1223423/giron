@@ -20,9 +20,9 @@ export const CelebrationBar: React.FC<Props> = ({ celebration }) => {
         </View>
       ))}
       {celebration.prs.map((pr, i) => (
-        <View key={`pr-${i}`} style={[styles.chip, { backgroundColor: '#FF9800' + '20', borderColor: '#FF9800' + '50' }]}>
-          <Text style={{ fontSize: 14, marginRight: 4, fontWeight: '800', color: '#FF9800' }}>NEW</Text>
-          <Text style={[typography.small, { color: '#FF9800', fontWeight: '700', flex: 1 }]}>Новый рекорд: {pr}</Text>
+        <View key={`pr-${i}`} style={[styles.chip, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '50' }]}>
+          <Text style={{ fontSize: 14, marginRight: 4, fontWeight: '800', color: colors.warning }}>NEW</Text>
+          <Text style={[typography.small, { color: colors.warning, fontWeight: '700', flex: 1 }]}>Новый рекорд: {pr}</Text>
         </View>
       ))}
     </View>

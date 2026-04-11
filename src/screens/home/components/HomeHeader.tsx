@@ -13,12 +13,12 @@ function getGreeting() {
   return 'Добрый вечер';
 }
 
-function getStreakDisplay(streak: number): { text: string; color: string } | null {
+function getStreakDisplay(streak: number, primary: string, primaryLight: string): { text: string; color: string } | null {
   if (streak <= 0) return null;
-  if (streak >= 30) return { text: `${streak} дней подряд — Легенда`, color: '#A855F7' };
-  if (streak >= 7) return { text: `${streak} дней подряд`, color: '#8B5CF6' };
+  if (streak >= 30) return { text: `${streak} дней подряд — Легенда`, color: primaryLight };
+  if (streak >= 7) return { text: `${streak} дней подряд`, color: primary };
   const label = streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней';
-  return { text: `${streak} ${label} подряд`, color: '#8B5CF6' };
+  return { text: `${streak} ${label} подряд`, color: primary };
 }
 
 export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -41,7 +41,7 @@ export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
     return s;
   }, [workoutHistory]);
 
-  const streakDisplay = getStreakDisplay(streak);
+  const streakDisplay = getStreakDisplay(streak, colors.primary, colors.primaryLight);
 
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xxl }}>

@@ -39,7 +39,7 @@ export const ClientCard: React.FC<Props> = ({ client, onPress, onLongPress }) =>
       <Card style={[styles.card, isToday && { borderWidth: 1.5, borderColor: colors.success + '60' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
-            <Text style={{ fontSize: 22 }}>{client.emoji || '◉'}</Text>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>{client.emoji || '◉'}</Text>
           </View>
           <View style={{ flex: 1, marginLeft: spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>

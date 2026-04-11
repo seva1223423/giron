@@ -122,7 +122,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={{ paddingLeft: spacing.md }}
           >
-            <Text style={{ fontSize: 18, color: isFav ? '#FF3B55' : colors.textTertiary }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: isFav ? colors.error : colors.textTertiary }}>
               {isFav ? '●' : '○'}
             </Text>
           </TouchableOpacity>
