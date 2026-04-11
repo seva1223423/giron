@@ -50,7 +50,7 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.content}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#10B981' + '18', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl }}><Text style={{ fontSize: 28, fontWeight: '700', color: '#10B981' }}>✓</Text></View>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.success + '18', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl }}><Text style={{ fontSize: 28, fontWeight: '700', color: colors.success }}>✓</Text></View>
           <Text style={[typography.h2, { color: colors.text, textAlign: 'center', marginBottom: spacing.md }]}>
             Пароль изменён
           </Text>

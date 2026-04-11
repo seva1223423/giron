@@ -140,7 +140,7 @@ export const SystemSection: React.FC = () => {
             sublabel={`${storageInfo.totalMB} МБ из 6 МБ`}
             divider
             right={
-              <Text style={[typography.body, { color: storageInfo.warningLevel === 'critical' ? colors.error : storageInfo.warningLevel === 'warning' ? '#F59E0B' : colors.success }]}>
+              <Text style={[typography.body, { color: storageInfo.warningLevel === 'critical' ? colors.error : storageInfo.warningLevel === 'warning' ? colors.warning : colors.success }]}>
                 {storageInfo.warningLevel === 'ok' ? '✓' : storageInfo.warningLevel === 'warning' ? '!' : '!!'}
               </Text>
             }

@@ -53,9 +53,9 @@ export const MacroTrendsChart: React.FC<Props> = ({ data, targetProtein, targetF
   const maxCarbs = Math.max(...data.map((d) => d.carbs), targetCarbs ?? 0, 1);
 
   const lines: MacroLine[] = [
-    { key: 'protein', label: 'Белки', color: '#3B82F6', target: targetProtein },
-    { key: 'fats', label: 'Жиры', color: '#F59E0B', target: targetFats },
-    { key: 'carbs', label: 'Углеводы', color: '#10B981', target: targetCarbs },
+    { key: 'protein', label: 'Белки', color: colors.protein, target: targetProtein },
+    { key: 'fats', label: 'Жиры', color: colors.fats, target: targetFats },
+    { key: 'carbs', label: 'Углеводы', color: colors.carbs, target: targetCarbs },
   ];
 
   const maxVals = { protein: maxProt, fats: maxFats, carbs: maxCarbs };

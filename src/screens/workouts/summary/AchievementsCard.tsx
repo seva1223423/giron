@@ -23,12 +23,12 @@ export const AchievementsCard: React.FC<Props> = ({ achievements }) => {
       </View>
       {achievements.map((a, i) => (
         <View key={a.id} style={[{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs }, i < achievements.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#FFD70030' }]}>
-          <Text style={{ fontSize: 22 }}>{a.emoji}</Text>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: colors.accent }}>{a.emoji}</Text>
           <View style={{ flex: 1 }}>
             <Text style={[typography.bodySemibold, { color: colors.text }]}>{a.title}</Text>
             <Text style={[typography.small, { color: colors.textSecondary }]}>{a.description}</Text>
           </View>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#10B981' }}>✓</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.success }}>✓</Text>
         </View>
       ))}
     </Card>

@@ -67,7 +67,7 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
                     backgroundColor: a.unlocked ? colors.accent + '20' : colors.border + '60',
                   }}
                 >
-                  <Text style={{ fontSize: 24 }}>{a.emoji}</Text>
+                  <Text style={{ fontSize: 24, fontWeight: '700', color: a.unlocked ? colors.accent : colors.textTertiary }}>{a.emoji}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text

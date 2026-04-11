@@ -26,7 +26,7 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
     if (remaining > 0) {
       return { text: `осталось ${remaining} мин`, color: colors.success };
     }
-    return { text: `\u2212${Math.abs(remaining)} мин (перебор)`, color: '#F59E0B' };
+    return { text: `\u2212${Math.abs(remaining)} мин (перебор)`, color: colors.warning };
   })() : null;
 
   return (

@@ -7,11 +7,11 @@ import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
-const getDurationColor = (hours: number): string => {
-  if (hours < 6) return '#EF4444';
-  if (hours < 7) return '#F59E0B';
-  if (hours <= 9) return '#10B981';
-  return '#F59E0B';
+const getDurationColor = (hours: number, colors: { error: string; warning: string; success: string }): string => {
+  if (hours < 6) return colors.error;
+  if (hours < 7) return colors.warning;
+  if (hours <= 9) return colors.success;
+  return colors.warning;
 };
 
 const todayStr = () => {
@@ -66,7 +66,7 @@ export const SleepCard: React.FC = () => {
             <Text style={[typography.h4, { color: colors.text }]}>Сон</Text>
             {lastEntry ? (
               <View style={{ marginTop: 4 }}>
-                <Text style={[typography.small, { color: getDurationColor(lastEntry.durationHours) }]}>
+                <Text style={[typography.small, { color: getDurationColor(lastEntry.durationHours, colors) }]}>
                   {lastEntry.durationHours} ч  ({lastEntry.bedtime} — {lastEntry.wakeTime})
                 </Text>
                 {lastEntry.quality && (
@@ -86,7 +86,7 @@ export const SleepCard: React.FC = () => {
                     style={{
                       height: 4,
                       borderRadius: 2,
-                      backgroundColor: getDurationColor(avgDuration),
+                      backgroundColor: getDurationColor(avgDuration, colors),
                       width: `${Math.min(100, (avgDuration / 10) * 100)}%`,
                     }}
                   />
@@ -149,7 +149,7 @@ export const SleepCard: React.FC = () => {
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.lg }}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity key={star} onPress={() => { haptic.selection(); setQuality(star); }}>
-                  <Text style={{ fontSize: 28, color: star <= quality ? '#F59E0B' : colors.border }}>
+                  <Text style={{ fontSize: 28, color: star <= quality ? colors.warning : colors.border }}>
                     {star <= quality ? '★' : '☆'}
                   </Text>
                 </TouchableOpacity>

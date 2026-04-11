@@ -82,7 +82,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
         <Card style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
             <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={{ fontSize: 32 }}>{client.emoji || '◉'}</Text>
+              <Text style={{ fontSize: 32, fontWeight: '700', color: colors.primary }}>{client.emoji || '◉'}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: spacing.md }}>
               <Text style={[typography.h4, { color: colors.text }]}>{client.name}</Text>

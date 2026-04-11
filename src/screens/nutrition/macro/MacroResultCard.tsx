@@ -40,10 +40,10 @@ export const MacroResultCard: React.FC<Props> = ({ result, delay = 250 }) => {
 
         <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>НОРМА ДЛЯ ТВОЕЙ ЦЕЛИ</Text>
         <View style={styles.grid}>
-          <MacroTile value={result.targetCal} label="Калории" unit="ккал" color={colors.calories} />
-          <MacroTile value={result.protein} label="Белок" unit="г" color={colors.protein} extra={`${result.proteinPerKg}г/кг`} />
-          <MacroTile value={result.fats} label="Жиры" unit="г" color={colors.fats} />
-          <MacroTile value={result.carbs} label="Углеводы" unit="г" color={colors.carbs} />
+          <MacroTile value={result.targetCal} label="Калории" unit="ккал" color={colors.calories} textSecondary={colors.textSecondary} />
+          <MacroTile value={result.protein} label="Белок" unit="г" color={colors.protein} extra={`${result.proteinPerKg}г/кг`} textSecondary={colors.textSecondary} />
+          <MacroTile value={result.fats} label="Жиры" unit="г" color={colors.fats} textSecondary={colors.textSecondary} />
+          <MacroTile value={result.carbs} label="Углеводы" unit="г" color={colors.carbs} textSecondary={colors.textSecondary} />
         </View>
 
         <View style={{ backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.md }}>
@@ -56,12 +56,12 @@ export const MacroResultCard: React.FC<Props> = ({ result, delay = 250 }) => {
   );
 };
 
-const MacroTile: React.FC<{ value: number; label: string; unit: string; color: string; extra?: string }> = ({ value, label, unit, color, extra }) => (
+const MacroTile: React.FC<{ value: number; label: string; unit: string; color: string; extra?: string; textSecondary: string }> = ({ value, label, unit, color, extra, textSecondary }) => (
   <View style={[styles.tile, { backgroundColor: color + '15' }]}>
     <Text style={[typography.h4, { color }]}>{value}</Text>
     <Text style={[typography.caption, { color }]}>{unit}</Text>
-    <Text style={[typography.small, { color: '#888', marginTop: 2 }]}>{label}</Text>
-    {extra && <Text style={[typography.small, { color: '#888', fontSize: 10 }]}>{extra}</Text>}
+    <Text style={[typography.small, { color: textSecondary, marginTop: 2 }]}>{label}</Text>
+    {extra && <Text style={[typography.small, { color: textSecondary, fontSize: 10 }]}>{extra}</Text>}
   </View>
 );
 
