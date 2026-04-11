@@ -27,7 +27,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   const handleAchievementsUnlocked = useCallback((achievements: Achievement[]) => {
     haptic.success();
-    const titles = achievements.map((a) => `${a.emoji} ${a.title}`).join('\n');
+    const titles = achievements.map((a) => `${a.title}`).join('\n');
     Alert.alert('Ачивка разблокирована!', titles, [{ text: 'Отлично!' }]);
   }, []);
 
@@ -62,7 +62,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>История</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }}>
-            <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>🧮</Text>
+            <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Калькулятор</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { haptic.selection(); setShowGoalsModal(true); }}>
             <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
@@ -73,9 +73,9 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
       <DailyOverview selectedDate={selectedDate} />
       <QuickMeals />
-      <Tooltip tipId="nutrition-scan" text="📸 Нажми + чтобы сканировать штрих-код продукта или сфотографировать еду" />
+      <Tooltip tipId="nutrition-scan" text="Нажми + чтобы сканировать штрих-код продукта или сфотографировать еду" />
 
-      <Button title="📸 Сканировать еду по фото" onPress={handlePhotoScan} fullWidth size="lg" style={{ marginBottom: spacing.lg }} />
+      <Button title="Сканировать еду по фото" onPress={handlePhotoScan} fullWidth size="lg" style={{ marginBottom: spacing.lg }} />
 
       <SavedFoodsQuickAdd onQuickAdd={handleQuickAdd} />
       <WaterTracker selectedDate={selectedDate} />

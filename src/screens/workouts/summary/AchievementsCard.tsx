@@ -16,7 +16,7 @@ export const AchievementsCard: React.FC<Props> = ({ achievements }) => {
   return (
     <Card style={{ marginBottom: spacing.lg, backgroundColor: '#FFD70015', borderLeftWidth: 4, borderLeftColor: '#FFD700' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-        <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🏅</Text>
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFD700' + '20', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}><Text style={{ fontSize: 13, fontWeight: '800', color: '#B8860B' }}>!</Text></View>
         <Text style={[typography.h4, { color: '#B8860B' }]}>
           {achievements.length === 1 ? 'Новое достижение!' : `${achievements.length} новых достижения!`}
         </Text>
@@ -28,7 +28,7 @@ export const AchievementsCard: React.FC<Props> = ({ achievements }) => {
             <Text style={[typography.bodySemibold, { color: colors.text }]}>{a.title}</Text>
             <Text style={[typography.small, { color: colors.textSecondary }]}>{a.description}</Text>
           </View>
-          <Text style={{ fontSize: 16 }}>✅</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#10B981' }}>✓</Text>
         </View>
       ))}
     </Card>

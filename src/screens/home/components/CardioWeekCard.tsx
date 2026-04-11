@@ -7,9 +7,9 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { CardioType } from '../../../types';
 import { formatNum } from '../../../utils/date';
 
-const TYPE_EMOJI: Record<CardioType, string> = {
-  running: '🏃', cycling: '🚴', walking: '🚶', swimming: '🏊',
-  hiit: '⚡', elliptical: '🔄', rowing: '🚣', other: '🏅',
+const TYPE_LABEL: Record<CardioType, string> = {
+  running: 'Б', cycling: 'В', walking: 'Х', swimming: 'П',
+  hiit: 'HI', elliptical: 'Э', rowing: 'Г', other: '...',
 };
 
 interface Props {
@@ -44,7 +44,7 @@ export const CardioWeekCard: React.FC<Props> = ({ navigation }) => {
               {recentTypes.length > 0 && (
                 <View style={styles.badges}>
                   {recentTypes.map((t) => (
-                    <Text key={t} style={{ fontSize: 16 }}>{TYPE_EMOJI[t]}</Text>
+                    <View key={t} style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>{TYPE_LABEL[t]}</Text></View>
                   ))}
                 </View>
               )}

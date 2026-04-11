@@ -36,7 +36,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
           </Text>
           {currentExercise.supersetGroupId && (
             <View style={{ paddingHorizontal: 5, paddingVertical: 2, borderRadius: borderRadius.sm, backgroundColor: colors.accent + '20', borderWidth: 1, borderColor: colors.accent + '60' }}>
-              <Text style={{ fontSize: 9, fontWeight: '800', color: colors.accent, letterSpacing: 0.5 }}>⚡ СУПЕРСЕТ</Text>
+              <Text style={{ fontSize: 9, fontWeight: '800', color: colors.accent, letterSpacing: 0.5 }}>SS</Text>
             </View>
           )}
         </View>
@@ -45,7 +45,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         </Text>
         {onSubstitute && (
           <TouchableOpacity onPress={onSubstitute} style={{ marginTop: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>🔄 замена</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>замена</Text>
           </TouchableOpacity>
         )}
       </View>

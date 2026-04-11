@@ -174,7 +174,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
       ) : (
         <FadeIn delay={120}>
           <View style={styles.emptyState}>
-            <Text style={{ fontSize: 40 }}>📅</Text>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>◧</Text>
             <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md }]}>В этом месяце нет тренировок</Text>
             <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.sm }]}>Завершённые тренировки появятся здесь</Text>
           </View>

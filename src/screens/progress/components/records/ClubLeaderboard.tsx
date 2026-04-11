@@ -64,7 +64,7 @@ export const ClubLeaderboard: React.FC = () => {
             style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm }, i < leaderboard.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}
           >
             <Text style={[typography.numberSmall, { color: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : colors.textTertiary, width: 32, textAlign: 'center', fontSize: i < 3 ? 18 : 14 }]}>
-              {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
+              {i < 3 ? `${i + 1}` : `${i + 1}`}
             </Text>
             <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>

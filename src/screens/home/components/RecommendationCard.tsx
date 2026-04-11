@@ -26,7 +26,7 @@ export const RecommendationCard: React.FC<Props> = ({
     return (
       <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
-          <Text style={{ fontSize: 28 }}>🛌</Text>
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.accent }}>R</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.captionMedium, { color: colors.accent }]}>ДЕНЬ ОТДЫХА</Text>
             <Text style={[typography.bodyMedium, { color: colors.text, marginTop: spacing.xs }]}>
@@ -78,7 +78,7 @@ export const RecommendationCard: React.FC<Props> = ({
             {workoutRecommendation.programWorkout ? 'СЛЕДУЮЩАЯ ТРЕНИРОВКА' : 'РЕКОМЕНДУЕМ СЕГОДНЯ'}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
-            <Text style={{ fontSize: 20 }}>{workoutRecommendation.emoji}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{workoutRecommendation.emoji}</Text>
             <Text style={[typography.h4, { color: colors.text }]}>{workoutRecommendation.name}</Text>
           </View>
           <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>

@@ -77,10 +77,10 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
           <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
             {!!workout.durationMinutes && <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{formatDuration(workout.durationMinutes)}</Text>}
             {workout.totalVolume > 0 && <Text style={[typography.captionMedium, { color: colors.primary }]}>{Math.round(workout.totalVolume)} кг</Text>}
-            {workout.rating > 0 && <Text style={{ fontSize: 10 }}>{'⭐'.repeat(workout.rating)}</Text>}
+            {workout.rating > 0 && <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '700' }}>{'★'.repeat(workout.rating)}</Text>}
             {prCount > 0 && (
               <View style={[styles.prBadge, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '60' }]}>
-                <Text style={{ fontSize: 10, color: colors.warning }}>🏆 {prCount} ЛР</Text>
+                <Text style={{ fontSize: 10, color: colors.warning, fontWeight: '700' }}>PR {prCount}</Text>
               </View>
             )}
             <Text style={[typography.caption, { color: colors.textTertiary }]}>{completedSets} подх. {isExpanded ? '▲' : '▼'}</Text>
@@ -91,7 +91,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
           <View style={{ marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider }}>
             {workout.notes ? (
               <Text style={[typography.small, { color: colors.textSecondary, fontStyle: 'italic', marginBottom: spacing.md }]} numberOfLines={3}>
-                📝 {workout.notes}
+                {workout.notes}
               </Text>
             ) : null}
             {!activeWorkout && (
@@ -99,7 +99,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
                 onPress={handleRepeat}
                 style={[{ backgroundColor: colors.primary + '15', borderRadius: borderRadius.sm, paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md }]}
               >
-                <Text style={[typography.captionMedium, { color: colors.primary }]}>🔁 Повторить тренировку</Text>
+                <Text style={[typography.captionMedium, { color: colors.primary }]}>Повторить тренировку</Text>
               </TouchableOpacity>
             )}
             {workout.exercises.map((ex: any, ei: number) => {
@@ -114,7 +114,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
                       <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>{ex.exercise.name}</Text>
                       {hasPR && (
                         <View style={[styles.prBadge, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '60' }]}>
-                          <Text style={{ fontSize: 9, color: colors.warning }}>🏆 ЛР</Text>
+                          <Text style={{ fontSize: 9, color: colors.warning, fontWeight: '700' }}>PR</Text>
                         </View>
                       )}
                     </View>

@@ -100,7 +100,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
     const calColor = calRatio < 0.85 ? 'info' : calRatio > 1.15 ? 'error' : 'success';
     const calVerdict = calRatio < 0.85 ? 'Дефицит калорий' : calRatio > 1.15 ? 'Профицит калорий' : 'Калории в норме';
     const protColor = protRatio < 0.75 ? 'error' : protRatio < 0.9 ? 'accent' : 'success';
-    const protVerdict = protRatio < 0.75 ? '⚠️ Мало белка' : protRatio < 0.9 ? 'Белка чуть меньше нормы' : 'Белок в норме ✓';
+    const protVerdict = protRatio < 0.75 ? 'Мало белка' : protRatio < 0.9 ? 'Белка чуть меньше нормы' : 'Белок в норме';
     const tip = protRatio < 0.75 ? 'Добавь белок к каждому приёму: яйца, творог, мясо, рыба.'
       : calRatio < 0.85 ? 'Небольшой дефицит — хорошо для похудения. Следи, чтобы хватало белка.'
       : calRatio > 1.15 ? 'Небольшой профицит — хорошо для набора массы. Контролируй жиры.'
@@ -132,7 +132,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
 
       {logsWithData.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={{ fontSize: 56, marginBottom: spacing.lg }}>🍽</Text>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>◑</Text></View>
           <Text style={[typography.h4, { color: colors.text }]}>Нет данных</Text>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
             Начни отслеживать питание, и история появится здесь

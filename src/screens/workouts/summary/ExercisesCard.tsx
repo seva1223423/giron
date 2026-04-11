@@ -29,7 +29,7 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
                 </Text>
                 {ex.notes ? (
                   <Text style={[typography.small, { color: colors.textTertiary, marginTop: 2, fontStyle: 'italic' }]} numberOfLines={2}>
-                    📝 {ex.notes}
+                    {ex.notes}
                   </Text>
                 ) : null}
               </View>
@@ -44,7 +44,7 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
             {isSuperset && (
               <View style={{ alignItems: 'center', marginVertical: -4 }}>
                 <View style={{ backgroundColor: colors.accent + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: colors.accent }}>⚡ СУПЕРСЕТ</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: colors.accent }}>SS</Text>
                 </View>
               </View>
             )}

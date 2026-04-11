@@ -128,7 +128,7 @@ export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600, nav
                     <Text style={[typography.small, { color: colors.textSecondary }]}>
                       {workout.exercises.length} упр. {'\u2022'} {workout.durationMinutes || 0} мин
                       {workout.totalVolume ? ` \u2022 ${Math.round(workout.totalVolume)} кг` : ''}
-                      {workout.exercises.some((e: any) => e.supersetGroupId) && <Text style={{ fontSize: 10 }}> ⚡</Text>}
+                      {workout.exercises.some((e: any) => e.supersetGroupId) && <Text style={{ fontSize: 9, fontWeight: '700', color: colors.accent }}> SS</Text>}
                     </Text>
                   </View>
                   <Text style={[typography.caption, { color: colors.textTertiary }]}>

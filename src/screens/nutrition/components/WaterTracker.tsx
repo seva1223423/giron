@@ -21,7 +21,7 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
     <Card style={{ marginBottom: spacing.lg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
-          <Text style={[typography.h4, { color: colors.text }]}>💧 Вода</Text>
+          <Text style={[typography.h4, { color: colors.text }]}>Вода</Text>
           <Text style={[typography.body, { color: colors.textSecondary }]}>
             {dayLog.waterMl} мл / {waterTarget} мл
           </Text>

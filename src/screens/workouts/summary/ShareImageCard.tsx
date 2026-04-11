@@ -28,7 +28,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
           {/* Header: branding + date */}
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 16 }}>🏋️</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>IG</Text>
               <Text style={styles.brand}>IRON GYM</Text>
             </View>
             <Text style={styles.date}>{dateStr}</Text>
@@ -43,7 +43,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
               {newPRs.map((pr, i) => (
                 <View key={i} style={styles.prBadge}>
                   <Text style={styles.prText}>
-                    🏆 {pr.name} — {pr.weight}кг × {pr.reps}
+                    PR {pr.name} — {pr.weight}кг × {pr.reps}
                   </Text>
                 </View>
               ))}
@@ -89,7 +89,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
               return (
                 <View key={i} style={styles.exRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 5 }}>
-                    {isExPR && <Text style={{ fontSize: 11 }}>🏆</Text>}
+                    {isExPR && <Text style={{ fontSize: 9, fontWeight: '700', color: '#8B5CF6' }}>PR</Text>}
                     <Text style={[styles.exName, isExPR && { color: '#FFD700' }]} numberOfLines={1}>
                       {ex.exercise.name}
                     </Text>
@@ -109,7 +109,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Тренируйся с Iron Gym 💪</Text>
+            <Text style={styles.footerText}>Тренируйся с Iron Gym</Text>
           </View>
         </View>
       </View>

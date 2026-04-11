@@ -32,7 +32,7 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
         });
         setInsights(result);
       } catch {
-        setInsights('Отличная тренировка! Продолжай в том же духе 💪');
+        setInsights('Отличная тренировка! Продолжай в том же духе.');
       } finally {
         clearTimeout(timeout);
         setLoading(false);
@@ -47,7 +47,7 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
   return (
     <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: spacing.sm }}>
-        <Text style={{ fontSize: 22 }}>🤖</Text>
+        <Text style={{ fontSize: 12, fontWeight: '800', color: colors.primary }}>IC</Text>
         <Text style={[typography.captionMedium, { color: colors.primary }]}>АНАЛИЗ IRON COACH</Text>
       </View>
       {loading ? (

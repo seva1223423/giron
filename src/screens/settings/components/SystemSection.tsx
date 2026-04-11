@@ -125,7 +125,7 @@ export const SystemSection: React.FC = () => {
           sublabel="CSV таблица для Excel"
           divider
           onPress={handleExportCSV}
-          right={<Text style={[typography.body, { color: colors.primary }]}>📊</Text>}
+          right={<Text style={[typography.body, { color: colors.primary }]}>CSV</Text>}
         />
         <SettingRow
           label="Импорт данных"
@@ -141,7 +141,7 @@ export const SystemSection: React.FC = () => {
             divider
             right={
               <Text style={[typography.body, { color: storageInfo.warningLevel === 'critical' ? colors.error : storageInfo.warningLevel === 'warning' ? '#F59E0B' : colors.success }]}>
-                {storageInfo.warningLevel === 'ok' ? '✓' : storageInfo.warningLevel === 'warning' ? '⚠️' : '🔴'}
+                {storageInfo.warningLevel === 'ok' ? '✓' : storageInfo.warningLevel === 'warning' ? '!' : '!!'}
               </Text>
             }
           />

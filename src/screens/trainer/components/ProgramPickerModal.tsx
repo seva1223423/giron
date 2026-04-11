@@ -35,7 +35,7 @@ export const ProgramPickerModal: React.FC<Props> = ({ visible, currentProgram, o
                 onPress={() => { haptic.selection(); onSelect(program); }}
                 style={[styles.row, { borderBottomColor: colors.divider }]}
               >
-                <Text style={[typography.body, { color: currentProgram === program ? colors.primary : colors.text, flex: 1 }]}>📋 {program}</Text>
+                <Text style={[typography.body, { color: currentProgram === program ? colors.primary : colors.text, flex: 1 }]}>{program}</Text>
                 {currentProgram === program && <Text style={{ color: colors.primary }}>✓</Text>}
               </TouchableOpacity>
             ))}

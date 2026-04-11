@@ -106,11 +106,11 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
               onPress={() => {
                 haptic.success();
                 saveFoodItem({ id: `saved-${selectedFood.name.replace(/\s/g, '-').toLowerCase()}`, ...selectedFood, weightGrams: 100 });
-                Alert.alert('Сохранено ⭐', `${selectedFood.name} добавлен в быстрые продукты`);
+                Alert.alert('Сохранено', `${selectedFood.name} добавлен в быстрые продукты`);
               }}
               style={[styles.saveBtn, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
             >
-              <Text style={[typography.caption, { color: colors.warning }]}>⭐ Сохранить</Text>
+              <Text style={[typography.caption, { color: colors.primary }]}>Сохранить</Text>
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>

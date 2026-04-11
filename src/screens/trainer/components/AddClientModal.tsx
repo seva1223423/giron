@@ -21,7 +21,7 @@ export const AddClientModal: React.FC<Props> = ({ visible, onClose }) => {
   const handleAdd = () => {
     if (!name.trim()) return;
     haptic.medium();
-    addClient({ name: name.trim(), phone: phone.trim() || undefined, totalWorkouts: 0, emoji: '🧑' });
+    addClient({ name: name.trim(), phone: phone.trim() || undefined, totalWorkouts: 0, emoji: '◉' });
     setName('');
     setPhone('');
     onClose();

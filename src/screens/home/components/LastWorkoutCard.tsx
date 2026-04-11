@@ -21,10 +21,10 @@ export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWor
       (sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0
     );
     const message = [
-      `🏋️ Моя тренировка: ${lastWorkout.name}`,
-      `⏱ ${lastWorkout.durationMinutes || 0} мин • 📦 ${Math.round(lastWorkout.totalVolume || 0)} кг`,
-      `${lastWorkout.exercises.length} упражнений • ${totalSets} подходов`,
-      `💪 Тренируйся с Iron Gym`,
+      `Моя тренировка: ${lastWorkout.name}`,
+      `${lastWorkout.durationMinutes || 0} мин - ${Math.round(lastWorkout.totalVolume || 0)} кг`,
+      `${lastWorkout.exercises.length} упражнений - ${totalSets} подходов`,
+      `Тренируйся с Iron Gym`,
     ].join('\n');
     try {
       await Share.share({ message });
@@ -53,14 +53,14 @@ export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWor
             onPress={handleShare}
             style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: borderRadius.sm }}
           >
-            <Text style={[typography.captionMedium, { color: colors.primary }]}>📤</Text>
+            <Text style={[typography.captionMedium, { color: colors.primary }]}>Поделиться</Text>
           </TouchableOpacity>
           {!activeWorkout && (
             <TouchableOpacity
               onPress={onRepeat}
               style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm }}
             >
-              <Text style={[typography.captionMedium, { color: colors.primary }]}>🔁 Повторить</Text>
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>Повторить</Text>
             </TouchableOpacity>
           )}
         </View>

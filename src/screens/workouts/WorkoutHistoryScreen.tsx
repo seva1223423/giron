@@ -57,7 +57,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
       {workoutHistory.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={{ fontSize: 56, marginBottom: spacing.lg }}>🏋️</Text>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: spacing.lg }}>◎</Text>
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Нет тренировок</Text>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
             После первой тренировки здесь появится история
@@ -95,7 +95,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
           {filtered.length === 0 && (
             <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
-              <Text style={{ fontSize: 40, marginBottom: spacing.md }}>🔍</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginBottom: spacing.md }}>Q</Text>
               <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>Ничего не найдено</Text>
             </View>
           )}

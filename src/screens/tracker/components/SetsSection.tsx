@@ -102,7 +102,7 @@ export const SetsSection: React.FC<Props> = ({
           backgroundColor: colors.success + '12', borderColor: colors.success + '40',
           marginBottom: spacing.sm,
         }}>
-          <Text style={{ fontSize: 16 }}>📈</Text>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>▲</Text></View>
           <Text style={[typography.caption, { color: colors.success, flex: 1 }]}>
             В прошлый раз все подходы выполнены — попробуй{' '}
             <Text style={{ fontWeight: '700' }}>{overloadSuggestion} кг</Text> сегодня (+2.5)
@@ -155,7 +155,7 @@ export const SetsSection: React.FC<Props> = ({
               }}
               style={{ flex: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }}
             >
-              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>🔥 Разминка</Text>
+              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Разминка</Text>
             </TouchableOpacity>
           )}
       </View>
@@ -177,7 +177,7 @@ export const SetsSection: React.FC<Props> = ({
           onPress={() => { haptic.selection(); toggleSuperset(currentExerciseIndex); }}
           style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, backgroundColor: currentExercise.supersetGroupId ? colors.accent + '15' : colors.surface, borderColor: currentExercise.supersetGroupId ? colors.accent + '80' : colors.border }}
         >
-          <Text style={{ fontSize: 14, marginRight: spacing.xs }}>⚡</Text>
+          <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs }}><Text style={{ fontSize: 10, fontWeight: '800', color: colors.accent }}>SS</Text></View>
           <Text style={[typography.small, { color: currentExercise.supersetGroupId ? colors.accent : colors.textSecondary }]}>
             {currentExercise.supersetGroupId
               ? `Суперсет со «${workout.exercises[currentExerciseIndex + 1]?.exercise.name}» — отменить`

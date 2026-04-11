@@ -46,7 +46,7 @@ export const WeekStats: React.FC = () => {
   return (
     <Card style={{ marginBottom: spacing.lg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-        <Text style={[typography.h4, { color: colors.text }]}>📊 За 7 дней</Text>
+        <Text style={[typography.h4, { color: colors.text }]}>За 7 дней</Text>
         <View style={{ backgroundColor: colors.primary + '20', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full }}>
           <Text style={[typography.caption, { color: colors.primary }]}>
             Цель выполнена {weekStats.goalMet}/{weekStats.daysLogged}

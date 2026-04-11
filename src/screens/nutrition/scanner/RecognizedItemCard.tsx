@@ -27,7 +27,7 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
       carbs: base ? Math.round(base.carbs * 10) / 10 : item.carbs,
       weightGrams: 100,
     });
-    Alert.alert('Сохранено ⭐', `${item.name} добавлен в быстрые продукты`);
+    Alert.alert('Сохранено', `${item.name} добавлен в быстрые продукты`);
   };
 
   return (
@@ -41,7 +41,7 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleSave} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontSize: 18 }}>⭐</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>+</Text>
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <TextInput

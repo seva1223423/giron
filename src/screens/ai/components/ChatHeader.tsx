@@ -33,7 +33,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
     <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
       <View style={{ alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Text style={{ fontSize: 20 }}>🤖</Text>
+          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>IC</Text></View>
           <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 }}>Iron Coach</Text>
           <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
           {isPremiumActive() && (
@@ -57,7 +57,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
           )}
           {lastMeta?.streak != null && lastMeta.streak > 0 && (
             <Text style={[typography.caption, { color: colors.accent, fontWeight: '600' }]}>
-              🔥 {lastMeta.streak}
+              {lastMeta.streak} дн.
             </Text>
           )}
         </View>

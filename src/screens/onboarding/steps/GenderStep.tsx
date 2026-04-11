@@ -14,7 +14,7 @@ export const GenderStep: React.FC<Props> = ({ gender, onSelect }) => {
   const { colors } = useThemeStore();
   return (
     <View style={styles.container}>
-      <Text style={[typography.h1, { color: colors.text, marginBottom: spacing.sm }]}>Привет! 👋</Text>
+      <Text style={[typography.h1, { color: colors.text, marginBottom: spacing.sm }]}>Привет!</Text>
       <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.xxxl }]}>
         Давай настроим Iron Gym под тебя. Укажи свой пол.
       </Text>
@@ -26,7 +26,7 @@ export const GenderStep: React.FC<Props> = ({ gender, onSelect }) => {
             onPress={() => onSelect(g)}
             style={[styles.card, { backgroundColor: gender === g ? colors.primary : colors.surface, borderColor: gender === g ? colors.primary : colors.border }]}
           >
-            <Text style={{ fontSize: 48 }}>{g === 'male' ? '🙋‍♂️' : '🙋‍♀️'}</Text>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: gender === g ? '#fff' : colors.primary }}>{g === 'male' ? 'М' : 'Ж'}</Text>
             <Text style={[typography.bodySemibold, { color: gender === g ? '#FFF' : colors.text, marginTop: spacing.md }]}>
               {g === 'male' ? 'Мужской' : 'Женский'}
             </Text>

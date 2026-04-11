@@ -9,10 +9,10 @@ import { NutritionItem, Meal } from '../../../types';
 import { scheduleNutritionSummaryReminder } from '../../../services/notificationService';
 
 const MEAL_TYPES = [
-  { key: 'breakfast', label: 'Завтрак', emoji: '🌅' },
-  { key: 'lunch', label: 'Обед', emoji: '☀️' },
-  { key: 'dinner', label: 'Ужин', emoji: '🌙' },
-  { key: 'snack', label: 'Перекус', emoji: '🍎' },
+  { key: 'breakfast', label: 'Завтрак', emoji: 'З' },
+  { key: 'lunch', label: 'Обед', emoji: 'О' },
+  { key: 'dinner', label: 'Ужин', emoji: 'У' },
+  { key: 'snack', label: 'Перекус', emoji: 'П' },
 ] as const;
 
 const todayDate = () => new Date().toISOString().split('T')[0];
@@ -104,7 +104,7 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
                 style={[styles.chip, { backgroundColor: mealType === mt.key ? colors.primary : colors.surface, borderColor: mealType === mt.key ? colors.primary : colors.border }]}
               >
                 <Text style={[typography.caption, { color: mealType === mt.key ? '#FFF' : colors.text }]}>
-                  {mt.emoji} {mt.label}
+                  {mt.label}
                 </Text>
               </TouchableOpacity>
             ))}

@@ -59,7 +59,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
           {(['mine', 'club'] as const).map((v) => (
             <TouchableOpacity key={v} onPress={() => { haptic.selection(); setRecordsView(v); }} style={[styles.segmentBtn, recordsView === v && { backgroundColor: colors.primary }]}>
               <Text style={[typography.smallMedium, { color: recordsView === v ? '#fff' : colors.textSecondary }]}>
-                {v === 'mine' ? 'Мои рекорды' : '🏆 Клуб'}
+                {v === 'mine' ? 'Мои рекорды' : 'Клуб'}
               </Text>
             </TouchableOpacity>
           ))}

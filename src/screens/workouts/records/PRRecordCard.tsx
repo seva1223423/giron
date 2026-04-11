@@ -129,7 +129,7 @@ export const PRRecordCard: React.FC<Props> = ({ record, idx, isExpanded, onToggl
                 <View key={h.date} style={{ marginBottom: spacing.xs }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
                     <Text style={[typography.caption, { color: isFirst ? colors.primary : colors.textSecondary }]}>
-                      {isFirst ? '🏆 ' : ''}{formatDate(h.date)}
+                      {isFirst ? 'PR ' : ''}{formatDate(h.date)}
                     </Text>
                     <Text style={[typography.captionMedium, { color: isFirst ? colors.primary : colors.text }]}>{h.estimated1RM} кг</Text>
                   </View>

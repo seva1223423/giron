@@ -9,18 +9,18 @@ import { exercises as localExercises } from '../../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../../types';
 
 const QUICK_WORKOUTS = [
-  { name: 'Грудь + Трицепс', emoji: '💪', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown', 'overhead-tricep-ext'] },
-  { name: 'Спина + Бицепс', emoji: '🔥', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl', 'hammer-curl'] },
-  { name: 'Ноги', emoji: '🦵', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'leg-extension', 'calf-raise'] },
-  { name: 'Плечи + Пресс', emoji: '🎯', exercises: ['overhead-press', 'lateral-raise', 'arnold-press', 'face-pull', 'plank', 'cable-crunch'] },
-  { name: 'Фулбоди', emoji: '⚡', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
-  { name: 'Руки', emoji: '💪', exercises: ['barbell-curl', 'hammer-curl', 'preacher-curl', 'tricep-pushdown', 'french-press', 'close-grip-bench'] },
-  { name: 'Базовая тройка', emoji: '🏆', exercises: ['squat', 'bench-press', 'deadlift'] },
-  { name: 'Пресс + Кор', emoji: '🔩', exercises: ['plank', 'cable-crunch', 'hanging-leg-raise', 'bicycle-crunch', 'russian-twist', 'side-plank'] },
-  { name: 'Кардио', emoji: '🏃', exercises: ['treadmill', 'jump-rope', 'cycling'] },
-  { name: 'Тяжёлая спина', emoji: '🏋️', exercises: ['deadlift', 'barbell-row', 'pull-ups', 'lat-pulldown', 'seated-row', 'dumbbell-row'] },
-  { name: 'Ноги (гантели)', emoji: '🦵', exercises: ['goblet-squat', 'lunges', 'romanian-deadlift', 'bulgarian-split-squat', 'leg-curl'] },
-  { name: 'Жим + Грудь', emoji: '🎯', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-bench-press', 'cable-fly', 'dips'] },
+  { name: 'Грудь + Трицепс', emoji: '◎', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown', 'overhead-tricep-ext'] },
+  { name: 'Спина + Бицепс', emoji: '◎', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl', 'hammer-curl'] },
+  { name: 'Ноги', emoji: '◎', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'leg-extension', 'calf-raise'] },
+  { name: 'Плечи + Пресс', emoji: '◎', exercises: ['overhead-press', 'lateral-raise', 'arnold-press', 'face-pull', 'plank', 'cable-crunch'] },
+  { name: 'Фулбоди', emoji: '◈', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
+  { name: 'Руки', emoji: '◎', exercises: ['barbell-curl', 'hammer-curl', 'preacher-curl', 'tricep-pushdown', 'french-press', 'close-grip-bench'] },
+  { name: 'Базовая тройка', emoji: '◉', exercises: ['squat', 'bench-press', 'deadlift'] },
+  { name: 'Пресс + Кор', emoji: '◧', exercises: ['plank', 'cable-crunch', 'hanging-leg-raise', 'bicycle-crunch', 'russian-twist', 'side-plank'] },
+  { name: 'Кардио', emoji: '◑', exercises: ['treadmill', 'jump-rope', 'cycling'] },
+  { name: 'Тяжёлая спина', emoji: '◎', exercises: ['deadlift', 'barbell-row', 'pull-ups', 'lat-pulldown', 'seated-row', 'dumbbell-row'] },
+  { name: 'Ноги (гантели)', emoji: '◎', exercises: ['goblet-squat', 'lunges', 'romanian-deadlift', 'bulgarian-split-squat', 'leg-curl'] },
+  { name: 'Жим + Грудь', emoji: '◎', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-bench-press', 'cable-fly', 'dips'] },
 ];
 
 interface Props {
@@ -106,7 +106,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
                   }}
                   style={[styles.templateCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
-                  <Text style={{ fontSize: 28, marginBottom: spacing.sm }}>⭐</Text>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◎</Text></View>
                   <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.xs }]} numberOfLines={2}>{tpl.name}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>{tpl.exercises.length} упр.</Text>
                 </TouchableOpacity>
@@ -121,7 +121,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
         <FadeIn key={i} delay={i * 80}>
           <Card style={{ marginBottom: spacing.md }} onPress={() => createWorkoutFromTemplate(template)}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 28, marginRight: spacing.md }}>{template.emoji}</Text>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{template.emoji}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]}>{template.name}</Text>
                 <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>

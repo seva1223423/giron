@@ -11,15 +11,15 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { CardioSession, CardioType } from '../../types';
 import { formatNum } from '../../utils/date';
 
-const TYPE_META: Record<CardioType, { emoji: string; label: string }> = {
-  running:    { emoji: '🏃', label: 'Бег' },
-  cycling:    { emoji: '🚴', label: 'Велосипед' },
-  walking:    { emoji: '🚶', label: 'Ходьба' },
-  swimming:   { emoji: '🏊', label: 'Плавание' },
-  hiit:       { emoji: '⚡', label: 'HIIT' },
-  elliptical: { emoji: '🔄', label: 'Эллипс' },
-  rowing:     { emoji: '🚣', label: 'Гребля' },
-  other:      { emoji: '🏅', label: 'Другое' },
+const TYPE_META: Record<CardioType, { abbr: string; label: string }> = {
+  running:    { abbr: 'Б', label: 'Бег' },
+  cycling:    { abbr: 'В', label: 'Велосипед' },
+  walking:    { abbr: 'Х', label: 'Ходьба' },
+  swimming:   { abbr: 'П', label: 'Плавание' },
+  hiit:       { abbr: 'HI', label: 'HIIT' },
+  elliptical: { abbr: 'Э', label: 'Эллипс' },
+  rowing:     { abbr: 'Г', label: 'Гребля' },
+  other:      { abbr: '...', label: 'Другое' },
 };
 
 function formatDuration(min: number) {
@@ -46,7 +46,7 @@ const SessionCard: React.FC<{ session: CardioSession; onDelete: () => void }> = 
   return (
     <View style={[styles.sessionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.sessionRow}>
-        <Text style={{ fontSize: 28 }}>{meta.emoji}</Text>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{meta.abbr}</Text></View>
         <View style={{ flex: 1, marginLeft: spacing.md }}>
           <Text style={[typography.bodySemibold, { color: colors.text }]}>{meta.label}</Text>
           <Text style={[typography.small, { color: colors.textSecondary }]}>
@@ -124,7 +124,7 @@ export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {/* Weekly stats */}
         <FadeIn delay={0}>
           <Card style={{ marginBottom: spacing.lg }}>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>📅 За 7 дней</Text>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>За 7 дней</Text>
             <View style={styles.statsRow}>
               {[
                 { label: 'Сессий', value: weekStats.count.toString(), color: colors.primary },
@@ -145,7 +145,7 @@ export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {grouped.length === 0 ? (
           <FadeIn delay={100}>
             <View style={styles.emptyState}>
-              <Text style={{ fontSize: 56 }}>🏃</Text>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>◑</Text></View>
               <Text style={[typography.h4, { color: colors.text, marginTop: spacing.lg }]}>Нет записей</Text>
               <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
                 Запиши первую кардио-сессию

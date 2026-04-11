@@ -52,12 +52,29 @@ const WorkoutsStack = createNativeStackNavigator();
 const NutritionStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 
+// Tab icon shapes
+const TAB_ICONS: Record<string, string> = {
+  HomeTab: '◉',
+  WorkoutsTab: '◎',
+  NutritionTab: '◑',
+  ProgressTab: '◧',
+  AITab: '◈',
+  NewsTab: '◫',
+  ProfileTab: '○',
+};
+
 // Tab icon component
-const TabIcon: React.FC<{ label: string; emoji: string; focused: boolean }> = ({ label, emoji, focused }) => {
+const TabIcon: React.FC<{ label: string; icon: string; focused: boolean }> = ({ label, icon, focused }) => {
   const { colors } = useThemeStore();
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4 }}>
-      <Text style={{ fontSize: 24 }}>{emoji}</Text>
+      <View style={{
+        width: 28, height: 28, borderRadius: 8,
+        backgroundColor: focused ? colors.tabBarActive + '15' : 'transparent',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: focused ? colors.tabBarActive : colors.tabBarInactive }}>{icon}</Text>
+      </View>
       <Text style={[typography.tabLabel, { fontSize: 10, color: focused ? colors.tabBarActive : colors.tabBarInactive, marginTop: 2, marginBottom: 2 }]}>
         {label}
       </Text>
@@ -140,49 +157,49 @@ function MainTabs() {
         name="HomeTab"
         component={HomeScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" label="Главная" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="◉" label="Главная" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="WorkoutsTab"
         component={WorkoutsStackNavigator}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💪" label="Тренировки" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="◎" label="Тренировки" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="NutritionTab"
         component={NutritionStackNavigator}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🍽" label="Питание" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="◑" label="Питание" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="ProgressTab"
         component={ProgressScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📊" label="Прогресс" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="◧" label="Прогресс" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="AITab"
         component={AIChatScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🤖" label="ИИ" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="◈" label="ИИ" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="NewsTab"
         component={NewsScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📰" label="Новости" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="◫" label="Новости" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" label="Профиль" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon="○" label="Профиль" focused={focused} />,
         }}
       />
     </Tab.Navigator>
@@ -255,7 +272,7 @@ export const AppNavigator: React.FC = () => {
       <View style={{ flex: 1 }}>
         {!isOnline && (
           <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>⚠️ Нет соединения — данные сохраняются локально</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>Нет соединения — данные сохраняются локально</Text>
           </View>
         )}
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>

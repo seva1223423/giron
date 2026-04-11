@@ -57,10 +57,10 @@ export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 })
       <Card style={{ marginBottom: spacing.lg }}>
         <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Статистика за всё время</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <StatBox emoji="🏋️" value={stats.totalTonnage >= 1000000 ? `${(stats.totalTonnage / 1000000).toFixed(1)}M` : stats.totalTonnage >= 1000 ? `${Math.round(stats.totalTonnage / 1000)}K` : `${stats.totalTonnage}`} label="кг поднято" bg={colors.primary + '15'} color={colors.primary} textSecondary={colors.textSecondary} />
-          <StatBox emoji="⏱" value={stats.totalMinutes >= 60 ? `${Math.round(stats.totalMinutes / 60)}` : `${stats.totalMinutes}`} label={stats.totalMinutes >= 60 ? 'часов в зале' : 'минут'} bg={colors.success + '15'} color={colors.success} textSecondary={colors.textSecondary} />
-          <StatBox emoji="🔥" value={`${stats.bestStreak}`} label="лучший стрик" bg={colors.accent + '15'} color={colors.accent} textSecondary={colors.textSecondary} />
-          <StatBox emoji="📅" value={`${stats.avgPerWeek}`} label="трен/неделю" bg={colors.primary + '10'} color={colors.primary} textSecondary={colors.textSecondary} />
+          <StatBox emoji="◎" value={stats.totalTonnage >= 1000000 ? `${(stats.totalTonnage / 1000000).toFixed(1)}M` : stats.totalTonnage >= 1000 ? `${Math.round(stats.totalTonnage / 1000)}K` : `${stats.totalTonnage}`} label="кг поднято" bg={colors.primary + '15'} color={colors.primary} textSecondary={colors.textSecondary} />
+          <StatBox emoji="◉" value={stats.totalMinutes >= 60 ? `${Math.round(stats.totalMinutes / 60)}` : `${stats.totalMinutes}`} label={stats.totalMinutes >= 60 ? 'часов в зале' : 'минут'} bg={colors.success + '15'} color={colors.success} textSecondary={colors.textSecondary} />
+          <StatBox emoji="◈" value={`${stats.bestStreak}`} label="лучший стрик" bg={colors.accent + '15'} color={colors.accent} textSecondary={colors.textSecondary} />
+          <StatBox emoji="◧" value={`${stats.avgPerWeek}`} label="трен/неделю" bg={colors.primary + '10'} color={colors.primary} textSecondary={colors.textSecondary} />
         </View>
         {stats.topExercise && (
           <View style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider }}>
@@ -78,7 +78,7 @@ export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 })
 
 const StatBox: React.FC<{ emoji: string; value: string; label: string; bg: string; color: string; textSecondary: string }> = ({ emoji, value, label, bg, color, textSecondary }) => (
   <View style={{ borderRadius: 12, padding: 12, alignItems: 'center', flex: 1, minWidth: '45%', backgroundColor: bg }}>
-    <Text style={{ fontSize: 22 }}>{emoji}</Text>
+    <Text style={{ fontSize: 16, fontWeight: '700', color }}>{emoji}</Text>
     <Text style={[typography.number, { color, marginTop: 4 }]}>{value}</Text>
     <Text style={[typography.caption, { color: textSecondary }]}>{label}</Text>
   </View>

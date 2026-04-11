@@ -71,7 +71,7 @@ export const StrengthStandardsCard: React.FC<Props> = ({ oneRM, userWeight, user
                 <View key={s.label}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      {s.met && <Text style={{ fontSize: 12 }}>✅</Text>}
+                      {s.met && <Text style={{ fontSize: 12, fontWeight: '700', color: s.color }}>✓</Text>}
                       <Text style={[typography.captionMedium, { color: s.met ? s.color : colors.textSecondary }]}>{s.label}</Text>
                     </View>
                     <Text style={[typography.captionMedium, { color: s.met ? s.color : colors.textSecondary }]}>{s.value} кг</Text>

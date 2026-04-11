@@ -24,9 +24,9 @@ const MUSCLE_FILTERS = [
 ];
 
 const EQUIPMENT_FILTERS = [
-  { key: 'all', label: '🏠 Всё' }, { key: 'barbell', label: '🏋️ Штанга' },
-  { key: 'dumbbell', label: '💪 Гантели' }, { key: 'bodyweight', label: '🤸 Своё тело' },
-  { key: 'cable', label: '🔗 Блок' }, { key: 'machine', label: '⚙️ Тренажёр' }, { key: 'cardio', label: '🏃 Кардио' },
+  { key: 'all', label: 'Всё' }, { key: 'barbell', label: 'Штанга' },
+  { key: 'dumbbell', label: 'Гантели' }, { key: 'bodyweight', label: 'Своё тело' },
+  { key: 'cable', label: 'Блок' }, { key: 'machine', label: 'Тренажёр' }, { key: 'cardio', label: 'Кардио' },
 ];
 
 interface Props {

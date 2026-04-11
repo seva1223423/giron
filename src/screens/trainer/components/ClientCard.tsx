@@ -39,7 +39,7 @@ export const ClientCard: React.FC<Props> = ({ client, onPress, onLongPress }) =>
       <Card style={[styles.card, isToday && { borderWidth: 1.5, borderColor: colors.success + '60' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
-            <Text style={{ fontSize: 22 }}>{client.emoji || '🧑'}</Text>
+            <Text style={{ fontSize: 22 }}>{client.emoji || '◉'}</Text>
           </View>
           <View style={{ flex: 1, marginLeft: spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -51,10 +51,10 @@ export const ClientCard: React.FC<Props> = ({ client, onPress, onLongPress }) =>
               )}
             </View>
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: 2, flexWrap: 'wrap' }}>
-              {client.goal && <Text style={[typography.caption, { color: colors.textSecondary }]}>🎯 {GOAL_LABELS[client.goal] ?? client.goal}</Text>}
-              {client.level && <Text style={[typography.caption, { color: colors.textSecondary }]}>📊 {LEVEL_LABELS[client.level] ?? client.level}</Text>}
+              {client.goal && <Text style={[typography.caption, { color: colors.textSecondary }]}>{GOAL_LABELS[client.goal] ?? client.goal}</Text>}
+              {client.level && <Text style={[typography.caption, { color: colors.textSecondary }]}>{LEVEL_LABELS[client.level] ?? client.level}</Text>}
             </View>
-            {client.assignedProgram && <Text style={[typography.caption, { color: colors.primary, marginTop: 2 }]}>📋 {client.assignedProgram}</Text>}
+            {client.assignedProgram && <Text style={[typography.caption, { color: colors.primary, marginTop: 2 }]}>{client.assignedProgram}</Text>}
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={[typography.numberSmall, { color: colors.primary, fontSize: 18 }]}>{client.totalWorkouts || 0}</Text>

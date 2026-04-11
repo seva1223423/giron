@@ -60,7 +60,7 @@ export const WeightCard: React.FC<Props> = ({ user, setUser }) => {
             onPress={openModal}
             style={{ backgroundColor: colors.primary + '15', paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1.5, borderColor: colors.primary }}
           >
-            <Text style={[typography.buttonSmall, { color: colors.primary }]}>⚖️ Записать</Text>
+            <Text style={[typography.buttonSmall, { color: colors.primary }]}>Записать</Text>
           </TouchableOpacity>
         </View>
       </Card>

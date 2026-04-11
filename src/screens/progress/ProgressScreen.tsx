@@ -58,8 +58,8 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     { key: 'calendar' as const, label: 'Календарь' },
     { key: 'records' as const, label: 'Рекорды' },
     { key: 'weight' as const, label: 'Вес тела' },
-    { key: 'achievements' as const, label: `🏅 ${unlockedCount}/${ACHIEVEMENT_DEFINITIONS.length}` },
-    { key: 'photos' as const, label: '📸 Фото' },
+    { key: 'achievements' as const, label: `${unlockedCount}/${ACHIEVEMENT_DEFINITIONS.length}` },
+    { key: 'photos' as const, label: 'Фото' },
   ];
 
   return (

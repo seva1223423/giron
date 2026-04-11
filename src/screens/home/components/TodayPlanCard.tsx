@@ -22,7 +22,7 @@ export const TodayPlanCard: React.FC<Props> = ({ todayPlan, onStart }) => {
         <View style={{ flex: 1 }}>
           <Text style={[typography.captionMedium, { color: colors.accent }]}>ПЛАН НА СЕГОДНЯ</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
-            <Text style={{ fontSize: 20 }}>{todayPlan.emoji}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.accent }}>{todayPlan.emoji}</Text>
             <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
           </View>
         </View>

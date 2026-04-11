@@ -93,7 +93,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
           >
-            <Text style={{ fontSize: 16 }}>🏋️</Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>◎</Text>
           </TouchableOpacity>
         )}
 

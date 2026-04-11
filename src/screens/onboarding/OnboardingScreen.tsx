@@ -37,7 +37,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
     trainingDays.forEach((dayIndex) => {
       const existing = weekPlan[dayIndex];
       if (!existing || !existing.exercises?.length) {
-        setWeekPlanDay(dayIndex, { name: 'Тренировка', emoji: '💪', exercises: [] });
+        setWeekPlanDay(dayIndex, { name: 'Тренировка', emoji: '◎', exercises: [] });
       }
     });
     const heightVal = parseInt(height) || 175;

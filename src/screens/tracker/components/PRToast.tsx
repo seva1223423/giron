@@ -34,7 +34,7 @@ export const PRToast: React.FC<Props> = ({ toast }) => {
       transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) }],
       opacity: anim,
     }}>
-      <Text style={{ fontSize: 20 }}>🏆</Text>
+      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>PR</Text></View>
       <View style={{ marginLeft: spacing.sm }}>
         <Text style={[typography.captionMedium, { color: '#fff', letterSpacing: 1 }]}>ЛИЧНЫЙ РЕКОРД!</Text>
         <Text style={[typography.small, { color: 'rgba(255,255,255,0.85)' }]}>

@@ -15,10 +15,10 @@ function getGreeting() {
 
 function getStreakDisplay(streak: number): { text: string; color: string } | null {
   if (streak <= 0) return null;
-  if (streak >= 30) return { text: `👑 ${streak} дней! Легенда!`, color: '#A855F7' };
-  if (streak >= 7) return { text: `🔥 ${streak} дней! Невероятно!`, color: '#F59E0B' };
+  if (streak >= 30) return { text: `${streak} дней подряд — Легенда`, color: '#A855F7' };
+  if (streak >= 7) return { text: `${streak} дней подряд`, color: '#8B5CF6' };
   const label = streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней';
-  return { text: `🔥 ${streak} ${label} подряд`, color: '#F59E0B' };
+  return { text: `${streak} ${label} подряд`, color: '#8B5CF6' };
 }
 
 export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {

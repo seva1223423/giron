@@ -11,22 +11,22 @@ import { exercises as localExercises } from '../../../data/exercises';
 const DAY_LABELS_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
 const WORKOUT_TEMPLATES: WeekPlanEntry[] = [
-  { name: 'Грудь + Трицепс', emoji: '💪', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown'] },
-  { name: 'Спина + Бицепс', emoji: '🔥', exercises: ['barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl'] },
-  { name: 'Ноги', emoji: '🦵', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'calf-raise'] },
-  { name: 'Плечи + Пресс', emoji: '🎯', exercises: ['overhead-press', 'lateral-raise', 'plank', 'cable-crunch'] },
-  { name: 'Фулбоди', emoji: '⚡', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
-  { name: 'Тяжёлая спина', emoji: '🏋️', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups'] },
-  { name: 'Руки', emoji: '💪', exercises: ['barbell-curl', 'hammer-curl', 'tricep-pushdown', 'french-press'] },
+  { name: 'Грудь + Трицепс', emoji: '◎', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown'] },
+  { name: 'Спина + Бицепс', emoji: '◉', exercises: ['barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl'] },
+  { name: 'Ноги', emoji: '◎', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'calf-raise'] },
+  { name: 'Плечи + Пресс', emoji: '◧', exercises: ['overhead-press', 'lateral-raise', 'plank', 'cable-crunch'] },
+  { name: 'Фулбоди', emoji: '◈', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
+  { name: 'Тяжёлая спина', emoji: '◎', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups'] },
+  { name: 'Руки', emoji: '◎', exercises: ['barbell-curl', 'hammer-curl', 'tricep-pushdown', 'french-press'] },
 ];
 
 const CARDIO_TEMPLATES: WeekPlanEntry[] = [
-  { name: 'Бег', emoji: '🏃', exercises: [], type: 'cardio' },
-  { name: 'Велосипед', emoji: '🚴', exercises: [], type: 'cardio' },
-  { name: 'HIIT', emoji: '⚡', exercises: [], type: 'cardio' },
-  { name: 'Ходьба', emoji: '🚶', exercises: [], type: 'cardio' },
-  { name: 'Плавание', emoji: '🏊', exercises: [], type: 'cardio' },
-  { name: 'Кардио день', emoji: '❤️', exercises: [], type: 'cardio' },
+  { name: 'Бег', emoji: '◑', exercises: [], type: 'cardio' },
+  { name: 'Велосипед', emoji: '◑', exercises: [], type: 'cardio' },
+  { name: 'HIIT', emoji: '◈', exercises: [], type: 'cardio' },
+  { name: 'Ходьба', emoji: '◑', exercises: [], type: 'cardio' },
+  { name: 'Плавание', emoji: '◑', exercises: [], type: 'cardio' },
+  { name: 'Кардио день', emoji: '◑', exercises: [], type: 'cardio' },
 ];
 
 // Keep for export compatibility
@@ -76,7 +76,7 @@ export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExerci
           </Text>
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
             <TouchableOpacity onPress={() => { haptic.selection(); onSelect(null); }} style={[styles.row, { borderBottomColor: colors.divider }]}>
-              <Text style={[typography.body, { color: colors.textSecondary }]}>😴 Отдых</Text>
+              <Text style={[typography.body, { color: colors.textSecondary }]}>Отдых</Text>
               {pickerDay !== null && !weekPlan[pickerDay] && <Text style={{ color: colors.primary }}>✓</Text>}
             </TouchableOpacity>
 
