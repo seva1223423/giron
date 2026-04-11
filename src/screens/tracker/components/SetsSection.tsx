@@ -201,6 +201,34 @@ export const SetsSection: React.FC<Props> = ({
         />
       ))}
 
+      {/* Quick set templates */}
+      {currentExercise.sets.length <= 1 && (
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+          {[
+            { label: '3\u00D710', sets: 3, reps: 10 },
+            { label: '4\u00D78', sets: 4, reps: 8 },
+            { label: '5\u00D75', sets: 5, reps: 5 },
+          ].map((template) => (
+            <TouchableOpacity
+              key={template.label}
+              onPress={() => {
+                haptic.selection();
+                const currentSets = currentExercise.sets.length;
+                for (let i = currentSets; i < template.sets; i++) {
+                  addSet(currentExerciseIndex);
+                }
+                currentExercise.sets.forEach((_, idx) => {
+                  updateSetData(currentExerciseIndex, idx, { reps: template.reps });
+                });
+              }}
+              style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.border }}
+            >
+              <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{template.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {/* Add set + warmup */}
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
         <Button
