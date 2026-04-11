@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Dimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -11,6 +11,7 @@ const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   dropset: { label: 'ДРОП', color: '#9C27B0' },
 };
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
+const SHOW_PLATE_CALC = Dimensions.get('window').width > 360;
 
 function rpeColor(rpe: number): string {
   if (rpe <= 7) return '#3BC46E';
@@ -86,7 +87,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
         </View>
 
         {/* Plate calc */}
-        {onOpenPlates && (
+        {SHOW_PLATE_CALC && onOpenPlates && (
           <TouchableOpacity
             onPress={() => { haptic.selection(); onOpenPlates(parseFloat(weight) || 0); }}
             style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}

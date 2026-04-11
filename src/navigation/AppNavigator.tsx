@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, AppState } from 'react-native';
+import { Text, View, AppState, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore, useAuthStore } from '../store';
 import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
@@ -56,8 +57,8 @@ const TabIcon: React.FC<{ label: string; emoji: string; focused: boolean }> = ({
   const { colors } = useThemeStore();
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4 }}>
-      <Text style={{ fontSize: 22 }}>{emoji}</Text>
-      <Text style={[typography.tabLabel, { color: focused ? colors.tabBarActive : colors.tabBarInactive, marginTop: 2 }]}>
+      <Text style={{ fontSize: 24 }}>{emoji}</Text>
+      <Text style={[typography.tabLabel, { fontSize: 10, color: focused ? colors.tabBarActive : colors.tabBarInactive, marginTop: 2, marginBottom: 2 }]}>
         {label}
       </Text>
     </View>
@@ -116,18 +117,20 @@ function ProfileStackNavigator() {
 // Main Tab Navigator
 function MainTabs() {
   const { colors } = useThemeStore();
+  const insets = useSafeAreaInsets();
 
   return (
     <ErrorBoundary>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.tabBarBorder,
           borderTopWidth: 1,
           height: 85,
-          paddingBottom: 25,
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 8,
         },
         tabBarShowLabel: false,
@@ -251,8 +254,8 @@ export const AppNavigator: React.FC = () => {
     <NavigationContainer linking={linking}>
       <View style={{ flex: 1 }}>
         {!isOnline && (
-          <View style={{ backgroundColor: '#F59E0B', paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>⚠️ Нет соединения — данные сохраняются локально</Text>
+          <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>⚠️ Нет соединения — данные сохраняются локально</Text>
           </View>
         )}
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
