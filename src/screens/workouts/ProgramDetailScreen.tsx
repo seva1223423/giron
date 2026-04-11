@@ -39,7 +39,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
       { text: 'Добавить', onPress: () => {
         haptic.success();
         daysToAssign.forEach((day, i) => setWeekPlanDay(slots[i], { name: `${program.name} — ${day.name}`, emoji: program.emoji, exercises: day.exercises.map((e) => e.exerciseId) }));
-        Alert.alert('✅ Добавлено!', `${program.name} добавлена в план недели на ${dayNames}.`);
+        Alert.alert('Добавлено', `${program.name} добавлена в план недели на ${dayNames}.`);
       }},
     ]);
   };
@@ -64,7 +64,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             <Text style={[typography.h3, { color: colors.primary }]}>{'‹'} </Text>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.xs }}>{program.emoji}</Text>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{program.emoji}</Text></View>
             <Text style={[typography.h2, { color: colors.text }]}>{program.name}</Text>
           </View>
         </View>
@@ -112,7 +112,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
       <FadeIn delay={240}>
         <TouchableOpacity onPress={addProgramToWeeklyPlan} style={[styles.weekPlanBtn, { backgroundColor: goalColor + '15', borderColor: goalColor + '50' }]}>
-          <Text style={{ fontSize: 18 }}>📅</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>+</Text>
           <View style={{ flex: 1 }}>
             <Text style={[typography.bodySemibold, { color: goalColor }]}>Добавить в план недели</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Расставить тренировки по дням автоматически</Text>

@@ -14,7 +14,7 @@ const FAVORITES_KEY = 'iron_gym_exercise_favorites';
 
 const MUSCLE_FILTERS = [
   { key: 'all', label: 'Все' },
-  { key: 'favorites', label: '❤️ Избранное' },
+  { key: 'favorites', label: 'Избранное' },
   { key: 'chest', label: 'Грудь' },
   { key: 'back', label: 'Спина' },
   { key: 'shoulders', label: 'Плечи' },
@@ -31,13 +31,13 @@ const MUSCLE_FILTERS = [
 
 const EQUIPMENT_FILTERS = [
   { key: 'all', label: 'Любое' },
-  { key: 'barbell', label: '🏋️ Штанга' },
-  { key: 'dumbbell', label: '💪 Гантели' },
-  { key: 'cable', label: '🔗 Блок' },
-  { key: 'machine', label: '⚙️ Тренажёр' },
-  { key: 'bodyweight', label: '🤸 Вес тела' },
-  { key: 'cardio', label: '🏃 Кардио' },
-  { key: 'stretching', label: '🧘 Растяжка' },
+  { key: 'barbell', label: 'Штанга' },
+  { key: 'dumbbell', label: 'Гантели' },
+  { key: 'cable', label: 'Блок' },
+  { key: 'machine', label: 'Тренажёр' },
+  { key: 'bodyweight', label: 'Вес тела' },
+  { key: 'cardio', label: 'Кардио' },
+  { key: 'stretching', label: 'Растяжка' },
 ];
 
 interface Props {
@@ -123,7 +123,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             style={{ paddingLeft: spacing.md }}
           >
             <Text style={{ fontSize: 18, color: isFav ? '#FF3B55' : colors.textTertiary }}>
-              {isFav ? '❤️' : '🤍'}
+              {isFav ? '●' : '○'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -180,9 +180,9 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
     if (muscleFilter === 'favorites') {
       return (
         <View style={styles.emptyState}>
-          <Text style={{ fontSize: 40, marginBottom: spacing.md }}>{'❤️'}</Text>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>●</Text></View>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-            Нажмите {'❤️'} на упражнении, чтобы добавить в избранное
+            Нажмите {'●'} на упражнении, чтобы добавить в избранное
           </Text>
         </View>
       );

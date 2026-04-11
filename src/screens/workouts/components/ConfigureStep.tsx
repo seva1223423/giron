@@ -220,7 +220,7 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
                 style={[styles.supersetBtn, { backgroundColor: isSupersetStart ? colors.accent + '20' : colors.surface, borderColor: isSupersetStart ? colors.accent : colors.border }]}
               >
                 <Text style={[typography.captionMedium, { color: isSupersetStart ? colors.accent : colors.textTertiary }]}>
-                  {isSupersetStart ? '⚡ Суперсет активен' : '+ Суперсет'}
+                  {isSupersetStart ? 'SS Суперсет активен' : '+ Суперсет'}
                 </Text>
               </TouchableOpacity>
             )}

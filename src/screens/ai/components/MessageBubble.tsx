@@ -28,7 +28,7 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
       ]}>
         {!isUser && (
           <View style={styles.coachHeader}>
-            <Text style={{ fontSize: 16, marginRight: 6 }}>🤖</Text>
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 6 }}><Text style={{ fontSize: 9, fontWeight: '800', color: '#fff' }}>IC</Text></View>
             <Text style={[typography.captionMedium, { color: colors.primary, fontWeight: '700' }]}>Iron Coach</Text>
           </View>
         )}
@@ -48,7 +48,7 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.speakButton}
             >
-              <Text style={{ fontSize: 14 }}>{isSpeaking ? '🔇' : '🔊'}</Text>
+              <Text style={{ fontSize: 14 }}>{isSpeaking ? 'OFF' : 'ON'}</Text>
             </TouchableOpacity>
           )}
         </View>

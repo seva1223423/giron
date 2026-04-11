@@ -30,7 +30,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
       return (
         <View style={styles.container}>
-          <Text style={styles.emoji}>😵</Text>
+          <Text style={styles.emoji}>!</Text>
           <Text style={styles.title}>Что-то пошло не так</Text>
           <Text style={styles.message}>{this.state.error?.message || 'Неизвестная ошибка'}</Text>
           <TouchableOpacity
@@ -51,6 +51,6 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 64, marginBottom: 16 },
   title: { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 8 },
   message: { fontSize: 14, color: '#999', textAlign: 'center', marginBottom: 24 },
-  button: { backgroundColor: '#FF6B35', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
+  button: { backgroundColor: '#8B5CF6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
   buttonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
 });

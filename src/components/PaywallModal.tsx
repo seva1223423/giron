@@ -24,25 +24,25 @@ interface PaywallModalProps {
 
 const REASON_CONFIGS = {
   ai_limit: {
-    emoji: '🤖',
+    icon: 'IC',
     title: 'Лимит Iron Coach исчерпан',
     subtitle: `${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений в день для бесплатного плана`,
     ctaTitle: 'Безлимитный AI за 299₽/мес',
   },
   food_scan_limit: {
-    emoji: '📸',
+    icon: 'SC',
     title: 'Лимит сканов исчерпан',
     subtitle: `${FREE_LIMITS.FOOD_SCANS_PER_DAY} сканов в день для бесплатного плана`,
     ctaTitle: 'Безлимитные сканы за 299₽/мес',
   },
   feature: {
-    emoji: '👑',
+    icon: 'PR',
     title: 'Функция Pro',
     subtitle: 'Это функция Iron Gym Pro',
     ctaTitle: 'Открыть Pro за 299₽/мес',
   },
   programs_limit: {
-    emoji: '📋',
+    icon: 'PG',
     title: '3 программы бесплатно',
     subtitle: 'Подключи Pro и открой все 22 готовые программы тренировок',
     ctaTitle: 'Все программы за 299₽/мес',
@@ -50,11 +50,11 @@ const REASON_CONFIGS = {
 };
 
 const PRO_PERKS = [
-  { icon: '🤖', text: 'Iron Coach без ограничений' },
-  { icon: '📸', text: 'Безлимитный сканер КБЖУ' },
-  { icon: '📊', text: 'Расширенная аналитика' },
-  { icon: '📋', text: '20+ готовых программ' },
-  { icon: '🏆', text: 'Клубный лидерборд' },
+  { icon: '◈', text: 'Iron Coach без ограничений' },
+  { icon: '◎', text: 'Безлимитный сканер КБЖУ' },
+  { icon: '◧', text: 'Расширенная аналитика' },
+  { icon: '◫', text: '20+ готовых программ' },
+  { icon: '◉', text: 'Клубный лидерборд' },
 ];
 
 export const PaywallModal: React.FC<PaywallModalProps> = ({
@@ -95,7 +95,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={[styles.iconCircle, { backgroundColor: colors.accent + '18' }]}>
-              <Text style={{ fontSize: 36 }}>{config.emoji}</Text>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.accent }}>{config.icon}</Text>
             </View>
             <Text style={[typography.h3, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>
               {featureName ?? config.title}
@@ -115,7 +115,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                   i < PRO_PERKS.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
                 ]}
               >
-                <Text style={{ fontSize: 18 }}>{perk.icon}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{perk.icon}</Text>
                 <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{perk.text}</Text>
                 <Text style={{ color: colors.success, fontSize: 16 }}>✓</Text>
               </View>

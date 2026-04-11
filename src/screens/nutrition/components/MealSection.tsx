@@ -8,10 +8,10 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import type { NutritionItem } from '../../../types';
 
 const MEAL_TYPES = [
-  { key: 'breakfast', label: 'Завтрак', emoji: '🌅' },
-  { key: 'lunch', label: 'Обед', emoji: '☀️' },
-  { key: 'dinner', label: 'Ужин', emoji: '🌙' },
-  { key: 'snack', label: 'Перекус', emoji: '🍎' },
+  { key: 'breakfast', label: 'Завтрак', emoji: 'З' },
+  { key: 'lunch', label: 'Обед', emoji: 'О' },
+  { key: 'dinner', label: 'Ужин', emoji: 'У' },
+  { key: 'snack', label: 'Перекус', emoji: 'П' },
 ] as const;
 
 type MealTypeKey = typeof MEAL_TYPES[number]['key'];
@@ -57,7 +57,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
   return (
     <Card style={{ marginBottom: spacing.md }}>
       <View style={styles.header}>
-        <Text style={[typography.h4, { color: colors.text }]}>{meta.emoji} {meta.label}</Text>
+        <Text style={[typography.h4, { color: colors.text }]}>{meta.label}</Text>
         <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>{typeCalories} ккал</Text>
       </View>
 
@@ -105,7 +105,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
           <Text style={[typography.smallMedium, { color: colors.primary }]}>+ Добавить</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onPhotoScan}>
-          <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>📸 Фото</Text>
+          <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Фото</Text>
         </TouchableOpacity>
       </View>
     </Card>

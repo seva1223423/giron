@@ -81,7 +81,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
         {(['search', 'custom'] as const).map((t) => (
           <TouchableOpacity key={t} onPress={() => { haptic.selection(); setTab(t); }} style={[styles.tab, tab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}>
             <Text style={[typography.smallMedium, { color: tab === t ? colors.primary : colors.textSecondary }]}>
-              {t === 'search' ? '🔍 База продуктов' : '✏️ Вручную'}
+              {t === 'search' ? 'База продуктов' : 'Вручную'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -107,11 +107,11 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
               onPress={() => {
                 haptic.success();
                 saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: parseInt(custom.calories) || 0, protein: parseFloat(custom.protein) || 0, fats: parseFloat(custom.fats) || 0, carbs: parseFloat(custom.carbs) || 0, weightGrams: 100 });
-                Alert.alert('Сохранено ⭐', `${custom.name.trim()} добавлен в быстрые продукты`);
+                Alert.alert('Сохранено', `${custom.name.trim()} добавлен в быстрые продукты`);
               }}
               style={[styles.saveBtnLg, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
             >
-              <Text style={[typography.smallMedium, { color: colors.warning }]}>⭐</Text>
+              <Text style={[typography.smallMedium, { color: colors.primary, fontWeight: '700' }]}>+</Text>
             </TouchableOpacity>
           )}
           <Button title="Добавить" onPress={handleAdd} fullWidth size="lg" style={{ flex: 1 }} />

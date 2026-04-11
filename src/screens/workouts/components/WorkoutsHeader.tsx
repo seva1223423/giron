@@ -20,26 +20,26 @@ export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
       <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
       <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('Cardio'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 18 }}>🏃</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◑</Text>
           <Text style={[typography.small, { color: colors.primary }]}>Кардио</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('WeeklyPlan'); }}>
-          <Text style={[typography.small, { color: colors.textSecondary }]}>📅 План</Text>
+          <Text style={[typography.small, { color: colors.textSecondary }]}>План</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('PersonalRecords'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 18 }}>🏆</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◉</Text>
           <Text style={[typography.small, { color: colors.primary }]}>ПР</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('WorkoutCalendar'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 18 }}>🗓</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◧</Text>
           <Text style={[typography.small, { color: colors.primary }]}>Календарь</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('OneRMCalculator'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 18 }}>📊</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◫</Text>
           <Text style={[typography.small, { color: colors.primary }]}>1ПМ</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('PlateCalculator'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 18 }}>🏋️</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◎</Text>
           <Text style={[typography.small, { color: colors.primary }]}>Блины</Text>
         </TouchableOpacity>
       </View>

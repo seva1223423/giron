@@ -11,10 +11,10 @@ import { UserProgramsList } from './UserProgramsList';
 
 const GOAL_FILTERS = [
   { key: 'all', label: 'Все' },
-  { key: 'strength', label: '💪 Сила' },
-  { key: 'muscle', label: '📈 Масса' },
-  { key: 'fat_loss', label: '🔥 Похудение' },
-  { key: 'endurance', label: '🏃 Выносливость' },
+  { key: 'strength', label: 'Сила' },
+  { key: 'muscle', label: 'Масса' },
+  { key: 'fat_loss', label: 'Похудение' },
+  { key: 'endurance', label: 'Выносливость' },
 ] as const;
 
 const LEVEL_FILTERS = [
@@ -100,7 +100,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
           onPress={() => setShowPaywall(true)}
           style={[styles.proBanner, { backgroundColor: colors.accent + '12', borderColor: colors.accent + '40' }]}
         >
-          <Text style={{ fontSize: 18 }}>👑</Text>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: colors.accent }}>PRO</Text>
           <Text style={[typography.small, { color: colors.accent, flex: 1 }]}>
             3 из {builtInPrograms.length} программ бесплатно — <Text style={{ fontWeight: '700' }}>получи все с Pro</Text>
           </Text>
@@ -127,7 +127,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 32, marginRight: spacing.md }}>{isLocked ? '🔒' : program.emoji}</Text>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isLocked ? colors.border + '40' : colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: isLocked ? colors.textTertiary : colors.primary }}>{isLocked ? '◈' : program.emoji}</Text></View>
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodySemibold, { color: isLocked ? colors.textSecondary : colors.text }]}>{program.name}</Text>
                   <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>

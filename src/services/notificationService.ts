@@ -50,11 +50,11 @@ export async function scheduleDailyWorkoutReminder(hour: number, minute: number)
   await cancelWorkoutReminders();
 
   const messages = [
-    { title: '💪 Время тренироваться!', body: 'Открой Iron Gym и сделай тренировку — ты уже почти там.' },
-    { title: '🏋️ Сегодня день тренировки', body: 'Маленький шаг каждый день = большой результат через год.' },
-    { title: '🔥 Iron Coach ждёт', body: 'Не пропускай — дисциплина строит тело, мотивация только запускает.' },
-    { title: '⚡ Пора в зал', body: 'Твоё будущее тело скажет спасибо. Открой приложение!' },
-    { title: '🎯 День тренировки', body: 'Тренировки сегодня нет в планах? Iron Coach поможет составить.' },
+    { title: 'Время тренироваться!', body: 'Открой Iron Gym и сделай тренировку — ты уже почти там.' },
+    { title: 'Сегодня день тренировки', body: 'Маленький шаг каждый день = большой результат через год.' },
+    { title: 'Iron Coach ждёт', body: 'Не пропускай — дисциплина строит тело, мотивация только запускает.' },
+    { title: 'Пора в зал', body: 'Твоё будущее тело скажет спасибо. Открой приложение!' },
+    { title: 'День тренировки', body: 'Тренировки сегодня нет в планах? Iron Coach поможет составить.' },
   ];
 
   // Rotate through messages by day of week
@@ -94,7 +94,7 @@ export async function scheduleRestEndNotification(seconds: number): Promise<stri
     return await Notifications.scheduleNotificationAsync({
       identifier: NOTIFICATION_IDS.REST_TIMER,
       content: {
-        title: '💪 Отдых закончился!',
+        title: 'Отдых закончился!',
         body: 'Время следующего подхода.',
         sound: 'default',
         ...(Platform.OS === 'android' && { channelId: 'reminders' }),
@@ -125,7 +125,7 @@ export async function scheduleStreakRiskNotification(): Promise<void> {
     await Notifications.scheduleNotificationAsync({
       identifier: NOTIFICATION_IDS.STREAK_RISK,
       content: {
-        title: '⚡ Серия под угрозой!',
+        title: 'Серия под угрозой!',
         body: 'Ты не тренировался 2 дня. Не дай серии прерваться — открой Iron Gym!',
         sound: 'default',
         ...(Platform.OS === 'android' && { channelId: 'reminders' }),
@@ -156,10 +156,10 @@ export async function scheduleWaterReminders(
     await cancelWaterReminders();
 
     const messages = [
-      { title: '💧 Время выпить воды', body: 'Не забудь про водный баланс — это важно для восстановления.' },
+      { title: 'Время выпить воды', body: 'Не забудь про водный баланс — это важно для восстановления.' },
       { title: '💦 Выпей стакан воды', body: 'Правильная гидратация ускоряет рост мышц и сжигание жира.' },
       { title: '🫗 Пора освежиться', body: 'Тело на 70% состоит из воды. Поддерживай баланс!' },
-      { title: '💧 Вода — ключ к силе', body: 'Даже 2% обезвоживания снижают силовые показатели на 10%.' },
+      { title: 'Вода — ключ к силе', body: 'Даже 2% обезвоживания снижают силовые показатели на 10%.' },
     ];
 
     let msgIdx = 0;
@@ -206,16 +206,16 @@ export async function scheduleNutritionSummaryReminder(
       title = '✅ Отличный день по питанию!';
       body = 'Ты попал в цель по калориям и белку. Так держать!';
     } else if (proteinPercent < 0.7) {
-      title = '⚠️ Не добрал белок сегодня';
+      title = 'Не добрал белок сегодня';
       body = `Белка ${Math.round(proteinPercent * 100)}% от нормы. Съешь творог, яйца или выпей протеин.`;
     } else if (caloriesPercent > 1.15) {
-      title = '📊 Вышел за калории сегодня';
+      title = 'Вышел за калории сегодня';
       body = 'Немного превысил норму. Это не страшно — просто учти завтра.';
     } else if (caloriesPercent < 0.7) {
       title = '📉 Мало поел сегодня';
       body = 'Слишком большой дефицит замедляет восстановление. Не забудь поужинать!';
     } else {
-      title = '📋 Итог питания за день';
+      title = 'Итог питания за день';
       body = `Калории: ${Math.round(caloriesPercent * 100)}% · Белок: ${Math.round(proteinPercent * 100)}% от нормы.`;
     }
 
@@ -251,13 +251,13 @@ export async function scheduleWeeklySummaryNotification(
     let body: string;
 
     if (workoutsThisWeek <= 2) {
-      title = '📊 Итоги недели';
+      title = 'Итоги недели';
       body = `Ты потренировался ${workoutsThisWeek} ${workoutsThisWeek === 1 ? 'раз' : 'раза'} — хорошее начало! Объём: ${totalVolumeKg} кг. На следующей неделе попробуй добавить ещё одну тренировку.`;
     } else if (workoutsThisWeek <= 4) {
-      title = '💪 Отличная неделя!';
+      title = 'Отличная неделя!';
       body = `${workoutsThisWeek} тренировок, объём ${totalVolumeKg} кг${bestWorkoutName ? `, лучшая: ${bestWorkoutName}` : ''}. Ты в топ-форме — продолжай!`;
     } else {
-      title = '🔥 Легенда!';
+      title = 'Легенда!';
       body = `${workoutsThisWeek} тренировок за неделю! Объём ${totalVolumeKg} кг. Феноменальная работа!`;
     }
 
@@ -318,7 +318,7 @@ export async function showTodayPlanNotification(
       await Notifications.scheduleNotificationAsync({
         identifier: 'today-plan',
         content: {
-          title: `🏠 Сегодня: день отдыха${streak > 0 ? ` | 🔥 ${streak} дней подряд` : ''}`,
+          title: `Сегодня: день отдыха${streak > 0 ? ` | ${streak} дней подряд` : ''}`,
           body: 'Мышцы растут во время отдыха. Отдохни и вернись завтра сильнее!',
           sound: undefined,
           sticky: true,
@@ -331,7 +331,7 @@ export async function showTodayPlanNotification(
       await Notifications.scheduleNotificationAsync({
         identifier: 'today-plan',
         content: {
-          title: `💪 Сегодня: ${planName}${streak > 0 ? ` | 🔥 ${streak}` : ''}`,
+          title: `Сегодня: ${planName}${streak > 0 ? ` | ${streak} дн.` : ''}`,
           body: exerciseCount > 0 ? `${exerciseCount} упражнений. Открой Iron Gym чтобы начать!` : 'Тренировка запланирована. Готов?',
           sound: undefined,
           sticky: true,
@@ -366,13 +366,13 @@ export async function scheduleInactivityReminder(daysSinceLastWorkout: number): 
     let body: string;
 
     if (daysSinceLastWorkout >= 7) {
-      title = '😴 Неделя без тренировок';
+      title = 'Неделя без тренировок';
       body = 'Мышцы начинают терять силу после 7 дней отдыха. Вернись в зал — даже короткая тренировка считается!';
     } else if (daysSinceLastWorkout >= 4) {
-      title = '⚠️ Ты не тренировался 4+ дня';
+      title = 'Ты не тренировался 4+ дня';
       body = 'Серия прервалась. Начни заново сегодня — одна тренировка сбросит счётчик.';
     } else {
-      title = '💪 Пора в зал!';
+      title = 'Пора в зал!';
       body = `Ты не тренировался ${daysSinceLastWorkout} дня. Открой Iron Gym и запусти тренировку.`;
     }
 

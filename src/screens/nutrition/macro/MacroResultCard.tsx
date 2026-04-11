@@ -48,7 +48,7 @@ export const MacroResultCard: React.FC<Props> = ({ result, delay = 250 }) => {
 
         <View style={{ backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.md }}>
           <Text style={[typography.small, { color: colors.textSecondary, lineHeight: 18 }]}>
-            💡 Белок {result.protein} г = {result.proteinPerKg} г на кг веса. Это оптимальный уровень для максимального синтеза мышечного белка при твоей цели.
+            Белок {result.protein} г = {result.proteinPerKg} г на кг веса. Это оптимальный уровень для максимального синтеза мышечного белка при твоей цели.
           </Text>
         </View>
       </Card>

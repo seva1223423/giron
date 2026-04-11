@@ -16,7 +16,7 @@ export const PRsCard: React.FC<Props> = ({ prs }) => {
   return (
     <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.accent + '15', borderLeftWidth: 4, borderLeftColor: colors.accent }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-        <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🎉</Text>
+        <Text style={{ fontSize: 14, fontWeight: '800', color: colors.accent, marginRight: spacing.sm }}>PR</Text>
         <Text style={[typography.h4, { color: colors.accent }]}>
           {prs.length === 1 ? 'Новый личный рекорд!' : `${prs.length} новых рекорда!`}
         </Text>

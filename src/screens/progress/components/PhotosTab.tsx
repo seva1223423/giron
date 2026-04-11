@@ -125,7 +125,7 @@ export const PhotosTab: React.FC<PhotosTabProps> = ({ colors }) => {
       {!loadingPhotos && progressPhotos.length === 0 && (
         <FadeIn delay={120}>
           <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
-            <Text style={{ fontSize: 56 }}>📸</Text>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>◧</Text></View>
             <Text style={[typography.h4, { color: colors.text, marginTop: spacing.lg }]}>Начни фото-дневник</Text>
             <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, paddingHorizontal: spacing.xl }]}>
               Регулярные фото — лучший способ видеть реальный прогресс, который цифры не всегда показывают

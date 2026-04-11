@@ -116,20 +116,20 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
         await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Поделиться тренировкой' });
       } else {
         const lines = [
-          `🏋️ ${workout.name}`,
-          `⏱ ${workout.durationMinutes || 0} мин  •  📦 ${((workout.totalVolume || 0) / 1000).toFixed(1)} т`,
+          `${workout.name}`,
+          `${workout.durationMinutes || 0} мин  •  📦 ${((workout.totalVolume || 0) / 1000).toFixed(1)} т`,
           `${workout.exercises.length} упражнений  •  ${totalSets} подходов  •  ${totalReps} повторений`,
         ];
         if (newPRs.length > 0) {
-          lines.push('', `🏆 Личные рекорды (${newPRs.length}):`);
+          lines.push('', `Личные рекорды (${newPRs.length}):`);
           newPRs.forEach((pr) => lines.push(`  • ${pr.name}: ${pr.weight}кг × ${pr.reps} = ~${pr.est1rm}кг 1ПМ`));
         }
-        lines.push('', 'Тренировки с Iron Gym 💪');
+        lines.push('', 'Тренировки с Iron Gym');
         await Share.share({ message: lines.join('\n') });
       }
     } catch {
       await Share.share({
-        message: `🏋️ ${workout.name}\n⏱ ${workout.durationMinutes || 0} мин  •  ${totalSets} подходов\nТренировки с Iron Gym 💪`,
+        message: `${workout.name}\n${workout.durationMinutes || 0} мин  •  ${totalSets} подходов\nТренировки с Iron Gym`,
       });
     }
   };
@@ -147,7 +147,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
         <FadeIn delay={0} from="top">
           <View style={styles.trophySection}>
-            <Text style={{ fontSize: 64 }}>🏆</Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: colors.accent }}>PR</Text>
             <Text style={[typography.h1, { color: colors.text, marginTop: spacing.lg }]}>Отличная работа!</Text>
             <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm }]}>Тренировка завершена</Text>
           </View>
@@ -167,7 +167,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
         <FadeIn delay={650}>
           <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.huge }}>
-            <Button title="📤 Поделиться" variant="outline" onPress={handleShare} style={{ flex: 1 }} />
+            <Button title="Поделиться" variant="outline" onPress={handleShare} style={{ flex: 1 }} />
             <Button title="Готово" onPress={() => navigation.popToTop()} style={{ flex: 1 }} size="lg" />
           </View>
         </FadeIn>

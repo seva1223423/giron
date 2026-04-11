@@ -8,9 +8,9 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { SettingRow } from './SettingRow';
 
 const THEME_OPTIONS = [
-  { value: 'light' as const, label: '☀️ Светлая' },
-  { value: 'dark' as const, label: '🌙 Тёмная' },
-  { value: 'auto' as const, label: '🌓 Авто' },
+  { value: 'light' as const, label: 'Светлая' },
+  { value: 'dark' as const, label: 'Тёмная' },
+  { value: 'auto' as const, label: 'Авто' },
 ];
 
 export const AppearanceSection: React.FC = () => {

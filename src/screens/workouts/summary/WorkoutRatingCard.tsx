@@ -12,7 +12,7 @@ const RATING_LABELS: Record<number, string> = {
   2: 'Средне, бывало лучше',
   3: 'Нормально',
   4: 'Хорошая тренировка',
-  5: 'Огонь! Всё по максимуму 🔥',
+  5: 'Огонь! Все по максимуму',
 };
 
 interface Props { workout: Workout }
@@ -40,7 +40,7 @@ export const WorkoutRatingCard: React.FC<Props> = ({ workout }) => {
             }}
             style={{ padding: spacing.xs }}
           >
-            <Text style={{ fontSize: 32, opacity: star <= rating ? 1 : 0.25 }}>⭐</Text>
+            <Text style={{ fontSize: 28, opacity: star <= rating ? 1 : 0.25, color: star <= rating ? colors.accent : colors.border }}>★</Text>
           </TouchableOpacity>
         ))}
       </View>

@@ -26,7 +26,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 3,
     durationWeeks: 12,
     split: 'Фулбоди A/B',
-    emoji: '🏋️',
+    emoji: '◎',
     days: [
       {
         name: 'День A — Фулбоди',
@@ -55,7 +55,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 6,
     durationWeeks: 12,
     split: 'Толчок / Тяга / Ноги',
-    emoji: '💪',
+    emoji: '◎',
     days: [
       {
         name: 'Толчок — Грудь, плечи, трицепс',
@@ -103,7 +103,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 12,
     split: 'Верх / Низ',
-    emoji: '⚡',
+    emoji: '◈',
     days: [
       {
         name: 'Верх A — Сила',
@@ -158,7 +158,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 16,
     split: '4-дневный сплит',
-    emoji: '🔥',
+    emoji: '◉',
     days: [
       {
         name: 'День 1 — Присед',
@@ -211,7 +211,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 3,
     durationWeeks: 8,
     split: 'Фулбоди + кардио',
-    emoji: '🔥',
+    emoji: '◉',
     days: [
       {
         name: 'А — Фулбоди (толчок)',
@@ -257,7 +257,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 5,
     durationWeeks: 12,
     split: 'Грудь / Спина / Ноги / Плечи / Руки',
-    emoji: '🎯',
+    emoji: '◧',
     days: [
       {
         name: 'Пн — Грудь',
@@ -329,7 +329,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 3,
     durationWeeks: 12,
     split: 'Фулбоди A/B',
-    emoji: '🔩',
+    emoji: '◫',
     days: [
       {
         name: 'Тренировка A',
@@ -358,7 +358,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 10,
     split: 'Верх / Низ × 2',
-    emoji: '🏅',
+    emoji: '◑',
     days: [
       {
         name: 'Пн — Низ (приседания)',
@@ -409,7 +409,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 12,
     split: 'Верх сила / Низ сила / Верх объём / Низ объём',
-    emoji: '⚡',
+    emoji: '◈',
     days: [
       {
         name: 'Пн — Верх (сила)',
@@ -465,7 +465,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 3,
     durationWeeks: 8,
     split: 'Фулбоди 3×',
-    emoji: '🌸',
+    emoji: '○',
     days: [
       {
         name: 'День 1 — Ноги, ягодицы + кардио',
@@ -514,7 +514,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 10,
     split: 'Верх-Низ-Верх-Низ',
-    emoji: '🇷🇺',
+    emoji: '◉',
     days: [
       {
         name: 'Пн — Приседания + Жим',
@@ -564,7 +564,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 16,
     split: 'Жим / Тяга / Жим стоя / Присед',
-    emoji: '🐻',
+    emoji: '◈',
     days: [
       {
         name: 'День 1 — Жим лёжа',
@@ -617,7 +617,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 10,
     split: 'Верх A / Низ A / Верх B / Низ B',
-    emoji: '📈',
+    emoji: '◧',
     days: [
       {
         name: 'День 1 — Верх A (толчок)',
@@ -676,7 +676,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 5,
     durationWeeks: 8,
     split: 'Грудь / Спина / Ноги / Плечи / Руки + кардио',
-    emoji: '🔥',
+    emoji: '◉',
     days: [
       {
         name: 'Пн — Грудь + кардио',
@@ -745,7 +745,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 8,
     split: 'Функциональный фулбоди',
-    emoji: '🏃',
+    emoji: '◑',
     days: [
       {
         name: 'День 1 — Тяжёлый фулбоди',
@@ -800,7 +800,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 8,
     split: 'Верх / Низ × 2',
-    emoji: '🏠',
+    emoji: '◫',
     days: [
       {
         name: 'День 1 — Верх тела',
@@ -859,7 +859,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 3,
     durationWeeks: 8,
     split: 'Фулбоди A/B',
-    emoji: '🇷🇺',
+    emoji: '◉',
     days: [
       {
         name: 'День A — Присед + Жим',
@@ -890,7 +890,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 6,
     split: 'Верх / Низ',
-    emoji: '🔥',
+    emoji: '◉',
     days: [
       {
         name: 'День 1 — Верх тела',
@@ -949,7 +949,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 8,
     split: 'Сопряжённый метод',
-    emoji: '⚡',
+    emoji: '◈',
     days: [
       {
         name: 'День 1 — Максимальная сила (жим)',
@@ -1004,7 +1004,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 3,
     durationWeeks: 8,
     split: 'Ноги / Верх / Фулбоди',
-    emoji: '✨',
+    emoji: '◈',
     days: [
       {
         name: 'День 1 — Ноги и ягодицы',
@@ -1052,7 +1052,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 5,
     durationWeeks: 6,
     split: 'Функциональный сплит',
-    emoji: '🏃',
+    emoji: '◑',
     days: [
       {
         name: 'День 1 — Нижняя выносливость',
@@ -1117,7 +1117,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 6,
     durationWeeks: 12,
     split: 'Push / Pull / Legs × 2',
-    emoji: '💪',
+    emoji: '◎',
     days: [
       {
         name: 'Push A',
@@ -1202,7 +1202,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 12,
     split: 'Верх / Низ × 2',
-    emoji: '⚡',
+    emoji: '◈',
     days: [
       {
         name: 'Верх A (Сила)',
@@ -1262,7 +1262,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 3,
     durationWeeks: 12,
     split: 'Фулбоди A/B',
-    emoji: '🏋️',
+    emoji: '◎',
     days: [
       {
         name: 'День A',
@@ -1293,7 +1293,7 @@ export const builtInPrograms: BuiltInProgram[] = [
     daysPerWeek: 4,
     durationWeeks: 8,
     split: 'Верх + Ноги + Тяга + Фулбоди',
-    emoji: '🔥',
+    emoji: '◉',
     days: [
       {
         name: 'Верх + HIIT',

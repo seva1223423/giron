@@ -50,16 +50,16 @@ export const RecoveryScoreCard: React.FC = () => {
     const level = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
     const label = score >= 80 ? 'Готов к тренировке' : score >= 50 ? 'Умеренное восстановление' : 'Нужен отдых';
     const color = score >= 80 ? colors.success : score >= 50 ? '#F59E0B' : colors.error;
-    const emoji = score >= 80 ? '💪' : score >= 50 ? '⚡' : '😴';
+    const icon = score >= 80 ? '▲' : score >= 50 ? '●' : '▼';
 
-    return { score, level, label, color, emoji, reasons };
+    return { score, level, label, color, icon, reasons };
   }, [workoutHistory, getAverageDuration]);
 
   return (
     <FadeIn delay={180}>
       <Card style={{ marginBottom: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <Text style={{ fontSize: 32 }}>{recovery.emoji}</Text>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: recovery.color + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 20, fontWeight: '700', color: recovery.color }}>{recovery.icon}</Text></View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
               <Text style={[typography.h3, { color: recovery.color }]}>{recovery.score}</Text>

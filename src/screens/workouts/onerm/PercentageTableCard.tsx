@@ -36,7 +36,7 @@ export const PercentageTableCard: React.FC<Props> = ({ avg, delay = 160 }) => {
           })}
         </View>
         <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.md }]}>
-          💡 90–100% — максимальная работа; 75–89% — силовая гипертрофия; ≤74% — объёмная работа
+          90–100% — максимальная работа; 75–89% — силовая гипертрофия; ≤74% — объёмная работа
         </Text>
       </Card>
     </FadeIn>

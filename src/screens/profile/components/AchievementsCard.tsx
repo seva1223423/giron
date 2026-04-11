@@ -79,7 +79,7 @@ export const AchievementsCard: React.FC<Props> = ({ achievements, delay = 180 })
 
         {unlocked.length === 0 && inProgress.length === 0 && (
           <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', paddingVertical: spacing.md }]}>
-            Заверши первую тренировку — разблокируй первое достижение 🎯
+            Заверши первую тренировку — разблокируй первое достижение
           </Text>
         )}
       </Card>

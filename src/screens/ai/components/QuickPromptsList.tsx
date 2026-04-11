@@ -43,7 +43,7 @@ export const QuickPromptsList: React.FC<Props> = ({ dynamicPrompts, allPrompts, 
                 i < dynamicPrompts.length && { borderColor: colors.primary + '40', backgroundColor: colors.primary + '08' },
               ]}
             >
-              <Text style={{ fontSize: 16, marginRight: spacing.xs }}>{prompt.emoji}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, marginRight: spacing.xs }}>{prompt.emoji}</Text>
               <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{prompt.text}</Text>
             </TouchableOpacity>
           </React.Fragment>

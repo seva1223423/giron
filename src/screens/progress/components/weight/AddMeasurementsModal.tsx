@@ -10,13 +10,13 @@ import type { BodyMeasurement } from '../../../../types';
 export const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
 
 export const MEASUREMENT_FIELDS: { key: keyof BodyMeasurement; label: string; emoji: string }[] = [
-  { key: 'chest', label: 'Грудь', emoji: '💪' },
-  { key: 'waist', label: 'Талия', emoji: '📏' },
-  { key: 'hips', label: 'Бёдра', emoji: '🦵' },
-  { key: 'bicep', label: 'Бицепс', emoji: '💪' },
-  { key: 'thigh', label: 'Бедро', emoji: '🦵' },
-  { key: 'calf', label: 'Икра', emoji: '🦿' },
-  { key: 'neck', label: 'Шея', emoji: '📐' },
+  { key: 'chest', label: 'Грудь', emoji: '◉' },
+  { key: 'waist', label: 'Талия', emoji: '◑' },
+  { key: 'hips', label: 'Бёдра', emoji: '◎' },
+  { key: 'bicep', label: 'Бицепс', emoji: '◉' },
+  { key: 'thigh', label: 'Бедро', emoji: '◎' },
+  { key: 'calf', label: 'Икра', emoji: '◧' },
+  { key: 'neck', label: 'Шея', emoji: '◫' },
 ];
 
 interface Props {

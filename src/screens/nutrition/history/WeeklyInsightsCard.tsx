@@ -62,7 +62,7 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ insights, delay = 80 }) =>
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.surface }}>
-          <Text style={{ fontSize: 16 }}>💡</Text>
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>i</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.captionMedium, { color: (colors as any)[insights.protColor], marginBottom: 2 }]}>{insights.protVerdict}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>{insights.tip}</Text>

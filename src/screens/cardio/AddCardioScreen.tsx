@@ -10,15 +10,15 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { CardioType } from '../../types';
 
-const CARDIO_TYPES: { type: CardioType; emoji: string; label: string; hasDistance: boolean }[] = [
-  { type: 'running',    emoji: '🏃', label: 'Бег',        hasDistance: true  },
-  { type: 'cycling',   emoji: '🚴', label: 'Велосипед',  hasDistance: true  },
-  { type: 'walking',   emoji: '🚶', label: 'Ходьба',     hasDistance: true  },
-  { type: 'swimming',  emoji: '🏊', label: 'Плавание',   hasDistance: true  },
-  { type: 'hiit',      emoji: '⚡', label: 'HIIT',       hasDistance: false },
-  { type: 'elliptical',emoji: '🔄', label: 'Эллипс',    hasDistance: false },
-  { type: 'rowing',    emoji: '🚣', label: 'Гребля',     hasDistance: true  },
-  { type: 'other',     emoji: '🏅', label: 'Другое',     hasDistance: false },
+const CARDIO_TYPES: { type: CardioType; abbr: string; label: string; hasDistance: boolean }[] = [
+  { type: 'running',    abbr: 'Б', label: 'Бег',        hasDistance: true  },
+  { type: 'cycling',   abbr: 'В', label: 'Велосипед',  hasDistance: true  },
+  { type: 'walking',   abbr: 'Х', label: 'Ходьба',     hasDistance: true  },
+  { type: 'swimming',  abbr: 'П', label: 'Плавание',   hasDistance: true  },
+  { type: 'hiit',      abbr: 'HI', label: 'HIIT',       hasDistance: false },
+  { type: 'elliptical',abbr: 'Э', label: 'Эллипс',    hasDistance: false },
+  { type: 'rowing',    abbr: 'Г', label: 'Гребля',     hasDistance: true  },
+  { type: 'other',     abbr: '...', label: 'Другое',     hasDistance: false },
 ];
 
 // MET values for calorie estimation
@@ -100,7 +100,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
               { borderColor: selectedType === t.type ? colors.primary : colors.border, backgroundColor: selectedType === t.type ? colors.primary + '15' : colors.surface },
             ]}
           >
-            <Text style={{ fontSize: 24 }}>{t.emoji}</Text>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: selectedType === t.type ? colors.primary + '20' : colors.surface, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: selectedType === t.type ? colors.primary : colors.textSecondary }}>{t.abbr}</Text></View>
             <Text style={[typography.caption, { color: selectedType === t.type ? colors.primary : colors.text, marginTop: 4 }]}>
               {t.label}
             </Text>
@@ -155,7 +155,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
           onPress={estimateCalories}
           style={[styles.estimateBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
         >
-          <Text style={[typography.caption, { color: colors.primary }]}>⚡ Рассчитать</Text>
+          <Text style={[typography.caption, { color: colors.primary }]}>Рассчитать</Text>
         </TouchableOpacity>
       </View>
 

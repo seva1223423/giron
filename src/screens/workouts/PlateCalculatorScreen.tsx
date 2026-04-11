@@ -31,7 +31,7 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
             onPress={() => { haptic.selection(); setActiveTab(tab); }}
           >
             <Text style={[typography.bodySemibold, { color: activeTab === tab ? colors.primary : colors.textSecondary }]}>
-              {tab === 'plates' ? '🏋️ Блины' : '📊 1ПМ'}
+              {tab === 'plates' ? 'Блины' : '1ПМ'}
             </Text>
           </TouchableOpacity>
         ))}

@@ -40,7 +40,7 @@ export const NutritionDayCard: React.FC<Props> = ({ date, log, isExpanded, onPre
             <View style={{ flex: 1 }}>
               <Text style={[typography.bodySemibold, { color: colors.text }]}>{formatDate(date)}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                {log.meals.length} приёмов пищи{log.waterMl > 0 ? ` • 💧 ${log.waterMl} мл` : ''}
+                {log.meals.length} приёмов пищи{log.waterMl > 0 ? ` • ${log.waterMl} мл воды` : ''}
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>

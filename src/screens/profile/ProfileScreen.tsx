@@ -117,7 +117,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       <Card style={{ marginBottom: spacing.lg }}>
         <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('Settings'); }} style={styles.settingRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 20 }}>⚙️</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textSecondary }}>SET</Text>
             <Text style={[typography.body, { color: colors.text }]}>Настройки</Text>
           </View>
           <Text style={[typography.body, { color: colors.textSecondary }]}>›</Text>
@@ -137,7 +137,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       {/* Trainer mode */}
       <Card style={{ marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.primary + '40' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-          <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🏋️</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>T</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.h4, { color: colors.text }]}>Режим тренера</Text>
             <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>Управляй клиентами, назначай программы и отслеживай прогресс</Text>

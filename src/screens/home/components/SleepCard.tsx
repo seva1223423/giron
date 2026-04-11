@@ -106,7 +106,7 @@ export const SleepCard: React.FC = () => {
               marginLeft: spacing.md,
             }}
           >
-            <Text style={[typography.buttonSmall, { color: colors.primary }]}>🌙 Записать</Text>
+            <Text style={[typography.buttonSmall, { color: colors.primary }]}>Записать</Text>
           </TouchableOpacity>
         </View>
       </Card>

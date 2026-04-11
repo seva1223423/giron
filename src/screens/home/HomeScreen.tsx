@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
-import { ScrollView, Text, TouchableOpacity } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
@@ -16,11 +16,11 @@ import {
 } from './components';
 
 const SPLITS = [
-  { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '💪' },
-  { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '🏋️' },
-  { name: 'Ноги', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], emoji: '🦵' },
-  { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], emoji: '🎯' },
-  { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '⚡' },
+  { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '◎' },
+  { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '◎' },
+  { name: 'Ноги', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], emoji: '◎' },
+  { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], emoji: '◎' },
+  { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '◎' },
 ];
 
 import { todayDateStr, localDateStr } from '../../utils/date';
@@ -132,7 +132,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const daysLabel = next.daysSince >= 999 ? 'Ещё не делал'
         : next.daysSince === 0 ? 'Уже сегодня'
         : `${next.daysSince} ${next.daysSince === 1 ? 'день' : next.daysSince < 5 ? 'дня' : 'дней'} назад`;
-      return { name: next.name, emoji: '🏋️', daysLabel, programWorkout: next.programWorkout };
+      return { name: next.name, emoji: '◎', daysLabel, programWorkout: next.programWorkout };
     }
     const splitLastDays = SPLITS.map((split) => {
       let lastDay = 999;
@@ -226,7 +226,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {!activeWorkout && todayPlan?.type === 'cardio' && (
         <FadeIn delay={140}>
           <Card style={{ marginBottom: spacing.lg }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.sm }}>{todayPlan.emoji}</Text>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginBottom: spacing.sm }}>{todayPlan.emoji}</Text>
             <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
             <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>Запланировано на сегодня</Text>
             <Button title="Открыть кардио" onPress={() => navigation.navigate('WorkoutsTab', { screen: 'Cardio' })} fullWidth />
@@ -269,13 +269,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {weekCompletionSuggestion && !activeWorkout && (
         <FadeIn delay={195}>
           <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}>
-            <Text style={{ fontSize: 28, marginBottom: spacing.sm }}>🎉</Text>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '800', color: colors.success }}>✓</Text></View>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.xs }]}>Неделя завершена!</Text>
             <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
               Все тренировки программы «{weekCompletionSuggestion}» выполнены на этой неделе.
             </Text>
             <Text style={[typography.bodyMedium, { color: colors.success }]}>
-              💡 На следующей неделе добавь +2.5 кг на основных упражнениях для прогрессии.
+              На следующей неделе добавь +2.5 кг на основных упражнениях для прогрессии.
             </Text>
           </Card>
         </FadeIn>
@@ -283,7 +283,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       <FadeIn delay={200}>
         <WeeklyStatsCard workoutHistory={workoutHistory} weekPlan={weekPlan} streak={streak} navigation={navigation} />
-        <Tooltip tipId="home-weekly" text="📊 Здесь твоя недельная статистика. Тренируйся регулярно!" />
+        <Tooltip tipId="home-weekly" text="Здесь твоя недельная статистика. Тренируйся регулярно!" />
       </FadeIn>
 
       {workoutHistory.length > 0 && (

@@ -82,7 +82,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
         <Card style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
             <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={{ fontSize: 32 }}>{client.emoji || '🧑'}</Text>
+              <Text style={{ fontSize: 32 }}>{client.emoji || '◉'}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: spacing.md }}>
               <Text style={[typography.h4, { color: colors.text }]}>{client.name}</Text>
@@ -96,16 +96,16 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
             </TouchableOpacity>
           </View>
           <View style={styles.tagsRow}>
-            {goal && <View style={[styles.tag, { backgroundColor: colors.primary + '15' }]}><Text style={[typography.caption, { color: colors.primary }]}>🎯 {goal}</Text></View>}
-            {level && <View style={[styles.tag, { backgroundColor: colors.accent + '15' }]}><Text style={[typography.caption, { color: colors.accent }]}>📊 {level}</Text></View>}
-            {client.totalWorkouts !== undefined && <View style={[styles.tag, { backgroundColor: colors.success + '15' }]}><Text style={[typography.caption, { color: colors.success }]}>💪 {client.totalWorkouts} тренировок</Text></View>}
+            {goal && <View style={[styles.tag, { backgroundColor: colors.primary + '15' }]}><Text style={[typography.caption, { color: colors.primary }]}>{goal}</Text></View>}
+            {level && <View style={[styles.tag, { backgroundColor: colors.accent + '15' }]}><Text style={[typography.caption, { color: colors.accent }]}>{level}</Text></View>}
+            {client.totalWorkouts !== undefined && <View style={[styles.tag, { backgroundColor: colors.success + '15' }]}><Text style={[typography.caption, { color: colors.success }]}>{client.totalWorkouts} тренировок</Text></View>}
           </View>
         </Card>
 
         {/* Mark training done */}
         <TouchableOpacity onPress={handleMarkTrainingDone} disabled={trainedToday} activeOpacity={0.8} style={{ marginBottom: spacing.lg }}>
           <View style={[styles.markDoneBtn, { backgroundColor: trainedToday ? colors.success + '20' : colors.success, borderColor: colors.success }]}>
-            <Text style={{ fontSize: 22 }}>{trainedToday ? '✅' : '🏋️'}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: trainedToday ? colors.success : '#fff' }}>{trainedToday ? '✓' : '◎'}</Text>
             <View style={{ flex: 1, marginLeft: spacing.md }}>
               <Text style={[typography.bodySemibold, { color: trainedToday ? colors.success : '#fff' }]}>
                 {trainedToday ? 'Тренировка отмечена сегодня' : 'Отметить тренировку'}
@@ -126,7 +126,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
             </TouchableOpacity>
           </View>
           {client.assignedProgram
-            ? <Text style={[typography.bodySemibold, { color: colors.text }]}>📋 {client.assignedProgram}</Text>
+            ? <Text style={[typography.bodySemibold, { color: colors.text }]}>{client.assignedProgram}</Text>
             : <Text style={[typography.body, { color: colors.textTertiary }]}>Программа не назначена</Text>}
         </Card>
 

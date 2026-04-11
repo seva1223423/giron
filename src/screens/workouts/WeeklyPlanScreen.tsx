@@ -30,7 +30,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
 
   const userTemplateEntries: WeekPlanEntry[] = savedTemplates.map((tpl) => ({
     name: tpl.name,
-    emoji: '📋',
+    emoji: '◫',
     exercises: tpl.exercises.map((e) => e.exerciseId),
   }));
 

@@ -7,14 +7,14 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { TrainerClient } from '../../../store';
 
-const EMOJI_OPTIONS = ['🧑', '💪', '🏃', '🏋️', '🧘', '🚴', '🤸', '🏊', '⚽', '🎯', '🦾', '🔥'];
+const EMOJI_OPTIONS = ['◉', '◎', '◈', '◧', '◫', '◑', '○', '●', '◇', '◆', '□', '■'];
 
 const GOAL_OPTIONS = [
-  { value: 'weight_loss', label: 'Похудение', icon: '🔥' },
-  { value: 'muscle_gain', label: 'Набор массы', icon: '💪' },
-  { value: 'strength', label: 'Сила', icon: '🏋️' },
-  { value: 'endurance', label: 'Выносливость', icon: '🏃' },
-  { value: 'general_fitness', label: 'Общая форма', icon: '⚡' },
+  { value: 'weight_loss', label: 'Похудение', icon: '◎' },
+  { value: 'muscle_gain', label: 'Набор массы', icon: '◉' },
+  { value: 'strength', label: 'Сила', icon: '◈' },
+  { value: 'endurance', label: 'Выносливость', icon: '◧' },
+  { value: 'general_fitness', label: 'Общая форма', icon: '◑' },
 ];
 
 const LEVEL_OPTIONS = [
@@ -40,7 +40,7 @@ export const EditClientModal: React.FC<Props> = ({ visible, client, onClose, onS
   const [editAge, setEditAge] = useState('');
   const [editGoal, setEditGoal] = useState('');
   const [editLevel, setEditLevel] = useState('');
-  const [editEmoji, setEditEmoji] = useState('🧑');
+  const [editEmoji, setEditEmoji] = useState('◉');
 
   useEffect(() => {
     if (visible) {
@@ -49,7 +49,7 @@ export const EditClientModal: React.FC<Props> = ({ visible, client, onClose, onS
       setEditAge(client.age ? String(client.age) : '');
       setEditGoal(client.goal || '');
       setEditLevel(client.level || '');
-      setEditEmoji(client.emoji || '🧑');
+      setEditEmoji(client.emoji || '◉');
     }
   }, [visible, client]);
 

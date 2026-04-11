@@ -150,7 +150,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                   <Text style={[typography.captionMedium, { color: bodyFatEstimate.color }]}>{bodyFatEstimate.category}</Text>
                 </View>
               </View>
-              <Text style={{ fontSize: 32 }}>🔬</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>◧</Text>
             </View>
             <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.md }]}>
               Рассчитано по методу ВМФ США на основе замеров шеи, талии{user?.gender === 'female' ? ', бёдер' : ''} и роста из профиля

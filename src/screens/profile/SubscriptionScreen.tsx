@@ -87,7 +87,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
         <FadeIn delay={0}>
           <View style={styles.hero}>
             <View style={[styles.crownBadge, { backgroundColor: isActivePro ? colors.accent + '30' : colors.accent + '20' }]}>
-              <Text style={{ fontSize: 40 }}>{isActivePro ? '✨' : '👑'}</Text>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: isActivePro ? colors.accent : colors.primary }}>{isActivePro ? 'PRO' : 'PRO'}</Text>
             </View>
             {isActivePro ? (
               <>
@@ -112,7 +112,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
           {isActivePro ? (
             <>
               <View style={[styles.activeProBadge, { backgroundColor: colors.success + '18', borderColor: colors.success + '40' }]}>
-                <Text style={{ fontSize: 18 }}>✅</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.success }}>✓</Text>
                 <Text style={[typography.bodySemibold, { color: colors.success }]}>Pro активен</Text>
               </View>
               <TouchableOpacity onPress={handleCancelPremium} style={{ alignItems: 'center', marginTop: spacing.lg }}>
@@ -134,7 +134,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
         {/* Social proof */}
         <FadeIn delay={300}>
           <View style={styles.socialProof}>
-            <Text style={[typography.number, { color: colors.text }]}>⭐ 4.9</Text>
+            <Text style={[typography.number, { color: colors.text }]}>4.9</Text>
             <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>Средняя оценка от пользователей Iron Gym</Text>
           </View>
         </FadeIn>

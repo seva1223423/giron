@@ -15,7 +15,7 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
   <>
     <FadeIn delay={0}>
       <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-        <Text style={{ fontSize: 48 }}>🏅</Text>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>◉</Text>
         <Text style={[typography.h3, { color: colors.text, marginTop: spacing.md }]}>
           Достижения
         </Text>
@@ -38,11 +38,11 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
     {(['workout', 'strength', 'streak', 'exploration', 'nutrition'] as const).map((cat) => {
       const catAchievements = achievements.filter((a) => a.category === cat);
       const catLabels: Record<string, string> = {
-        workout: '💪 Тренировки',
-        strength: '🏋️ Сила',
-        streak: '🔥 Серии',
-        exploration: '🌟 Разнообразие',
-        nutrition: '🥗 Питание',
+        workout: 'Тренировки',
+        strength: 'Сила',
+        streak: 'Серии',
+        exploration: 'Разнообразие',
+        nutrition: 'Питание',
       };
       return (
         <FadeIn key={cat} delay={80}>
@@ -110,7 +110,7 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
                     </>
                   )}
                 </View>
-                {a.unlocked && <Text style={{ fontSize: 20 }}>✅</Text>}
+                {a.unlocked && <Text style={{ fontSize: 14, fontWeight: '700', color: colors.success }}>✓</Text>}
               </View>
             </Card>
           ))}

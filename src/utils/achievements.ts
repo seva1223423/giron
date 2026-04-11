@@ -127,7 +127,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   // ── Workout count ──
   {
     id: 'first_workout',
-    emoji: '🎯',
+    emoji: '◎',
     title: 'Первый шаг',
     description: 'Завершить первую тренировку',
     category: 'workout',
@@ -138,7 +138,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'workouts_5',
-    emoji: '🖐️',
+    emoji: '◉',
     title: 'Разогрев',
     description: '5 завершённых тренировок',
     category: 'workout',
@@ -149,7 +149,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'workouts_25',
-    emoji: '💪',
+    emoji: '◈',
     title: 'Завсегдатай',
     description: '25 завершённых тренировок',
     category: 'workout',
@@ -160,7 +160,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'workouts_100',
-    emoji: '💯',
+    emoji: '◧',
     title: 'Сотня',
     description: '100 завершённых тренировок',
     category: 'workout',
@@ -171,7 +171,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'workouts_month',
-    emoji: '🏅',
+    emoji: '◫',
     title: 'Железный месяц',
     description: '20+ тренировок за один календарный месяц',
     category: 'workout',
@@ -184,7 +184,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   // ── Streak ──
   {
     id: 'streak_7',
-    emoji: '🔥',
+    emoji: '●',
     title: 'Неделя огня',
     description: '7 дней серии подряд',
     category: 'streak',
@@ -196,7 +196,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'streak_30',
-    emoji: '🗓️',
+    emoji: '■',
     title: 'Железная воля',
     description: '30 дней серии подряд',
     category: 'streak',
@@ -210,7 +210,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   // ── Strength ──
   {
     id: 'bench_100',
-    emoji: '🏋️',
+    emoji: '◎',
     title: 'Жим сотки',
     description: 'Жим лёжа — 100 кг в подходе',
     category: 'strength',
@@ -221,7 +221,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'squat_100',
-    emoji: '🦵',
+    emoji: '◎',
     title: 'Присед сотки',
     description: 'Присед — 100 кг в подходе',
     category: 'strength',
@@ -232,7 +232,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'deadlift_150',
-    emoji: '⚡',
+    emoji: '◈',
     title: 'Полуторка в тяге',
     description: 'Становая тяга — 150 кг в подходе',
     category: 'strength',
@@ -243,7 +243,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'deadlift_200',
-    emoji: '🔱',
+    emoji: '◆',
     title: 'Двойник в тяге',
     description: 'Становая тяга — 200 кг в подходе',
     category: 'strength',
@@ -254,7 +254,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'big3_500',
-    emoji: '🏆',
+    emoji: '◉',
     title: 'Сумма 500',
     description: 'Сумма 1ПМ в приседе + жиме + тяге ≥ 500 кг',
     category: 'strength',
@@ -268,7 +268,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'volume_100k',
-    emoji: '⚖️',
+    emoji: '◧',
     title: '100 тонн',
     description: 'Поднять суммарно 100 000 кг за всё время',
     category: 'strength',
@@ -285,7 +285,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   // ── Exploration ──
   {
     id: 'exercises_10',
-    emoji: '🌟',
+    emoji: '◫',
     title: 'Разнообразие',
     description: 'Выполнить 10 разных упражнений',
     category: 'exploration',
@@ -296,7 +296,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'exercises_30',
-    emoji: '🎪',
+    emoji: '◑',
     title: 'Исследователь',
     description: 'Выполнить 30 разных упражнений',
     category: 'exploration',
@@ -307,7 +307,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'morning_10',
-    emoji: '☀️',
+    emoji: '○',
     title: 'Ранняя пташка',
     description: '10 тренировок начаты до 9:00',
     category: 'exploration',
@@ -318,7 +318,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'evening_5',
-    emoji: '🌙',
+    emoji: '●',
     title: 'Ночная смена',
     description: '5 тренировок начаты после 21:00',
     category: 'exploration',
@@ -331,7 +331,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   // ── Nutrition ──
   {
     id: 'nutrition_7',
-    emoji: '🥗',
+    emoji: '◑',
     title: 'Неделя питания',
     description: 'Отслеживать питание 7 дней подряд',
     category: 'nutrition',
@@ -343,7 +343,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
   {
     id: 'nutrition_30',
-    emoji: '📊',
+    emoji: '◧',
     title: 'Мастер КБЖУ',
     description: 'Отслеживать питание 30 и более дней',
     category: 'nutrition',

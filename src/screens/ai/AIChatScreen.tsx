@@ -13,18 +13,18 @@ import {
 } from './components';
 
 const FALLBACK_PROMPTS = [
-  { emoji: '💪', text: 'Составь программу тренировок под мои цели' },
-  { emoji: '🍽', text: 'Рассчитай мне КБЖУ и составь рацион' },
-  { emoji: '🏋️', text: 'Как правильно делать становую тягу?' },
-  { emoji: '🏠', text: 'Программа тренировок дома без оборудования' },
-  { emoji: '📋', text: 'Составь рацион на день для похудения' },
-  { emoji: '⚡', text: 'Я застрял на плато — как пробить?' },
-  { emoji: '🔬', text: 'Какие добавки реально работают по науке?' },
-  { emoji: '🌙', text: 'Как оптимизировать сон и восстановление?' },
-  { emoji: '🎯', text: 'Как одновременно худеть и набирать мышцы?' },
-  { emoji: '🧠', text: 'Как не бросить тренировки и держать мотивацию?' },
-  { emoji: '🏃', text: 'Как совмещать кардио и силовые?' },
-  { emoji: '🤕', text: 'Болит плечо при жиме — что делать?' },
+  { emoji: '◎', text: 'Составь программу тренировок под мои цели' },
+  { emoji: '◑', text: 'Рассчитай мне КБЖУ и составь рацион' },
+  { emoji: '◎', text: 'Как правильно делать становую тягу?' },
+  { emoji: '◉', text: 'Программа тренировок дома без оборудования' },
+  { emoji: '◑', text: 'Составь рацион на день для похудения' },
+  { emoji: '◈', text: 'Я застрял на плато — как пробить?' },
+  { emoji: '◧', text: 'Какие добавки реально работают по науке?' },
+  { emoji: '◫', text: 'Как оптимизировать сон и восстановление?' },
+  { emoji: '◎', text: 'Как одновременно худеть и набирать мышцы?' },
+  { emoji: '◈', text: 'Как не бросить тренировки и держать мотивацию?' },
+  { emoji: '◉', text: 'Как совмещать кардио и силовые?' },
+  { emoji: '◫', text: 'Болит плечо при жиме — что делать?' },
 ];
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -40,7 +40,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const [messages, setMessages] = useState<ChatMessage[]>([{
     id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(),
-    content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n🏋️ Программы тренировок (зал, дом, любой уровень)\n🍽 Питание и КБЖУ — расчёт и составление рациона\n📐 Техника — детальный разбор любого упражнения\n🔬 Наука — физиология мышц, гормоны, биомеханика\n🏃 Кардио — HIIT, LISS, совмещение с силовыми\n🌙 Восстановление — сон, стресс, профилактика травм\n💊 Добавки — что работает, а что маркетинг\n🧠 Мотивация — привычки, цели, преодоление плато\n\nВыбери вопрос ниже или спроси своё!`,
+    content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\nВыбери вопрос ниже или спроси своё!`,
   }]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -195,7 +195,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (types.includes('set_weekly_plan')) {
           const planAction = actions.find((act) => act.type === 'set_weekly_plan');
           const schedule = planAction?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[] }> | undefined;
-          if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '🏋️', exercises: day.exerciseIds }));
+          if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '◎', exercises: day.exerciseIds }));
         }
       }
     } catch (e) {

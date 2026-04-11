@@ -78,7 +78,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <FadeIn delay={0} from="top">
         <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
-          <Text style={{ fontSize: 48 }}>🧮</Text>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>CALC</Text>
           <Text style={[typography.h2, { color: colors.text, marginTop: spacing.md }]}>Калькулятор КБЖУ</Text>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs }]}>
             Рассчитай точные нормы питания по формуле Миффлина-Сан Жеора
@@ -96,7 +96,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
                 onPress={() => { haptic.selection(); setGender(g); }}
                 style={[styles.segmentBtn, { borderColor: gender === g ? colors.primary : colors.border, backgroundColor: gender === g ? colors.primary + '15' : 'transparent', flex: 1 }]}
               >
-                <Text style={{ fontSize: 24 }}>{g === 'male' ? '♂️' : '♀️'}</Text>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: gender === g ? colors.primary : colors.textSecondary }}>{g === 'male' ? 'М' : 'Ж'}</Text>
                 <Text style={[typography.bodyMedium, { color: gender === g ? colors.primary : colors.text, marginTop: 4 }]}>
                   {g === 'male' ? 'Мужской' : 'Женский'}
                 </Text>

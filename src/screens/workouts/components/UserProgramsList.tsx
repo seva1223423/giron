@@ -36,7 +36,7 @@ export const UserProgramsList: React.FC<Props> = ({ programs, onStartWorkout }) 
           <Card style={{ marginBottom: spacing.md }}>
             <TouchableOpacity onPress={() => { haptic.light(); setExpandedId(expandedId === program.id ? null : program.id); }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 28, marginRight: spacing.md }}>{program.createdBy === 'ai' ? '🤖' : '📋'}</Text>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>{program.createdBy === 'ai' ? 'AI' : 'MY'}</Text></View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                     <Text style={[typography.bodySemibold, { color: colors.text }]}>{program.name}</Text>

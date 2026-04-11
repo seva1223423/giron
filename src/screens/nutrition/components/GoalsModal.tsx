@@ -83,7 +83,7 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
             onPress={handleSmartCalc}
             style={[styles.smartBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
           >
-            <Text style={[typography.smallMedium, { color: colors.primary }]}>⚡ Авторассчитать по профилю</Text>
+            <Text style={[typography.smallMedium, { color: colors.primary }]}>Авторассчитать по профилю</Text>
           </TouchableOpacity>
           {[
             { label: 'Калории (ккал)', value: goalCalories, setter: setGoalCalories },

@@ -57,7 +57,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
         </View>
 
         <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={{ color: colors.textTertiary, marginRight: spacing.sm }}>🔍</Text>
+          <Text style={{ color: colors.textTertiary, marginRight: spacing.sm, fontWeight: '600' }}>Q</Text>
           <TextInput value={searchQuery} onChangeText={setSearchQuery} placeholder="Найти клиента..." placeholderTextColor={colors.textTertiary} style={[typography.body, { color: colors.text, flex: 1 }]} />
         </View>
 

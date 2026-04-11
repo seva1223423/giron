@@ -21,7 +21,7 @@ export const SavedFoodsQuickAdd: React.FC<Props> = ({ onQuickAdd }) => {
   return (
     <Card style={{ marginBottom: spacing.lg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-        <Text style={[typography.h4, { color: colors.text }]}>⭐ Быстрые продукты</Text>
+        <Text style={[typography.h4, { color: colors.text }]}>Быстрые продукты</Text>
         <Text style={[typography.caption, { color: colors.textTertiary }]}>{savedFoods.length}/30</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.xs }}>

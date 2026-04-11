@@ -7,12 +7,12 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 const GOALS = [
-  { value: 'MUSCLE_GAIN', label: 'Набор мышц', emoji: '💪' },
-  { value: 'WEIGHT_LOSS', label: 'Похудение', emoji: '🔥' },
-  { value: 'STRENGTH', label: 'Сила', emoji: '🏋️' },
-  { value: 'ENDURANCE', label: 'Выносливость', emoji: '🏃' },
-  { value: 'FLEXIBILITY', label: 'Гибкость', emoji: '🧘' },
-  { value: 'GENERAL_FITNESS', label: 'Общая форма', emoji: '⚡' },
+  { value: 'MUSCLE_GAIN', label: 'Набор мышц', emoji: '◉' },
+  { value: 'WEIGHT_LOSS', label: 'Похудение', emoji: '◎' },
+  { value: 'STRENGTH', label: 'Сила', emoji: '◈' },
+  { value: 'ENDURANCE', label: 'Выносливость', emoji: '◧' },
+  { value: 'FLEXIBILITY', label: 'Гибкость', emoji: '◫' },
+  { value: 'GENERAL_FITNESS', label: 'Общая форма', emoji: '◑' },
 ];
 
 interface Props {
@@ -35,7 +35,7 @@ export const GoalSelectorCard: React.FC<Props> = ({ selected, onSelect }) => {
               onPress={() => { haptic.selection(); onSelect(g.value); }}
               style={[styles.card, { backgroundColor: isSelected ? colors.primary + '15' : colors.surface, borderColor: isSelected ? colors.primary : colors.border }]}
             >
-              <Text style={{ fontSize: 24, marginBottom: spacing.xs }}>{g.emoji}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: isSelected ? colors.primary : colors.textSecondary, marginBottom: spacing.xs }}>{g.emoji}</Text>
               <Text style={[typography.captionMedium, { color: isSelected ? colors.primary : colors.text, textAlign: 'center' }]}>{g.label}</Text>
             </TouchableOpacity>
           );

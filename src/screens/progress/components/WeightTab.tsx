@@ -132,15 +132,15 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
         let trendColor: string;
 
         if (Math.abs(weeklyRate) < 0.05) {
-          icon = '⚖️';
+          icon = '=';
           message = 'Вес стабилен последние несколько недель';
           trendColor = colors.textSecondary;
         } else if (weeklyRate < 0) {
-          icon = '📉';
+          icon = '▼';
           message = `Темп: \u2212${formatNum(Math.abs(weeklyRate))} кг/нед → \u2212${formatNum(Math.abs(weeklyRate) * 4)} кг/мес`;
           trendColor = colors.success;
         } else {
-          icon = '📈';
+          icon = '▲';
           message = `Темп: +${formatNum(weeklyRate)} кг/нед → +${formatNum(weeklyRate * 4)} кг/мес`;
           trendColor = colors.error;
         }

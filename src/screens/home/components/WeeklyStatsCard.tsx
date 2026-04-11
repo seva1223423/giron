@@ -93,7 +93,7 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
                 {hadWorkout ? (
                   <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12 }}>✓</Text>
                 ) : hasPlan && !isPast ? (
-                  <Text style={{ fontSize: 14 }}>{weekPlan[i]?.emoji || '🏋️'}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.accent }}>{weekPlan[i]?.emoji || '◎'}</Text>
                 ) : (
                   <Text style={[typography.small, { color: isToday ? colors.primary : colors.textTertiary }]}>
                     {dayDate.getDate()}
@@ -173,7 +173,7 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
           <View style={{ alignItems: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
               <Text style={[typography.number, { color: colors.error }]}>{streak}</Text>
-              <Text style={{ fontSize: 14 }}>🔥</Text>
+              <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.error }} />
             </View>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Дней</Text>
           </View>
