@@ -6,12 +6,23 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import type { NewsArticle } from '../../../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  all: 'Все', saved: 'Сохранённые', russian: 'Россия', powerlifting: 'Силовые',
+  all: 'Все', saved: 'Сохранённые',
+  fitness: 'Фитнес', nutrition: 'Питание', sport: 'Спорт',
+  health: 'Здоровье', science: 'Наука',
+  russian: 'Россия', powerlifting: 'Силовые',
   records: 'Рекорды', championships: 'Чемпионаты', club: 'Клуб',
 };
 
-function formatDateFull(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+function formatArticleDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffDays === 0) return 'Сегодня';
+  if (diffDays === 1) return 'Вчера';
+  if (diffDays < 7) return `${diffDays} дн. назад`;
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 interface Props {
@@ -60,7 +71,7 @@ export const ArticleDetailModal: React.FC<Props> = ({ article, isSaved, onClose,
                   ))}
                 </View>
                 <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.sm }]}>{article.title}</Text>
-                <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: spacing.lg }]}>{formatDateFull(article.publishedAt)}</Text>
+                <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: spacing.lg }]}>{formatArticleDate(article.publishedAt)}</Text>
                 <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 22 }]}>{article.summary}</Text>
                 {article.content ? (
                   <Text style={[typography.body, { color: colors.text, lineHeight: 24, marginBottom: spacing.xl }]}>{article.content}</Text>

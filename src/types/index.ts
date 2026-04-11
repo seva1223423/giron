@@ -152,7 +152,7 @@ export interface DailyNutrition {
 }
 
 // ==================== NEWS ====================
-export type NewsCategory = 'russian' | 'powerlifting' | 'records' | 'victories' | 'championships' | 'club';
+export type NewsCategory = 'fitness' | 'nutrition' | 'sport' | 'health' | 'science' | 'russian' | 'powerlifting' | 'records' | 'victories' | 'championships' | 'club';
 
 export interface NewsArticle {
   id: string;
