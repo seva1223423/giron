@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FF6B35"
+      "backgroundColor": "#0A0A0F"
     },
     "ios": {
       "supportsTablet": true,
@@ -21,10 +21,10 @@
       "package": "com.irongym.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FF6B35"
+        "backgroundColor": "#0A0A0F"
       },
       "splash": {
-        "backgroundColor": "#FF6B35"
+        "backgroundColor": "#0A0A0F"
       },
       "edgeToEdgeEnabled": false,
       "intentFilters": [

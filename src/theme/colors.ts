@@ -1,97 +1,104 @@
-export const lightColors = {
-  primary: '#FF6B35',
-  primaryDark: '#E55A2B',
-  primaryLight: '#FF8A5C',
-  secondary: '#1A1A2E',
-  accent: '#FFD700',
+/**
+ * Iron Gym Color System
+ *
+ * Design philosophy: Dark minimalism with purple accent
+ * Inspired by Apple design language — clean, unified, elegant
+ */
 
-  background: '#F8F9FA',
+export const lightColors = {
+  primary: '#8B5CF6',       // Purple — main accent
+  primaryDark: '#7C3AED',
+  primaryLight: '#A78BFA',
+  secondary: '#1A1A2E',
+  accent: '#8B5CF6',        // Same as primary for unity
+
+  background: '#F5F5F7',    // Apple-style light gray
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
   card: '#FFFFFF',
 
-  text: '#1A1A2E',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
+  text: '#1C1C1E',          // Apple dark text
+  textSecondary: '#636366',  // Apple secondary
+  textTertiary: '#AEAEB2',   // Apple tertiary
   textInverse: '#FFFFFF',
 
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  divider: '#F0F0F0',
+  border: '#E5E5EA',        // Apple separator
+  borderLight: '#F2F2F7',
+  divider: '#E5E5EA',
 
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
+  success: '#34C759',       // Apple green
+  warning: '#FF9F0A',       // Apple orange
+  error: '#FF3B30',         // Apple red
+  info: '#5AC8FA',          // Apple blue
 
   tabBar: '#FFFFFF',
-  tabBarBorder: '#E5E7EB',
-  tabBarActive: '#FF6B35',
-  tabBarInactive: '#9CA3AF',
+  tabBarBorder: '#E5E5EA',
+  tabBarActive: '#8B5CF6',
+  tabBarInactive: '#AEAEB2',
 
-  inputBackground: '#F3F4F6',
-  inputBorder: '#E5E7EB',
-  inputText: '#1A1A2E',
-  inputPlaceholder: '#9CA3AF',
+  inputBackground: '#F2F2F7',
+  inputBorder: '#E5E5EA',
+  inputText: '#1C1C1E',
+  inputPlaceholder: '#AEAEB2',
 
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  shadow: 'rgba(0, 0, 0, 0.08)',
+  overlay: 'rgba(0, 0, 0, 0.4)',
+  shadow: 'rgba(0, 0, 0, 0.06)',
 
-  progressBar: '#FF6B35',
-  progressBarBackground: '#E5E7EB',
+  progressBar: '#8B5CF6',
+  progressBarBackground: '#E5E5EA',
 
-  calories: '#EF4444',
-  protein: '#3B82F6',
-  fats: '#F59E0B',
-  carbs: '#10B981',
+  calories: '#FF3B30',      // Red
+  protein: '#8B5CF6',       // Purple (unified)
+  fats: '#FF9F0A',          // Orange
+  carbs: '#34C759',         // Green
 };
 
 export const darkColors: typeof lightColors = {
-  primary: '#FF6B35',
-  primaryDark: '#FF8A5C',
-  primaryLight: '#E55A2B',
-  secondary: '#F8F9FA',
-  accent: '#FFD700',
+  primary: '#A78BFA',       // Lighter purple for dark mode
+  primaryDark: '#8B5CF6',
+  primaryLight: '#C4B5FD',
+  secondary: '#F5F5F7',
+  accent: '#A78BFA',
 
-  background: '#0F0F1A',
-  surface: '#1A1A2E',
-  surfaceElevated: '#232340',
-  card: '#1A1A2E',
+  background: '#0A0A0F',    // Very dark
+  surface: '#141420',       // Dark card
+  surfaceElevated: '#1C1C2E',
+  card: '#141420',
 
-  text: '#F8F9FA',
-  textSecondary: '#9CA3AF',
-  textTertiary: '#6B7280',
-  textInverse: '#1A1A2E',
+  text: '#F5F5F7',
+  textSecondary: '#98989D',
+  textTertiary: '#636366',
+  textInverse: '#0A0A0F',
 
-  border: '#2D2D44',
-  borderLight: '#232340',
-  divider: '#2D2D44',
+  border: '#2C2C3A',
+  borderLight: '#1C1C2E',
+  divider: '#2C2C3A',
 
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
+  success: '#30D158',       // Apple green (dark)
+  warning: '#FFD60A',
+  error: '#FF453A',
+  info: '#64D2FF',
 
-  tabBar: '#1A1A2E',
-  tabBarBorder: '#2D2D44',
-  tabBarActive: '#FF6B35',
-  tabBarInactive: '#6B7280',
+  tabBar: '#141420',
+  tabBarBorder: '#2C2C3A',
+  tabBarActive: '#A78BFA',
+  tabBarInactive: '#636366',
 
-  inputBackground: '#232340',
-  inputBorder: '#2D2D44',
-  inputText: '#F8F9FA',
-  inputPlaceholder: '#6B7280',
+  inputBackground: '#1C1C2E',
+  inputBorder: '#2C2C3A',
+  inputText: '#F5F5F7',
+  inputPlaceholder: '#636366',
 
-  overlay: 'rgba(0, 0, 0, 0.7)',
-  shadow: 'rgba(0, 0, 0, 0.3)',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  shadow: 'rgba(0, 0, 0, 0.4)',
 
-  progressBar: '#FF6B35',
-  progressBarBackground: '#2D2D44',
+  progressBar: '#A78BFA',
+  progressBarBackground: '#2C2C3A',
 
-  calories: '#EF4444',
-  protein: '#3B82F6',
-  fats: '#F59E0B',
-  carbs: '#10B981',
+  calories: '#FF453A',
+  protein: '#A78BFA',       // Purple (unified)
+  fats: '#FFD60A',
+  carbs: '#30D158',
 };
 
 export type Colors = typeof lightColors;
