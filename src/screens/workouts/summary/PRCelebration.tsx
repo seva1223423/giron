@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const COLORS = ['#FF6B35', '#FFD700', '#FF3B55', '#3BC46E', '#3B82F6', '#9C27B0', '#FF9800'];
+const COLORS = ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#7C3AED', '#6D28D9', '#EDE9FE'];
 const PARTICLE_COUNT = 30;
 
 interface Particle {
