@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, Alert, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../store';
@@ -159,6 +160,17 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return done.length > 0 ? { date: prev.completedAt || prev.startedAt, sets: done } : null;
   }, [activeWorkout?.workout?.exercises[activeWorkout?.currentExerciseIndex ?? 0]?.exerciseId, workoutHistory, activeWorkout?.workout?.id]);
 
+  // Exercise transition fade animation
+  const exerciseOpacity = useSharedValue(1);
+  const exerciseAnimStyle = useAnimatedStyle(() => ({ opacity: exerciseOpacity.value }));
+
+  const animateExerciseChange = useCallback((direction: 'next' | 'prev') => {
+    exerciseOpacity.value = withTiming(0, { duration: 100 }, () => {
+      runOnJS(direction === 'next' ? nextExercise : prevExercise)();
+      exerciseOpacity.value = withTiming(1, { duration: 150 });
+    });
+  }, [nextExercise, prevExercise]);
+
   // Swipe hint opacity (fade out after 3 seconds)
   const swipeHintOpacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -168,18 +180,18 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return () => clearTimeout(timer);
   }, []);
 
-  // Swipe gesture for exercise navigation
+  // Swipe gesture for exercise navigation with fade animation
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-30, 30])
     .onEnd((event) => {
       const aw = useWorkoutStore.getState().activeWorkout;
       if (!aw) return;
       if (event.translationX < -80 && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
-        nextExercise();
-        haptic.light();
+        runOnJS(animateExerciseChange)('next');
+        runOnJS(haptic.light)();
       } else if (event.translationX > 80 && aw.currentExerciseIndex > 0) {
-        prevExercise();
-        haptic.light();
+        runOnJS(animateExerciseChange)('prev');
+        runOnJS(haptic.light)();
       }
     });
 
@@ -371,15 +383,17 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       )}
 
       <GestureDetector gesture={swipeGesture}>
-        <SetsSection
-          currentExercise={currentExercise}
-          currentExerciseIndex={currentExerciseIndex}
-          workout={workout}
-          previousSets={previousSets}
-          navigation={navigation}
-          onCompleteSet={handleCompleteSet}
-          onRpeSelected={handleRpeSelected}
-        />
+        <ReanimatedAnimated.View style={[{ flex: 1 }, exerciseAnimStyle]}>
+          <SetsSection
+            currentExercise={currentExercise}
+            currentExerciseIndex={currentExerciseIndex}
+            workout={workout}
+            previousSets={previousSets}
+            navigation={navigation}
+            onCompleteSet={handleCompleteSet}
+            onRpeSelected={handleRpeSelected}
+          />
+        </ReanimatedAnimated.View>
       </GestureDetector>
 
       <PRToast toast={prToast} />

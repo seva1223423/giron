@@ -107,7 +107,13 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
       </View>
 
       <TouchableOpacity onPress={onFinish}>
-        <Text style={[typography.bodySemibold, { color: colors.success }]}>{'\u0413\u043E\u0442\u043E\u0432\u043E'}</Text>
+        <Text style={[typography.bodySemibold, {
+          color: colors.success,
+          fontSize: totalCompletedSets === totalSets && totalSets > 0 ? 18 : 16,
+          fontWeight: totalCompletedSets === totalSets && totalSets > 0 ? '800' : '600',
+        }]}>
+          {totalCompletedSets === totalSets && totalSets > 0 ? '\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u25C9' : '\u0413\u043E\u0442\u043E\u0432\u043E'}
+        </Text>
       </TouchableOpacity>
     </View>
   );

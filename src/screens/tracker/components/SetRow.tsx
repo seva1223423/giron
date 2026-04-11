@@ -139,6 +139,21 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
         </TouchableOpacity>
       </View>
 
+      {/* Quick weight presets */}
+      {!set.completed && (parseFloat(weight) === 0 || weight === '') && prevSet?.weight && (
+        <View style={{ flexDirection: 'row', gap: 4, marginTop: 4, paddingHorizontal: spacing.sm }}>
+          {[prevSet.weight, prevSet.weight + 2.5, prevSet.weight + 5, prevSet.weight - 5].filter(w => w > 0).map((w) => (
+            <TouchableOpacity
+              key={w}
+              onPress={() => { haptic.selection(); setWeight(String(w)); }}
+              style={{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6, backgroundColor: colors.primary + '12', borderWidth: 1, borderColor: colors.primary + '30' }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>{w}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {/* RPE picker */}
       {set.completed && showRpe && (
         <View style={[styles.rpePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>
