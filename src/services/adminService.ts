@@ -238,6 +238,15 @@ export const adminService = {
     return res.data;
   },
 
+  async moderationSearch(query: string): Promise<{
+    keyword: string;
+    ai: Array<{ id: string; snippet: string; createdAt: string; user: { id: string; firstName: string; lastName?: string | null; email: string } }>;
+    tickets: Array<{ id: string; subject: string; status: string; createdAt: string; user: { id: string; firstName: string; lastName?: string | null; email: string } }>;
+  }> {
+    const res = await api.get('/admin/moderation/search', { params: { q: query } });
+    return res.data;
+  },
+
   async broadcastToSegment(plan: string, subject: string, message: string, expiringSoonOnly?: boolean): Promise<{ sent: number; failed: number; total: number }> {
     const res = await api.post('/admin/subscriptions/broadcast', { plan, subject, message, expiringSoonOnly });
     return res.data;
