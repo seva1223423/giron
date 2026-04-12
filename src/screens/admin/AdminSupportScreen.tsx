@@ -138,6 +138,7 @@ export default function AdminSupportScreen() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [metrics, setMetrics] = useState<SupportMetrics | null>(null);
   // Bulk select
+  const [unassignedOnly, setUnassignedOnly] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -236,12 +237,14 @@ export default function AdminSupportScreen() {
     );
   }, [selected, bulkBusy, exitSelectMode, load]);
 
-  const displayedTickets = needsReplyFilter
-    ? tickets.filter((t) => {
-        const m = t.messages?.[0];
-        return m && !m.isStaff && t.status !== 'closed' && t.status !== 'resolved';
-      })
-    : tickets;
+  const displayedTickets = tickets.filter((t) => {
+    if (needsReplyFilter) {
+      const m = t.messages?.[0];
+      if (!m || m.isStaff || t.status === 'closed' || t.status === 'resolved') return false;
+    }
+    if (unassignedOnly && t.assignedToId) return false;
+    return true;
+  });
 
   return (
     <View style={styles.container}>
@@ -349,6 +352,14 @@ export default function AdminSupportScreen() {
         >
           <Text style={[styles.priorityText, needsReplyFilter && { color: '#F59E0B' }]}>
             {needsReplyFilter ? '✓ Ждут ответа' : 'Ждут ответа'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.priorityBtn, unassignedOnly && { backgroundColor: '#EF444422', borderColor: '#EF444460' }]}
+          onPress={() => setUnassignedOnly(!unassignedOnly)}
+        >
+          <Text style={[styles.priorityText, unassignedOnly && { color: '#EF4444' }]}>
+            {unassignedOnly ? '✓ Без агента' : 'Без агента'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
