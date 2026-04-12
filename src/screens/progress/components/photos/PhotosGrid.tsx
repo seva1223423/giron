@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, useWindowDimensions } from 'react-native';
 import { useThemeStore } from '../../../../store';
 import { FadeIn } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
 import type { ProgressPhoto } from '../PhotosTab';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Props {
   photos: ProgressPhoto[];
@@ -17,6 +16,8 @@ interface Props {
 }
 
 export const PhotosGrid: React.FC<Props> = ({ photos, selectedId, onSelect, onDelete, delay = 100 }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const cellWidth = (screenWidth - spacing.xl * 2 - spacing.md * 2) / 3;
   const { colors } = useThemeStore();
 
   if (photos.length === 0) return null;
@@ -27,7 +28,7 @@ export const PhotosGrid: React.FC<Props> = ({ photos, selectedId, onSelect, onDe
         {photos.map((photo, i) => {
           const isSelected = selectedId === photo.id;
           return (
-            <View key={photo.id} style={styles.cell}>
+            <View key={photo.id} style={[styles.cell, { width: cellWidth }]}>
               <TouchableOpacity
                 onPress={() => { onSelect(isSelected ? null : photo.id); }}
                 onLongPress={() => onDelete(photo.id)}
@@ -73,7 +74,7 @@ export const PhotosGrid: React.FC<Props> = ({ photos, selectedId, onSelect, onDe
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  cell: { width: (SCREEN_WIDTH - spacing.xl * 2 - spacing.md * 2) / 3, alignItems: 'center' },
+  cell: { alignItems: 'center' },
   thumb: { width: '100%', aspectRatio: 3 / 4, borderRadius: borderRadius.md },
   badge: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
   deleteBtn: { marginTop: 4, paddingVertical: 3, paddingHorizontal: spacing.sm, borderRadius: borderRadius.sm, borderWidth: 1, alignItems: 'center' },
