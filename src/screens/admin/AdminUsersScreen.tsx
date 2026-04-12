@@ -246,6 +246,7 @@ export default function AdminUsersScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dormant, setDormant] = useState(false);
+  const [bannedOnly, setBannedOnly] = useState(false);
   const [sortIdx, setSortIdx] = useState(0);
 
   const load = useCallback(async (p: number, append = false, silent = false) => {
@@ -254,7 +255,7 @@ export default function AdminUsersScreen() {
     else setLoadingMore(true);
     const { sort, order } = SORT_OPTIONS[sortIdx];
     try {
-      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, sort, order, page: p, limit: 20 });
+      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, banned: bannedOnly || undefined, sort, order, page: p, limit: 20 });
       setUsers(append ? (prev) => [...prev, ...res.users] : res.users);
       setTotal(res.total);
       setPage(res.page);
@@ -266,9 +267,9 @@ export default function AdminUsersScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [search, role, dormant, sortIdx]);
+  }, [search, role, dormant, bannedOnly, sortIdx]);
 
-  useEffect(() => { load(1); }, [search, role, planFilter, dormant, sortIdx]);
+  useEffect(() => { load(1); }, [search, role, planFilter, dormant, bannedOnly, sortIdx]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -345,6 +346,14 @@ export default function AdminUsersScreen() {
         >
           <Text style={[styles.filterText, dormant && styles.filterTextActive]}>
             Неактивные (30д)
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterBtn, bannedOnly && { backgroundColor: '#EF4444' }]}
+          onPress={() => setBannedOnly(!bannedOnly)}
+        >
+          <Text style={[styles.filterText, bannedOnly && styles.filterTextActive]}>
+            {bannedOnly ? '⛔ Заблокированные' : 'Заблокированные'}
           </Text>
         </TouchableOpacity>
       </View>
