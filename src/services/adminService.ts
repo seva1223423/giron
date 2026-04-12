@@ -123,6 +123,7 @@ export const adminService = {
     priority?: TicketPriority;
     assignedToMe?: boolean;
     search?: string;
+    sort?: 'priority' | 'oldest' | 'newest' | 'created_desc';
     page?: number;
     limit?: number;
   }): Promise<{ tickets: SupportTicket[]; total: number; page: number; pages: number }> {

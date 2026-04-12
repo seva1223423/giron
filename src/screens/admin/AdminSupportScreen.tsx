@@ -139,6 +139,7 @@ export default function AdminSupportScreen() {
   const [metrics, setMetrics] = useState<SupportMetrics | null>(null);
   // Bulk select
   const [unassignedOnly, setUnassignedOnly] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'priority' | 'oldest' | 'newest'>('priority');
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -161,7 +162,7 @@ export default function AdminSupportScreen() {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
       const [res, cnts, met] = await Promise.all([
-        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, search: search || undefined, page: p, limit: 20 }),
+        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, search: search || undefined, sort: sortOrder, page: p, limit: 20 }),
         p === 1 ? adminService.getSupportCounts() : Promise.resolve(counts),
         p === 1 ? adminService.getSupportMetrics() : Promise.resolve(null),
       ]);
@@ -175,9 +176,9 @@ export default function AdminSupportScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [status, assignedToMe, search]);
+  }, [status, assignedToMe, search, sortOrder]);
 
-  useEffect(() => { load(1); }, [status, priority, assignedToMe, search]);
+  useEffect(() => { load(1); }, [status, priority, assignedToMe, search, sortOrder]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -370,6 +371,22 @@ export default function AdminSupportScreen() {
             {selectMode ? `✓ Выбор (${selected.size})` : 'Выбрать'}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.priorityRow}>
+        {([
+          { value: 'priority', label: 'По приоритету' },
+          { value: 'oldest', label: 'Сначала старые' },
+          { value: 'newest', label: 'Последние' },
+        ] as const).map((s) => (
+          <TouchableOpacity
+            key={s.value}
+            style={[styles.priorityBtn, sortOrder === s.value && { backgroundColor: '#6366F122', borderColor: '#6366F160' }]}
+            onPress={() => setSortOrder(s.value)}
+          >
+            <Text style={[styles.priorityText, sortOrder === s.value && { color: '#6366F1' }]}>{s.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 4 }}>
