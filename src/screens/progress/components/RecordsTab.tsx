@@ -6,14 +6,17 @@ import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { Workout } from '../../../types';
 import { PersonalRecordCard, StrengthStandardsCard, ClubLeaderboard } from './records';
+import { ACHIEVEMENT_DEFINITIONS, Achievement } from '../../../utils/achievements';
 
 interface RecordsTabProps {
   colors: any;
   workoutHistory: Workout[];
   user: any;
+  achievements?: Achievement[];
+  unlockedCount?: number;
 }
 
-export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, user }) => {
+export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, user, achievements = [], unlockedCount = 0 }) => {
   const haptic = useHaptic();
   const [recordsView, setRecordsView] = useState<'mine' | 'club'>('mine');
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
@@ -86,6 +89,58 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
       )}
 
       {recordsView === 'club' && <ClubLeaderboard />}
+
+      {/* ── Achievements section ── */}
+      {achievements.length > 0 && (
+        <FadeIn delay={300}>
+          <View style={{ marginTop: spacing.xl }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+              <Text style={[typography.h4, { color: colors.text }]}>Достижения</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>{unlockedCount} из {ACHIEVEMENT_DEFINITIONS.length}</Text>
+            </View>
+            {/* Progress bar */}
+            <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, marginBottom: spacing.lg }}>
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.accent, width: `${(unlockedCount / ACHIEVEMENT_DEFINITIONS.length) * 100}%` as any }} />
+            </View>
+            {(['workout', 'strength', 'streak', 'exploration', 'nutrition'] as const).map((cat) => {
+              const catItems = achievements.filter((a) => a.category === cat);
+              const catLabel: Record<string, string> = {
+                workout: 'Тренировки', strength: 'Сила', streak: 'Серия', exploration: 'Исследование', nutrition: 'Питание',
+              };
+              return (
+                <View key={cat} style={{ marginBottom: spacing.lg }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.6, color: colors.textTertiary, marginBottom: spacing.sm }}>
+                    {catLabel[cat].toUpperCase()}
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                    {catItems.map((ach) => (
+                      <View
+                        key={ach.id}
+                        style={{
+                          alignItems: 'center', width: 64,
+                          opacity: ach.unlockedAt ? 1 : 0.35,
+                        }}
+                      >
+                        <View style={{
+                          width: 48, height: 48, borderRadius: 24,
+                          backgroundColor: ach.unlockedAt ? colors.accent + '18' : colors.surface,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderWidth: 1, borderColor: ach.unlockedAt ? colors.accent + '40' : colors.border,
+                        }}>
+                          <Text style={{ fontSize: 20 }}>{ach.emoji}</Text>
+                        </View>
+                        <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textSecondary, marginTop: 4, textAlign: 'center' }} numberOfLines={2}>
+                          {ach.title}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </FadeIn>
+      )}
     </>
   );
 };

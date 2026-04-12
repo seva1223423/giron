@@ -259,6 +259,15 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           colors={colors}
         />
         <MenuRow
+          icon="◫"
+          iconBg={colors.border}
+          iconColor={colors.textSecondary}
+          title="Новости спорта"
+          subtitle="Лента, категории, сохранённое"
+          onPress={() => { haptic.selection(); navigation.navigate('NewsScreen'); }}
+          colors={colors}
+        />
+        <MenuRow
           icon="?"
           iconBg="#6366F118"
           iconColor="#6366F1"

@@ -1,21 +1,20 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
-import { ScrollView, Text, TouchableOpacity, View, Animated } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { AnimatedPressable } from '../../components';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
-import { FadeIn, Card, Button, Tooltip } from '../../components';
-import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import { FadeIn, Button, Card } from '../../components';
+import { spacing, borderRadius } from '../../theme/spacing';
 import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showTodayPlanNotification } from '../../services/notificationService';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
-  StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
-  NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard, CardioWeekCard, SleepCard,
+  LastWorkoutCard, NutritionCard, WaterCard,
   RecoveryScoreCard, TodaySummaryCard,
 } from './components';
-import { borderRadius } from '../../theme/spacing';
+import { Text } from 'react-native';
+import { typography } from '../../theme';
 
 const SPLITS = [
   { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '◎' },
@@ -41,7 +40,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
-  const { user, setUser } = useAuthStore();
+  const { user } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
 
@@ -165,21 +164,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return { name: rec.name, emoji: rec.emoji, daysLabel, programWorkout: null };
   }, [workoutHistory, activeProgram]);
 
-  // Check if all program workouts done this week → show progression suggestion
-  const weekCompletionSuggestion = useMemo(() => {
-    if (!activeProgram || activeProgram.workouts.length === 0) return null;
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-    weekStart.setHours(0, 0, 0, 0);
-    const thisWeekNames = new Set(
-      workoutHistory
-        .filter((w) => w.completedAt && new Date(w.completedAt) >= weekStart)
-        .map((w) => w.name)
-    );
-    const allDone = activeProgram.workouts.every((pw: any) => thisWeekNames.has(pw.name));
-    return allDone ? activeProgram.name : null;
-  }, [activeProgram, workoutHistory]);
-
   const handleStartPlannedWorkout = useCallback(() => {
     if (!todayPlan || todayPlan.exercises.length === 0) return;
     haptic.medium();
@@ -263,13 +247,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeIn>
       )}
 
-      {!activeWorkout && streak > 0 && daysSinceLastWorkout !== null && daysSinceLastWorkout >= 2 && (
-        <FadeIn delay={180}>
-          <StreakWarningCard streak={streak} navigation={navigation} />
-        </FadeIn>
-      )}
-
-      {/* ── ТРЕНИРОВКИ ────────────────────────────── */}
+      {/* ── ТРЕНИРОВКИ ─────────────────────────── */}
       <SectionDivider label="ТРЕНИРОВКИ" colors={colors} />
 
       <RecoveryScoreCard />
@@ -285,34 +263,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeIn>
       )}
 
-      {weekCompletionSuggestion && !activeWorkout && (
-        <FadeIn delay={195}>
-          <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.success }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '800', color: colors.success }}>✓</Text></View>
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.xs }]}>Неделя завершена!</Text>
-            <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
-              Все тренировки программы «{weekCompletionSuggestion}» выполнены на этой неделе.
-            </Text>
-            <Text style={[typography.bodyMedium, { color: colors.success }]}>
-              На следующей неделе добавь +2.5 кг на основных упражнениях для прогрессии.
-            </Text>
-          </Card>
-        </FadeIn>
-      )}
-
-      <FadeIn delay={200}>
-        <WeeklyStatsCard workoutHistory={workoutHistory} weekPlan={weekPlan} streak={streak} navigation={navigation} />
-        <Tooltip tipId="home-weekly" text="Здесь твоя недельная статистика. Тренируйся регулярно!" />
-      </FadeIn>
-
-      {workoutHistory.length > 0 && (
-        <FadeIn delay={260}>
-          <MuscleReadinessCard workoutHistory={workoutHistory} />
-        </FadeIn>
-      )}
-
-      {/* ── ПИТАНИЕ & ТЕЛО ───────────────────────── */}
-      <SectionDivider label="ПИТАНИЕ & ТЕЛО" colors={colors} />
+      {/* ── ПИТАНИЕ ────────────────────────────── */}
+      <SectionDivider label="ПИТАНИЕ" colors={colors} />
 
       <FadeIn delay={300}>
         <NutritionCard dayLog={dayLog} navigation={navigation} />
@@ -320,32 +272,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       <FadeIn delay={320}>
         <WaterCard dayLog={dayLog} today={today} />
-      </FadeIn>
-
-      <FadeIn delay={360}>
-        <WeightCard user={user} setUser={setUser} />
-      </FadeIn>
-
-      {/* ── ВОССТАНОВЛЕНИЕ ───────────────────────── */}
-      <SectionDivider label="ВОССТАНОВЛЕНИЕ" colors={colors} />
-
-      <FadeIn delay={393}>
-        <SleepCard />
-      </FadeIn>
-
-      <FadeIn delay={395}>
-        <CardioWeekCard navigation={navigation} />
-      </FadeIn>
-
-      {/* ── ИИ & ВДОХНОВЕНИЕ ─────────────────────── */}
-      <SectionDivider label="ИИ-ТРЕНЕР" colors={colors} />
-
-      <FadeIn delay={400}>
-        <AITipCard navigation={navigation} />
-      </FadeIn>
-
-      <FadeIn delay={450}>
-        <DailyQuoteCard />
       </FadeIn>
     </ScrollView>
 
