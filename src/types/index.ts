@@ -356,7 +356,8 @@ export interface AdminStats {
     providerDisplayName: string;
     providerModel: string;
   };
-  support: { openTickets: number; inProgressTickets: number; resolvedTickets: number };
+  support: { openTickets: number; inProgressTickets: number; resolvedTickets: number; urgentTickets?: number };
+  activeAnnouncements?: number;
   server: {
     uptimeSeconds: number;
     memoryUsedMb: number;
