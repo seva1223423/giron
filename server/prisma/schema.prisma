@@ -310,10 +310,24 @@ model TrainerClient {
   lastVisit       DateTime?
 
   trainerId       String
-  trainer         User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  trainer         User              @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  sessions        TrainerSession[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model TrainerSession {
+  id              String   @id @default(cuid())
+  clientId        String
+  client          TrainerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  date            String   // YYYY-MM-DD
+  name            String
+  durationMinutes Int
+  volumeKg        Float?
+  notes           String?
+
+  createdAt       DateTime @default(now())
 }
 
 // ==================== NEWS ====================
