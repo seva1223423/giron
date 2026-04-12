@@ -582,6 +582,14 @@ export default function AdminDashboardScreen() {
         </View>
       </View>
 
+      {/* ── DAU ────────────────────────────────────────────────────────── */}
+      {stats.dau && (
+        <View style={styles.row}>
+          <StatCard title="DAU (трен.)" value={stats.dau.workoutUsers} sub="уник. польз. сегодня" color="#F59E0B" />
+          <StatCard title="DAU (ИИ)" value={stats.dau.aiUsers} sub="уник. польз. сегодня" color="#8B5CF6" />
+        </View>
+      )}
+
       {/* ── Top active users this week ─────────────────────────────────── */}
       {stats.topActiveUsers && stats.topActiveUsers.length > 0 && (
         <>
@@ -597,6 +605,25 @@ export default function AdminDashboardScreen() {
                   {i + 1}. {u.name}
                 </Text>
                 <Text style={styles.roleCount}>{u.workouts} тр.</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
+      {/* ── Top AI users this week ─────────────────────────────────────── */}
+      {stats.topAiActiveUsers && stats.topAiActiveUsers.length > 0 && (
+        <>
+          <SectionTitle title="Топ ИИ-пользователей (7 дней)" />
+          <View style={styles.rolesCard}>
+            {stats.topAiActiveUsers.map((u, i) => (
+              <TouchableOpacity
+                key={u.userId}
+                style={styles.roleRow}
+                onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: u.userId })}
+              >
+                <Text style={styles.roleLabel}>{i + 1}. {u.name}</Text>
+                <Text style={styles.roleCount}>{u.messages} сообщ.</Text>
               </TouchableOpacity>
             ))}
           </View>

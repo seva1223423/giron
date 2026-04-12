@@ -337,6 +337,8 @@ export interface AdminStats {
   subsExpiringSoon?: number;
   trends?: { usersWeekVsPrev: number | null; workoutsWeekVsPrev: number | null; aiWeekVsPrev: number | null };
   topActiveUsers?: Array<{ userId: string; name: string; workouts: number }>;
+  topAiActiveUsers?: Array<{ userId: string; name: string; messages: number }>;
+  dau?: { workoutUsers: number; aiUsers: number };
   workouts: { completedToday: number; completedThisWeek: number; total: number };
   nutrition: { mealsToday: number; mealsThisWeek: number };
   cardio: { sessionsToday: number; sessionsThisWeek: number };
