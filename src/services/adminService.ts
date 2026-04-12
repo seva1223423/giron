@@ -22,6 +22,7 @@ export const adminService = {
     banned?: boolean;
     dormant?: boolean;
     subExpiringSoon?: boolean;
+    recentlyActive?: boolean;
     page?: number;
     limit?: number;
     sort?: string;
