@@ -27,30 +27,43 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       newToday,
       newThisWeek,
       newThisMonth,
+      bannedUsers,
       usersByRole,
       subscriptionCounts,
       usersWithActiveSub,
       workoutsToday,
       workoutsThisWeek,
+      totalWorkouts,
       aiMessagesToday,
       aiMessagesThisWeek,
+      mealsToday,
+      mealsThisWeek,
+      cardioToday,
+      cardioThisWeek,
       openTickets,
       inProgressTickets,
+      resolvedTickets,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
       prisma.user.count({ where: { createdAt: { gte: weekStart } } }),
       prisma.user.count({ where: { createdAt: { gte: monthStart } } }),
+      prisma.user.count({ where: { isBanned: true } }),
       prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
       prisma.subscription.groupBy({ by: ['plan', 'status'], _count: { id: true } }),
-      // Users with any active paid subscription (plan != free AND status = active)
       prisma.subscription.count({ where: { status: 'active', plan: { not: 'free' } } }),
       prisma.workout.count({ where: { completedAt: { gte: todayStart } } }),
       prisma.workout.count({ where: { completedAt: { gte: weekStart } } }),
+      prisma.workout.count({ where: { completedAt: { not: null } } }),
       prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: todayStart } } }),
       prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: weekStart } } }),
+      prisma.meal.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.meal.count({ where: { createdAt: { gte: weekStart } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: weekStart } } }),
       prisma.supportTicket.count({ where: { status: 'open' } }),
       prisma.supportTicket.count({ where: { status: 'in_progress' } }),
+      prisma.supportTicket.count({ where: { status: 'resolved' } }),
     ]);
 
     // Server metrics
@@ -71,6 +84,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         newThisMonth,
         activeNow,
         activeHour,
+        banned: bannedUsers,
         withSubscription: usersWithActiveSub,
         withoutSubscription: totalUsers - usersWithActiveSub,
         byRole: Object.fromEntries(usersByRole.map((r) => [r.role, r._count.id])),
@@ -83,6 +97,15 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       workouts: {
         completedToday: workoutsToday,
         completedThisWeek: workoutsThisWeek,
+        total: totalWorkouts,
+      },
+      nutrition: {
+        mealsToday,
+        mealsThisWeek,
+      },
+      cardio: {
+        sessionsToday: cardioToday,
+        sessionsThisWeek: cardioThisWeek,
       },
       ai: {
         messagesToday: aiMessagesToday,
@@ -92,6 +115,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       support: {
         openTickets,
         inProgressTickets,
+        resolvedTickets,
       },
       server: {
         uptimeSeconds: Math.round(uptime),
@@ -116,14 +140,19 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/users — paginated user list */
 router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { search = '', role, page = '1', limit = '20', sort = 'createdAt' } = req.query as Record<string, string>;
+    const { search = '', role, plan, banned, page = '1', limit = '20', sort = 'createdAt', order = 'desc' } = req.query as Record<string, string>;
     const ALLOWED_SORT = ['createdAt', 'email', 'firstName', 'lastName'] as const;
     const safeSort = ALLOWED_SORT.includes(sort as any) ? sort : 'createdAt';
+    const safeOrder = order === 'asc' ? 'asc' : 'desc';
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
     const skip = (pageNum - 1) * limitNum;
     const where: any = {};
-    if (role) where.role = role;
+    if (role) where.role = role.toUpperCase();
+    if (banned === 'true') where.isBanned = true;
+    if (plan) {
+      where.subscription = { plan, status: 'active' };
+    }
     if (search) {
       where.OR = [
         { email: { contains: search, mode: 'insensitive' } },
@@ -137,11 +166,11 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
         where,
         select: {
           id: true, email: true, firstName: true, lastName: true,
-          role: true, createdAt: true,
+          role: true, createdAt: true, isBanned: true, banReason: true,
           subscription: { select: { plan: true, status: true, endDate: true } },
           _count: { select: { workouts: true, chatMessages: true } },
         },
-        orderBy: { [safeSort]: 'desc' },
+        orderBy: { [safeSort]: safeOrder },
         skip,
         take: limitNum,
       }),
@@ -181,6 +210,12 @@ router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) =
           orderBy: { createdAt: 'desc' },
           take: 3,
           select: { id: true, subject: true, status: true, createdAt: true },
+        },
+        chatMessages: {
+          where: { role: 'user' },
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: { id: true, content: true, createdAt: true },
         },
       },
     });
@@ -269,20 +304,231 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
   }
 });
 
+const banSchema = z.object({
+  reason: z.string().min(1).max(500),
+});
+
+/** POST /admin/users/:id/ban — ban user */
+router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { reason } = banSchema.parse(req.body);
+    if (req.params.id === req.userId) {
+      return res.status(400).json({ error: 'Нельзя заблокировать самого себя' });
+    }
+    const user = await prisma.user.update({
+      where: { id: req.params.id as string },
+      data: { isBanned: true, bannedAt: new Date(), banReason: reason },
+      select: { id: true, email: true, firstName: true, isBanned: true },
+    });
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'BAN_USER',
+        targetId: req.params.id as string,
+        details: `reason: ${reason}`,
+      },
+    });
+    res.json(user);
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /admin/users/:id/ban:', e);
+    res.status(500).json({ error: 'Ошибка блокировки пользователя' });
+  }
+});
+
+/** POST /admin/users/:id/unban — unban user */
+router.post('/users/:id/unban', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.params.id as string },
+      data: { isBanned: false, bannedAt: null, banReason: null },
+      select: { id: true, email: true, firstName: true, isBanned: true },
+    });
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'UNBAN_USER',
+        targetId: req.params.id as string,
+        details: null,
+      },
+    });
+    res.json(user);
+  } catch (e) {
+    logger.error('POST /admin/users/:id/unban:', e);
+    res.status(500).json({ error: 'Ошибка разблокировки пользователя' });
+  }
+});
+
+const noteSchema = z.object({
+  note: z.string().max(1000),
+});
+
+/** PATCH /admin/users/:id/note — set admin note */
+router.patch('/users/:id/note', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { note } = noteSchema.parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: req.params.id as string },
+      data: { adminNote: note || null },
+      select: { id: true, adminNote: true },
+    });
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'UPDATE_NOTE',
+        targetId: req.params.id as string,
+        details: note ? `note set (${note.length} chars)` : 'note cleared',
+      },
+    });
+    res.json(user);
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('PATCH /admin/users/:id/note:', e);
+    res.status(500).json({ error: 'Ошибка сохранения заметки' });
+  }
+});
+
+/** DELETE /admin/users/:id — soft-delete: ban + clear personal data */
+router.delete('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.params.id === req.userId) {
+      return res.status(400).json({ error: 'Нельзя удалить свой аккаунт' });
+    }
+    // Anonymize the user instead of hard delete to preserve referential integrity
+    const anon = `deleted_${Date.now()}`;
+    await prisma.user.update({
+      where: { id: req.params.id as string },
+      data: {
+        email: `${anon}@deleted.invalid`,
+        firstName: 'Удалён',
+        lastName: null,
+        phone: null,
+        isBanned: true,
+        banReason: 'Account deleted by admin',
+        adminNote: `Deleted at ${new Date().toISOString()}`,
+      },
+    });
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'DELETE_USER',
+        targetId: req.params.id as string,
+        details: 'Account anonymized',
+      },
+    });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error('DELETE /admin/users/:id:', e);
+    res.status(500).json({ error: 'Ошибка удаления пользователя' });
+  }
+});
+
+// ── ANALYTICS ────────────────────────────────────────────────────────────────
+
+/** GET /admin/analytics — growth, retention, activity trends */
+router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query as Record<string, string>;
+    const numDays = Math.min(90, Math.max(7, parseInt(days) || 30));
+    const since = new Date();
+    since.setDate(since.getDate() - numDays);
+    since.setHours(0, 0, 0, 0);
+
+    // Daily new user signups
+    const signupsRaw = await prisma.user.findMany({
+      where: { createdAt: { gte: since } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Daily workout completions
+    const workoutsRaw = await prisma.workout.findMany({
+      where: { completedAt: { gte: since, not: null } },
+      select: { completedAt: true },
+      orderBy: { completedAt: 'asc' },
+    });
+
+    // Daily AI messages
+    const aiRaw = await prisma.chatMessage.findMany({
+      where: { role: 'user', createdAt: { gte: since } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Daily cardio sessions
+    const cardioRaw = await prisma.cardioSession.findMany({
+      where: { createdAt: { gte: since } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Build day-by-day buckets
+    const buckets: Record<string, { signups: number; workouts: number; ai: number; cardio: number }> = {};
+    for (let i = 0; i < numDays; i++) {
+      const d = new Date(since);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().split('T')[0];
+      buckets[key] = { signups: 0, workouts: 0, ai: 0, cardio: 0 };
+    }
+
+    const toKey = (d: Date | null) => d ? new Date(d).toISOString().split('T')[0] : null;
+    signupsRaw.forEach((u) => { const k = toKey(u.createdAt); if (k && buckets[k]) buckets[k].signups++; });
+    workoutsRaw.forEach((w) => { const k = toKey(w.completedAt); if (k && buckets[k]) buckets[k].workouts++; });
+    aiRaw.forEach((m) => { const k = toKey(m.createdAt); if (k && buckets[k]) buckets[k].ai++; });
+    cardioRaw.forEach((c) => { const k = toKey(c.createdAt); if (k && buckets[k]) buckets[k].cardio++; });
+
+    const timeline = Object.entries(buckets).map(([date, v]) => ({ date, ...v }));
+
+    // Totals for conversion funnel
+    const [totalUsers, paidUsers, activeLastWeek] = await Promise.all([
+      prisma.user.count(),
+      prisma.subscription.count({ where: { status: 'active', plan: { not: 'free' } } }),
+      prisma.workout.groupBy({
+        by: ['userId'],
+        where: { completedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      }).then((r) => r.length),
+    ]);
+
+    res.json({
+      timeline,
+      funnel: {
+        totalUsers,
+        paidUsers,
+        activeLastWeek,
+        conversionRate: totalUsers > 0 ? Math.round((paidUsers / totalUsers) * 100) : 0,
+        retentionRate: totalUsers > 0 ? Math.round((activeLastWeek / totalUsers) * 100) : 0,
+      },
+      period: numDays,
+    });
+  } catch (e) {
+    logger.error('GET /admin/analytics:', e);
+    res.status(500).json({ error: 'Ошибка получения аналитики' });
+  }
+});
+
 // ── ADMIN LOG ────────────────────────────────────────────────────────────────
 
-/** GET /admin/logs — recent admin actions */
+/** GET /admin/logs — recent admin actions with filter */
 router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { page = '1', limit = '50' } = req.query as Record<string, string>;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const logs = await prisma.adminLog.findMany({
-      include: { admin: { select: { firstName: true, lastName: true, email: true } } },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: parseInt(limit),
-    });
-    res.json(logs);
+    const { page = '1', limit = '50', action, adminId } = req.query as Record<string, string>;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const skip = (pageNum - 1) * limitNum;
+    const where: any = {};
+    if (action) where.action = action;
+    if (adminId) where.adminId = adminId;
+    const [logs, total] = await Promise.all([
+      prisma.adminLog.findMany({
+        where,
+        include: { admin: { select: { firstName: true, lastName: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.adminLog.count({ where }),
+    ]);
+    res.json({ logs, total, page: pageNum, pages: Math.ceil(total / limitNum) });
   } catch (e) {
     logger.error('GET /admin/logs:', e);
     res.status(500).json({ error: 'Ошибка получения логов' });

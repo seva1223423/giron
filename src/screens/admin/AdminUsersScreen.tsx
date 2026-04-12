@@ -15,6 +15,13 @@ const ROLE_LABEL: Record<string, string> = {
   '': 'Все', client: 'Клиент', trainer: 'Тренер',
   support: 'Поддержка', admin: 'Админ', visitor: 'Гость', guest: 'Guest',
 };
+const PLAN_FILTERS = [
+  { key: '', label: 'Все планы' },
+  { key: 'pro', label: 'PRO' },
+  { key: 'trainer', label: 'Trainer' },
+  { key: 'club', label: 'Club' },
+  { key: 'free', label: 'Free' },
+];
 const PLAN_COLOR: Record<string, string> = {
   free: '#6B7280', pro: '#6366F1', trainer: '#F59E0B', club: '#10B981',
 };
@@ -115,33 +122,41 @@ function UserRow({
   const planColor = PLAN_COLOR[sub?.plan ?? 'free'] ?? '#6B7280';
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, user.isBanned && styles.rowBanned]}>
       <TouchableOpacity style={styles.rowTop} onPress={onPress} activeOpacity={0.7}>
-        <View style={[styles.avatar, { backgroundColor: planColor + '33', borderColor: planColor }]}>
-          <Text style={[styles.avatarText, { color: planColor }]}>
+        <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#EF444433' : planColor + '33', borderColor: user.isBanned ? '#EF4444' : planColor }]}>
+          <Text style={[styles.avatarText, { color: user.isBanned ? '#EF4444' : planColor }]}>
             {user.firstName[0]}{user.lastName?.[0] ?? ''}
           </Text>
         </View>
         <View style={styles.info}>
-          <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
+            {user.isBanned && (
+              <View style={styles.bannedBadge}><Text style={styles.bannedText}>БАН</Text></View>
+            )}
+          </View>
           <Text style={styles.email} numberOfLines={1}>{user.email}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
             <Text style={styles.meta}>{ROLE_LABEL[user.role] ?? user.role}</Text>
             <Text style={styles.metaDot}>·</Text>
             <Text style={styles.meta}>{user._count.workouts} тренировок</Text>
-            {sub && (
+            {sub && sub.plan !== 'free' && (
               <>
                 <Text style={styles.metaDot}>·</Text>
-                <View style={[styles.planBadge, { backgroundColor: planColor + '22' }]}>
-                  <Text style={[styles.planText, { color: planColor }]}>{sub.plan}</Text>
+                <View style={[styles.planBadge, { backgroundColor: planColor + '22', borderWidth: 1, borderColor: planColor + '50' }]}>
+                  <Text style={[styles.planText, { color: planColor }]}>{sub.plan.toUpperCase()}</Text>
                 </View>
               </>
             )}
           </View>
+          {user.isBanned && user.banReason && (
+            <Text style={styles.banReason} numberOfLines={1}>Причина: {user.banReason}</Text>
+          )}
         </View>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
-      <SubActions user={user} onDone={onRefresh} />
+      {!user.isBanned && <SubActions user={user} onDone={onRefresh} />}
     </View>
   );
 }
@@ -154,6 +169,7 @@ export default function AdminUsersScreen() {
   const [pages, setPages] = useState(1);
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string>('');
+  const [planFilter, setPlanFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -163,7 +179,7 @@ export default function AdminUsersScreen() {
     else if (p === 1 && silent) setRefreshing(true);
     else setLoadingMore(true);
     try {
-      const res = await adminService.getUsers({ search, role: role || undefined, page: p, limit: 20 });
+      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, page: p, limit: 20 });
       setUsers(append ? (prev) => [...prev, ...res.users] : res.users);
       setTotal(res.total);
       setPage(res.page);
@@ -177,7 +193,7 @@ export default function AdminUsersScreen() {
     }
   }, [search, role]);
 
-  useEffect(() => { load(1); }, [search, role]);
+  useEffect(() => { load(1); }, [search, role, planFilter]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -205,6 +221,20 @@ export default function AdminUsersScreen() {
           >
             <Text style={[styles.filterText, role === r && styles.filterTextActive]}>
               {ROLE_LABEL[r]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.filterRow}>
+        {PLAN_FILTERS.map((p) => (
+          <TouchableOpacity
+            key={p.key}
+            style={[styles.filterBtn, planFilter === p.key && { backgroundColor: PLAN_COLOR[p.key] ?? '#6366F1' }]}
+            onPress={() => setPlanFilter(p.key)}
+          >
+            <Text style={[styles.filterText, planFilter === p.key && styles.filterTextActive]}>
+              {p.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -292,4 +322,8 @@ const styles = StyleSheet.create({
   arrow: { fontSize: 20, color: '#4B5563' },
   planBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   planText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  rowBanned: { borderColor: '#EF444440', backgroundColor: '#1A0A0A' },
+  bannedBadge: { backgroundColor: '#EF444422', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#EF444450' },
+  bannedText: { fontSize: 9, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5 },
+  banReason: { fontSize: 11, color: '#EF444488', marginTop: 2, fontStyle: 'italic' },
 });

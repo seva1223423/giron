@@ -298,6 +298,8 @@ export interface AdminUserSummary {
   lastName?: string;
   role: UserRole;
   createdAt: string;
+  isBanned: boolean;
+  banReason?: string;
   subscription?: { plan: string; status: string; endDate?: string } | null;
   _count: { workouts: number; chatMessages: number };
 }
@@ -308,9 +310,12 @@ export interface AdminUserDetail extends AdminUserSummary {
   heightCm?: number;
   goal?: string;
   fitnessLevel?: string;
+  bannedAt?: string;
+  adminNote?: string;
   _count: { workouts: number; meals: number; chatMessages: number; cardioSessions: number; supportTickets: number };
   workouts: Array<{ id: string; name: string; completedAt?: string; totalVolume?: number; durationMinutes?: number }>;
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
+  chatMessages: Array<{ id: string; content: string; createdAt: string }>;
 }
 
 export interface AdminStats {
@@ -321,12 +326,15 @@ export interface AdminStats {
     newThisMonth: number;
     activeNow: number;
     activeHour: number;
+    banned: number;
     withSubscription: number;
     withoutSubscription: number;
     byRole: Record<string, number>;
   };
   subscriptions: Array<{ plan: string; status: string; count: number }>;
-  workouts: { completedToday: number; completedThisWeek: number };
+  workouts: { completedToday: number; completedThisWeek: number; total: number };
+  nutrition: { mealsToday: number; mealsThisWeek: number };
+  cardio: { sessionsToday: number; sessionsThisWeek: number };
   ai: {
     messagesToday: number;
     messagesThisWeek: number;
@@ -344,7 +352,7 @@ export interface AdminStats {
     providerDisplayName: string;
     providerModel: string;
   };
-  support: { openTickets: number; inProgressTickets: number };
+  support: { openTickets: number; inProgressTickets: number; resolvedTickets: number };
   server: {
     uptimeSeconds: number;
     memoryUsedMb: number;
@@ -366,4 +374,16 @@ export interface AdminLog {
   adminId: string;
   admin: { firstName: string; lastName?: string; email: string };
   createdAt: string;
+}
+
+export interface AdminAnalytics {
+  timeline: Array<{ date: string; signups: number; workouts: number; ai: number; cardio: number }>;
+  funnel: {
+    totalUsers: number;
+    paidUsers: number;
+    activeLastWeek: number;
+    conversionRate: number;
+    retentionRate: number;
+  };
+  period: number;
 }

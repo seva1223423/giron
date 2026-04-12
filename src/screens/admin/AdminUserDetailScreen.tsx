@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Alert,
+  TouchableOpacity, Alert, TextInput,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -36,12 +36,15 @@ export default function AdminUserDetailScreen() {
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [editingNote, setEditingNote] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await adminService.getUser(userId);
       setUser(data);
+      setNoteText(data.adminNote ?? '');
     } catch {
       Alert.alert('Ошибка', 'Не удалось загрузить данные пользователя');
     } finally {
@@ -125,6 +128,88 @@ export default function AdminUserDetailScreen() {
     );
   }, [userId, user, load]);
 
+  const banUser = useCallback(() => {
+    Alert.prompt(
+      'Заблокировать пользователя',
+      `Укажи причину блокировки ${user?.firstName}:`,
+      async (reason) => {
+        if (!reason?.trim()) return;
+        setBusy(true);
+        try {
+          await adminService.banUser(userId, reason.trim());
+          await load();
+        } catch {
+          Alert.alert('Ошибка', 'Не удалось заблокировать пользователя');
+        } finally {
+          setBusy(false);
+        }
+      },
+      'plain-text'
+    );
+  }, [userId, user, load]);
+
+  const unbanUser = useCallback(() => {
+    Alert.alert(
+      'Разблокировать?',
+      `${user?.firstName} ${user?.lastName ?? ''} получит доступ обратно.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Разблокировать',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await adminService.unbanUser(userId);
+              await load();
+            } catch {
+              Alert.alert('Ошибка', 'Не удалось разблокировать');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [userId, user, load]);
+
+  const saveNote = useCallback(async () => {
+    setBusy(true);
+    try {
+      await adminService.setAdminNote(userId, noteText);
+      setEditingNote(false);
+      setUser((u) => u ? { ...u, adminNote: noteText || undefined } : u);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось сохранить заметку');
+    } finally {
+      setBusy(false);
+    }
+  }, [userId, noteText]);
+
+  const deleteUserAccount = useCallback(() => {
+    Alert.alert(
+      'Удалить аккаунт?',
+      `Аккаунт ${user?.firstName} будет анонимизирован. Это необратимо.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await adminService.deleteUser(userId);
+              Alert.alert('Готово', 'Аккаунт удалён');
+            } catch {
+              Alert.alert('Ошибка', 'Не удалось удалить аккаунт');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [userId, user]);
+
   if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
   if (!user) return null;
 
@@ -142,18 +227,32 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* Ban banner */}
+      {user.isBanned && (
+        <View style={styles.banBanner}>
+          <Text style={styles.banBannerTitle}>⛔ Заблокирован</Text>
+          {user.banReason && <Text style={styles.banBannerReason}>{user.banReason}</Text>}
+          {user.bannedAt && <Text style={styles.banBannerDate}>с {new Date(user.bannedAt).toLocaleDateString('ru-RU')}</Text>}
+        </View>
+      )}
+
       {/* User header */}
       <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: '#6366F133', borderColor: '#6366F1' }]}>
+        <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#EF444433' : '#6366F133', borderColor: user.isBanned ? '#EF4444' : '#6366F1' }]}>
           <Text style={styles.avatarText}>{user.firstName[0]}{user.lastName?.[0] ?? ''}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>{user.firstName} {user.lastName}</Text>
           <Text style={styles.email} numberOfLines={1}>{user.email}</Text>
           {user.phone && <Text style={styles.meta}>{user.phone}</Text>}
-          <Text style={[styles.roleBadge, { color: roleLower === 'admin' ? '#F59E0B' : '#9CA3AF' }]}>
-            {roleLower.toUpperCase()}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+            <Text style={[styles.roleBadge, { color: roleLower === 'admin' ? '#F59E0B' : '#9CA3AF' }]}>
+              {roleLower.toUpperCase()}
+            </Text>
+            <Text style={styles.meta}>
+              Зарегистрирован {new Date(user.createdAt).toLocaleDateString('ru-RU')}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -291,9 +390,74 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
-      <Text style={styles.createdAt}>
-        Зарегистрирован: {new Date(user.createdAt).toLocaleDateString('ru-RU')}
-      </Text>
+      {/* Recent AI messages */}
+      {user.chatMessages?.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Последние сообщения ИИ</Text>
+          {user.chatMessages.map((m) => (
+            <View key={m.id} style={styles.listRow}>
+              <Text style={styles.listMain} numberOfLines={2}>{m.content}</Text>
+              <Text style={styles.listMeta}>{new Date(m.createdAt).toLocaleDateString('ru-RU')}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Admin note */}
+      <View style={styles.card}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <Text style={styles.cardTitle}>Заметка администратора</Text>
+          {!editingNote ? (
+            <TouchableOpacity onPress={() => setEditingNote(true)} style={styles.editNoteBtn}>
+              <Text style={styles.editNoteBtnText}>{user.adminNote ? 'Редактировать' : 'Добавить'}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity onPress={() => { setEditingNote(false); setNoteText(user.adminNote ?? ''); }}>
+                <Text style={{ color: '#6B7280', fontSize: 12 }}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveNote} disabled={busy}>
+                <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '700' }}>Сохранить</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        {editingNote ? (
+          <TextInput
+            style={styles.noteInput}
+            value={noteText}
+            onChangeText={setNoteText}
+            placeholder="Внутренняя заметка для администраторов..."
+            placeholderTextColor="#4B5563"
+            multiline
+            maxLength={1000}
+          />
+        ) : user.adminNote ? (
+          <Text style={styles.noteText}>{user.adminNote}</Text>
+        ) : (
+          <Text style={styles.notePlaceholder}>Нет заметок</Text>
+        )}
+      </View>
+
+      {/* Ban / Delete actions */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Опасные действия</Text>
+        {user.isBanned ? (
+          <TouchableOpacity style={styles.unbanBtn} onPress={unbanUser} disabled={busy}>
+            <Text style={styles.unbanBtnText}>Разблокировать пользователя</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.revokeBtn} onPress={banUser} disabled={busy}>
+            <Text style={styles.revokeBtnText}>Заблокировать пользователя</Text>
+            <Text style={styles.revokeBtnSub}>Пользователь потеряет доступ к приложению</Text>
+          </TouchableOpacity>
+        )}
+        <View style={styles.divider} />
+        <TouchableOpacity style={styles.deleteBtn} onPress={deleteUserAccount} disabled={busy}>
+          <Text style={styles.deleteBtnText}>Удалить аккаунт</Text>
+          <Text style={styles.deleteBtnSub}>Анонимизирует данные · Необратимо</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -377,5 +541,37 @@ const styles = StyleSheet.create({
   listMain: { fontSize: 14, color: '#FFFFFF', marginBottom: 2 },
   listMeta: { fontSize: 12, color: '#6B7280' },
 
-  createdAt: { fontSize: 12, color: '#374151', textAlign: 'center', marginTop: 24 },
+  // Ban banner
+  banBanner: {
+    backgroundColor: '#EF444412', borderRadius: 12, borderWidth: 1,
+    borderColor: '#EF444450', padding: 14, marginBottom: 16,
+  },
+  banBannerTitle: { fontSize: 14, fontWeight: '800', color: '#EF4444', marginBottom: 4 },
+  banBannerReason: { fontSize: 13, color: '#EF444490', fontStyle: 'italic' },
+  banBannerDate: { fontSize: 11, color: '#EF444460', marginTop: 2 },
+
+  // Admin note
+  editNoteBtn: { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#2C2C2E', borderRadius: 6 },
+  editNoteBtnText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  noteInput: {
+    backgroundColor: '#0F0F0F', borderRadius: 8, padding: 12,
+    fontSize: 14, color: '#FFFFFF', minHeight: 80, borderWidth: 1, borderColor: '#3C3C3E',
+  },
+  noteText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20, fontStyle: 'italic' },
+  notePlaceholder: { fontSize: 13, color: '#374151', fontStyle: 'italic' },
+
+  // Unban button
+  unbanBtn: {
+    backgroundColor: '#10B98112', borderRadius: 10, borderWidth: 1,
+    borderColor: '#10B981', padding: 12, alignItems: 'center',
+  },
+  unbanBtnText: { color: '#10B981', fontSize: 14, fontWeight: '700' },
+
+  // Delete button
+  deleteBtn: {
+    backgroundColor: '#EF444408', borderRadius: 10, borderWidth: 1,
+    borderColor: '#EF444450', padding: 12, alignItems: 'center',
+  },
+  deleteBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '700' },
+  deleteBtnSub: { color: '#EF444060', fontSize: 11, marginTop: 2 },
 });
