@@ -50,7 +50,7 @@ export const ActivityTab: React.FC<Props> = ({ colors, workoutHistory }) => {
               shadowOpacity: 0.08, shadowRadius: 2, elevation: section === s.key ? 1 : 0,
             }}
           >
-            <Text style={[typography.smallMedium, { color: section === s.key ? colors.text : colors.textSecondary }]}>
+            <Text style={[typography.smallMedium, { color: section === s.key ? colors.primary : colors.textSecondary }]}>
               {s.label}
             </Text>
           </TouchableOpacity>

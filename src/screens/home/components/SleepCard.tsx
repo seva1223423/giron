@@ -81,11 +81,11 @@ export const SleepCard: React.FC = () => {
             {avgDuration > 0 && (
               <View style={{ marginTop: spacing.sm }}>
                 <Text style={[typography.small, { color: colors.textSecondary }]}>Среднее за 7 дней: {avgDuration} ч</Text>
-                <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.border, marginTop: 4, width: '100%' }}>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border, marginTop: 4, width: '100%' }}>
                   <View
                     style={{
-                      height: 4,
-                      borderRadius: 2,
+                      height: 6,
+                      borderRadius: 3,
                       backgroundColor: getDurationColor(avgDuration, colors),
                       width: `${Math.min(100, (avgDuration / 10) * 100)}%`,
                     }}

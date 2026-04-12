@@ -62,6 +62,7 @@ export const MuscleReadinessCard: React.FC<Props> = ({ workoutHistory }) => {
               flexDirection: 'row', alignItems: 'center', gap: 5,
               backgroundColor: dotColor + '18', borderRadius: borderRadius.sm,
               paddingVertical: 4, paddingHorizontal: spacing.sm,
+              borderWidth: 1, borderColor: dotColor + '35',
             }}>
               <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />
               <Text style={[typography.caption, { color: colors.text, fontSize: 11 }]} numberOfLines={1}>
