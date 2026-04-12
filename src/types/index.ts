@@ -369,6 +369,7 @@ export interface AdminStats {
   churnRiskUsers?: number;
   recentSignups?: Array<{ id: string; firstName: string; lastName?: string | null; email: string; createdAt: string; role: string }>;
   hourlyPulse?: number[];
+  onlineUsers?: Array<{ id: string; firstName: string; lastName?: string | null; role: string }>;
   todayVsYesterday?: {
     signups: { today: number; yesterday: number };
     workouts: { today: number; yesterday: number };

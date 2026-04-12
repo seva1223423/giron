@@ -3,7 +3,7 @@ import os from 'os';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { authenticate, requireAdmin, requireStaff, AuthRequest } from '../middleware/auth';
-import { getActiveUsersCount, getTotalSeenCount } from '../utils/activityTracker';
+import { getActiveUsersCount, getTotalSeenCount, getActiveUserIds } from '../utils/activityTracker';
 import { getAIMetrics } from '../utils/aiMetrics';
 import { logger } from '../utils/logger';
 
@@ -168,6 +168,13 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
     const activeNow = getActiveUsersCount(5 * 60 * 1000);    // 5 min
     const activeHour = getActiveUsersCount(60 * 60 * 1000);  // 1 hour
 
+    // Fetch names for currently active users (max 10)
+    const activeUserIds = getActiveUserIds(5 * 60 * 1000).slice(0, 10);
+    const onlineUsers = activeUserIds.length > 0 ? await prisma.user.findMany({
+      where: { id: { in: activeUserIds } },
+      select: { id: true, firstName: true, lastName: true, role: true },
+    }) : [];
+
     res.json({
       users: {
         total: totalUsers,
@@ -223,6 +230,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       topAiActiveUsers,
       dau: { workoutUsers: dauWorkout, aiUsers: dauAi },
       recentSignups,
+      onlineUsers,
       todayVsYesterday: {
         signups: { today: newToday, yesterday: signupsYesterday },
         workouts: { today: workoutsToday, yesterday: workoutsYesterday },
