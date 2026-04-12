@@ -166,4 +166,57 @@ router.get('/measurements', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+// ── Sleep entries ─────────────────────────────────────────────────────────────
+
+const sleepSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  bedtime: z.string().regex(/^\d{2}:\d{2}$/),
+  wakeTime: z.string().regex(/^\d{2}:\d{2}$/),
+  durationHours: z.number().min(0).max(24),
+  quality: z.number().int().min(1).max(5).optional().nullable(),
+});
+
+router.post('/sleep', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = sleepSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+    const { date, bedtime, wakeTime, durationHours, quality } = parsed.data;
+    const entry = await prisma.sleepEntry.upsert({
+      where: { userId_date: { userId: req.userId!, date } },
+      update: { bedtime, wakeTime, durationHours, quality },
+      create: { userId: req.userId!, date, bedtime, wakeTime, durationHours, quality },
+    });
+    res.json(entry);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка сохранения сна' });
+  }
+});
+
+router.delete('/sleep/:date', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.sleepEntry.deleteMany({
+      where: { userId: req.userId!, date: req.params.date as string },
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка удаления записи сна' });
+  }
+});
+
+router.get('/sleep', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const entries = await prisma.sleepEntry.findMany({
+      where: { userId: req.userId! },
+      orderBy: { date: 'desc' },
+      take: 90,
+    });
+    res.json(entries);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения данных сна' });
+  }
+});
+
 export { router as userRouter };

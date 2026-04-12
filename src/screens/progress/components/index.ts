@@ -12,3 +12,4 @@ export { WorkoutHistoryList } from './WorkoutHistoryList';
 export { SelectedDayCard } from './SelectedDayCard';
 export { MonthStatsCard } from './MonthStatsCard';
 export { CardioTab } from './CardioTab';
+export { SleepTab } from './SleepTab';

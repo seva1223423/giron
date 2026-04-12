@@ -3,6 +3,7 @@ import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-na
 import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
+import { useSleepStore } from '../../store/useSleepStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { PaywallModal } from '../../components';
 import { ChatMessage } from '../../types';
@@ -33,6 +34,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { fetchHistory, fetchPrograms, setWeekPlanDay, weekPlan } = useWorkoutStore();
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
   const { getWeekSessions, syncFromServer: syncCardio, addSession: addCardioSession } = useCardioStore();
+  const { getLastEntries: getSleepEntries, syncFromServer: syncSleep } = useSleepStore();
   const { consumeAiMessage } = useSubscriptionStore();
   const { setRestTimerDefault, setNotificationsEnabled, setReminderHour, setWaterRemindersEnabled, setWorkoutDurationGoal } = useSettingsStore();
   const scrollRef = useRef<ScrollView>(null);
@@ -89,6 +91,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   useEffect(() => {
     aiService.getStarters().then((starters) => { if (starters.length > 0) setServerStarters(starters); });
+    syncSleep().catch(() => {});
   }, []);
 
   const sendMessage = async (text: string) => {
@@ -106,6 +109,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const todayDate = new Date().toISOString().split('T')[0];
       const todayLog = getDayLog(todayDate);
       const cardioSessions = getWeekSessions().map(({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }) => ({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }));
+      const sleepEntries = getSleepEntries(14).map(({ date, durationHours, quality }) => ({ date, durationHours, quality }));
       const nutritionTargets = { calories: todayLog.targetCalories, protein: todayLog.targetProtein, fats: todayLog.targetFats ?? defaultTargets.fats, carbs: todayLog.targetCarbs ?? defaultTargets.carbs, waterTargetMl: todayLog.waterTargetMl ?? defaultTargets.waterTargetMl };
 
       // Streaming message placeholder
@@ -118,7 +122,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       try {
         const stream = aiService.chatStream(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, (result) => {
           response = { message: '', actions: result.actions, meta: result.meta };
-        });
+        }, sleepEntries);
 
         for await (const chunk of stream) {
           setMessages((prev) => prev.map((m) =>
@@ -128,7 +132,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
       } catch {
         // Streaming failed — fall back to regular request
-        const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions);
+        const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries);
         response = fallback;
         setMessages((prev) => prev.map((m) =>
           m.id === streamMsgId ? { ...m, content: fallback.message } : m

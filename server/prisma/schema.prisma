@@ -45,6 +45,7 @@ model User {
   assignedTickets         SupportTicket[]  @relation("StaffTickets")
   supportMessages         SupportMessage[] @relation("MessageAuthor")
   adminLogs               AdminLog[]       @relation("AdminLogs")
+  sleepEntries            SleepEntry[]
 
   gym                     Gym?      @relation(fields: [gymId], references: [id])
   passwordResetTokens     PasswordResetToken[]
@@ -436,4 +437,20 @@ model AdminLog {
 
   @@index([adminId])
   @@index([createdAt])
+}
+
+// ==================== SLEEP ====================
+model SleepEntry {
+  id            String   @id @default(cuid())
+  date          String   // YYYY-MM-DD
+  bedtime       String   // HH:MM
+  wakeTime      String   // HH:MM
+  durationHours Float
+  quality       Int?     // 1-5
+
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
 }

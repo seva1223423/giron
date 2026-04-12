@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Platform } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useTrainerStore } from '../../store';
@@ -17,25 +17,39 @@ const LEVEL_LABELS: Record<string, string> = {
   beginner: 'Новичок', intermediate: 'Средний', advanced: 'Продвинутый', expert: 'Эксперт',
 };
 
-const FAKE_HISTORY = [
-  { date: '2026-04-01', name: 'Толчок — Грудь + Трицепс', duration: 68, volume: 8400 },
-  { date: '2026-03-30', name: 'Тяга — Спина + Бицепс', duration: 72, volume: 7200 },
-  { date: '2026-03-28', name: 'Ноги', duration: 80, volume: 12600 },
-  { date: '2026-03-26', name: 'Толчок — Грудь + Трицепс', duration: 65, volume: 7900 },
-];
-
 export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
-  const { updateClient } = useTrainerStore();
+  const { updateClient, logWorkoutSession, removeWorkoutSession, getClientSessions } = useTrainerStore();
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
   const [showProgramPicker, setShowProgramPicker] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showLogSession, setShowLogSession] = useState(false);
+
+  // Log session form state
+  const [sessionName, setSessionName] = useState('');
+  const [sessionDuration, setSessionDuration] = useState('');
+  const [sessionVolume, setSessionVolume] = useState('');
+  const [sessionNotes, setSessionNotes] = useState('');
+
   if (!client) { navigation.goBack(); return null; }
 
   const today = new Date().toISOString().split('T')[0];
   const trainedToday = client.lastVisit === today;
+
+  const sessions = getClientSessions(client.id);
+
+  const stats = useMemo(() => {
+    if (sessions.length === 0) return null;
+    const avgDuration = Math.round(sessions.reduce((s, w) => s + w.durationMinutes, 0) / sessions.length);
+    const avgVolume = sessions.filter((w) => w.volumeKg).length > 0
+      ? sessions.filter((w) => w.volumeKg).reduce((s, w) => s + (w.volumeKg || 0), 0) / sessions.filter((w) => w.volumeKg).length
+      : null;
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
+    const weekCount = sessions.filter((w) => new Date(w.date) >= weekAgo).length;
+    return { avgDuration, avgVolume, weekCount };
+  }, [sessions]);
 
   const handleAssignProgram = (program: string) => {
     const updated = { ...client, assignedProgram: program };
@@ -62,6 +76,29 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
     const patch: Partial<TrainerClient> = { lastVisit: today, totalWorkouts: (client.totalWorkouts || 0) + 1 };
     setClient((prev) => ({ ...prev, ...patch }));
     updateClient(client.id, patch);
+  };
+
+  const handleLogSession = () => {
+    if (!sessionName.trim() || !sessionDuration.trim()) return;
+    haptic.success();
+    logWorkoutSession({
+      clientId: client.id,
+      date: today,
+      name: sessionName.trim(),
+      durationMinutes: parseInt(sessionDuration, 10) || 60,
+      volumeKg: sessionVolume ? parseFloat(sessionVolume) * 1000 : undefined,
+      notes: sessionNotes.trim() || undefined,
+    });
+    // Also update lastVisit and total count
+    const patch: Partial<TrainerClient> = { lastVisit: today, totalWorkouts: (client.totalWorkouts || 0) + 1 };
+    setClient((prev) => ({ ...prev, ...patch }));
+    updateClient(client.id, patch);
+    // Reset form
+    setSessionName('');
+    setSessionDuration('');
+    setSessionVolume('');
+    setSessionNotes('');
+    setShowLogSession(false);
   };
 
   const goal = client.goal ? GOAL_LABELS[client.goal] ?? client.goal : null;
@@ -102,20 +139,23 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
           </View>
         </Card>
 
-        {/* Mark training done */}
-        <TouchableOpacity onPress={handleMarkTrainingDone} disabled={trainedToday} activeOpacity={0.8} style={{ marginBottom: spacing.lg }}>
-          <View style={[styles.markDoneBtn, { backgroundColor: trainedToday ? colors.success + '20' : colors.success, borderColor: colors.success }]}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: trainedToday ? colors.success : '#fff' }}>{trainedToday ? '✓' : '◎'}</Text>
-            <View style={{ flex: 1, marginLeft: spacing.md }}>
-              <Text style={[typography.bodySemibold, { color: trainedToday ? colors.success : '#fff' }]}>
-                {trainedToday ? 'Тренировка отмечена сегодня' : 'Отметить тренировку'}
-              </Text>
-              <Text style={[typography.small, { color: trainedToday ? colors.success + 'CC' : 'rgba(255,255,255,0.75)' }]}>
-                {trainedToday ? `Итого: ${client.totalWorkouts || 0} тренировок` : 'Запишет визит и прибавит тренировку к счётчику'}
+        {/* Action buttons row */}
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+          <TouchableOpacity onPress={handleMarkTrainingDone} disabled={trainedToday} activeOpacity={0.8} style={{ flex: 1 }}>
+            <View style={[styles.markDoneBtn, { backgroundColor: trainedToday ? colors.success + '20' : colors.success, borderColor: colors.success }]}>
+              <Text style={{ fontWeight: '700', color: trainedToday ? colors.success : '#fff' }}>{trainedToday ? '✓' : '◎'}</Text>
+              <Text style={[typography.small, { color: trainedToday ? colors.success : '#fff', marginLeft: spacing.sm }]} numberOfLines={1}>
+                {trainedToday ? 'Отмечено' : 'Отметить'}
               </Text>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { haptic.selection(); setShowLogSession(true); }} activeOpacity={0.8} style={{ flex: 2 }}>
+            <View style={[styles.markDoneBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+              <Text style={{ fontWeight: '700', color: '#fff' }}>+</Text>
+              <Text style={[typography.small, { color: '#fff', marginLeft: spacing.sm }]}>Записать тренировку</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         {/* Assigned Program */}
         <Card style={{ marginBottom: spacing.lg }}>
@@ -132,37 +172,54 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
 
         <ClientNotesCard clientId={client.id} initialNotes={client.notes || ''} />
 
-        {/* Recent workouts */}
-        <Card style={{ marginBottom: spacing.lg }}>
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>ПОСЛЕДНИЕ ТРЕНИРОВКИ</Text>
-          {FAKE_HISTORY.map((w, i) => (
-            <View key={i} style={[styles.workoutRow, i < FAKE_HISTORY.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name}</Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                  {new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}{'  •  '}{w.duration} мин
-                </Text>
-              </View>
-              <Text style={[typography.captionMedium, { color: colors.primary }]}>{(w.volume / 1000).toFixed(1)} т</Text>
-            </View>
-          ))}
-        </Card>
-
         {/* Quick stats */}
-        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.huge }}>
-          <Card style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[typography.number, { color: colors.primary, fontSize: 24 }]}>{Math.round(FAKE_HISTORY.reduce((s, w) => s + w.duration, 0) / FAKE_HISTORY.length)}</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>ср. мин</Text>
-          </Card>
-          <Card style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[typography.number, { color: colors.success, fontSize: 24 }]}>{((FAKE_HISTORY.reduce((s, w) => s + w.volume, 0) / FAKE_HISTORY.length) / 1000).toFixed(1)}т</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>ср. объём</Text>
-          </Card>
-          <Card style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[typography.number, { color: colors.accent, fontSize: 24 }]}>4</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>трен/нед</Text>
-          </Card>
-        </View>
+        {stats && (
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+            <Card style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={[typography.number, { color: colors.primary, fontSize: 22 }]}>{stats.avgDuration}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>ср. мин</Text>
+            </Card>
+            {stats.avgVolume !== null && (
+              <Card style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={[typography.number, { color: colors.success, fontSize: 22 }]}>{(stats.avgVolume / 1000).toFixed(1)}т</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>ср. объём</Text>
+              </Card>
+            )}
+            <Card style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={[typography.number, { color: colors.accent, fontSize: 22 }]}>{stats.weekCount}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>трен/нед</Text>
+            </Card>
+          </View>
+        )}
+
+        {/* Recent workouts */}
+        <Card style={{ marginBottom: spacing.huge }}>
+          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>ПОСЛЕДНИЕ ТРЕНИРОВКИ</Text>
+          {sessions.length === 0 ? (
+            <Text style={[typography.body, { color: colors.textTertiary }]}>Тренировки не записаны</Text>
+          ) : (
+            sessions.slice(0, 15).map((w, i, arr) => (
+              <View key={w.id} style={[styles.workoutRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                    {new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                    {'  •  '}{w.durationMinutes} мин
+                    {w.notes ? `  •  ${w.notes}` : ''}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  {w.volumeKg ? (
+                    <Text style={[typography.captionMedium, { color: colors.primary }]}>{(w.volumeKg / 1000).toFixed(1)} т</Text>
+                  ) : null}
+                  <TouchableOpacity onPress={() => { haptic.warning(); removeWorkoutSession(w.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={[typography.caption, { color: colors.error + '80' }]}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </Card>
       </ScrollView>
 
       <ProgramPickerModal
@@ -178,6 +235,72 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
         onClose={() => setShowEditProfile(false)}
         onSave={handleSaveProfile}
       />
+
+      {/* Log Session Modal */}
+      <Modal visible={showLogSession} transparent animationType="slide" onRequestClose={() => setShowLogSession(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+              <Text style={[typography.h4, { color: colors.text }]}>Записать тренировку</Text>
+              <TouchableOpacity onPress={() => setShowLogSession(false)}>
+                <Text style={[typography.h4, { color: colors.textSecondary }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 6 }]}>Название тренировки *</Text>
+            <TextInput
+              value={sessionName}
+              onChangeText={setSessionName}
+              placeholder="Напр. Жим + спина"
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+            />
+
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 6 }]}>Длительность (мин) *</Text>
+                <TextInput
+                  value={sessionDuration}
+                  onChangeText={setSessionDuration}
+                  placeholder="60"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 6 }]}>Объём (тонн)</Text>
+                <TextInput
+                  value={sessionVolume}
+                  onChangeText={setSessionVolume}
+                  placeholder="8.5"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+                />
+              </View>
+            </View>
+
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 6 }]}>Заметки</Text>
+            <TextInput
+              value={sessionNotes}
+              onChangeText={setSessionNotes}
+              placeholder="Как прошла тренировка..."
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              numberOfLines={2}
+              style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text, minHeight: 60, textAlignVertical: 'top' }]}
+            />
+
+            <Button
+              title="Сохранить"
+              onPress={handleLogSession}
+              disabled={!sessionName.trim() || !sessionDuration.trim()}
+              style={{ marginTop: spacing.lg }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -191,5 +314,8 @@ const styles = StyleSheet.create({
   tag: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm },
   editBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm, borderWidth: 1 },
   workoutRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
-  markDoneBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: borderRadius.xl, borderWidth: 1.5, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  markDoneBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.xl, borderWidth: 1.5, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.xl, paddingBottom: Platform.OS === 'ios' ? 36 : spacing.xl },
+  input: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md, fontSize: 15 },
 });
