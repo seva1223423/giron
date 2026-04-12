@@ -237,4 +237,17 @@ export const adminService = {
     const res = await api.patch(`/admin/support/${ticketId}/assign`, { assignedToId });
     return res.data;
   },
+
+  async getSubscriptions(params?: {
+    plan?: string;
+    status?: string;
+    expiringSoon?: boolean;
+    page?: number;
+    limit?: number;
+    sort?: 'endDate' | 'createdAt' | 'plan';
+    order?: 'asc' | 'desc';
+  }): Promise<{ subscriptions: Array<{ id: string; plan: string; status: string; endDate: string | null; createdAt: string; user: { id: string; firstName: string; lastName?: string | null; email: string; isBanned: boolean } }>; total: number; page: number; pages: number }> {
+    const res = await api.get('/admin/subscriptions', { params: { ...params, expiringSoon: params?.expiringSoon ? 'true' : undefined } });
+    return res.data;
+  },
 };

@@ -325,6 +325,7 @@ export default function AdminDashboardScreen() {
           { label: 'Аналитика', icon: '📈', screen: 'AdminAnalyticsScreen' },
           { label: 'Логи', icon: '📋', screen: 'AdminLogsScreen' },
           { label: 'Объявления', icon: '📣', screen: 'AdminAnnouncementsScreen' },
+          { label: 'Подписки', icon: '💳', screen: 'AdminSubscriptionsScreen' },
         ].map((b) => (
           <TouchableOpacity
             key={b.screen}
