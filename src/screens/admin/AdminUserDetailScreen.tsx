@@ -186,7 +186,7 @@ export default function AdminUserDetailScreen() {
                 key={p.key}
                 style={[styles.planChip, isActive && { backgroundColor: p.color + '22', borderColor: p.color }]}
               >
-                <Text style={[styles.planChipText, { color: isActive ? p.color : '#6B7280' }]}>
+                <Text style={[styles.planChipText, { color: isActive ? p.color : '#6B7280' }]} numberOfLines={1}>
                   {p.label}
                   {isActive && sub?.status ? ` · ${sub.status}` : ''}
                 </Text>

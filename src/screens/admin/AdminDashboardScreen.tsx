@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   splitBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#374151' },
   splitFillPaid: { backgroundColor: '#8B5CF6' },
   splitFillFree: { backgroundColor: '#1F2937' },
-  splitLegend: { flexDirection: 'row', gap: 20, marginTop: 10 },
+  splitLegend: { flexDirection: 'row', gap: 20, marginTop: 10, flexWrap: 'wrap' },
   splitLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   splitLegendText: { fontSize: 13, color: '#9CA3AF' },
