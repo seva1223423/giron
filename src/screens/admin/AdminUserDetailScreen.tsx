@@ -255,6 +255,16 @@ export default function AdminUserDetailScreen() {
   // Server returns Prisma enum values (uppercase); normalize for comparisons
   const roleLower = user.role.toLowerCase() as typeof user.role;
 
+  // Engagement score: weighted sum of activity signals (0–100)
+  const engagementScore = Math.min(100, Math.round(
+    Math.min(user._count.workouts * 3, 40) +          // up to 40 pts for workouts
+    Math.min(user._count.chatMessages * 1.5, 25) +    // up to 25 pts for AI usage
+    Math.min(user._count.meals * 0.5, 20) +           // up to 20 pts for nutrition
+    Math.min(user._count.cardioSessions * 2, 15)      // up to 15 pts for cardio
+  ));
+  const engagementColor = engagementScore >= 70 ? '#10B981' : engagementScore >= 40 ? '#F59E0B' : '#EF4444';
+  const engagementLabel = engagementScore >= 70 ? 'Высокий' : engagementScore >= 40 ? 'Средний' : 'Низкий';
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {busy && (
@@ -306,6 +316,20 @@ export default function AdminUserDetailScreen() {
             <Text style={styles.statLabel} numberOfLines={1}>{s.label}</Text>
           </View>
         ))}
+      </View>
+
+      {/* Engagement score */}
+      <View style={[styles.engagementCard, { borderColor: engagementColor + '40' }]}>
+        <View style={styles.engagementLeft}>
+          <Text style={styles.engagementTitle}>Вовлечённость</Text>
+          <Text style={[styles.engagementLabel, { color: engagementColor }]}>{engagementLabel}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={styles.engagementBarTrack}>
+            <View style={[styles.engagementBarFill, { width: `${engagementScore}%` as any, backgroundColor: engagementColor }]} />
+          </View>
+        </View>
+        <Text style={[styles.engagementScore, { color: engagementColor }]}>{engagementScore}</Text>
       </View>
 
       {/* Subscription block */}
@@ -550,6 +574,19 @@ const styles = StyleSheet.create({
   statItem: { alignItems: 'center', flex: 1 },
   statValue: { fontSize: 18, fontWeight: '800', color: '#6366F1' },
   statLabel: { fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' },
+
+  // Engagement score
+  engagementCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14,
+    marginBottom: 12, borderWidth: 1,
+  },
+  engagementLeft: { width: 80 },
+  engagementTitle: { fontSize: 10, color: '#6B7280', fontWeight: '600', textTransform: 'uppercase', marginBottom: 2 },
+  engagementLabel: { fontSize: 13, fontWeight: '700' },
+  engagementBarTrack: { height: 8, backgroundColor: '#2C2C2E', borderRadius: 4, overflow: 'hidden' },
+  engagementBarFill: { height: '100%', borderRadius: 4 },
+  engagementScore: { fontSize: 22, fontWeight: '800', width: 36, textAlign: 'right' },
 
   card: {
     backgroundColor: '#1C1C1E', borderRadius: 14, padding: 16,
