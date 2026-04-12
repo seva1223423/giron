@@ -194,13 +194,22 @@ router.get('/all', authenticate, requireStaff, async (req: AuthRequest, res: Res
   }
 });
 
+const ticketStatusUpdateSchema = z.object({
+  status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+}).refine((d) => d.status !== undefined || d.priority !== undefined, {
+  message: 'Укажите status или priority',
+});
+
 /** PATCH /support/tickets/:id/status — update status (staff) */
 router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, priority } = req.body;
+    const parsed = ticketStatusUpdateSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+
     const data: any = { updatedAt: new Date() };
-    if (status) data.status = status;
-    if (priority) data.priority = priority;
+    if (parsed.data.status) data.status = parsed.data.status;
+    if (parsed.data.priority) data.priority = parsed.data.priority;
     const ticket = await prisma.supportTicket.update({ where: { id: req.params.id as string }, data });
     res.json(ticket);
   } catch (e) {

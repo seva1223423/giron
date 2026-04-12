@@ -182,10 +182,11 @@ router.delete('/sessions/:id', authenticate, requireTrainerRole as any, async (r
 
     await prisma.trainerSession.delete({ where: { id: req.params.id as string } });
 
-    // Decrement totalWorkouts
+    // Recount sessions from DB to keep totalWorkouts accurate (avoid going negative)
+    const sessionCount = await prisma.trainerSession.count({ where: { clientId: session.clientId } });
     await prisma.trainerClient.update({
       where: { id: session.clientId },
-      data: { totalWorkouts: { decrement: 1 } },
+      data: { totalWorkouts: sessionCount },
     });
 
     res.json({ success: true });

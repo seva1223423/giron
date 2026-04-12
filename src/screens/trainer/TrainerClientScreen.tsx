@@ -222,7 +222,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                   {w.volumeKg ? (
                     <Text style={[typography.captionMedium, { color: colors.primary }]}>{(w.volumeKg / 1000).toFixed(1)} т</Text>
                   ) : null}
-                  <TouchableOpacity onPress={() => { haptic.warning(); removeWorkoutSession(w.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity onPress={() => { haptic.warning(); removeWorkoutSession(w.id).catch(() => {}); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Text style={[typography.caption, { color: colors.error + '80' }]}>✕</Text>
                   </TouchableOpacity>
                 </View>

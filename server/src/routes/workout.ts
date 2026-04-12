@@ -144,10 +144,14 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Название и упражнения обязательны' });
     }
 
-    // If clientId provided, check if this workout was already synced
+    // If clientId provided, check if this workout was already synced (idempotency)
+    // IMPORTANT: verify ownership to prevent cross-user data exposure
     if (clientId) {
       const existing = await prisma.workout.findUnique({ where: { clientId } });
       if (existing) {
+        if (existing.userId !== req.userId) {
+          return res.status(403).json({ error: 'Доступ запрещён' });
+        }
         return res.status(200).json(existing);
       }
     }
