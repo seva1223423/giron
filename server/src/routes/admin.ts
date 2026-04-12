@@ -20,6 +20,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
     const now = new Date();
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
+    const prevWeekStart = new Date(now); prevWeekStart.setDate(now.getDate() - 14);
     const monthStart = new Date(now); monthStart.setDate(now.getDate() - 30);
 
     const [
@@ -43,6 +44,9 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       openTickets,
       inProgressTickets,
       resolvedTickets,
+      newPrevWeek,
+      workoutsPrevWeek,
+      aiPrevWeek,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
@@ -64,6 +68,9 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.supportTicket.count({ where: { status: 'open' } }),
       prisma.supportTicket.count({ where: { status: 'in_progress' } }),
       prisma.supportTicket.count({ where: { status: 'resolved' } }),
+      prisma.user.count({ where: { createdAt: { gte: prevWeekStart, lt: weekStart } } }),
+      prisma.workout.count({ where: { completedAt: { gte: prevWeekStart, lt: weekStart } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevWeekStart, lt: weekStart } } }),
     ]);
 
     // Server metrics
@@ -94,6 +101,11 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         status: s.status,
         count: s._count.id,
       })),
+      trends: {
+        usersWeekVsPrev: newPrevWeek > 0 ? Math.round(((newThisWeek - newPrevWeek) / newPrevWeek) * 100) : null,
+        workoutsWeekVsPrev: workoutsPrevWeek > 0 ? Math.round(((workoutsThisWeek - workoutsPrevWeek) / workoutsPrevWeek) * 100) : null,
+        aiWeekVsPrev: aiPrevWeek > 0 ? Math.round(((aiMessagesThisWeek - aiPrevWeek) / aiPrevWeek) * 100) : null,
+      },
       workouts: {
         completedToday: workoutsToday,
         completedThisWeek: workoutsThisWeek,
