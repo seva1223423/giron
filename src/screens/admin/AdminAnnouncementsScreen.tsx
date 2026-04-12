@@ -16,11 +16,12 @@ const TYPE_META: Record<AnnouncementType, { color: string; icon: string; label: 
 const TYPES: AnnouncementType[] = ['info', 'warning', 'maintenance', 'promo'];
 
 function AnnouncementCard({
-  item, onToggle, onDelete,
+  item, onToggle, onDelete, onEdit,
 }: {
   item: Announcement;
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const meta = TYPE_META[item.type];
   const isExpired = item.endsAt && new Date(item.endsAt) < new Date();
@@ -32,6 +33,9 @@ function AnnouncementCard({
           <Text style={[styles.typeText, { color: meta.color }]}>{meta.label}</Text>
         </View>
         <View style={styles.cardActions}>
+          <TouchableOpacity style={styles.cardBtn} onPress={onEdit}>
+            <Text style={[styles.cardBtnText, { color: '#6366F1' }]}>Ред.</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.cardBtn} onPress={onToggle}>
             <Text style={[styles.cardBtnText, { color: item.isActive ? '#10B981' : '#6B7280' }]}>
               {item.isActive ? 'Активно' : 'Выкл'}
@@ -74,6 +78,7 @@ export default function AdminAnnouncementsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [editItem, setEditItem] = useState<Announcement | null>(null);
 
   // Form state
   const [formTitle, setFormTitle] = useState('');
@@ -81,6 +86,26 @@ export default function AdminAnnouncementsScreen() {
   const [formType, setFormType] = useState<AnnouncementType>('info');
   const [formEndsAt, setFormEndsAt] = useState('');
   const [formTarget, setFormTarget] = useState<string>('');
+
+  const resetForm = useCallback(() => {
+    setFormTitle(''); setFormBody(''); setFormType('info'); setFormEndsAt(''); setFormTarget('');
+    setEditItem(null);
+  }, []);
+
+  const openCreate = useCallback(() => {
+    resetForm();
+    setShowForm(true);
+  }, [resetForm]);
+
+  const openEdit = useCallback((item: Announcement) => {
+    setEditItem(item);
+    setFormTitle(item.title);
+    setFormBody(item.body);
+    setFormType(item.type);
+    setFormEndsAt(item.endsAt ? new Date(item.endsAt).toISOString().split('T')[0] : '');
+    setFormTarget(item.targetRole ?? '');
+    setShowForm(true);
+  }, []);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -98,29 +123,39 @@ export default function AdminAnnouncementsScreen() {
 
   useEffect(() => { load(); }, []);
 
-  const handleCreate = useCallback(async () => {
+  const handleSubmit = useCallback(async () => {
     if (!formTitle.trim() || !formBody.trim()) {
       Alert.alert('Ошибка', 'Заполните заголовок и текст');
       return;
     }
     setBusy(true);
     try {
-      await adminService.createAnnouncement({
-        title: formTitle.trim(),
-        body: formBody.trim(),
-        type: formType,
-        endsAt: formEndsAt.trim() || undefined,
-        targetRole: formTarget || undefined,
-      } as any);
+      if (editItem) {
+        await adminService.updateAnnouncement(editItem.id, {
+          title: formTitle.trim(),
+          body: formBody.trim(),
+          type: formType,
+          endsAt: formEndsAt.trim() || undefined,
+          targetRole: formTarget || undefined,
+        } as any);
+      } else {
+        await adminService.createAnnouncement({
+          title: formTitle.trim(),
+          body: formBody.trim(),
+          type: formType,
+          endsAt: formEndsAt.trim() || undefined,
+          targetRole: formTarget || undefined,
+        } as any);
+      }
       setShowForm(false);
-      setFormTitle(''); setFormBody(''); setFormType('info'); setFormEndsAt(''); setFormTarget('');
+      resetForm();
       await load();
     } catch {
-      Alert.alert('Ошибка', 'Не удалось создать объявление');
+      Alert.alert('Ошибка', editItem ? 'Не удалось обновить объявление' : 'Не удалось создать объявление');
     } finally {
       setBusy(false);
     }
-  }, [formTitle, formBody, formType, formEndsAt, load]);
+  }, [formTitle, formBody, formType, formEndsAt, formTarget, editItem, load, resetForm]);
 
   const handleToggle = useCallback(async (item: Announcement) => {
     try {
@@ -155,14 +190,14 @@ export default function AdminAnnouncementsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Create modal */}
-      <Modal visible={showForm} animationType="slide" transparent onRequestClose={() => setShowForm(false)}>
+      {/* Create/Edit modal */}
+      <Modal visible={showForm} animationType="slide" transparent onRequestClose={() => { setShowForm(false); resetForm(); }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Новое объявление</Text>
-                <TouchableOpacity onPress={() => setShowForm(false)}>
+                <Text style={styles.modalTitle}>{editItem ? 'Редактировать объявление' : 'Новое объявление'}</Text>
+                <TouchableOpacity onPress={() => { setShowForm(false); resetForm(); }}>
                   <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -227,10 +262,10 @@ export default function AdminAnnouncementsScreen() {
                 placeholderTextColor="#4B5563"
               />
 
-              <TouchableOpacity style={styles.createBtn} onPress={handleCreate} disabled={busy}>
+              <TouchableOpacity style={styles.createBtn} onPress={handleSubmit} disabled={busy}>
                 {busy
                   ? <ActivityIndicator color="#FFFFFF" />
-                  : <Text style={styles.createBtnText}>Опубликовать</Text>
+                  : <Text style={styles.createBtnText}>{editItem ? 'Сохранить изменения' : 'Опубликовать'}</Text>
                 }
               </TouchableOpacity>
             </ScrollView>
@@ -241,7 +276,7 @@ export default function AdminAnnouncementsScreen() {
       {/* Header action */}
       <View style={styles.topBar}>
         <Text style={styles.topLabel}>Объявлений: {items.length}</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)}>
+        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
           <Text style={styles.addBtnText}>+ Новое</Text>
         </TouchableOpacity>
       </View>
@@ -258,6 +293,7 @@ export default function AdminAnnouncementsScreen() {
               item={item}
               onToggle={() => handleToggle(item)}
               onDelete={() => handleDelete(item)}
+              onEdit={() => openEdit(item)}
             />
           )}
           contentContainerStyle={styles.list}
