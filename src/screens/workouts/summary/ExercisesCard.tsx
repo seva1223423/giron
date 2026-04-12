@@ -23,7 +23,7 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
           <View key={ex.id}>
             <View style={[{ flexDirection: 'row', paddingVertical: spacing.md }, i < workout.exercises.length - 1 && !isSuperset && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.exercise.name}</Text>
+                <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.exercise.name}</Text>
                 <Text style={[typography.small, { color: colors.textSecondary }]}>
                   {completedSets.length} подх. • {Math.round(exVolume)} кг
                 </Text>
