@@ -135,6 +135,17 @@ export const adminService = {
     return res.data;
   },
 
+  async getSupportMetrics(): Promise<{
+    resolvedToday: number;
+    openCount: number;
+    unassigned: number;
+    avgResponseHours: number | null;
+    categoryBreakdown: Record<string, number>;
+  }> {
+    const res = await api.get('/admin/support/metrics');
+    return res.data;
+  },
+
   async addInternalNote(ticketId: string, content: string): Promise<unknown> {
     const res = await api.post(`/admin/support/${ticketId}/note`, { content });
     return res.data;

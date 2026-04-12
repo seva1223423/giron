@@ -112,6 +112,14 @@ function TicketRow({
   );
 }
 
+type SupportMetrics = {
+  resolvedToday: number;
+  openCount: number;
+  unassigned: number;
+  avgResponseHours: number | null;
+  categoryBreakdown: Record<string, number>;
+};
+
 export default function AdminSupportScreen() {
   const navigation = useNavigation<AdminNav>();
   const myId = useAuthStore((s) => s.user?.id);
@@ -128,6 +136,7 @@ export default function AdminSupportScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [metrics, setMetrics] = useState<SupportMetrics | null>(null);
   // Bulk select
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -150,15 +159,17 @@ export default function AdminSupportScreen() {
   const load = useCallback(async (p: number, append = false) => {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
-      const [res, cnts] = await Promise.all([
+      const [res, cnts, met] = await Promise.all([
         adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, search: search || undefined, page: p, limit: 20 }),
         p === 1 ? adminService.getSupportCounts() : Promise.resolve(counts),
+        p === 1 ? adminService.getSupportMetrics() : Promise.resolve(null),
       ]);
       setTickets(append ? (prev) => [...prev, ...res.tickets] : res.tickets);
       setTotal(res.total);
       setPage(res.page);
       setPages(res.pages);
       if (p === 1) setCounts(cnts as Record<string, number>);
+      if (p === 1 && met) setMetrics(met);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -233,6 +244,33 @@ export default function AdminSupportScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Performance metrics bar */}
+      {metrics && (
+        <View style={styles.metricsBar}>
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{metrics.resolvedToday}</Text>
+            <Text style={styles.metricLabel}>Решено сегодня</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={[styles.metricValue, metrics.unassigned > 0 && { color: '#F59E0B' }]}>{metrics.unassigned}</Text>
+            <Text style={styles.metricLabel}>Без агента</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={[styles.metricValue, (metrics.avgResponseHours ?? 0) > 8 && { color: '#EF4444' }]}>
+              {metrics.avgResponseHours != null ? `${metrics.avgResponseHours}ч` : '—'}
+            </Text>
+            <Text style={styles.metricLabel}>Ср. ответ (7д)</Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{metrics.openCount}</Text>
+            <Text style={styles.metricLabel}>В очереди</Text>
+          </View>
+        </View>
+      )}
+
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
@@ -421,4 +459,10 @@ const styles = StyleSheet.create({
   bulkBtnText: { fontSize: 13, fontWeight: '700', color: '#10B981' },
   bulkCancelBtn: { paddingHorizontal: 12, paddingVertical: 10 },
   bulkCancelText: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
+
+  metricsBar: { flexDirection: 'row', backgroundColor: '#1C1C1E', borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  metricItem: { flex: 1, alignItems: 'center', paddingVertical: 10 },
+  metricValue: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  metricLabel: { fontSize: 9, color: '#6B7280', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
+  metricDivider: { width: 1, backgroundColor: '#2C2C2E', marginVertical: 8 },
 });

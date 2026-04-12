@@ -770,6 +770,53 @@ router.get('/support/counts', requireStaff, async (_req: AuthRequest, res: Respo
   }
 });
 
+/** GET /admin/support/metrics — performance stats for support queue */
+router.get('/support/metrics', requireStaff, async (_req: AuthRequest, res: Response) => {
+  try {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const weekStart = new Date(Date.now() - 7 * 86400 * 1000);
+
+    const [resolvedToday, openCount, unassigned, categoryCounts, ticketsWithFirstReply] = await Promise.all([
+      prisma.supportTicket.count({ where: { status: { in: ['resolved', 'closed'] }, updatedAt: { gte: todayStart } } }),
+      prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] } } }),
+      prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] }, assignedToId: null } }),
+      prisma.supportTicket.groupBy({ by: ['category'], _count: { id: true } }),
+      // Get first staff message time for tickets created this week to compute avg response time
+      prisma.supportTicket.findMany({
+        where: { createdAt: { gte: weekStart } },
+        select: {
+          createdAt: true,
+          messages: {
+            where: { isStaff: true, isInternal: false },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+            select: { createdAt: true },
+          },
+        },
+      }),
+    ]);
+
+    // Compute avg first response time in hours
+    const responseTimes = ticketsWithFirstReply
+      .filter((t) => t.messages.length > 0)
+      .map((t) => (new Date(t.messages[0].createdAt).getTime() - new Date(t.createdAt).getTime()) / 3600000);
+    const avgResponseHours = responseTimes.length > 0
+      ? Math.round((responseTimes.reduce((s, v) => s + v, 0) / responseTimes.length) * 10) / 10
+      : null;
+
+    res.json({
+      resolvedToday,
+      openCount,
+      unassigned,
+      avgResponseHours,
+      categoryBreakdown: Object.fromEntries(categoryCounts.map((c) => [c.category, c._count.id])),
+    });
+  } catch (e) {
+    logger.error('GET /admin/support/metrics:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 /** GET /admin/support/export — export tickets as CSV */
 router.get('/support/export', requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
