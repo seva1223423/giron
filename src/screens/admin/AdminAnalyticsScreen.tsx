@@ -79,6 +79,7 @@ export default function AdminAnalyticsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState(30);
   const [exporting, setExporting] = useState(false);
+  const [cohorts, setCohorts] = useState<Array<{ week: string; signups: number; activeThisWeek: number; retentionPct: number }>>([]);
 
   const exportCSV = useCallback(async () => {
     const canShare = await Sharing.isAvailableAsync();
@@ -98,8 +99,12 @@ export default function AdminAnalyticsScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const res = await adminService.getAnalytics(period);
+      const [res, cohortsRes] = await Promise.all([
+        adminService.getAnalytics(period),
+        adminService.getCohorts(),
+      ]);
       setData(res);
+      setCohorts(cohortsRes);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -349,6 +354,33 @@ export default function AdminAnalyticsScreen() {
         </View>
       )}
 
+      {/* Cohort retention */}
+      {cohorts.length > 0 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Когортный ретеншн (8 недель)</Text>
+          <Text style={styles.chartSub}>% зарег. на неделе, кто тренировался последние 7 дней</Text>
+          {cohorts.map((c, i) => {
+            const color = c.retentionPct >= 30 ? '#10B981' : c.retentionPct >= 10 ? '#F59E0B' : '#EF4444';
+            const barW = Math.max(2, c.retentionPct);
+            const weekLabel = new Date(c.week).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+            const isCurrentWeek = i === cohorts.length - 1;
+            return (
+              <View key={c.week} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                <Text style={{ fontSize: 11, color: '#6B7280', width: 50 }}>{weekLabel}</Text>
+                <View style={{ flex: 1, height: 16, backgroundColor: '#2C2C2E', borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{ width: `${barW}%`, height: '100%', backgroundColor: color, borderRadius: 4 }} />
+                </View>
+                <Text style={{ fontSize: 11, color, fontWeight: '700', width: 36, textAlign: 'right' }}>
+                  {c.retentionPct}%
+                </Text>
+                <Text style={{ fontSize: 11, color: '#4B5563', width: 32 }}>/{c.signups}</Text>
+                {isCurrentWeek && <Text style={{ fontSize: 9, color: '#6366F1' }}>сейчас</Text>}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {/* Timeline table — last 7 days */}
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Последние 7 дней</Text>
@@ -396,7 +428,8 @@ const styles = StyleSheet.create({
   insightText: { fontSize: 13, flex: 1, lineHeight: 18 },
 
   chartCard: { backgroundColor: '#1C1C1E', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#2C2C2E' },
-  chartTitle: { fontSize: 13, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 },
+  chartTitle: { fontSize: 13, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  chartSub: { fontSize: 11, color: '#4B5563', marginBottom: 12 },
 
   funnelLabel: { fontSize: 13, color: '#D1D5DB' },
   funnelValue: { fontSize: 13, fontWeight: '700' },
