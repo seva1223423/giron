@@ -128,9 +128,11 @@ export default function AdminUserDetailScreen() {
   if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
   if (!user) return null;
 
-  const sub = (user as any).subscription;
-  const currentPlan: Plan = sub?.plan ?? 'free';
+  const sub = user.subscription;
+  const currentPlan: Plan = (sub?.plan as Plan) ?? 'free';
   const isActiveSub = sub?.status === 'active' && currentPlan !== 'free';
+  // Server returns Prisma enum values (uppercase); normalize for comparisons
+  const roleLower = user.role.toLowerCase() as typeof user.role;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -149,8 +151,8 @@ export default function AdminUserDetailScreen() {
           <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
           <Text style={styles.email}>{user.email}</Text>
           {user.phone && <Text style={styles.meta}>{user.phone}</Text>}
-          <Text style={[styles.roleBadge, { color: user.role === 'admin' ? '#F59E0B' : '#9CA3AF' }]}>
-            {user.role.toUpperCase()}
+          <Text style={[styles.roleBadge, { color: roleLower === 'admin' ? '#F59E0B' : '#9CA3AF' }]}>
+            {roleLower.toUpperCase()}
           </Text>
         </View>
       </View>
@@ -237,11 +239,11 @@ export default function AdminUserDetailScreen() {
           {ROLES.map((r) => (
             <TouchableOpacity
               key={r}
-              style={[styles.chip, user.role === r && styles.chipActive]}
-              onPress={() => user.role !== r && changeRole(r)}
+              style={[styles.chip, roleLower === r && styles.chipActive]}
+              onPress={() => roleLower !== r && changeRole(r)}
               disabled={busy}
             >
-              <Text style={[styles.chipText, user.role === r && styles.chipTextActive]}>{r}</Text>
+              <Text style={[styles.chipText, roleLower === r && styles.chipTextActive]}>{r}</Text>
             </TouchableOpacity>
           ))}
         </View>

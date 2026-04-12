@@ -155,10 +155,13 @@ export default function AdminUsersScreen() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(async (p: number, append = false) => {
-    if (p === 1) setLoading(true); else setLoadingMore(true);
+  const load = useCallback(async (p: number, append = false, silent = false) => {
+    if (p === 1 && !silent) setLoading(true);
+    else if (p === 1 && silent) setRefreshing(true);
+    else setLoadingMore(true);
     try {
       const res = await adminService.getUsers({ search, role: role || undefined, page: p, limit: 20 });
       setUsers(append ? (prev) => [...prev, ...res.users] : res.users);
@@ -169,6 +172,7 @@ export default function AdminUsersScreen() {
       if (p === 1) Alert.alert('Ошибка', 'Не удалось загрузить список пользователей');
     } finally {
       setLoading(false);
+      setRefreshing(false);
       setLoadingMore(false);
     }
   }, [search, role]);
@@ -218,13 +222,13 @@ export default function AdminUsersScreen() {
             <UserRow
               user={item}
               onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: item.id })}
-              onRefresh={() => load(1)}
+              onRefresh={() => load(1, false, true)}
             />
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
           refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={() => load(1)} tintColor="#6366F1" />
+            <RefreshControl refreshing={refreshing} onRefresh={() => load(1, false, true)} tintColor="#6366F1" />
           }
           ListFooterComponent={
             loadingMore
