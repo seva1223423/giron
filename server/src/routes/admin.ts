@@ -48,6 +48,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       workoutsPrevWeek,
       aiPrevWeek,
       subsExpiringSoon,
+      urgentTickets,
+      activeAnnouncements,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
@@ -73,6 +75,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.workout.count({ where: { completedAt: { gte: prevWeekStart, lt: weekStart } } }),
       prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevWeekStart, lt: weekStart } } }),
       prisma.subscription.count({ where: { status: 'active', plan: { not: 'free' }, endDate: { gte: now, lte: new Date(now.getTime() + 7 * 86400 * 1000) } } }),
+      prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] }, priority: 'urgent' } }),
+      prisma.announcement.count({ where: { isActive: true, OR: [{ endsAt: null }, { endsAt: { gte: now } }] } }),
     ]);
 
     // Server metrics
@@ -157,7 +161,9 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         openTickets,
         inProgressTickets,
         resolvedTickets,
+        urgentTickets,
       },
+      activeAnnouncements,
       topActiveUsers,
       server: {
         uptimeSeconds: Math.round(uptime),

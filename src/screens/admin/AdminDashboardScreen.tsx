@@ -232,8 +232,11 @@ export default function AdminDashboardScreen() {
       </View>
 
       {/* System alerts */}
-      {stats.support.openTickets > 5 && (
-        <AlertBanner icon="🎧" color="#EF4444" message={`${stats.support.openTickets} открытых тикетов — нужна обработка`} />
+      {(stats.support.urgentTickets ?? 0) > 0 && (
+        <AlertBanner icon="🚨" color="#EF4444" message={`${stats.support.urgentTickets} срочных тикетов требуют внимания`} />
+      )}
+      {stats.support.openTickets > 5 && !((stats.support.urgentTickets ?? 0) > 0) && (
+        <AlertBanner icon="🎧" color="#F59E0B" message={`${stats.support.openTickets} открытых тикетов — нужна обработка`} />
       )}
       {(stats.ai.errorsToday ?? 0) > 10 && (
         <AlertBanner icon="⚠️" color="#F59E0B" message={`${stats.ai.errorsToday} ошибок ИИ сегодня — проверь провайдера`} />
@@ -255,6 +258,7 @@ export default function AdminDashboardScreen() {
           { label: 'Поддержка', icon: '🎧', screen: 'AdminSupportScreen' },
           { label: 'Аналитика', icon: '📈', screen: 'AdminAnalyticsScreen' },
           { label: 'Логи', icon: '📋', screen: 'AdminLogsScreen' },
+          { label: 'Объявления', icon: '📣', screen: 'AdminAnnouncementsScreen' },
         ].map((b) => (
           <TouchableOpacity
             key={b.screen}
@@ -453,7 +457,27 @@ export default function AdminDashboardScreen() {
         <StatCard title="Открытых" value={stats.support.openTickets} color="#EF4444" />
         <StatCard title="В работе" value={stats.support.inProgressTickets} color="#F59E0B" />
         <StatCard title="Решено" value={stats.support.resolvedTickets ?? 0} color="#10B981" />
+        {(stats.support.urgentTickets ?? 0) > 0 && (
+          <StatCard title="Срочных" value={stats.support.urgentTickets ?? 0} color="#EF4444" />
+        )}
       </View>
+
+      {/* ── Announcements ──────────────────────────────────────────────── */}
+      {(stats.activeAnnouncements ?? 0) > 0 && (
+        <>
+          <SectionTitle title="Объявления" />
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.statCard, { borderWidth: 1, borderColor: '#6366F120' }]}
+              onPress={() => navigation.navigate('AdminAnnouncementsScreen')}
+            >
+              <Text style={styles.statTitle}>Активных</Text>
+              <Text style={[styles.statValue, { color: '#6366F1' }]}>{stats.activeAnnouncements}</Text>
+              <Text style={styles.statSub}>Нажми для управления</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       {/* ── Server load ────────────────────────────────────────────────── */}
       <SectionTitle title="Нагрузка на сервер" />
