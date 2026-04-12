@@ -40,6 +40,10 @@ model User {
   aiMemories              AIMemory[]
   trainerClients          TrainerClient[]
   cardioSessions          CardioSession[]
+  supportTickets          SupportTicket[]  @relation("UserTickets")
+  assignedTickets         SupportTicket[]  @relation("StaffTickets")
+  supportMessages         SupportMessage[] @relation("MessageAuthor")
+  adminLogs               AdminLog[]       @relation("AdminLogs")
 
   gym                     Gym?      @relation(fields: [gymId], references: [id])
   passwordResetTokens     PasswordResetToken[]
@@ -71,6 +75,7 @@ enum UserRole {
   VISITOR
   CLIENT
   TRAINER
+  SUPPORT
   ADMIN
 }
 
@@ -357,4 +362,60 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==================== SUPPORT ====================
+model SupportTicket {
+  id           String   @id @default(cuid())
+  subject      String
+  category     String   // billing, technical, feature_request, account, bug, other
+  status       String   @default("open") // open, in_progress, resolved, closed
+  priority     String   @default("normal") // low, normal, high, urgent
+
+  userId       String
+  user         User     @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+
+  assignedToId String?
+  assignedTo   User?    @relation("StaffTickets", fields: [assignedToId], references: [id])
+
+  messages     SupportMessage[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model SupportMessage {
+  id        String   @id @default(cuid())
+  content   String
+  isStaff   Boolean  @default(false)
+
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorId  String
+  author    User     @relation("MessageAuthor", fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+// ==================== ADMIN LOG ====================
+model AdminLog {
+  id        String   @id @default(cuid())
+  action    String   // VIEW_USER, CHANGE_ROLE, CHANGE_SUBSCRIPTION, CLOSE_TICKET, REPLY_TICKET, BAN_USER
+  targetId  String?  // affected userId or ticketId
+  details   String?
+
+  adminId   String
+  admin     User     @relation("AdminLogs", fields: [adminId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([createdAt])
 }

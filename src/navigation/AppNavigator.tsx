@@ -45,6 +45,15 @@ import { TrainerClientScreen } from '../screens/trainer/TrainerClientScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { CardioScreen } from '../screens/cardio/CardioScreen';
 import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
+import SupportScreen from '../screens/support/SupportScreen';
+import CreateTicketScreen from '../screens/support/CreateTicketScreen';
+import SupportTicketScreen from '../screens/support/SupportTicketScreen';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import AdminUsersScreen from '../screens/admin/AdminUsersScreen';
+import AdminUserDetailScreen from '../screens/admin/AdminUserDetailScreen';
+import AdminSupportScreen from '../screens/admin/AdminSupportScreen';
+import AdminTicketScreen from '../screens/admin/AdminTicketScreen';
+import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -120,13 +129,35 @@ function NutritionStackNavigator() {
 // Profile Stack
 function ProfileStackNavigator() {
   return (
-    <ProfileStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <ProfileStack.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: ['SupportScreen','CreateTicketScreen','SupportTicketScreen',
+          'AdminDashboardScreen','AdminUsersScreen','AdminUserDetailScreen',
+          'AdminSupportScreen','AdminTicketScreen','AdminLogsScreen'].includes(route.name),
+        animation: 'slide_from_right',
+        headerStyle: { backgroundColor: '#0F0F0F' },
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: { fontWeight: '700' as const },
+        headerBackTitle: '',
+      })}
+    >
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="TrainerDashboard" component={TrainerDashboardScreen} />
       <ProfileStack.Screen name="TrainerClient" component={TrainerClientScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+      {/* Support */}
+      <ProfileStack.Screen name="SupportScreen" component={SupportScreen} options={{ title: 'Поддержка' }} />
+      <ProfileStack.Screen name="CreateTicketScreen" component={CreateTicketScreen} options={{ title: 'Новое обращение' }} />
+      <ProfileStack.Screen name="SupportTicketScreen" component={SupportTicketScreen} options={{ title: 'Обращение' }} />
+      {/* Admin */}
+      <ProfileStack.Screen name="AdminDashboardScreen" component={AdminDashboardScreen} options={{ title: 'Панель администратора' }} />
+      <ProfileStack.Screen name="AdminUsersScreen" component={AdminUsersScreen} options={{ title: 'Пользователи' }} />
+      <ProfileStack.Screen name="AdminUserDetailScreen" component={AdminUserDetailScreen} options={{ title: 'Пользователь' }} />
+      <ProfileStack.Screen name="AdminSupportScreen" component={AdminSupportScreen} options={{ title: 'Тикеты поддержки' }} />
+      <ProfileStack.Screen name="AdminTicketScreen" component={AdminTicketScreen} options={{ title: 'Тикет' }} />
+      <ProfileStack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ title: 'Лог действий' }} />
     </ProfileStack.Navigator>
   );
 }

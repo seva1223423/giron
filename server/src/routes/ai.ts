@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
+import { recordAIRequest } from '../utils/aiMetrics';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -2685,6 +2686,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const cachedResponse = getCachedResponse(message, intent);
     if (cachedResponse) {
       logger.debug(`[AI] Cache hit for intent=${intent}`);
+      recordAIRequest({ cacheHit: true });
       await prisma.chatMessage.create({
         data: { role: 'assistant', content: cachedResponse, userId },
       });
@@ -2695,6 +2697,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         meta: { mood: 'neutral' },
       });
     }
+    recordAIRequest({ cacheHit: false });
 
     // ─── Emotion detection: adapt AI tone to user's mood ──────
     const { mood, directive: moodDirective } = detectMood(message);
