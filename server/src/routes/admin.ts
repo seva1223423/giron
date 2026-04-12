@@ -183,7 +183,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/users — paginated user list */
 router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { search = '', role, plan, banned, page = '1', limit = '20', sort = 'createdAt', order = 'desc' } = req.query as Record<string, string>;
+    const { search = '', role, plan, banned, dormant, page = '1', limit = '20', sort = 'createdAt', order = 'desc' } = req.query as Record<string, string>;
     const ALLOWED_SORT = ['createdAt', 'email', 'firstName', 'lastName'] as const;
     const safeSort = ALLOWED_SORT.includes(sort as any) ? sort : 'createdAt';
     const safeOrder = order === 'asc' ? 'asc' : 'desc';
@@ -195,6 +195,13 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
     if (banned === 'true') where.isBanned = true;
     if (plan) {
       where.subscription = { plan, status: 'active' };
+    }
+    if (dormant === 'true') {
+      // Users with no workout in last 30 days (excluding new users registered < 7 days ago)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000);
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400 * 1000);
+      where.createdAt = { lt: sevenDaysAgo };
+      where.workouts = { none: { completedAt: { gte: thirtyDaysAgo } } };
     }
     if (search) {
       where.OR = [
