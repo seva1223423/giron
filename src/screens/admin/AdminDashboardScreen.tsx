@@ -250,6 +250,12 @@ export default function AdminDashboardScreen() {
       {(stats.subsExpiringSoon ?? 0) > 0 && (
         <AlertBanner icon="⏰" color="#F59E0B" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} />
       )}
+      {(stats.support.overdueTickets ?? 0) > 0 && (
+        <AlertBanner icon="🕐" color="#F59E0B" message={`${stats.support.overdueTickets} тикетов без ответа более 24 часов`} />
+      )}
+      {(stats.churnRiskUsers ?? 0) > 0 && (
+        <AlertBanner icon="⚡" color="#8B5CF6" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} />
+      )}
 
       {/* Quick nav */}
       <View style={styles.navGrid}>
@@ -469,6 +475,9 @@ export default function AdminDashboardScreen() {
         <StatCard title="Решено" value={stats.support.resolvedTickets ?? 0} color="#10B981" />
         {(stats.support.urgentTickets ?? 0) > 0 && (
           <StatCard title="Срочных" value={stats.support.urgentTickets ?? 0} color="#EF4444" />
+        )}
+        {(stats.support.overdueTickets ?? 0) > 0 && (
+          <StatCard title="Просрочено" value={stats.support.overdueTickets ?? 0} color="#F59E0B" sub=">24ч без ответа" />
         )}
       </View>
 

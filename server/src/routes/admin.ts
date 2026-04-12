@@ -50,6 +50,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       subsExpiringSoon,
       urgentTickets,
       activeAnnouncements,
+      overdueTickets,
+      churnRiskUsers,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
@@ -77,6 +79,10 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.subscription.count({ where: { status: 'active', plan: { not: 'free' }, endDate: { gte: now, lte: new Date(now.getTime() + 7 * 86400 * 1000) } } }),
       prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] }, priority: 'urgent' } }),
       prisma.announcement.count({ where: { isActive: true, OR: [{ endsAt: null }, { endsAt: { gte: now } }] } }),
+      // Tickets open for > 24h without any staff reply
+      prisma.supportTicket.count({ where: { status: 'open', updatedAt: { lt: new Date(now.getTime() - 86400 * 1000) } } }),
+      // Paid users with no workout in last 14 days
+      prisma.user.count({ where: { isBanned: false, subscription: { status: 'active', plan: { not: 'free' } }, workouts: { none: { completedAt: { gte: new Date(now.getTime() - 14 * 86400 * 1000) } } } } }),
     ]);
 
     // Server metrics
@@ -162,8 +168,10 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         inProgressTickets,
         resolvedTickets,
         urgentTickets,
+        overdueTickets,
       },
       activeAnnouncements,
+      churnRiskUsers,
       topActiveUsers,
       server: {
         uptimeSeconds: Math.round(uptime),
