@@ -52,6 +52,16 @@ function StatCard({
   );
 }
 
+/** System alert banner */
+function AlertBanner({ icon, message, color }: { icon: string; message: string; color: string }) {
+  return (
+    <View style={[styles.alertBanner, { borderColor: color + '50', backgroundColor: color + '10' }]}>
+      <Text style={{ fontSize: 14 }}>{icon}</Text>
+      <Text style={[styles.alertText, { color }]}>{message}</Text>
+    </View>
+  );
+}
+
 /** Inline sparkline — shows 7-day trend */
 function Sparkline({ values, color }: { values: number[]; color: string }) {
   const max = Math.max(...values, 1);
@@ -220,6 +230,23 @@ export default function AdminDashboardScreen() {
           </Text>
         )}
       </View>
+
+      {/* System alerts */}
+      {stats.support.openTickets > 5 && (
+        <AlertBanner icon="🎧" color="#EF4444" message={`${stats.support.openTickets} открытых тикетов — нужна обработка`} />
+      )}
+      {(stats.ai.errorsToday ?? 0) > 10 && (
+        <AlertBanner icon="⚠️" color="#F59E0B" message={`${stats.ai.errorsToday} ошибок ИИ сегодня — проверь провайдера`} />
+      )}
+      {stats.server.dbPingMs != null && stats.server.dbPingMs > 500 && (
+        <AlertBanner icon="🐘" color="#EF4444" message={`DB ping ${stats.server.dbPingMs}мс — возможны проблемы с базой`} />
+      )}
+      {(stats.server.systemMemUsedPct ?? 0) > 90 && (
+        <AlertBanner icon="💾" color="#EF4444" message={`Системная память ${stats.server.systemMemUsedPct}% — критический уровень`} />
+      )}
+      {(stats.subsExpiringSoon ?? 0) > 0 && (
+        <AlertBanner icon="⏰" color="#F59E0B" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} />
+      )}
 
       {/* Quick nav */}
       <View style={styles.navGrid}>
@@ -547,6 +574,10 @@ const styles = StyleSheet.create({
   statTitle: { fontSize: 11, color: '#6B7280', marginBottom: 6 },
   statValue: { fontSize: 22, fontWeight: '700', color: '#6366F1' },
   statSub: { fontSize: 11, color: '#4B5563', marginTop: 2 },
+
+  // Alert banners
+  alertBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 8 },
+  alertText: { fontSize: 13, fontWeight: '600', flex: 1 },
 
   // Sparkline card
   sparkCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
