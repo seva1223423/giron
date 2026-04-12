@@ -65,7 +65,7 @@ export const ArticleDetailModal: React.FC<Props> = ({ article, isSaved, onClose,
               <>
                 <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap', marginBottom: spacing.sm }}>
                   {(article.category || []).map((cat) => (
-                    <View key={cat} style={[styles.tag, { backgroundColor: colors.primary + '15' }]}>
+                    <View key={cat} style={[styles.tag, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '35' }]}>
                       <Text style={[typography.caption, { color: colors.primary }]}>{CATEGORY_LABELS[cat] || cat}</Text>
                     </View>
                   ))}

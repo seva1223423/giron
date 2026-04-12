@@ -347,5 +347,5 @@ const styles = StyleSheet.create({
   muscleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   muscleChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
   instructionRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.md, gap: spacing.md },
-  stepNumber: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  stepNumber: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 2, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
 });
