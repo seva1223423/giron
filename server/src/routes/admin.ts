@@ -567,6 +567,61 @@ router.delete('/users/:id', requireAdmin, async (req: AuthRequest, res: Response
   }
 });
 
+/** POST /admin/users/:id/message — create a support ticket and send message to user from admin */
+router.post('/users/:id/message', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { subject, message } = z.object({
+      subject: z.string().min(1).max(200),
+      message: z.string().min(1).max(2000),
+    }).parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { id: req.params.id as string } });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        subject,
+        category: 'other',
+        status: 'in_progress',
+        priority: 'normal',
+        userId: user.id,
+        assignedToId: req.userId!,
+        messages: {
+          create: {
+            content: message,
+            authorId: req.userId!,
+            isStaff: true,
+            isInternal: false,
+          },
+        },
+      },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
+        messages: {
+          include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
+        },
+      },
+    });
+
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'SEND_MESSAGE',
+        targetId: user.id,
+        details: `Ticket created: ${subject}`,
+      },
+    });
+
+    res.status(201).json(ticket);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /admin/users/:id/message:', e);
+    res.status(500).json({ error: 'Ошибка отправки сообщения' });
+  }
+});
+
+
 /** GET /admin/users/export — CSV export of user list */
 router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

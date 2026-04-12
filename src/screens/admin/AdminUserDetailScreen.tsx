@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Alert, TextInput,
+  TouchableOpacity, Alert, TextInput, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -54,6 +54,10 @@ export default function AdminUserDetailScreen() {
   const [noteText, setNoteText] = useState('');
   const [editingNote, setEditingNote] = useState(false);
   const [subHistory, setSubHistory] = useState<AdminLog[]>([]);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [msgSubject, setMsgSubject] = useState('');
+  const [msgBody, setMsgBody] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -242,6 +246,22 @@ export default function AdminUserDetailScreen() {
     }
   }, [userId, noteText]);
 
+  const sendMessage = useCallback(async () => {
+    if (!msgSubject.trim() || !msgBody.trim() || sendingMsg) return;
+    setSendingMsg(true);
+    try {
+      await adminService.sendMessageToUser(userId, msgSubject.trim(), msgBody.trim());
+      setShowMsgModal(false);
+      setMsgSubject('');
+      setMsgBody('');
+      Alert.alert('Готово', 'Сообщение отправлено. Тикет создан в поддержке.');
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось отправить сообщение');
+    } finally {
+      setSendingMsg(false);
+    }
+  }, [userId, msgSubject, msgBody, sendingMsg]);
+
   const deleteUserAccount = useCallback(() => {
     Alert.alert(
       'Удалить аккаунт?',
@@ -287,6 +307,51 @@ export default function AdminUserDetailScreen() {
   const engagementLabel = engagementScore >= 70 ? 'Высокий' : engagementScore >= 40 ? 'Средний' : 'Низкий';
 
   return (
+    <>
+    {/* Send message modal */}
+    <Modal visible={showMsgModal} transparent animationType="slide" onRequestClose={() => setShowMsgModal(false)}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.msgOverlay}>
+          <View style={styles.msgSheet}>
+            <View style={styles.msgHeader}>
+              <Text style={styles.msgTitle}>Написать пользователю</Text>
+              <TouchableOpacity onPress={() => setShowMsgModal(false)}>
+                <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.msgHint}>Создаётся тикет в поддержке, видимый пользователю</Text>
+            <TextInput
+              style={styles.msgSubjectInput}
+              placeholder="Тема сообщения..."
+              placeholderTextColor="#6B7280"
+              value={msgSubject}
+              onChangeText={setMsgSubject}
+              maxLength={200}
+            />
+            <TextInput
+              style={styles.msgBodyInput}
+              placeholder="Текст сообщения..."
+              placeholderTextColor="#6B7280"
+              value={msgBody}
+              onChangeText={setMsgBody}
+              multiline
+              maxLength={2000}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[styles.msgSendBtn, (!msgSubject.trim() || !msgBody.trim() || sendingMsg) && { opacity: 0.5 }]}
+              onPress={sendMessage}
+              disabled={!msgSubject.trim() || !msgBody.trim() || sendingMsg}
+            >
+              {sendingMsg
+                ? <ActivityIndicator color="#FFFFFF" size="small" />
+                : <Text style={styles.msgSendBtnText}>Отправить</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {busy && (
         <View style={styles.busyOverlay}>
@@ -663,6 +728,12 @@ export default function AdminUserDetailScreen() {
         )}
       </View>
 
+      {/* Message user */}
+      <TouchableOpacity style={styles.msgUserBtn} onPress={() => setShowMsgModal(true)}>
+        <Text style={styles.msgUserBtnText}>💬 Написать пользователю</Text>
+        <Text style={styles.msgUserBtnSub}>Создаст тикет в поддержке</Text>
+      </TouchableOpacity>
+
       {/* Ban / Delete actions */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Опасные действия</Text>
@@ -683,6 +754,7 @@ export default function AdminUserDetailScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </>
   );
 }
 
@@ -836,4 +908,29 @@ const styles = StyleSheet.create({
   heatmapCellActive: { backgroundColor: '#6366F1' },
   heatmapCellToday: { borderWidth: 1, borderColor: '#A5B4FC' },
   heatmapLegend: { fontSize: 11, color: '#6B7280', marginTop: 4 },
+
+  // Message user
+  msgUserBtn: {
+    backgroundColor: '#6366F112', borderRadius: 12, borderWidth: 1,
+    borderColor: '#6366F140', padding: 14, marginBottom: 12,
+  },
+  msgUserBtnText: { fontSize: 14, fontWeight: '700', color: '#6366F1' },
+  msgUserBtnSub: { fontSize: 11, color: '#6366F170', marginTop: 2 },
+
+  // Message modal
+  msgOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  msgSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
+  msgHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  msgTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  msgHint: { fontSize: 12, color: '#6B7280', marginBottom: 12 },
+  msgSubjectInput: {
+    backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#3C3C3E',
+  },
+  msgBodyInput: {
+    backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 14, color: '#FFFFFF', height: 120, marginBottom: 16, borderWidth: 1, borderColor: '#3C3C3E',
+  },
+  msgSendBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  msgSendBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
