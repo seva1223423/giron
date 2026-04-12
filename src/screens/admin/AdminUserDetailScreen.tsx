@@ -368,6 +368,45 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* Contextual alerts */}
+      {!user.isBanned && (() => {
+        const alerts: Array<{ icon: string; text: string; color: string; action?: { label: string; onPress: () => void } }> = [];
+        const sub = user.subscription;
+        const lastWorkout = user.workouts?.[0]?.completedAt;
+        const daysSince = lastWorkout ? Math.floor((Date.now() - new Date(lastWorkout).getTime()) / 86400000) : null;
+        const isPaid = sub?.status === 'active' && sub.plan !== 'free';
+        const daysLeft = sub?.endDate ? Math.ceil((new Date(sub.endDate).getTime() - Date.now()) / 86400000) : null;
+
+        if (isPaid && daysSince !== null && daysSince >= 14) {
+          alerts.push({ icon: '⚡', color: '#EF4444', text: `Чурн-риск: нет тренировок ${daysSince} дней при активной подписке`, action: { label: '💬 Написать', onPress: () => setShowMsgModal(true) } });
+        }
+        if (daysLeft !== null && daysLeft <= 7 && daysLeft > 0) {
+          alerts.push({ icon: '⏰', color: '#F59E0B', text: `Подписка ${sub!.plan.toUpperCase()} истекает через ${daysLeft} дн.` });
+        }
+        if (!user.goal && user._count.workouts === 0) {
+          alerts.push({ icon: '🆕', color: '#6366F1', text: 'Новый пользователь: цель не задана, тренировок нет' });
+        }
+        if (user._count.supportTickets > 5 && user.supportTickets?.some((t) => t.status === 'open')) {
+          alerts.push({ icon: '🎫', color: '#8B5CF6', text: `${user._count.supportTickets} тикетов, есть открытые` });
+        }
+        if (alerts.length === 0) return null;
+        return (
+          <View style={{ marginBottom: 12, gap: 6 }}>
+            {alerts.map((a, i) => (
+              <View key={i} style={[styles.alertRow, { borderColor: a.color + '40', backgroundColor: a.color + '10' }]}>
+                <Text style={{ fontSize: 14 }}>{a.icon}</Text>
+                <Text style={[styles.alertText, { color: a.color }]} numberOfLines={2}>{a.text}</Text>
+                {a.action && (
+                  <TouchableOpacity onPress={a.action.onPress} style={[styles.alertActionBtn, { borderColor: a.color }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: a.color }}>{a.action.label}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+        );
+      })()}
+
       {/* User header */}
       <View style={styles.header}>
         <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#EF444433' : '#6366F133', borderColor: user.isBanned ? '#EF4444' : '#6366F1' }]}>
@@ -1131,6 +1170,11 @@ const styles = StyleSheet.create({
   heatmapCellActive: { backgroundColor: '#6366F1' },
   heatmapCellToday: { borderWidth: 1, borderColor: '#A5B4FC' },
   heatmapLegend: { fontSize: 11, color: '#6B7280', marginTop: 4 },
+
+  // Contextual alerts
+  alertRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10 },
+  alertText: { fontSize: 12, fontWeight: '600', flex: 1 },
+  alertActionBtn: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
 
   // Activity Timeline
   timelineRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 },
