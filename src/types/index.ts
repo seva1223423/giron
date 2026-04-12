@@ -365,6 +365,13 @@ export interface AdminStats {
   activeAnnouncements?: number;
   churnRiskUsers?: number;
   recentSignups?: Array<{ id: string; firstName: string; lastName?: string | null; email: string; createdAt: string; role: string }>;
+  todayVsYesterday?: {
+    signups: { today: number; yesterday: number };
+    workouts: { today: number; yesterday: number };
+    ai: { today: number; yesterday: number };
+    meals: { today: number; yesterday: number };
+    cardio: { today: number; yesterday: number };
+  };
   demographics?: {
     goals: Record<string, number>;
     levels: Record<string, number>;

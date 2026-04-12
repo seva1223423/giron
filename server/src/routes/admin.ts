@@ -19,6 +19,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const now = new Date();
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
     const prevWeekStart = new Date(now); prevWeekStart.setDate(now.getDate() - 14);
     const monthStart = new Date(now); monthStart.setDate(now.getDate() - 30);
@@ -52,6 +53,11 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       activeAnnouncements,
       overdueTickets,
       churnRiskUsers,
+      signupsYesterday,
+      workoutsYesterday,
+      aiYesterday,
+      mealsYesterday,
+      cardioYesterday,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
@@ -83,6 +89,12 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.supportTicket.count({ where: { status: 'open', updatedAt: { lt: new Date(now.getTime() - 86400 * 1000) } } }),
       // Paid users with no workout in last 14 days
       prisma.user.count({ where: { isBanned: false, subscription: { status: 'active', plan: { not: 'free' } }, workouts: { none: { completedAt: { gte: new Date(now.getTime() - 14 * 86400 * 1000) } } } } }),
+      // Yesterday counts for day-over-day comparison
+      prisma.user.count({ where: { createdAt: { gte: yesterdayStart, lt: todayStart } } }),
+      prisma.workout.count({ where: { completedAt: { gte: yesterdayStart, lt: todayStart } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: yesterdayStart, lt: todayStart } } }),
+      prisma.meal.count({ where: { createdAt: { gte: yesterdayStart, lt: todayStart } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: yesterdayStart, lt: todayStart } } }),
     ]);
 
     // Server metrics
@@ -199,6 +211,13 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       topAiActiveUsers,
       dau: { workoutUsers: dauWorkout, aiUsers: dauAi },
       recentSignups,
+      todayVsYesterday: {
+        signups: { today: newToday, yesterday: signupsYesterday },
+        workouts: { today: workoutsToday, yesterday: workoutsYesterday },
+        ai: { today: aiMessagesToday, yesterday: aiYesterday },
+        meals: { today: mealsToday, yesterday: mealsYesterday },
+        cardio: { today: cardioToday, yesterday: cardioYesterday },
+      },
       demographics: {
         goals: Object.fromEntries(goalCounts.map((g) => [g.goal, g._count.id])),
         levels: Object.fromEntries(levelCounts.map((l) => [l.fitnessLevel, l._count.id])),
@@ -258,7 +277,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/users — paginated user list */
 router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { search = '', role, plan, banned, dormant, subExpiringSoon, page = '1', limit = '20', sort = 'createdAt', order = 'desc' } = req.query as Record<string, string>;
+    const { search = '', role, plan, banned, dormant, subExpiringSoon, recentlyActive, page = '1', limit = '20', sort = 'createdAt', order = 'desc' } = req.query as Record<string, string>;
     const ALLOWED_SORT = ['createdAt', 'email', 'firstName', 'lastName'] as const;
     const safeSort = ALLOWED_SORT.includes(sort as any) ? sort : 'createdAt';
     const safeOrder = order === 'asc' ? 'asc' : 'desc';
@@ -282,12 +301,21 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
       const inSevenDays = new Date(Date.now() + 7 * 86400 * 1000);
       where.subscription = { status: 'active', plan: { not: 'free' }, endDate: { gte: new Date(), lte: inSevenDays } };
     }
+    if (recentlyActive === 'true') {
+      const h24ago = new Date(Date.now() - 24 * 3600 * 1000);
+      where.OR = [
+        { workouts: { some: { completedAt: { gte: h24ago } } } },
+        { chatMessages: { some: { createdAt: { gte: h24ago } } } },
+        { meals: { some: { createdAt: { gte: h24ago } } } },
+      ];
+    }
     if (search) {
       where.OR = [
         { email: { contains: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search, mode: 'insensitive' } },
+        { adminNote: { contains: search, mode: 'insensitive' } },
       ];
     }
 

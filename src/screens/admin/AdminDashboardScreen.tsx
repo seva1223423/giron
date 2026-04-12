@@ -459,6 +459,40 @@ export default function AdminDashboardScreen() {
         </View>
       )}
 
+      {/* ── Today vs Yesterday ─────────────────────────────────────────── */}
+      {stats.todayVsYesterday && (
+        <>
+          <SectionTitle title="Сегодня vs вчера" />
+          <View style={styles.todayGrid}>
+            {(
+              [
+                { label: 'Регистрации', d: stats.todayVsYesterday.signups, color: '#6366F1' },
+                { label: 'Тренировки', d: stats.todayVsYesterday.workouts, color: '#F59E0B' },
+                { label: 'ИИ-сообщ.', d: stats.todayVsYesterday.ai, color: '#8B5CF6' },
+                { label: 'Питание', d: stats.todayVsYesterday.meals, color: '#10B981' },
+                { label: 'Кардио', d: stats.todayVsYesterday.cardio, color: '#06B6D4' },
+              ] as Array<{ label: string; d: { today: number; yesterday: number }; color: string }>
+            ).map(({ label, d, color }) => {
+              const delta = d.today - d.yesterday;
+              const pct = d.yesterday > 0 ? Math.round((delta / d.yesterday) * 100) : null;
+              return (
+                <View key={label} style={styles.todayCell}>
+                  <Text style={styles.todayCellLabel}>{label}</Text>
+                  <Text style={[styles.todayCellValue, { color }]}>{d.today}</Text>
+                  <Text style={[styles.todayCellDelta, {
+                    color: delta > 0 ? '#10B981' : delta < 0 ? '#EF4444' : '#6B7280',
+                  }]}>
+                    {delta > 0 ? `↑ +${delta}` : delta < 0 ? `↓ ${delta}` : '→ 0'}
+                    {pct != null ? ` (${pct > 0 ? '+' : ''}${pct}%)` : ''}
+                  </Text>
+                  <Text style={styles.todayCellYest}>вчера: {d.yesterday}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </>
+      )}
+
       {/* ── Users ──────────────────────────────────────────────────────── */}
       <SectionTitle title="Пользователи" />
       <View style={styles.row}>
@@ -846,6 +880,14 @@ const styles = StyleSheet.create({
   signupAvatar: { fontSize: 18, fontWeight: '700', color: '#6366F1', marginBottom: 2 },
   signupName: { fontSize: 11, fontWeight: '600', color: '#D1D5DB', marginBottom: 2, maxWidth: 64, textAlign: 'center' },
   signupTime: { fontSize: 10, color: '#6B7280' },
+
+  // Today vs Yesterday grid
+  todayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  todayCell: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#2C2C2E', minWidth: '18%', flex: 1, alignItems: 'center' },
+  todayCellLabel: { fontSize: 9, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, textAlign: 'center' },
+  todayCellValue: { fontSize: 20, fontWeight: '800', marginBottom: 2 },
+  todayCellDelta: { fontSize: 10, fontWeight: '700', marginBottom: 2 },
+  todayCellYest: { fontSize: 9, color: '#4B5563' },
 
   row: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   statCard: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14 },

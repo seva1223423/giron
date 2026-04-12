@@ -287,6 +287,7 @@ export default function AdminUsersScreen() {
   const [dormant, setDormant] = useState<boolean>(params.dormant ?? false);
   const [bannedOnly, setBannedOnly] = useState(false);
   const [subExpiringSoon, setSubExpiringSoon] = useState<boolean>(params.subExpiringSoon ?? false);
+  const [recentlyActive, setRecentlyActive] = useState(false);
   const [sortIdx, setSortIdx] = useState(0);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -301,7 +302,7 @@ export default function AdminUsersScreen() {
     else setLoadingMore(true);
     const { sort, order } = SORT_OPTIONS[sortIdx];
     try {
-      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, banned: bannedOnly || undefined, subExpiringSoon: subExpiringSoon || undefined, sort, order, page: p, limit: 20 });
+      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, banned: bannedOnly || undefined, subExpiringSoon: subExpiringSoon || undefined, recentlyActive: recentlyActive || undefined, sort, order, page: p, limit: 20 });
       setUsers(append ? (prev) => [...prev, ...res.users] : res.users);
       setTotal(res.total);
       setPage(res.page);
@@ -313,9 +314,9 @@ export default function AdminUsersScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [search, role, dormant, bannedOnly, subExpiringSoon, sortIdx]);
+  }, [search, role, dormant, bannedOnly, subExpiringSoon, recentlyActive, sortIdx]);
 
-  useEffect(() => { load(1); }, [search, role, planFilter, dormant, bannedOnly, subExpiringSoon, sortIdx]);
+  useEffect(() => { load(1); }, [search, role, planFilter, dormant, bannedOnly, subExpiringSoon, recentlyActive, sortIdx]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -439,6 +440,14 @@ export default function AdminUsersScreen() {
         >
           <Text style={[styles.filterText, subExpiringSoon && styles.filterTextActive]}>
             {subExpiringSoon ? '⏰ Истекает ≤7д' : 'Истекает ≤7д'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterBtn, recentlyActive && { backgroundColor: '#10B981' }]}
+          onPress={() => setRecentlyActive(!recentlyActive)}
+        >
+          <Text style={[styles.filterText, recentlyActive && styles.filterTextActive]}>
+            {recentlyActive ? '✅ Активны 24ч' : 'Активны 24ч'}
           </Text>
         </TouchableOpacity>
       </View>
