@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,7 +8,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const COLORS = ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#7C3AED', '#6D28D9', '#EDE9FE'];
 const PARTICLE_COUNT = 30;
 
@@ -70,6 +69,7 @@ const ConfettiParticle: React.FC<{ particle: Particle }> = ({ particle }) => {
 };
 
 export const PRCelebration: React.FC = () => {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const particles = useMemo<Particle[]>(
     () =>
       Array.from({ length: PARTICLE_COUNT }, () => ({

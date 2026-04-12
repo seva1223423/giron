@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { FadeIn } from '../../../components';
 import { typography } from '../../../theme';
@@ -8,8 +8,6 @@ import { SelectedDayCard } from './SelectedDayCard';
 import { MonthStatsCard } from './MonthStatsCard';
 import type { Workout } from '../../../types';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = (SCREEN_WIDTH - spacing.xl * 2) / 7;
 
 const MONTH_NAMES = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -46,6 +44,8 @@ function getCalendarData(monthDate: Date, workoutHistory: Workout[]) {
 }
 
 export const CalendarTab: React.FC<CalendarTabProps> = ({ colors, workoutHistory }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const CELL_SIZE = (screenWidth - spacing.xl * 2) / 7;
   const haptic = useHaptic();
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
