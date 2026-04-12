@@ -91,6 +91,9 @@ export default function AdminTicketScreen() {
   const [userTickets, setUserTickets] = useState<SupportTicket[]>([]);
   const [showUserTickets, setShowUserTickets] = useState(false);
   const [isNoteMode, setIsNoteMode] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [staffList, setStaffList] = useState<Array<{ id: string; firstName: string; lastName?: string | null; email: string; role: string }>>([]);
+  const [assigning, setAssigning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -187,6 +190,30 @@ export default function AdminTicketScreen() {
       Alert.alert('Ошибка', 'Не удалось изменить назначение');
     }
   }, [ticket, ticketId, userId]);
+
+  const openAssignModal = useCallback(async () => {
+    setShowAssignModal(true);
+    if (staffList.length === 0) {
+      try {
+        const list = await adminService.getStaff();
+        setStaffList(list);
+      } catch { /* ignore */ }
+    }
+  }, [staffList.length]);
+
+  const doAssign = useCallback(async (staffId: string | null) => {
+    if (!ticket || assigning) return;
+    setAssigning(true);
+    try {
+      const updated = await adminService.assignTicket(ticketId, staffId) as SupportTicket;
+      setTicket(updated);
+      setShowAssignModal(false);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось назначить тикет');
+    } finally {
+      setAssigning(false);
+    }
+  }, [ticket, ticketId, assigning]);
 
   const grantSubscription = useCallback(async () => {
     if (!ticket?.user?.id || grantingSubb) return;
@@ -301,6 +328,46 @@ export default function AdminTicketScreen() {
         </View>
       </Modal>
 
+      {/* Staff assign modal */}
+      <Modal visible={showAssignModal} transparent animationType="slide" onRequestClose={() => setShowAssignModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Назначить тикет</Text>
+              <TouchableOpacity onPress={() => setShowAssignModal(false)}>
+                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {ticket?.assignedToId && (
+              <TouchableOpacity
+                style={[styles.cannedItem, { borderBottomColor: '#EF444430' }]}
+                onPress={() => doAssign(null)}
+                disabled={assigning}
+              >
+                <Text style={{ fontSize: 14, color: '#EF4444' }}>✕ Снять назначение</Text>
+              </TouchableOpacity>
+            )}
+            {staffList.length === 0 ? (
+              <ActivityIndicator color="#6366F1" style={{ marginVertical: 20 }} />
+            ) : (
+              staffList.map((s) => (
+                <TouchableOpacity
+                  key={s.id}
+                  style={[styles.cannedItem, ticket?.assignedToId === s.id && { backgroundColor: '#6366F110' }]}
+                  onPress={() => doAssign(s.id)}
+                  disabled={assigning}
+                >
+                  <Text style={{ fontSize: 14, color: ticket?.assignedToId === s.id ? '#6366F1' : '#D1D5DB', fontWeight: ticket?.assignedToId === s.id ? '700' : '400' }}>
+                    {ticket?.assignedToId === s.id ? '✓ ' : ''}{s.firstName} {s.lastName ?? ''} · {s.role}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{s.email}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Ticket meta */}
       <ScrollView style={styles.meta} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metaContent}>
         <TouchableOpacity onPress={() => ticket.user && navigation.navigate('AdminUserDetailScreen', { userId: ticket.user.id })}>
@@ -388,6 +455,11 @@ export default function AdminTicketScreen() {
         >
           <Text style={[styles.actionBarBtnText, ticket.assignedToId === userId && { color: '#10B981' }]}>
             {ticket.assignedToId === userId ? '✓ Взят' : 'Взять'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionBarBtn, { borderColor: '#8B5CF640' }]} onPress={openAssignModal}>
+          <Text style={[styles.actionBarBtnText, { color: '#8B5CF6' }]}>
+            {ticket.assignedTo ? `→ ${ticket.assignedTo.firstName}` : 'Назначить'}
           </Text>
         </TouchableOpacity>
         {ticket.status !== 'resolved' && ticket.status !== 'closed' && (

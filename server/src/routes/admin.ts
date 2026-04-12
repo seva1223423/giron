@@ -931,6 +931,62 @@ router.post('/support/:id/note', requireStaff, async (req: AuthRequest, res: Res
   }
 });
 
+/** GET /admin/staff — list staff/admin users for ticket assignment */
+router.get('/staff', requireStaff, async (_req: AuthRequest, res: Response) => {
+  try {
+    const staff = await prisma.user.findMany({
+      where: { role: { in: ['SUPPORT', 'ADMIN'] as any }, isBanned: false },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true },
+      orderBy: { firstName: 'asc' },
+    });
+    res.json(staff);
+  } catch (e) {
+    logger.error('GET /admin/staff:', e);
+    res.status(500).json({ error: 'Ошибка получения списка сотрудников' });
+  }
+});
+
+/** PATCH /admin/support/:id/assign — assign ticket to a staff member (or unassign with null) */
+router.patch('/support/:id/assign', requireStaff, async (req: AuthRequest, res: Response) => {
+  try {
+    const { assignedToId } = z.object({ assignedToId: z.string().nullable() }).parse(req.body);
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
+    if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
+    // Validate assignee is staff if not null
+    if (assignedToId) {
+      const assignee = await prisma.user.findUnique({ where: { id: assignedToId }, select: { role: true } });
+      if (!assignee || !['SUPPORT', 'ADMIN'].includes(assignee.role)) {
+        return res.status(400).json({ error: 'Назначенный пользователь не является сотрудником' });
+      }
+    }
+    const updated = await prisma.supportTicket.update({
+      where: { id: ticket.id },
+      data: { assignedToId, updatedAt: new Date() },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
+        },
+      },
+    });
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'ASSIGN_TICKET',
+        targetId: ticket.id,
+        details: assignedToId ? `Assigned to ${assignedToId}` : 'Unassigned',
+      },
+    });
+    res.json(updated);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('PATCH /admin/support/:id/assign:', e);
+    res.status(500).json({ error: 'Ошибка назначения тикета' });
+  }
+});
+
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
 
 const announcementSchema = z.object({

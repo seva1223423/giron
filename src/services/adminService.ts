@@ -155,4 +155,14 @@ export const adminService = {
     const res = await api.get('/admin/support/export', { responseType: 'text' });
     return res.data as string;
   },
+
+  async getStaff(): Promise<Array<{ id: string; firstName: string; lastName?: string | null; email: string; role: string }>> {
+    const res = await api.get('/admin/staff');
+    return res.data;
+  },
+
+  async assignTicket(ticketId: string, assignedToId: string | null): Promise<unknown> {
+    const res = await api.patch(`/admin/support/${ticketId}/assign`, { assignedToId });
+    return res.data;
+  },
 };
