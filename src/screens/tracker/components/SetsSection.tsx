@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { Card, Button, AnimatedPressable } from '../../../components';
@@ -8,7 +8,6 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { Workout, WorkoutExercise } from '../../../types';
 import { SetRow } from './SetRow';
 
-const SHOW_PLATE_CALC = Dimensions.get('window').width > 360;
 
 interface PreviousSets {
   date: string | null | undefined;
@@ -28,6 +27,8 @@ interface Props {
 export const SetsSection: React.FC<Props> = ({
   currentExercise, currentExerciseIndex, workout, previousSets, navigation, onCompleteSet, onRpeSelected,
 }) => {
+  const { width: screenW } = useWindowDimensions();
+  const SHOW_PLATE_CALC = screenW > 360;
   const haptic = useHaptic();
   const { colors } = useThemeStore();
 

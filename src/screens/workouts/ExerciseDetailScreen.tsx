@@ -163,7 +163,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
             }]}
           >
             <Text style={{ fontSize: 18 }}>➕</Text>
-            <Text style={[typography.bodySemibold, { color: colors.success }]}>Добавить в текущую тренировку</Text>
+            <Text style={[typography.bodySemibold, { color: colors.success }]} numberOfLines={1}>Добавить в текущую тренировку</Text>
           </TouchableOpacity>
         </FadeIn>
       )}
