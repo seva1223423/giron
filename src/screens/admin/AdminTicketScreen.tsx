@@ -116,6 +116,17 @@ export default function AdminTicketScreen() {
     }
   }, [ticket, ticketId]);
 
+  const assignToMe = useCallback(async () => {
+    if (!ticket || !userId) return;
+    const isAssignedToMe = ticket.assignedToId === userId;
+    try {
+      const updated = await supportService.assignTicket(ticketId, isAssignedToMe ? null : userId);
+      setTicket(updated);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось изменить назначение');
+    }
+  }, [ticket, ticketId, userId]);
+
   const quickClose = useCallback(async () => {
     Alert.alert('Закрыть тикет?', 'Тикет будет помечен как "closed".', [
       { text: 'Отмена', style: 'cancel' },
@@ -191,8 +202,18 @@ export default function AdminTicketScreen() {
       </ScrollView>
 
       <View style={styles.subjectBar}>
-        <Text style={styles.subject} numberOfLines={2}>{ticket.subject}</Text>
-        <Text style={styles.category}>{ticket.category}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.subject} numberOfLines={2}>{ticket.subject}</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+            <Text style={styles.category}>{ticket.category}</Text>
+            <Text style={styles.subjectMeta}>
+              {new Date(ticket.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+            </Text>
+            {ticket.assignedTo && (
+              <Text style={styles.assignedMeta}>→ {ticket.assignedTo.firstName}</Text>
+            )}
+          </View>
+        </View>
       </View>
 
       <FlatList
@@ -208,9 +229,25 @@ export default function AdminTicketScreen() {
         <TouchableOpacity style={styles.actionBarBtn} onPress={() => setShowCanned(true)}>
           <Text style={styles.actionBarBtnText}>💬 Шаблоны</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBarBtn, ticket.assignedToId === userId && { borderColor: '#10B98160', backgroundColor: '#10B98108' }]}
+          onPress={assignToMe}
+        >
+          <Text style={[styles.actionBarBtnText, ticket.assignedToId === userId && { color: '#10B981' }]}>
+            {ticket.assignedToId === userId ? '✓ Взят' : 'Взять'}
+          </Text>
+        </TouchableOpacity>
+        {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
+          <TouchableOpacity
+            style={[styles.actionBarBtn, { borderColor: '#10B98160' }]}
+            onPress={() => changeStatus('resolved')}
+          >
+            <Text style={[styles.actionBarBtnText, { color: '#10B981' }]}>✓ Решено</Text>
+          </TouchableOpacity>
+        )}
         {ticket.status !== 'closed' && (
           <TouchableOpacity style={[styles.actionBarBtn, { borderColor: '#6B728060' }]} onPress={quickClose}>
-            <Text style={[styles.actionBarBtnText, { color: '#6B7280' }]}>✓ Закрыть тикет</Text>
+            <Text style={[styles.actionBarBtnText, { color: '#6B7280' }]}>✗ Закрыть</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -246,8 +283,10 @@ const styles = StyleSheet.create({
   metaDot: { color: '#3C3C3E', fontSize: 16 },
   chip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: 'transparent' },
   chipText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
-  subjectBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, backgroundColor: '#1C1C1E', borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
-  subject: { flex: 1, fontSize: 14, fontWeight: '600', color: '#FFFFFF', marginRight: 8 },
+  subjectBar: { padding: 12, backgroundColor: '#1C1C1E', borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  subject: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  subjectMeta: { fontSize: 11, color: '#6B7280' },
+  assignedMeta: { fontSize: 11, color: '#10B981', fontWeight: '600' },
   category: { fontSize: 11, color: '#6366F1', fontWeight: '600', textTransform: 'uppercase' },
   messages: { padding: 12, gap: 8, paddingBottom: 8 },
   bubble: { maxWidth: '82%', borderRadius: 16, padding: 12, marginBottom: 4 },
