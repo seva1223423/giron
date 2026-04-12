@@ -212,6 +212,7 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
           role: true, createdAt: true, isBanned: true, banReason: true,
           subscription: { select: { plan: true, status: true, endDate: true } },
           _count: { select: { workouts: true, chatMessages: true } },
+          workouts: { where: { completedAt: { not: null } }, orderBy: { completedAt: 'desc' }, take: 1, select: { completedAt: true } },
         },
         orderBy: { [safeSort]: safeOrder },
         skip,
