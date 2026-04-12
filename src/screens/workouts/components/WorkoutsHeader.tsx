@@ -31,7 +31,7 @@ export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
         <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
         <TouchableOpacity
           onPress={() => { haptic.selection(); navigation.navigate('CustomWorkout'); }}
-          style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={{ fontSize: 20, fontWeight: '700', color: '#FFF', lineHeight: 24 }}>+</Text>
