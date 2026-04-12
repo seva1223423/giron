@@ -60,7 +60,8 @@ export const Card: React.FC<CardProps> = ({
       : {
           elevation: elevated ? 4 : 2,
         }),
-    ...(!isDark && { borderWidth: 1, borderColor: colors.border }),
+    borderWidth: 1,
+    borderColor: isDark ? colors.border + '40' : colors.border,
   };
 
   if (onPress) {

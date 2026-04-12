@@ -87,7 +87,7 @@ export const Button: React.FC<ButtonProps> = ({
     const variants: Record<string, ViewStyle> = {
       primary: { backgroundColor: disabled ? colors.textTertiary : colors.primary },
       secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: disabled ? colors.border : colors.border },
-      outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: disabled ? colors.textTertiary : colors.primary },
+      outline: { backgroundColor: disabled ? 'transparent' : colors.primary + '08', borderWidth: 2, borderColor: disabled ? colors.textTertiary : colors.primary },
       ghost: { backgroundColor: 'transparent' },
       danger: { backgroundColor: disabled ? colors.textTertiary : colors.error },
     };

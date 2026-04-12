@@ -157,24 +157,24 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
     <>
       <FadeIn delay={0}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center' }}>
+          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: colors.primary }}>
             <Text style={[typography.number, { color: colors.primary }]}>{totalWorkouts}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
           </Card>
-          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center' }}>
+          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: colors.success }}>
             <Text style={[typography.number, { color: colors.success }]}>{streak}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Дней подряд</Text>
           </Card>
-          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center' }}>
+          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: colors.accent }}>
             <Text style={[typography.number, { color: colors.accent }]}>{Math.round(totalVolume / 1000)}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Тонн всего</Text>
           </Card>
-          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center' }}>
+          <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: colors.primary }}>
             <Text style={[typography.number, { color: colors.primary }]}>{totalDuration}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Минут</Text>
           </Card>
           {cardioWeekMinutes > 0 && (
-            <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center' }}>
+            <Card style={{ flex: 1, minWidth: '45%', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: colors.info }}>
               <Text style={[typography.number, { color: colors.info }]}>{cardioWeekMinutes}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>
                 {cardioWeekKm > 0 ? `Кардио мин (${formatNum(cardioWeekKm)}км)` : 'Кардио мин/нед'}
@@ -236,9 +236,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
                     <Text style={[typography.body, { color: colors.text, flex: 1 }]} numberOfLines={1}>
                       {row.label}: <Text style={{ fontWeight: '700' }}>{row.current}{row.suffix}</Text> vs {row.previous}{row.suffix}
                     </Text>
-                    <Text style={{ color: cmp.color, fontWeight: '700', fontSize: 13, marginLeft: spacing.sm, flexShrink: 0 }}>
-                      {cmp.icon} {cmp.pct}
-                    </Text>
+                    <View style={{ backgroundColor: cmp.color + '15', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, marginLeft: spacing.sm, flexShrink: 0 }}>
+                      <Text style={{ color: cmp.color, fontWeight: '700', fontSize: 12 }}>
+                        {cmp.icon} {cmp.pct}
+                      </Text>
+                    </View>
                   </View>
                 );
               });

@@ -99,7 +99,7 @@ export const RecoveryScoreCard: React.FC = () => {
     <FadeIn delay={180}>
       <Card style={{ marginBottom: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: recovery.color + '18', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: recovery.color + '18', borderWidth: 1.5, borderColor: recovery.color + '40', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: recovery.color }}>{recovery.icon}</Text>
           </View>
           <View style={{ flex: 1 }}>
@@ -131,7 +131,7 @@ export const RecoveryScoreCard: React.FC = () => {
           </View>
         )}
         {recovery.deloadSuggested && (
-          <View style={{ marginTop: spacing.sm, backgroundColor: colors.warning + '15', borderRadius: 8, padding: spacing.sm }}>
+          <View style={{ marginTop: spacing.sm, backgroundColor: colors.warning + '15', borderRadius: 8, padding: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.warning }}>
             <Text style={[typography.smallMedium, { color: colors.warning }]}>
               Рекомендуется разгрузочная неделя
             </Text>
