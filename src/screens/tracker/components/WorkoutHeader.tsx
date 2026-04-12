@@ -179,11 +179,11 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
           <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
             {muscleDots.map(({ muscle, abbr, color }) => (
               <View key={muscle} style={{
-                width: 20, height: 20, borderRadius: 10,
-                backgroundColor: color + '22', borderWidth: 1, borderColor: color + '80',
+                width: 24, height: 24, borderRadius: 12,
+                backgroundColor: color + '22', borderWidth: 1.5, borderColor: color + '80',
                 alignItems: 'center', justifyContent: 'center',
               }}>
-                <Text style={{ fontSize: 7, fontWeight: '700', color }}>{abbr}</Text>
+                <Text style={{ fontSize: 7, fontWeight: '800', color }}>{abbr}</Text>
               </View>
             ))}
           </View>

@@ -28,7 +28,7 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
       ]}>
         {!isUser && (
           <View style={styles.coachHeader}>
-            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 6 }}><Text style={{ fontSize: 9, fontWeight: '800', color: '#fff' }}>IC</Text></View>
+            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: colors.primary + '60', alignItems: 'center', justifyContent: 'center', marginRight: 6 }}><Text style={{ fontSize: 9, fontWeight: '800', color: '#fff' }}>IC</Text></View>
             <Text style={[typography.captionMedium, { color: colors.primary, fontWeight: '700' }]}>Iron Coach</Text>
           </View>
         )}

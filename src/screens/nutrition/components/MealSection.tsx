@@ -127,9 +127,16 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                           </TouchableOpacity>
                         )
                       ) : null}
-                      <Text style={[typography.small, { color: colors.textSecondary }]} numberOfLines={1}>
-                        {item.calories} ккал{itemPct > 0 ? ` (${itemPct}%)` : ''}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={[typography.small, { color: colors.textSecondary }]} numberOfLines={1}>
+                          {item.calories} ккал
+                        </Text>
+                        {itemPct > 0 && (
+                          <View style={{ backgroundColor: colors.calories + '15', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.calories }}>{itemPct}%</Text>
+                          </View>
+                        )}
+                      </View>
                       {/* Delete individual item button */}
                       <TouchableOpacity
                         onPress={() => handleDeleteItem(meal.id, item.id, item.name)}
