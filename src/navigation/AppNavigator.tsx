@@ -69,7 +69,6 @@ const TAB_ICONS: Record<string, string> = {
   NutritionTab: '◑',
   ProgressTab: '◧',
   AITab: '◈',
-  NewsTab: '◫',
   ProfileTab: '○',
 };
 
@@ -150,6 +149,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="TrainerClient" component={TrainerClientScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
       {/* Support */}
+      <ProfileStack.Screen name="NewsScreen" component={NewsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="SupportScreen" component={SupportScreen} options={{ title: 'Поддержка' }} />
       <ProfileStack.Screen name="CreateTicketScreen" component={CreateTicketScreen} options={{ title: 'Новое обращение' }} />
       <ProfileStack.Screen name="SupportTicketScreen" component={SupportTicketScreen} options={{ title: 'Обращение' }} />
@@ -219,13 +219,6 @@ function MainTabs() {
         component={AIChatScreen}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon icon="◈" label="ИИ" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="NewsTab"
-        component={NewsScreen}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="◫" label="Новости" focused={focused} />,
         }}
       />
       <Tab.Screen

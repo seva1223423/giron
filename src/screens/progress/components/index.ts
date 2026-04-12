@@ -13,3 +13,5 @@ export { SelectedDayCard } from './SelectedDayCard';
 export { MonthStatsCard } from './MonthStatsCard';
 export { CardioTab } from './CardioTab';
 export { SleepTab } from './SleepTab';
+export { ActivityTab } from './ActivityTab';
+export { BodyTab } from './BodyTab';

@@ -5,19 +5,16 @@ import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
-import { computeAchievements, ACHIEVEMENT_DEFINITIONS } from '../../utils/achievements';
+import { computeAchievements } from '../../utils/achievements';
 import {
   OverviewTab,
-  CalendarTab,
-  AchievementsTab,
   RecordsTab,
-  WeightTab,
-  PhotosTab,
+  SleepTab,
+  ActivityTab,
+  BodyTab,
 } from './components';
-import { CardioTab } from './components/CardioTab';
-import { SleepTab } from './components/SleepTab';
 
-type TabKey = 'overview' | 'calendar' | 'records' | 'weight' | 'cardio' | 'sleep' | 'achievements' | 'photos';
+type TabKey = 'overview' | 'activity' | 'body' | 'records' | 'sleep';
 
 export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -28,7 +25,6 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { dailyLog } = useNutritionStore();
   const [tab, setTab] = useState<TabKey>('overview');
 
-  // Achievements need streak + nutritionDays — shared across tabs header
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;
     let s = 0;
@@ -45,9 +41,9 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     return s;
   }, [workoutHistory]);
 
-  const nutritionDaysLogged = useMemo(() => {
-    return Object.values(dailyLog).filter((d) => d.meals.length > 0).length;
-  }, [dailyLog]);
+  const nutritionDaysLogged = useMemo(() =>
+    Object.values(dailyLog).filter((d) => d.meals.length > 0).length,
+  [dailyLog]);
 
   const achievements = useMemo(() =>
     computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak: streak }),
@@ -55,15 +51,12 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
-  const tabs = [
-    { key: 'overview' as const, label: 'Обзор' },
-    { key: 'calendar' as const, label: 'Календарь' },
-    { key: 'records' as const, label: 'Рекорды' },
-    { key: 'weight' as const, label: 'Вес тела' },
-    { key: 'cardio' as const, label: 'Кардио' },
-    { key: 'sleep' as const, label: 'Сон' },
-    { key: 'achievements' as const, label: `${unlockedCount}/${ACHIEVEMENT_DEFINITIONS.length}` },
-    { key: 'photos' as const, label: 'Фото' },
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: 'overview', label: 'Обзор' },
+    { key: 'activity', label: 'Активность' },
+    { key: 'body', label: 'Тело' },
+    { key: 'records', label: 'Рекорды' },
+    { key: 'sleep', label: 'Сон' },
   ];
 
   return (
@@ -72,6 +65,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         Прогресс
       </Text>
 
+      {/* Tab bar */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -93,13 +87,18 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {tab === 'overview' && <OverviewTab colors={colors} workoutHistory={workoutHistory} navigation={navigation} />}
-        {tab === 'calendar' && <CalendarTab colors={colors} workoutHistory={workoutHistory} />}
-        {tab === 'records' && <RecordsTab colors={colors} workoutHistory={workoutHistory} user={user} />}
-        {tab === 'weight' && <WeightTab colors={colors} user={user} />}
-        {tab === 'cardio' && <CardioTab colors={colors} />}
+        {tab === 'activity' && <ActivityTab colors={colors} workoutHistory={workoutHistory} />}
+        {tab === 'body' && <BodyTab colors={colors} user={user} />}
+        {tab === 'records' && (
+          <RecordsTab
+            colors={colors}
+            workoutHistory={workoutHistory}
+            user={user}
+            achievements={achievements}
+            unlockedCount={unlockedCount}
+          />
+        )}
         {tab === 'sleep' && <SleepTab colors={colors} />}
-        {tab === 'photos' && <PhotosTab colors={colors} />}
-        {tab === 'achievements' && <AchievementsTab colors={colors} achievements={achievements} unlockedCount={unlockedCount} />}
       </ScrollView>
     </View>
   );

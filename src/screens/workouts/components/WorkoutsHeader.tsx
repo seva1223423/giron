@@ -1,14 +1,23 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
-import { spacing } from '../../../theme/spacing';
+import { spacing, borderRadius } from '../../../theme/spacing';
 
 interface Props {
   navigation: any;
 }
+
+const SHORTCUTS = [
+  { label: 'История', icon: '◧', screen: 'WorkoutHistory' },
+  { label: 'Кардио', icon: '◑', screen: 'Cardio' },
+  { label: 'Рекорды', icon: '◉', screen: 'PersonalRecords' },
+  { label: 'Неделя', icon: '◫', screen: 'WeeklyPlan' },
+  { label: '1ПМ', icon: '◎', screen: 'OneRMCalculator' },
+  { label: 'Блины', icon: '◈', screen: 'PlateCalculator' },
+] as const;
 
 export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -16,33 +25,42 @@ export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
 
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.lg }}>
-      <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
-      <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('Cardio'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◑</Text>
-          <Text style={[typography.small, { color: colors.primary }]}>Кардио</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('WeeklyPlan'); }}>
-          <Text style={[typography.small, { color: colors.textSecondary }]}>План</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('PersonalRecords'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◉</Text>
-          <Text style={[typography.small, { color: colors.primary }]}>ПР</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('WorkoutCalendar'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◧</Text>
-          <Text style={[typography.small, { color: colors.primary }]}>Календарь</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('OneRMCalculator'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◫</Text>
-          <Text style={[typography.small, { color: colors.primary }]}>1ПМ</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('PlateCalculator'); }} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◎</Text>
-          <Text style={[typography.small, { color: colors.primary }]}>Блины</Text>
+    <View style={{ paddingTop: safeTop, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      {/* Title row */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingBottom: spacing.md }}>
+        <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
+        <TouchableOpacity
+          onPress={() => { haptic.selection(); navigation.navigate('CustomWorkout'); }}
+          style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#FFF', lineHeight: 24 }}>+</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Shortcuts row */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.md, gap: spacing.sm }}
+      >
+        {SHORTCUTS.map((s) => (
+          <TouchableOpacity
+            key={s.screen}
+            onPress={() => { haptic.selection(); navigation.navigate(s.screen); }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+              paddingVertical: 6, paddingHorizontal: spacing.md,
+              borderRadius: borderRadius.full,
+              backgroundColor: colors.surface,
+              borderWidth: 1, borderColor: colors.border,
+            }}
+          >
+            <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>{s.icon}</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, fontWeight: '600' }]}>{s.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 };
