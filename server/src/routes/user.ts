@@ -219,4 +219,29 @@ router.get('/sleep', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ── Weekly Plan ───────────────────────────────────────────────────────────────
+router.get('/week-plan', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { weekPlan: true } });
+    res.json(user?.weekPlan ?? {});
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения недельного плана' });
+  }
+});
+
+router.put('/week-plan', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const weekPlan = req.body;
+    if (typeof weekPlan !== 'object' || weekPlan === null) {
+      return res.status(400).json({ error: 'Некорректный формат плана' });
+    }
+    await prisma.user.update({ where: { id: req.userId! }, data: { weekPlan } });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка сохранения недельного плана' });
+  }
+});
+
 export { router as userRouter };

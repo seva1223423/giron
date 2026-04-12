@@ -41,12 +41,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises } = useWorkoutStore();
+  const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
 
   useEffect(() => {
     fetchPrograms();
     fetchHistory();
+    fetchWeekPlan();
   }, []);
 
   const today = todayDate();

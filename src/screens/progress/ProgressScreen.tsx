@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore } from '../../store';
+import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore, useMeasurementsStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
@@ -23,7 +23,10 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const { workoutHistory } = useWorkoutStore();
   const { user } = useAuthStore();
   const { dailyLog } = useNutritionStore();
+  const { syncFromServer: syncMeasurements } = useMeasurementsStore();
   const [tab, setTab] = useState<TabKey>('overview');
+
+  useEffect(() => { syncMeasurements().catch(() => {}); }, []);
 
   const streak = useMemo(() => {
     if (workoutHistory.length === 0) return 0;

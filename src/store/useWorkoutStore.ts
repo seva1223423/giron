@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise } from '../types';
 import { workoutService } from '../services';
+import { userService } from '../services/userService';
 
 interface ActiveWorkout {
   workout: Workout;
@@ -30,6 +31,8 @@ interface WorkoutStore {
   customExercises: Exercise[];
 
   setWeekPlanDay: (dow: number, entry: WeekPlanEntry | null) => void;
+  syncWeekPlan: () => Promise<void>;
+  fetchWeekPlan: () => Promise<void>;
   saveAsTemplate: (workout: Workout) => void;
   deleteTemplate: (id: string) => void;
   addCustomExercise: (exercise: Exercise) => void;
@@ -79,9 +82,32 @@ export const useWorkoutStore = create<WorkoutStore>()(
       savedTemplates: [],
       customExercises: [],
 
-      setWeekPlanDay: (dow, entry) => set((s) => ({
-        weekPlan: { ...s.weekPlan, [dow]: entry },
-      })),
+      setWeekPlanDay: (dow, entry) => {
+        set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: entry } }));
+        // Sync to server (fire and forget)
+        const updated = { ...get().weekPlan, [dow]: entry };
+        userService.saveWeekPlan(updated).catch(() => {});
+      },
+
+      syncWeekPlan: async () => {
+        const plan = get().weekPlan;
+        userService.saveWeekPlan(plan).catch(() => {});
+      },
+
+      fetchWeekPlan: async () => {
+        try {
+          const serverPlan = await userService.getWeekPlan();
+          if (serverPlan && Object.keys(serverPlan).length > 0) {
+            // Only overwrite local if server has data and local is empty
+            const localHasData = Object.keys(get().weekPlan).some((k) => get().weekPlan[Number(k)] != null);
+            if (!localHasData) {
+              set({ weekPlan: serverPlan as Record<number, WeekPlanEntry | null> });
+            }
+          }
+        } catch {
+          // Keep local plan if server unreachable
+        }
+      },
 
       addCustomExercise: (exercise) => set((s) => {
         if (s.customExercises.some((e) => e.id === exercise.id)) return s;
