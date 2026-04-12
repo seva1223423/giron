@@ -80,6 +80,7 @@ export default function AdminAnalyticsScreen() {
   const [period, setPeriod] = useState(30);
   const [exporting, setExporting] = useState(false);
   const [cohorts, setCohorts] = useState<Array<{ week: string; signups: number; activeThisWeek: number; retentionPct: number }>>([]);
+  const [subTimeline, setSubTimeline] = useState<{ timeline: Array<{ date: string; pro: number; trainer: number; club: number; total: number }>; totalNew: number } | null>(null);
 
   const exportCSV = useCallback(async () => {
     const canShare = await Sharing.isAvailableAsync();
@@ -99,12 +100,14 @@ export default function AdminAnalyticsScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [res, cohortsRes] = await Promise.all([
+      const [res, cohortsRes, subRes] = await Promise.all([
         adminService.getAnalytics(period),
         adminService.getCohorts(),
+        adminService.getSubscriptionTimeline(period),
       ]);
       setData(res);
       setCohorts(cohortsRes);
+      setSubTimeline(subRes);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -382,6 +385,31 @@ export default function AdminAnalyticsScreen() {
               </View>
             );
           })}
+        </View>
+      )}
+
+      {/* New subscriptions timeline */}
+      {subTimeline && subTimeline.timeline.some((t) => t.total > 0) && (
+        <View style={styles.chartCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={styles.chartTitle}>Новые подписки</Text>
+            <Text style={[styles.chartSub, { color: '#10B981', fontWeight: '700' }]}>+{subTimeline.totalNew} за период</Text>
+          </View>
+          <Text style={styles.chartSub}>Ежедневные новые оплаченные подписки по планам</Text>
+          <MiniBarChart data={subTimeline.timeline.map((t) => t.total)} color="#10B981" label="всего новых" />
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            {(['pro', 'trainer', 'club'] as const).map((plan) => {
+              const total = subTimeline.timeline.reduce((sum, t) => sum + t[plan], 0);
+              const PLAN_COLOR = { pro: '#6366F1', trainer: '#F59E0B', club: '#10B981' };
+              if (total === 0) return null;
+              return (
+                <View key={plan} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: PLAN_COLOR[plan] }} />
+                  <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{plan.toUpperCase()}: {total}</Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
       )}
 

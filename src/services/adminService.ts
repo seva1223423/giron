@@ -183,6 +183,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getSubscriptionTimeline(days?: number): Promise<{ timeline: Array<{ date: string; pro: number; trainer: number; club: number; total: number }>; totalNew: number; period: number }> {
+    const res = await api.get('/admin/analytics/subscriptions', { params: { days } });
+    return res.data;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;

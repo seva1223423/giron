@@ -968,6 +968,47 @@ router.get('/analytics/cohorts', requireAdmin, async (_req: AuthRequest, res: Re
   }
 });
 
+/** GET /admin/analytics/subscriptions — daily new paid subscriptions by plan */
+router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query as Record<string, string>;
+    const numDays = Math.min(90, Math.max(7, parseInt(days) || 30));
+    const since = new Date();
+    since.setDate(since.getDate() - numDays);
+    since.setHours(0, 0, 0, 0);
+
+    const subs = await prisma.subscription.findMany({
+      where: { plan: { not: 'free' }, createdAt: { gte: since } },
+      select: { plan: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Build daily buckets per plan
+    const buckets: Record<string, { pro: number; trainer: number; club: number; total: number }> = {};
+    for (let i = 0; i < numDays; i++) {
+      const d = new Date(since);
+      d.setDate(d.getDate() + i);
+      buckets[d.toISOString().split('T')[0]] = { pro: 0, trainer: 0, club: 0, total: 0 };
+    }
+    for (const s of subs) {
+      const key = s.createdAt.toISOString().split('T')[0];
+      if (buckets[key]) {
+        buckets[key].total++;
+        if (s.plan === 'pro') buckets[key].pro++;
+        else if (s.plan === 'trainer') buckets[key].trainer++;
+        else if (s.plan === 'club') buckets[key].club++;
+      }
+    }
+
+    const timeline = Object.entries(buckets).map(([date, v]) => ({ date, ...v }));
+    const totalNew = subs.length;
+    res.json({ timeline, totalNew, period: numDays });
+  } catch (e) {
+    logger.error('GET /admin/analytics/subscriptions:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 /** GET /admin/analytics/export — CSV export of daily timeline data */
 router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
