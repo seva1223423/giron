@@ -458,6 +458,45 @@ export default function AdminUserDetailScreen() {
         <Text style={styles.cardHint}>Роль ADMIN даёт доступ к этой панели. Будьте осторожны.</Text>
       </View>
 
+      {/* Activity timeline */}
+      {(user.workouts?.length > 0 || user.supportTickets?.length > 0 || user.chatMessages?.length > 0) && (() => {
+        const events: Array<{ date: string; type: 'workout' | 'ticket' | 'ai'; label: string; sub?: string; id?: string }> = [];
+        user.workouts?.forEach((w) => w.completedAt && events.push({
+          date: w.completedAt, type: 'workout', label: w.name,
+          sub: [w.totalVolume ? `${Math.round(w.totalVolume)} кг` : '', w.durationMinutes ? `${w.durationMinutes} мин` : ''].filter(Boolean).join(' · '),
+        }));
+        user.supportTickets?.forEach((t) => events.push({ date: t.createdAt, type: 'ticket', label: t.subject, sub: t.status, id: t.id }));
+        user.chatMessages?.forEach((m) => events.push({ date: m.createdAt, type: 'ai', label: m.content }));
+        events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const TYPE_ICON = { workout: '🏋️', ticket: '🎧', ai: '🤖' };
+        const TYPE_COLOR = { workout: '#F59E0B', ticket: '#6366F1', ai: '#8B5CF6' };
+        return (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Последняя активность</Text>
+            {events.slice(0, 10).map((e, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.timelineRow}
+                onPress={e.type === 'ticket' && e.id ? () => navigation.navigate('AdminTicketScreen', { ticketId: e.id }) : undefined}
+                disabled={e.type !== 'ticket'}
+                activeOpacity={e.type === 'ticket' ? 0.7 : 1}
+              >
+                <View style={[styles.timelineDot, { backgroundColor: TYPE_COLOR[e.type] + '33', borderColor: TYPE_COLOR[e.type] }]}>
+                  <Text style={{ fontSize: 10 }}>{TYPE_ICON[e.type]}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.timelineLabel, e.type === 'ticket' && { color: '#A5B4FC' }]} numberOfLines={1}>{e.label}</Text>
+                  {e.sub && <Text style={styles.timelineSub}>{e.sub}</Text>}
+                </View>
+                <Text style={styles.timelineDate}>
+                  {new Date(e.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+      })()}
+
       {/* Fitness info */}
       {(user.weightKg || user.heightCm || user.goal) && (
         <View style={styles.card}>
@@ -674,6 +713,12 @@ const styles = StyleSheet.create({
   listRow: { paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
   listMain: { fontSize: 14, color: '#FFFFFF', marginBottom: 2 },
   listMeta: { fontSize: 12, color: '#6B7280' },
+
+  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  timelineDot: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  timelineLabel: { fontSize: 13, color: '#FFFFFF' },
+  timelineSub: { fontSize: 11, color: '#6B7280', marginTop: 1 },
+  timelineDate: { fontSize: 11, color: '#4B5563', flexShrink: 0 },
 
   // Ban banner
   banBanner: {
