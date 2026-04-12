@@ -84,7 +84,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           <TouchableOpacity
             key={t.key}
             onPress={() => { haptic.selection(); setTab(t.key); }}
-            style={[styles.tab, tab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            style={[styles.tab, tab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2.5, backgroundColor: colors.primary + '08' }]}
           >
             <Text style={[typography.smallMedium, { color: tab === t.key ? colors.primary : colors.textSecondary }]}>
               {t.label}

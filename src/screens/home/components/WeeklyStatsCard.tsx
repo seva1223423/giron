@@ -120,9 +120,9 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
               {weekAdherence.done}/{weekAdherence.pastPlanned}
             </Text>
           </View>
-          <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.border }}>
+          <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border }}>
             <View style={{
-              height: 4, borderRadius: 2,
+              height: 6, borderRadius: 3,
               backgroundColor: weekAdherence.done === weekAdherence.pastPlanned ? colors.success : colors.primary,
               width: `${(weekAdherence.done / weekAdherence.pastPlanned) * 100}%`,
             }} />

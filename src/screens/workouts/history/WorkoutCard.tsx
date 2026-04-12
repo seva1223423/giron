@@ -67,7 +67,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
             {muscles.length > 0 && (
               <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
                 {muscles.map((m) => (
-                  <View key={m} style={[styles.muscleTag, { backgroundColor: colors.primary + '15' }]}>
+                  <View key={m} style={[styles.muscleTag, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '35' }]}>
                     <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 10 }]}>{MUSCLE_LABELS[m] || m}</Text>
                   </View>
                 ))}
@@ -138,7 +138,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  muscleTag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm },
+  muscleTag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: 'transparent' },
   prBadge: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.xs, paddingVertical: 1 },
   exRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.sm },
 });

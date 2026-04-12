@@ -30,9 +30,9 @@ const todayDate = todayDateStr;
 
 const SectionDivider: React.FC<{ label: string; colors: any }> = ({ label, colors }) => (
   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.md }}>
-    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textTertiary, letterSpacing: 0.8, marginHorizontal: spacing.md }}>{label}</Text>
-    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+    <View style={{ flex: 1, height: 1.5, backgroundColor: colors.primary + '20' }} />
+    <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary, letterSpacing: 1.2, marginHorizontal: spacing.md }}>{label}</Text>
+    <View style={{ flex: 1, height: 1.5, backgroundColor: colors.primary + '20' }} />
   </View>
 );
 

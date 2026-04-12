@@ -104,6 +104,7 @@ export const SetsSection: React.FC<Props> = ({
           flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md,
           paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1,
           backgroundColor: colors.surface, borderColor: colors.border, marginBottom: spacing.sm,
+          borderLeftWidth: 3, borderLeftColor: colors.success + '80',
         }}>
           <Text style={[typography.captionMedium, { color: colors.textTertiary, marginRight: spacing.sm }]}>
             {'\u21A9 '}
