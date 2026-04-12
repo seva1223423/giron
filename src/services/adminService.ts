@@ -208,6 +208,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getDailyReport(date?: string): Promise<{ report: string; date: string; metrics: Record<string, number> }> {
+    const res = await api.get('/admin/report/daily', { params: { date } });
+    return res.data;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;
