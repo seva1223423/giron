@@ -97,7 +97,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
             {!activeWorkout && (
               <TouchableOpacity
                 onPress={handleRepeat}
-                style={[{ backgroundColor: colors.primary + '15', borderRadius: borderRadius.sm, paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md }]}
+                style={[{ backgroundColor: colors.primary + '15', borderRadius: borderRadius.sm, paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.primary + '35' }]}
               >
                 <Text style={[typography.captionMedium, { color: colors.primary }]}>Повторить тренировку</Text>
               </TouchableOpacity>

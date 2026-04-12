@@ -43,7 +43,7 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
             </View>
             {isSuperset && (
               <View style={{ alignItems: 'center', marginVertical: -4 }}>
-                <View style={{ backgroundColor: colors.accent + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                <View style={{ backgroundColor: colors.accent + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: colors.accent + '40' }}>
                   <Text style={{ fontSize: 10, fontWeight: '700', color: colors.accent }}>SS</Text>
                 </View>
               </View>

@@ -84,7 +84,7 @@ export const PRRecordCard: React.FC<Props> = ({ record, idx, isExpanded, onToggl
       <Card style={{ marginBottom: spacing.sm }}>
         <TouchableOpacity onPress={() => { haptic.selection(); onToggle(); }} activeOpacity={0.7}>
           <View style={styles.recordRow}>
-            <View style={[styles.rankBadge, { backgroundColor: idx < 3 ? colors.primary + '20' : colors.surface }]}>
+            <View style={[styles.rankBadge, { backgroundColor: idx < 3 ? colors.primary + '20' : colors.surface, borderWidth: 1, borderColor: idx < 3 ? colors.primary + '40' : colors.border }]}>
               <Text style={[typography.captionMedium, { color: idx < 3 ? colors.primary : colors.textTertiary }]}>{idx + 1}</Text>
             </View>
             <View style={{ flex: 1 }}>
