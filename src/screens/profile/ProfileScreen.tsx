@@ -29,8 +29,8 @@ const LEVEL_LABELS: Record<string, string> = {
 
 const ProfileRow: React.FC<{ label: string; value: string; colors: any; isLast?: boolean }> = ({ label, value, colors, isLast }) => (
   <View style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md }, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-    <Text style={[typography.body, { color: colors.textSecondary }]}>{label}</Text>
-    <Text style={[typography.bodyMedium, { color: colors.text }]}>{value}</Text>
+    <Text style={[typography.body, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
+    <Text style={[typography.bodyMedium, { color: colors.text }]} numberOfLines={1}>{value}</Text>
   </View>
 );
 
@@ -60,8 +60,8 @@ const MenuRow: React.FC<{
       <Text style={{ fontSize: 15, fontWeight: '700', color: iconColor }}>{icon}</Text>
     </View>
     <View style={{ flex: 1 }}>
-      <Text style={[typography.body, { color: colors.text }]}>{title}</Text>
-      {subtitle && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 1 }]}>{subtitle}</Text>}
+      <Text style={[typography.body, { color: colors.text }]} numberOfLines={1}>{title}</Text>
+      {subtitle && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 1 }]} numberOfLines={1}>{subtitle}</Text>}
     </View>
     {badge && (
       <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: (badgeColor || colors.primary) + '20' }}>
