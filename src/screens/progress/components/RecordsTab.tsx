@@ -96,7 +96,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
           <View style={{ marginTop: spacing.xl }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
               <Text style={[typography.h4, { color: colors.text }]}>Достижения</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>{unlockedCount} из {ACHIEVEMENT_DEFINITIONS.length}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{unlockedCount} из {ACHIEVEMENT_DEFINITIONS.length}</Text>
             </View>
             {/* Progress bar */}
             <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, marginBottom: spacing.lg }}>
