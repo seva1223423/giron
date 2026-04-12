@@ -23,7 +23,7 @@ export const TodayPlanCard: React.FC<Props> = ({ todayPlan, onStart }) => {
           <Text style={[typography.captionMedium, { color: colors.accent }]}>ПЛАН НА СЕГОДНЯ</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: colors.accent }}>{todayPlan.emoji}</Text>
-            <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
+            <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>{todayPlan.name}</Text>
           </View>
         </View>
         {todayPlan.exercises.length > 0 && (
