@@ -2,11 +2,12 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, AppState, Platform } from 'react-native';
+import { Text, View, AppState, Platform, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore, useAuthStore } from '../store';
 import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
+import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions } from '../services/notificationService';
 import { ErrorBoundary } from '../components';
 
@@ -283,6 +284,17 @@ export const AppNavigator: React.FC = () => {
       requestNotificationPermissions();
     }
   }, [isAuthenticated, isOnboarded]);
+
+  // Handle notification taps — open deep-link URL from notification data
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const url = response.notification.request.content.data?.url as string | undefined;
+      if (url) {
+        Linking.openURL(url).catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Apply auto theme when app comes to foreground
   useEffect(() => {

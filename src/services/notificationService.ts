@@ -97,6 +97,7 @@ export async function scheduleRestEndNotification(seconds: number): Promise<stri
         title: 'Отдых закончился!',
         body: 'Время следующего подхода.',
         sound: 'default',
+        data: { url: 'irongym://workout/active' },
         ...(Platform.OS === 'android' && { channelId: 'reminders' }),
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },
@@ -276,6 +277,41 @@ export async function scheduleWeeklySummaryNotification(
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: secondsUntilSunday,
       },
+    });
+  } catch {
+    // Silently fail
+  }
+}
+
+// Schedule a protein reminder if protein intake is below 50% of target after 16:00.
+// Call this whenever a meal is logged. Cancels itself if target is met.
+export async function scheduleProteinReminder(
+  proteinGrams: number,
+  proteinTargetGrams: number,
+): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    await Notifications.cancelScheduledNotificationAsync('protein-reminder').catch(() => {});
+
+    if (proteinTargetGrams <= 0) return;
+    const pct = proteinGrams / proteinTargetGrams;
+    if (pct >= 0.5) return; // target already on track, nothing to remind
+
+    const now = new Date();
+    if (now.getHours() < 16) return; // too early — daily summary at 21:00 is enough
+
+    const remaining = Math.round(proteinTargetGrams - proteinGrams);
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'protein-reminder',
+      content: {
+        title: 'Не хватает белка',
+        body: `Только ${Math.round(pct * 100)}% нормы. Осталось добрать ${remaining} г — творог, яйца или протеин.`,
+        sound: 'default',
+        ...(Platform.OS === 'android' && { channelId: 'reminders' }),
+      },
+      trigger: null, // fire immediately
     });
   } catch {
     // Silently fail

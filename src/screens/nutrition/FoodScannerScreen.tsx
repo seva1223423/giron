@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCameraPermissions } from 'expo-camera';
@@ -10,7 +10,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import type { NutritionItem, Meal } from '../../types';
 import { aiService, getApiError } from '../../services';
-import { scheduleNutritionSummaryReminder } from '../../services/notificationService';
+import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../../services/notificationService';
 import { BarcodeScannerModal, RecognizedItemCard } from './scanner';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
@@ -65,6 +65,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('lunch');
   const [error, setError] = useState('');
   const [showPaywall, setShowPaywall] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const { consumeFoodScan, foodScansLeft, isPremiumActive } = useSubscriptionStore();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -77,10 +78,14 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [notFound, setNotFound] = useState(false);
 
   const analyzeFood = async (base64: string) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 45_000);
+
     setLoading(true);
     setError('');
     try {
-      const result = await aiService.analyzeFood(base64);
+      const result = await aiService.analyzeFood(base64, controller.signal);
       const items: NutritionItem[] = result.items.map((item: any, index: number) => ({
         id: `item-${Date.now()}-${index}`,
         name: item.name, calories: item.calories, protein: item.protein,
@@ -93,12 +98,23 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       });
       setItemBases(bases);
       setRecognizedItems(items);
-    } catch (e) {
-      const apiError = getApiError(e);
-      setError(apiError.status === 0 ? 'Нет подключения к серверу. Проверь, что сервер запущен.' : apiError.message);
+    } catch (e: any) {
+      if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {
+        setError('Анализ отменён.');
+        setImageUri(null);
+      } else {
+        const apiError = getApiError(e);
+        setError(apiError.status === 0 ? 'Нет подключения к серверу. Проверь, что сервер запущен.' : apiError.message);
+      }
     } finally {
+      clearTimeout(timeoutId);
+      abortRef.current = null;
       setLoading(false);
     }
+  };
+
+  const cancelAnalysis = () => {
+    abortRef.current?.abort();
   };
 
   const pickImage = async (useCamera: boolean) => {
@@ -211,10 +227,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     addMeal(today, meal);
     const calTarget = dayLog.targetCalories || 2000;
     const protTarget = dayLog.targetProtein || 150;
+    const totalProteinSoFar = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0) + totalProt;
     scheduleNutritionSummaryReminder(
       calTarget > 0 ? (alreadyEaten + totalCal) / calTarget : 0,
-      protTarget > 0 ? (dayLog.meals.reduce((s, m) => s + m.totalProtein, 0) + totalProt) / protTarget : 0,
+      protTarget > 0 ? totalProteinSoFar / protTarget : 0,
     ).catch(() => {});
+    scheduleProteinReminder(totalProteinSoFar, protTarget).catch(() => {});
     navigation.goBack();
   };
 
@@ -282,6 +300,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.md }]}>ИИ анализирует фото...</Text>
             <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Определяю продукты и рассчитываю КБЖУ</Text>
+            <TouchableOpacity onPress={cancelAnalysis} style={{ marginTop: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border }}>
+              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
+            </TouchableOpacity>
           </Card>
         )}
 

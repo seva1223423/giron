@@ -7,7 +7,7 @@ import { Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import type { Meal, NutritionItem } from '../../types';
-import { scheduleNutritionSummaryReminder } from '../../services/notificationService';
+import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../../services/notificationService';
 import { FoodSearchTab, CustomFoodTab } from './manual';
 import type { CustomFoodState } from './manual';
 import type { FoodItem } from './manual/foodData';
@@ -59,10 +59,13 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
       const dayLog = dailyLog[today];
       const alreadyEaten = dayLog?.meals.reduce((s, m) => s + m.totalCalories, 0) ?? 0;
       const alreadyProtein = dayLog?.meals.reduce((s, m) => s + m.totalProtein, 0) ?? 0;
+      const protTarget = dayLog?.targetProtein || 150;
+      const totalProtein = alreadyProtein + item.protein;
       scheduleNutritionSummaryReminder(
         (dayLog?.targetCalories || 2000) > 0 ? (alreadyEaten + item.calories) / (dayLog?.targetCalories || 2000) : 0,
-        (dayLog?.targetProtein || 150) > 0 ? (alreadyProtein + item.protein) / (dayLog?.targetProtein || 150) : 0,
+        protTarget > 0 ? totalProtein / protTarget : 0,
       ).catch(() => {});
+      scheduleProteinReminder(totalProtein, protTarget).catch(() => {});
     }
     navigation.goBack();
   };

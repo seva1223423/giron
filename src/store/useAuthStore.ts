@@ -119,6 +119,19 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: 'iron-gym-auth',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persistedState: any, version: number) => {
+        if (version === 0) {
+          // v0 → v1: normalize gender/goal/fitnessLevel casing (backend returned UPPER_CASE)
+          const s = persistedState as any;
+          if (s.user) {
+            if (s.user.gender) s.user.gender = s.user.gender.toLowerCase();
+            if (s.user.goal) s.user.goal = s.user.goal.toLowerCase();
+            if (s.user.fitnessLevel) s.user.fitnessLevel = s.user.fitnessLevel.toLowerCase();
+          }
+        }
+        return persistedState as any;
+      },
       partialize: (state) => ({
         user: state.user,
         token: state.token,
