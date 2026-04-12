@@ -52,6 +52,7 @@ model User {
   supportMessages         SupportMessage[] @relation("MessageAuthor")
   adminLogs               AdminLog[]       @relation("AdminLogs")
   sleepEntries            SleepEntry[]
+  announcements           Announcement[]   @relation("Announcements")
 
   gym                     Gym?      @relation(fields: [gymId], references: [id])
   passwordResetTokens     PasswordResetToken[]
@@ -474,4 +475,22 @@ model SleepEntry {
 
   @@unique([userId, date])
   @@index([userId])
+}
+
+// ==================== ANNOUNCEMENTS ====================
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  body      String
+  type      String    @default("info") // "info", "warning", "maintenance", "promo"
+  isActive  Boolean   @default(true)
+  endsAt    DateTime?
+
+  authorId  String
+  author    User      @relation("Announcements", fields: [authorId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([isActive, createdAt])
 }

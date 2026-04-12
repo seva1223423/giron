@@ -690,4 +690,102 @@ router.get('/support/counts', requireStaff, async (_req: AuthRequest, res: Respo
   }
 });
 
+// ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
+
+const announcementSchema = z.object({
+  title: z.string().min(1).max(200),
+  body: z.string().min(1).max(2000),
+  type: z.enum(['info', 'warning', 'maintenance', 'promo']).default('info'),
+  endsAt: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
+/** GET /admin/announcements — list all announcements */
+router.get('/announcements', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const list = await prisma.announcement.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { author: { select: { firstName: true, lastName: true } } },
+    });
+    res.json(list);
+  } catch (e) {
+    logger.error('GET /admin/announcements:', e);
+    res.status(500).json({ error: 'Ошибка получения объявлений' });
+  }
+});
+
+/** GET /admin/announcements/active — active announcements for client display */
+router.get('/announcements/active', authenticate, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const list = await prisma.announcement.findMany({
+      where: {
+        isActive: true,
+        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, title: true, body: true, type: true, createdAt: true },
+    });
+    res.json(list);
+  } catch (e) {
+    logger.error('GET /admin/announcements/active:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+/** POST /admin/announcements — create announcement */
+router.post('/announcements', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const data = announcementSchema.parse(req.body);
+    const ann = await prisma.announcement.create({
+      data: {
+        title: data.title,
+        body: data.body,
+        type: data.type,
+        isActive: data.isActive ?? true,
+        endsAt: data.endsAt ? new Date(data.endsAt) : null,
+        authorId: req.userId!,
+      },
+    });
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'CREATE_ANNOUNCEMENT', details: data.title },
+    });
+    res.status(201).json(ann);
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /admin/announcements:', e);
+    res.status(500).json({ error: 'Ошибка создания объявления' });
+  }
+});
+
+/** PATCH /admin/announcements/:id — update (e.g., deactivate) */
+router.patch('/announcements/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const data = announcementSchema.partial().parse(req.body);
+    const ann = await prisma.announcement.update({
+      where: { id: req.params.id as string },
+      data: {
+        ...data,
+        endsAt: data.endsAt ? new Date(data.endsAt) : undefined,
+      },
+    });
+    res.json(ann);
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('PATCH /admin/announcements/:id:', e);
+    res.status(500).json({ error: 'Ошибка обновления' });
+  }
+});
+
+/** DELETE /admin/announcements/:id */
+router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.announcement.delete({ where: { id: req.params.id as string } });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /admin/announcements/:id:', e);
+    res.status(500).json({ error: 'Ошибка удаления' });
+  }
+});
+
 export { router as adminRouter };
