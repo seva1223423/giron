@@ -46,6 +46,17 @@ const PRIORITY_COLOR: Record<TicketPriority, string> = {
 
 function MessageBubble({ msg, myId }: { msg: SupportMessage; myId?: string }) {
   const isMe = msg.authorId === myId;
+  if (msg.isInternal) {
+    return (
+      <View style={styles.noteBlock}>
+        <Text style={styles.noteAuthor}>📌 Заметка · {msg.author.firstName}</Text>
+        <Text style={styles.noteText}>{msg.content}</Text>
+        <Text style={styles.noteTime}>
+          {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+      </View>
+    );
+  }
   return (
     <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
       {!isMe && (
@@ -79,6 +90,7 @@ export default function AdminTicketScreen() {
   const [grantingSubb, setGrantingSubb] = useState(false);
   const [userTickets, setUserTickets] = useState<SupportTicket[]>([]);
   const [showUserTickets, setShowUserTickets] = useState(false);
+  const [isNoteMode, setIsNoteMode] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,15 +142,20 @@ export default function AdminTicketScreen() {
     setSending(true);
     setText('');
     try {
-      const msg = await supportService.sendMessage(ticketId, trimmed);
-      setTicket((t) => t ? { ...t, messages: [...t.messages, msg] } : t);
+      if (isNoteMode) {
+        const note = await adminService.addInternalNote(ticketId, trimmed);
+        setTicket((t) => t ? { ...t, messages: [...t.messages, note as any] } : t);
+      } else {
+        const msg = await supportService.sendMessage(ticketId, trimmed);
+        setTicket((t) => t ? { ...t, messages: [...t.messages, msg] } : t);
+      }
       setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
-      Alert.alert('Ошибка', 'Не удалось отправить сообщение');
+      Alert.alert('Ошибка', isNoteMode ? 'Не удалось добавить заметку' : 'Не удалось отправить сообщение');
     } finally {
       setSending(false);
     }
-  }, [text, sending, ticketId]);
+  }, [text, sending, ticketId, isNoteMode]);
 
   const changeStatus = useCallback(async (status: TicketStatus) => {
     if (!ticket) return;
@@ -389,9 +406,15 @@ export default function AdminTicketScreen() {
       </View>
 
       <View style={styles.inputRow}>
+        <TouchableOpacity
+          style={[styles.noteModeBtn, isNoteMode && { backgroundColor: '#F59E0B22', borderColor: '#F59E0B60' }]}
+          onPress={() => setIsNoteMode(!isNoteMode)}
+        >
+          <Text style={[styles.noteModeBtnText, isNoteMode && { color: '#F59E0B' }]}>📌</Text>
+        </TouchableOpacity>
         <TextInput
-          style={styles.input}
-          placeholder="Ответить клиенту..."
+          style={[styles.input, isNoteMode && { borderWidth: 1, borderColor: '#F59E0B40' }]}
+          placeholder={isNoteMode ? 'Внутренняя заметка (не видна клиенту)...' : 'Ответить клиенту...'}
           placeholderTextColor="#6B7280"
           value={text}
           onChangeText={setText}
@@ -459,6 +482,12 @@ const styles = StyleSheet.create({
   subPlanText: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
   subGrantBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   subGrantBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  noteBlock: { alignSelf: 'stretch', backgroundColor: '#F59E0B0E', borderRadius: 10, borderWidth: 1, borderColor: '#F59E0B30', borderStyle: 'dashed', padding: 10, marginBottom: 4 },
+  noteAuthor: { fontSize: 11, fontWeight: '700', color: '#F59E0B', marginBottom: 4 },
+  noteText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20 },
+  noteTime: { fontSize: 10, color: 'rgba(245,158,11,0.5)', textAlign: 'right', marginTop: 4 },
+  noteModeBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: '#3C3C3E', justifyContent: 'center', alignItems: 'center' },
+  noteModeBtnText: { fontSize: 18 },
   otherTicketsBtn: { fontSize: 11, color: '#6366F1', fontWeight: '600' },
   otherTicketsList: { marginTop: 6, borderTopWidth: 1, borderTopColor: '#2C2C2E', paddingTop: 6 },
   otherTicketRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
