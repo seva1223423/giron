@@ -6,6 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { adminService } from '../../services/adminService';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { AdminLog } from '../../types';
 
 const ACTION_META: Record<string, { color: string; icon: string; label: string }> = {
@@ -87,6 +88,7 @@ function LogRow({ log, onUserPress }: { log: AdminLog; onUserPress: (id: string)
 
 export default function AdminLogsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const myId = useAuthStore((s) => s.user?.id);
   const [logs, setLogs] = useState<AdminLog[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -95,6 +97,7 @@ export default function AdminLogsScreen() {
   const [pages, setPages] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [myActionsOnly, setMyActionsOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,6 +116,7 @@ export default function AdminLogsScreen() {
         page: p,
         limit: 50,
         action: actionFilter || undefined,
+        adminId: myActionsOnly ? myId : undefined,
         search: searchDebounced.trim() || undefined,
         from: range.from,
         to: range.to,
@@ -125,9 +129,9 @@ export default function AdminLogsScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [actionFilter, datePreset, searchDebounced]);
+  }, [actionFilter, datePreset, searchDebounced, myActionsOnly]);
 
-  useEffect(() => { load(1); }, [actionFilter, datePreset, searchDebounced]);
+  useEffect(() => { load(1); }, [actionFilter, datePreset, searchDebounced, myActionsOnly]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -180,9 +184,19 @@ export default function AdminLogsScreen() {
         })}
       </ScrollView>
 
-      <Text style={styles.totalLabel}>
-        Записей: {total}{searchDebounced ? ` (поиск: "${searchDebounced}")` : ''}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, marginBottom: 4, gap: 8 }}>
+        <Text style={styles.totalLabel}>
+          Записей: {total}{searchDebounced ? ` (поиск: "${searchDebounced}")` : ''}
+        </Text>
+        <TouchableOpacity
+          style={[styles.filterChip, myActionsOnly && { backgroundColor: '#6366F1' }]}
+          onPress={() => setMyActionsOnly(!myActionsOnly)}
+        >
+          <Text style={[styles.filterText, myActionsOnly && { color: '#FFFFFF' }]}>
+            {myActionsOnly ? '✓ Мои' : 'Мои действия'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
