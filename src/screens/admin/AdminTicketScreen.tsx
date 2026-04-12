@@ -462,6 +462,14 @@ export default function AdminTicketScreen() {
             {ticket.assignedTo ? `→ ${ticket.assignedTo.firstName}` : 'Назначить'}
           </Text>
         </TouchableOpacity>
+        {ticket.priority !== 'urgent' && ticket.status !== 'closed' && ticket.status !== 'resolved' && (
+          <TouchableOpacity
+            style={[styles.actionBarBtn, { borderColor: '#EF444440' }]}
+            onPress={() => changePriority('urgent')}
+          >
+            <Text style={[styles.actionBarBtnText, { color: '#EF4444' }]}>🔴 Urgent</Text>
+          </TouchableOpacity>
+        )}
         {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
           <TouchableOpacity
             style={[styles.actionBarBtn, { borderColor: '#10B98160' }]}

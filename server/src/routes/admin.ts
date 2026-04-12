@@ -1296,6 +1296,29 @@ router.patch('/announcements/:id', requireAdmin, async (req: AuthRequest, res: R
   }
 });
 
+/** POST /admin/announcements/:id/duplicate — create a copy with "(копия)" suffix */
+router.post('/announcements/:id/duplicate', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const original = await prisma.announcement.findUnique({ where: { id: req.params.id as string } });
+    if (!original) return res.status(404).json({ error: 'Объявление не найдено' });
+    const copy = await prisma.announcement.create({
+      data: {
+        title: `${original.title} (копия)`,
+        body: original.body,
+        type: original.type,
+        isActive: false, // start inactive
+        targetRole: original.targetRole,
+        authorId: req.userId!,
+      },
+      include: { author: { select: { firstName: true, lastName: true } } },
+    });
+    res.status(201).json(copy);
+  } catch (e) {
+    logger.error('POST /admin/announcements/:id/duplicate:', e);
+    res.status(500).json({ error: 'Ошибка дублирования' });
+  }
+});
+
 /** DELETE /admin/announcements/:id */
 router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

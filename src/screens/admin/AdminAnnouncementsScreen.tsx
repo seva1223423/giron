@@ -16,12 +16,13 @@ const TYPE_META: Record<AnnouncementType, { color: string; icon: string; label: 
 const TYPES: AnnouncementType[] = ['info', 'warning', 'maintenance', 'promo'];
 
 function AnnouncementCard({
-  item, onToggle, onDelete, onEdit,
+  item, onToggle, onDelete, onEdit, onDuplicate,
 }: {
   item: Announcement;
   onToggle: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onDuplicate: () => void;
 }) {
   const meta = TYPE_META[item.type];
   const isExpired = item.endsAt && new Date(item.endsAt) < new Date();
@@ -35,6 +36,9 @@ function AnnouncementCard({
         <View style={styles.cardActions}>
           <TouchableOpacity style={styles.cardBtn} onPress={onEdit}>
             <Text style={[styles.cardBtnText, { color: '#6366F1' }]}>Ред.</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cardBtn} onPress={onDuplicate}>
+            <Text style={[styles.cardBtnText, { color: '#8B5CF6' }]}>Копия</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cardBtn} onPress={onToggle}>
             <Text style={[styles.cardBtnText, { color: item.isActive ? '#10B981' : '#6B7280' }]}>
@@ -166,6 +170,15 @@ export default function AdminAnnouncementsScreen() {
     }
   }, []);
 
+  const handleDuplicate = useCallback(async (item: Announcement) => {
+    try {
+      const copy = await adminService.duplicateAnnouncement(item.id);
+      setItems((prev) => [copy, ...prev]);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось скопировать объявление');
+    }
+  }, []);
+
   const handleDelete = useCallback((item: Announcement) => {
     Alert.alert(
       'Удалить объявление?',
@@ -294,6 +307,7 @@ export default function AdminAnnouncementsScreen() {
               onToggle={() => handleToggle(item)}
               onDelete={() => handleDelete(item)}
               onEdit={() => openEdit(item)}
+              onDuplicate={() => handleDuplicate(item)}
             />
           )}
           contentContainerStyle={styles.list}
