@@ -73,7 +73,7 @@ export const ClubLeaderboard: React.FC = () => {
                   <Text style={{ fontSize: 11, color: colors.success, fontWeight: '600' }}>✓</Text>
                 )}
               </View>
-              <Text style={[typography.small, { color: colors.textSecondary }]} numberOfLines={1}>{entry.userName} • {entry.weightKg} кг × {entry.reps}</Text>
+              <Text style={[typography.small, { color: colors.textSecondary, flex: 1 }]} numberOfLines={1}>{entry.userName} • {entry.weightKg} кг × {entry.reps}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={[typography.numberSmall, { color: colors.accent, fontSize: 16 }]}>{entry.estimated1RM} кг</Text>

@@ -125,7 +125,7 @@ export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600, nav
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <View style={{ flex: 1 }}>
                     <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{workout.name}</Text>
-                    <Text style={[typography.small, { color: colors.textSecondary }]}>
+                    <Text style={[typography.small, { color: colors.textSecondary }]} numberOfLines={1}>
                       {workout.exercises.length} упр. {'\u2022'} {workout.durationMinutes || 0} мин
                       {workout.totalVolume ? ` \u2022 ${Math.round(workout.totalVolume)} кг` : ''}
                       {workout.exercises.some((e: any) => e.supersetGroupId) && <Text style={{ fontSize: 9, fontWeight: '700', color: colors.accent }}> SS</Text>}

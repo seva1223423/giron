@@ -24,7 +24,7 @@ export const FeaturesTable: React.FC = () => {
       <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Что входит в Pro</Text>
       <View style={[styles.row, { borderBottomWidth: 2, borderBottomColor: colors.border, paddingBottom: spacing.sm }]}>
         <View style={{ flex: 1 }} />
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 60, textAlign: 'center' }]}>Бесплатно</Text>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 60, textAlign: 'center' }]} numberOfLines={1}>Бесплатно</Text>
         <View style={[styles.proHeader, { backgroundColor: colors.accent }]}>
           <Text style={[typography.captionMedium, { color: '#fff', width: 52, textAlign: 'center' }]}>Pro</Text>
         </View>
