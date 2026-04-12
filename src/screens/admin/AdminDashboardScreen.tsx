@@ -7,7 +7,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminService } from '../../services/adminService';
-import type { AdminStats, AdminAnalytics } from '../../types';
+import type { AdminStats, AdminAnalytics, AdminLog } from '../../types';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
 type RecentUser = { id: string; firstName: string; lastName?: string; email: string };
@@ -185,6 +185,7 @@ export default function AdminDashboardScreen() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [quickSearch, setQuickSearch] = useState('');
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [recentLogs, setRecentLogs] = useState<AdminLog[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Reload recently viewed whenever the screen comes into focus
@@ -198,12 +199,14 @@ export default function AdminDashboardScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [statsData, analyticsData] = await Promise.all([
+      const [statsData, analyticsData, logsData] = await Promise.all([
         adminService.getStats(),
         adminService.getAnalytics(7),
+        adminService.getLogs({ limit: 6 }),
       ]);
       setStats(statsData);
       setAnalytics(analyticsData);
+      setRecentLogs(logsData.logs);
       setLastRefreshed(new Date());
     } finally {
       setLoading(false);
@@ -370,6 +373,43 @@ export default function AdminDashboardScreen() {
               ))}
             </View>
           </ScrollView>
+        </>
+      )}
+
+      {/* ── Recent admin activity ─────────────────────────────────────── */}
+      {recentLogs.length > 0 && (
+        <>
+          <View style={styles.activityHeader}>
+            <Text style={styles.sectionTitle}>Последние действия</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('AdminLogsScreen')}>
+              <Text style={styles.activityMore}>Все →</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.activityCard}>
+            {recentLogs.map((log, idx) => {
+              const ACTION_ICONS: Record<string, string> = {
+                CHANGE_ROLE: '🎭', CHANGE_SUBSCRIPTION: '💳', BAN_USER: '⛔',
+                UNBAN_USER: '✅', DELETE_USER: '🗑', UPDATE_NOTE: '📝',
+                CLOSE_TICKET: '🎫', REPLY_TICKET: '💬', EXPORT_USERS: '📤',
+              };
+              const icon = ACTION_ICONS[log.action] ?? '•';
+              const isLast = idx === recentLogs.length - 1;
+              return (
+                <View key={log.id} style={[styles.activityRow, !isLast && styles.activityRowBorder]}>
+                  <Text style={styles.activityIcon}>{icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.activityAction}>{log.action}</Text>
+                    <Text style={styles.activityAdmin} numberOfLines={1}>
+                      {log.admin.firstName} {log.admin.lastName ?? ''} {log.details ? `· ${log.details}` : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.activityTime}>
+                    {new Date(log.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
         </>
       )}
 
@@ -704,6 +744,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8,
     marginTop: 24, marginBottom: 10,
   },
+
+  activityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 },
+  activityMore: { fontSize: 12, color: '#6366F1', fontWeight: '600' },
+  activityCard: { backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#2C2C2E', marginBottom: 8 },
+  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  activityRowBorder: { borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  activityIcon: { fontSize: 14, marginTop: 1 },
+  activityAction: { fontSize: 12, fontWeight: '700', color: '#D1D5DB', marginBottom: 2 },
+  activityAdmin: { fontSize: 11, color: '#6B7280' },
+  activityTime: { fontSize: 10, color: '#4B5563', marginTop: 2 },
 
   row: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   statCard: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14 },
