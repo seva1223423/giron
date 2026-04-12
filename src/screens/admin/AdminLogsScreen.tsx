@@ -18,6 +18,7 @@ const ACTION_META: Record<string, { color: string; icon: string; label: string }
   CLOSE_TICKET:        { color: '#6B7280', icon: '🎫', label: 'Тикет' },
   REPLY_TICKET:        { color: '#6B7280', icon: '💬', label: 'Ответ' },
   EXPORT_USERS:        { color: '#10B981', icon: '📤', label: 'Экспорт' },
+  ASSIGN_TICKET:       { color: '#8B5CF6', icon: '👤', label: 'Назначение' },
 };
 
 const ACTION_FILTERS = ['', ...Object.keys(ACTION_META)];
