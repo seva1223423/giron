@@ -269,6 +269,7 @@ export interface SupportMessage {
   id: string;
   content: string;
   isStaff: boolean;
+  isInternal?: boolean;
   authorId: string;
   author: SupportAuthor;
   ticketId: string;

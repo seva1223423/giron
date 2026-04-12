@@ -430,9 +430,10 @@ model SupportTicket {
 }
 
 model SupportMessage {
-  id        String   @id @default(cuid())
-  content   String
-  isStaff   Boolean  @default(false)
+  id         String   @id @default(cuid())
+  content    String
+  isStaff    Boolean  @default(false)
+  isInternal Boolean  @default(false)
 
   ticketId  String
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)

@@ -130,4 +130,9 @@ export const adminService = {
     const res = await api.get('/admin/support/counts');
     return res.data;
   },
+
+  async addInternalNote(ticketId: string, content: string): Promise<unknown> {
+    const res = await api.post(`/admin/support/${ticketId}/note`, { content });
+    return res.data;
+  },
 };

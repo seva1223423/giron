@@ -745,6 +745,30 @@ router.get('/support/counts', requireStaff, async (_req: AuthRequest, res: Respo
   }
 });
 
+/** POST /admin/support/:id/note — add internal staff note (not visible to user) */
+router.post('/support/:id/note', requireStaff, async (req: AuthRequest, res: Response) => {
+  try {
+    const { content } = z.object({ content: z.string().min(1).max(2000) }).parse(req.body);
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
+    if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
+    const note = await prisma.supportMessage.create({
+      data: {
+        content,
+        ticketId: ticket.id,
+        authorId: req.userId!,
+        isStaff: true,
+        isInternal: true,
+      },
+      include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
+    });
+    res.status(201).json(note);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /admin/support/:id/note:', e);
+    res.status(500).json({ error: 'Ошибка добавления заметки' });
+  }
+});
+
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
 
 const announcementSchema = z.object({
