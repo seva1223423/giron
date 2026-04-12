@@ -34,6 +34,7 @@ model User {
   workouts                Workout[]
   meals                   Meal[]
   bodyWeights             BodyWeight[]
+  bodyMeasurements        BodyMeasurement[]
   chatMessages            ChatMessage[]
   savedNews               SavedNews[]
   subscription            Subscription?
@@ -241,6 +242,23 @@ model BodyWeight {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+model BodyMeasurement {
+  id      String   @id @default(cuid())
+  date    DateTime
+  userId  String
+  chest   Float?
+  waist   Float?
+  hips    Float?
+  bicep   Float?
+  thigh   Float?
+  calf    Float?
+  neck    Float?
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
 }
 
 // ==================== AI CHAT ====================

@@ -70,7 +70,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
 
   return (
     <>
-      <UserProgramsList programs={programs} onStartWorkout={startProgramWorkout} />
+      <UserProgramsList programs={programs} navigation={navigation} onStartWorkout={startProgramWorkout} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xs }}>
         {GOAL_FILTERS.map((f) => (

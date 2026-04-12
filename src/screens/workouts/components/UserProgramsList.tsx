@@ -1,86 +1,96 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
-import type { Workout } from '../../../types';
+import type { Program } from '../../../types';
 
-interface UserProgram {
-  id: string;
-  name: string;
-  description?: string;
-  createdBy?: string;
-  isActive?: boolean;
-  workouts: { id: string; name: string; exercises: any[] }[];
-}
+const GOAL_COLORS: Record<string, string> = {
+  weight_loss: '#FF5722', muscle_gain: '#9C27B0', strength: '#3B6BF0',
+  endurance: '#4CAF50', flexibility: '#00BCD4', general_fitness: '#FF9800',
+};
+const GOAL_LABELS: Record<string, string> = {
+  weight_loss: 'Похудение', muscle_gain: 'Масса', strength: 'Сила',
+  endurance: 'Выносливость', flexibility: 'Гибкость', general_fitness: 'Форма',
+};
 
 interface Props {
-  programs: UserProgram[];
+  programs: Program[];
+  navigation: any;
   onStartWorkout: (workout: any) => void;
 }
 
-export const UserProgramsList: React.FC<Props> = ({ programs, onStartWorkout }) => {
+export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStartWorkout }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (programs.length === 0) return null;
 
   return (
     <>
       <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Мои программы</Text>
-      {programs.map((program, i) => (
-        <FadeIn key={program.id} delay={i * 60}>
-          <Card style={{ marginBottom: spacing.md }}>
-            <TouchableOpacity onPress={() => { haptic.light(); setExpandedId(expandedId === program.id ? null : program.id); }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>{program.createdBy === 'ai' ? 'AI' : 'MY'}</Text></View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                    <Text style={[typography.bodySemibold, { color: colors.text }]}>{program.name}</Text>
-                    {program.isActive && (
-                      <View style={{ paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm, backgroundColor: colors.success + '20' }}>
-                        <Text style={[typography.captionMedium, { color: colors.success, fontSize: 10 }]}>Активная</Text>
-                      </View>
-                    )}
+      {programs.map((program, i) => {
+        const goalColor = GOAL_COLORS[program.goal] || colors.primary;
+        const totalEx = program.workouts.reduce((s, w) => s + w.exercises.length, 0);
+        return (
+          <FadeIn key={program.id} delay={i * 50}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => { haptic.light(); navigation.navigate('AIProgramDetail', { program }); }}
+            >
+              <Card style={{ marginBottom: spacing.md }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  {/* Icon */}
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: goalColor + '18', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: goalColor }}>
+                      {program.createdBy === 'ai' ? 'AI' : 'MY'}
+                    </Text>
                   </View>
-                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
-                    {program.workouts.length} тренировок{program.description ? ` • ${program.description}` : ''}
-                  </Text>
-                </View>
-                <Text style={[typography.body, { color: colors.textTertiary }]}>{expandedId === program.id ? '∧' : '∨'}</Text>
-              </View>
-            </TouchableOpacity>
 
-            {expandedId === program.id && program.workouts.length > 0 && (
-              <View style={{ marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md, gap: spacing.sm }}>
-                {program.workouts.map((workout) => (
-                  <TouchableOpacity
-                    key={workout.id}
-                    onPress={() => onStartWorkout(workout)}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, gap: spacing.md }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.bodyMedium, { color: colors.text }]}>{workout.name}</Text>
-                      <Text style={[typography.small, { color: colors.textSecondary }]}>{workout.exercises.length} упражнений</Text>
+                  <View style={{ flex: 1 }}>
+                    {/* Name + badges */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
+                      <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>
+                        {program.name}
+                      </Text>
+                      {program.isActive && (
+                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.success + '22' }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: colors.success }}>АКТИВНАЯ</Text>
+                        </View>
+                      )}
                     </View>
-                    <View style={{ paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '15' }}>
-                      <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 10 }]}>Начать</Text>
+
+                    {/* Meta row */}
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: 4, flexWrap: 'wrap' }}>
+                      <View style={[{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: goalColor + '18' }]}>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: goalColor }}>
+                          {GOAL_LABELS[program.goal] || program.goal}
+                        </Text>
+                      </View>
+                      <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                        {program.workouts.length} трен · {totalEx} упр
+                      </Text>
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {expandedId === program.id && program.workouts.length === 0 && (
-              <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.md }]}>
-                Нет тренировок — попроси Iron Coach составить тренировку
-              </Text>
-            )}
-          </Card>
-        </FadeIn>
-      ))}
+                  </View>
+
+                  {/* Arrow + quick start */}
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <Text style={[typography.body, { color: colors.textTertiary }]}>›</Text>
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation(); haptic.medium(); onStartWorkout(program.workouts[0]); }}
+                      style={{ backgroundColor: goalColor, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>Начать</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Card>
+            </TouchableOpacity>
+          </FadeIn>
+        );
+      })}
       <View style={{ height: 1, backgroundColor: colors.border, marginBottom: spacing.lg }} />
     </>
   );

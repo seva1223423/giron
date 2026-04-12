@@ -122,4 +122,48 @@ router.get('/weight', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ── Body measurements ──────────────────────────────────────────────────��──────
+
+const measurementSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  chest: z.number().min(0).max(300).optional().nullable(),
+  waist: z.number().min(0).max(300).optional().nullable(),
+  hips: z.number().min(0).max(300).optional().nullable(),
+  bicep: z.number().min(0).max(100).optional().nullable(),
+  thigh: z.number().min(0).max(200).optional().nullable(),
+  calf: z.number().min(0).max(100).optional().nullable(),
+  neck: z.number().min(0).max(100).optional().nullable(),
+});
+
+router.post('/measurements', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = measurementSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+    const { date, ...fields } = parsed.data;
+    const record = await (prisma as any).bodyMeasurement.upsert({
+      where: { userId_date: { userId: req.userId!, date: new Date(date) } },
+      update: fields,
+      create: { userId: req.userId!, date: new Date(date), ...fields },
+    });
+    res.json(record);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка сохранения замеров' });
+  }
+});
+
+router.get('/measurements', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const records = await (prisma as any).bodyMeasurement.findMany({
+      where: { userId: req.userId },
+      orderBy: { date: 'desc' },
+      take: 60,
+    });
+    res.json(records);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения замеров' });
+  }
+});
+
 export { router as userRouter };

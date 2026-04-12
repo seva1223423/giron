@@ -26,6 +26,18 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
 
   const fetchMeasurementHistory = useCallback(async () => {
     try {
+      // Try server first, fall back to AsyncStorage
+      const serverData = await userService.getMeasurements();
+      if (serverData.length > 0) {
+        setMeasurementHistory(serverData.map((m) => ({
+          ...m,
+          date: typeof m.date === 'string' ? m.date.split('T')[0] : m.date,
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+        return;
+      }
+    } catch {}
+    // Offline fallback
+    try {
       const raw = await AsyncStorage.getItem(MEASUREMENTS_KEY);
       if (raw) {
         const data: BodyMeasurement[] = JSON.parse(raw);
