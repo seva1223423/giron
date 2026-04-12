@@ -108,6 +108,9 @@ export const adminService = {
     limit?: number;
     action?: string;
     adminId?: string;
+    search?: string;
+    from?: string;
+    to?: string;
   }): Promise<{ logs: AdminLog[]; total: number; page: number; pages: number }> {
     const res = await api.get('/admin/logs', { params });
     return res.data;
