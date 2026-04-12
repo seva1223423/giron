@@ -102,7 +102,9 @@ export default function AdminAnalyticsScreen() {
   const totalSignups = signups.reduce((a, b) => a + b, 0);
   const totalWorkoutsInPeriod = workouts.reduce((a, b) => a + b, 0);
   const totalAiInPeriod = ai.reduce((a, b) => a + b, 0);
+  const totalCardioInPeriod = cardio.reduce((a, b) => a + b, 0);
   const avgSignupsPerDay = data.period > 0 ? (totalSignups / data.period).toFixed(1) : '0';
+  const avgWorkoutsPerDay = data.period > 0 ? (totalWorkoutsInPeriod / data.period).toFixed(1) : '0';
 
   return (
     <ScrollView
@@ -128,7 +130,6 @@ export default function AdminAnalyticsScreen() {
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryNum, { color: '#6366F1' }]}>{totalSignups}</Text>
           <Text style={styles.summaryLabel}>Регистраций</Text>
-          <Text style={styles.summarySub}>{avgSignupsPerDay}/день</Text>
         </View>
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryNum, { color: '#F59E0B' }]}>{totalWorkoutsInPeriod}</Text>
@@ -137,6 +138,28 @@ export default function AdminAnalyticsScreen() {
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryNum, { color: '#8B5CF6' }]}>{totalAiInPeriod}</Text>
           <Text style={styles.summaryLabel}>ИИ запросов</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Text style={[styles.summaryNum, { color: '#10B981' }]}>{totalCardioInPeriod}</Text>
+          <Text style={styles.summaryLabel}>Кардио</Text>
+        </View>
+      </View>
+
+      {/* Average per day */}
+      <View style={[styles.summaryRow, { marginBottom: 12 }]}>
+        <View style={[styles.summaryCard, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+          <Text style={[styles.summaryNum, { fontSize: 18, color: '#6366F1' }]}>{avgSignupsPerDay}</Text>
+          <View>
+            <Text style={styles.summaryLabel}>регистраций</Text>
+            <Text style={styles.summarySub}>в день</Text>
+          </View>
+        </View>
+        <View style={[styles.summaryCard, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+          <Text style={[styles.summaryNum, { fontSize: 18, color: '#F59E0B' }]}>{avgWorkoutsPerDay}</Text>
+          <View>
+            <Text style={styles.summaryLabel}>тренировок</Text>
+            <Text style={styles.summarySub}>в день</Text>
+          </View>
         </View>
       </View>
 
@@ -201,9 +224,10 @@ export default function AdminAnalyticsScreen() {
         <Text style={styles.chartTitle}>Последние 7 дней</Text>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableCell, styles.tableHead, { flex: 2 }]}>Дата</Text>
-          <Text style={[styles.tableCell, styles.tableHead]}>Регистр.</Text>
+          <Text style={[styles.tableCell, styles.tableHead]}>Рег.</Text>
           <Text style={[styles.tableCell, styles.tableHead]}>Трен.</Text>
           <Text style={[styles.tableCell, styles.tableHead]}>ИИ</Text>
+          <Text style={[styles.tableCell, styles.tableHead]}>Кард.</Text>
         </View>
         {data.timeline.slice(-7).reverse().map((row) => (
           <View key={row.date} style={styles.tableRow}>
@@ -211,6 +235,7 @@ export default function AdminAnalyticsScreen() {
             <Text style={[styles.tableCell, { color: row.signups > 0 ? '#6366F1' : '#374151' }]}>{row.signups}</Text>
             <Text style={[styles.tableCell, { color: row.workouts > 0 ? '#F59E0B' : '#374151' }]}>{row.workouts}</Text>
             <Text style={[styles.tableCell, { color: row.ai > 0 ? '#8B5CF6' : '#374151' }]}>{row.ai}</Text>
+            <Text style={[styles.tableCell, { color: row.cardio > 0 ? '#10B981' : '#374151' }]}>{row.cardio}</Text>
           </View>
         ))}
       </View>
