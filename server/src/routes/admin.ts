@@ -636,15 +636,31 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
       return { id: p.programId!, name: prog?.name ?? 'Unknown', type: prog?.type ?? '', count: p._count.id };
     });
 
-    // Totals for conversion funnel
-    const [totalUsers, paidUsers, activeLastWeek] = await Promise.all([
+    // Totals for conversion funnel + top exercises
+    const [totalUsers, paidUsers, activeLastWeek, topExercisesRaw] = await Promise.all([
       prisma.user.count(),
       prisma.subscription.count({ where: { status: 'active', plan: { not: 'free' } } }),
       prisma.workout.groupBy({
         by: ['userId'],
         where: { completedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
       }).then((r) => r.length),
+      prisma.workoutExercise.groupBy({
+        by: ['exerciseId'],
+        where: { workout: { completedAt: { gte: since, not: null } } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 8,
+      }),
     ]);
+    const exerciseIds = topExercisesRaw.map((e) => e.exerciseId);
+    const exerciseDetails = exerciseIds.length > 0 ? await prisma.exercise.findMany({
+      where: { id: { in: exerciseIds } },
+      select: { id: true, name: true, type: true },
+    }) : [];
+    const topExercises = topExercisesRaw.map((e) => {
+      const ex = exerciseDetails.find((d) => d.id === e.exerciseId);
+      return { id: e.exerciseId, name: ex?.name ?? 'Unknown', type: ex?.type ?? '', count: e._count.id };
+    });
 
     res.json({
       timeline,
@@ -657,6 +673,7 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
       },
       previous: { signups: prevSignups, workouts: prevWorkouts, ai: prevAi, cardio: prevCardio },
       topPrograms,
+      topExercises,
       period: numDays,
     });
   } catch (e) {

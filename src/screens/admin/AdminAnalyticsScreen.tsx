@@ -299,6 +299,31 @@ export default function AdminAnalyticsScreen() {
         </View>
       )}
 
+      {/* Top exercises */}
+      {data.topExercises && data.topExercises.length > 0 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Топ упражнений ({data.period} дней)</Text>
+          {data.topExercises.map((e, i) => {
+            const maxCount = data.topExercises![0].count;
+            const pctWidth = Math.round((e.count / maxCount) * 100);
+            return (
+              <View key={e.id} style={styles.exerciseRow}>
+                <Text style={styles.exerciseRank}>{i + 1}</Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                    <Text style={styles.exerciseName} numberOfLines={1}>{e.name}</Text>
+                    <Text style={styles.exerciseCount}>{e.count}</Text>
+                  </View>
+                  <View style={styles.exerciseBarTrack}>
+                    <View style={[styles.exerciseBarFill, { width: `${pctWidth}%` as any }]} />
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {/* Timeline table — last 7 days */}
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Последние 7 дней</Text>
@@ -363,4 +388,11 @@ const styles = StyleSheet.create({
   tableRow: { flexDirection: 'row', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
   tableCell: { flex: 1, fontSize: 13, textAlign: 'center' },
   tableHead: { fontSize: 10, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase' },
+
+  exerciseRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  exerciseRank: { fontSize: 12, color: '#6B7280', fontWeight: '700', width: 18, textAlign: 'right' },
+  exerciseName: { fontSize: 13, color: '#FFFFFF', fontWeight: '500', flex: 1 },
+  exerciseCount: { fontSize: 12, color: '#F59E0B', fontWeight: '700' },
+  exerciseBarTrack: { height: 4, backgroundColor: '#2C2C2E', borderRadius: 2, overflow: 'hidden' },
+  exerciseBarFill: { height: '100%', backgroundColor: '#F59E0B60', borderRadius: 2 },
 });

@@ -418,5 +418,6 @@ export interface AdminAnalytics {
   };
   previous?: { signups: number; workouts: number; ai: number; cardio: number };
   topPrograms?: Array<{ id: string; name: string; type: string; count: number }>;
+  topExercises?: Array<{ id: string; name: string; type: string; count: number }>;
   period: number;
 }
