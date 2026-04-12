@@ -35,16 +35,29 @@ export const DateNavigator: React.FC<Props> = ({ selectedDate, onChange }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <TouchableOpacity onPress={() => { haptic.selection(); onChange(shiftDate(selectedDate, -1)); }} style={styles.btn}>
+      <TouchableOpacity
+        onPress={() => { haptic.selection(); onChange(shiftDate(selectedDate, -1)); }}
+        style={styles.btn}
+        hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
+      >
         <Text style={[typography.h3, { color: colors.primary }]}>‹</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => { if (!isToday) { haptic.selection(); onChange(todayDate()); } }}>
+      <TouchableOpacity
+        onPress={() => { if (!isToday) { haptic.selection(); onChange(todayDate()); } }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={{ alignItems: 'center' }}
+      >
         <Text style={[typography.bodySemibold, { color: colors.text }]}>{formatDisplayDate(selectedDate)}</Text>
         {!isToday && (
           <Text style={[typography.caption, { color: colors.primary, textAlign: 'center', marginTop: 1 }]}>Вернуться к сегодня</Text>
         )}
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => { if (!isToday) { haptic.selection(); onChange(shiftDate(selectedDate, 1)); } }} style={styles.btn} disabled={isToday}>
+      <TouchableOpacity
+        onPress={() => { if (!isToday) { haptic.selection(); onChange(shiftDate(selectedDate, 1)); } }}
+        style={styles.btn}
+        disabled={isToday}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 12 }}
+      >
         <Text style={[typography.h3, { color: isToday ? colors.textTertiary : colors.primary }]}>›</Text>
       </TouchableOpacity>
     </View>

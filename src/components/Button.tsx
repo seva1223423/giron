@@ -21,14 +21,16 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
   icon?: React.ReactNode;
+  iconRight?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
   fullWidth?: boolean;
+  hapticStyle?: 'light' | 'medium' | 'heavy' | 'none';
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -39,9 +41,11 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   loading = false,
   icon,
+  iconRight,
   style,
   textStyle,
   fullWidth = false,
+  hapticStyle = 'light',
 }) => {
   const { colors } = useThemeStore();
   const scale = useSharedValue(1);
@@ -59,9 +63,11 @@ export const Button: React.FC<ButtonProps> = ({
   }, []);
 
   const handlePress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (hapticStyle === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    else if (hapticStyle === 'medium') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    else if (hapticStyle === 'heavy') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     onPress();
-  }, [onPress]);
+  }, [onPress, hapticStyle]);
 
   const getContainerStyle = (): ViewStyle => {
     const base: ViewStyle = {
@@ -73,16 +79,17 @@ export const Button: React.FC<ButtonProps> = ({
     };
 
     const sizes: Record<string, ViewStyle> = {
-      sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
-      md: { paddingVertical: spacing.md + 2, paddingHorizontal: spacing.xl },
-      lg: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl },
+      sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, minHeight: 36 },
+      md: { paddingVertical: spacing.md + 2, paddingHorizontal: spacing.xl, minHeight: 44 },
+      lg: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl, minHeight: 52 },
     };
 
     const variants: Record<string, ViewStyle> = {
-      primary: { backgroundColor: colors.primary },
-      secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-      outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
+      primary: { backgroundColor: disabled ? colors.textTertiary : colors.primary },
+      secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: disabled ? colors.border : colors.border },
+      outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: disabled ? colors.textTertiary : colors.primary },
       ghost: { backgroundColor: 'transparent' },
+      danger: { backgroundColor: disabled ? colors.textTertiary : colors.error },
     };
 
     return { ...base, ...sizes[size], ...variants[variant] };
@@ -91,9 +98,10 @@ export const Button: React.FC<ButtonProps> = ({
   const getTextStyle = (): TextStyle => {
     const variants: Record<string, TextStyle> = {
       primary: { color: '#FFFFFF' },
-      secondary: { color: colors.text },
-      outline: { color: colors.primary },
-      ghost: { color: colors.primary },
+      secondary: { color: disabled ? colors.textTertiary : colors.text },
+      outline: { color: disabled ? colors.textTertiary : colors.primary },
+      ghost: { color: disabled ? colors.textTertiary : colors.primary },
+      danger: { color: '#FFFFFF' },
     };
 
     const sizes: Record<string, TextStyle> = {
@@ -114,21 +122,22 @@ export const Button: React.FC<ButtonProps> = ({
       style={[
         animatedStyle,
         getContainerStyle(),
-        disabled && { opacity: 0.5 },
+        disabled && { opacity: 0.6 },
         style,
       ]}
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? '#FFFFFF' : colors.primary}
+          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : colors.primary}
           size="small"
         />
       ) : (
         <>
           {icon && <>{icon}</>}
-          <Text style={[getTextStyle(), icon ? { marginLeft: spacing.sm } : undefined, textStyle]}>
+          <Text style={[getTextStyle(), (icon || iconRight) ? { marginHorizontal: spacing.sm } : undefined, textStyle]}>
             {title}
           </Text>
+          {iconRight && <>{iconRight}</>}
         </>
       )}
     </AnimatedPressable>

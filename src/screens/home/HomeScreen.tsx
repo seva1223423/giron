@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { ScrollView, Text, TouchableOpacity, View, Animated } from 'react-native';
+import { AnimatedPressable } from '../../components';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
@@ -332,8 +333,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <View style={{
         position: 'absolute', bottom: 24, right: spacing.xl,
       }}>
-        <TouchableOpacity
+        <AnimatedPressable
           onPress={() => { haptic.medium(); navigation.navigate('WorkoutsTab', { screen: 'Workouts' }); }}
+          haptic={false}
+          scaleDown={0.94}
           style={{
             flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
             paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
@@ -344,7 +347,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         >
           <Text style={{ fontSize: 16 }}>▷</Text>
           <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFF', letterSpacing: 0.5 }}>Начать</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
     )}
     </View>

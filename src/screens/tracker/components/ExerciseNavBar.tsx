@@ -102,8 +102,12 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         {/* Actions row: substitute + YouTube */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 }}>
           {onSubstitute && (
-            <TouchableOpacity onPress={onSubstitute} style={{ paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>{'\u0437\u0430\u043C\u0435\u043D\u0430'}</Text>
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); onSubstitute(); }}
+              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>{'замена'}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
