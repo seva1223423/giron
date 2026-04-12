@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore, useAuthStore, useNutritionStore, useMeasurementsStore } from '../../store';
@@ -20,7 +20,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { workoutHistory } = useWorkoutStore();
+  const { workoutHistory, isLoadingHistory } = useWorkoutStore();
   const { user } = useAuthStore();
   const { dailyLog } = useNutritionStore();
   const { syncFromServer: syncMeasurements } = useMeasurementsStore();
@@ -89,7 +89,13 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       </ScrollView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {tab === 'overview' && <OverviewTab colors={colors} workoutHistory={workoutHistory} navigation={navigation} />}
+        {tab === 'overview' && isLoadingHistory && workoutHistory.length === 0 && (
+          <View style={{ alignItems: 'center', paddingTop: spacing.huge }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.md }]}>Загрузка данных...</Text>
+          </View>
+        )}
+        {tab === 'overview' && (!isLoadingHistory || workoutHistory.length > 0) && <OverviewTab colors={colors} workoutHistory={workoutHistory} navigation={navigation} />}
         {tab === 'activity' && <ActivityTab colors={colors} workoutHistory={workoutHistory} />}
         {tab === 'body' && <BodyTab colors={colors} user={user} />}
         {tab === 'records' && (

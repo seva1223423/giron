@@ -65,6 +65,9 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const [isResting, setIsResting] = useState(false);
   const [restingAfterLastSet, setRestingAfterLastSet] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Captures exercise index at the moment rest started — guards against advancing the wrong exercise
+  // if the user manually swiped to another exercise while resting
+  const restingExerciseIndexRef = useRef<number>(-1);
 
   // PR toast state
   const [prToast, setPrToast] = useState<{ name: string; rm: number; prevRm?: number } | null>(null);
@@ -104,11 +107,15 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setIsResting(false);
     haptic.success();
     const aw = useWorkoutStore.getState().activeWorkout;
-    if (restingAfterLastSet && aw && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
+    // Guard: only auto-advance if the user hasn't manually navigated to a different exercise
+    // while resting (restingExerciseIndexRef captures the index at timer start)
+    const stillOnSameExercise = aw && aw.currentExerciseIndex === restingExerciseIndexRef.current;
+    if (restingAfterLastSet && stillOnSameExercise && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
       nextExercise();
       haptic.light();
     }
     setRestingAfterLastSet(false);
+    restingExerciseIndexRef.current = -1;
   }, [restingAfterLastSet]);
 
   const startRest = (seconds: number, isLastSet: boolean = false) => {
@@ -116,6 +123,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     setRestTotal(seconds);
     setIsResting(true);
     setRestingAfterLastSet(isLastSet);
+    // Snapshot the exercise index at timer start — used in handleRestEnd to prevent wrong advance
+    restingExerciseIndexRef.current = useWorkoutStore.getState().activeWorkout?.currentExerciseIndex ?? -1;
     scheduleRestEndNotification(seconds);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -135,13 +144,15 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     if (timerRef.current) clearInterval(timerRef.current);
     cancelRestEndNotification();
     const aw = useWorkoutStore.getState().activeWorkout;
-    if (restingAfterLastSet && aw && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
+    const stillOnSameExercise = aw && aw.currentExerciseIndex === restingExerciseIndexRef.current;
+    if (restingAfterLastSet && stillOnSameExercise && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
       nextExercise();
       haptic.light();
     }
     setIsResting(false);
     setRestTime(0);
     setRestingAfterLastSet(false);
+    restingExerciseIndexRef.current = -1;
   };
 
   // Previous session sets for current exercise (must be before early return)

@@ -29,6 +29,7 @@ interface WorkoutStore {
   weekPlan: Record<number, WeekPlanEntry | null>; // 0=Mon … 6=Sun
   savedTemplates: Workout[];
   customExercises: Exercise[];
+  pendingSync: Workout[]; // workouts that failed to sync — retried on next fetchHistory
 
   setWeekPlanDay: (dow: number, entry: WeekPlanEntry | null) => void;
   syncWeekPlan: () => Promise<void>;
@@ -81,6 +82,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       weekPlan: {},
       savedTemplates: [],
       customExercises: [],
+      pendingSync: [],
 
       setWeekPlanDay: (dow, entry) => {
         set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: entry } }));
@@ -273,10 +275,20 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       removeExerciseFromWorkout: (exerciseIndex) => set((s) => {
         if (!s.activeWorkout) return s;
+        const removedEx = s.activeWorkout.workout.exercises[exerciseIndex];
         const workout = { ...s.activeWorkout.workout };
         const exercises = workout.exercises.filter((_, i) => i !== exerciseIndex);
+        // If removed exercise was in a superset, check if the group now has only 1 member — if so, remove the group
+        const removedGroupId = removedEx?.supersetGroupId;
+        const cleanedExercises = exercises.map((ex) => {
+          if (removedGroupId && ex.supersetGroupId === removedGroupId) {
+            const remainingInGroup = exercises.filter((e) => e.supersetGroupId === removedGroupId);
+            if (remainingInGroup.length <= 1) return { ...ex, supersetGroupId: undefined };
+          }
+          return ex;
+        });
         // Re-order
-        const reordered = exercises.map((ex, i) => ({ ...ex, order: i }));
+        const reordered = cleanedExercises.map((ex, i) => ({ ...ex, order: i }));
         workout.exercises = reordered;
         // Adjust currentExerciseIndex if needed
         const maxIndex = Math.max(0, reordered.length - 1);
@@ -400,13 +412,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
             0
           ),
         };
+        // Add to pendingSync first so data is never lost if server call fails
         set((s) => ({
           activeWorkout: null,
           workoutHistory: [completed, ...s.workoutHistory],
+          pendingSync: [...s.pendingSync.filter((w) => w.id !== completed.id), completed],
         }));
 
-        // Sync completed workout to server in background
-        workoutService.syncWorkout(completed).catch(() => {});
+        // Attempt server sync; remove from pendingSync only on confirmed success
+        workoutService.syncWorkout(completed).then(() => {
+          set((s) => ({ pendingSync: s.pendingSync.filter((w) => w.id !== completed.id) }));
+        }).catch(() => {
+          // Will be retried on next fetchHistory call
+        });
 
         return completed;
       },
@@ -440,6 +458,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       fetchHistory: async () => {
         set({ isLoadingHistory: true });
+
+        // Retry any workouts that failed to sync previously
+        const pending = get().pendingSync;
+        if (pending.length > 0) {
+          const results = await Promise.allSettled(
+            pending.map((w) => workoutService.syncWorkout(w))
+          );
+          const synced = pending.filter((_, i) => results[i].status === 'fulfilled');
+          if (synced.length > 0) {
+            set((s) => ({ pendingSync: s.pendingSync.filter((w) => !synced.some((s2) => s2.id === w.id)) }));
+          }
+        }
+
         try {
           const history = await workoutService.getHistory();
           if (history.length > 0) {
@@ -468,6 +499,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         weekPlan: state.weekPlan,
         savedTemplates: state.savedTemplates,
         customExercises: state.customExercises,
+        pendingSync: state.pendingSync,
       }),
       version: 1,
     }

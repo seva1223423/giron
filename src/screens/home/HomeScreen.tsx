@@ -13,7 +13,7 @@ import {
   LastWorkoutCard, NutritionCard, WaterCard,
   RecoveryScoreCard, TodaySummaryCard, StepsCard,
 } from './components';
-import { Text } from 'react-native';
+import { Text, ActivityIndicator } from 'react-native';
 import { typography } from '../../theme';
 
 const SPLITS = [
@@ -41,7 +41,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, weekPlan, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
+  const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
 
   useEffect(() => {
@@ -252,6 +252,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <SectionDivider label="ТРЕНИРОВКИ" colors={colors} />
 
       <RecoveryScoreCard />
+
+      {isLoadingHistory && workoutHistory.length === 0 && (
+        <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
 
       {lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 7 && (
         <FadeIn delay={175}>

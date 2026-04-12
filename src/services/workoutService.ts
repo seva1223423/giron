@@ -47,6 +47,7 @@ export const workoutService = {
 
   async syncWorkout(workout: any): Promise<any> {
     const { data } = await api.post('/workouts/sync', {
+      clientId: workout.id, // idempotency key — server uses this to upsert, not create duplicates
       name: workout.name,
       exercises: workout.exercises.map((ex: any) => ({
         exerciseId: ex.exerciseId,
