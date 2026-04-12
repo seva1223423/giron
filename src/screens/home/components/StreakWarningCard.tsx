@@ -19,7 +19,7 @@ export const StreakWarningCard: React.FC<Props> = ({ streak, navigation }) => {
       onPress={() => navigation.navigate('WorkoutsTab')}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.error + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, fontWeight: '800', color: colors.error }}>!</Text></View>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.error + '18', borderWidth: 1.5, borderColor: colors.error + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 16, fontWeight: '800', color: colors.error }}>!</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={[typography.captionMedium, { color: colors.error }]}>СЕРИЯ ПОД УГРОЗОЙ!</Text>
           <Text style={[typography.bodyMedium, { color: colors.text, marginTop: 2 }]}>

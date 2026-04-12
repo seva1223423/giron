@@ -116,7 +116,7 @@ export const PRToast: React.FC<Props> = ({ toast }) => {
         shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
       }}>
         {/* Badge */}
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 0.5 }}>PR</Text>
           <Text style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)' }}>🏆</Text>
         </View>

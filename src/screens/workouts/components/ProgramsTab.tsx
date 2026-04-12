@@ -134,18 +134,18 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
                     {program.daysPerWeek} дн/нед • {program.durationWeeks} нед • {program.split}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
-                    <View style={[styles.miniTag, { backgroundColor: isLocked ? colors.border : colors.primary + '15' }]}>
+                    <View style={[styles.miniTag, { backgroundColor: isLocked ? colors.border : colors.primary + '15', borderWidth: 1, borderColor: isLocked ? colors.border : colors.primary + '35' }]}>
                       <Text style={[typography.captionMedium, { color: isLocked ? colors.textTertiary : colors.primary, fontSize: 10 }]}>
                         {LEVEL_LABELS[program.level] || program.level}
                       </Text>
                     </View>
-                    <View style={[styles.miniTag, { backgroundColor: colors.surface }]}>
+                    <View style={[styles.miniTag, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
                       <Text style={[typography.captionMedium, { color: colors.textSecondary, fontSize: 10 }]}>
                         {GOAL_LABELS[program.goal] || program.goal}
                       </Text>
                     </View>
                     {isLocked && (
-                      <View style={[styles.miniTag, { backgroundColor: colors.accent + '20' }]}>
+                      <View style={[styles.miniTag, { backgroundColor: colors.accent + '20', borderWidth: 1, borderColor: colors.accent + '40' }]}>
                         <Text style={[typography.captionMedium, { color: colors.accent, fontSize: 10 }]}>Pro</Text>
                       </View>
                     )}
