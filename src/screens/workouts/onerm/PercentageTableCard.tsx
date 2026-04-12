@@ -28,7 +28,7 @@ export const PercentageTableCard: React.FC<Props> = ({ avg, delay = 160 }) => {
           {rows.map(({ pct, weight }) => {
             const dotColor = pct >= 90 ? colors.error : pct >= 75 ? (colors.warning || colors.accent) : colors.success;
             return (
-              <View key={pct} style={[styles.cell, { backgroundColor: colors.surface }]}>
+              <View key={pct} style={[styles.cell, { backgroundColor: colors.surface, borderWidth: 1, borderColor: dotColor + '30' }]}>
                 <Text style={[typography.captionMedium, { color: dotColor }]}>{pct}%</Text>
                 <Text style={[typography.bodySemibold, { color: colors.text }]}>{weight} кг</Text>
               </View>

@@ -62,7 +62,7 @@ function WorkoutCard({ workout, dayIndex, goalColor, isExpanded, onToggle, onSta
     <Card style={{ marginBottom: spacing.md }}>
       <TouchableOpacity onPress={() => { haptic.selection(); onToggle(); }}>
         <View style={styles.dayHeader}>
-          <View style={[styles.dayBadge, { backgroundColor: completedToday ? colors.success + '20' : goalColor + '20' }]}>
+          <View style={[styles.dayBadge, { backgroundColor: completedToday ? colors.success + '20' : goalColor + '20', borderWidth: 1, borderColor: completedToday ? colors.success + '40' : goalColor + '40' }]}>
             <Text style={[typography.captionMedium, { color: completedToday ? colors.success : goalColor, fontSize: 11 }]}>
               {completedToday ? '✓' : `Д${dayIndex + 1}`}
             </Text>
@@ -101,7 +101,7 @@ function WorkoutCard({ workout, dayIndex, goalColor, isExpanded, onToggle, onSta
                   i < workout.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
                 ]}
               >
-                <View style={[styles.exNum, { backgroundColor: colors.surface }]}>
+                <View style={[styles.exNum, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
                   <Text style={[typography.captionMedium, { color: colors.textSecondary, fontSize: 10 }]}>{i + 1}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
