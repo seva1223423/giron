@@ -124,7 +124,7 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
             <Text style={[typography.body, { color: colors.textSecondary }]}>г</Text>
           </View>
           {computedNutrition && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', flexWrap: 'wrap' }}>
               {[
                 { label: 'ккал', value: computedNutrition.calories, color: colors.calories },
                 { label: 'белки', value: computedNutrition.protein, color: colors.protein },
@@ -132,8 +132,8 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
                 { label: 'углеводы', value: computedNutrition.carbs, color: colors.carbs },
               ].map(({ label, value, color }) => (
                 <View key={label} style={{ alignItems: 'center' }}>
-                  <Text style={[typography.numberSmall, { color, fontSize: 20 }]}>{value}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
+                  <Text style={[typography.numberSmall, { color, fontSize: 20 }]} numberOfLines={1}>{value}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
                 </View>
               ))}
             </View>
