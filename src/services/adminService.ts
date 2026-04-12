@@ -135,4 +135,9 @@ export const adminService = {
     const res = await api.post(`/admin/support/${ticketId}/note`, { content });
     return res.data;
   },
+
+  async exportTicketsCSV(): Promise<string> {
+    const res = await api.get('/admin/support/export', { responseType: 'text' });
+    return res.data as string;
+  },
 };

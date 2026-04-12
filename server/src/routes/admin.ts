@@ -745,6 +745,36 @@ router.get('/support/counts', requireStaff, async (_req: AuthRequest, res: Respo
   }
 });
 
+/** GET /admin/support/export — export tickets as CSV */
+router.get('/support/export', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const tickets = await prisma.supportTicket.findMany({
+      include: {
+        user: { select: { email: true, firstName: true, lastName: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const escape = (s: string | null | undefined) => `"${(s ?? '').replace(/"/g, '""')}"`;
+    const header = 'ID,Subject,Category,Status,Priority,User Email,User Name,Assigned To,Messages,Created,Updated';
+    const rows = tickets.map((t) => [
+      escape(t.id), escape(t.subject), escape(t.category), escape(t.status), escape(t.priority),
+      escape(t.user?.email), escape(`${t.user?.firstName} ${t.user?.lastName ?? ''}`.trim()),
+      escape(t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName ?? ''}`.trim() : ''),
+      t.messages.length,
+      escape(t.createdAt.toISOString()), escape(t.updatedAt.toISOString()),
+    ].join(','));
+    const csv = [header, ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=tickets.csv');
+    res.send('\uFEFF' + csv);
+  } catch (e) {
+    logger.error('GET /admin/support/export:', e);
+    res.status(500).json({ error: 'Ошибка экспорта' });
+  }
+});
+
 /** POST /admin/support/:id/note — add internal staff note (not visible to user) */
 router.post('/support/:id/note', requireStaff, async (req: AuthRequest, res: Response) => {
   try {
