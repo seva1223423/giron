@@ -33,11 +33,11 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
     <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
       <View style={{ alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>IC</Text></View>
+          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>IC</Text></View>
           <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 }} numberOfLines={1}>Iron Coach</Text>
           <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
           {isPremiumActive() && (
-            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+            <View style={[styles.badge, { backgroundColor: colors.accent, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }]}>
               <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' }}>PRO</Text>
             </View>
           )}
