@@ -36,7 +36,7 @@ function TicketCard({ ticket, onPress }: { ticket: SupportTicket; onPress: () =>
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardSubject} numberOfLines={1}>{ticket.subject}</Text>
-        <View style={[styles.badge, { backgroundColor: STATUS_COLOR[ticket.status] + '22' }]}>
+        <View style={[styles.badge, { backgroundColor: STATUS_COLOR[ticket.status] + '22', borderWidth: 1, borderColor: STATUS_COLOR[ticket.status] + '40' }]}>
           <Text style={[styles.badgeText, { color: STATUS_COLOR[ticket.status] }]}>
             {STATUS_LABEL[ticket.status]}
           </Text>
