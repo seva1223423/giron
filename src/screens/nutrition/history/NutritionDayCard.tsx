@@ -62,7 +62,7 @@ export const NutritionDayCard: React.FC<Props> = ({ date, log, isExpanded, onPre
                 <View key={idx} style={{ height: '100%', width: `${(calories / totalCalories) * 100}%`, backgroundColor: color }} />
               ))}
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, flexWrap: 'wrap' }}>
               <Text style={[typography.caption, { color: colors.protein, fontSize: 10 }]}>Б: {Math.round(totalProtein)}г</Text>
               <Text style={[typography.caption, { color: colors.fats, fontSize: 10 }]}>Ж: {Math.round(totalFats)}г</Text>
               <Text style={[typography.caption, { color: colors.carbs, fontSize: 10 }]}>У: {Math.round(totalCarbs)}г</Text>
