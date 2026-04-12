@@ -33,7 +33,7 @@ export const LevelSelectorCard: React.FC<Props> = ({ selected, onSelect }) => {
             style={[styles.row, { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? colors.primary + '10' : 'transparent' }]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={[typography.bodySemibold, { color: isSelected ? colors.primary : colors.text }]}>{l.label}</Text>
+              <Text style={[typography.bodySemibold, { color: isSelected ? colors.primary : colors.text }]} numberOfLines={1}>{l.label}</Text>
               <Text style={[typography.small, { color: colors.textSecondary }]}>{l.desc}</Text>
             </View>
             {isSelected && (

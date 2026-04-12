@@ -45,7 +45,7 @@ export const DaysStep: React.FC<Props> = ({ selectedDays, onToggle }) => {
               ]}
             >
               <Text style={[typography.h4, { color: selected ? '#FFF' : colors.text }]}>{day.short}</Text>
-              <Text style={[typography.caption, { color: selected ? '#FFF' + 'CC' : colors.textSecondary, marginTop: 2 }]}>{day.label}</Text>
+              <Text style={[typography.caption, { color: selected ? '#FFF' + 'CC' : colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>{day.label}</Text>
             </TouchableOpacity>
           );
         })}

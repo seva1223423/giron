@@ -1,14 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet, Image,
-  Dimensions, Linking, Animated, ScrollView,
+  Linking, Animated, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
-
-const { width: SCREEN_W } = Dimensions.get('window');
-const THUMB_H = Math.round((SCREEN_W * 9) / 16);
 
 interface Props {
   visible: boolean;
@@ -48,6 +45,8 @@ export const ExerciseVideoModal: React.FC<Props> = ({
   primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const THUMB_H = Math.round((screenW * 9) / 16);
   const thumbUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
   const [activeTab, setActiveTab] = useState<'steps' | 'tips'>('steps');
 
@@ -85,7 +84,7 @@ export const ExerciseVideoModal: React.FC<Props> = ({
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
         {/* YouTube thumbnail */}
-        <TouchableOpacity activeOpacity={0.88} onPress={() => openYouTube(youtubeId, exerciseName)} style={styles.thumbnailWrapper}>
+        <TouchableOpacity activeOpacity={0.88} onPress={() => openYouTube(youtubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
           {thumbUrl ? (
             <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
           ) : (
@@ -143,7 +142,7 @@ export const ExerciseVideoModal: React.FC<Props> = ({
         )}
 
         {/* Scrollable content */}
-        <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ maxHeight: Math.min(220, screenH * 0.28) }} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md }} showsVerticalScrollIndicator={false}>
           {activeTab === 'steps' && instructions && instructions.map((step, i) => (
             <View key={i} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
               <View style={[styles.stepDot, { backgroundColor: colors.primary }]}>
@@ -203,7 +202,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden', paddingBottom: 36,
   },
   handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
-  thumbnailWrapper: { width: '100%', height: THUMB_H, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  thumbnailWrapper: { width: '100%', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   thumbnail: { width: '100%', height: '100%' },
   thumbnailPlaceholder: { backgroundColor: '#0F0F1A', alignItems: 'center', justifyContent: 'center' },
   placeholderIcon: { fontSize: 44, marginBottom: 8, color: '#FFF' },

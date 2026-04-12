@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text, View, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { Text, View, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
@@ -25,6 +26,7 @@ function formatDurationGoal(min: number) {
 export const WorkoutSection: React.FC = () => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
+  const { height: screenHeight } = useWindowDimensions();
   const { restTimerDefault, setRestTimerDefault, workoutDurationGoal, setWorkoutDurationGoal } = useSettingsStore();
   const [showPicker, setShowPicker] = useState(false);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
@@ -35,16 +37,18 @@ export const WorkoutSection: React.FC = () => {
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Таймер отдыха по умолчанию</Text>
-            {REST_TIMER_OPTIONS.map((sec) => (
-              <TouchableOpacity
-                key={sec}
-                onPress={() => { haptic.selection(); setRestTimerDefault(sec); setShowPicker(false); }}
-                style={[styles.pickerRow, { borderBottomColor: colors.divider }]}
-              >
-                <Text style={[typography.body, { color: sec === restTimerDefault ? colors.primary : colors.text }]}>{formatRestTimer(sec)}</Text>
-                {sec === restTimerDefault && <Text style={{ color: colors.primary }}>✓</Text>}
-              </TouchableOpacity>
-            ))}
+            <ScrollView style={{ maxHeight: Math.min(320, screenHeight * 0.5) }} showsVerticalScrollIndicator={false}>
+              {REST_TIMER_OPTIONS.map((sec) => (
+                <TouchableOpacity
+                  key={sec}
+                  onPress={() => { haptic.selection(); setRestTimerDefault(sec); setShowPicker(false); }}
+                  style={[styles.pickerRow, { borderBottomColor: colors.divider }]}
+                >
+                  <Text style={[typography.body, { color: sec === restTimerDefault ? colors.primary : colors.text }]}>{formatRestTimer(sec)}</Text>
+                  {sec === restTimerDefault && <Text style={{ color: colors.primary }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             <TouchableOpacity onPress={() => setShowPicker(false)} style={{ marginTop: spacing.lg, alignItems: 'center' }}>
               <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
             </TouchableOpacity>
@@ -56,16 +60,18 @@ export const WorkoutSection: React.FC = () => {
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Цель по длительности</Text>
-            {DURATION_GOAL_OPTIONS.map((min) => (
-              <TouchableOpacity
-                key={min}
-                onPress={() => { haptic.selection(); setWorkoutDurationGoal(min); setShowDurationPicker(false); }}
-                style={[styles.pickerRow, { borderBottomColor: colors.divider }]}
-              >
-                <Text style={[typography.body, { color: min === workoutDurationGoal ? colors.primary : colors.text }]}>{formatDurationGoal(min)}</Text>
-                {min === workoutDurationGoal && <Text style={{ color: colors.primary }}>✓</Text>}
-              </TouchableOpacity>
-            ))}
+            <ScrollView style={{ maxHeight: Math.min(280, screenHeight * 0.45) }} showsVerticalScrollIndicator={false}>
+              {DURATION_GOAL_OPTIONS.map((min) => (
+                <TouchableOpacity
+                  key={min}
+                  onPress={() => { haptic.selection(); setWorkoutDurationGoal(min); setShowDurationPicker(false); }}
+                  style={[styles.pickerRow, { borderBottomColor: colors.divider }]}
+                >
+                  <Text style={[typography.body, { color: min === workoutDurationGoal ? colors.primary : colors.text }]}>{formatDurationGoal(min)}</Text>
+                  {min === workoutDurationGoal && <Text style={{ color: colors.primary }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             <TouchableOpacity onPress={() => setShowDurationPicker(false)} style={{ marginTop: spacing.lg, alignItems: 'center' }}>
               <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
             </TouchableOpacity>

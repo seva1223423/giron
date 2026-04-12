@@ -164,7 +164,7 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
             <Card style={{ marginBottom: spacing.xs }}>
               <View style={styles.configRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
+                  <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: spacing.xs }}>
                   {i > 0 && (

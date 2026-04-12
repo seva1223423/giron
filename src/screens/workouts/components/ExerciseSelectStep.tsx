@@ -130,7 +130,7 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
             >
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                  <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
+                  <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex.name}</Text>
                   {isCustom && (
                     <View style={{ backgroundColor: colors.accent + '25', borderRadius: borderRadius.full, paddingHorizontal: 6, paddingVertical: 1 }}>
                       <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '600' }}>МОЁ</Text>

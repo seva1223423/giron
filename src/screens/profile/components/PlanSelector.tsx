@@ -35,7 +35,7 @@ export const PlanSelector: React.FC<Props> = ({ selectedPlan, onSelect }) => {
               </View>
             )}
             <Text style={[typography.captionMedium, { color: isSelected ? '#fff' : colors.textSecondary }]}>{plan.label.toUpperCase()}</Text>
-            <Text style={[typography.h2, { color: isSelected ? '#fff' : colors.text, marginTop: spacing.xs }]}>{plan.price}₽</Text>
+            <Text style={[typography.h2, { color: isSelected ? '#fff' : colors.text, marginTop: spacing.xs }]} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>{plan.price}₽</Text>
             <Text style={[typography.small, { color: isSelected ? 'rgba(255,255,255,0.7)' : colors.textTertiary }]}>/ {plan.period}</Text>
             {plan.id === 'annual' && (
               <Text style={[typography.caption, { color: isSelected ? 'rgba(255,255,255,0.85)' : colors.textSecondary, marginTop: spacing.xs }]}>~{plan.pricePerMonth}₽/мес</Text>

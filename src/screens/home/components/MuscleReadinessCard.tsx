@@ -64,7 +64,7 @@ export const MuscleReadinessCard: React.FC<Props> = ({ workoutHistory }) => {
               paddingVertical: 4, paddingHorizontal: spacing.sm,
             }}>
               <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dotColor }} />
-              <Text style={[typography.caption, { color: colors.text, fontSize: 11 }]}>
+              <Text style={[typography.caption, { color: colors.text, fontSize: 11 }]} numberOfLines={1}>
                 {MUSCLE_LABELS[muscle]}
               </Text>
               {status !== 'ready' && (
