@@ -99,8 +99,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       dbPingMs = Date.now() - dbStart;
     } catch { dbPingMs = null; }
 
-    // Top active users this week (by workout count) + top AI users
-    const [topUsers, topAiUsers, dauWorkout, dauAi] = await Promise.all([
+    // Top active users this week (by workout count) + top AI users + demographics
+    const [topUsers, topAiUsers, dauWorkout, dauAi, goalCounts, levelCounts, genderCounts] = await Promise.all([
       prisma.workout.groupBy({
         by: ['userId'],
         where: { completedAt: { gte: weekStart } },
@@ -117,6 +117,9 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       }),
       prisma.workout.groupBy({ by: ['userId'], where: { completedAt: { gte: todayStart } } }).then((r) => r.length),
       prisma.chatMessage.groupBy({ by: ['userId'], where: { role: 'user', createdAt: { gte: todayStart } } }).then((r) => r.length),
+      prisma.user.groupBy({ by: ['goal'], where: { goal: { not: null } }, _count: { id: true } }),
+      prisma.user.groupBy({ by: ['fitnessLevel'], where: { fitnessLevel: { not: null } }, _count: { id: true } }),
+      prisma.user.groupBy({ by: ['gender'], where: { gender: { not: null } }, _count: { id: true } }),
     ]);
 
     const allTopIds = [...new Set([...topUsers.map((t) => t.userId), ...topAiUsers.map((t) => t.userId)])];
@@ -189,6 +192,11 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       topActiveUsers,
       topAiActiveUsers,
       dau: { workoutUsers: dauWorkout, aiUsers: dauAi },
+      demographics: {
+        goals: Object.fromEntries(goalCounts.map((g) => [g.goal, g._count.id])),
+        levels: Object.fromEntries(levelCounts.map((l) => [l.fitnessLevel, l._count.id])),
+        genders: Object.fromEntries(genderCounts.map((g) => [g.gender, g._count.id])),
+      },
       server: {
         uptimeSeconds: Math.round(uptime),
         memoryUsedMb: Math.round(memUsage.heapUsed / 1024 / 1024),

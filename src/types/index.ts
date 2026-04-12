@@ -363,6 +363,11 @@ export interface AdminStats {
   support: { openTickets: number; inProgressTickets: number; resolvedTickets: number; urgentTickets?: number; overdueTickets?: number };
   activeAnnouncements?: number;
   churnRiskUsers?: number;
+  demographics?: {
+    goals: Record<string, number>;
+    levels: Record<string, number>;
+    genders: Record<string, number>;
+  };
   server: {
     uptimeSeconds: number;
     memoryUsedMb: number;
