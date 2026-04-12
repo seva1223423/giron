@@ -28,7 +28,7 @@ export const WorkoutsTabBar: React.FC<Props> = ({ activeTab, onTabChange }) => {
         <TouchableOpacity
           key={t.key}
           onPress={() => { haptic.selection(); onTabChange(t.key); }}
-          style={[styles.tab, activeTab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          style={[styles.tab, activeTab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2.5, backgroundColor: colors.primary + '08' }]}
         >
           <Text style={[typography.smallMedium, { color: activeTab === t.key ? colors.primary : colors.textSecondary }]}>
             {t.label}
