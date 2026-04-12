@@ -99,8 +99,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       dbPingMs = Date.now() - dbStart;
     } catch { dbPingMs = null; }
 
-    // Top active users this week (by workout count) + top AI users + demographics
-    const [topUsers, topAiUsers, dauWorkout, dauAi, goalCounts, levelCounts, genderCounts] = await Promise.all([
+    // Top active users this week (by workout count) + top AI users + demographics + recent signups
+    const [topUsers, topAiUsers, dauWorkout, dauAi, goalCounts, levelCounts, genderCounts, recentSignups] = await Promise.all([
       prisma.workout.groupBy({
         by: ['userId'],
         where: { completedAt: { gte: weekStart } },
@@ -120,6 +120,12 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.user.groupBy({ by: ['goal'], where: { goal: { not: null } }, _count: { id: true } }),
       prisma.user.groupBy({ by: ['fitnessLevel'], where: { fitnessLevel: { not: null } }, _count: { id: true } }),
       prisma.user.groupBy({ by: ['gender'], where: { gender: { not: null } }, _count: { id: true } }),
+      prisma.user.findMany({
+        where: { createdAt: { gte: todayStart } },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+        select: { id: true, firstName: true, lastName: true, email: true, createdAt: true, role: true },
+      }),
     ]);
 
     const allTopIds = [...new Set([...topUsers.map((t) => t.userId), ...topAiUsers.map((t) => t.userId)])];
@@ -192,6 +198,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       topActiveUsers,
       topAiActiveUsers,
       dau: { workoutUsers: dauWorkout, aiUsers: dauAi },
+      recentSignups,
       demographics: {
         goals: Object.fromEntries(goalCounts.map((g) => [g.goal, g._count.id])),
         levels: Object.fromEntries(levelCounts.map((l) => [l.fitnessLevel, l._count.id])),

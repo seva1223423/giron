@@ -413,6 +413,33 @@ export default function AdminDashboardScreen() {
         </>
       )}
 
+      {/* ── Recent signups today ──────────────────────────────────────── */}
+      {stats.recentSignups && stats.recentSignups.length > 0 && (
+        <>
+          <View style={styles.activityHeader}>
+            <Text style={styles.sectionTitle}>Новые сегодня</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('AdminUsersScreen')}>
+              <Text style={styles.activityMore}>Все →</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.signupsRow}>
+            {stats.recentSignups.map((u) => (
+              <TouchableOpacity
+                key={u.id}
+                style={styles.signupChip}
+                onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: u.id })}
+              >
+                <Text style={styles.signupAvatar}>{u.firstName.charAt(0).toUpperCase()}</Text>
+                <Text style={styles.signupName} numberOfLines={1}>{u.firstName}</Text>
+                <Text style={styles.signupTime}>
+                  {new Date(u.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
       {/* ── 7-day activity sparklines ──────────────────────────────────── */}
       {signups7d.length > 0 && (
         <View style={styles.sparkCard}>
@@ -811,6 +838,12 @@ const styles = StyleSheet.create({
   activityAction: { fontSize: 12, fontWeight: '700', color: '#D1D5DB', marginBottom: 2 },
   activityAdmin: { fontSize: 11, color: '#6B7280' },
   activityTime: { fontSize: 10, color: '#4B5563', marginTop: 2 },
+
+  signupsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  signupChip: { alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 12, borderWidth: 1, borderColor: '#2C2C2E', paddingVertical: 8, paddingHorizontal: 12, minWidth: 70 },
+  signupAvatar: { fontSize: 18, fontWeight: '700', color: '#6366F1', marginBottom: 2 },
+  signupName: { fontSize: 11, fontWeight: '600', color: '#D1D5DB', marginBottom: 2, maxWidth: 64, textAlign: 'center' },
+  signupTime: { fontSize: 10, color: '#6B7280' },
 
   row: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   statCard: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14 },

@@ -364,6 +364,7 @@ export interface AdminStats {
   support: { openTickets: number; inProgressTickets: number; resolvedTickets: number; urgentTickets?: number; overdueTickets?: number };
   activeAnnouncements?: number;
   churnRiskUsers?: number;
+  recentSignups?: Array<{ id: string; firstName: string; lastName?: string | null; email: string; createdAt: string; role: string }>;
   demographics?: {
     goals: Record<string, number>;
     levels: Record<string, number>;
