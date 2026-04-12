@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Alert, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -288,6 +288,12 @@ export default function AdminUsersScreen() {
   const [bannedOnly, setBannedOnly] = useState(false);
   const [subExpiringSoon, setSubExpiringSoon] = useState<boolean>(params.subExpiringSoon ?? false);
   const [sortIdx, setSortIdx] = useState(0);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showMassMsg, setShowMassMsg] = useState(false);
+  const [massMsgSubject, setMassMsgSubject] = useState('');
+  const [massMsgBody, setMassMsgBody] = useState('');
+  const [sendingMass, setSendingMass] = useState(false);
 
   const load = useCallback(async (p: number, append = false, silent = false) => {
     if (p === 1 && !silent) setLoading(true);
@@ -338,6 +344,36 @@ export default function AdminUsersScreen() {
       setExporting(false);
     }
   }, [role, planFilter]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const sendMassMessage = useCallback(async () => {
+    if (!massMsgSubject.trim() || !massMsgBody.trim() || sendingMass || selectedIds.size === 0) return;
+    setSendingMass(true);
+    try {
+      const result = await adminService.massMessage(Array.from(selectedIds), massMsgSubject.trim(), massMsgBody.trim());
+      setShowMassMsg(false);
+      setMassMsgSubject('');
+      setMassMsgBody('');
+      exitSelectMode();
+      Alert.alert('Готово', `Отправлено ${result.sent} из ${result.total} пользователей${result.failed > 0 ? `. Ошибок: ${result.failed}` : ''}`);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось отправить рассылку');
+    } finally {
+      setSendingMass(false);
+    }
+  }, [massMsgSubject, massMsgBody, sendingMass, selectedIds, exitSelectMode]);
 
   return (
     <View style={styles.container}>
@@ -422,13 +458,30 @@ export default function AdminUsersScreen() {
       </View>
 
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Всего: {total}</Text>
-        <TouchableOpacity style={styles.exportBtn} onPress={exportCSV} disabled={exporting}>
-          {exporting
-            ? <ActivityIndicator size="small" color="#6366F1" />
-            : <Text style={styles.exportBtnText}>CSV</Text>
-          }
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.totalLabel}>Всего: {total}</Text>
+          {selectMode && (
+            <Text style={{ fontSize: 12, color: '#6366F1', fontWeight: '600' }}>
+              ({selectedIds.size} выбрано)
+            </Text>
+          )}
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.exportBtn, selectMode && { backgroundColor: '#6366F122', borderColor: '#6366F160' }]}
+            onPress={() => { if (selectMode) exitSelectMode(); else setSelectMode(true); }}
+          >
+            <Text style={[styles.exportBtnText, selectMode && { color: '#6366F1' }]}>
+              {selectMode ? 'Отмена' : 'Выбрать'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.exportBtn} onPress={exportCSV} disabled={exporting}>
+            {exporting
+              ? <ActivityIndicator size="small" color="#6366F1" />
+              : <Text style={styles.exportBtnText}>CSV</Text>
+            }
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -438,11 +491,25 @@ export default function AdminUsersScreen() {
           data={users}
           keyExtractor={(u) => u.id}
           renderItem={({ item }) => (
-            <UserRow
-              user={item}
-              onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: item.id })}
-              onRefresh={() => load(1, false, true)}
-            />
+            <TouchableOpacity
+              onPress={() => selectMode ? toggleSelect(item.id) : navigation.navigate('AdminUserDetailScreen', { userId: item.id })}
+              onLongPress={() => { if (!selectMode) setSelectMode(true); toggleSelect(item.id); }}
+              delayLongPress={400}
+              activeOpacity={0.8}
+            >
+              {selectMode && (
+                <View style={[styles.checkboxRow]}>
+                  <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxSelected]}>
+                    {selectedIds.has(item.id) && <Text style={{ fontSize: 10, color: '#FFF', fontWeight: '800' }}>✓</Text>}
+                  </View>
+                </View>
+              )}
+              <UserRow
+                user={item}
+                onPress={() => selectMode ? toggleSelect(item.id) : navigation.navigate('AdminUserDetailScreen', { userId: item.id })}
+                onRefresh={() => load(1, false, true)}
+              />
+            </TouchableOpacity>
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
@@ -458,6 +525,63 @@ export default function AdminUsersScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Bulk action bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <View style={styles.bulkBar}>
+          <TouchableOpacity style={styles.bulkBtn} onPress={() => setShowMassMsg(true)}>
+            <Text style={styles.bulkBtnText}>💬 Написать ({selectedIds.size})</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#6B728060' }]} onPress={exitSelectMode}>
+            <Text style={[styles.bulkBtnText, { color: '#6B7280' }]}>Отмена</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Mass message modal */}
+      <Modal visible={showMassMsg} transparent animationType="slide" onRequestClose={() => setShowMassMsg(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Рассылка ({selectedIds.size} польз.)</Text>
+                <TouchableOpacity onPress={() => setShowMassMsg(false)}>
+                  <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHint}>Каждому пользователю будет создан тикет поддержки с вашим сообщением</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Тема..."
+                placeholderTextColor="#6B7280"
+                value={massMsgSubject}
+                onChangeText={setMassMsgSubject}
+                maxLength={200}
+              />
+              <TextInput
+                style={[styles.modalInput, { height: 100 }]}
+                placeholder="Текст сообщения..."
+                placeholderTextColor="#6B7280"
+                value={massMsgBody}
+                onChangeText={setMassMsgBody}
+                multiline
+                maxLength={2000}
+                textAlignVertical="top"
+              />
+              <TouchableOpacity
+                style={[styles.modalSendBtn, (!massMsgSubject.trim() || !massMsgBody.trim() || sendingMass) && { opacity: 0.5 }]}
+                onPress={sendMassMessage}
+                disabled={!massMsgSubject.trim() || !massMsgBody.trim() || sendingMass}
+              >
+                {sendingMass
+                  ? <ActivityIndicator color="#FFFFFF" size="small" />
+                  : <Text style={styles.modalSendBtnText}>Отправить {selectedIds.size} сообщений</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -527,4 +651,25 @@ const styles = StyleSheet.create({
   scoreBadge: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   scoreNum: { fontSize: 12, fontWeight: '800' },
   scoreLabel: { fontSize: 9, color: '#4B5563', fontWeight: '600', letterSpacing: 0.5 },
+
+  checkboxRow: { position: 'absolute', left: 6, top: '50%', zIndex: 10 },
+  checkbox: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: '#4B5563', backgroundColor: '#1C1C1E', alignItems: 'center', justifyContent: 'center' },
+  checkboxSelected: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+
+  bulkBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12,
+    paddingBottom: 28, backgroundColor: '#1C1C1E', borderTopWidth: 1, borderTopColor: '#2C2C2E',
+  },
+  bulkBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#6366F140', alignItems: 'center', backgroundColor: '#6366F112' },
+  bulkBtnText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  modalHint: { fontSize: 12, color: '#6B7280', marginBottom: 12 },
+  modalInput: { backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#FFFFFF', marginBottom: 10, borderWidth: 1, borderColor: '#3C3C3E' },
+  modalSendBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  modalSendBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });

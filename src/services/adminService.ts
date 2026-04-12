@@ -167,6 +167,11 @@ export const adminService = {
     return res.data;
   },
 
+  async massMessage(userIds: string[], subject: string, message: string): Promise<{ sent: number; failed: number; total: number }> {
+    const res = await api.post('/admin/mass-message', { userIds, subject, message });
+    return res.data;
+  },
+
   async getStaff(): Promise<Array<{ id: string; firstName: string; lastName?: string | null; email: string; role: string }>> {
     const res = await api.get('/admin/staff');
     return res.data;
