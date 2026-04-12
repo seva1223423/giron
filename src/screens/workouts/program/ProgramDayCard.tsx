@@ -36,7 +36,7 @@ export const ProgramDayCard: React.FC<Props> = ({ day, dayIndex, goalColor, isEx
     <Card style={{ marginBottom: spacing.md }}>
       <TouchableOpacity onPress={() => { haptic.selection(); onToggle(); }}>
         <View style={styles.dayHeader}>
-          <View style={[styles.badge, { backgroundColor: goalColor + '20' }]}>
+          <View style={[styles.badge, { backgroundColor: goalColor + '20', borderWidth: 1, borderColor: goalColor + '40' }]}>
             <Text style={[typography.captionMedium, { color: goalColor }]}>{dayIndex + 1}</Text>
           </View>
           <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}>{day.name}</Text>
@@ -51,7 +51,7 @@ export const ProgramDayCard: React.FC<Props> = ({ day, dayIndex, goalColor, isEx
             const ex = localExercises.find((e) => e.id === item.exerciseId);
             return (
               <View key={exIndex} style={[styles.exRow, exIndex < day.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-                <View style={[styles.exNumber, { backgroundColor: colors.surface }]}>
+                <View style={[styles.exNumber, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
                   <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{exIndex + 1}</Text>
                 </View>
                 <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{ex?.name || item.exerciseId}</Text>

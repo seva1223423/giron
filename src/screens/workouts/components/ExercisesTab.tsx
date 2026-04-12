@@ -180,7 +180,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
     if (muscleFilter === 'favorites') {
       return (
         <View style={styles.emptyState}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>●</Text></View>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1.5, borderColor: colors.primary + '35' }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>●</Text></View>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
             Нажмите {'●'} на упражнении, чтобы добавить в избранное
           </Text>
