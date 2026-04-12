@@ -281,7 +281,8 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/users/:id — user detail */
 router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const [user, firstWorkout] = await Promise.all([
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400 * 1000);
+    const [user, firstWorkout, recentWorkoutDates] = await Promise.all([
       prisma.user.findUnique({
         where: { id: req.params.id as string },
         include: {
@@ -319,10 +320,15 @@ router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) =
         orderBy: { completedAt: 'asc' },
         select: { completedAt: true },
       }),
+      prisma.workout.findMany({
+        where: { userId: req.params.id as string, completedAt: { gte: ninetyDaysAgo, not: null } },
+        select: { completedAt: true },
+      }),
     ]);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
     const { passwordHash, ...safeUser } = user as any;
-    res.json({ ...safeUser, firstWorkoutAt: firstWorkout?.completedAt ?? null });
+    const workoutDates = recentWorkoutDates.map((w) => w.completedAt!.toISOString().split('T')[0]);
+    res.json({ ...safeUser, firstWorkoutAt: firstWorkout?.completedAt ?? null, workoutDates90d: workoutDates });
   } catch (e) {
     logger.error('GET /admin/users/:id:', e);
     res.status(500).json({ error: 'Ошибка получения пользователя' });
