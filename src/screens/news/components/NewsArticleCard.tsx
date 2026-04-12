@@ -54,7 +54,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
         <View style={styles.header}>
           <View style={styles.tags}>
             {(article.category || []).map((cat) => (
-              <View key={cat} style={[styles.tag, { backgroundColor: colors.primary + '15' }]}>
+              <View key={cat} style={[styles.tag, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '35' }]}>
                 <Text style={[typography.caption, { color: colors.primary }]}>{CATEGORY_LABELS[cat] || cat}</Text>
               </View>
             ))}
@@ -79,7 +79,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
           {article.content ? <Text style={[typography.caption, { color: colors.primary }]}>Читать →</Text> : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-          <View style={[styles.sourceBadge, { backgroundColor: colors.accent + '12' }]}>
+          <View style={[styles.sourceBadge, { backgroundColor: colors.accent + '12', borderWidth: 1, borderColor: colors.accent + '35' }]}>
             <Text style={[typography.caption, { color: colors.accent, fontSize: 10 }]}>Источник: Iron Gym</Text>
           </View>
         </View>

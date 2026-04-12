@@ -38,14 +38,14 @@ export const ClientCard: React.FC<Props> = ({ client, onPress, onLongPress }) =>
     <TouchableOpacity onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
       <Card style={[styles.card, isToday && { borderWidth: 1.5, borderColor: colors.success + '60' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '40' }]}>
             <Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>{client.emoji || '◉'}</Text>
           </View>
           <View style={{ flex: 1, marginLeft: spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]} numberOfLines={1}>{client.name}</Text>
               {isToday && (
-                <View style={[styles.todayBadge, { backgroundColor: colors.success + '20' }]}>
+                <View style={[styles.todayBadge, { backgroundColor: colors.success + '20', borderColor: colors.success + '40' }]}>
                   <Text style={[typography.caption, { color: colors.success, fontSize: 10 }]}>сегодня</Text>
                 </View>
               )}
@@ -69,6 +69,6 @@ export const ClientCard: React.FC<Props> = ({ client, onPress, onLongPress }) =>
 
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.sm },
-  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  todayBadge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 6 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
+  todayBadge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
 });

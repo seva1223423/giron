@@ -26,7 +26,7 @@ export const RecommendationCard: React.FC<Props> = ({
     return (
       <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.accent }}>R</Text></View>
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accent + '18', borderWidth: 1.5, borderColor: colors.accent + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.accent }}>R</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.captionMedium, { color: colors.accent }]}>ДЕНЬ ОТДЫХА</Text>
             <Text style={[typography.bodyMedium, { color: colors.text, marginTop: spacing.xs }]}>

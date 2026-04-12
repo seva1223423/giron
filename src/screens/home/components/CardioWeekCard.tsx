@@ -44,7 +44,7 @@ export const CardioWeekCard: React.FC<Props> = ({ navigation }) => {
               {recentTypes.length > 0 && (
                 <View style={styles.badges}>
                   {recentTypes.map((t) => (
-                    <View key={t} style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>{TYPE_LABEL[t]}</Text></View>
+                    <View key={t} style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>{TYPE_LABEL[t]}</Text></View>
                   ))}
                 </View>
               )}

@@ -20,7 +20,7 @@ export const VolumeCard: React.FC<Props> = ({ workout }) => {
     : null;
 
   return (
-    <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
+    <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10', borderLeftWidth: 4, borderLeftColor: colors.primary }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View>
           <Text style={[typography.captionMedium, { color: colors.primary }]}>ОБЩИЙ ОБЪЁМ</Text>
