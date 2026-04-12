@@ -2391,7 +2391,8 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>;
       stream?: boolean;
     };
-    if (!message) return res.status(400).json({ error: 'Сообщение обязательно' });
+    if (!message || typeof message !== 'string' || message.trim().length === 0) return res.status(400).json({ error: 'Сообщение обязательно' });
+    if (message.length > 4000) return res.status(400).json({ error: 'Сообщение слишком длинное (макс. 4000 символов)' });
 
     // Set SSE headers early if streaming requested
     if (streamMode) {
@@ -2726,7 +2727,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         meta: { mood: 'neutral' },
       });
     }
-    recordAIRequest({ cacheHit: false });
+    // Note: non-cache AI call metrics (latency, token count) are recorded inside deepseekAI.ts chat()
 
     // ─── Emotion detection: adapt AI tone to user's mood ──────
     const { mood, directive: moodDirective } = detectMood(message);
