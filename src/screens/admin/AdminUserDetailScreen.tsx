@@ -8,7 +8,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminService } from '../../services/adminService';
-import type { AdminUserDetail, UserRole } from '../../types';
+import type { AdminUserDetail, AdminLog, UserRole } from '../../types';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
 
@@ -53,13 +53,18 @@ export default function AdminUserDetailScreen() {
   const [busy, setBusy] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [editingNote, setEditingNote] = useState(false);
+  const [subHistory, setSubHistory] = useState<AdminLog[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminService.getUser(userId);
+      const [data, logsData] = await Promise.all([
+        adminService.getUser(userId),
+        adminService.getLogs({ action: 'CHANGE_SUBSCRIPTION', limit: 20 }),
+      ]);
       setUser(data);
       setNoteText(data.adminNote ?? '');
+      setSubHistory(logsData.logs.filter((l) => l.targetId === userId));
       addRecentlyViewed({ id: data.id, firstName: data.firstName, lastName: data.lastName, email: data.email });
     } catch {
       Alert.alert('Ошибка', 'Не удалось загрузить данные пользователя');
@@ -440,6 +445,26 @@ export default function AdminUserDetailScreen() {
         )}
       </View>
 
+      {/* Subscription history */}
+      {subHistory.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>История подписки</Text>
+          {subHistory.map((log) => (
+            <View key={log.id} style={styles.historyRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.historyDetails} numberOfLines={2}>{log.details ?? '—'}</Text>
+                <Text style={styles.historyAdmin}>
+                  {log.admin.firstName} {log.admin.lastName ?? ''} · {log.admin.email}
+                </Text>
+              </View>
+              <Text style={styles.historyDate}>
+                {new Date(log.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: '2-digit' })}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Role management */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Роль пользователя</Text>
@@ -753,4 +778,9 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '700' },
   deleteBtnSub: { color: '#EF444060', fontSize: 11, marginTop: 2 },
+
+  historyRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2C2C2E', gap: 8 },
+  historyDetails: { fontSize: 13, color: '#D1D5DB', marginBottom: 2 },
+  historyAdmin: { fontSize: 11, color: '#6B7280' },
+  historyDate: { fontSize: 11, color: '#4B5563', marginTop: 2 },
 });
