@@ -58,6 +58,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       aiYesterday,
       mealsYesterday,
       cardioYesterday,
+      mauWorkoutUsers,
+      mauAiUsers,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
@@ -95,6 +97,9 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: yesterdayStart, lt: todayStart } } }),
       prisma.meal.count({ where: { createdAt: { gte: yesterdayStart, lt: todayStart } } }),
       prisma.cardioSession.count({ where: { createdAt: { gte: yesterdayStart, lt: todayStart } } }),
+      // MAU/WAU: distinct active users (workout or AI) in last 30/7 days
+      prisma.workout.groupBy({ by: ['userId'], where: { completedAt: { gte: monthStart } } }).then((r) => r.length),
+      prisma.chatMessage.groupBy({ by: ['userId'], where: { role: 'user', createdAt: { gte: monthStart } } }).then((r) => r.length),
     ]);
 
     // Server metrics
@@ -229,6 +234,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       topActiveUsers,
       topAiActiveUsers,
       dau: { workoutUsers: dauWorkout, aiUsers: dauAi },
+      mau: { workoutUsers: mauWorkoutUsers, aiUsers: mauAiUsers },
       recentSignups,
       onlineUsers,
       todayVsYesterday: {
@@ -413,6 +419,10 @@ router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) =
             orderBy: { date: 'desc' },
             take: 14,
             select: { id: true, date: true, durationHours: true, quality: true },
+          },
+          aiMemories: {
+            orderBy: { updatedAt: 'desc' },
+            select: { id: true, category: true, key: true, value: true, confidence: true, source: true, updatedAt: true },
           },
         },
       }),

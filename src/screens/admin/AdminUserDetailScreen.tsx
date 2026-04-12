@@ -797,6 +797,59 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* AI Memories */}
+      {user.aiMemories && user.aiMemories.length > 0 && (() => {
+        const CATEGORY_LABEL: Record<string, string> = {
+          preference: 'Предпочтения',
+          habit: 'Привычки',
+          injury: 'Травмы',
+          allergy: 'Аллергии',
+          schedule: 'Расписание',
+          personality: 'Личность',
+        };
+        const CATEGORY_COLOR: Record<string, string> = {
+          preference: '#6366F1',
+          habit: '#10B981',
+          injury: '#EF4444',
+          allergy: '#F59E0B',
+          schedule: '#3B82F6',
+          personality: '#EC4899',
+        };
+        const grouped: Record<string, typeof user.aiMemories> = {};
+        for (const m of user.aiMemories!) {
+          if (!grouped[m.category]) grouped[m.category] = [];
+          grouped[m.category]!.push(m);
+        }
+        return (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Память ИИ ({user.aiMemories.length})</Text>
+            {Object.entries(grouped).map(([cat, mems]) => (
+              <View key={cat} style={styles.memGroup}>
+                <View style={[styles.memCatBadge, { backgroundColor: (CATEGORY_COLOR[cat] ?? '#6B7280') + '25', borderColor: CATEGORY_COLOR[cat] ?? '#6B7280' }]}>
+                  <Text style={[styles.memCatText, { color: CATEGORY_COLOR[cat] ?? '#9CA3AF' }]}>
+                    {CATEGORY_LABEL[cat] ?? cat}
+                  </Text>
+                </View>
+                {mems!.map((m) => (
+                  <View key={m.id} style={styles.memRow}>
+                    <View style={styles.memLeft}>
+                      <Text style={styles.memKey}>{m.key}</Text>
+                      <Text style={styles.memValue} numberOfLines={2}>{m.value}</Text>
+                    </View>
+                    <View style={styles.memRight}>
+                      <Text style={[styles.memConf, { color: m.confidence > 0.7 ? '#10B981' : m.confidence > 0.4 ? '#F59E0B' : '#EF4444' }]}>
+                        {Math.round(m.confidence * 100)}%
+                      </Text>
+                      <Text style={styles.memSource}>{m.source}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        );
+      })()}
+
       {/* Admin note */}
       <View style={styles.card}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -1013,6 +1066,24 @@ const styles = StyleSheet.create({
   heatmapCellActive: { backgroundColor: '#6366F1' },
   heatmapCellToday: { borderWidth: 1, borderColor: '#A5B4FC' },
   heatmapLegend: { fontSize: 11, color: '#6B7280', marginTop: 4 },
+
+  // AI Memories
+  memGroup: { marginBottom: 12 },
+  memCatBadge: {
+    alignSelf: 'flex-start', borderRadius: 6, borderWidth: 1,
+    paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8,
+  },
+  memCatText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  memRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1C1C1E',
+  },
+  memLeft: { flex: 1, paddingRight: 8 },
+  memKey: { fontSize: 12, fontWeight: '600', color: '#D1D5DB', marginBottom: 2 },
+  memValue: { fontSize: 12, color: '#6B7280' },
+  memRight: { alignItems: 'flex-end' },
+  memConf: { fontSize: 13, fontWeight: '700' },
+  memSource: { fontSize: 10, color: '#4B5563', marginTop: 1, textTransform: 'capitalize' },
 
   // Message user
   msgUserBtn: {
