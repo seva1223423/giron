@@ -90,7 +90,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
-    aiService.getStarters().then((starters) => { if (starters.length > 0) setServerStarters(starters); });
+    aiService.getStarters().then((starters) => { if (starters.length > 0) setServerStarters(starters); }).catch(() => {});
     syncSleep().catch(() => {});
   }, []);
 

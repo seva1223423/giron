@@ -154,7 +154,7 @@ export const SystemSection: React.FC = () => {
               { text: 'Отмена', style: 'cancel' },
               { text: 'Очистить', style: 'destructive', onPress: () => {
                 useNutritionStore.getState().cleanupOldLogs(90);
-                getStorageUsage().then(setStorageInfo);
+                getStorageUsage().then(setStorageInfo).catch(() => {});
                 haptic.success();
               }},
             ]);

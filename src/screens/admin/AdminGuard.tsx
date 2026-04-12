@@ -44,6 +44,8 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
     AsyncStorage.getItem(ADMIN_PIN_KEY).then((pin) => {
       setPinStored(pin);
       setLoaded(true);
+    }).catch(() => {
+      setLoaded(true); // fail open so screen doesn't hang on spinner
     });
   }, []);
 
@@ -120,7 +122,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
                     setPinStored(input);
                     sessionVerified = true;
                     setInput('');
-                  });
+                  }).catch(() => {});
                 } else {
                   setError('PIN-коды не совпадают. Попробуйте снова.');
                   setInput('');
