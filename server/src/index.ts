@@ -56,12 +56,22 @@ const authRateLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
 });
 
+/** AI endpoints: 60 requests per minute per IP — prevents cost abuse */
+const aiRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов к ИИ. Подождите минуту.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+});
+
 // Routes
 app.use('/api/auth', authRateLimiter, authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/workouts', workoutRouter);
 app.use('/api/nutrition', nutritionRouter);
-app.use('/api/ai', aiRouter);
+app.use('/api/ai', aiRateLimiter, aiRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/trainer', trainerRouter);
