@@ -77,12 +77,20 @@ export default function AdminTicketScreen() {
   const [subPlan, setSubPlan] = useState<'pro' | 'trainer' | 'club'>('pro');
   const [subDays, setSubDays] = useState(30);
   const [grantingSubb, setGrantingSubb] = useState(false);
+  const [userTickets, setUserTickets] = useState<SupportTicket[]>([]);
+  const [showUserTickets, setShowUserTickets] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await supportService.getTicket(ticketId);
       setTicket(data);
+      // Fetch other tickets from the same user
+      if (data.user?.email) {
+        adminService.getSupportTickets({ search: data.user.email, limit: 10 })
+          .then((res) => setUserTickets(res.tickets.filter((t) => t.id !== ticketId)))
+          .catch(() => {});
+      }
     } finally {
       setLoading(false);
     }
@@ -308,7 +316,7 @@ export default function AdminTicketScreen() {
       <View style={styles.subjectBar}>
         <View style={{ flex: 1 }}>
           <Text style={styles.subject} numberOfLines={2}>{ticket.subject}</Text>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
             <Text style={styles.category}>{ticket.category}</Text>
             <Text style={styles.subjectMeta}>
               {new Date(ticket.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
@@ -316,7 +324,28 @@ export default function AdminTicketScreen() {
             {ticket.assignedTo && (
               <Text style={styles.assignedMeta}>→ {ticket.assignedTo.firstName}</Text>
             )}
+            {userTickets.length > 0 && (
+              <TouchableOpacity onPress={() => setShowUserTickets(!showUserTickets)}>
+                <Text style={styles.otherTicketsBtn}>
+                  {showUserTickets ? '▲' : '▼'} ещё {userTickets.length} тик.
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
+          {showUserTickets && (
+            <View style={styles.otherTicketsList}>
+              {userTickets.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={styles.otherTicketRow}
+                  onPress={() => navigation.replace('AdminTicketScreen', { ticketId: t.id })}
+                >
+                  <Text style={styles.otherTicketSubject} numberOfLines={1}>{t.subject}</Text>
+                  <Text style={[styles.otherTicketStatus, { color: STATUS_COLOR[t.status] }]}>{t.status}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       </View>
 
@@ -430,4 +459,9 @@ const styles = StyleSheet.create({
   subPlanText: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
   subGrantBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   subGrantBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  otherTicketsBtn: { fontSize: 11, color: '#6366F1', fontWeight: '600' },
+  otherTicketsList: { marginTop: 6, borderTopWidth: 1, borderTopColor: '#2C2C2E', paddingTop: 6 },
+  otherTicketRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
+  otherTicketSubject: { fontSize: 12, color: '#D1D5DB', flex: 1, marginRight: 8 },
+  otherTicketStatus: { fontSize: 11, fontWeight: '600' },
 });
