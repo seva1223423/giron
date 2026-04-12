@@ -598,6 +598,48 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* Body weight trend */}
+      {user.bodyWeights && user.bodyWeights.length >= 2 && (() => {
+        const sorted = [...user.bodyWeights].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const weights = sorted.map((w) => w.weightKg);
+        const min = Math.min(...weights);
+        const max = Math.max(...weights);
+        const range = max - min || 1;
+        const first = weights[0];
+        const last = weights[weights.length - 1];
+        const delta = last - first;
+        const CHART_H = 44;
+        return (
+          <View style={styles.card}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.cardTitle}>Динамика веса</Text>
+              <Text style={[styles.listMeta, { color: delta < 0 ? '#10B981' : delta > 0 ? '#F59E0B' : '#6B7280', fontWeight: '700' }]}>
+                {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} кг
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_H, gap: 3 }}>
+              {weights.map((w, i) => {
+                const h = Math.max(4, Math.round(((w - min) / range) * CHART_H));
+                const isLast = i === weights.length - 1;
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      flex: 1, height: h, borderRadius: 3,
+                      backgroundColor: isLast ? '#6366F1' : '#6366F150',
+                    }}
+                  />
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+              <Text style={styles.listMeta}>{new Date(sorted[0].date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {first.toFixed(1)} кг</Text>
+              <Text style={styles.listMeta}>{new Date(sorted[sorted.length - 1].date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {last.toFixed(1)} кг</Text>
+            </View>
+          </View>
+        );
+      })()}
+
       {/* Workout heatmap (last 90 days) */}
       {user.workoutDates90d && user.workoutDates90d.length > 0 && (
         <View style={styles.card}>

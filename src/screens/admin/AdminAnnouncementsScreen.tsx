@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity,
   RefreshControl, Alert, TextInput, Modal, ScrollView,
@@ -90,10 +90,27 @@ export default function AdminAnnouncementsScreen() {
   const [formType, setFormType] = useState<AnnouncementType>('info');
   const [formEndsAt, setFormEndsAt] = useState('');
   const [formTarget, setFormTarget] = useState<string>('');
+  const [audienceCount, setAudienceCount] = useState<number | null>(null);
+
+  const audienceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetForm = useCallback(() => {
     setFormTitle(''); setFormBody(''); setFormType('info'); setFormEndsAt(''); setFormTarget('');
     setEditItem(null);
+    setAudienceCount(null);
+  }, []);
+
+  // Fetch audience count whenever target changes
+  const handleTargetChange = useCallback((target: string) => {
+    setFormTarget(target);
+    setAudienceCount(null);
+    if (audienceTimer.current) clearTimeout(audienceTimer.current);
+    audienceTimer.current = setTimeout(async () => {
+      try {
+        const { count } = await adminService.getAnnouncementAudience(target || undefined);
+        setAudienceCount(count);
+      } catch { /* ignore */ }
+    }, 300);
   }, []);
 
   const openCreate = useCallback(() => {
@@ -107,8 +124,13 @@ export default function AdminAnnouncementsScreen() {
     setFormBody(item.body);
     setFormType(item.type);
     setFormEndsAt(item.endsAt ? new Date(item.endsAt).toISOString().split('T')[0] : '');
-    setFormTarget(item.targetRole ?? '');
+    const target = item.targetRole ?? '';
+    setFormTarget(target);
     setShowForm(true);
+    // Fetch audience count for existing target
+    adminService.getAnnouncementAudience(target || undefined)
+      .then(({ count }) => setAudienceCount(count))
+      .catch(() => {});
   }, []);
 
   const load = useCallback(async (silent = false) => {
@@ -254,17 +276,22 @@ export default function AdminAnnouncementsScreen() {
               />
 
               <Text style={styles.fieldLabel}>Аудитория (необязательно)</Text>
-              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
                 {[{ key: '', label: 'Все' }, { key: 'free', label: 'Free' }, { key: 'pro', label: 'PRO' }, { key: 'trainer', label: 'Trainer' }, { key: 'club', label: 'Club' }].map((opt) => (
                   <TouchableOpacity
                     key={opt.key}
                     style={[styles.typeBtn, formTarget === opt.key && { backgroundColor: '#6366F122', borderColor: '#6366F1' }]}
-                    onPress={() => setFormTarget(opt.key)}
+                    onPress={() => handleTargetChange(opt.key)}
                   >
                     <Text style={[styles.typeBtnText, formTarget === opt.key && { color: '#6366F1' }]}>{opt.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              {audienceCount !== null && (
+                <Text style={{ fontSize: 11, color: '#6366F1', marginBottom: 10, fontWeight: '600' }}>
+                  Охват: ~{audienceCount} {audienceCount === 1 ? 'пользователь' : audienceCount < 5 ? 'пользователя' : 'пользователей'}
+                </Text>
+              )}
 
               <Text style={styles.fieldLabel}>Действует до (необязательно)</Text>
               <TextInput

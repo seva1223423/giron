@@ -320,6 +320,7 @@ export interface AdminUserDetail extends AdminUserSummary {
   workouts: Array<{ id: string; name: string; completedAt?: string; totalVolume?: number; durationMinutes?: number }>;
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
   chatMessages: Array<{ id: string; content: string; createdAt: string }>;
+  bodyWeights?: Array<{ id: string; weightKg: number; date: string }>;
 }
 
 export interface AdminStats {

@@ -391,6 +391,11 @@ router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) =
             take: 3,
             select: { id: true, content: true, createdAt: true },
           },
+          bodyWeights: {
+            orderBy: { date: 'desc' },
+            take: 12,
+            select: { id: true, weightKg: true, date: true },
+          },
         },
       }),
       prisma.workout.findFirst({
@@ -1288,6 +1293,28 @@ router.get('/announcements/active', authenticate, async (req: AuthRequest, res: 
     res.json(list);
   } catch (e) {
     logger.error('GET /admin/announcements/active:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+/** GET /admin/announcements/preview — estimate audience size for a given targetRole */
+router.get('/announcements/preview', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { targetRole } = req.query as Record<string, string>;
+    const where: any = { isBanned: false };
+    if (targetRole) {
+      // Map subscription plans and roles to user filters
+      const planMap: Record<string, string> = { free: 'free', pro: 'pro', trainer: 'trainer', club: 'club' };
+      if (planMap[targetRole]) {
+        where.subscription = { plan: planMap[targetRole], status: 'active' };
+      } else {
+        where.role = targetRole.toUpperCase();
+      }
+    }
+    const count = await prisma.user.count({ where });
+    res.json({ count });
+  } catch (e) {
+    logger.error('GET /admin/announcements/preview:', e);
     res.status(500).json({ error: 'Ошибка' });
   }
 });
