@@ -69,8 +69,8 @@ export const AchievementsCard: React.FC<Props> = ({ achievements, delay = 180 })
                   </View>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>{a.progressLabel}</Text>
                 </View>
-                <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.border }}>
-                  <View style={{ height: 4, borderRadius: 2, width: `${Math.round((a.progress ?? 0) * 100)}%` as any, backgroundColor: colors.primary + '80' }} />
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border }}>
+                  <View style={{ height: 6, borderRadius: 3, width: `${Math.round((a.progress ?? 0) * 100)}%` as any, backgroundColor: colors.primary + '80' }} />
                 </View>
               </View>
             ))}

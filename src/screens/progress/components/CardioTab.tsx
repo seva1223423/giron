@@ -201,8 +201,8 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
                     </View>
                   </View>
                   {/* Progress bar */}
-                  <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2 }}>
-                    <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.primary, width: `${Math.round(pct)}%` as any }} />
+                  <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3 }}>
+                    <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.primary, width: `${Math.round(pct)}%` as any }} />
                   </View>
                 </View>
               );
