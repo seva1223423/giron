@@ -1,5 +1,5 @@
 // ==================== USER ====================
-export type UserRole = 'guest' | 'visitor' | 'client' | 'trainer' | 'admin';
+export type UserRole = 'guest' | 'visitor' | 'client' | 'trainer' | 'support' | 'admin';
 export type TrainingGoal = 'weight_loss' | 'muscle_gain' | 'strength' | 'endurance' | 'flexibility' | 'general_fitness';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
 export type Gender = 'male' | 'female';
@@ -249,4 +249,107 @@ export interface AppSettings {
   };
   restTimerDefault: number;
   hapticFeedback: boolean;
+}
+
+// ==================== SUPPORT ====================
+export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type TicketCategory = 'billing' | 'technical' | 'feature_request' | 'account' | 'bug' | 'other';
+
+export interface SupportAuthor {
+  id: string;
+  firstName: string;
+  lastName?: string;
+  role: UserRole;
+}
+
+export interface SupportMessage {
+  id: string;
+  content: string;
+  isStaff: boolean;
+  authorId: string;
+  author: SupportAuthor;
+  ticketId: string;
+  createdAt: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  subject: string;
+  category: TicketCategory;
+  status: TicketStatus;
+  priority: TicketPriority;
+  userId: string;
+  user?: { id: string; firstName: string; lastName?: string; email: string };
+  assignedToId?: string;
+  assignedTo?: { firstName: string; lastName?: string } | null;
+  messages: SupportMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==================== ADMIN ====================
+export interface AdminUserSummary {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName?: string;
+  role: UserRole;
+  createdAt: string;
+  subscription?: { plan: string; status: string; endDate?: string } | null;
+  _count: { workouts: number; chatMessages: number };
+}
+
+export interface AdminUserDetail extends AdminUserSummary {
+  phone?: string;
+  weightKg?: number;
+  heightCm?: number;
+  goal?: string;
+  fitnessLevel?: string;
+  _count: { workouts: number; meals: number; chatMessages: number; cardioSessions: number; supportTickets: number };
+  workouts: Array<{ id: string; name: string; completedAt?: string; totalVolume?: number; durationMinutes?: number }>;
+  supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
+}
+
+export interface AdminStats {
+  users: {
+    total: number;
+    newToday: number;
+    newThisWeek: number;
+    newThisMonth: number;
+    activeNow: number;
+    activeHour: number;
+    byRole: Record<string, number>;
+  };
+  subscriptions: Array<{ plan: string; status: string; count: number }>;
+  workouts: { completedToday: number; completedThisWeek: number };
+  ai: {
+    messagesToday: number;
+    messagesThisWeek: number;
+    requestsToday: number;
+    cacheHitRate: number;
+    totalTokensEstimate: number;
+  };
+  support: { openTickets: number; inProgressTickets: number };
+  server: {
+    uptimeSeconds: number;
+    memoryUsedMb: number;
+    memoryTotalMb: number;
+    systemMemUsedPct: number;
+    systemMemFreeMb: number;
+    systemMemTotalMb: number;
+    loadAvg: number[];
+    platform: string;
+    nodeVersion: string;
+  };
+}
+
+export interface AdminLog {
+  id: string;
+  action: string;
+  targetId?: string;
+  details?: string;
+  adminId: string;
+  admin: { firstName: string; lastName?: string; email: string };
+  createdAt: string;
 }

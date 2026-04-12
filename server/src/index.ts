@@ -10,6 +10,8 @@ import { newsRouter } from './routes/news';
 import { subscriptionRouter } from './routes/subscription';
 import { trainerRouter } from './routes/trainer';
 import { cardioRouter } from './routes/cardio';
+import { supportRouter } from './routes/support';
+import { adminRouter } from './routes/admin';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
 
@@ -41,6 +43,8 @@ app.use('/api/news', newsRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/trainer', trainerRouter);
 app.use('/api/cardio', cardioRouter);
+app.use('/api/support', supportRouter);
+app.use('/api/admin', adminRouter);
 
 // Global error handler (catches both sync and async errors forwarded via next())
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {

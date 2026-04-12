@@ -222,6 +222,40 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         <Button title="Открыть кабинет тренера" variant="outline" onPress={() => navigation.navigate('TrainerDashboard')} fullWidth />
       </Card>
 
+      {/* Support */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('SupportScreen'); }} style={styles.settingRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#6366F118', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 14 }}>🎧</Text>
+            </View>
+            <View>
+              <Text style={[typography.body, { color: colors.text }]}>Техническая поддержка</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>Вопросы, проблемы, предложения</Text>
+            </View>
+          </View>
+          <Text style={[typography.body, { color: colors.textSecondary }]}>›</Text>
+        </TouchableOpacity>
+      </Card>
+
+      {/* Admin panel — visible only for admin/support roles */}
+      {(user?.role === 'admin' || user?.role === 'support') && (
+        <Card style={{ marginBottom: spacing.lg, borderWidth: 1, borderColor: '#EF444440' }}>
+          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('AdminDashboardScreen'); }} style={styles.settingRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#EF444418', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#EF4444' }}>A</Text>
+              </View>
+              <View>
+                <Text style={[typography.body, { color: colors.text }]}>Панель администратора</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>Пользователи, поддержка, статистика</Text>
+              </View>
+            </View>
+            <Text style={[typography.body, { color: colors.textSecondary }]}>›</Text>
+          </TouchableOpacity>
+        </Card>
+      )}
+
       <Button title="Выйти из аккаунта" variant="ghost" onPress={handleLogout} fullWidth textStyle={{ color: colors.error }} style={{ marginBottom: spacing.huge }} />
     </ScrollView>
   );
