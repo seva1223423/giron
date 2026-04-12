@@ -52,7 +52,7 @@ export const OneRMCalculatorTab: React.FC = () => {
           <View style={{ flex: 1 }}>
             <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: spacing.xs }]}>Повторения</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-              <TouchableOpacity onPress={() => adjustReps(-1)} style={[styles.adjustBtn, { backgroundColor: colors.surface }]}>
+              <TouchableOpacity onPress={() => adjustReps(-1)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Text style={[typography.h4, { color: colors.primary }]}>−</Text>
               </TouchableOpacity>
               <TextInput
@@ -62,7 +62,7 @@ export const OneRMCalculatorTab: React.FC = () => {
                 keyboardType="number-pad"
                 selectTextOnFocus
               />
-              <TouchableOpacity onPress={() => adjustReps(1)} style={[styles.adjustBtn, { backgroundColor: colors.surface }]}>
+              <TouchableOpacity onPress={() => adjustReps(1)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Text style={[typography.h4, { color: colors.primary }]}>+</Text>
               </TouchableOpacity>
             </View>
@@ -123,5 +123,5 @@ export const OneRMCalculatorTab: React.FC = () => {
 
 const styles = StyleSheet.create({
   bigInput: { fontSize: 28, fontWeight: '800', textAlign: 'center', paddingVertical: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1.5 },
-  adjustBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  adjustBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
 });

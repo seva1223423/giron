@@ -91,7 +91,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
           return (
             <Card key={dow} style={[{ marginBottom: spacing.sm }, isToday && { borderWidth: 1.5, borderColor: colors.primary }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={[styles.dayBadge, { backgroundColor: isToday ? colors.primary : colors.surface }]}>
+                <View style={[styles.dayBadge, { backgroundColor: isToday ? colors.primary : colors.surface, borderWidth: 1.5, borderColor: isToday ? colors.primary : colors.border }]}>
                   <Text style={[typography.captionMedium, { color: isToday ? '#fff' : colors.textSecondary }]}>{label}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
