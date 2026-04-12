@@ -4384,7 +4384,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       // Periodically cleanup stale memories (roughly every 10 requests)
       if (Math.random() < 0.1) cleanupStaleMemories(userId).catch(() => {});
     }
-    const memoryContext = await getMemoryContext(userId);
+    const memoryContext = await getMemoryContext(userId, user?.goal ?? null);
 
     // ─── Block 241: Deload timing ──────
     const weeklyVolumeForDeload = (() => {
@@ -9936,6 +9936,12 @@ const MEMORY_PATTERNS: Array<{ regex: RegExp; category: string; key: string; ext
   { regex: /(?:встаю|просыпаюсь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?/i, category: 'habit', key: 'wake_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
   // Experience
   { regex: /(?:занимаюсь|тренируюсь)\s*(?:уже)?\s*(\d+)\s*(лет|год|месяц)/i, category: 'preference', key: 'experience_stated', extract: (m) => `${m[1]} ${m[2]}` },
+  // Goals — detect when user states a fitness goal in conversation
+  { regex: /хочу?\s*(похудеть|сбросить вес|сжечь жир|снизить вес)/i, category: 'preference', key: 'user_goal', extract: () => 'похудение' },
+  { regex: /хочу?\s*(набрать|накачаться|нарастить мышц|набрать массу)/i, category: 'preference', key: 'user_goal', extract: () => 'набор массы' },
+  { regex: /хочу?\s*(стать сильнее|увеличить силу|тренирую силу|силовые?)/i, category: 'preference', key: 'user_goal', extract: () => 'сила' },
+  { regex: /хочу?\s*(выносливость|бегаю|улучшить кардио|марафон)/i, category: 'preference', key: 'user_goal', extract: () => 'выносливость' },
+  { regex: /хочу?\s*(просто быть в форме|поддерживать форму|общая физподготовка|общее здоровье)/i, category: 'preference', key: 'user_goal', extract: () => 'общая форма' },
 ];
 
 /**
@@ -10023,8 +10029,9 @@ async function saveMemories(userId: string, memories: MemoryExtraction[]): Promi
 
 /**
  * Build context string from stored AI memories for injection into system prompt.
+ * @param profileGoal - User's current goal from their profile (for contradiction detection)
  */
-async function getMemoryContext(userId: string): Promise<string> {
+async function getMemoryContext(userId: string, profileGoal?: string | null): Promise<string> {
   try {
     const memories = await prisma.aIMemory.findMany({
       where: { userId, confidence: { gte: 0.5 } },
@@ -10033,6 +10040,28 @@ async function getMemoryContext(userId: string): Promise<string> {
     });
 
     if (memories.length === 0) return '';
+
+    // Detect goal contradictions between stored memory and user profile
+    const goalContradictions: string[] = [];
+    if (profileGoal) {
+      const PROFILE_GOAL_MAP: Record<string, string[]> = {
+        WEIGHT_LOSS: ['похудение', 'сжечь жир', 'сбросить вес'],
+        MUSCLE_GAIN: ['набор массы', 'накачаться', 'нарастить мышц'],
+        STRENGTH: ['сила', 'стать сильнее'],
+        ENDURANCE: ['выносливость', 'кардио'],
+        GENERAL_FITNESS: ['общая форма', 'поддерживать форму'],
+      };
+      const goalMemory = memories.find((m) => m.key === 'user_goal');
+      if (goalMemory) {
+        const expectedValues = PROFILE_GOAL_MAP[profileGoal] ?? [];
+        const isConsistent = expectedValues.some((v) => goalMemory.value.toLowerCase().includes(v));
+        if (!isConsistent) {
+          goalContradictions.push(
+            `⚠️ ПРОТИВОРЕЧИЕ: в памяти цель пользователя — «${goalMemory.value}», но в профиле указано «${profileGoal}». Уточни у пользователя, не навязывай устаревшую цель.`
+          );
+        }
+      }
+    }
 
     const grouped: Record<string, string[]> = {};
     for (const m of memories) {
@@ -10054,6 +10083,10 @@ async function getMemoryContext(userId: string): Promise<string> {
 
     for (const [cat, items] of Object.entries(grouped)) {
       lines.push(`**${categoryLabels[cat] || cat}:** ${items.join('; ')}`);
+    }
+
+    if (goalContradictions.length > 0) {
+      lines.push(...goalContradictions);
     }
 
     lines.push('→ Используй эту информацию для персонализации. Не переспрашивай то, что уже знаешь. Если информация противоречит текущему сообщению — уточни, не игнорируй.');
