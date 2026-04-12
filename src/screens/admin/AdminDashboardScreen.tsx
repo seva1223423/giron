@@ -227,6 +227,17 @@ export default function AdminDashboardScreen() {
   const signups7d = analytics?.timeline.map((t) => t.signups) ?? [];
   const workouts7d = analytics?.timeline.map((t) => t.workouts) ?? [];
 
+  // System health score 0-100
+  const healthScore = Math.max(0, Math.round(100
+    - ((stats.ai.errorsToday ?? 0) > 0 ? Math.min(25, (stats.ai.errorsToday ?? 0) * 2) : 0)
+    - (stats.server.dbPingMs != null && stats.server.dbPingMs > 500 ? 20 : stats.server.dbPingMs != null && stats.server.dbPingMs > 200 ? 5 : 0)
+    - (sysPct > 90 ? 20 : sysPct > 75 ? 5 : 0)
+    - ((stats.support.overdueTickets ?? 0) > 5 ? 15 : (stats.support.overdueTickets ?? 0) > 0 ? 5 : 0)
+    - ((stats.support.urgentTickets ?? 0) > 0 ? 10 : 0)
+  ));
+  const healthColor = healthScore >= 80 ? '#10B981' : healthScore >= 60 ? '#F59E0B' : '#EF4444';
+  const healthLabel = healthScore >= 80 ? 'Отлично' : healthScore >= 60 ? 'Внимание' : 'Проблемы';
+
   return (
     <ScrollView
       style={styles.container}
@@ -235,12 +246,18 @@ export default function AdminDashboardScreen() {
     >
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Admin Panel</Text>
-        {lastRefreshed && (
-          <Text style={styles.headerSub}>
-            Обновлено: {lastRefreshed.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </Text>
-        )}
+        <View>
+          <Text style={styles.headerTitle}>Admin Panel</Text>
+          {lastRefreshed && (
+            <Text style={styles.headerSub}>
+              Обновлено: {lastRefreshed.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </Text>
+          )}
+        </View>
+        <View style={[styles.healthBadge, { borderColor: healthColor + '60', backgroundColor: healthColor + '15' }]}>
+          <Text style={[styles.healthScore, { color: healthColor }]}>{healthScore}</Text>
+          <Text style={[styles.healthLabel, { color: healthColor }]}>{healthLabel}</Text>
+        </View>
       </View>
 
       {/* System alerts */}
@@ -658,6 +675,9 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
   headerSub: { fontSize: 10, color: '#4B5563' },
+  healthBadge: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center' },
+  healthScore: { fontSize: 20, fontWeight: '900' },
+  healthLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   quickSearchRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   quickSearchInput: {
