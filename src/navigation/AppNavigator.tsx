@@ -322,8 +322,8 @@ export const AppNavigator: React.FC = () => {
     <NavigationContainer linking={linking}>
       <View style={{ flex: 1 }}>
         {!isOnline && (
-          <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>Нет соединения — данные сохраняются локально</Text>
+          <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }} numberOfLines={2}>Нет соединения — данные сохраняются локально</Text>
           </View>
         )}
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>

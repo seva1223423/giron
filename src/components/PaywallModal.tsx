@@ -116,7 +116,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 ]}
               >
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{perk.icon}</Text>
-                <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{perk.text}</Text>
+                <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={2}>{perk.text}</Text>
                 <Text style={{ color: colors.success, fontSize: 16 }}>✓</Text>
               </View>
             ))}
@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     marginBottom: spacing.md,
+    flexWrap: 'wrap',
   },
   pricingCard: {
     flex: 1,

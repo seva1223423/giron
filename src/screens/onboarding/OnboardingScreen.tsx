@@ -116,7 +116,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  progressContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xxl, marginBottom: spacing.xxl, gap: spacing.sm },
+  progressContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xxl, marginBottom: spacing.xxl, gap: spacing.sm, flexWrap: 'wrap' },
   dot: { height: 8, borderRadius: 4 },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', paddingHorizontal: spacing.xxl, paddingBottom: 40, paddingTop: spacing.lg },
 });
