@@ -295,6 +295,9 @@ export default function AdminUsersScreen() {
   const [massMsgSubject, setMassMsgSubject] = useState('');
   const [massMsgBody, setMassMsgBody] = useState('');
   const [sendingMass, setSendingMass] = useState(false);
+  const [showBulkSub, setShowBulkSub] = useState(false);
+  const [bulkSubPlan, setBulkSubPlan] = useState<'pro' | 'trainer' | 'club'>('pro');
+  const [bulkSubBusy, setBulkSubBusy] = useState(false);
 
   const load = useCallback(async (p: number, append = false, silent = false) => {
     if (p === 1 && !silent) setLoading(true);
@@ -375,6 +378,28 @@ export default function AdminUsersScreen() {
       setSendingMass(false);
     }
   }, [massMsgSubject, massMsgBody, sendingMass, selectedIds, exitSelectMode]);
+
+  const bulkGrantSubscription = useCallback(async () => {
+    if (selectedIds.size === 0 || bulkSubBusy) return;
+    setBulkSubBusy(true);
+    try {
+      const results = await Promise.allSettled(
+        Array.from(selectedIds).map((id) =>
+          adminService.changeUserSubscription(id, { plan: bulkSubPlan, status: 'active' })
+        )
+      );
+      const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      setShowBulkSub(false);
+      exitSelectMode();
+      await load(1, false, true);
+      Alert.alert('Готово', `Подписка ${bulkSubPlan.toUpperCase()} выдана ${succeeded} пользователям${failed > 0 ? `. Ошибок: ${failed}` : ''}`);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось выдать подписки');
+    } finally {
+      setBulkSubBusy(false);
+    }
+  }, [selectedIds, bulkSubPlan, bulkSubBusy, exitSelectMode, load]);
 
   return (
     <View style={styles.container}>
@@ -541,6 +566,9 @@ export default function AdminUsersScreen() {
           <TouchableOpacity style={styles.bulkBtn} onPress={() => setShowMassMsg(true)}>
             <Text style={styles.bulkBtnText}>💬 Написать ({selectedIds.size})</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#F59E0B60', backgroundColor: '#F59E0B10' }]} onPress={() => setShowBulkSub(true)}>
+            <Text style={[styles.bulkBtnText, { color: '#F59E0B' }]}>💳 Подписка</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#6B728060' }]} onPress={exitSelectMode}>
             <Text style={[styles.bulkBtnText, { color: '#6B7280' }]}>Отмена</Text>
           </TouchableOpacity>
@@ -590,6 +618,48 @@ export default function AdminUsersScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Bulk subscription modal */}
+      <Modal visible={showBulkSub} transparent animationType="slide" onRequestClose={() => setShowBulkSub(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Выдать подписку ({selectedIds.size} польз.)</Text>
+              <TouchableOpacity onPress={() => setShowBulkSub(false)}>
+                <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalHint}>Все выбранные пользователи получат выбранный план</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginVertical: 12 }}>
+              {(['pro', 'trainer', 'club'] as const).map((plan) => (
+                <TouchableOpacity
+                  key={plan}
+                  style={[
+                    styles.exportBtn,
+                    { flex: 1, justifyContent: 'center', paddingVertical: 10 },
+                    bulkSubPlan === plan && { backgroundColor: (PLAN_COLOR[plan] ?? '#6366F1') + '25', borderColor: PLAN_COLOR[plan] ?? '#6366F1' },
+                  ]}
+                  onPress={() => setBulkSubPlan(plan)}
+                >
+                  <Text style={[styles.exportBtnText, bulkSubPlan === plan && { color: PLAN_COLOR[plan] }]}>
+                    {plan.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[styles.modalSendBtn, bulkSubBusy && { opacity: 0.6 }]}
+              onPress={bulkGrantSubscription}
+              disabled={bulkSubBusy}
+            >
+              {bulkSubBusy
+                ? <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.modalSendBtnText}>Выдать {bulkSubPlan.toUpperCase()} · {selectedIds.size} польз.</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

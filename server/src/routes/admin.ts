@@ -1046,6 +1046,45 @@ router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
   }
 });
 
+/** GET /admin/logs/export — CSV export of admin audit log */
+router.get('/logs/export', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { action, adminId, from, to } = req.query as Record<string, string>;
+    const where: any = {};
+    if (action) where.action = action;
+    if (adminId) where.adminId = adminId;
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to);
+    }
+    const logs = await prisma.adminLog.findMany({
+      where,
+      include: { admin: { select: { firstName: true, lastName: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+    const rows = [['id', 'action', 'admin_email', 'admin_name', 'targetId', 'details', 'createdAt'].join(',')];
+    for (const l of logs) {
+      rows.push([
+        l.id,
+        l.action,
+        l.admin.email,
+        `${l.admin.firstName} ${l.admin.lastName ?? ''}`.trim(),
+        l.targetId ?? '',
+        `"${(l.details ?? '').replace(/"/g, '""')}"`,
+        l.createdAt.toISOString(),
+      ].join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="admin_logs_${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(rows.join('\n'));
+  } catch (e) {
+    logger.error('GET /admin/logs/export:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 // ── SUPPORT MANAGEMENT (staff — admin or support role) ───────────────────────
 
 /** GET /admin/support — all tickets with filters */

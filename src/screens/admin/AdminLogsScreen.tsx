@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
-  TouchableOpacity, ScrollView, TextInput,
+  TouchableOpacity, ScrollView, TextInput, Alert,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { adminService } from '../../services/adminService';
@@ -101,6 +103,27 @@ export default function AdminLogsScreen() {
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const exportCSV = useCallback(async () => {
+    const canShare = await Sharing.isAvailableAsync();
+    if (!canShare) { Alert.alert('Недоступно', 'Экспорт недоступен на этом устройстве'); return; }
+    setExporting(true);
+    try {
+      const range = getDateRange(datePreset);
+      const csv = await adminService.exportLogsCSV({
+        action: actionFilter || undefined,
+        adminId: myActionsOnly ? myId : undefined,
+        from: range.from,
+        to: range.to,
+      });
+      const fileName = `admin_logs_${new Date().toISOString().split('T')[0]}.csv`;
+      const path = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Экспорт логов' });
+    } catch { Alert.alert('Ошибка', 'Не удалось экспортировать логи'); }
+    finally { setExporting(false); }
+  }, [actionFilter, datePreset, myActionsOnly, myId]);
 
   const handleSearchChange = (text: string) => {
     setSearch(text);
@@ -195,6 +218,12 @@ export default function AdminLogsScreen() {
           <Text style={[styles.filterText, myActionsOnly && { color: '#FFFFFF' }]}>
             {myActionsOnly ? '✓ Мои' : 'Мои действия'}
           </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.filterChip} onPress={exportCSV} disabled={exporting}>
+          {exporting
+            ? <ActivityIndicator size="small" color="#6366F1" />
+            : <Text style={[styles.filterText, { color: '#6366F1' }]}>CSV</Text>
+          }
         </TouchableOpacity>
       </View>
 

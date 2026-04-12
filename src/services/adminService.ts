@@ -173,6 +173,11 @@ export const adminService = {
     return res.data as string;
   },
 
+  async exportLogsCSV(params?: { action?: string; adminId?: string; from?: string; to?: string }): Promise<string> {
+    const res = await api.get('/admin/logs/export', { params, responseType: 'text' });
+    return res.data as string;
+  },
+
   async getCohorts(): Promise<Array<{ week: string; signups: number; activeThisWeek: number; retentionPct: number }>> {
     const res = await api.get('/admin/analytics/cohorts');
     return res.data;
