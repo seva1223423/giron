@@ -94,7 +94,7 @@ export const adminService = {
     return res.data;
   },
 
-  async updateAnnouncement(id: string, data: Partial<{ title: string; body: string; type: AnnouncementType; isActive: boolean; endsAt: string }>): Promise<Announcement> {
+  async updateAnnouncement(id: string, data: Partial<{ title: string; body: string; type: AnnouncementType; isActive: boolean; endsAt: string; targetRole: string | null }>): Promise<Announcement> {
     const res = await api.patch(`/admin/announcements/${id}`, data);
     return res.data;
   },
