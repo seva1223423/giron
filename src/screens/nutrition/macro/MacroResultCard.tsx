@@ -30,7 +30,7 @@ export const MacroResultCard: React.FC<Props> = ({ result, delay = 250 }) => {
 
         <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
           {[{ label: 'Базовый обмен', value: result.bmr }, { label: 'TDEE', value: result.tdee }].map(({ label, value }) => (
-            <View key={label} style={{ flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md }}>
+            <View key={label} style={{ flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border }}>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
               <Text style={[typography.numberSmall, { color: colors.text, marginTop: 4 }]}>{value}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>ккал</Text>
@@ -57,7 +57,7 @@ export const MacroResultCard: React.FC<Props> = ({ result, delay = 250 }) => {
 };
 
 const MacroTile: React.FC<{ value: number; label: string; unit: string; color: string; extra?: string; textSecondary: string }> = ({ value, label, unit, color, extra, textSecondary }) => (
-  <View style={[styles.tile, { backgroundColor: color + '15' }]}>
+  <View style={[styles.tile, { backgroundColor: color + '15', borderWidth: 1, borderColor: color + '35' }]}>
     <Text style={[typography.h4, { color }]}>{value}</Text>
     <Text style={[typography.caption, { color }]}>{unit}</Text>
     <Text style={[typography.small, { color: textSecondary, marginTop: 2 }]}>{label}</Text>

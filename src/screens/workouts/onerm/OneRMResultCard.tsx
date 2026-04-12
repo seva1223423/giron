@@ -34,7 +34,7 @@ export const OneRMResultCard: React.FC<Props> = ({ avg, estimates, delay = 80 })
         <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>ПО ФОРМУЛАМ</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
           {estimates.map((e) => (
-            <View key={e.name} style={[styles.chip, { backgroundColor: colors.surface }]}>
+            <View key={e.name} style={[styles.chip, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
               <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>{e.name}</Text>
               <Text style={[typography.bodyMedium, { color: colors.text }]}>{e.value} кг</Text>
             </View>

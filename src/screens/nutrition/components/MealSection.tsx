@@ -132,7 +132,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                           {item.calories} ккал
                         </Text>
                         {itemPct > 0 && (
-                          <View style={{ backgroundColor: colors.calories + '15', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                          <View style={{ backgroundColor: colors.calories + '15', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: colors.calories + '35' }}>
                             <Text style={{ fontSize: 10, fontWeight: '700', color: colors.calories }}>{itemPct}%</Text>
                           </View>
                         )}
