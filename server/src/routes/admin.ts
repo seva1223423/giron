@@ -807,6 +807,7 @@ const announcementSchema = z.object({
   type: z.enum(['info', 'warning', 'maintenance', 'promo']).default('info'),
   endsAt: z.string().optional(),
   isActive: z.boolean().optional(),
+  targetRole: z.string().nullable().optional(),
 });
 
 /** GET /admin/announcements — list all announcements */
@@ -824,17 +825,27 @@ router.get('/announcements', requireAdmin, async (_req: AuthRequest, res: Respon
 });
 
 /** GET /admin/announcements/active — active announcements for client display */
-router.get('/announcements/active', authenticate, async (_req: AuthRequest, res: Response) => {
+router.get('/announcements/active', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const now = new Date();
+    // Get user's subscription plan if needed for targeting
+    const userSub = await prisma.subscription.findFirst({ where: { userId: req.userId! }, select: { plan: true, status: true } });
+    const userPlan = userSub?.status === 'active' ? userSub.plan : 'free';
     const list = await prisma.announcement.findMany({
       where: {
         isActive: true,
-        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+        AND: [
+          { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+          { OR: [{ targetRole: null }, { targetRole: userPlan }] },
+        ],
       },
       orderBy: { createdAt: 'desc' },
       select: { id: true, title: true, body: true, type: true, createdAt: true },
     });
+    // Increment view count for all returned announcements (fire-and-forget)
+    if (list.length > 0) {
+      prisma.announcement.updateMany({ where: { id: { in: list.map((a) => a.id) } }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+    }
     res.json(list);
   } catch (e) {
     logger.error('GET /admin/announcements/active:', e);
@@ -853,6 +864,7 @@ router.post('/announcements', requireAdmin, async (req: AuthRequest, res: Respon
         type: data.type,
         isActive: data.isActive ?? true,
         endsAt: data.endsAt ? new Date(data.endsAt) : null,
+        targetRole: data.targetRole ?? null,
         authorId: req.userId!,
       },
     });

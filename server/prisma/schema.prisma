@@ -480,12 +480,14 @@ model SleepEntry {
 
 // ==================== ANNOUNCEMENTS ====================
 model Announcement {
-  id        String    @id @default(cuid())
-  title     String
-  body      String
-  type      String    @default("info") // "info", "warning", "maintenance", "promo"
-  isActive  Boolean   @default(true)
-  endsAt    DateTime?
+  id         String    @id @default(cuid())
+  title      String
+  body       String
+  type       String    @default("info") // "info", "warning", "maintenance", "promo"
+  isActive   Boolean   @default(true)
+  endsAt     DateTime?
+  targetRole String?   // null = all users, "pro", "free", etc.
+  viewCount  Int       @default(0)
 
   authorId  String
   author    User      @relation("Announcements", fields: [authorId], references: [id])

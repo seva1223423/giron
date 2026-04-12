@@ -396,6 +396,8 @@ export interface Announcement {
   type: AnnouncementType;
   isActive: boolean;
   endsAt?: string | null;
+  targetRole?: string | null;
+  viewCount?: number;
   createdAt: string;
   author?: { firstName: string; lastName?: string };
 }
