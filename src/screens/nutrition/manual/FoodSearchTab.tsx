@@ -89,7 +89,7 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
           <TouchableOpacity key={food.name} onPress={() => { haptic.selection(); onSelectFood(food); }}>
             <Card style={{ marginBottom: spacing.sm, borderWidth: isSelected ? 1.5 : 0, borderColor: isSelected ? colors.primary : 'transparent' }} padding={spacing.md}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={[typography.bodySemibold, { color: isSelected ? colors.primary : colors.text }]}>{food.name}</Text>
+                <Text style={[typography.bodySemibold, { color: isSelected ? colors.primary : colors.text, flex: 1, marginRight: 8 }]} numberOfLines={1}>{food.name}</Text>
                 <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{food.calories} ккал/100г</Text>
               </View>
               <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>Б: {food.protein}г  Ж: {food.fats}г  У: {food.carbs}г</Text>
