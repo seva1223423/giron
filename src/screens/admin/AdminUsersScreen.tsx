@@ -326,6 +326,7 @@ export default function AdminUsersScreen() {
       const csv = await adminService.exportUsersCSV({
         role: role || undefined,
         plan: planFilter || undefined,
+        banned: bannedOnly || undefined,
       });
       const fileName = `users_${new Date().toISOString().split('T')[0]}.csv`;
       const path = `${FileSystem.cacheDirectory}${fileName}`;
