@@ -20,8 +20,12 @@ jest.mock('../services', () => ({
 
 import { useWorkoutStore } from '../store/useWorkoutStore';
 
+import type { MuscleGroup } from '../types';
+
 const mockExercise = {
-  id: 'ex-1', name: 'Bench Press', primaryMuscles: ['chest'], secondaryMuscles: ['triceps'],
+  id: 'ex-1', name: 'Bench Press',
+  primaryMuscles: ['chest'] as MuscleGroup[],
+  secondaryMuscles: ['triceps'] as MuscleGroup[],
   type: 'barbell' as const, category: 'strength' as const, difficulty: 'intermediate' as const,
   description: '', instructions: [],
 };
@@ -58,6 +62,7 @@ describe('useWorkoutStore', () => {
           exerciseId: 'ex-1',
           exercise: mockExercise,
           order: 0,
+          restSeconds: 90,
           sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 10, weight: 60, completed: false }],
         }],
       };
@@ -87,7 +92,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 0, weight: 0, completed: false }],
         }],
       });
@@ -105,7 +110,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 0, weight: 0, completed: false }],
         }],
       });
@@ -120,7 +125,7 @@ describe('useWorkoutStore', () => {
       // Set history with previous best
       useWorkoutStore.setState({
         workoutHistory: [mockWorkout('old-1', '2026-04-01', [{
-          id: 'we-old', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-old', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [{ id: 's-old', setNumber: 1, type: 'normal', reps: 10, weight: 80, completed: true }],
         }])],
       });
@@ -129,7 +134,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 0, weight: 0, completed: false }],
         }],
       });
@@ -145,7 +150,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [{ id: 's-1', setNumber: 1, type: 'warmup' as const, reps: 0, weight: 0, completed: false }],
         }],
       });
@@ -162,7 +167,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 10, weight: 80, completed: true }],
         }],
       });
@@ -181,7 +186,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [
             { id: 's-1', setNumber: 1, type: 'normal' as const, reps: 10, weight: 80, completed: true },
             { id: 's-2', setNumber: 2, type: 'normal' as const, reps: 8, weight: 80, completed: true },
@@ -208,8 +213,8 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [
-          { id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, sets: [] },
-          { id: 'we-2', exerciseId: 'ex-2', exercise: { ...mockExercise, id: 'ex-2' }, order: 1, sets: [] },
+          { id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90, sets: [] },
+          { id: 'we-2', exerciseId: 'ex-2', exercise: { ...mockExercise, id: 'ex-2' }, order: 1, restSeconds: 90, sets: [] },
         ],
       });
 
@@ -222,8 +227,8 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [
-          { id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, sets: [] },
-          { id: 'we-2', exerciseId: 'ex-2', exercise: { ...mockExercise, id: 'ex-2' }, order: 1, sets: [] },
+          { id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90, sets: [] },
+          { id: 'we-2', exerciseId: 'ex-2', exercise: { ...mockExercise, id: 'ex-2' }, order: 1, restSeconds: 90, sets: [] },
         ],
       });
 
@@ -236,7 +241,7 @@ describe('useWorkoutStore', () => {
       useWorkoutStore.getState().startWorkout({
         id: 'w-1',
         name: 'Test',
-        exercises: [{ id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, sets: [] }],
+        exercises: [{ id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90, sets: [] }],
       });
 
       useWorkoutStore.getState().nextExercise();
@@ -250,7 +255,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [{ id: 's-1', setNumber: 1, type: 'normal' as const, reps: 10, weight: 0, completed: false }],
         }],
       });
@@ -265,7 +270,7 @@ describe('useWorkoutStore', () => {
         id: 'w-1',
         name: 'Test',
         exercises: [{
-          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0,
+          id: 'we-1', exerciseId: 'ex-1', exercise: mockExercise, order: 0, restSeconds: 90,
           sets: [
             { id: 's-1', setNumber: 1, type: 'normal' as const, reps: 10, weight: 0, completed: false },
             { id: 's-2', setNumber: 2, type: 'normal' as const, reps: 10, weight: 0, completed: false },

@@ -193,4 +193,5 @@ const styles = StyleSheet.create({
   categories: { paddingHorizontal: spacing.xl, gap: spacing.sm, marginBottom: spacing.lg },
   categoryChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: borderRadius.full, borderWidth: 1 },
   newsList: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: borderRadius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginHorizontal: spacing.xl, marginBottom: spacing.md },
 });

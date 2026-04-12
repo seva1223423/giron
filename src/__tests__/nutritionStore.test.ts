@@ -19,10 +19,10 @@ jest.mock('../services', () => ({
 
 import { useNutritionStore } from '../store/useNutritionStore';
 
-const mockMeal = (id: string, type = 'lunch') => ({
+const mockMeal = (id: string, type: 'breakfast' | 'lunch' | 'dinner' | 'snack' = 'lunch') => ({
   id,
   type,
-  photoUrl: null,
+  photoUrl: undefined,
   totalCalories: 500,
   totalProtein: 30,
   totalFats: 20,
@@ -112,7 +112,7 @@ describe('useNutritionStore', () => {
     });
 
     test('sets water target', () => {
-      useNutritionStore.getState().setTargets('2026-04-08', { waterTargetMl: 3000 });
+      useNutritionStore.getState().setTargets('2026-04-08', { calories: 2000, protein: 150, fats: 70, carbs: 250, waterTargetMl: 3000 });
 
       const dayLog = useNutritionStore.getState().getDayLog('2026-04-08');
       expect(dayLog.waterTargetMl).toBe(3000);
