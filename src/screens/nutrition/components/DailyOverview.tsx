@@ -114,7 +114,7 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
 
       {/* Remaining macros summary */}
       {dayLog.targetCalories > 0 && (
-        <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.sm, textAlign: 'center' }]} numberOfLines={2}>
+        <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.sm, textAlign: 'center' }]} numberOfLines={3}>
           {`\u041E\u0441\u0442\u0430\u043B\u043E\u0441\u044C: ${remainingCal} \u043A\u043A\u0430\u043B \u00B7 ${remainingProtein}\u0433 \u0431\u0435\u043B\u043A\u0430 \u00B7 ${remainingFats}\u0433 \u0436\u0438\u0440\u043E\u0432 \u00B7 ${remainingCarbs}\u0433 \u0443\u0433\u043B\u0435\u0432\u043E\u0434\u043E\u0432`}
         </Text>
       )}
