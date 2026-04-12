@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DailyNutrition, Meal, NutritionItem } from '../types';
+import { DailyNutrition, Meal, NutritionItem, WaterLogEntry } from '../types';
 import { nutritionService } from '../services';
 
 interface NutritionStore {
@@ -15,6 +15,7 @@ interface NutritionStore {
   removeMeal: (date: string, mealId: string) => void;
   updateMealItem: (date: string, mealId: string, itemId: string, data: Partial<NutritionItem>) => void;
   addWater: (date: string, ml: number) => void;
+  removeMealItem: (date: string, mealId: string, itemId: string) => void;
   setTargets: (date: string, targets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl?: number }) => void;
   syncMealsFromServer: (date: string) => Promise<void>;
   saveFoodItem: (item: NutritionItem) => void;
@@ -123,16 +124,43 @@ export const useNutritionStore = create<NutritionStore>()(
 
       addWater: (date, ml) => set((s) => {
         const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const newEntry: WaterLogEntry = { time: timeStr, ml };
         return {
           dailyLog: {
             ...s.dailyLog,
             [date]: {
               ...dayLog,
               waterMl: dayLog.waterMl + ml,
+              waterLog: [...(dayLog.waterLog || []), newEntry],
             },
           },
         };
       }),
+
+      removeMealItem: (date, mealId, itemId) => {
+        set((s) => {
+          const dayLog = s.dailyLog[date];
+          if (!dayLog) return s;
+          const updatedMeals: Meal[] = [];
+          for (const meal of dayLog.meals) {
+            if (meal.id !== mealId) { updatedMeals.push(meal); continue; }
+            const updatedItems = meal.items.filter((item) => item.id !== itemId);
+            if (updatedItems.length === 0) continue; // remove meal entirely if no items left
+            const updated: Meal = {
+              ...meal,
+              items: updatedItems,
+              totalCalories: updatedItems.reduce((s, i) => s + i.calories, 0),
+              totalProtein: updatedItems.reduce((s, i) => s + i.protein, 0),
+              totalFats: updatedItems.reduce((s, i) => s + i.fats, 0),
+              totalCarbs: updatedItems.reduce((s, i) => s + i.carbs, 0),
+            };
+            updatedMeals.push(updated);
+          }
+          return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: updatedMeals } } };
+        });
+      },
 
       setTargets: (date, targets) => set((s) => {
         const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);

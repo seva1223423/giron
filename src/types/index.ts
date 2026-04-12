@@ -140,10 +140,16 @@ export interface Meal {
   createdAt: string;
 }
 
+export interface WaterLogEntry {
+  time: string; // ISO time string e.g. "09:30"
+  ml: number;
+}
+
 export interface DailyNutrition {
   date: string;
   meals: Meal[];
   waterMl: number;
+  waterLog?: WaterLogEntry[];
   targetCalories: number;
   targetProtein: number;
   targetFats: number;

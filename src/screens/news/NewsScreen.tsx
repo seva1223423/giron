@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator, TextInput, Animated as RNAnimated } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore } from '../../store';
@@ -31,6 +31,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchNews = useCallback(async () => {
     try {
@@ -73,8 +74,15 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (activeCategory !== 'all') {
       result = result.filter((n) => n.category?.includes(activeCategory as NewsCategory));
     }
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter(
+        (n) => n.title.toLowerCase().includes(q) || n.summary.toLowerCase().includes(q)
+      );
+    }
     return result;
-  }, [news, tab, activeCategory, savedIds]);
+  }, [news, tab, activeCategory, savedIds, searchQuery]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -98,6 +106,23 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         >
           <Text style={[typography.smallMedium, { color: tab === 'saved' ? '#FFF' : colors.textSecondary, fontWeight: '600' }]}>Сохранённое</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={{ color: colors.textTertiary, fontSize: 14, marginRight: spacing.sm }}>◯</Text>
+        <TextInput
+          style={[typography.body, { flex: 1, color: colors.text, padding: 0 }]}
+          placeholder="Поиск статей..."
+          placeholderTextColor={colors.textTertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={[typography.body, { color: colors.textTertiary }]}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
