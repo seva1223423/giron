@@ -192,7 +192,7 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={{ fontSize: 16 }}>{TYPE_EMOJI[type] || '🏋'}</Text>
-                      <Text style={[typography.bodyMedium, { color: colors.text }]}>{TYPE_LABELS[type] || type}</Text>
+                      <Text style={[typography.bodyMedium, { color: colors.text }]} numberOfLines={1}>{TYPE_LABELS[type] || type}</Text>
                       <Text style={[typography.caption, { color: colors.textTertiary }]}>{data.count}×</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
@@ -224,7 +224,7 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
             ]}>
               <Text style={{ fontSize: 20 }}>{TYPE_EMOJI[s.type] || '🏋'}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.small, { color: colors.text }]}>{TYPE_LABELS[s.type] || s.type}</Text>
+                <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>{TYPE_LABELS[s.type] || s.type}</Text>
                 <Text style={[typography.caption, { color: colors.textTertiary }]}>
                   {new Date(s.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                 </Text>

@@ -111,12 +111,12 @@ export const RecoveryScoreCard: React.FC = () => {
           </View>
           {/* Last sleep detail */}
           {recovery.lastSleep && (
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[typography.captionMedium, { color: colors.primary }]}>
+            <View style={{ alignItems: 'flex-end', maxWidth: 90 }}>
+              <Text style={[typography.captionMedium, { color: colors.primary }]} numberOfLines={1}>
                 🌙 {recovery.lastSleep.durationHours.toFixed(1)}ч
               </Text>
               {recovery.lastSleep.quality && (
-                <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
                   {'★'.repeat(recovery.lastSleep.quality)}{'☆'.repeat(5 - recovery.lastSleep.quality)}
                 </Text>
               )}
