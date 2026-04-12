@@ -321,6 +321,8 @@ export interface AdminStats {
     newThisMonth: number;
     activeNow: number;
     activeHour: number;
+    withSubscription: number;
+    withoutSubscription: number;
     byRole: Record<string, number>;
   };
   subscriptions: Array<{ plan: string; status: string; count: number }>;
@@ -329,8 +331,18 @@ export interface AdminStats {
     messagesToday: number;
     messagesThisWeek: number;
     requestsToday: number;
+    requestsThisWeek: number;
     cacheHitRate: number;
+    cacheHits: number;
+    cacheMisses: number;
     totalTokensEstimate: number;
+    errorsToday: number;
+    avgLatencyMs: number;
+    minLatencyMs: number;
+    maxLatencyMs: number;
+    provider: string;
+    providerDisplayName: string;
+    providerModel: string;
   };
   support: { openTickets: number; inProgressTickets: number };
   server: {
