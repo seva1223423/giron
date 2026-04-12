@@ -320,6 +320,7 @@ export interface AdminUserDetail extends AdminUserSummary {
   workouts: Array<{ id: string; name: string; completedAt?: string; totalVolume?: number; durationMinutes?: number }>;
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
   chatMessages: Array<{ id: string; content: string; createdAt: string }>;
+  cardioSessions?: Array<{ id: string; type: string; durationMinutes: number; distanceKm?: number | null; caloriesBurned?: number | null; createdAt: string }>;
   bodyWeights?: Array<{ id: string; weightKg: number; date: string }>;
   sleepEntries?: Array<{ id: string; date: string; durationHours: number; quality?: number | null }>;
 }
@@ -432,4 +433,10 @@ export interface AdminAnalytics {
   topPrograms?: Array<{ id: string; name: string; type: string; count: number }>;
   topExercises?: Array<{ id: string; name: string; type: string; count: number }>;
   period: number;
+  onboardingFunnel?: {
+    signups: number;
+    profiled: number;
+    firstWorkout: number;
+    converted: number;
+  };
 }

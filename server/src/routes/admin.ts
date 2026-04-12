@@ -391,6 +391,11 @@ router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) =
             take: 3,
             select: { id: true, content: true, createdAt: true },
           },
+          cardioSessions: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: { id: true, type: true, durationMinutes: true, distanceKm: true, caloriesBurned: true, createdAt: true },
+          },
           bodyWeights: {
             orderBy: { date: 'desc' },
             take: 12,
@@ -842,6 +847,15 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
       return { id: p.programId!, name: prog?.name ?? 'Unknown', type: prog?.type ?? '', count: p._count.id };
     });
 
+    // Onboarding funnel for new users in last 30 days
+    const thirtyAgo = new Date(Date.now() - 30 * 86400 * 1000);
+    const [newUsers30d, profiledUsers30d, firstWorkoutUsers30d, convertedUsers30d] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: thirtyAgo } } }),
+      prisma.user.count({ where: { createdAt: { gte: thirtyAgo }, goal: { not: null } } }),
+      prisma.user.count({ where: { createdAt: { gte: thirtyAgo }, workouts: { some: { completedAt: { not: null } } } } }),
+      prisma.user.count({ where: { createdAt: { gte: thirtyAgo }, subscription: { status: 'active', plan: { not: 'free' } } } }),
+    ]);
+
     // Totals for conversion funnel + top exercises
     const [totalUsers, paidUsers, activeLastWeek, topExercisesRaw] = await Promise.all([
       prisma.user.count(),
@@ -881,6 +895,12 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
       topPrograms,
       topExercises,
       period: numDays,
+      onboardingFunnel: {
+        signups: newUsers30d,
+        profiled: profiledUsers30d,
+        firstWorkout: firstWorkoutUsers30d,
+        converted: convertedUsers30d,
+      },
     });
   } catch (e) {
     logger.error('GET /admin/analytics:', e);

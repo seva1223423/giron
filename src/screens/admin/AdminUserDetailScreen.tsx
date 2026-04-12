@@ -780,6 +780,23 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* Recent cardio sessions */}
+      {user.cardioSessions && user.cardioSessions.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Последние кардио-сессии</Text>
+          {user.cardioSessions.map((s) => (
+            <View key={s.id} style={styles.listRow}>
+              <Text style={styles.listMain} numberOfLines={1}>
+                {s.type.charAt(0).toUpperCase() + s.type.slice(1)} — {s.durationMinutes} мин
+                {s.distanceKm ? ` · ${s.distanceKm.toFixed(1)} км` : ''}
+                {s.caloriesBurned ? ` · ${s.caloriesBurned} ккал` : ''}
+              </Text>
+              <Text style={styles.listMeta}>{new Date(s.createdAt).toLocaleDateString('ru-RU')}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Admin note */}
       <View style={styles.card}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

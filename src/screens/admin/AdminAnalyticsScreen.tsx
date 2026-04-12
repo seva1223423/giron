@@ -314,6 +314,37 @@ export default function AdminAnalyticsScreen() {
         </View>
       </View>
 
+      {/* Onboarding funnel */}
+      {data.onboardingFunnel && data.onboardingFunnel.signups > 0 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Онбординг (новые за 30 дней)</Text>
+          <Text style={styles.chartSub}>Как далеко прошли новые пользователи</Text>
+          {[
+            { label: 'Зарегистрировались', value: data.onboardingFunnel.signups, color: '#6366F1' },
+            { label: 'Заполнили цель', value: data.onboardingFunnel.profiled, color: '#8B5CF6' },
+            { label: 'Первая тренировка', value: data.onboardingFunnel.firstWorkout, color: '#F59E0B' },
+            { label: 'Оформили подписку', value: data.onboardingFunnel.converted, color: '#10B981' },
+          ].map((step) => {
+            const pct = data.onboardingFunnel!.signups > 0
+              ? Math.round((step.value / data.onboardingFunnel!.signups) * 100)
+              : 0;
+            return (
+              <View key={step.label} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <Text style={styles.funnelLabel}>{step.label}</Text>
+                  <Text style={[styles.funnelValue, { color: step.color }]}>
+                    {step.value} <Text style={styles.funnelPct}>({pct}%)</Text>
+                  </Text>
+                </View>
+                <View style={styles.funnelTrack}>
+                  <View style={[styles.funnelFill, { width: `${pct}%` as any, backgroundColor: step.color }]} />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {/* Top programs */}
       {data.topPrograms && data.topPrograms.length > 0 && (
         <View style={styles.chartCard}>
