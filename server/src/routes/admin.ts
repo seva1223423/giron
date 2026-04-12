@@ -253,41 +253,48 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/users/:id — user detail */
 router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.params.id as string },
-      include: {
-        subscription: true,
-        _count: {
-          select: {
-            workouts: true,
-            meals: true,
-            chatMessages: true,
-            cardioSessions: true,
-            supportTickets: true,
+    const [user, firstWorkout] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.params.id as string },
+        include: {
+          subscription: true,
+          _count: {
+            select: {
+              workouts: true,
+              meals: true,
+              chatMessages: true,
+              cardioSessions: true,
+              supportTickets: true,
+            },
+          },
+          workouts: {
+            where: { completedAt: { not: null } },
+            orderBy: { completedAt: 'desc' },
+            take: 5,
+            select: { id: true, name: true, completedAt: true, totalVolume: true, durationMinutes: true },
+          },
+          supportTickets: {
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+            select: { id: true, subject: true, status: true, createdAt: true },
+          },
+          chatMessages: {
+            where: { role: 'user' },
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+            select: { id: true, content: true, createdAt: true },
           },
         },
-        workouts: {
-          where: { completedAt: { not: null } },
-          orderBy: { completedAt: 'desc' },
-          take: 5,
-          select: { id: true, name: true, completedAt: true, totalVolume: true, durationMinutes: true },
-        },
-        supportTickets: {
-          orderBy: { createdAt: 'desc' },
-          take: 3,
-          select: { id: true, subject: true, status: true, createdAt: true },
-        },
-        chatMessages: {
-          where: { role: 'user' },
-          orderBy: { createdAt: 'desc' },
-          take: 3,
-          select: { id: true, content: true, createdAt: true },
-        },
-      },
-    });
+      }),
+      prisma.workout.findFirst({
+        where: { userId: req.params.id as string, completedAt: { not: null } },
+        orderBy: { completedAt: 'asc' },
+        select: { completedAt: true },
+      }),
+    ]);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
     const { passwordHash, ...safeUser } = user as any;
-    res.json(safeUser);
+    res.json({ ...safeUser, firstWorkoutAt: firstWorkout?.completedAt ?? null });
   } catch (e) {
     logger.error('GET /admin/users/:id:', e);
     res.status(500).json({ error: 'Ошибка получения пользователя' });
@@ -549,33 +556,22 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
     since.setDate(since.getDate() - numDays);
     since.setHours(0, 0, 0, 0);
 
-    // Daily new user signups
-    const signupsRaw = await prisma.user.findMany({
-      where: { createdAt: { gte: since } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    // Previous period window for comparison
+    const prevSince = new Date(since);
+    prevSince.setDate(prevSince.getDate() - numDays);
 
-    // Daily workout completions
-    const workoutsRaw = await prisma.workout.findMany({
-      where: { completedAt: { gte: since, not: null } },
-      select: { completedAt: true },
-      orderBy: { completedAt: 'asc' },
-    });
-
-    // Daily AI messages
-    const aiRaw = await prisma.chatMessage.findMany({
-      where: { role: 'user', createdAt: { gte: since } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    // Daily cardio sessions
-    const cardioRaw = await prisma.cardioSession.findMany({
-      where: { createdAt: { gte: since } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    const [signupsRaw, workoutsRaw, aiRaw, cardioRaw, prevSignups, prevWorkouts, prevAi, prevCardio] = await Promise.all([
+      // Current period
+      prisma.user.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true }, orderBy: { createdAt: 'asc' } }),
+      prisma.workout.findMany({ where: { completedAt: { gte: since, not: null } }, select: { completedAt: true }, orderBy: { completedAt: 'asc' } }),
+      prisma.chatMessage.findMany({ where: { role: 'user', createdAt: { gte: since } }, select: { createdAt: true }, orderBy: { createdAt: 'asc' } }),
+      prisma.cardioSession.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true }, orderBy: { createdAt: 'asc' } }),
+      // Previous period counts
+      prisma.user.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
+      prisma.workout.count({ where: { completedAt: { gte: prevSince, lt: since, not: null } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevSince, lt: since } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
+    ]);
 
     // Build day-by-day buckets
     const buckets: Record<string, { signups: number; workouts: number; ai: number; cardio: number }> = {};
@@ -613,6 +609,7 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
         conversionRate: totalUsers > 0 ? Math.round((paidUsers / totalUsers) * 100) : 0,
         retentionRate: totalUsers > 0 ? Math.round((activeLastWeek / totalUsers) * 100) : 0,
       },
+      previous: { signups: prevSignups, workouts: prevWorkouts, ai: prevAi, cardio: prevCardio },
       period: numDays,
     });
   } catch (e) {

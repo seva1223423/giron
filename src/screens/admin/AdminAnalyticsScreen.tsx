@@ -106,6 +106,16 @@ export default function AdminAnalyticsScreen() {
   const avgSignupsPerDay = data.period > 0 ? (totalSignups / data.period).toFixed(1) : '0';
   const avgWorkoutsPerDay = data.period > 0 ? (totalWorkoutsInPeriod / data.period).toFixed(1) : '0';
 
+  const pct = (cur: number, prev: number) => {
+    if (prev === 0) return cur > 0 ? '+∞%' : '—';
+    const diff = Math.round(((cur - prev) / prev) * 100);
+    return diff >= 0 ? `+${diff}%` : `${diff}%`;
+  };
+  const pctColor = (cur: number, prev: number) => {
+    if (prev === 0) return '#6B7280';
+    return cur >= prev ? '#10B981' : '#EF4444';
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -130,18 +140,38 @@ export default function AdminAnalyticsScreen() {
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryNum, { color: '#6366F1' }]}>{totalSignups}</Text>
           <Text style={styles.summaryLabel}>Регистраций</Text>
+          {data.previous && (
+            <Text style={[styles.deltaText, { color: pctColor(totalSignups, data.previous.signups) }]}>
+              {pct(totalSignups, data.previous.signups)}
+            </Text>
+          )}
         </View>
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryNum, { color: '#F59E0B' }]}>{totalWorkoutsInPeriod}</Text>
           <Text style={styles.summaryLabel}>Тренировок</Text>
+          {data.previous && (
+            <Text style={[styles.deltaText, { color: pctColor(totalWorkoutsInPeriod, data.previous.workouts) }]}>
+              {pct(totalWorkoutsInPeriod, data.previous.workouts)}
+            </Text>
+          )}
         </View>
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryNum, { color: '#8B5CF6' }]}>{totalAiInPeriod}</Text>
           <Text style={styles.summaryLabel}>ИИ запросов</Text>
+          {data.previous && (
+            <Text style={[styles.deltaText, { color: pctColor(totalAiInPeriod, data.previous.ai) }]}>
+              {pct(totalAiInPeriod, data.previous.ai)}
+            </Text>
+          )}
         </View>
         <View style={styles.summaryCard}>
           <Text style={[styles.summaryNum, { color: '#10B981' }]}>{totalCardioInPeriod}</Text>
           <Text style={styles.summaryLabel}>Кардио</Text>
+          {data.previous && (
+            <Text style={[styles.deltaText, { color: pctColor(totalCardioInPeriod, data.previous.cardio) }]}>
+              {pct(totalCardioInPeriod, data.previous.cardio)}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -259,6 +289,7 @@ const styles = StyleSheet.create({
   summaryNum: { fontSize: 22, fontWeight: '800' },
   summaryLabel: { fontSize: 10, color: '#6B7280', marginTop: 2, textAlign: 'center' },
   summarySub: { fontSize: 10, color: '#4B5563', marginTop: 1 },
+  deltaText: { fontSize: 10, fontWeight: '700', marginTop: 2 },
 
   chartCard: { backgroundColor: '#1C1C1E', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#2C2C2E' },
   chartTitle: { fontSize: 13, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 },

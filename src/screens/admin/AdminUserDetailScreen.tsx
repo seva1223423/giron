@@ -299,6 +299,16 @@ export default function AdminUserDetailScreen() {
               Зарегистрирован {new Date(user.createdAt).toLocaleDateString('ru-RU')}
             </Text>
           </View>
+          {user.firstWorkoutAt && (
+            <Text style={styles.meta}>
+              1-я тренировка: {new Date(user.firstWorkoutAt).toLocaleDateString('ru-RU')}
+            </Text>
+          )}
+          {user.workouts.length > 0 && user.workouts[0].completedAt && (
+            <Text style={styles.meta}>
+              Последняя: {new Date(user.workouts[0].completedAt).toLocaleDateString('ru-RU')}
+            </Text>
+          )}
         </View>
       </View>
 
