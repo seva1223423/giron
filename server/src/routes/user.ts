@@ -140,7 +140,7 @@ router.post('/measurements', authenticate, async (req: AuthRequest, res: Respons
     const parsed = measurementSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
     const { date, ...fields } = parsed.data;
-    const record = await (prisma as any).bodyMeasurement.upsert({
+    const record = await prisma.bodyMeasurement.upsert({
       where: { userId_date: { userId: req.userId!, date: new Date(date) } },
       update: fields,
       create: { userId: req.userId!, date: new Date(date), ...fields },
@@ -154,7 +154,7 @@ router.post('/measurements', authenticate, async (req: AuthRequest, res: Respons
 
 router.get('/measurements', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const records = await (prisma as any).bodyMeasurement.findMany({
+    const records = await prisma.bodyMeasurement.findMany({
       where: { userId: req.userId },
       orderBy: { date: 'desc' },
       take: 60,

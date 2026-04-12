@@ -150,7 +150,7 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
 router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         subscription: true,
         _count: {
@@ -197,7 +197,7 @@ router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Resp
       return res.status(400).json({ error: 'Нельзя убрать у себя роль администратора' });
     }
     const user = await prisma.user.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: { role },
       select: { id: true, email: true, firstName: true, role: true },
     });
@@ -206,7 +206,7 @@ router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Resp
       data: {
         adminId: req.userId!,
         action: 'CHANGE_ROLE',
-        targetId: req.params.id,
+        targetId: req.params.id as string,
         details: `role → ${role}`,
       },
     });
@@ -229,7 +229,7 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
   try {
     const data = changeSubSchema.parse(req.body);
     const sub = await prisma.subscription.upsert({
-      where: { userId: req.params.id },
+      where: { userId: req.params.id as string },
       update: {
         plan: data.plan,
         status: data.status ?? 'active',
@@ -237,7 +237,7 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
         updatedAt: new Date(),
       },
       create: {
-        userId: req.params.id,
+        userId: req.params.id as string,
         plan: data.plan,
         status: data.status ?? 'active',
         startDate: new Date(),
@@ -248,7 +248,7 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
       data: {
         adminId: req.userId!,
         action: 'CHANGE_SUBSCRIPTION',
-        targetId: req.params.id,
+        targetId: req.params.id as string,
         details: `plan → ${data.plan}, status → ${data.status ?? 'active'}`,
       },
     });
@@ -301,7 +301,7 @@ router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => 
           messages: {
             orderBy: { createdAt: 'desc' },
             take: 1,
-            include: { author: { select: { firstName: true, isStaff: false } } },
+            include: { author: { select: { firstName: true, lastName: true } } },
           },
         },
         orderBy: [
