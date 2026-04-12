@@ -265,8 +265,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               Сфотографируй еду или загрузи из галереи{'\n'}ИИ определит продукты и рассчитает КБЖУ
             </Text>
             <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
-              <Button title="📷 Камера" onPress={() => pickImage(true)} />
-              <Button title="Галерея" variant="outline" onPress={() => pickImage(false)} />
+              <Button title="📷 Камера" onPress={() => pickImage(true)} style={{ flex: 1 }} />
+              <Button title="Галерея" variant="outline" onPress={() => pickImage(false)} style={{ flex: 1 }} />
             </View>
             <TouchableOpacity onPress={openBarcodeScanner} style={[styles.barcodeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={{ fontSize: 22 }}>📦</Text>
@@ -402,8 +402,8 @@ const styles = StyleSheet.create({
   imageContainer: { marginBottom: spacing.lg, borderRadius: borderRadius.lg, overflow: 'hidden' },
   image: { width: '100%', height: 250, borderRadius: borderRadius.lg },
   retakeBtn: { position: 'absolute', top: spacing.md, right: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm },
-  mealTypeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl },
-  mealTypeBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1 },
+  mealTypeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl, flexWrap: 'wrap' },
+  mealTypeBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1, flex: 1 },
   nutritionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   badge: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.full },
   barcodeBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
