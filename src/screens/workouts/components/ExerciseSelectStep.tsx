@@ -71,7 +71,7 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
         <TouchableOpacity onPress={onCancel}>
           <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
         </TouchableOpacity>
-        <Text style={[typography.h4, { color: colors.text }]}>Выбери упражнения</Text>
+        <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>Выбери упражнения</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <TouchableOpacity onPress={() => setShowCreateModal(true)}>
             <Text style={[typography.bodySemibold, { color: colors.accent }]}>+ Своё</Text>
