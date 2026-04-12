@@ -125,7 +125,7 @@ export const PRToast: React.FC<Props> = ({ toast }) => {
           <Text style={[typography.small, { color: 'rgba(255,255,255,0.9)', marginTop: 1 }]} numberOfLines={1}>
             {toast.name}
           </Text>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#FEF3C7', marginTop: 1 }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#FEF3C7', marginTop: 1 }} numberOfLines={1}>
             {improvement}
           </Text>
         </View>
