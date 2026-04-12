@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
   TouchableOpacity, ScrollView, TextInput,
@@ -21,6 +21,33 @@ const ACTION_META: Record<string, { color: string; icon: string; label: string }
 };
 
 const ACTION_FILTERS = ['', ...Object.keys(ACTION_META)];
+
+// Date range presets
+type DatePreset = 'all' | 'today' | 'week' | 'month';
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: 'all',   label: 'Всё время' },
+  { key: 'today', label: 'Сегодня' },
+  { key: 'week',  label: 'Неделя' },
+  { key: 'month', label: 'Месяц' },
+];
+
+function getDateRange(preset: DatePreset): { from?: string; to?: string } {
+  const now = new Date();
+  if (preset === 'all') return {};
+  if (preset === 'today') {
+    const from = new Date(now); from.setHours(0, 0, 0, 0);
+    return { from: from.toISOString() };
+  }
+  if (preset === 'week') {
+    const from = new Date(now); from.setDate(from.getDate() - 7);
+    return { from: from.toISOString() };
+  }
+  if (preset === 'month') {
+    const from = new Date(now); from.setDate(from.getDate() - 30);
+    return { from: from.toISOString() };
+  }
+  return {};
+}
 
 function LogRow({ log, onUserPress }: { log: AdminLog; onUserPress: (id: string) => void }) {
   const meta = ACTION_META[log.action] ?? { color: '#6B7280', icon: '•', label: log.action };
@@ -65,11 +92,29 @@ export default function AdminLogsScreen() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [search, setSearch] = useState('');
+  const [searchDebounced, setSearchDebounced] = useState('');
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = (text: string) => {
+    setSearch(text);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setSearchDebounced(text), 400);
+  };
 
   const load = useCallback(async (p: number, append = false) => {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
-      const data = await adminService.getLogs({ page: p, limit: 50, action: actionFilter || undefined });
+      const range = getDateRange(datePreset);
+      const data = await adminService.getLogs({
+        page: p,
+        limit: 50,
+        action: actionFilter || undefined,
+        search: searchDebounced.trim() || undefined,
+        from: range.from,
+        to: range.to,
+      });
       setLogs(append ? (prev) => [...prev, ...data.logs] : data.logs);
       setTotal(data.total);
       setPage(p);
@@ -78,9 +123,9 @@ export default function AdminLogsScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [actionFilter]);
+  }, [actionFilter, datePreset, searchDebounced]);
 
-  useEffect(() => { load(1); }, [actionFilter]);
+  useEffect(() => { load(1); }, [actionFilter, datePreset, searchDebounced]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -88,6 +133,31 @@ export default function AdminLogsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Search */}
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={handleSearchChange}
+          placeholder="Поиск по админу или деталям..."
+          placeholderTextColor="#4B5563"
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      {/* Date preset chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateFilters}>
+        {DATE_PRESETS.map((d) => (
+          <TouchableOpacity
+            key={d.key}
+            style={[styles.dateChip, datePreset === d.key && styles.dateChipActive]}
+            onPress={() => setDatePreset(d.key)}
+          >
+            <Text style={[styles.dateChipText, datePreset === d.key && { color: '#FFFFFF' }]}>{d.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       {/* Action filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
         {ACTION_FILTERS.map((a) => {
@@ -108,7 +178,9 @@ export default function AdminLogsScreen() {
         })}
       </ScrollView>
 
-      <Text style={styles.totalLabel}>Записей: {total}</Text>
+      <Text style={styles.totalLabel}>
+        Записей: {total}{searchDebounced ? ` (поиск: "${searchDebounced}")` : ''}
+      </Text>
 
       {loading ? (
         <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
@@ -137,13 +209,29 @@ export default function AdminLogsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F0F0F' },
   center: { flex: 1, justifyContent: 'center' },
-  filters: { paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
+
+  searchRow: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 },
+  searchInput: {
+    backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
+    fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E',
+  },
+
+  dateFilters: { paddingHorizontal: 12, paddingBottom: 6, gap: 6 },
+  dateChip: {
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E',
+  },
+  dateChipActive: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  dateChipText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+
+  filters: { paddingHorizontal: 12, paddingVertical: 4, gap: 6 },
   filterChip: {
     flexDirection: 'row', alignItems: 'center',
     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
     backgroundColor: '#1C1C1E',
   },
   filterText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+
   totalLabel: { fontSize: 12, color: '#6B7280', paddingHorizontal: 16, marginBottom: 4 },
   list: { padding: 12, paddingBottom: 32 },
   empty: { textAlign: 'center', color: '#6B7280', marginTop: 40, fontSize: 15 },

@@ -123,6 +123,19 @@ const subStyles = StyleSheet.create({
 
 const DAY_MS = 86400 * 1000;
 
+function engagementScore(user: AdminUserSummary): number {
+  const workoutPts = Math.min(user._count.workouts * 2, 50);
+  const aiPts = Math.min(user._count.chatMessages, 25);
+  const subPts = user.subscription?.plan && user.subscription.plan !== 'free' ? 25 : 0;
+  return Math.round(workoutPts + aiPts + subPts);
+}
+
+function engColor(score: number): string {
+  if (score >= 70) return '#10B981';
+  if (score >= 35) return '#F59E0B';
+  return '#EF4444';
+}
+
 function UserRow({
   user, onPress, onRefresh,
 }: {
@@ -178,9 +191,13 @@ function UserRow({
   const daysSinceWorkout = lastWorkoutAt
     ? Math.floor((Date.now() - new Date(lastWorkoutAt).getTime()) / DAY_MS)
     : null;
+  const score = engagementScore(user);
+  const scoreColor = engColor(score);
+  // Churn risk: was active (5+ workouts) but hasn't trained in 21+ days
+  const isChurnRisk = !user.isBanned && user._count.workouts >= 5 && daysSinceWorkout !== null && daysSinceWorkout >= 21;
 
   return (
-    <View style={[styles.row, user.isBanned && styles.rowBanned]}>
+    <View style={[styles.row, user.isBanned && styles.rowBanned, isChurnRisk && styles.rowChurn]}>
       <TouchableOpacity style={styles.rowTop} onPress={onPress} onLongPress={handleLongPress} delayLongPress={400} activeOpacity={0.7}>
         <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#EF444433' : planColor + '33', borderColor: user.isBanned ? '#EF4444' : planColor }]}>
           <Text style={[styles.avatarText, { color: user.isBanned ? '#EF4444' : planColor }]}>
@@ -196,16 +213,19 @@ function UserRow({
             {isNew && !user.isBanned && (
               <View style={styles.newBadge}><Text style={styles.newText}>NEW</Text></View>
             )}
+            {isChurnRisk && (
+              <View style={styles.churnBadge}><Text style={styles.churnText}>CHURN</Text></View>
+            )}
           </View>
           <Text style={styles.email} numberOfLines={1}>{user.email}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
             <Text style={styles.meta}>{ROLE_LABEL[user.role] ?? user.role}</Text>
             <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.meta}>{user._count.workouts} тренировок</Text>
+            <Text style={styles.meta}>{user._count.workouts} тр</Text>
             {daysSinceWorkout !== null && (
               <>
                 <Text style={styles.metaDot}>·</Text>
-                <Text style={[styles.meta, daysSinceWorkout > 14 && { color: '#EF444460' }]}>
+                <Text style={[styles.meta, daysSinceWorkout > 14 && { color: '#EF444480' }]}>
                   {daysSinceWorkout === 0 ? 'сегодня' : `${daysSinceWorkout}д назад`}
                 </Text>
               </>
@@ -223,7 +243,13 @@ function UserRow({
             <Text style={styles.banReason} numberOfLines={1}>Причина: {user.banReason}</Text>
           )}
         </View>
-        <Text style={styles.arrow}>›</Text>
+        {/* Engagement score badge */}
+        <View style={styles.scoreCol}>
+          <View style={[styles.scoreBadge, { borderColor: scoreColor + '60', backgroundColor: scoreColor + '18' }]}>
+            <Text style={[styles.scoreNum, { color: scoreColor }]}>{score}</Text>
+          </View>
+          <Text style={styles.scoreLabel}>eng</Text>
+        </View>
       </TouchableOpacity>
       {!user.isBanned && <SubActions user={user} onDone={onRefresh} />}
     </View>
@@ -466,9 +492,16 @@ const styles = StyleSheet.create({
   planBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   planText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   rowBanned: { borderColor: '#EF444440', backgroundColor: '#1A0A0A' },
+  rowChurn: { borderColor: '#F59E0B40' },
   bannedBadge: { backgroundColor: '#EF444422', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#EF444450' },
   bannedText: { fontSize: 9, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5 },
   banReason: { fontSize: 11, color: '#EF444488', marginTop: 2, fontStyle: 'italic' },
   newBadge: { backgroundColor: '#10B98122', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#10B98150' },
   newText: { fontSize: 9, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
+  churnBadge: { backgroundColor: '#F59E0B22', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#F59E0B50' },
+  churnText: { fontSize: 9, fontWeight: '800', color: '#F59E0B', letterSpacing: 0.5 },
+  scoreCol: { alignItems: 'center', gap: 2, marginLeft: 4 },
+  scoreBadge: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  scoreNum: { fontSize: 12, fontWeight: '800' },
+  scoreLabel: { fontSize: 9, color: '#4B5563', fontWeight: '600', letterSpacing: 0.5 },
 });

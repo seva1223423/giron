@@ -658,13 +658,26 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
 /** GET /admin/logs — recent admin actions with filter */
 router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { page = '1', limit = '50', action, adminId } = req.query as Record<string, string>;
+    const { page = '1', limit = '50', action, adminId, search, from, to } = req.query as Record<string, string>;
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
     const skip = (pageNum - 1) * limitNum;
     const where: any = {};
     if (action) where.action = action;
     if (adminId) where.adminId = adminId;
+    if (search) {
+      where.OR = [
+        { details: { contains: search, mode: 'insensitive' } },
+        { admin: { email: { contains: search, mode: 'insensitive' } } },
+        { admin: { firstName: { contains: search, mode: 'insensitive' } } },
+        { admin: { lastName: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to);
+    }
     const [logs, total] = await Promise.all([
       prisma.adminLog.findMany({
         where,
