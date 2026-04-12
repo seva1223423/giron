@@ -79,6 +79,32 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
     const freeMem = os.freemem();
     const uptime = process.uptime();
 
+    // DB health ping
+    let dbPingMs: number | null = null;
+    try {
+      const dbStart = Date.now();
+      await prisma.$queryRaw`SELECT 1`;
+      dbPingMs = Date.now() - dbStart;
+    } catch { dbPingMs = null; }
+
+    // Top active users this week (by workout count)
+    const topUsers = await prisma.workout.groupBy({
+      by: ['userId'],
+      where: { completedAt: { gte: weekStart } },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+    const topUserIds = topUsers.map((t) => t.userId);
+    const topUserDetails = topUserIds.length > 0 ? await prisma.user.findMany({
+      where: { id: { in: topUserIds } },
+      select: { id: true, firstName: true, lastName: true },
+    }) : [];
+    const topActiveUsers = topUsers.map((t) => {
+      const u = topUserDetails.find((d) => d.id === t.userId);
+      return { userId: t.userId, name: u ? `${u.firstName} ${u.lastName ?? ''}`.trim() : 'Unknown', workouts: t._count.id };
+    });
+
     const aiMetrics = getAIMetrics();
     const activeNow = getActiveUsersCount(5 * 60 * 1000);    // 5 min
     const activeHour = getActiveUsersCount(60 * 60 * 1000);  // 1 hour
@@ -129,6 +155,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         inProgressTickets,
         resolvedTickets,
       },
+      topActiveUsers,
       server: {
         uptimeSeconds: Math.round(uptime),
         memoryUsedMb: Math.round(memUsage.heapUsed / 1024 / 1024),
@@ -139,6 +166,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         loadAvg: os.loadavg(),
         platform: os.platform(),
         nodeVersion: process.version,
+        dbPingMs,
       },
     });
   } catch (e) {
@@ -432,6 +460,55 @@ router.delete('/users/:id', requireAdmin, async (req: AuthRequest, res: Response
   } catch (e) {
     logger.error('DELETE /admin/users/:id:', e);
     res.status(500).json({ error: 'Ошибка удаления пользователя' });
+  }
+});
+
+/** GET /admin/users/export — CSV export of user list */
+router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { role, plan, banned } = req.query as Record<string, string>;
+    const where: any = {};
+    if (role) where.role = role.toUpperCase();
+    if (banned === 'true') where.isBanned = true;
+    if (plan) where.subscription = { plan, status: 'active' };
+
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        role: true, createdAt: true, isBanned: true,
+        subscription: { select: { plan: true, status: true, endDate: true } },
+        _count: { select: { workouts: true, chatMessages: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+
+    const header = 'id,email,firstName,lastName,role,plan,subStatus,workouts,aiMessages,createdAt,isBanned\n';
+    const rows = users.map((u) => [
+      u.id,
+      u.email,
+      u.firstName,
+      u.lastName ?? '',
+      u.role,
+      u.subscription?.plan ?? 'free',
+      u.subscription?.status ?? 'none',
+      u._count.workouts,
+      u._count.chatMessages,
+      u.createdAt.toISOString().split('T')[0],
+      u.isBanned ? '1' : '0',
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'EXPORT_USERS', details: `${users.length} users exported` },
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="users_${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(header + rows.join('\n'));
+  } catch (e) {
+    logger.error('GET /admin/users/export:', e);
+    res.status(500).json({ error: 'Ошибка экспорта' });
   }
 });
 

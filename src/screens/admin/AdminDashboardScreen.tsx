@@ -383,8 +383,34 @@ export default function AdminDashboardScreen() {
           <Text style={styles.serverInfoItem}>Аптайм: {formatUptime(stats.server.uptimeSeconds)}</Text>
           <Text style={styles.serverInfoItem}>{stats.server.platform}</Text>
           <Text style={styles.serverInfoItem}>{stats.server.nodeVersion}</Text>
+          {stats.server.dbPingMs != null && (
+            <Text style={[styles.serverInfoItem, { color: stats.server.dbPingMs > 200 ? '#EF4444' : stats.server.dbPingMs > 80 ? '#F59E0B' : '#10B981' }]}>
+              DB: {stats.server.dbPingMs}мс
+            </Text>
+          )}
         </View>
       </View>
+
+      {/* ── Top active users this week ─────────────────────────────────── */}
+      {stats.topActiveUsers && stats.topActiveUsers.length > 0 && (
+        <>
+          <SectionTitle title="Топ активных (7 дней)" />
+          <View style={styles.rolesCard}>
+            {stats.topActiveUsers.map((u, i) => (
+              <TouchableOpacity
+                key={u.userId}
+                style={styles.roleRow}
+                onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: u.userId })}
+              >
+                <Text style={styles.roleLabel}>
+                  {i + 1}. {u.name}
+                </Text>
+                <Text style={styles.roleCount}>{u.workouts} тр.</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
 
       {/* ── Subscriptions breakdown ────────────────────────────────────── */}
       {stats.subscriptions.length > 0 && (
