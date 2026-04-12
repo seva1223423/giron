@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { adminService } from '../../services/adminService';
+import { supportService } from '../../services/supportService';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { SupportTicket, TicketStatus, TicketPriority } from '../../types';
 
@@ -45,7 +46,15 @@ function formatWait(dateStr: string): { label: string; color: string } {
   return { label: `${Math.round(h)}ч`, color: '#EF4444' };
 }
 
-function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => void }) {
+function TicketRow({
+  ticket, onPress, onLongPress, selected, selectMode,
+}: {
+  ticket: SupportTicket;
+  onPress: () => void;
+  onLongPress: () => void;
+  selected: boolean;
+  selectMode: boolean;
+}) {
   const isUrgent = ticket.priority === 'urgent' && ticket.status !== 'closed';
   const lastMsg = ticket.messages?.[0];
   const needsReply = lastMsg && !lastMsg.isStaff && ticket.status !== 'closed' && ticket.status !== 'resolved';
@@ -56,11 +65,19 @@ function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => 
         styles.card,
         isUrgent && { borderLeftWidth: 3, borderLeftColor: '#EF4444', borderColor: '#EF444430' },
         needsReply && !isUrgent && { borderLeftWidth: 3, borderLeftColor: '#F59E0B', borderColor: '#F59E0B20' },
+        selected && { backgroundColor: '#6366F115', borderColor: '#6366F150' },
       ]}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
       activeOpacity={0.7}
     >
       <View style={styles.cardTop}>
+        {selectMode && (
+          <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+            {selected && <Text style={{ fontSize: 10, color: '#FFFFFF', fontWeight: '800' }}>✓</Text>}
+          </View>
+        )}
         <Text style={styles.subject} numberOfLines={1}>{ticket.subject}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {wait && (
@@ -111,6 +128,10 @@ export default function AdminSupportScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  // Bulk select
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const exportCSV = useCallback(async () => {
     const canShare = await Sharing.isAvailableAsync();
@@ -149,6 +170,66 @@ export default function AdminSupportScreen() {
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
   }, [loadingMore, page, pages, load]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelected(new Set());
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const displayedTickets = needsReplyFilter
+      ? tickets.filter((t) => {
+          const m = t.messages?.[0];
+          return m && !m.isStaff && t.status !== 'closed' && t.status !== 'resolved';
+        })
+      : tickets;
+    setSelected(new Set(displayedTickets.map((t) => t.id)));
+  }, [tickets, needsReplyFilter]);
+
+  const bulkUpdate = useCallback(async (newStatus: TicketStatus) => {
+    if (selected.size === 0 || bulkBusy) return;
+    Alert.alert(
+      `${newStatus === 'closed' ? 'Закрыть' : 'Решить'} ${selected.size} тикетов?`,
+      'Это действие изменит статус выбранных тикетов.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Применить',
+          onPress: async () => {
+            setBulkBusy(true);
+            try {
+              await Promise.all(
+                Array.from(selected).map((id) =>
+                  supportService.updateTicketStatus(id, { status: newStatus })
+                )
+              );
+              exitSelectMode();
+              await load(1);
+            } catch {
+              Alert.alert('Ошибка', 'Не удалось обновить часть тикетов');
+            } finally {
+              setBulkBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [selected, bulkBusy, exitSelectMode, load]);
+
+  const displayedTickets = needsReplyFilter
+    ? tickets.filter((t) => {
+        const m = t.messages?.[0];
+        return m && !m.isStaff && t.status !== 'closed' && t.status !== 'resolved';
+      })
+    : tickets;
 
   return (
     <View style={styles.container}>
@@ -206,10 +287,25 @@ export default function AdminSupportScreen() {
             {needsReplyFilter ? '✓ Ждут ответа' : 'Ждут ответа'}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.priorityBtn, selectMode && { backgroundColor: '#6366F122', borderColor: '#6366F160' }]}
+          onPress={() => { if (selectMode) exitSelectMode(); else setSelectMode(true); }}
+        >
+          <Text style={[styles.priorityText, selectMode && { color: '#6366F1' }]}>
+            {selectMode ? `✓ Выбор (${selected.size})` : 'Выбрать'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 4 }}>
-        <Text style={styles.totalLabel}>Всего: {total}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={styles.totalLabel}>Всего: {total}</Text>
+          {selectMode && (
+            <TouchableOpacity onPress={selectAll}>
+              <Text style={{ fontSize: 12, color: '#6366F1', fontWeight: '600' }}>Выбрать все</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <TouchableOpacity onPress={exportCSV} disabled={exporting} style={styles.exportBtn}>
           {exporting ? <ActivityIndicator size="small" color="#6366F1" /> : <Text style={styles.exportBtnText}>CSV</Text>}
         </TouchableOpacity>
@@ -219,18 +315,21 @@ export default function AdminSupportScreen() {
         <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
       ) : (
         <FlatList
-          data={needsReplyFilter
-            ? tickets.filter((t) => {
-                const m = t.messages?.[0];
-                return m && !m.isStaff && t.status !== 'closed' && t.status !== 'resolved';
-              })
-            : tickets
-          }
+          data={displayedTickets}
           keyExtractor={(t) => t.id}
           renderItem={({ item }) => (
             <TicketRow
               ticket={item}
-              onPress={() => navigation.navigate('AdminTicketScreen', { ticketId: item.id })}
+              selectMode={selectMode}
+              selected={selected.has(item.id)}
+              onPress={() => {
+                if (selectMode) { toggleSelect(item.id); return; }
+                navigation.navigate('AdminTicketScreen', { ticketId: item.id });
+              }}
+              onLongPress={() => {
+                if (!selectMode) { setSelectMode(true); }
+                toggleSelect(item.id);
+              }}
             />
           )}
           onEndReached={loadMore}
@@ -240,6 +339,27 @@ export default function AdminSupportScreen() {
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.empty}>Нет тикетов</Text>}
         />
+      )}
+
+      {/* Bulk action bar */}
+      {selectMode && selected.size > 0 && (
+        <View style={styles.bulkBar}>
+          {bulkBusy ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <TouchableOpacity style={styles.bulkBtn} onPress={() => bulkUpdate('resolved')}>
+                <Text style={styles.bulkBtnText}>✓ Решить ({selected.size})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.bulkBtn, styles.bulkBtnClose]} onPress={() => bulkUpdate('closed')}>
+                <Text style={[styles.bulkBtnText, { color: '#EF4444' }]}>✕ Закрыть ({selected.size})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bulkCancelBtn} onPress={exitSelectMode}>
+                <Text style={styles.bulkCancelText}>Отмена</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       )}
     </View>
   );
@@ -259,12 +379,13 @@ const styles = StyleSheet.create({
   tabTextActive: { color: '#FFFFFF' },
   countBadge: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
   countText: { fontSize: 10, color: '#FFFFFF', fontWeight: '700' },
-  totalLabel: { fontSize: 12, color: '#6B7280', paddingHorizontal: 16, marginBottom: 4 },
+  totalLabel: { fontSize: 12, color: '#6B7280' },
   center: { flex: 1, justifyContent: 'center' },
-  list: { padding: 12, paddingBottom: 32 },
+  list: { padding: 12, paddingBottom: 80 },
   empty: { textAlign: 'center', color: '#6B7280', marginTop: 40, fontSize: 15 },
-  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 8 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+
+  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   subject: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', flex: 1, marginRight: 8 },
   statusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 11, fontWeight: '600' },
@@ -283,4 +404,21 @@ const styles = StyleSheet.create({
   waitText: { fontSize: 10, fontWeight: '700' },
   exportBtn: { backgroundColor: '#1C1C1E', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#2C2C2E' },
   exportBtnText: { fontSize: 12, color: '#6366F1', fontWeight: '700' },
+
+  checkbox: {
+    width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#4B5563',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkboxSelected: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+
+  bulkBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#1C1C1E', borderTopWidth: 1, borderTopColor: '#2C2C2E',
+    flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 24,
+  },
+  bulkBtn: { flex: 1, backgroundColor: '#10B98122', borderRadius: 10, borderWidth: 1, borderColor: '#10B98150', paddingVertical: 10, alignItems: 'center' },
+  bulkBtnClose: { backgroundColor: '#EF444415', borderColor: '#EF444440' },
+  bulkBtnText: { fontSize: 13, fontWeight: '700', color: '#10B981' },
+  bulkCancelBtn: { paddingHorizontal: 12, paddingVertical: 10 },
+  bulkCancelText: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
 });
