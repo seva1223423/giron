@@ -36,7 +36,7 @@ export const GoalSelectorCard: React.FC<Props> = ({ selected, onSelect }) => {
               style={[styles.card, { backgroundColor: isSelected ? colors.primary + '15' : colors.surface, borderColor: isSelected ? colors.primary : colors.border }]}
             >
               <Text style={{ fontSize: 16, fontWeight: '700', color: isSelected ? colors.primary : colors.textSecondary, marginBottom: spacing.xs }}>{g.emoji}</Text>
-              <Text style={[typography.captionMedium, { color: isSelected ? colors.primary : colors.text, textAlign: 'center' }]}>{g.label}</Text>
+              <Text style={[typography.captionMedium, { color: isSelected ? colors.primary : colors.text, textAlign: 'center' }]} numberOfLines={2}>{g.label}</Text>
             </TouchableOpacity>
           );
         })}

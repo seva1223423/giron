@@ -17,7 +17,7 @@ export const ActionsBar: React.FC<Props> = ({ actions }) => {
       {actions.map((action, i) => (
         <View key={i} style={[styles.chip, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.success, marginRight: 4 }}>✓</Text>
-          <Text style={[typography.small, { color: colors.success, flex: 1 }]}>{action.description}</Text>
+          <Text style={[typography.small, { color: colors.success, flex: 1 }]} numberOfLines={1}>{action.description}</Text>
         </View>
       ))}
     </View>

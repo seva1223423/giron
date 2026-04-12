@@ -68,7 +68,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
             </TouchableOpacity>
           </View>
         </View>
-        <Text style={[typography.h4, { color: colors.text, marginTop: spacing.sm }]}>{article.title}</Text>
+        <Text style={[typography.h4, { color: colors.text, marginTop: spacing.sm }]} numberOfLines={2}>{article.title}</Text>
         <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]} numberOfLines={2}>{article.summary}</Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>

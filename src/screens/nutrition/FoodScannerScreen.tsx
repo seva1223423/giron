@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -51,6 +51,7 @@ const MEAL_TYPES = [
 ] as const;
 
 export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { height: screenHeight } = useWindowDimensions();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { addMeal, getDayLog } = useNutritionStore();
@@ -252,7 +253,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
         {imageUri ? (
           <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUri }} style={styles.image} />
+            <Image source={{ uri: imageUri }} style={[styles.image, { height: Math.min(250, screenHeight * 0.3) }]} />
             <TouchableOpacity style={[styles.retakeBtn, { backgroundColor: colors.surface }]} onPress={() => { setImageUri(null); setRecognizedItems([]); setError(''); }}>
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Переснять</Text>
             </TouchableOpacity>

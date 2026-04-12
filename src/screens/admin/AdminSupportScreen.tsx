@@ -37,7 +37,7 @@ function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => 
         </View>
       </View>
       <View style={styles.cardMid}>
-        <Text style={styles.user}>{ticket.user?.firstName} {ticket.user?.lastName} · {ticket.user?.email}</Text>
+        <Text style={styles.user} numberOfLines={1}>{ticket.user?.firstName} {ticket.user?.lastName} · {ticket.user?.email}</Text>
         <Text style={[styles.priority, { color: PRIORITY_COLOR[ticket.priority] }]}>
           {PRIORITY_LABEL[ticket.priority]}
         </Text>

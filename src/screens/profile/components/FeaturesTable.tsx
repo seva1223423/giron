@@ -24,19 +24,19 @@ export const FeaturesTable: React.FC = () => {
       <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Что входит в Pro</Text>
       <View style={[styles.row, { borderBottomWidth: 2, borderBottomColor: colors.border, paddingBottom: spacing.sm }]}>
         <View style={{ flex: 1 }} />
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 72, textAlign: 'center' }]}>Бесплатно</Text>
+        <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 60, textAlign: 'center' }]}>Бесплатно</Text>
         <View style={[styles.proHeader, { backgroundColor: colors.accent }]}>
-          <Text style={[typography.captionMedium, { color: '#fff', width: 64, textAlign: 'center' }]}>Pro</Text>
+          <Text style={[typography.captionMedium, { color: '#fff', width: 52, textAlign: 'center' }]}>Pro</Text>
         </View>
       </View>
       {FEATURES.map((f, i) => (
         <View key={i} style={[styles.row, { paddingVertical: spacing.md }, i < FEATURES.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.sm }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{f.icon}</Text>
-            <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{f.title}</Text>
+            <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={2}>{f.title}</Text>
           </View>
-          <Text style={[typography.small, { color: colors.textTertiary, width: 72, textAlign: 'center', fontSize: 11 }]}>{f.free}</Text>
-          <Text style={[typography.small, { color: colors.accent, width: 64, textAlign: 'center', fontWeight: '700', fontSize: 11 }]}>{f.pro}</Text>
+          <Text style={[typography.small, { color: colors.textTertiary, width: 60, textAlign: 'center', fontSize: 10 }]} numberOfLines={2}>{f.free}</Text>
+          <Text style={[typography.small, { color: colors.accent, width: 52, textAlign: 'center', fontWeight: '700', fontSize: 10 }]} numberOfLines={1}>{f.pro}</Text>
         </View>
       ))}
     </Card>

@@ -123,7 +123,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{template.emoji}</Text></View>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.bodySemibold, { color: colors.text }]}>{template.name}</Text>
+                <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{template.name}</Text>
                 <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
                   {template.exercises.length} упражнений
                 </Text>

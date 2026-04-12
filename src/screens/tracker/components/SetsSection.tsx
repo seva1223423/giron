@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { Card, Button, AnimatedPressable } from '../../../components';
@@ -7,6 +7,8 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Workout, WorkoutExercise } from '../../../types';
 import { SetRow } from './SetRow';
+
+const SHOW_PLATE_CALC = Dimensions.get('window').width > 360;
 
 interface PreviousSets {
   date: string | null | undefined;
@@ -130,7 +132,7 @@ export const SetsSection: React.FC<Props> = ({
           backgroundColor: colors.primary + '08', borderColor: colors.primary + '30',
           marginBottom: spacing.sm,
         }}>
-          <Text style={[typography.caption, { color: colors.primary }]}>
+          <Text style={[typography.caption, { color: colors.primary }]} numberOfLines={2}>
             {'\u{1F3AF} '}
             {suggestedWeights.map((s, i) => {
               if (!s) return null;
@@ -151,7 +153,7 @@ export const SetsSection: React.FC<Props> = ({
           marginBottom: spacing.sm,
         }}>
           <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>{'\u25B2'}</Text></View>
-          <Text style={[typography.caption, { color: colors.success, flex: 1 }]}>
+          <Text style={[typography.caption, { color: colors.success, flex: 1 }]} numberOfLines={2}>
             {'\u0412 \u043F\u0440\u043E\u0448\u043B\u044B\u0439 \u0440\u0430\u0437 \u0432\u0441\u0435 \u043F\u043E\u0434\u0445\u043E\u0434\u044B \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u044B \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 '}
             <Text style={{ fontWeight: '700' }}>{overloadSuggestion} {'\u043A\u0433'}</Text> {'\u0441\u0435\u0433\u043E\u0434\u043D\u044F (+2.5)'}
           </Text>
@@ -171,17 +173,17 @@ export const SetsSection: React.FC<Props> = ({
             borderColor: colors.primary + '60', marginBottom: spacing.md,
           }}
         >
-          <Text style={[typography.smallMedium, { color: colors.primary }]}>
+          <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>
             {'↩ Копировать из прошлого раза'}
           </Text>
         </AnimatedPressable>
       )}
 
-      {/* Table header */}
+      {/* Table header — columns must mirror SetRow layout exactly */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.md }}>
         <Text style={[typography.captionMedium, { color: colors.textSecondary, width: 40 }]}>{'\u0421\u0435\u0442'}</Text>
         <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>{'\u0412\u0435\u0441 (\u043A\u0433)'}</Text>
-        <View style={{ width: 28 }} />
+        {SHOW_PLATE_CALC && <View style={{ width: 28 }} />}
         <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1, textAlign: 'center' }]}>{'\u041F\u043E\u0432\u0442.'}</Text>
         <View style={{ width: 40 }} />
       </View>

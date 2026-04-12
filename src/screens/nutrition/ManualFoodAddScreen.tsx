@@ -76,7 +76,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
-        <Text style={[typography.h3, { color: colors.text }]}>Добавить в {MEAL_NAMES[mealType] || mealType}</Text>
+        <Text style={[typography.h3, { color: colors.text, flex: 1, textAlign: 'center' }]} numberOfLines={1}>Добавить в {MEAL_NAMES[mealType] || mealType}</Text>
         <View style={{ width: 24 }} />
       </View>
 
