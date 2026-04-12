@@ -21,6 +21,7 @@ export const adminService = {
     plan?: string;
     banned?: boolean;
     dormant?: boolean;
+    subExpiringSoon?: boolean;
     page?: number;
     limit?: number;
     sort?: string;

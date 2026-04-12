@@ -301,7 +301,7 @@ export interface AdminUserSummary {
   createdAt: string;
   isBanned: boolean;
   banReason?: string;
-  subscription?: { plan: string; status: string; endDate?: string } | null;
+  subscription?: { plan: string; status: string; endDate?: string | null } | null;
   workouts?: Array<{ completedAt?: string | null }>;
   _count: { workouts: number; chatMessages: number };
 }
