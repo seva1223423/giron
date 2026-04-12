@@ -100,7 +100,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
               { borderColor: selectedType === t.type ? colors.primary : colors.border, backgroundColor: selectedType === t.type ? colors.primary + '15' : colors.surface },
             ]}
           >
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: selectedType === t.type ? colors.primary + '20' : colors.surface, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: selectedType === t.type ? colors.primary : colors.textSecondary }}>{t.abbr}</Text></View>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: selectedType === t.type ? colors.primary + '20' : colors.surface, borderWidth: 1.5, borderColor: selectedType === t.type ? colors.primary + '60' : colors.border, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: selectedType === t.type ? colors.primary : colors.textSecondary }}>{t.abbr}</Text></View>
             <Text style={[typography.caption, { color: selectedType === t.type ? colors.primary : colors.text, marginTop: 4 }]}>
               {t.label}
             </Text>

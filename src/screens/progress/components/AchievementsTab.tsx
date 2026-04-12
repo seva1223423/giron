@@ -65,6 +65,8 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
                     alignItems: 'center',
                     justifyContent: 'center',
                     backgroundColor: a.unlocked ? colors.accent + '20' : colors.border + '60',
+                    borderWidth: 1.5,
+                    borderColor: a.unlocked ? colors.accent + '50' : colors.border,
                   }}
                 >
                   <Text style={{ fontSize: 24, fontWeight: '700', color: a.unlocked ? colors.accent : colors.textTertiary }}>{a.emoji}</Text>
