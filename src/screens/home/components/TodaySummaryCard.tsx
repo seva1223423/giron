@@ -68,12 +68,12 @@ export const TodaySummaryCard: React.FC<Props> = ({ navigation }) => {
           style={{
             flex: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm,
             borderRadius: borderRadius.md, backgroundColor: colors.surface,
-            borderWidth: 1, borderColor: colors.border, alignItems: 'center',
+            borderWidth: 1, borderColor: item.pct === 1 ? item.color + '50' : colors.border, alignItems: 'center',
           }}
         >
-          <Text style={[typography.caption, { color: colors.textTertiary, marginBottom: 2 }]}>{item.label}</Text>
+          <Text style={[typography.caption, { color: item.pct === 1 ? item.color : colors.textTertiary, marginBottom: 2 }]}>{item.label}</Text>
           {/* Mini bar */}
-          <View style={{ width: '100%', height: 3, borderRadius: 2, backgroundColor: colors.border, marginBottom: 4, overflow: 'hidden' }}>
+          <View style={{ width: '100%', height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 4, overflow: 'hidden' }}>
             <View style={{ height: '100%', width: `${item.pct * 100}%`, backgroundColor: item.color, borderRadius: 2 }} />
           </View>
           <Text style={{ fontSize: 11, fontWeight: '700', color: item.pct === 1 ? item.color : colors.textSecondary, textAlign: 'center' }} numberOfLines={1}>
