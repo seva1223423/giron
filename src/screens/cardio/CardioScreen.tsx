@@ -46,7 +46,7 @@ const SessionCard: React.FC<{ session: CardioSession; onDelete: () => void }> = 
   return (
     <View style={[styles.sessionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.sessionRow}>
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{meta.abbr}</Text></View>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{meta.abbr}</Text></View>
         <View style={{ flex: 1, marginLeft: spacing.md }}>
           <Text style={[typography.bodySemibold, { color: colors.text }]}>{meta.label}</Text>
           <Text style={[typography.small, { color: colors.textSecondary }]}>

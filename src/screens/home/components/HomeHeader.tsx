@@ -56,7 +56,7 @@ export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
       </View>
       <TouchableOpacity
         onPress={() => navigation.navigate('ProfileTab')}
-        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}
+        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.primary + '50', alignItems: 'center', justifyContent: 'center' }}
       >
         <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>
           {(user?.firstName?.[0] || 'A').toUpperCase()}
