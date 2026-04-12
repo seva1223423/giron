@@ -88,7 +88,7 @@ const Stat: React.FC<{ label: string; value: string; color: string }> = ({ label
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, flexWrap: 'wrap' },
   badges: { flexDirection: 'row', gap: 4 },
   statsRow: { flexDirection: 'row', alignItems: 'center' },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginLeft: spacing.md },

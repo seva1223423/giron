@@ -269,10 +269,10 @@ export const SleepTab: React.FC<Props> = ({ colors }) => {
                   ]}>
                     <Text style={{ fontSize: 20 }}>🌙</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={[typography.small, { color: colors.text }]}>
+                      <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>
                         {new Date(entry.date).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}
                       </Text>
-                      <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                      <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
                         {entry.bedtime} → {entry.wakeTime}
                       </Text>
                     </View>
@@ -321,6 +321,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     padding: spacing.xl,
     paddingBottom: Platform.OS === 'ios' ? 36 : spacing.xl,
+    maxHeight: '88%',
   },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
 

@@ -25,8 +25,8 @@ export const MacroBar: React.FC<MacroBarProps> = ({
   return (
     <View style={{ marginBottom: spacing.md }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-        <Text style={[typography.smallMedium, { color: colors.text }]}>{label}</Text>
-        <Text style={[typography.small, { color: colors.textSecondary }]}>
+        <Text style={[typography.smallMedium, { color: colors.text }]} numberOfLines={1}>{label}</Text>
+        <Text style={[typography.small, { color: colors.textSecondary }]} numberOfLines={1}>
           {Math.round(current)} / {target} {unit}
         </Text>
       </View>
