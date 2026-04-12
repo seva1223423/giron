@@ -140,14 +140,14 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
         <FadeIn delay={delay + 50}>
           <Card style={{ marginBottom: spacing.lg }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
                 <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>Жировая масса (Navy метод)</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs }}>
                   <Text style={[typography.number, { color: bodyFatEstimate.color, fontSize: 36 }]}>{bodyFatEstimate.pct}</Text>
                   <Text style={[typography.h4, { color: bodyFatEstimate.color }]}>%</Text>
                 </View>
                 <View style={[{ alignSelf: 'flex-start', marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full, backgroundColor: bodyFatEstimate.color + '20' }]}>
-                  <Text style={[typography.captionMedium, { color: bodyFatEstimate.color }]}>{bodyFatEstimate.category}</Text>
+                  <Text style={[typography.captionMedium, { color: bodyFatEstimate.color }]} numberOfLines={1}>{bodyFatEstimate.category}</Text>
                 </View>
               </View>
               <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>◧</Text>
