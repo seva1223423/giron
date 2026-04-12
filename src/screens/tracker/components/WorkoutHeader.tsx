@@ -17,7 +17,7 @@ const MUSCLE_META: Partial<Record<MuscleGroup, { abbr: string; color: string }>>
   triceps:     { abbr: 'Тц', color: '#F97316' },
   forearms:    { abbr: 'Пр', color: '#84CC16' },
   abs:         { abbr: 'Пр', color: '#14B8A6' },
-  quads:       { abbr: 'Кв', color: '#EC4899' },
+  quadriceps:  { abbr: 'Кв', color: '#EC4899' },
   hamstrings:  { abbr: 'Бд', color: '#A855F7' },
   glutes:      { abbr: 'Яг', color: '#F43F5E' },
   calves:      { abbr: 'Ик', color: '#06B6D4' },

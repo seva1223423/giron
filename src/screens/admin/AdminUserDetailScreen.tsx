@@ -4,7 +4,7 @@ import {
   TouchableOpacity, Alert,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import type { NativeStackRouteProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { adminService } from '../../services/adminService';
 import type { AdminUserDetail, UserRole } from '../../types';
 
@@ -15,7 +15,7 @@ const PLANS = ['free', 'pro', 'trainer', 'club'] as const;
 const PLAN_COLOR: Record<string, string> = { free: '#6B7280', pro: '#6366F1', trainer: '#F59E0B', club: '#10B981' };
 
 export default function AdminUserDetailScreen() {
-  const route = useRoute<NativeStackRouteProp<{ AdminUserDetailScreen: RouteParams }, 'AdminUserDetailScreen'>>();
+  const route = useRoute<RouteProp<{ AdminUserDetailScreen: RouteParams }, 'AdminUserDetailScreen'>>();
   const { userId } = route.params;
 
   const [user, setUser] = useState<AdminUserDetail | null>(null);

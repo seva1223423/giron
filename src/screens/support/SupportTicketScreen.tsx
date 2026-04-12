@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import type { NativeStackRouteProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { useSupportStore } from '../../store/useSupportStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { SupportMessage, TicketStatus } from '../../types';
@@ -41,7 +41,7 @@ function MessageBubble({ msg, isMe }: { msg: SupportMessage; isMe: boolean }) {
 }
 
 export default function SupportTicketScreen() {
-  const route = useRoute<NativeStackRouteProp<{ SupportTicketScreen: RouteParams }, 'SupportTicketScreen'>>();
+  const route = useRoute<RouteProp<{ SupportTicketScreen: RouteParams }, 'SupportTicketScreen'>>();
   const navigation = useNavigation();
   const { ticketId } = route.params;
 

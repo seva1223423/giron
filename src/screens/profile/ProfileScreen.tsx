@@ -160,10 +160,10 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           {achievements.filter((a) => a.unlockedAt).slice(0, 3).map((ach) => (
             <TouchableOpacity
               key={ach.id}
-              onPress={() => navigation.navigate('Achievements')}
+              onPress={() => navigation.navigate('ProgressTab' as any)}
               style={{ flex: 1, alignItems: 'center', padding: spacing.sm, borderRadius: borderRadius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary + '30' }}
             >
-              <Text style={{ fontSize: 22 }}>{ach.icon}</Text>
+              <Text style={{ fontSize: 22 }}>{ach.emoji}</Text>
               <Text style={{ fontSize: 9, fontWeight: '600', color: colors.primary, marginTop: 2, textAlign: 'center' }} numberOfLines={2}>{ach.title}</Text>
             </TouchableOpacity>
           ))}

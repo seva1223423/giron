@@ -11,3 +11,4 @@ export { useConnectionStore } from './useConnectionStore';
 export { useSleepStore } from './useSleepStore';
 export type { SleepEntry } from './useSleepStore';
 export { useOnboardingTipsStore } from './useOnboardingTipsStore';
+export { useSupportStore } from './useSupportStore';

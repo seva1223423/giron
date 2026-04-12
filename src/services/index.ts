@@ -10,3 +10,5 @@ export type { FoodAnalysisItem, FoodAnalysisResult, AIActionResult, AIMeta, AISt
 export { newsService } from './newsService';
 export { trainerService } from './trainerService';
 export * from './notificationService';
+export { adminService } from './adminService';
+export { supportService } from './supportService';

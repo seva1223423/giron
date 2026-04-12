@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import type { NativeStackRouteProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { supportService } from '../../services/supportService';
 import { adminService } from '../../services/adminService';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -39,7 +39,7 @@ function MessageBubble({ msg, myId }: { msg: SupportMessage; myId?: string }) {
 }
 
 export default function AdminTicketScreen() {
-  const route = useRoute<NativeStackRouteProp<{ AdminTicketScreen: RouteParams }, 'AdminTicketScreen'>>();
+  const route = useRoute<RouteProp<{ AdminTicketScreen: RouteParams }, 'AdminTicketScreen'>>();
   const { ticketId } = route.params;
   const userId = useAuthStore((s) => s.user?.id);
   const flatRef = useRef<FlatList>(null);

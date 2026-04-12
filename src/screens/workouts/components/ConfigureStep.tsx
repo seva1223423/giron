@@ -15,9 +15,10 @@ interface Props {
   onRemove: (exercise: Exercise) => void;
   onMove: (index: number, direction: 'up' | 'down') => void;
   onBack: () => void;
+  navigation: any;
 }
 
-export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, onMove, onBack }) => {
+export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, onMove, onBack, navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { startWorkout, saveAsTemplate } = useWorkoutStore();
@@ -100,6 +101,7 @@ export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, on
       onStart={handleStart}
       onSaveTemplate={handleSaveTemplate}
       getConfig={getConfig}
+      navigation={navigation}
     />
   );
 };

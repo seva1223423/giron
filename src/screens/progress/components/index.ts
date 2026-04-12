@@ -11,3 +11,4 @@ export { MuscleDistributionCard } from './MuscleDistributionCard';
 export { WorkoutHistoryList } from './WorkoutHistoryList';
 export { SelectedDayCard } from './SelectedDayCard';
 export { MonthStatsCard } from './MonthStatsCard';
+export { CardioTab } from './CardioTab';

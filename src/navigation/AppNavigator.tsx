@@ -252,7 +252,7 @@ function AuthStack() {
   );
 }
 
-const linking = {
+const linking: any = {
   prefixes: ['irongym://', 'https://irongym.app'],
   config: {
     screens: {

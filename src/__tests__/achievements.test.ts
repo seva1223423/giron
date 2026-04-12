@@ -107,7 +107,7 @@ describe('computeAchievements', () => {
           exerciseId: 'bench-press',
           exercise: { id: 'bench-press', name: 'Bench Press' } as any,
           order: 0,
-          sets: [{ id: 's1', setNumber: 1, type: 'working', weight: 100, reps: 5, completed: true }],
+          sets: [{ id: 's1', setNumber: 1, type: 'normal' as const, weight: 100, reps: 5, completed: true }],
           restSeconds: 120,
         },
       ],
