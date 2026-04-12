@@ -99,23 +99,37 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       dbPingMs = Date.now() - dbStart;
     } catch { dbPingMs = null; }
 
-    // Top active users this week (by workout count)
-    const topUsers = await prisma.workout.groupBy({
-      by: ['userId'],
-      where: { completedAt: { gte: weekStart } },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5,
-    });
-    const topUserIds = topUsers.map((t) => t.userId);
-    const topUserDetails = topUserIds.length > 0 ? await prisma.user.findMany({
-      where: { id: { in: topUserIds } },
+    // Top active users this week (by workout count) + top AI users
+    const [topUsers, topAiUsers, dauWorkout, dauAi] = await Promise.all([
+      prisma.workout.groupBy({
+        by: ['userId'],
+        where: { completedAt: { gte: weekStart } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 5,
+      }),
+      prisma.chatMessage.groupBy({
+        by: ['userId'],
+        where: { role: 'user', createdAt: { gte: weekStart } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 5,
+      }),
+      prisma.workout.groupBy({ by: ['userId'], where: { completedAt: { gte: todayStart } } }).then((r) => r.length),
+      prisma.chatMessage.groupBy({ by: ['userId'], where: { role: 'user', createdAt: { gte: todayStart } } }).then((r) => r.length),
+    ]);
+
+    const allTopIds = [...new Set([...topUsers.map((t) => t.userId), ...topAiUsers.map((t) => t.userId)])];
+    const topUserDetails = allTopIds.length > 0 ? await prisma.user.findMany({
+      where: { id: { in: allTopIds } },
       select: { id: true, firstName: true, lastName: true },
     }) : [];
-    const topActiveUsers = topUsers.map((t) => {
-      const u = topUserDetails.find((d) => d.id === t.userId);
-      return { userId: t.userId, name: u ? `${u.firstName} ${u.lastName ?? ''}`.trim() : 'Unknown', workouts: t._count.id };
-    });
+    const getName = (id: string) => {
+      const u = topUserDetails.find((d) => d.id === id);
+      return u ? `${u.firstName} ${u.lastName ?? ''}`.trim() : 'Unknown';
+    };
+    const topActiveUsers = topUsers.map((t) => ({ userId: t.userId, name: getName(t.userId), workouts: t._count.id }));
+    const topAiActiveUsers = topAiUsers.map((t) => ({ userId: t.userId, name: getName(t.userId), messages: t._count.id }));
 
     const aiMetrics = getAIMetrics();
     const activeNow = getActiveUsersCount(5 * 60 * 1000);    // 5 min
@@ -173,6 +187,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       activeAnnouncements,
       churnRiskUsers,
       topActiveUsers,
+      topAiActiveUsers,
+      dau: { workoutUsers: dauWorkout, aiUsers: dauAi },
       server: {
         uptimeSeconds: Math.round(uptime),
         memoryUsedMb: Math.round(memUsage.heapUsed / 1024 / 1024),
