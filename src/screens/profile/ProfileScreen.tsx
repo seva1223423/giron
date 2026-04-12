@@ -56,7 +56,7 @@ const MenuRow: React.FC<{
       !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider },
     ]}
   >
-    <View style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: iconBg, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: iconBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: iconColor + '35' }}>
       <Text style={{ fontSize: 15, fontWeight: '700', color: iconColor }}>{icon}</Text>
     </View>
     <View style={{ flex: 1 }}>
@@ -64,7 +64,7 @@ const MenuRow: React.FC<{
       {subtitle && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 1 }]} numberOfLines={1}>{subtitle}</Text>}
     </View>
     {badge && (
-      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: (badgeColor || colors.primary) + '20' }}>
+      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: (badgeColor || colors.primary) + '20', borderWidth: 1, borderColor: (badgeColor || colors.primary) + '40' }}>
         <Text style={{ fontSize: 10, fontWeight: '700', color: badgeColor || colors.primary }}>{badge}</Text>
       </View>
     )}
