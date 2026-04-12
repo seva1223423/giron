@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  RefreshControl, TouchableOpacity,
+  RefreshControl, TouchableOpacity, TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,15 +34,20 @@ function SectionTitle({ title }: { title: string }) {
 }
 
 function StatCard({
-  title, value, sub, color = '#6366F1',
+  title, value, sub, color = '#6366F1', trend,
 }: {
-  title: string; value: string | number; sub?: string; color?: string;
+  title: string; value: string | number; sub?: string; color?: string; trend?: number | null;
 }) {
   return (
     <View style={styles.statCard}>
       <Text style={styles.statTitle}>{title}</Text>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       {sub && <Text style={styles.statSub}>{sub}</Text>}
+      {trend != null && (
+        <Text style={{ fontSize: 10, fontWeight: '700', color: trend > 0 ? '#10B981' : trend < 0 ? '#EF4444' : '#6B7280', marginTop: 2 }}>
+          {trend > 0 ? `↑ +${trend}%` : trend < 0 ? `↓ ${trend}%` : '→ 0%'} vs пред. нед.
+        </Text>
+      )}
     </View>
   );
 }
@@ -108,6 +113,7 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [quickSearch, setQuickSearch] = useState('');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (silent = false) => {
@@ -173,6 +179,35 @@ export default function AdminDashboardScreen() {
         ))}
       </View>
 
+      {/* Quick user search */}
+      <View style={styles.quickSearchRow}>
+        <TextInput
+          style={styles.quickSearchInput}
+          placeholder="Быстрый поиск пользователя..."
+          placeholderTextColor="#6B7280"
+          value={quickSearch}
+          onChangeText={setQuickSearch}
+          returnKeyType="search"
+          onSubmitEditing={() => {
+            if (quickSearch.trim()) {
+              navigation.navigate('AdminUsersScreen', { initialSearch: quickSearch.trim() });
+              setQuickSearch('');
+            }
+          }}
+        />
+        {quickSearch.trim().length > 0 && (
+          <TouchableOpacity
+            style={styles.quickSearchBtn}
+            onPress={() => {
+              navigation.navigate('AdminUsersScreen', { initialSearch: quickSearch.trim() });
+              setQuickSearch('');
+            }}
+          >
+            <Text style={styles.quickSearchBtnText}>Найти</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* ── Users ──────────────────────────────────────────────────────── */}
       <SectionTitle title="Пользователи" />
       <View style={styles.row}>
@@ -182,7 +217,7 @@ export default function AdminDashboardScreen() {
       </View>
       <View style={styles.row}>
         <StatCard title="Сегодня" value={stats.users.newToday} sub="новых" />
-        <StatCard title="7 дней" value={stats.users.newThisWeek} sub="новых" />
+        <StatCard title="7 дней" value={stats.users.newThisWeek} sub="новых" trend={stats.trends?.usersWeekVsPrev} />
         <StatCard title="30 дней" value={stats.users.newThisMonth} sub="новых" />
       </View>
       {(stats.users.banned ?? 0) > 0 && (
@@ -209,7 +244,7 @@ export default function AdminDashboardScreen() {
       <SectionTitle title="Тренировки" />
       <View style={styles.row}>
         <StatCard title="Сегодня" value={stats.workouts.completedToday} sub="завершено" />
-        <StatCard title="7 дней" value={stats.workouts.completedThisWeek} sub="завершено" />
+        <StatCard title="7 дней" value={stats.workouts.completedThisWeek} sub="завершено" trend={stats.trends?.workoutsWeekVsPrev} />
         <StatCard title="Всего" value={stats.workouts.total ?? 0} sub="в базе" color="#9CA3AF" />
       </View>
 
@@ -248,7 +283,7 @@ export default function AdminDashboardScreen() {
       </View>
       <View style={styles.row}>
         <StatCard title="Сообщ. сегодня" value={stats.ai.messagesToday} />
-        <StatCard title="Сообщ. 7 дней" value={stats.ai.messagesThisWeek} />
+        <StatCard title="Сообщ. 7 дней" value={stats.ai.messagesThisWeek} trend={stats.trends?.aiWeekVsPrev} />
         <StatCard
           title="Токены (оценка)"
           value={formatTokens(stats.ai.totalTokensEstimate)}
@@ -379,6 +414,14 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
   headerSub: { fontSize: 10, color: '#4B5563' },
+
+  quickSearchRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  quickSearchInput: {
+    flex: 1, backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 12,
+    paddingVertical: 10, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E',
+  },
+  quickSearchBtn: { backgroundColor: '#6366F1', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
+  quickSearchBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
 
   navGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   navBtn: { width: '47%', backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2C2C2E' },

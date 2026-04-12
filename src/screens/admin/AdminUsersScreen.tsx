@@ -3,8 +3,9 @@ import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { adminService } from '../../services/adminService';
 import type { AdminUserSummary, UserRole } from '../../types';
 
@@ -163,11 +164,13 @@ function UserRow({
 
 export default function AdminUsersScreen() {
   const navigation = useNavigation<AdminNav>();
+  const route = useRoute<RouteProp<{ AdminUsersScreen: { initialSearch?: string } }, 'AdminUsersScreen'>>();
+  const initialSearch = (route.params as any)?.initialSearch ?? '';
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [role, setRole] = useState<string>('');
   const [planFilter, setPlanFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
