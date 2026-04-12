@@ -53,14 +53,14 @@ export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWor
             onPress={handleShare}
             style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: borderRadius.sm }}
           >
-            <Text style={[typography.captionMedium, { color: colors.primary }]}>Поделиться</Text>
+            <Text style={[typography.captionMedium, { color: colors.primary }]} numberOfLines={1}>Поделиться</Text>
           </TouchableOpacity>
           {!activeWorkout && (
             <TouchableOpacity
               onPress={onRepeat}
               style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm }}
             >
-              <Text style={[typography.captionMedium, { color: colors.primary }]}>Повторить</Text>
+              <Text style={[typography.captionMedium, { color: colors.primary }]} numberOfLines={1}>Повторить</Text>
             </TouchableOpacity>
           )}
         </View>
