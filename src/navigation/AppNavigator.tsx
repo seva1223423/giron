@@ -56,6 +56,7 @@ import AdminSupportScreen from '../screens/admin/AdminSupportScreen';
 import AdminTicketScreen from '../screens/admin/AdminTicketScreen';
 import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
 import AdminAnalyticsScreen from '../screens/admin/AdminAnalyticsScreen';
+import AdminAnnouncementsScreen from '../screens/admin/AdminAnnouncementsScreen';
 import { AdminGuard } from '../screens/admin/AdminGuard';
 import { AIProgramDetailScreen } from '../screens/workouts/AIProgramDetailScreen';
 
@@ -137,7 +138,8 @@ function ProfileStackNavigator() {
       screenOptions={({ route }) => ({
         headerShown: ['SupportScreen','CreateTicketScreen','SupportTicketScreen',
           'AdminDashboardScreen','AdminUsersScreen','AdminUserDetailScreen',
-          'AdminSupportScreen','AdminTicketScreen','AdminLogsScreen','AdminAnalyticsScreen'].includes(route.name),
+          'AdminSupportScreen','AdminTicketScreen','AdminLogsScreen','AdminAnalyticsScreen',
+          'AdminAnnouncementsScreen'].includes(route.name),
         animation: 'slide_from_right',
         headerStyle: { backgroundColor: '#0F0F0F' },
         headerTintColor: '#FFFFFF',
@@ -177,6 +179,9 @@ function ProfileStackNavigator() {
       </ProfileStack.Screen>
       <ProfileStack.Screen name="AdminAnalyticsScreen" options={{ title: 'Аналитика' }}>
         {() => <AdminGuard requireVerified><AdminAnalyticsScreen /></AdminGuard>}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminAnnouncementsScreen" options={{ title: 'Объявления' }}>
+        {() => <AdminGuard requireVerified><AdminAnnouncementsScreen /></AdminGuard>}
       </ProfileStack.Screen>
     </ProfileStack.Navigator>
   );

@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { AdminStats, AdminUserSummary, AdminUserDetail, AdminLog, AdminAnalytics, UserRole, TicketStatus, TicketPriority, SupportTicket } from '../types';
+import type { AdminStats, AdminUserSummary, AdminUserDetail, AdminLog, AdminAnalytics, UserRole, TicketStatus, TicketPriority, SupportTicket, Announcement, AnnouncementType } from '../types';
 
 export const adminService = {
   // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -72,6 +72,28 @@ export const adminService = {
   async exportUsersCSV(params?: { role?: string; plan?: string; banned?: boolean }): Promise<string> {
     const res = await api.get('/admin/users/export', { params, responseType: 'text' });
     return res.data as string;
+  },
+
+  // ── Announcements ─────────────────────────────────────────────────────────
+  async getAnnouncements(): Promise<Announcement[]> {
+    const res = await api.get('/admin/announcements');
+    return res.data;
+  },
+
+  async createAnnouncement(data: {
+    title: string; body: string; type: AnnouncementType; endsAt?: string;
+  }): Promise<Announcement> {
+    const res = await api.post('/admin/announcements', data);
+    return res.data;
+  },
+
+  async updateAnnouncement(id: string, data: Partial<{ title: string; body: string; type: AnnouncementType; isActive: boolean; endsAt: string }>): Promise<Announcement> {
+    const res = await api.patch(`/admin/announcements/${id}`, data);
+    return res.data;
+  },
+
+  async deleteAnnouncement(id: string): Promise<void> {
+    await api.delete(`/admin/announcements/${id}`);
   },
 
   // ── Logs ──────────────────────────────────────────────────────────────────

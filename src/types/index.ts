@@ -381,6 +381,19 @@ export interface AdminLog {
   createdAt: string;
 }
 
+export type AnnouncementType = 'info' | 'warning' | 'maintenance' | 'promo';
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  type: AnnouncementType;
+  isActive: boolean;
+  endsAt?: string | null;
+  createdAt: string;
+  author?: { firstName: string; lastName?: string };
+}
+
 export interface AdminAnalytics {
   timeline: Array<{ date: string; signups: number; workouts: number; ai: number; cardio: number }>;
   funnel: {
