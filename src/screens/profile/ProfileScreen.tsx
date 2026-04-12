@@ -140,9 +140,11 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         <Text style={[typography.h2, { color: colors.text, marginTop: spacing.lg }]}>{user?.firstName} {user?.lastName}</Text>
         <Text style={[typography.body, { color: colors.textSecondary }]}>{user?.email}</Text>
         {daysWithUs !== null && (
-          <Text style={[typography.caption, { color: colors.primary, marginTop: spacing.xs, fontWeight: '600' }]}>
-            С нами {daysWithUs} {daysWithUs === 1 ? 'день' : daysWithUs < 5 ? 'дня' : 'дней'}
-          </Text>
+          <View style={{ backgroundColor: colors.primary + '15', borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: 3, marginTop: spacing.sm, borderWidth: 1, borderColor: colors.primary + '30' }}>
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
+              С нами {daysWithUs} {daysWithUs === 1 ? 'день' : daysWithUs < 5 ? 'дня' : 'дней'}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -308,7 +310,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   profileHeader: { alignItems: 'center', marginBottom: spacing.xl },
-  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: 'rgba(139,92,246,0.3)' },
   statsRow: {
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
     borderRadius: borderRadius.lg, borderWidth: 1,

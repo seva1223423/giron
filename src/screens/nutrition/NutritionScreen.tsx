@@ -69,7 +69,9 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>Калькулятор</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { haptic.selection(); setShowGoalsModal(true); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-            <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>Цели</Text>
+            <View style={{ backgroundColor: colors.primary + '15', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: colors.primary + '35' }}>
+              <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>Цели</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>

@@ -28,7 +28,9 @@ export const AchievementsCard: React.FC<Props> = ({ achievements }) => {
             <Text style={[typography.bodySemibold, { color: colors.text }]}>{a.title}</Text>
             <Text style={[typography.small, { color: colors.textSecondary }]}>{a.description}</Text>
           </View>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.success }}>✓</Text>
+          <View style={{ backgroundColor: colors.success + '20', width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: colors.success }}>✓</Text>
+          </View>
         </View>
       ))}
     </Card>
