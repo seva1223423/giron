@@ -22,6 +22,16 @@ export function getTotalSeenCount(): number {
   return lastSeen.size;
 }
 
+/** User IDs active within the last N milliseconds */
+export function getActiveUserIds(withinMs = 5 * 60 * 1000): string[] {
+  const cutoff = Date.now() - withinMs;
+  const ids: string[] = [];
+  for (const [userId, ts] of lastSeen.entries()) {
+    if (ts > cutoff) ids.push(userId);
+  }
+  return ids;
+}
+
 /** Cleanup entries older than 24h to prevent unbounded growth */
 export function pruneOldEntries(): void {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;

@@ -378,6 +378,34 @@ export default function AdminDashboardScreen() {
         </>
       )}
 
+      {/* ── Online users now ──────────────────────────────────────────── */}
+      {stats.onlineUsers && stats.onlineUsers.length > 0 && (
+        <>
+          <View style={styles.activityHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#10B981' }} />
+              <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+                Онлайн сейчас ({stats.users.activeNow})
+              </Text>
+            </View>
+          </View>
+          <View style={styles.onlineRow}>
+            {stats.onlineUsers.map((u) => (
+              <TouchableOpacity
+                key={u.id}
+                style={styles.onlineChip}
+                onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: u.id })}
+              >
+                <View style={styles.onlineAvatar}>
+                  <Text style={styles.onlineAvatarText}>{u.firstName[0]}{u.lastName?.[0] ?? ''}</Text>
+                </View>
+                <Text style={styles.onlineName} numberOfLines={1}>{u.firstName}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
       {/* ── Quick actions ────────────────────────────────────────────── */}
       <View style={styles.quickActionsCard}>
         <Text style={styles.quickActionsTitle}>Быстрые действия</Text>
@@ -948,6 +976,13 @@ const styles = StyleSheet.create({
   signupAvatar: { fontSize: 18, fontWeight: '700', color: '#6366F1', marginBottom: 2 },
   signupName: { fontSize: 11, fontWeight: '600', color: '#D1D5DB', marginBottom: 2, maxWidth: 64, textAlign: 'center' },
   signupTime: { fontSize: 10, color: '#6B7280' },
+
+  // Online users
+  onlineRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  onlineChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#10B98115', borderRadius: 20, borderWidth: 1, borderColor: '#10B98140', paddingVertical: 4, paddingHorizontal: 8 },
+  onlineAvatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#10B98130', justifyContent: 'center', alignItems: 'center' },
+  onlineAvatarText: { fontSize: 9, fontWeight: '700', color: '#10B981' },
+  onlineName: { fontSize: 11, color: '#10B981', fontWeight: '600', maxWidth: 70 },
 
   // Quick actions card
   quickActionsCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
