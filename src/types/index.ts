@@ -55,6 +55,8 @@ export interface Exercise {
   youtubeId?: string;
   imageUrl?: string;
   difficulty: FitnessLevel;
+  tips?: string[];
+  commonMistakes?: string[];
 }
 
 // ==================== WORKOUTS ====================

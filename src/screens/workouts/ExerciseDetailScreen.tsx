@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
-import { Card, Button, FadeIn } from '../../components';
+import { Card, Button, FadeIn, AnimatedPressable } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
@@ -93,20 +93,37 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
     }));
   }, [exerciseHistory]);
 
+  // Similar exercises: same primary muscle, different exercise, same category
+  const similarExercises = useMemo(() =>
+    allExercises
+      .filter((e) =>
+        e.id !== exerciseId &&
+        e.category === exercise.category &&
+        e.primaryMuscles.some((m) => exercise.primaryMuscles.includes(m))
+      )
+      .slice(0, 5),
+  [allExercises, exerciseId, exercise]);
+
   const difficultyColor = DIFFICULTY_COLORS[exercise.difficulty] || colors.textSecondary;
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
       <FadeIn delay={0} from="top">
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={[typography.h3, { color: colors.primary }]}>{'‹'} </Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={[typography.h3, { color: colors.primary }]}>‹</Text>
           </TouchableOpacity>
           <Text style={[typography.h2, { color: colors.text, flex: 1 }]} numberOfLines={2}>{exercise.name}</Text>
         </View>
       </FadeIn>
 
-      <FadeIn delay={80}>
+      {/* Tags */}
+      <FadeIn delay={60}>
         <View style={styles.tagsRow}>
           <View style={[styles.tag, { backgroundColor: difficultyColor + '20' }]}>
             <Text style={[typography.captionMedium, { color: difficultyColor }]}>{DIFFICULTY_LABELS[exercise.difficulty] || exercise.difficulty}</Text>
@@ -116,14 +133,15 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
           </View>
           <View style={[styles.tag, { backgroundColor: colors.info + '15' }]}>
             <Text style={[typography.captionMedium, { color: colors.info }]}>
-              {exercise.category === 'strength' ? 'Силовое' : exercise.category === 'cardio' ? 'Кардио' : exercise.category}
+              {exercise.category === 'strength' ? 'Силовое' : exercise.category === 'cardio' ? 'Кардио' : exercise.category === 'functional' ? 'Функционал' : exercise.category}
             </Text>
           </View>
         </View>
       </FadeIn>
 
+      {/* Add to workout button */}
       {activeWorkout && (
-        <FadeIn delay={120}>
+        <FadeIn delay={100}>
           <TouchableOpacity
             onPress={() => {
               if (activeWorkout.workout.exercises.some((e) => e.exerciseId === exerciseId)) {
@@ -137,7 +155,12 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
                 { text: 'К тренировке', onPress: () => navigation.navigate('ActiveWorkout') },
               ]);
             }}
-            style={[{ backgroundColor: colors.success + '18', borderWidth: 1, borderColor: colors.success + '50', borderRadius: borderRadius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }]}
+            style={[{
+              backgroundColor: colors.success + '18', borderWidth: 1,
+              borderColor: colors.success + '50', borderRadius: borderRadius.md,
+              paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+              flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg,
+            }]}
           >
             <Text style={{ fontSize: 18 }}>➕</Text>
             <Text style={[typography.bodySemibold, { color: colors.success }]}>Добавить в текущую тренировку</Text>
@@ -145,35 +168,29 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
         </FadeIn>
       )}
 
-      <FadeIn delay={160}>
+      {/* ── VIDEO (always shown first, prominently) ── */}
+      <FadeIn delay={140}>
+        <ExerciseVideoCard
+          exerciseName={exercise.name}
+          youtubeId={exercise.youtubeId}
+          primaryMuscles={exercise.primaryMuscles}
+          muscleLabels={MUSCLE_LABELS}
+          description={exercise.description}
+          instructions={exercise.instructions}
+          tips={exercise.tips}
+          commonMistakes={exercise.commonMistakes}
+        />
+      </FadeIn>
+
+      {/* ── DESCRIPTION ── */}
+      <FadeIn delay={180}>
         <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.lg }]}>{exercise.description}</Text>
       </FadeIn>
 
-      <FadeIn delay={200}>
-        {exercise.imageUrl ? (
-          <View style={[styles.illustrationCard, { borderColor: colors.border }]}>
-            <Image
-              source={{ uri: exercise.imageUrl }}
-              style={styles.illustrationImage}
-              resizeMode="contain"
-            />
-            <View style={[styles.illustrationInfo, { backgroundColor: colors.surface }]}>
-              <Text style={[typography.smallMedium, { color: colors.text }]} numberOfLines={1}>
-                {exercise.name} — иллюстрация
-              </Text>
-              <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-                {exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m] || m).join(' · ')}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <ExerciseVideoCard exerciseName={exercise.name} youtubeId={exercise.youtubeId} primaryMuscles={exercise.primaryMuscles} muscleLabels={MUSCLE_LABELS} description={exercise.description} instructions={exercise.instructions} />
-        )}
-      </FadeIn>
-
-      <FadeIn delay={240}>
+      {/* ── MUSCLES ── */}
+      <FadeIn delay={220}>
         <Card style={{ marginBottom: spacing.lg }}>
-          <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Мышцы</Text>
+          <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Задействованные мышцы</Text>
           <Text style={[typography.smallMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>Основные:</Text>
           <View style={styles.muscleRow}>
             {exercise.primaryMuscles.map((m) => (
@@ -197,7 +214,8 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
         </Card>
       </FadeIn>
 
-      <FadeIn delay={320}>
+      {/* ── INSTRUCTIONS ── */}
+      <FadeIn delay={260}>
         <Card style={{ marginBottom: spacing.lg }}>
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Техника выполнения</Text>
           {exercise.instructions.map((inst, i) => (
@@ -211,10 +229,42 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
         </Card>
       </FadeIn>
 
+      {/* ── TIPS & MISTAKES ── */}
+      {((exercise.tips?.length ?? 0) > 0 || (exercise.commonMistakes?.length ?? 0) > 0) && (
+        <FadeIn delay={290}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            {(exercise.tips?.length ?? 0) > 0 && (
+              <>
+                <Text style={[typography.h4, { color: colors.success, marginBottom: spacing.sm }]}>Советы</Text>
+                {exercise.tips!.map((tip, i) => (
+                  <View key={i} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    <Text style={{ fontSize: 13, color: colors.success, marginTop: 1 }}>✓</Text>
+                    <Text style={[typography.body, { color: colors.text, flex: 1 }]}>{tip}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+            {(exercise.commonMistakes?.length ?? 0) > 0 && (
+              <>
+                <Text style={[typography.h4, { color: colors.error, marginBottom: spacing.sm, marginTop: (exercise.tips?.length ?? 0) > 0 ? spacing.md : 0 }]}>Типичные ошибки</Text>
+                {exercise.commonMistakes!.map((m, i) => (
+                  <View key={i} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    <Text style={{ fontSize: 13, color: colors.error, marginTop: 1 }}>✕</Text>
+                    <Text style={[typography.body, { color: colors.text, flex: 1 }]}>{m}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+          </Card>
+        </FadeIn>
+      )}
+
+      {/* ── STATS ── */}
       <ExerciseStatsCard exerciseHistory={exerciseHistory} maxWeight={maxWeight} estimated1RM={estimated1RM} oneRMTrend={oneRMTrend} />
 
+      {/* ── HISTORY ── */}
       {exerciseHistory.length > 0 && (
-        <FadeIn delay={280}>
+        <FadeIn delay={320}>
           <Card style={{ marginBottom: spacing.lg }}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>
               История ({exerciseHistory.length} тренировок)
@@ -229,7 +279,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
                     {new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </Text>
                   <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>
-                    {h.sets.length} подходов • {Math.round(h.totalVolume)} кг объём
+                    {h.sets.length} подходов · {Math.round(h.totalVolume)} кг объём
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
@@ -241,6 +291,44 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
                   </Text>
                 </View>
               </View>
+            ))}
+          </Card>
+        </FadeIn>
+      )}
+
+      {/* ── SIMILAR EXERCISES ── */}
+      {similarExercises.length > 0 && (
+        <FadeIn delay={360}>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Похожие упражнения</Text>
+            {similarExercises.map((ex, i) => (
+              <AnimatedPressable
+                key={ex.id}
+                onPress={() => { haptic.selection(); navigation.push('ExerciseDetail', { exerciseId: ex.id }); }}
+                haptic={false}
+                scaleDown={0.98}
+                style={[
+                  { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.md } as any,
+                  i < similarExercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
+                ]}
+              >
+                <View style={{
+                  width: 36, height: 36, borderRadius: borderRadius.sm,
+                  backgroundColor: (DIFFICULTY_COLORS[ex.difficulty] || colors.primary) + '15',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: DIFFICULTY_COLORS[ex.difficulty] || colors.primary }}>
+                    {TYPE_LABELS[ex.type]?.slice(0, 3) || ex.type.slice(0, 3)}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.body, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                    {ex.primaryMuscles.map((m) => MUSCLE_LABELS[m] || m).join(', ')}
+                  </Text>
+                </View>
+                <Text style={{ color: colors.textTertiary, fontSize: 16 }}>›</Text>
+              </AnimatedPressable>
             ))}
           </Card>
         </FadeIn>
@@ -259,7 +347,4 @@ const styles = StyleSheet.create({
   muscleChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.full },
   instructionRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.md, gap: spacing.md },
   stepNumber: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  illustrationCard: { borderRadius: borderRadius.lg, borderWidth: 1, overflow: 'hidden', marginBottom: spacing.xl },
-  illustrationImage: { width: '100%', height: 200, backgroundColor: '#F0F0F0' },
-  illustrationInfo: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
 });
