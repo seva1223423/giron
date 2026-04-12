@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
@@ -25,6 +25,13 @@ function formatArticleDate(dateStr: string): string {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
+function estimateReadingTime(article: NewsArticle): string {
+  const text = (article.summary || '') + (article.content || '');
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.ceil(words / 200));
+  return `${minutes} мин чтения`;
+}
+
 interface Props {
   article: NewsArticle;
   isSaved: boolean;
@@ -34,6 +41,12 @@ interface Props {
 
 export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, onToggleSave }) => {
   const { colors } = useThemeStore();
+
+  const handleShare = async () => {
+    try {
+      await Share.share({ message: `${article.title}\n\n${article.summary}\n\nIron Gym` });
+    } catch {}
+  };
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
@@ -46,15 +59,29 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
               </View>
             ))}
           </View>
-          <TouchableOpacity onPress={onToggleSave} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontSize: 20 }}>{isSaved ? '🔖' : '📌'}</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <TouchableOpacity onPress={handleShare} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[typography.caption, { color: colors.textTertiary, fontSize: 18 }]}>↗</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onToggleSave} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 20 }}>{isSaved ? '🔖' : '📌'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={[typography.h4, { color: colors.text, marginTop: spacing.sm }]}>{article.title}</Text>
         <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]} numberOfLines={2}>{article.summary}</Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md }}>
-          <Text style={[typography.caption, { color: colors.textTertiary }]}>{formatArticleDate(article.publishedAt)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>{formatArticleDate(article.publishedAt)}</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>·</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>{estimateReadingTime(article)}</Text>
+          </View>
           {article.content ? <Text style={[typography.caption, { color: colors.primary }]}>Читать →</Text> : null}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
+          <View style={[styles.sourceBadge, { backgroundColor: colors.accent + '12' }]}>
+            <Text style={[typography.caption, { color: colors.accent, fontSize: 10 }]}>Источник: Iron Gym</Text>
+          </View>
         </View>
       </Card>
     </TouchableOpacity>
@@ -65,4 +92,5 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   tags: { flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap', flex: 1 },
   tag: { paddingVertical: 2, paddingHorizontal: spacing.sm, borderRadius: borderRadius.sm },
+  sourceBadge: { paddingVertical: 2, paddingHorizontal: spacing.sm, borderRadius: borderRadius.sm },
 });

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
 import { Card, ProgressRing, MacroBar } from '../../../components';
 import { typography } from '../../../theme';
@@ -8,6 +8,15 @@ import { spacing } from '../../../theme/spacing';
 interface Props {
   selectedDate: string;
 }
+
+type RingMode = 'calories' | 'protein' | 'fats' | 'carbs';
+
+const RING_MODES: { key: RingMode; label: string; unit: string }[] = [
+  { key: 'calories', label: 'ккал', unit: '' },
+  { key: 'protein', label: 'белки', unit: 'г' },
+  { key: 'fats', label: 'жиры', unit: 'г' },
+  { key: 'carbs', label: 'углев.', unit: 'г' },
+];
 
 const macroStyles = StyleSheet.create({
   bar: {
@@ -31,6 +40,7 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
   const { getDayLog } = useNutritionStore();
   const { user } = useAuthStore();
   const dayLog = getDayLog(selectedDate);
+  const [ringMode, setRingMode] = useState<RingMode>('calories');
 
   const { totalCalories, totalProtein, totalFats, totalCarbs } = useMemo(() => ({
     totalCalories: dayLog.meals.reduce((s, m) => s + m.totalCalories, 0),
@@ -42,16 +52,51 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
   const remaining = dayLog.targetCalories - totalCalories;
   const isGain = user?.goal === 'muscle_gain' || (user?.goal as string) === 'MUSCLE_GAIN' || user?.goal === 'strength' || (user?.goal as string) === 'STRENGTH';
 
+  // Remaining macros
+  const remainingProtein = Math.max(0, dayLog.targetProtein - totalProtein);
+  const remainingFats = Math.max(0, (dayLog.targetFats || 70) - totalFats);
+  const remainingCarbs = Math.max(0, (dayLog.targetCarbs || 250) - totalCarbs);
+  const remainingCal = Math.max(0, remaining);
+
+  // Ring display logic based on mode
+  const ringData = useMemo(() => {
+    switch (ringMode) {
+      case 'protein':
+        return { progress: dayLog.targetProtein > 0 ? totalProtein / dayLog.targetProtein : 0, value: `${totalProtein}`, label: 'белки, г', colorKey: colors.protein, current: totalProtein, target: dayLog.targetProtein };
+      case 'fats':
+        return { progress: (dayLog.targetFats || 70) > 0 ? totalFats / (dayLog.targetFats || 70) : 0, value: `${Math.round(totalFats)}`, label: 'жиры, г', colorKey: colors.fats, current: totalFats, target: dayLog.targetFats || 70 };
+      case 'carbs':
+        return { progress: (dayLog.targetCarbs || 250) > 0 ? totalCarbs / (dayLog.targetCarbs || 250) : 0, value: `${totalCarbs}`, label: 'углев., г', colorKey: colors.carbs, current: totalCarbs, target: dayLog.targetCarbs || 250 };
+      default:
+        return { progress: dayLog.targetCalories > 0 ? totalCalories / dayLog.targetCalories : 0, value: `${totalCalories}`, label: 'ккал', colorKey: colors.calories, current: totalCalories, target: dayLog.targetCalories };
+    }
+  }, [ringMode, totalCalories, totalProtein, totalFats, totalCarbs, dayLog, colors]);
+
+  // Ring color based on progress percentage
+  const getRingColor = (progress: number, defaultColor: string) => {
+    if (progress >= 1.1) return colors.error;
+    if (progress >= 0.8) return colors.success;
+    return defaultColor;
+  };
+
+  const handleRingTap = () => {
+    const idx = RING_MODES.findIndex((m) => m.key === ringMode);
+    setRingMode(RING_MODES[(idx + 1) % RING_MODES.length].key);
+  };
+
   return (
     <Card style={{ marginBottom: spacing.lg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <ProgressRing
-          progress={dayLog.targetCalories > 0 ? totalCalories / dayLog.targetCalories : 0}
-          size={110}
-          strokeWidth={10}
-          value={`${totalCalories}`}
-          label="ккал"
-        />
+        <TouchableOpacity onPress={handleRingTap} activeOpacity={0.7}>
+          <ProgressRing
+            progress={ringData.progress}
+            size={110}
+            strokeWidth={10}
+            color={getRingColor(ringData.progress, ringData.colorKey)}
+            value={ringData.value}
+            label={ringData.label}
+          />
+        </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: spacing.xl }}>
           <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
             {remaining > 0 ? (
@@ -65,6 +110,13 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
           <MacroBar label="Углеводы" current={totalCarbs} target={dayLog.targetCarbs} color={colors.carbs} />
         </View>
       </View>
+
+      {/* Remaining macros summary */}
+      {dayLog.targetCalories > 0 && (
+        <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.sm, textAlign: 'center' }]}>
+          {`\u041E\u0441\u0442\u0430\u043B\u043E\u0441\u044C: ${remainingCal} \u043A\u043A\u0430\u043B \u00B7 ${remainingProtein}\u0433 \u0431\u0435\u043B\u043A\u0430 \u00B7 ${remainingFats}\u0433 \u0436\u0438\u0440\u043E\u0432 \u00B7 ${remainingCarbs}\u0433 \u0443\u0433\u043B\u0435\u0432\u043E\u0434\u043E\u0432`}
+        </Text>
+      )}
 
       {/* Macro calorie breakdown bar */}
       {(() => {
@@ -84,11 +136,18 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
               <View style={[macroStyles.segment, { flex: carbCal, backgroundColor: colors.carbs, borderTopRightRadius: 4, borderBottomRightRadius: 4 }]} />
             </View>
             <Text style={[macroStyles.label, { color: colors.textSecondary }]}>
-              {`Б ${pPct}% \u2022 Ж ${fPct}% \u2022 У ${cPct}%`}
+              {`\u0411 ${pPct}% \u2022 \u0416 ${fPct}% \u2022 \u0423 ${cPct}%`}
             </Text>
           </View>
         );
       })()}
+
+      {/* Ring mode indicator dots */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm, gap: spacing.xs }}>
+        {RING_MODES.map((mode) => (
+          <View key={mode.key} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ringMode === mode.key ? colors.primary : colors.border }} />
+        ))}
+      </View>
     </Card>
   );
 };

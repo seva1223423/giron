@@ -368,6 +368,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         onNext={nextExercise}
         onSubstitute={handleSubstitute}
         hasSessionPR={currentExHasSessionPR}
+        navigation={navigation}
       />
       <Tooltip tipId="workout-swipe" text="Свайпни влево/вправо для переключения между упражнениями" position="top" />
 

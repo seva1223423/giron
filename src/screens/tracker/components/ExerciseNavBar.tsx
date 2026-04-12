@@ -13,6 +13,12 @@ const MUSCLE_LABELS: Record<string, string> = {
   lower_back: '\u041F\u043E\u044F\u0441\u043D\u0438\u0446\u0430', hip_flexors: '\u0421\u0433\u0438\u0431. \u0431\u0435\u0434\u0440\u0430', adductors: '\u041F\u0440\u0438\u0432\u043E\u0434\u044F\u0449\u0438\u0435', abductors: '\u041E\u0442\u0432\u043E\u0434\u044F\u0449\u0438\u0435',
 };
 
+const EQUIPMENT_LABELS: Record<string, string> = {
+  barbell: '\u0448\u0442\u0430\u043D\u0433\u0430', dumbbell: '\u0433\u0430\u043D\u0442\u0435\u043B\u0438', machine: '\u0442\u0440\u0435\u043D\u0430\u0436\u0451\u0440',
+  cable: '\u0442\u0440\u043E\u0441', bodyweight: '\u0441\u0432\u043E\u0439 \u0432\u0435\u0441', kettlebell: '\u0433\u0438\u0440\u044F',
+  band: '\u0440\u0435\u0437\u0438\u043D\u043A\u0430', cardio: '\u043A\u0430\u0440\u0434\u0438\u043E', stretch: '\u0440\u0430\u0441\u0442\u044F\u0436\u043A\u0430',
+};
+
 interface Props {
   currentExercise: WorkoutExercise;
   currentExerciseIndex: number;
@@ -21,9 +27,10 @@ interface Props {
   onNext: () => void;
   onSubstitute?: () => void;
   hasSessionPR?: boolean;
+  navigation?: any;
 }
 
-export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerciseIndex, totalExercises, onPrev, onNext, onSubstitute, hasSessionPR }) => {
+export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerciseIndex, totalExercises, onPrev, onNext, onSubstitute, hasSessionPR, navigation }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
 
@@ -34,7 +41,8 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
       <TouchableOpacity
         onPress={() => { haptic.selection(); onPrev(); }}
         disabled={currentExerciseIndex === 0}
-        style={{ opacity: currentExerciseIndex === 0 ? 0.3 : 1 }}
+        style={{ opacity: currentExerciseIndex === 0 ? 0.3 : 1, padding: 4 }}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
       >
         <Text style={[typography.h3, { color: colors.primary }]}>{'\u2039'}</Text>
       </TouchableOpacity>
@@ -82,17 +90,42 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
           </View>
         )}
 
-        {onSubstitute && (
-          <TouchableOpacity onPress={onSubstitute} style={{ marginTop: 2, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>{'\u0437\u0430\u043C\u0435\u043D\u0430'}</Text>
-          </TouchableOpacity>
+        {/* Equipment type indicator */}
+        {currentExercise.exercise.type && (
+          <Text style={{ fontSize: 9, fontWeight: '500', color: colors.textTertiary, marginTop: 2, letterSpacing: 0.3 }}>
+            {EQUIPMENT_LABELS[currentExercise.exercise.type] || currentExercise.exercise.type}
+          </Text>
         )}
+
+        {/* Actions row: substitute + YouTube */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 }}>
+          {onSubstitute && (
+            <TouchableOpacity onPress={onSubstitute} style={{ paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>{'\u0437\u0430\u043C\u0435\u043D\u0430'}</Text>
+            </TouchableOpacity>
+          )}
+          {currentExercise.exercise.youtubeId && navigation && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: currentExercise.exerciseId })}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 3,
+                paddingHorizontal: 6, paddingVertical: 2,
+                borderRadius: borderRadius.sm, backgroundColor: colors.error + '12',
+              }}
+            >
+              <Text style={{ fontSize: 10, color: colors.error }}>{'\u25B6'}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '600', color: colors.error }}>{'video'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <TouchableOpacity
         onPress={() => { haptic.selection(); onNext(); }}
         disabled={currentExerciseIndex === totalExercises - 1}
-        style={{ opacity: currentExerciseIndex === totalExercises - 1 ? 0.3 : 1 }}
+        style={{ opacity: currentExerciseIndex === totalExercises - 1 ? 0.3 : 1, padding: 4 }}
+        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
       >
         <Text style={[typography.h3, { color: colors.primary }]}>{'\u203A'}</Text>
       </TouchableOpacity>

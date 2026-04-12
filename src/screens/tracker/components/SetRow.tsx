@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Dimensions, Animated } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -33,6 +33,13 @@ interface Props {
   colors: any;
 }
 
+// Estimate 1RM using Epley formula
+function estimate1RM(weight: number, reps: number): number {
+  if (reps <= 0 || weight <= 0) return 0;
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30));
+}
+
 export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const haptic = useHaptic();
   const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
@@ -42,13 +49,45 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
   const [showRpe, setShowRpe] = useState(false);
   const currentType = set.type || 'normal';
 
+  // Scale animation on complete
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handleComplete = useCallback(() => {
+    // Auto-fill from prevSet if weight is 0/empty and prevSet exists
+    let finalWeight = parseFloat(weight.replace(',', '.')) || 0;
+    let finalReps = parseInt(reps) || 0;
+    if (finalWeight === 0 && prevSet?.weight) {
+      finalWeight = prevSet.weight;
+      setWeight(String(prevSet.weight));
+    }
+    if (finalReps === 0 && prevSet?.reps) {
+      finalReps = prevSet.reps;
+      setReps(String(prevSet.reps));
+    }
+
+    // Scale animation: briefly scale to 1.02 then back
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 1.02, duration: 100, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+
+    onComplete(finalReps, finalWeight);
+    setShowRpe(true);
+  }, [weight, reps, prevSet, onComplete, scaleAnim]);
+
+  // 1RM estimate for completed sets
+  const completed1RM = set.completed && set.weight && set.reps
+    ? estimate1RM(set.weight, set.reps)
+    : 0;
+
   return (
-    <View style={{
+    <Animated.View style={{
       backgroundColor: set.completed ? colors.success + '10' : 'transparent',
       borderRadius: borderRadius.sm,
       marginBottom: 2,
       borderLeftWidth: set.completed ? 3 : 0,
       borderLeftColor: set.completed ? colors.success : 'transparent',
+      transform: [{ scale: scaleAnim }],
     }}>
       <View style={[styles.setRow, { paddingVertical: spacing.sm }]}>
         {/* Set number / type badge */}
@@ -127,16 +166,20 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           </TouchableOpacity>
         </View>
 
-        {/* Complete button */}
-        <TouchableOpacity
-          style={[styles.checkBtn, { backgroundColor: set.completed ? colors.success : colors.inputBackground, borderColor: set.completed ? colors.success : colors.border }]}
-          onPress={() => {
-            onComplete(parseInt(reps) || 0, parseFloat(weight.replace(',', '.')) || 0);
-            setShowRpe(true);
-          }}
-        >
-          <Text style={{ color: set.completed ? '#FFF' : colors.textSecondary, fontWeight: '700' }}>{'\u2713'}</Text>
-        </TouchableOpacity>
+        {/* Complete button + 1RM estimate */}
+        <View style={{ alignItems: 'center' }}>
+          <TouchableOpacity
+            style={[styles.checkBtn, { backgroundColor: set.completed ? colors.success : colors.inputBackground, borderColor: set.completed ? colors.success : colors.border }]}
+            onPress={handleComplete}
+          >
+            <Text style={{ color: set.completed ? '#FFF' : colors.textSecondary, fontWeight: '700' }}>{'\u2713'}</Text>
+          </TouchableOpacity>
+          {completed1RM > 0 && (
+            <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, marginTop: 2 }}>
+              ~{completed1RM} 1{'\u041F\u041C'}
+            </Text>
+          )}
+        </View>
       </View>
 
       {/* Quick weight presets */}
@@ -162,9 +205,13 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             <View key={v} style={{ alignItems: 'center' }}>
               <TouchableOpacity
                 onPress={() => { haptic.selection(); onRpeChange(v); setShowRpe(false); }}
-                style={[styles.rpeBtn, { backgroundColor: set.rpe === v ? rpeColor(v) : colors.inputBackground, borderColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary : colors.border, borderWidth: suggestedRpe === v && set.rpe !== v ? 1.5 : 1 }]}
+                style={[styles.rpeBtn, {
+                  backgroundColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary + '18' : colors.inputBackground,
+                  borderColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary : colors.border,
+                  borderWidth: suggestedRpe === v && set.rpe !== v ? 2 : 1,
+                }]}
               >
-                <Text style={[typography.small, { color: set.rpe === v ? '#fff' : colors.textSecondary, fontWeight: '700' }]}>{v}</Text>
+                <Text style={[typography.small, { color: set.rpe === v ? '#fff' : suggestedRpe === v ? colors.primary : colors.textSecondary, fontWeight: '700' }]}>{v}</Text>
               </TouchableOpacity>
               {suggestedRpe === v && set.rpe !== v && (
                 <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', marginTop: 1 }}>{'\u043E\u0436\u0438\u0434.'}</Text>
@@ -178,7 +225,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           )}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 });
 
