@@ -282,17 +282,27 @@ export default function AdminDashboardScreen() {
           onChangeText={setQuickSearch}
           returnKeyType="search"
           onSubmitEditing={() => {
-            if (quickSearch.trim()) {
-              navigation.navigate('AdminUsersScreen', { initialSearch: quickSearch.trim() });
-              setQuickSearch('');
+            const q = quickSearch.trim();
+            if (!q) return;
+            // If it looks like a CUID/UUID, navigate directly to user detail
+            if (/^c[a-z0-9]{20,}$/.test(q)) {
+              navigation.navigate('AdminUserDetailScreen', { userId: q });
+            } else {
+              navigation.navigate('AdminUsersScreen', { initialSearch: q });
             }
+            setQuickSearch('');
           }}
         />
         {quickSearch.trim().length > 0 && (
           <TouchableOpacity
             style={styles.quickSearchBtn}
             onPress={() => {
-              navigation.navigate('AdminUsersScreen', { initialSearch: quickSearch.trim() });
+              const q = quickSearch.trim();
+              if (/^c[a-z0-9]{20,}$/.test(q)) {
+                navigation.navigate('AdminUserDetailScreen', { userId: q });
+              } else {
+                navigation.navigate('AdminUsersScreen', { initialSearch: q });
+              }
               setQuickSearch('');
             }}
           >

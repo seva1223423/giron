@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
-import { ScrollView, View } from 'react-native';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
+import { ScrollView, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { AnimatedPressable } from '../../components';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
@@ -8,6 +8,8 @@ import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { FadeIn, Button, Card } from '../../components';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showTodayPlanNotification } from '../../services/notificationService';
+import { adminService } from '../../services/adminService';
+import type { AnnouncementType } from '../../types';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   LastWorkoutCard, NutritionCard, WaterCard,
@@ -36,10 +38,19 @@ const SectionDivider: React.FC<{ label: string; colors: any }> = ({ label, color
   </View>
 );
 
+const ANN_COLORS: Record<AnnouncementType, string> = {
+  info: '#6366F1', warning: '#F59E0B', maintenance: '#EF4444', promo: '#10B981',
+};
+const ANN_ICONS: Record<AnnouncementType, string> = {
+  info: 'ℹ️', warning: '⚠️', maintenance: '🔧', promo: '🎁',
+};
+
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
+  const [announcements, setAnnouncements] = useState<Array<{ id: string; title: string; body: string; type: AnnouncementType; createdAt: string }>>([]);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const { user } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
@@ -48,6 +59,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchPrograms();
     fetchHistory();
     fetchWeekPlan();
+    // Fetch active announcements (fire and forget)
+    adminService.getActiveAnnouncements().then(setAnnouncements).catch(() => {});
   }, []);
 
   const today = todayDate();
@@ -209,6 +222,23 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <HomeHeader navigation={navigation} />
       </FadeIn>
 
+      {/* ── Announcements ─────────────────── */}
+      {announcements.filter((a) => !dismissedIds.has(a.id)).map((a) => {
+        const c = ANN_COLORS[a.type];
+        return (
+          <View key={a.id} style={[annStyles.banner, { borderColor: c + '40', backgroundColor: c + '10' }]}>
+            <Text style={{ fontSize: 16 }}>{ANN_ICONS[a.type]}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[annStyles.title, { color: c }]}>{a.title}</Text>
+              <Text style={annStyles.body} numberOfLines={3}>{a.body}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setDismissedIds((s) => new Set([...s, a.id]))}>
+              <Text style={{ color: '#6B7280', fontSize: 16, paddingHorizontal: 4 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+
       {/* ── СЕГОДНЯ ──────────────────────────���───── */}
       <FadeIn delay={60}>
         <TodaySummaryCard navigation={navigation} />
@@ -309,3 +339,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     </View>
   );
 };
+
+const annStyles = StyleSheet.create({
+  banner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    borderRadius: 12, borderWidth: 1, padding: 12,
+    marginBottom: 10,
+  },
+  title: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  body: { fontSize: 12, color: '#9CA3AF', lineHeight: 18 },
+});

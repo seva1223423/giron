@@ -75,6 +75,12 @@ export const adminService = {
   },
 
   // ── Announcements ─────────────────────────────────────────────────────────
+  /** Public endpoint — any authenticated user can call this */
+  async getActiveAnnouncements(): Promise<Array<{ id: string; title: string; body: string; type: AnnouncementType; createdAt: string }>> {
+    const res = await api.get('/admin/announcements/active');
+    return res.data;
+  },
+
   async getAnnouncements(): Promise<Announcement[]> {
     const res = await api.get('/admin/announcements');
     return res.data;
