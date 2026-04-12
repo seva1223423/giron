@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -8,6 +8,8 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
 import { LifetimeStatsCard, AchievementsCard } from './components';
+import { userService } from '../../services';
+import type { BodyWeight } from '../../types';
 
 const GOAL_LABELS: Record<string, string> = {
   WEIGHT_LOSS: 'Похудение', weight_loss: 'Похудение',
@@ -39,6 +41,28 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const { user, logout } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
   const { dailyLog } = useNutritionStore();
+
+  const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
+
+  useEffect(() => {
+    userService.getWeightHistory().then(setWeightHistory).catch(() => {});
+  }, []);
+
+  // Days since account creation
+  const daysWithUs = useMemo(() => {
+    if (!user?.createdAt) return null;
+    const created = new Date(user.createdAt);
+    const now = new Date();
+    return Math.max(1, Math.floor((now.getTime() - created.getTime()) / 86400000));
+  }, [user?.createdAt]);
+
+  // Weight trend: last 3 entries
+  const weightTrend = useMemo(() => {
+    if (weightHistory.length < 2) return null;
+    const last = weightHistory.slice(-3);
+    const diff = last[last.length - 1].weightKg - last[0].weightKg;
+    return { entries: last, diff: Math.round(diff * 10) / 10 };
+  }, [weightHistory]);
 
   const achievements = useMemo(() => {
     const nutritionDaysLogged = Object.values(dailyLog).filter((d) => d.meals.length > 0).length;
@@ -74,6 +98,11 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         </View>
         <Text style={[typography.h2, { color: colors.text, marginTop: spacing.lg }]}>{user?.firstName} {user?.lastName}</Text>
         <Text style={[typography.body, { color: colors.textSecondary }]}>{user?.email}</Text>
+        {daysWithUs !== null && (
+          <Text style={[typography.caption, { color: colors.primary, marginTop: spacing.xs, fontWeight: '600' }]}>
+            С нами {daysWithUs} {daysWithUs === 1 ? 'день' : daysWithUs < 5 ? 'дня' : 'дней'}
+          </Text>
+        )}
       </View>
 
       {/* Stats summary */}
@@ -93,6 +122,53 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <Text style={[typography.caption, { color: colors.textSecondary }]}>Уровень</Text>
         </View>
       </View>
+
+      {/* Weight trend */}
+      {weightTrend && (
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: spacing.lg, padding: spacing.md,
+          borderRadius: borderRadius.md, backgroundColor: colors.surface,
+          borderWidth: 1, borderColor: colors.border,
+        }}>
+          <View>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>Тренд веса</Text>
+            <Text style={[typography.bodySemibold, { color: weightTrend.diff > 0 ? colors.warning : weightTrend.diff < 0 ? colors.success : colors.text }]}>
+              {weightTrend.diff > 0 ? '+' : ''}{weightTrend.diff} кг
+            </Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>за {weightTrend.entries.length - 1} замера</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 32 }}>
+            {weightTrend.entries.map((e, i) => {
+              const vals = weightTrend.entries.map((x) => x.weightKg);
+              const min = Math.min(...vals); const max = Math.max(...vals);
+              const range = max - min || 1;
+              const h = Math.max(4, Math.round(((e.weightKg - min) / range) * 28) + 4);
+              return (
+                <View key={i} style={{ width: 10, height: h, borderRadius: 3, backgroundColor: i === weightTrend.entries.length - 1 ? colors.primary : colors.border }} />
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Unlocked achievements preview (top 3) */}
+      {achievements.filter((a) => a.unlockedAt).slice(0, 3).length > 0 && (
+        <View style={{
+          flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg,
+        }}>
+          {achievements.filter((a) => a.unlockedAt).slice(0, 3).map((ach) => (
+            <TouchableOpacity
+              key={ach.id}
+              onPress={() => navigation.navigate('Achievements')}
+              style={{ flex: 1, alignItems: 'center', padding: spacing.sm, borderRadius: borderRadius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary + '30' }}
+            >
+              <Text style={{ fontSize: 22 }}>{ach.icon}</Text>
+              <Text style={{ fontSize: 9, fontWeight: '600', color: colors.primary, marginTop: 2, textAlign: 'center' }} numberOfLines={2}>{ach.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       <LifetimeStatsCard delay={100} />
       <AchievementsCard achievements={achievements} delay={180} />

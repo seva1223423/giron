@@ -201,6 +201,39 @@ export const SetsSection: React.FC<Props> = ({
         />
       ))}
 
+      {/* Mini-summary of completed sets */}
+      {(() => {
+        const completedSets = currentExercise.sets.filter((s) => s.completed && s.weight && s.reps);
+        if (completedSets.length === 0) return null;
+        const totalVol = completedSets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+        const maxWeight = Math.max(...completedSets.map((s) => s.weight || 0));
+        const avgRpe = completedSets.filter((s) => s.rpe).reduce((sum, s, _, arr) => sum + (s.rpe || 0) / arr.length, 0);
+        // Rest recommendation based on RPE: high RPE → longer rest
+        let restRec = '';
+        if (avgRpe > 0) {
+          if (avgRpe >= 9) restRec = '3–5 мин отдыха';
+          else if (avgRpe >= 7.5) restRec = '2–3 мин отдыха';
+          else restRec = '1–2 мин отдыха';
+        }
+        return (
+          <View style={{
+            marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+            borderRadius: borderRadius.md, backgroundColor: colors.primary + '08',
+            borderWidth: 1, borderColor: colors.primary + '20',
+            flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+          }}>
+            <Text style={[typography.captionMedium, { color: colors.primary }]}>
+              {completedSets.length} подх. · {Math.round(totalVol)} кг · макс {maxWeight} кг
+            </Text>
+            {restRec !== '' && (
+              <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                · {restRec}
+              </Text>
+            )}
+          </View>
+        );
+      })()}
+
       {/* Quick set templates */}
       {currentExercise.sets.length <= 1 && (
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>

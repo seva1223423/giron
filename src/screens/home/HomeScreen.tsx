@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View, Animated } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
@@ -12,8 +12,9 @@ import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   StreakWarningCard, LastWorkoutCard, WeeklyStatsCard, MuscleReadinessCard,
   NutritionCard, WeightCard, AITipCard, DailyQuoteCard, WaterCard, CardioWeekCard, SleepCard,
-  RecoveryScoreCard,
+  RecoveryScoreCard, TodaySummaryCard,
 } from './components';
+import { borderRadius } from '../../theme/spacing';
 
 const SPLITS = [
   { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '◎' },
@@ -204,13 +205,18 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, [lastWorkout, activeWorkout, startWorkout, navigation, haptic]);
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.huge }}
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: 100 }}
       showsVerticalScrollIndicator={false}
     >
       <FadeIn delay={0} from="top">
         <HomeHeader navigation={navigation} />
+      </FadeIn>
+
+      <FadeIn delay={60}>
+        <TodaySummaryCard navigation={navigation} />
       </FadeIn>
 
       <FadeIn delay={100}>
@@ -320,5 +326,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <WaterCard dayLog={dayLog} today={today} />
       </FadeIn>
     </ScrollView>
+
+    {/* Floating "Start workout" button — shown when no active workout */}
+    {!activeWorkout && (
+      <View style={{
+        position: 'absolute', bottom: 24, right: spacing.xl,
+      }}>
+        <TouchableOpacity
+          onPress={() => { haptic.medium(); navigation.navigate('WorkoutsTab', { screen: 'Workouts' }); }}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+            paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
+            borderRadius: borderRadius.full, backgroundColor: colors.primary,
+            shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+          }}
+        >
+          <Text style={{ fontSize: 16 }}>▷</Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFF', letterSpacing: 0.5 }}>Начать</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+    </View>
   );
 };

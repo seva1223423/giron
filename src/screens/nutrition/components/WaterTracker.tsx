@@ -1,10 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+
+const QUICK_AMOUNTS = [
+  { label: 'Стакан', ml: 250 },
+  { label: 'Бутылка', ml: 500 },
+  { label: '1 литр', ml: 1000 },
+];
 
 interface Props {
   selectedDate: string;
@@ -19,6 +25,7 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
   const waterTarget = dayLog.waterTargetMl ?? 2500;
 
   const [excessWarning, setExcessWarning] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const waterPercent = waterTarget > 0 ? dayLog.waterMl / waterTarget : 0;
   const remaining = Math.max(0, waterTarget - dayLog.waterMl);
@@ -42,72 +49,101 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
     addWater(selectedDate, amount);
   };
 
+  const waterLog = dayLog.waterLog || [];
+
   return (
     <Card style={{ marginBottom: spacing.lg }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
         <View>
-          <Text style={[typography.h4, { color: colors.text }]}>{'\u0412\u043E\u0434\u0430'}</Text>
+          <Text style={[typography.h4, { color: colors.text }]}>Вода</Text>
           <Text style={[typography.body, { color: colors.textSecondary }]}>
-            {dayLog.waterMl} {'\u043C\u043B'} / {waterTarget} {'\u043C\u043B'}
+            {dayLog.waterMl >= 1000 ? `${(dayLog.waterMl / 1000).toFixed(1)}л` : `${dayLog.waterMl}мл`} / {waterTarget >= 1000 ? `${(waterTarget / 1000).toFixed(1)}л` : `${waterTarget}мл`}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {[250, 500].map((ml) => (
-            <TouchableOpacity
-              key={ml}
-              style={[styles.waterBtn, { backgroundColor: colors.info + '15', borderColor: colors.info }]}
-              onPress={() => handleAddWater(ml)}
-            >
-              <Text style={[typography.buttonSmall, { color: colors.info }]}>+{ml}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {waterLog.length > 0 && (
+          <TouchableOpacity onPress={() => setShowHistory((v) => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={[typography.caption, { color: colors.primary }]}>
+              {showHistory ? 'скрыть' : `история (${waterLog.length})`}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
+      {/* Progress bar */}
       <View style={[styles.waterBar, { backgroundColor: colors.progressBarBackground }]}>
-        <View style={{ height: '100%', width: `${Math.min(waterPercent * 100, 100)}%`, backgroundColor: colors.info, borderRadius: borderRadius.full }} />
+        <View style={{
+          height: '100%', width: `${Math.min(waterPercent * 100, 100)}%`,
+          backgroundColor: waterPercent >= 1 ? colors.success : colors.info,
+          borderRadius: borderRadius.full,
+        }} />
       </View>
 
-      {/* Water from food estimate */}
-      {estimatedFoodWater > 0 && (
-        <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
-          + ~{estimatedFoodWater} {'\u043C\u043B \u0438\u0437 \u0435\u0434\u044B'}
-        </Text>
+      {/* Quick add buttons */}
+      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+        {QUICK_AMOUNTS.map(({ label, ml }) => (
+          <TouchableOpacity
+            key={ml}
+            style={[styles.waterBtn, { backgroundColor: colors.info + '12', borderColor: colors.info + '60', flex: 1 }]}
+            onPress={() => handleAddWater(ml)}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: colors.info }}>{label}</Text>
+            <Text style={{ fontSize: 10, color: colors.info + 'AA' }}>{ml}мл</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Day history */}
+      {showHistory && waterLog.length > 0 && (
+        <View style={{ marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: spacing.sm }}>
+          <Text style={[typography.captionMedium, { color: colors.textTertiary, marginBottom: spacing.xs }]}>История за день</Text>
+          <ScrollView style={{ maxHeight: 120 }} showsVerticalScrollIndicator={false}>
+            {[...waterLog].reverse().map((entry, i) => (
+              <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
+                <Text style={[typography.small, { color: colors.textSecondary }]}>{entry.time}</Text>
+                <Text style={[typography.small, { color: colors.info, fontWeight: '600' }]}>+{entry.ml} мл</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
-      {/* Recommended daily intake */}
-      <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
-        {'\u0420\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u044F: '}{recommendedMl} {'\u043C\u043B/\u0434\u0435\u043D\u044C'}
-      </Text>
-
-      {/* Contextual tips */}
-      {waterPercent < 0.3 && (
-        <Text style={[typography.caption, { color: colors.error, marginTop: spacing.xs }]}>
-          {'\u041F\u0435\u0439 \u0432\u043E\u0434\u0443 \u0440\u0435\u0433\u0443\u043B\u044F\u0440\u043D\u043E \u2014 \u0434\u0430\u0436\u0435 2% \u043E\u0431\u0435\u0437\u0432\u043E\u0436\u0438\u0432\u0430\u043D\u0438\u044F \u0441\u043D\u0438\u0436\u0430\u0435\u0442 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C'}
+      {/* Footer info */}
+      <View style={{ marginTop: spacing.sm, gap: 2 }}>
+        {estimatedFoodWater > 0 && (
+          <Text style={[typography.caption, { color: colors.textTertiary }]}>
+            + ~{estimatedFoodWater} мл из еды
+          </Text>
+        )}
+        <Text style={[typography.caption, { color: colors.textTertiary }]}>
+          Рекомендация: {recommendedMl} мл/день
         </Text>
-      )}
-      {waterPercent >= 0.8 && waterPercent < 1.0 && (
-        <Text style={[typography.caption, { color: colors.success, marginTop: spacing.xs }]}>
-          {'\u041F\u043E\u0447\u0442\u0438 \u0443 \u0446\u0435\u043B\u0438! \u041E\u0441\u0442\u0430\u043B\u043E\u0441\u044C '}{remaining} {'\u043C\u043B'}
-        </Text>
-      )}
-      {waterPercent >= 1.0 && (
-        <Text style={[typography.caption, { color: colors.success, marginTop: spacing.xs }]}>
-          {'\u041D\u043E\u0440\u043C\u0430 \u0432\u043E\u0434\u044B \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0430! \u041E\u0442\u043B\u0438\u0447\u043D\u0430\u044F \u0440\u0430\u0431\u043E\u0442\u0430'}
-        </Text>
-      )}
-
-      {/* Excess water warning */}
-      {excessWarning && dayLog.waterMl > 5000 && (
-        <Text style={[typography.caption, { color: colors.warning, marginTop: spacing.xs }]}>
-          {'\u0411\u043E\u043B\u0435\u0435 5 \u043B\u0438\u0442\u0440\u043E\u0432 \u0432\u043E\u0434\u044B \u0432 \u0434\u0435\u043D\u044C \u043C\u043E\u0436\u0435\u0442 \u0431\u044B\u0442\u044C \u0438\u0437\u0431\u044B\u0442\u043E\u0447\u043D\u044B\u043C'}
-        </Text>
-      )}
+        {waterPercent < 0.3 && (
+          <Text style={[typography.caption, { color: colors.error }]}>
+            Пей воду регулярно — даже 2% обезвоживания снижает производительность
+          </Text>
+        )}
+        {waterPercent >= 0.8 && waterPercent < 1.0 && (
+          <Text style={[typography.caption, { color: colors.success }]}>
+            Почти у цели! Осталось {remaining} мл
+          </Text>
+        )}
+        {waterPercent >= 1.0 && (
+          <Text style={[typography.caption, { color: colors.success }]}>
+            Норма воды выполнена! Отличная работа
+          </Text>
+        )}
+        {excessWarning && dayLog.waterMl > 5000 && (
+          <Text style={[typography.caption, { color: colors.warning }]}>
+            Более 5 литров воды в день может быть избыточным
+          </Text>
+        )}
+      </View>
     </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  waterBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
+  waterBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, alignItems: 'center' },
   waterBar: { height: 8, borderRadius: borderRadius.full, marginTop: spacing.md, overflow: 'hidden' },
 });

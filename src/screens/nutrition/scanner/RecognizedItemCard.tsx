@@ -13,6 +13,8 @@ interface Props {
   onRemove: (id: string) => void;
 }
 
+const PORTION_PRESETS = [50, 100, 150, 200];
+
 export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove }) => {
   const { colors } = useThemeStore();
   const { saveFoodItem } = useNutritionStore();
@@ -29,6 +31,8 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
     });
     Alert.alert('Сохранено', `${item.name} добавлен в быстрые продукты`);
   };
+
+  const currentWeight = item.weightGrams || 100;
 
   return (
     <Card style={{ marginBottom: spacing.md }}>
@@ -55,6 +59,27 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
           </View>
         </View>
       </View>
+
+      {/* Portion presets — shown when base macros per 100g are available */}
+      {base && (
+        <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
+          {PORTION_PRESETS.map((g) => (
+            <TouchableOpacity
+              key={g}
+              onPress={() => onWeightChange(item.id, String(g))}
+              style={[styles.portionBtn, {
+                backgroundColor: currentWeight === g ? colors.primary : colors.inputBackground,
+                borderColor: currentWeight === g ? colors.primary : colors.border,
+              }]}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '600', color: currentWeight === g ? '#FFF' : colors.textSecondary }}>
+                {g}г
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       <View style={styles.nutritionRow}>
         {[
           { label: 'Ккал', value: String(item.calories), color: colors.calories },
@@ -77,4 +102,5 @@ const styles = StyleSheet.create({
   weightInput: { width: 56, height: 32, borderRadius: borderRadius.sm, borderWidth: 1, paddingHorizontal: spacing.sm, textAlign: 'center', fontSize: 14, fontWeight: '600' },
   nutritionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   nutritionCell: { alignItems: 'center' },
+  portionBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm, borderWidth: 1 },
 });
