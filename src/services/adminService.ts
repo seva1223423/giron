@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { AdminStats, AdminUserSummary, AdminUserDetail, AdminLog, UserRole, TicketStatus, TicketPriority, SupportTicket } from '../types';
+import type { AdminStats, AdminUserSummary, AdminUserDetail, AdminLog, AdminAnalytics, UserRole, TicketStatus, TicketPriority, SupportTicket } from '../types';
 
 export const adminService = {
   // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -8,13 +8,22 @@ export const adminService = {
     return res.data;
   },
 
+  // ── Analytics ─────────────────────────────────────────────────────────────
+  async getAnalytics(days?: number): Promise<AdminAnalytics> {
+    const res = await api.get('/admin/analytics', { params: { days } });
+    return res.data;
+  },
+
   // ── Users ─────────────────────────────────────────────────────────────────
   async getUsers(params?: {
     search?: string;
     role?: string;
+    plan?: string;
+    banned?: boolean;
     page?: number;
     limit?: number;
     sort?: string;
+    order?: 'asc' | 'desc';
   }): Promise<{ users: AdminUserSummary[]; total: number; page: number; pages: number }> {
     const res = await api.get('/admin/users', { params });
     return res.data;
@@ -39,8 +48,33 @@ export const adminService = {
     return res.data;
   },
 
+  async banUser(userId: string, reason: string): Promise<unknown> {
+    const res = await api.post(`/admin/users/${userId}/ban`, { reason });
+    return res.data;
+  },
+
+  async unbanUser(userId: string): Promise<unknown> {
+    const res = await api.post(`/admin/users/${userId}/unban`);
+    return res.data;
+  },
+
+  async setAdminNote(userId: string, note: string): Promise<unknown> {
+    const res = await api.patch(`/admin/users/${userId}/note`, { note });
+    return res.data;
+  },
+
+  async deleteUser(userId: string): Promise<unknown> {
+    const res = await api.delete(`/admin/users/${userId}`);
+    return res.data;
+  },
+
   // ── Logs ──────────────────────────────────────────────────────────────────
-  async getLogs(params?: { page?: number; limit?: number }): Promise<AdminLog[]> {
+  async getLogs(params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    adminId?: string;
+  }): Promise<{ logs: AdminLog[]; total: number; page: number; pages: number }> {
     const res = await api.get('/admin/logs', { params });
     return res.data;
   },

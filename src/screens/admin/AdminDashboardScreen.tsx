@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
   RefreshControl, TouchableOpacity,
@@ -107,6 +107,8 @@ export default function AdminDashboardScreen() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -114,13 +116,19 @@ export default function AdminDashboardScreen() {
     try {
       const data = await adminService.getStats();
       setStats(data);
+      setLastRefreshed(new Date());
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Auto-refresh every 60 seconds
+    intervalRef.current = setInterval(() => load(true), 60_000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, []);
 
   if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
   if (!stats) return null;
@@ -135,12 +143,23 @@ export default function AdminDashboardScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#6366F1" />}
     >
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Admin Panel</Text>
+        {lastRefreshed && (
+          <Text style={styles.headerSub}>
+            Обновлено: {lastRefreshed.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </Text>
+        )}
+      </View>
+
       {/* Quick nav */}
-      <View style={styles.navRow}>
+      <View style={styles.navGrid}>
         {[
-          { label: 'Пользователи', screen: 'AdminUsersScreen' },
-          { label: 'Поддержка', screen: 'AdminSupportScreen' },
-          { label: 'Логи', screen: 'AdminLogsScreen' },
+          { label: 'Пользователи', icon: '👥', screen: 'AdminUsersScreen' },
+          { label: 'Поддержка', icon: '🎧', screen: 'AdminSupportScreen' },
+          { label: 'Аналитика', icon: '📈', screen: 'AdminAnalyticsScreen' },
+          { label: 'Логи', icon: '📋', screen: 'AdminLogsScreen' },
         ].map((b) => (
           <TouchableOpacity
             key={b.screen}
@@ -148,6 +167,7 @@ export default function AdminDashboardScreen() {
             onPress={() => navigation.navigate(b.screen)}
             activeOpacity={0.7}
           >
+            <Text style={styles.navBtnIcon}>{b.icon}</Text>
             <Text style={styles.navBtnText}>{b.label}</Text>
           </TouchableOpacity>
         ))}
@@ -165,6 +185,11 @@ export default function AdminDashboardScreen() {
         <StatCard title="7 дней" value={stats.users.newThisWeek} sub="новых" />
         <StatCard title="30 дней" value={stats.users.newThisMonth} sub="новых" />
       </View>
+      {(stats.users.banned ?? 0) > 0 && (
+        <View style={styles.row}>
+          <StatCard title="Заблокировано" value={stats.users.banned ?? 0} color="#EF4444" sub="пользователей" />
+        </View>
+      )}
 
       {/* Subscription split bar */}
       <SubSplitBar withSub={stats.users.withSubscription ?? 0} total={stats.users.total} />
@@ -185,7 +210,30 @@ export default function AdminDashboardScreen() {
       <View style={styles.row}>
         <StatCard title="Сегодня" value={stats.workouts.completedToday} sub="завершено" />
         <StatCard title="7 дней" value={stats.workouts.completedThisWeek} sub="завершено" />
+        <StatCard title="Всего" value={stats.workouts.total ?? 0} sub="в базе" color="#9CA3AF" />
       </View>
+
+      {/* ── Nutrition ──────────────────────────────────────────────────── */}
+      {stats.nutrition && (
+        <>
+          <SectionTitle title="Питание" />
+          <View style={styles.row}>
+            <StatCard title="Приёмов сегодня" value={stats.nutrition.mealsToday} color="#F59E0B" />
+            <StatCard title="За 7 дней" value={stats.nutrition.mealsThisWeek} color="#F59E0B" />
+          </View>
+        </>
+      )}
+
+      {/* ── Cardio ─────────────────────────────────────────────────────── */}
+      {stats.cardio && (
+        <>
+          <SectionTitle title="Кардио" />
+          <View style={styles.row}>
+            <StatCard title="Сессий сегодня" value={stats.cardio.sessionsToday} color="#10B981" />
+            <StatCard title="За 7 дней" value={stats.cardio.sessionsThisWeek} color="#10B981" />
+          </View>
+        </>
+      )}
 
       {/* ── AI — our service ───────────────────────────────────────────── */}
       <SectionTitle title="Наш ИИ-ассистент" />
@@ -260,6 +308,7 @@ export default function AdminDashboardScreen() {
       <View style={styles.row}>
         <StatCard title="Открытых" value={stats.support.openTickets} color="#EF4444" />
         <StatCard title="В работе" value={stats.support.inProgressTickets} color="#F59E0B" />
+        <StatCard title="Решено" value={stats.support.resolvedTickets ?? 0} color="#10B981" />
       </View>
 
       {/* ── Server load ────────────────────────────────────────────────── */}
@@ -327,9 +376,14 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center' },
 
-  navRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
-  navBtn: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, alignItems: 'center' },
-  navBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
+  headerSub: { fontSize: 10, color: '#4B5563' },
+
+  navGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  navBtn: { width: '47%', backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2C2C2E' },
+  navBtnIcon: { fontSize: 20, marginBottom: 4 },
+  navBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
 
   sectionTitle: {
     fontSize: 11, fontWeight: '700', color: '#6B7280',

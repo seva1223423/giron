@@ -1,28 +1,42 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
+  View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, ScrollView,
 } from 'react-native';
 import { adminService } from '../../services/adminService';
 import type { AdminLog } from '../../types';
 
-const ACTION_COLOR: Record<string, string> = {
-  CHANGE_ROLE: '#6366F1',
-  CHANGE_SUBSCRIPTION: '#F59E0B',
+const ACTION_META: Record<string, { color: string; icon: string; label: string }> = {
+  CHANGE_ROLE:         { color: '#6366F1', icon: '🎭', label: 'Роль' },
+  CHANGE_SUBSCRIPTION: { color: '#F59E0B', icon: '💳', label: 'Подписка' },
+  BAN_USER:            { color: '#EF4444', icon: '⛔', label: 'Бан' },
+  UNBAN_USER:          { color: '#10B981', icon: '✅', label: 'Разбан' },
+  DELETE_USER:         { color: '#EF4444', icon: '🗑', label: 'Удаление' },
+  UPDATE_NOTE:         { color: '#9CA3AF', icon: '📝', label: 'Заметка' },
+  CLOSE_TICKET:        { color: '#6B7280', icon: '🎫', label: 'Тикет' },
+  REPLY_TICKET:        { color: '#6B7280', icon: '💬', label: 'Ответ' },
 };
 
+const ACTION_FILTERS = ['', ...Object.keys(ACTION_META)];
+
 function LogRow({ log }: { log: AdminLog }) {
+  const meta = ACTION_META[log.action] ?? { color: '#6B7280', icon: '•', label: log.action };
   return (
     <View style={styles.row}>
       <View style={styles.rowTop}>
-        <View style={[styles.actionBadge, { backgroundColor: (ACTION_COLOR[log.action] ?? '#6B7280') + '22' }]}>
-          <Text style={[styles.actionText, { color: ACTION_COLOR[log.action] ?? '#9CA3AF' }]}>{log.action}</Text>
+        <View style={[styles.iconBadge, { backgroundColor: meta.color + '22' }]}>
+          <Text style={{ fontSize: 14 }}>{meta.icon}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={[styles.actionBadge, { backgroundColor: meta.color + '22' }]}>
+            <Text style={[styles.actionText, { color: meta.color }]}>{log.action}</Text>
+          </View>
+          <Text style={styles.admin}>{log.admin.firstName} {log.admin.lastName ?? ''}</Text>
         </View>
         <Text style={styles.date}>
           {new Date(log.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
-      <Text style={styles.admin}>Администратор: {log.admin.firstName} {log.admin.lastName}</Text>
-      {log.targetId && <Text style={styles.target}>Цель: {log.targetId}</Text>}
+      {log.targetId && <Text style={styles.target}>ID: {log.targetId}</Text>}
       {log.details && <Text style={styles.details}>{log.details}</Text>}
     </View>
   );
@@ -30,32 +44,57 @@ function LogRow({ log }: { log: AdminLog }) {
 
 export default function AdminLogsScreen() {
   const [logs, setLogs] = useState<AdminLog[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [pages, setPages] = useState(1);
+  const [actionFilter, setActionFilter] = useState('');
 
   const load = useCallback(async (p: number, append = false) => {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
-      const data = await adminService.getLogs({ page: p, limit: 50 });
-      setLogs(append ? (prev) => [...prev, ...data] : data);
+      const data = await adminService.getLogs({ page: p, limit: 50, action: actionFilter || undefined });
+      setLogs(append ? (prev) => [...prev, ...data.logs] : data.logs);
+      setTotal(data.total);
       setPage(p);
-      setHasMore(data.length === 50);
+      setPages(data.pages);
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [actionFilter]);
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => { load(1); }, [actionFilter]);
 
   const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore) load(page + 1, true);
-  }, [loadingMore, hasMore, page, load]);
+    if (!loadingMore && page < pages) load(page + 1, true);
+  }, [loadingMore, page, pages, load]);
 
   return (
     <View style={styles.container}>
+      {/* Action filter */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+        {ACTION_FILTERS.map((a) => {
+          const m = ACTION_META[a];
+          const isActive = actionFilter === a;
+          return (
+            <TouchableOpacity
+              key={a}
+              style={[styles.filterChip, isActive && { backgroundColor: (m?.color ?? '#6366F1') }]}
+              onPress={() => setActionFilter(a)}
+            >
+              {m && <Text style={{ fontSize: 11, marginRight: 4 }}>{m.icon}</Text>}
+              <Text style={[styles.filterText, isActive && { color: '#FFFFFF' }]}>
+                {m?.label ?? 'Все'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      <Text style={styles.totalLabel}>Записей: {total}</Text>
+
       {loading ? (
         <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
       ) : (
@@ -78,14 +117,23 @@ export default function AdminLogsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F0F0F' },
   center: { flex: 1, justifyContent: 'center' },
+  filters: { paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
+  filterChip: {
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: '#1C1C1E',
+  },
+  filterText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+  totalLabel: { fontSize: 12, color: '#6B7280', paddingHorizontal: 16, marginBottom: 4 },
   list: { padding: 12, paddingBottom: 32 },
   empty: { textAlign: 'center', color: '#6B7280', marginTop: 40, fontSize: 15 },
-  row: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 8 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  actionBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  row: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
+  iconBadge: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 4 },
   actionText: { fontSize: 11, fontWeight: '700' },
   date: { fontSize: 11, color: '#6B7280' },
-  admin: { fontSize: 13, color: '#9CA3AF', marginBottom: 4 },
-  target: { fontSize: 12, color: '#6B7280', marginBottom: 2 },
-  details: { fontSize: 13, color: '#FFFFFF', marginTop: 4, fontStyle: 'italic' },
+  admin: { fontSize: 12, color: '#9CA3AF' },
+  target: { fontSize: 11, color: '#6B7280', marginTop: 4, fontFamily: 'monospace' },
+  details: { fontSize: 13, color: '#D1D5DB', marginTop: 4, fontStyle: 'italic' },
 });
