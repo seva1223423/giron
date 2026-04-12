@@ -6,6 +6,8 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { adminService } from '../../services/adminService';
 import type { AdminUserSummary, UserRole } from '../../types';
 
@@ -176,6 +178,7 @@ export default function AdminUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async (p: number, append = false, silent = false) => {
     if (p === 1 && !silent) setLoading(true);
@@ -201,6 +204,29 @@ export default function AdminUsersScreen() {
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
   }, [loadingMore, page, pages, load]);
+
+  const exportCSV = useCallback(async () => {
+    const canShare = await Sharing.isAvailableAsync();
+    if (!canShare) {
+      Alert.alert('Недоступно', 'Функция экспорта недоступна на этом устройстве');
+      return;
+    }
+    setExporting(true);
+    try {
+      const csv = await adminService.exportUsersCSV({
+        role: role || undefined,
+        plan: planFilter || undefined,
+      });
+      const fileName = `users_${new Date().toISOString().split('T')[0]}.csv`;
+      const path = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Экспорт пользователей' });
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось экспортировать');
+    } finally {
+      setExporting(false);
+    }
+  }, [role, planFilter]);
 
   return (
     <View style={styles.container}>
@@ -243,7 +269,15 @@ export default function AdminUsersScreen() {
         ))}
       </View>
 
-      <Text style={styles.totalLabel}>Всего: {total}</Text>
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>Всего: {total}</Text>
+        <TouchableOpacity style={styles.exportBtn} onPress={exportCSV} disabled={exporting}>
+          {exporting
+            ? <ActivityIndicator size="small" color="#6366F1" />
+            : <Text style={styles.exportBtnText}>CSV</Text>
+          }
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
@@ -294,7 +328,10 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: '#6366F1' },
   filterText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
   filterTextActive: { color: '#FFFFFF' },
-  totalLabel: { fontSize: 12, color: '#6B7280', paddingHorizontal: 16, marginBottom: 4 },
+  totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 4 },
+  totalLabel: { fontSize: 12, color: '#6B7280' },
+  exportBtn: { borderRadius: 6, borderWidth: 1, borderColor: '#6366F1', paddingHorizontal: 10, paddingVertical: 3, minWidth: 36, alignItems: 'center' },
+  exportBtnText: { fontSize: 11, fontWeight: '700', color: '#6366F1' },
   center: { flex: 1, justifyContent: 'center' },
   list: { paddingHorizontal: 12, paddingBottom: 32 },
 
