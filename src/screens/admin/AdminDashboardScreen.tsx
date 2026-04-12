@@ -52,6 +52,41 @@ function StatCard({
   );
 }
 
+const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
+
+/** Revenue estimate card */
+function RevenueCard({ subscriptions, expiringSoon }: {
+  subscriptions: Array<{ plan: string; status: string; count: number }>;
+  expiringSoon?: number;
+}) {
+  const monthly = subscriptions
+    .filter((s) => s.status === 'active' && s.plan !== 'free')
+    .reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0) * s.count, 0);
+
+  return (
+    <View style={styles.revenueCard}>
+      <View style={styles.revenueHeader}>
+        <Text style={styles.revenueTitle}>Оценка выручки</Text>
+        <Text style={styles.revenueNote}>≈ по ценам PRO/Trainer/Club</Text>
+      </View>
+      <Text style={styles.revenueValue}>${monthly.toFixed(0)}<Text style={styles.revenueUnit}>/мес</Text></Text>
+      <View style={styles.revenuePlanRow}>
+        {subscriptions.filter((s) => s.status === 'active' && s.plan !== 'free').map((s) => (
+          <View key={s.plan} style={styles.revenuePlanItem}>
+            <Text style={styles.revenuePlanName}>{s.plan.toUpperCase()}</Text>
+            <Text style={styles.revenuePlanCount}>{s.count} × ${PLAN_PRICE[s.plan] ?? 0}</Text>
+          </View>
+        ))}
+      </View>
+      {(expiringSoon ?? 0) > 0 && (
+        <View style={styles.revenueAlert}>
+          <Text style={styles.revenueAlertText}>⚠️ {expiringSoon} подписок истекает в ближайшие 7 дней</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 /** Horizontal split bar: left = paid (purple), right = free (dark) */
 function SubSplitBar({
   withSub, total,
@@ -228,6 +263,9 @@ export default function AdminDashboardScreen() {
 
       {/* Subscription split bar */}
       <SubSplitBar withSub={stats.users.withSubscription ?? 0} total={stats.users.total} />
+
+      {/* Revenue estimate */}
+      <RevenueCard subscriptions={stats.subscriptions} expiringSoon={stats.subsExpiringSoon} />
 
       {/* Role breakdown */}
       <View style={styles.rolesCard}>
@@ -465,6 +503,20 @@ const styles = StyleSheet.create({
   statTitle: { fontSize: 11, color: '#6B7280', marginBottom: 6 },
   statValue: { fontSize: 22, fontWeight: '700', color: '#6366F1' },
   statSub: { fontSize: 11, color: '#4B5563', marginTop: 2 },
+
+  // Revenue card
+  revenueCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  revenueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  revenueTitle: { fontSize: 13, color: '#9CA3AF', fontWeight: '600' },
+  revenueNote: { fontSize: 10, color: '#4B5563' },
+  revenueValue: { fontSize: 32, fontWeight: '800', color: '#10B981', marginBottom: 12 },
+  revenueUnit: { fontSize: 16, fontWeight: '400', color: '#6B7280' },
+  revenuePlanRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginBottom: 4 },
+  revenuePlanItem: { backgroundColor: '#2C2C2E', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  revenuePlanName: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  revenuePlanCount: { fontSize: 10, color: '#9CA3AF', marginTop: 1 },
+  revenueAlert: { backgroundColor: '#F59E0B12', borderRadius: 8, borderWidth: 1, borderColor: '#F59E0B40', padding: 8, marginTop: 8 },
+  revenueAlertText: { fontSize: 12, color: '#F59E0B', fontWeight: '600' },
 
   // Subscription split bar
   splitCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8 },

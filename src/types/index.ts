@@ -332,6 +332,7 @@ export interface AdminStats {
     byRole: Record<string, number>;
   };
   subscriptions: Array<{ plan: string; status: string; count: number }>;
+  subsExpiringSoon?: number;
   trends?: { usersWeekVsPrev: number | null; workoutsWeekVsPrev: number | null; aiWeekVsPrev: number | null };
   topActiveUsers?: Array<{ userId: string; name: string; workouts: number }>;
   workouts: { completedToday: number; completedThisWeek: number; total: number };

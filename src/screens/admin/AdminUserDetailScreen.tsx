@@ -103,6 +103,42 @@ export default function AdminUserDetailScreen() {
     );
   }, [userId, user, load]);
 
+  const extendSubscription = useCallback((days: number) => {
+    if (!user) return;
+    const userSub = user.subscription;
+    const plan = (userSub?.plan ?? 'free') as Plan;
+    const active = userSub?.status === 'active' && plan !== 'free';
+    if (!active) return;
+    const base = userSub?.endDate ? new Date(userSub.endDate) : new Date();
+    base.setDate(base.getDate() + days);
+    const newEnd = base.toISOString().split('T')[0];
+    Alert.alert(
+      `Продлить на ${days} дней?`,
+      `Новая дата окончания: ${new Date(newEnd).toLocaleDateString('ru-RU')}`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Продлить',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await adminService.changeUserSubscription(userId, {
+                plan: plan as any,
+                status: 'active',
+                endDate: newEnd,
+              });
+              await load();
+            } catch {
+              Alert.alert('Ошибка', 'Не удалось продлить подписку');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [userId, user, load]);
+
   const revokeSubscription = useCallback(() => {
     Alert.alert(
       'Отозвать подписку?',
@@ -294,11 +330,34 @@ export default function AdminUserDetailScreen() {
           })}
         </View>
 
-        {sub?.endDate && (
-          <Text style={styles.subMeta}>
-            До: {new Date(sub.endDate).toLocaleDateString('ru-RU')}
-          </Text>
-        )}
+        {sub?.endDate ? (
+          <View style={styles.subEndRow}>
+            <Text style={[styles.subMeta, { flex: 1 }]}>
+              До: {new Date(sub.endDate).toLocaleDateString('ru-RU')}
+              {sub.status === 'active' && new Date(sub.endDate) > new Date() ? '' : '  ⚠️ истёк'}
+            </Text>
+            {isActiveSub && (
+              <View style={styles.extendRow}>
+                {[30, 90, 365].map((d) => (
+                  <TouchableOpacity key={d} style={styles.extendBtn} onPress={() => extendSubscription(d)} disabled={busy}>
+                    <Text style={styles.extendBtnText}>+{d}д</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : isActiveSub ? (
+          <View style={styles.subEndRow}>
+            <Text style={styles.subMeta}>Без даты окончания</Text>
+            <View style={styles.extendRow}>
+              {[30, 90, 365].map((d) => (
+                <TouchableOpacity key={d} style={styles.extendBtn} onPress={() => extendSubscription(d)} disabled={busy}>
+                  <Text style={styles.extendBtnText}>+{d}д</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {/* Grant buttons */}
         <Text style={styles.subSectionLabel}>Выдать подписку</Text>
@@ -507,6 +566,13 @@ const styles = StyleSheet.create({
   },
   planChipText: { fontSize: 12, fontWeight: '600' },
   subMeta: { fontSize: 12, color: '#6B7280', marginBottom: 4 },
+  subEndRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  extendRow: { flexDirection: 'row', gap: 4 },
+  extendBtn: {
+    borderRadius: 6, borderWidth: 1, borderColor: '#10B98160',
+    paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#10B98110',
+  },
+  extendBtnText: { fontSize: 11, fontWeight: '700', color: '#10B981' },
   subSectionLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 12, marginBottom: 8 },
   subActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   grantBtn: {
