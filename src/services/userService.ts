@@ -44,4 +44,13 @@ export const userService = {
     const { data } = await api.get('/user/sleep');
     return data;
   },
+
+  async getWeekPlan(): Promise<Record<number, any>> {
+    const { data } = await api.get('/user/week-plan');
+    return data ?? {};
+  },
+
+  async saveWeekPlan(plan: Record<number, any>): Promise<void> {
+    await api.put('/user/week-plan', plan);
+  },
 };
