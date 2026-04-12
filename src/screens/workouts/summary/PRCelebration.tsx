@@ -20,6 +20,7 @@ interface Particle {
 }
 
 const ConfettiParticle: React.FC<{ particle: Particle }> = ({ particle }) => {
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const translateY = useSharedValue(-50);
   const opacity = useSharedValue(1);
   const rotate = useSharedValue(0);
