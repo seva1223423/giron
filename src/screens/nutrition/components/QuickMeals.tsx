@@ -92,7 +92,7 @@ export const QuickMeals: React.FC = () => {
         onPress={() => handleQuickAdd(meal)}
         style={[styles.card, { backgroundColor: colors.surface, borderColor: isRecent ? colors.primary + '40' : colors.border }]}
       >
-        <View style={[styles.abbr, { backgroundColor: (isRecent ? colors.accent : colors.primary) + '15' }]}>
+        <View style={[styles.abbr, { backgroundColor: (isRecent ? colors.accent : colors.primary) + '15', borderWidth: 1, borderColor: (isRecent ? colors.accent : colors.primary) + '35' }]}>
           <Text style={{ fontSize: 11, fontWeight: '700', color: isRecent ? colors.accent : colors.primary }}>
             {'abbr' in meal ? meal.abbr : meal.name.substring(0, 2).toUpperCase()}
           </Text>

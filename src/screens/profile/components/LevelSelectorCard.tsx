@@ -37,7 +37,7 @@ export const LevelSelectorCard: React.FC<Props> = ({ selected, onSelect }) => {
               <Text style={[typography.small, { color: colors.textSecondary }]}>{l.desc}</Text>
             </View>
             {isSelected && (
-              <View style={[styles.checkmark, { backgroundColor: colors.primary }]}>
+              <View style={[styles.checkmark, { backgroundColor: colors.primary, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' }]}>
                 <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 12 }}>✓</Text>
               </View>
             )}
