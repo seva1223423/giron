@@ -123,7 +123,7 @@ export const NotificationsSection: React.FC = () => {
             sublabel={`Каждые ${waterReminderInterval} часа`}
             divider
             right={
-              <View style={{ flexDirection: 'row', gap: 6 }}>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
                 {[1, 2, 3].map((h) => (
                   <TouchableOpacity
                     key={h}

@@ -50,7 +50,7 @@ export const WorkoutDayModal: React.FC<Props> = ({ visible, onClose, selectedDay
                         return (
                           <View key={ei} style={[styles.exerciseRow, { borderBottomColor: colors.divider, borderBottomWidth: ei < (w.exercises?.length || 1) - 1 ? 1 : 0 }]}>
                             <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex.exercise?.name || ex.exerciseId}</Text>
-                            <Text style={[typography.captionMedium, { color: colors.primary }]}>
+                            <Text style={[typography.captionMedium, { color: colors.primary }]} numberOfLines={1}>
                               {done.length}×{bestSet.reps}{bestSet.weight ? ` · ${bestSet.weight} кг` : ''}
                             </Text>
                           </View>
