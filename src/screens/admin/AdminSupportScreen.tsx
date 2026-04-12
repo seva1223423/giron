@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -82,6 +82,7 @@ export default function AdminSupportScreen() {
   const [status, setStatus] = useState<TicketStatus | ''>('');
   const [priority, setPriority] = useState<TicketPriority | ''>('');
   const [assignedToMe, setAssignedToMe] = useState(false);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -90,7 +91,7 @@ export default function AdminSupportScreen() {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
       const [res, cnts] = await Promise.all([
-        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, page: p, limit: 20 }),
+        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, search: search || undefined, page: p, limit: 20 }),
         p === 1 ? adminService.getSupportCounts() : Promise.resolve(counts),
       ]);
       setTickets(append ? (prev) => [...prev, ...res.tickets] : res.tickets);
@@ -102,9 +103,9 @@ export default function AdminSupportScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [status, assignedToMe]);
+  }, [status, assignedToMe, search]);
 
-  useEffect(() => { load(1); }, [status, priority, assignedToMe]);
+  useEffect(() => { load(1); }, [status, priority, assignedToMe, search]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -112,6 +113,16 @@ export default function AdminSupportScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchBar}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Поиск по теме, email, имени..."
+          placeholderTextColor="#6B7280"
+          value={search}
+          onChangeText={setSearch}
+          clearButtonMode="while-editing"
+        />
+      </View>
       <View style={styles.tabsRow}>
         {STATUS_TABS.map((t) => (
           <TouchableOpacity
@@ -178,6 +189,11 @@ export default function AdminSupportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F0F0F' },
+  searchBar: { padding: 12, paddingBottom: 4 },
+  searchInput: {
+    backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 14,
+    paddingVertical: 10, fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E',
+  },
   tabsRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 6, flexWrap: 'wrap' },
   tab: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#1C1C1E', gap: 4 },
   tabActive: { backgroundColor: '#6366F1' },
