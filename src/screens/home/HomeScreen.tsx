@@ -29,6 +29,14 @@ import { todayDateStr, localDateStr } from '../../utils/date';
 import { useSafeTop } from '../../hooks/useSafeTop';
 const todayDate = todayDateStr;
 
+const SectionDivider: React.FC<{ label: string; colors: any }> = ({ label, colors }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.md }}>
+    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textTertiary, letterSpacing: 0.8, marginHorizontal: spacing.md }}>{label}</Text>
+    <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+  </View>
+);
+
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
@@ -216,6 +224,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <HomeHeader navigation={navigation} />
       </FadeIn>
 
+      {/* ── СЕГОДНЯ ──────────────────────────���───── */}
       <FadeIn delay={60}>
         <TodaySummaryCard navigation={navigation} />
       </FadeIn>
@@ -260,6 +269,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeIn>
       )}
 
+      {/* ── ТРЕНИРОВКИ ────────────────────────────── */}
+      <SectionDivider label="ТРЕНИРОВКИ" colors={colors} />
+
       <RecoveryScoreCard />
 
       {lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 7 && (
@@ -299,13 +311,23 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeIn>
       )}
 
+      {/* ── ПИТАНИЕ & ТЕЛО ───────────────────────── */}
+      <SectionDivider label="ПИТАНИЕ & ТЕЛО" colors={colors} />
+
       <FadeIn delay={300}>
         <NutritionCard dayLog={dayLog} navigation={navigation} />
       </FadeIn>
 
-      <FadeIn delay={390}>
+      <FadeIn delay={320}>
+        <WaterCard dayLog={dayLog} today={today} />
+      </FadeIn>
+
+      <FadeIn delay={360}>
         <WeightCard user={user} setUser={setUser} />
       </FadeIn>
+
+      {/* ── ВОССТАНОВЛЕНИЕ ───────────────────────── */}
+      <SectionDivider label="ВОССТАНОВЛЕНИЕ" colors={colors} />
 
       <FadeIn delay={393}>
         <SleepCard />
@@ -315,16 +337,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <CardioWeekCard navigation={navigation} />
       </FadeIn>
 
+      {/* ── ИИ & ВДОХНОВЕНИЕ ─────────────────────── */}
+      <SectionDivider label="ИИ-ТРЕНЕР" colors={colors} />
+
       <FadeIn delay={400}>
         <AITipCard navigation={navigation} />
       </FadeIn>
 
       <FadeIn delay={450}>
         <DailyQuoteCard />
-      </FadeIn>
-
-      <FadeIn delay={500}>
-        <WaterCard dayLog={dayLog} today={today} />
       </FadeIn>
     </ScrollView>
 
