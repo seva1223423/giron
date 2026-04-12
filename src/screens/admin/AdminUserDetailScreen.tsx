@@ -797,6 +797,71 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* Activity Timeline */}
+      {(() => {
+        type TimelineEvent = { date: string; icon: string; label: string; color: string; id: string };
+        const events: TimelineEvent[] = [];
+        user.workouts?.forEach((w) => {
+          if (w.completedAt) events.push({
+            date: w.completedAt,
+            icon: '💪',
+            label: `Тренировка: ${w.name}${w.totalVolume ? ` · ${Math.round(w.totalVolume)} кг` : ''}${w.durationMinutes ? ` · ${w.durationMinutes} мин` : ''}`,
+            color: '#F59E0B',
+            id: 'w_' + w.id,
+          });
+        });
+        user.cardioSessions?.forEach((s) => events.push({
+          date: s.createdAt,
+          icon: '🏃',
+          label: `Кардио: ${s.type} · ${s.durationMinutes} мин${s.distanceKm ? ` · ${s.distanceKm.toFixed(1)} км` : ''}`,
+          color: '#10B981',
+          id: 'c_' + s.id,
+        }));
+        user.chatMessages?.slice(0, 5).forEach((m) => events.push({
+          date: m.createdAt,
+          icon: '🤖',
+          label: `ИИ: ${m.content.slice(0, 60)}${m.content.length > 60 ? '…' : ''}`,
+          color: '#8B5CF6',
+          id: 'm_' + m.id,
+        }));
+        user.bodyWeights?.slice(0, 5).forEach((bw) => events.push({
+          date: bw.date,
+          icon: '⚖️',
+          label: `Вес: ${bw.weightKg} кг`,
+          color: '#6366F1',
+          id: 'bw_' + bw.id,
+        }));
+        user.supportTickets?.forEach((t) => events.push({
+          date: t.createdAt,
+          icon: '🎫',
+          label: `Тикет: ${t.subject} · ${t.status}`,
+          color: '#6B7280',
+          id: 't_' + t.id,
+        }));
+        events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const top = events.slice(0, 12);
+        if (top.length === 0) return null;
+        return (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Лента активности (последние события)</Text>
+            {top.map((ev, i) => (
+              <View key={ev.id} style={styles.timelineRow}>
+                <View style={[styles.timelineDot, { backgroundColor: ev.color + '30', borderColor: ev.color }]}>
+                  <Text style={{ fontSize: 11 }}>{ev.icon}</Text>
+                </View>
+                {i < top.length - 1 && <View style={styles.timelineLine} />}
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineLabel} numberOfLines={2}>{ev.label}</Text>
+                  <Text style={styles.timelineDate}>
+                    {new Date(ev.date).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
+
       {/* AI Memories */}
       {user.aiMemories && user.aiMemories.length > 0 && (() => {
         const CATEGORY_LABEL: Record<string, string> = {
@@ -1066,6 +1131,19 @@ const styles = StyleSheet.create({
   heatmapCellActive: { backgroundColor: '#6366F1' },
   heatmapCellToday: { borderWidth: 1, borderColor: '#A5B4FC' },
   heatmapLegend: { fontSize: 11, color: '#6B7280', marginTop: 4 },
+
+  // Activity Timeline
+  timelineRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 },
+  timelineDot: {
+    width: 28, height: 28, borderRadius: 14, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  timelineLine: {
+    position: 'absolute', left: 13, top: 28, width: 2, height: 14, backgroundColor: '#2C2C2E',
+  },
+  timelineContent: { flex: 1, paddingTop: 2 },
+  timelineLabel: { fontSize: 12, color: '#D1D5DB', lineHeight: 16 },
+  timelineDate: { fontSize: 10, color: '#6B7280', marginTop: 2 },
 
   // AI Memories
   memGroup: { marginBottom: 12 },
