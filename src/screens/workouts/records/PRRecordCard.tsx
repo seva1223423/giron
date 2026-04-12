@@ -111,7 +111,7 @@ export const PRRecordCard: React.FC<Props> = ({ record, idx, isExpanded, onToggl
           </View>
 
           <View style={[styles.subRow, { borderTopColor: colors.divider }]}>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]} numberOfLines={1}>
               Лучший подход:{' '}
               <Text style={{ color: colors.text, fontWeight: '600' }}>{record.bestWeight} кг × {record.bestReps} пов</Text>
             </Text>
