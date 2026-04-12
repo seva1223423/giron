@@ -125,7 +125,7 @@ function UserRow({
         <View style={styles.info}>
           <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
           <Text style={styles.email} numberOfLines={1}>{user.email}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
             <Text style={styles.meta}>{ROLE_LABEL[user.role] ?? user.role}</Text>
             <Text style={styles.metaDot}>·</Text>
             <Text style={styles.meta}>{user._count.workouts} тренировок</Text>
