@@ -1521,4 +1521,94 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
   }
 });
 
+/** GET /admin/activity-feed — last N platform events across all activity types */
+router.get('/activity-feed', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const limit = 10;
+    const [recentWorkouts, recentSignups, recentAi, recentCardio] = await Promise.all([
+      prisma.workout.findMany({
+        where: { completedAt: { not: null } },
+        orderBy: { completedAt: 'desc' },
+        take: limit,
+        select: {
+          id: true, name: true, completedAt: true, totalVolume: true, durationMinutes: true,
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        select: { id: true, firstName: true, lastName: true, createdAt: true, role: true },
+      }),
+      prisma.chatMessage.findMany({
+        where: { role: 'user' },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        select: {
+          id: true, content: true, createdAt: true,
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      prisma.cardioSession.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true, type: true, durationMinutes: true, distanceKm: true, createdAt: true,
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+    ]);
+
+    type FeedEvent = {
+      id: string;
+      type: 'workout' | 'signup' | 'ai' | 'cardio';
+      label: string;
+      userId?: string;
+      userName?: string;
+      date: string;
+    };
+
+    const events: FeedEvent[] = [
+      ...recentWorkouts.map((w) => ({
+        id: 'w_' + w.id,
+        type: 'workout' as const,
+        label: `${w.user.firstName} завершил тренировку "${w.name}"${w.totalVolume ? ` · ${Math.round(w.totalVolume)} кг` : ''}`,
+        userId: w.user.id,
+        userName: `${w.user.firstName} ${w.user.lastName ?? ''}`.trim(),
+        date: w.completedAt!.toISOString(),
+      })),
+      ...recentSignups.map((u) => ({
+        id: 'u_' + u.id,
+        type: 'signup' as const,
+        label: `Новый пользователь: ${u.firstName} ${u.lastName ?? ''}`.trim(),
+        userId: u.id,
+        userName: `${u.firstName} ${u.lastName ?? ''}`.trim(),
+        date: u.createdAt.toISOString(),
+      })),
+      ...recentAi.map((m) => ({
+        id: 'ai_' + m.id,
+        type: 'ai' as const,
+        label: `${m.user.firstName}: "${m.content.slice(0, 60)}${m.content.length > 60 ? '…' : ''}"`,
+        userId: m.user.id,
+        userName: `${m.user.firstName} ${m.user.lastName ?? ''}`.trim(),
+        date: m.createdAt.toISOString(),
+      })),
+      ...recentCardio.map((c) => ({
+        id: 'c_' + c.id,
+        type: 'cardio' as const,
+        label: `${c.user.firstName}: кардио ${c.type} · ${c.durationMinutes} мин${c.distanceKm ? ` · ${c.distanceKm} км` : ''}`,
+        userId: c.user.id,
+        userName: `${c.user.firstName} ${c.user.lastName ?? ''}`.trim(),
+        date: c.createdAt.toISOString(),
+      })),
+    ];
+
+    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    res.json(events.slice(0, 20));
+  } catch (e) {
+    logger.error('GET /admin/activity-feed:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 export { router as adminRouter };

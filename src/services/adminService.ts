@@ -198,6 +198,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getActivityFeed(): Promise<Array<{ id: string; type: 'workout' | 'signup' | 'ai' | 'cardio'; label: string; userId?: string; userName?: string; date: string }>> {
+    const res = await api.get('/admin/activity-feed');
+    return res.data;
+  },
+
   async getStaff(): Promise<Array<{ id: string; firstName: string; lastName?: string | null; email: string; role: string }>> {
     const res = await api.get('/admin/staff');
     return res.data;
