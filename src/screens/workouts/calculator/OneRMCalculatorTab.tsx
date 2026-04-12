@@ -110,7 +110,7 @@ export const OneRMCalculatorTab: React.FC = () => {
                 <View key={pct} style={[{ flexDirection: 'row', paddingVertical: spacing.sm, borderRadius: borderRadius.sm, paddingHorizontal: spacing.xs, backgroundColor: isHighlight ? colors.primary + '12' : 'transparent' }, i < ONE_RM_PERCENTAGES.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
                   <Text style={[typography.bodySemibold, { color: isHighlight ? colors.primary : colors.text, flex: 1 }]}>{pct}%</Text>
                   <Text style={[typography.bodySemibold, { color: isHighlight ? colors.primary : colors.text, width: 80, textAlign: 'right' }]}>{weight}</Text>
-                  <Text style={[typography.caption, { color: zone.color, width: 80, textAlign: 'right' }]}>{zone.label}</Text>
+                  <Text style={[typography.caption, { color: zone.color, width: 80, textAlign: 'right' }]} numberOfLines={1}>{zone.label}</Text>
                 </View>
               );
             })}
