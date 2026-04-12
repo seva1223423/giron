@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -23,6 +23,28 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+
+  // Animated dots for loading indicator
+  const [dotCount, setDotCount] = useState(1);
+  const dotTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dotOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (loading) {
+      setDotCount(1);
+      dotTimer.current = setInterval(() => setDotCount((n) => (n % 3) + 1), 500);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(dotOpacity, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+          Animated.timing(dotOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      if (dotTimer.current) clearInterval(dotTimer.current);
+      dotOpacity.setValue(1);
+    }
+    return () => { if (dotTimer.current) clearInterval(dotTimer.current); };
+  }, [loading]);
 
   const generate = async () => {
     haptic.medium();
@@ -87,10 +109,12 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
         </View>
 
         {loading && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[typography.small, { color: colors.textSecondary }]}>Анализирую твою неделю...</Text>
-          </View>
+          <Animated.View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm, opacity: dotOpacity }}>
+            <Text style={{ fontSize: 18, color: colors.primary }}>◈</Text>
+            <Text style={[typography.small, { color: colors.textSecondary }]}>
+              {'Анализирую твою неделю' + '.'.repeat(dotCount)}
+            </Text>
+          </Animated.View>
         )}
 
         {error && !loading && (

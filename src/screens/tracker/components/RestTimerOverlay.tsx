@@ -122,7 +122,12 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
           );
         })}
 
-        <Text style={{ fontSize: 48, fontWeight: '800', color: isUrgent ? '#FEF3C7' : '#FFF' }}>
+        <Text
+          style={{ fontSize: 48, fontWeight: '800', color: isUrgent ? '#FEF3C7' : '#FFF' }}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+        >
           {formatTime(restTime)}
         </Text>
       </View>
@@ -133,8 +138,11 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
 
       {/* Next exercise hint when resting between exercises */}
       {isLastSetOfExercise && nextExerciseName && (
-        <Text style={[typography.bodySemibold, { color: 'rgba(255,255,255,0.8)', marginTop: spacing.md }]}>
-          {'\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0435 \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0435: '}{nextExerciseName}
+        <Text
+          style={[typography.bodySemibold, { color: 'rgba(255,255,255,0.8)', marginTop: spacing.md, textAlign: 'center', paddingHorizontal: spacing.xl }]}
+          numberOfLines={2}
+        >
+          {'Следующее упражнение: '}{nextExerciseName}
         </Text>
       )}
 
