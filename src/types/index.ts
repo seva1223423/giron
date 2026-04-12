@@ -323,6 +323,7 @@ export interface AdminUserDetail extends AdminUserSummary {
   cardioSessions?: Array<{ id: string; type: string; durationMinutes: number; distanceKm?: number | null; caloriesBurned?: number | null; createdAt: string }>;
   bodyWeights?: Array<{ id: string; weightKg: number; date: string }>;
   sleepEntries?: Array<{ id: string; date: string; durationHours: number; quality?: number | null }>;
+  aiMemories?: Array<{ id: string; category: string; key: string; value: string; confidence: number; source: string; updatedAt: string }>;
 }
 
 export interface AdminStats {
@@ -344,6 +345,7 @@ export interface AdminStats {
   topActiveUsers?: Array<{ userId: string; name: string; workouts: number }>;
   topAiActiveUsers?: Array<{ userId: string; name: string; messages: number }>;
   dau?: { workoutUsers: number; aiUsers: number };
+  mau?: { workoutUsers: number; aiUsers: number };
   workouts: { completedToday: number; completedThisWeek: number; total: number };
   nutrition: { mealsToday: number; mealsThisWeek: number };
   cardio: { sessionsToday: number; sessionsThisWeek: number };
