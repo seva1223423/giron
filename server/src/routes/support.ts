@@ -168,11 +168,15 @@ router.patch('/tickets/:id/close', authenticate, async (req: AuthRequest, res: R
 router.get('/all', authenticate, requireStaff, async (req: AuthRequest, res: Response) => {
   try {
     const { status, priority, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const VALID_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
+    const VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
     const where: any = {};
-    if (status) where.status = status;
-    if (priority) where.priority = priority;
+    if (status && VALID_STATUSES.includes(status)) where.status = status;
+    if (priority && VALID_PRIORITIES.includes(priority)) where.priority = priority;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
     const [tickets, total] = await Promise.all([
       prisma.supportTicket.findMany({
         where,
@@ -183,11 +187,11 @@ router.get('/all', authenticate, requireStaff, async (req: AuthRequest, res: Res
         },
         orderBy: [{ priority: 'desc' }, { updatedAt: 'desc' }],
         skip,
-        take: parseInt(limit),
+        take: limitNum,
       }),
       prisma.supportTicket.count({ where }),
     ]);
-    res.json({ tickets, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+    res.json({ tickets, total, page: pageNum, pages: Math.ceil(total / limitNum) });
   } catch (e) {
     logger.error('GET /support/all:', e);
     res.status(500).json({ error: 'Ошибка получения тикетов' });

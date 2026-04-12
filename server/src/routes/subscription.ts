@@ -216,13 +216,22 @@ router.post('/webhook', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Webhook secret not configured' });
       }
       const header = req.headers['x-webhook-secret'] as string | undefined;
-      if (!header || !timingSafeEqual(Buffer.from(header), Buffer.from(genericSecret))) {
+      let signatureValid = false;
+      try {
+        signatureValid = !!header && timingSafeEqual(Buffer.from(header), Buffer.from(genericSecret));
+      } catch { /* different lengths — treat as invalid */ }
+      if (!signatureValid) {
         logger.warn('Webhook: invalid generic secret');
         return res.status(401).json({ error: 'Invalid signature' });
       }
     }
 
     logger.info(`Webhook received: provider=${provider} event=${event} user=${userId}`);
+
+    // Validate required fields before touching the DB
+    if (!userId || typeof userId !== 'string') {
+      return res.status(400).json({ error: 'userId обязателен' });
+    }
 
     if (event === 'subscription_activated' || event === 'subscription_renewed') {
       const startDate = new Date();
