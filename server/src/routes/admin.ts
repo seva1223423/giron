@@ -117,7 +117,11 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
 router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { search = '', role, page = '1', limit = '20', sort = 'createdAt' } = req.query as Record<string, string>;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const ALLOWED_SORT = ['createdAt', 'email', 'firstName', 'lastName'] as const;
+    const safeSort = ALLOWED_SORT.includes(sort as any) ? sort : 'createdAt';
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
     const where: any = {};
     if (role) where.role = role;
     if (search) {
@@ -137,14 +141,14 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
           subscription: { select: { plan: true, status: true, endDate: true } },
           _count: { select: { workouts: true, chatMessages: true } },
         },
-        orderBy: { [sort]: 'desc' },
+        orderBy: { [safeSort]: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: limitNum,
       }),
       prisma.user.count({ where }),
     ]);
 
-    res.json({ users, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+    res.json({ users, total, page: pageNum, pages: Math.ceil(total / limitNum) });
   } catch (e) {
     logger.error('GET /admin/users:', e);
     res.status(500).json({ error: 'Ошибка получения пользователей' });
