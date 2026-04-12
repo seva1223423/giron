@@ -6,8 +6,21 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminService } from '../../services/adminService';
 import type { AdminUserDetail, UserRole } from '../../types';
+
+const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
+
+async function addRecentlyViewed(user: { id: string; firstName: string; lastName?: string; email: string }) {
+  try {
+    const raw = await AsyncStorage.getItem(RECENTLY_VIEWED_KEY);
+    const prev: typeof user[] = raw ? JSON.parse(raw) : [];
+    const filtered = prev.filter((u) => u.id !== user.id);
+    const updated = [user, ...filtered].slice(0, 6);
+    await AsyncStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(updated));
+  } catch { /* ignore */ }
+}
 
 type RouteParams = { userId: string };
 
@@ -47,6 +60,7 @@ export default function AdminUserDetailScreen() {
       const data = await adminService.getUser(userId);
       setUser(data);
       setNoteText(data.adminNote ?? '');
+      addRecentlyViewed({ id: data.id, firstName: data.firstName, lastName: data.lastName, email: data.email });
     } catch {
       Alert.alert('Ошибка', 'Не удалось загрузить данные пользователя');
     } finally {

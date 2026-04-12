@@ -3,10 +3,14 @@ import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
   RefreshControl, TouchableOpacity, TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminService } from '../../services/adminService';
 import type { AdminStats, AdminAnalytics } from '../../types';
+
+const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
+type RecentUser = { id: string; firstName: string; lastName?: string; email: string };
 
 type AdminNav = NativeStackNavigationProp<any>;
 
@@ -180,7 +184,15 @@ export default function AdminDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [quickSearch, setQuickSearch] = useState('');
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reload recently viewed whenever the screen comes into focus
+  useFocusEffect(useCallback(() => {
+    AsyncStorage.getItem(RECENTLY_VIEWED_KEY).then((raw) => {
+      if (raw) setRecentUsers(JSON.parse(raw));
+    }).catch(() => {});
+  }, []));
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -316,6 +328,33 @@ export default function AdminDashboardScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ── Recently viewed users ─────────────────────────────────────── */}
+      {recentUsers.length > 0 && (
+        <>
+          <Text style={styles.recentTitle}>Недавно просмотренные</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
+              {recentUsers.map((u) => (
+                <TouchableOpacity
+                  key={u.id}
+                  style={styles.recentChip}
+                  onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: u.id })}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.recentAvatar}>
+                    <Text style={styles.recentAvatarText}>{u.firstName[0]}{u.lastName?.[0] ?? ''}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.recentName} numberOfLines={1}>{u.firstName} {u.lastName ?? ''}</Text>
+                    <Text style={styles.recentEmail} numberOfLines={1}>{u.email}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </>
+      )}
 
       {/* ── 7-day activity sparklines ──────────────────────────────────── */}
       {signups7d.length > 0 && (
@@ -605,6 +644,13 @@ const styles = StyleSheet.create({
   navBtn: { width: '47%', backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2C2C2E' },
   navBtnIcon: { fontSize: 20, marginBottom: 4 },
   navBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+
+  recentTitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+  recentChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1C1C1E', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#2C2C2E', maxWidth: 160 },
+  recentAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#6366F133', borderWidth: 1, borderColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
+  recentAvatarText: { fontSize: 12, fontWeight: '700', color: '#A5B4FC' },
+  recentName: { fontSize: 12, fontWeight: '600', color: '#FFFFFF', maxWidth: 110 },
+  recentEmail: { fontSize: 10, color: '#6B7280', maxWidth: 110 },
 
   sectionTitle: {
     fontSize: 11, fontWeight: '700', color: '#6B7280',
