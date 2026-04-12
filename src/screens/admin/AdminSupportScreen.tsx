@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, TextInput, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Alert, ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -271,6 +271,31 @@ export default function AdminSupportScreen() {
         </View>
       )}
 
+      {/* Category breakdown */}
+      {metrics && Object.keys(metrics.categoryBreakdown).length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+          {Object.entries(metrics.categoryBreakdown)
+            .sort((a, b) => b[1] - a[1])
+            .map(([cat, count]) => {
+              const CAT_COLORS: Record<string, string> = {
+                billing: '#F59E0B', technical: '#EF4444', feature_request: '#6366F1',
+                account: '#8B5CF6', bug: '#EF4444', other: '#6B7280',
+              };
+              const color = CAT_COLORS[cat] ?? '#6B7280';
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[styles.catChip, priority === '' && status === '' && { opacity: 1 }]}
+                  onPress={() => setSearch(cat === 'feature_request' ? 'feature' : cat)}
+                >
+                  <Text style={[styles.catCount, { color }]}>{count}</Text>
+                  <Text style={styles.catLabel}>{cat.replace('_', ' ')}</Text>
+                </TouchableOpacity>
+              );
+            })}
+        </ScrollView>
+      )}
+
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
@@ -465,4 +490,9 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
   metricLabel: { fontSize: 9, color: '#6B7280', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
   metricDivider: { width: 1, backgroundColor: '#2C2C2E', marginVertical: 8 },
+
+  catRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  catChip: { alignItems: 'center', backgroundColor: '#1C1C1E', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#2C2C2E', minWidth: 50 },
+  catCount: { fontSize: 14, fontWeight: '800' },
+  catLabel: { fontSize: 9, color: '#6B7280', textTransform: 'capitalize', marginTop: 1 },
 });

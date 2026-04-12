@@ -210,6 +210,36 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         dbPingMs,
       },
     });
+
+    // Fire-and-forget: auto-escalate stale tickets
+    setImmediate(async () => {
+      try {
+        const h8ago = new Date(now.getTime() - 8 * 3600 * 1000);
+        const h24ago = new Date(now.getTime() - 24 * 3600 * 1000);
+        await Promise.all([
+          // Normal tickets open > 8h with no staff reply → high
+          prisma.supportTicket.updateMany({
+            where: {
+              status: { in: ['open', 'in_progress'] },
+              priority: { in: ['low', 'normal'] },
+              updatedAt: { lt: h8ago },
+              messages: { none: { isStaff: true, isInternal: false } },
+            },
+            data: { priority: 'high' },
+          }),
+          // High tickets open > 24h with no staff reply → urgent
+          prisma.supportTicket.updateMany({
+            where: {
+              status: { in: ['open', 'in_progress'] },
+              priority: 'high',
+              updatedAt: { lt: h24ago },
+              messages: { none: { isStaff: true, isInternal: false } },
+            },
+            data: { priority: 'urgent' },
+          }),
+        ]);
+      } catch { /* ignore, non-critical */ }
+    });
   } catch (e) {
     logger.error('GET /admin/stats:', e);
     res.status(500).json({ error: 'Ошибка получения статистики' });
