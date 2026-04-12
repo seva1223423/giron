@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { ExerciseVideoModal } from '../../workouts/exercise/ExerciseVideoModal';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
@@ -33,6 +34,7 @@ interface Props {
 export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerciseIndex, totalExercises, onPrev, onNext, onSubstitute, hasSessionPR, navigation }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
+  const [videoVisible, setVideoVisible] = useState(false);
 
   const muscles = currentExercise.exercise.primaryMuscles || [];
 
@@ -104,20 +106,19 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
               <Text style={[typography.caption, { color: colors.textSecondary }]}>{'\u0437\u0430\u043C\u0435\u043D\u0430'}</Text>
             </TouchableOpacity>
           )}
-          {currentExercise.exercise.youtubeId && navigation && (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: currentExercise.exerciseId })}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 3,
-                paddingHorizontal: 6, paddingVertical: 2,
-                borderRadius: borderRadius.sm, backgroundColor: colors.error + '12',
-              }}
-            >
-              <Text style={{ fontSize: 10, color: colors.error }}>{'\u25B6'}</Text>
-              <Text style={{ fontSize: 10, fontWeight: '600', color: colors.error }}>{'video'}</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => { haptic.light(); setVideoVisible(true); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 3,
+              paddingHorizontal: 6, paddingVertical: 2,
+              borderRadius: borderRadius.sm,
+              backgroundColor: currentExercise.exercise.youtubeId ? '#FF000015' : colors.border,
+            }}
+          >
+            <Text style={{ fontSize: 10, color: currentExercise.exercise.youtubeId ? '#FF0000' : colors.textTertiary }}>{'\u25B6'}</Text>
+            <Text style={{ fontSize: 10, fontWeight: '600', color: currentExercise.exercise.youtubeId ? '#FF0000' : colors.textTertiary }}>{'video'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -129,6 +130,17 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
       >
         <Text style={[typography.h3, { color: colors.primary }]}>{'\u203A'}</Text>
       </TouchableOpacity>
+
+      <ExerciseVideoModal
+        visible={videoVisible}
+        onClose={() => setVideoVisible(false)}
+        exerciseName={currentExercise.exercise.name}
+        youtubeId={currentExercise.exercise.youtubeId}
+        primaryMuscles={currentExercise.exercise.primaryMuscles || []}
+        muscleLabels={MUSCLE_LABELS}
+        description={currentExercise.exercise.description}
+        instructions={currentExercise.exercise.instructions}
+      />
     </View>
   );
 };

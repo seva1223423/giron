@@ -5,6 +5,7 @@ import { useThemeStore } from '../../../../store';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
 import { useHaptic } from '../../../../hooks/useHaptic';
+import { userService } from '../../../../services';
 import type { BodyMeasurement } from '../../../../types';
 
 export const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
@@ -45,7 +46,9 @@ export const AddMeasurementsModal: React.FC<Props> = ({ visible, measurementHist
     try {
       const updated = [...measurementHistory.filter((m) => m.date !== today), entry]
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Save to AsyncStorage (offline) and server (online)
       await AsyncStorage.setItem(MEASUREMENTS_KEY, JSON.stringify(updated));
+      userService.saveMeasurement(entry).catch(() => {}); // fire and forget
       setFields({});
       haptic.success();
       onSaved(updated);

@@ -14,8 +14,9 @@ import {
   WeightTab,
   PhotosTab,
 } from './components';
+import { CardioTab } from './components/CardioTab';
 
-type TabKey = 'overview' | 'calendar' | 'records' | 'weight' | 'achievements' | 'photos';
+type TabKey = 'overview' | 'calendar' | 'records' | 'weight' | 'cardio' | 'achievements' | 'photos';
 
 export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -58,6 +59,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     { key: 'calendar' as const, label: 'Календарь' },
     { key: 'records' as const, label: 'Рекорды' },
     { key: 'weight' as const, label: 'Вес тела' },
+    { key: 'cardio' as const, label: 'Кардио' },
     { key: 'achievements' as const, label: `${unlockedCount}/${ACHIEVEMENT_DEFINITIONS.length}` },
     { key: 'photos' as const, label: 'Фото' },
   ];
@@ -92,6 +94,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         {tab === 'calendar' && <CalendarTab colors={colors} workoutHistory={workoutHistory} />}
         {tab === 'records' && <RecordsTab colors={colors} workoutHistory={workoutHistory} user={user} />}
         {tab === 'weight' && <WeightTab colors={colors} user={user} />}
+        {tab === 'cardio' && <CardioTab colors={colors} />}
         {tab === 'photos' && <PhotosTab colors={colors} />}
         {tab === 'achievements' && <AchievementsTab colors={colors} achievements={achievements} unlockedCount={unlockedCount} />}
       </ScrollView>

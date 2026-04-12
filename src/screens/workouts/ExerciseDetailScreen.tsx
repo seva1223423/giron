@@ -167,7 +167,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
             </View>
           </View>
         ) : (
-          <ExerciseVideoCard exerciseName={exercise.name} youtubeId={exercise.youtubeId} primaryMuscles={exercise.primaryMuscles} muscleLabels={MUSCLE_LABELS} />
+          <ExerciseVideoCard exerciseName={exercise.name} youtubeId={exercise.youtubeId} primaryMuscles={exercise.primaryMuscles} muscleLabels={MUSCLE_LABELS} description={exercise.description} instructions={exercise.instructions} />
         )}
       </FadeIn>
 

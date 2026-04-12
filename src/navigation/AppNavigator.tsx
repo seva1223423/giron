@@ -54,6 +54,7 @@ import AdminUserDetailScreen from '../screens/admin/AdminUserDetailScreen';
 import AdminSupportScreen from '../screens/admin/AdminSupportScreen';
 import AdminTicketScreen from '../screens/admin/AdminTicketScreen';
 import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
+import { AIProgramDetailScreen } from '../screens/workouts/AIProgramDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -109,6 +110,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
       <WorkoutsStack.Screen name="Cardio" component={CardioScreen} />
       <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} options={{ animation: 'slide_from_bottom' }} />
+      <WorkoutsStack.Screen name="AIProgramDetail" component={AIProgramDetailScreen} />
     </WorkoutsStack.Navigator>
   );
 }
