@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  RefreshControl, TouchableOpacity, TextInput, Alert, Share,
+  RefreshControl, TouchableOpacity, TextInput, Alert, Share, Modal, FlatList,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -192,6 +192,16 @@ export default function AdminDashboardScreen() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [sharingReport, setSharingReport] = useState(false);
 
+  // Global content search
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{
+    ai: Array<{ id: string; snippet: string; createdAt: string; user: { id: string; firstName: string; email: string } }>;
+    tickets: Array<{ id: string; subject: string; status: string; user: { id: string; firstName: string; email: string } }>;
+  } | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Reload recently viewed whenever the screen comes into focus
   useFocusEffect(useCallback(() => {
     AsyncStorage.getItem(RECENTLY_VIEWED_KEY).then((raw) => {
@@ -227,6 +237,21 @@ export default function AdminDashboardScreen() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
 
+  const handleSearchChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    setSearchResults(null);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) return;
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await adminService.moderationSearch(q.trim());
+        setSearchResults({ ai: res.ai, tickets: res.tickets });
+      } catch { /* ignore */ }
+      finally { setSearching(false); }
+    }, 500);
+  }, []);
+
   const shareReport = useCallback(async () => {
     setSharingReport(true);
     try {
@@ -260,6 +285,76 @@ export default function AdminDashboardScreen() {
   const healthLabel = healthScore >= 80 ? 'Отлично' : healthScore >= 60 ? 'Внимание' : 'Проблемы';
 
   return (
+    <>
+    {/* Global content search modal */}
+    <Modal visible={showSearch} transparent animationType="slide" onRequestClose={() => { setShowSearch(false); setSearchQuery(''); setSearchResults(null); }}>
+      <View style={styles.searchModal}>
+        <View style={styles.searchModalHeader}>
+          <TextInput
+            style={styles.searchModalInput}
+            placeholder="Поиск по ИИ-сообщениям и тикетам..."
+            placeholderTextColor="#6B7280"
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoFocus
+            clearButtonMode="while-editing"
+          />
+          <TouchableOpacity onPress={() => { setShowSearch(false); setSearchQuery(''); setSearchResults(null); }}>
+            <Text style={{ color: '#6B7280', fontSize: 16, paddingLeft: 8 }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+        {searching && <ActivityIndicator color="#6366F1" style={{ marginTop: 24 }} />}
+        {searchResults && (
+          <FlatList
+            data={[
+              ...searchResults.tickets.map((t) => ({ _type: 'ticket' as const, ...t })),
+              ...searchResults.ai.map((a) => ({ _type: 'ai' as const, ...a })),
+            ]}
+            keyExtractor={(item) => item._type + item.id}
+            ListEmptyComponent={<Text style={styles.searchEmpty}>Ничего не найдено</Text>}
+            ListHeaderComponent={
+              <Text style={styles.searchResultsHeader}>
+                {searchResults.tickets.length} тикетов · {searchResults.ai.length} ИИ-сообщений
+              </Text>
+            }
+            renderItem={({ item }) => {
+              if (item._type === 'ticket') {
+                const t = item as (typeof searchResults.tickets[0]) & { _type: 'ticket' };
+                return (
+                  <TouchableOpacity
+                    style={styles.searchResultRow}
+                    onPress={() => { setShowSearch(false); navigation.navigate('AdminTicketScreen', { ticketId: t.id }); }}
+                  >
+                    <Text style={styles.searchResultType}>🎫 Тикет</Text>
+                    <Text style={styles.searchResultTitle} numberOfLines={1}>{t.subject}</Text>
+                    <Text style={styles.searchResultMeta}>{t.user.firstName} · {t.user.email} · {t.status}</Text>
+                  </TouchableOpacity>
+                );
+              }
+              const a = item as (typeof searchResults.ai[0]) & { _type: 'ai' };
+              return (
+                <TouchableOpacity
+                  style={styles.searchResultRow}
+                  onPress={() => { setShowSearch(false); navigation.navigate('AdminUserDetailScreen', { userId: a.user.id }); }}
+                >
+                  <Text style={styles.searchResultType}>🤖 ИИ</Text>
+                  <Text style={styles.searchResultTitle} numberOfLines={2}>{a.snippet}</Text>
+                  <Text style={styles.searchResultMeta}>{a.user.firstName} · {a.user.email}</Text>
+                </TouchableOpacity>
+              );
+            }}
+            contentContainerStyle={{ paddingBottom: 40 }}
+          />
+        )}
+        {!searching && !searchResults && searchQuery.length > 0 && searchQuery.length < 2 && (
+          <Text style={styles.searchEmpty}>Введите минимум 2 символа</Text>
+        )}
+        {!searching && !searchResults && searchQuery.length === 0 && (
+          <Text style={styles.searchHint}>Поиск по содержимому ИИ-чатов и тикетов поддержки</Text>
+        )}
+      </View>
+    </Modal>
+
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -276,6 +371,13 @@ export default function AdminDashboardScreen() {
           )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={styles.reportBtn}
+            onPress={() => setShowSearch(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.reportBtnText}>🔍</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.reportBtn, sharingReport && { opacity: 0.5 }]}
             onPress={shareReport}
@@ -994,6 +1096,7 @@ export default function AdminDashboardScreen() {
         </>
       )}
     </ScrollView>
+    </>
   );
 }
 
@@ -1009,6 +1112,17 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 10, color: '#4B5563' },
   reportBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#1C1C2E', borderWidth: 1, borderColor: '#2D2D3A', alignItems: 'center', justifyContent: 'center' },
   reportBtnText: { fontSize: 16 },
+
+  searchModal: { flex: 1, backgroundColor: '#0F0F0F', paddingTop: 56 },
+  searchModalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  searchModalInput: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#FFFFFF', borderWidth: 1, borderColor: '#2C2C2E' },
+  searchEmpty: { textAlign: 'center', color: '#6B7280', fontSize: 15, marginTop: 40 },
+  searchHint: { textAlign: 'center', color: '#4B5563', fontSize: 14, marginTop: 40, paddingHorizontal: 32 },
+  searchResultsHeader: { fontSize: 11, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, paddingHorizontal: 16, paddingVertical: 10 },
+  searchResultRow: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
+  searchResultType: { fontSize: 10, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+  searchResultTitle: { fontSize: 14, color: '#FFFFFF', lineHeight: 20, marginBottom: 3 },
+  searchResultMeta: { fontSize: 12, color: '#6B7280' },
   healthBadge: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center' },
   healthScore: { fontSize: 20, fontWeight: '900' },
   healthLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },

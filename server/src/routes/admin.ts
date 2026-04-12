@@ -1889,6 +1889,55 @@ router.get('/activity-feed', requireAdmin, async (_req: AuthRequest, res: Respon
   }
 });
 
+/** GET /admin/moderation/search — search AI messages and support tickets for a keyword */
+router.get('/moderation/search', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { q } = req.query as Record<string, string>;
+    if (!q || q.trim().length < 2) return res.status(400).json({ error: 'Запрос слишком короткий' });
+    const keyword = q.trim().toLowerCase();
+
+    const [aiMatches, ticketMatches] = await Promise.all([
+      prisma.chatMessage.findMany({
+        where: { role: 'user', content: { contains: keyword, mode: 'insensitive' } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true, content: true, createdAt: true,
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      }),
+      prisma.supportTicket.findMany({
+        where: {
+          OR: [
+            { subject: { contains: keyword, mode: 'insensitive' } },
+            { messages: { some: { content: { contains: keyword, mode: 'insensitive' }, isStaff: false } } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true, subject: true, status: true, createdAt: true,
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      }),
+    ]);
+
+    res.json({
+      keyword,
+      ai: aiMatches.map((m) => ({
+        id: m.id,
+        snippet: m.content.slice(0, 200),
+        createdAt: m.createdAt,
+        user: m.user,
+      })),
+      tickets: ticketMatches,
+    });
+  } catch (e) {
+    logger.error('GET /admin/moderation/search:', e);
+    res.status(500).json({ error: 'Ошибка поиска' });
+  }
+});
+
 /** GET /admin/subscriptions — paginated list of paid subscriptions with filters */
 router.get('/subscriptions', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
