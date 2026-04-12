@@ -101,7 +101,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                 {i > 0 && <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />}
                 <View style={styles.statItem}>
                   <Text style={[typography.number, { color }]}>{value}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>{label}</Text>
                 </View>
               </React.Fragment>
             ))}
@@ -149,8 +149,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.lg, gap: spacing.sm },
   tagsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, flexWrap: 'wrap' },
   tag: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-  statItem: { alignItems: 'center' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' },
+  statItem: { flex: 1, alignItems: 'center' },
   statDivider: { width: 1, height: 40 },
   weekPlanBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: borderRadius.lg, borderWidth: 1, marginBottom: spacing.xl },
 });

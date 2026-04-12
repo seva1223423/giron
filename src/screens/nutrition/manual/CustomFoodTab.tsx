@@ -37,7 +37,7 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
       <View style={styles.row}>
         {([['calories', 'Калории', 'ккал'], ['protein', 'Белки', 'г']] as const).map(([field, label, unit]) => (
           <View key={field} style={{ flex: 1 }}>
-            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{label} ({unit})</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]} numberOfLines={1}>{label} ({unit})</Text>
             <TextInput
               style={[styles.macroInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
               value={state[field]}
@@ -52,7 +52,7 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
       <View style={[styles.row, { marginTop: spacing.md }]}>
         {([['fats', 'Жиры', 'г'], ['carbs', 'Углеводы', 'г']] as const).map(([field, label, unit]) => (
           <View key={field} style={{ flex: 1 }}>
-            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{label} ({unit})</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]} numberOfLines={1}>{label} ({unit})</Text>
             <TextInput
               style={[styles.macroInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
               value={state[field]}

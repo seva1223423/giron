@@ -332,7 +332,7 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
                 {i > 0 && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
                 <View style={styles.statItem}>
                   <Text style={[typography.number, { color }]}>{value}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>{label}</Text>
                 </View>
               </React.Fragment>
             ))}
@@ -401,10 +401,10 @@ const styles = StyleSheet.create({
   activeBadge: { borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm, paddingVertical: 3 },
   tagsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, flexWrap: 'wrap' },
   tag: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-  statItem: { alignItems: 'center' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' },
+  statItem: { flex: 1, alignItems: 'center' },
   divider: { width: 1, height: 40 },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-around', flexWrap: 'wrap' },
   weekDay: { alignItems: 'center', flex: 1 },
   weekCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   activateBtn: {
