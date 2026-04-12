@@ -533,6 +533,52 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* Workout heatmap (last 90 days) */}
+      {user.workoutDates90d && user.workoutDates90d.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Активность (90 дней)</Text>
+          {(() => {
+            const dateSet = new Set(user.workoutDates90d);
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            // Show last 13 weeks (91 days) in a 7-row × 13-col grid
+            const COLS = 13; const ROWS = 7;
+            const cells: { date: string; active: boolean }[] = [];
+            // Pad start to align to Monday
+            const startDay = new Date(today); startDay.setDate(startDay.getDate() - (COLS * ROWS - 1));
+            for (let i = 0; i < COLS * ROWS; i++) {
+              const d = new Date(startDay); d.setDate(startDay.getDate() + i);
+              const key = d.toISOString().split('T')[0];
+              cells.push({ date: key, active: dateSet.has(key) });
+            }
+            return (
+              <View style={styles.heatmapGrid}>
+                {Array.from({ length: COLS }).map((_, col) => (
+                  <View key={col} style={styles.heatmapCol}>
+                    {Array.from({ length: ROWS }).map((_, row) => {
+                      const cell = cells[col * ROWS + row];
+                      const isToday = cell.date === today.toISOString().split('T')[0];
+                      return (
+                        <View
+                          key={row}
+                          style={[
+                            styles.heatmapCell,
+                            cell.active && styles.heatmapCellActive,
+                            isToday && styles.heatmapCellToday,
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+            );
+          })()}
+          <Text style={styles.heatmapLegend}>
+            {user.workoutDates90d.length} тренировок за последние 90 дней
+          </Text>
+        </View>
+      )}
+
       {/* Recent workouts */}
       {user.workouts?.length > 0 && (
         <View style={styles.card}>
@@ -783,4 +829,11 @@ const styles = StyleSheet.create({
   historyDetails: { fontSize: 13, color: '#D1D5DB', marginBottom: 2 },
   historyAdmin: { fontSize: 11, color: '#6B7280' },
   historyDate: { fontSize: 11, color: '#4B5563', marginTop: 2 },
+
+  heatmapGrid: { flexDirection: 'row', gap: 3, marginBottom: 8 },
+  heatmapCol: { flexDirection: 'column', gap: 3 },
+  heatmapCell: { width: 14, height: 14, borderRadius: 3, backgroundColor: '#2C2C2E' },
+  heatmapCellActive: { backgroundColor: '#6366F1' },
+  heatmapCellToday: { borderWidth: 1, borderColor: '#A5B4FC' },
+  heatmapLegend: { fontSize: 11, color: '#6B7280', marginTop: 4 },
 });

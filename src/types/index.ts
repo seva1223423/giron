@@ -315,6 +315,7 @@ export interface AdminUserDetail extends AdminUserSummary {
   bannedAt?: string;
   adminNote?: string;
   firstWorkoutAt?: string | null;
+  workoutDates90d?: string[];
   _count: { workouts: number; meals: number; chatMessages: number; cardioSessions: number; supportTickets: number };
   workouts: Array<{ id: string; name: string; completedAt?: string; totalVolume?: number; durationMinutes?: number }>;
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
