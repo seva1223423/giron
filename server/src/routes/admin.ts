@@ -1521,6 +1521,41 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
   }
 });
 
+/** GET /admin/users/top-revenue — users with highest subscription value (active paid plans) */
+router.get('/users/top-revenue', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
+    const users = await prisma.user.findMany({
+      where: { isBanned: false, subscription: { status: 'active', plan: { not: 'free' } } },
+      select: {
+        id: true, firstName: true, lastName: true, email: true,
+        subscription: { select: { plan: true, startDate: true, endDate: true } },
+        _count: { select: { workouts: true, chatMessages: true } },
+      },
+      take: 20,
+    });
+
+    const result = users
+      .map((u) => ({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        plan: u.subscription?.plan ?? 'free',
+        revenue: PLAN_PRICE[u.subscription?.plan ?? 'free'] ?? 0,
+        workouts: u._count.workouts,
+        aiMessages: u._count.chatMessages,
+        endDate: u.subscription?.endDate ?? null,
+      }))
+      .sort((a, b) => b.revenue - a.revenue || b.workouts - a.workouts);
+
+    res.json(result);
+  } catch (e) {
+    logger.error('GET /admin/users/top-revenue:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 /** GET /admin/users/churn-risk — paid users at risk of churning (no workout in 14+ days) */
 router.get('/users/churn-risk', requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {

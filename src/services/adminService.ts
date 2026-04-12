@@ -203,6 +203,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getTopRevenueUsers(): Promise<Array<{ id: string; firstName: string; lastName?: string | null; email: string; plan: string; revenue: number; workouts: number; aiMessages: number; endDate?: string | null }>> {
+    const res = await api.get('/admin/users/top-revenue');
+    return res.data;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;
