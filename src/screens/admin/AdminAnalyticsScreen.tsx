@@ -381,6 +381,54 @@ export default function AdminAnalyticsScreen() {
         </View>
       )}
 
+      {/* Day-of-week activity heatmap */}
+      {data.timeline.length >= 7 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Активность по дням недели</Text>
+          <Text style={styles.chartSub}>Тренировки за выбранный период</Text>
+          {(() => {
+            const DOW_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+            const dowWorkouts = new Array(7).fill(0);
+            const dowSignups = new Array(7).fill(0);
+            data.timeline.forEach((row) => {
+              // getDay() returns 0=Sun, so shift: Mon=0..Sun=6
+              const d = new Date(row.date);
+              const dow = (d.getDay() + 6) % 7;
+              dowWorkouts[dow] += row.workouts;
+              dowSignups[dow] += row.signups;
+            });
+            const maxW = Math.max(...dowWorkouts, 1);
+            return (
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                {DOW_LABELS.map((label, i) => {
+                  const intensity = Math.round((dowWorkouts[i] / maxW) * 100);
+                  const bgColor = intensity > 60 ? '#F59E0B' : intensity > 30 ? '#F59E0B80' : intensity > 0 ? '#F59E0B30' : '#2C2C2E';
+                  const isWeekend = i >= 5;
+                  return (
+                    <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                      <Text style={{ fontSize: 10, color: isWeekend ? '#6366F1' : '#6B7280', fontWeight: '700' }}>{label}</Text>
+                      <View style={{ width: '100%', aspectRatio: 1, borderRadius: 6, backgroundColor: bgColor, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '700' }}>{dowWorkouts[i]}</Text>
+                      </View>
+                      <Text style={{ fontSize: 8, color: '#4B5563' }}>+{dowSignups[i]}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })()}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: '#F59E0B' }} />
+              <Text style={{ fontSize: 9, color: '#6B7280' }}>тренировки</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: 9, color: '#6B7280' }}>+N = регистрации</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Timeline table — last 7 days */}
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Последние 7 дней</Text>

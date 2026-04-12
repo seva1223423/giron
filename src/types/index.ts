@@ -321,6 +321,7 @@ export interface AdminUserDetail extends AdminUserSummary {
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
   chatMessages: Array<{ id: string; content: string; createdAt: string }>;
   bodyWeights?: Array<{ id: string; weightKg: number; date: string }>;
+  sleepEntries?: Array<{ id: string; date: string; durationHours: number; quality?: number | null }>;
 }
 
 export interface AdminStats {
