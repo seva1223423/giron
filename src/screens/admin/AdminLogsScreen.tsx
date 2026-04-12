@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, ScrollView,
+  View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
+  TouchableOpacity, ScrollView, TextInput,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { adminService } from '../../services/adminService';
 import type { AdminLog } from '../../types';
 
@@ -19,8 +22,9 @@ const ACTION_META: Record<string, { color: string; icon: string; label: string }
 
 const ACTION_FILTERS = ['', ...Object.keys(ACTION_META)];
 
-function LogRow({ log }: { log: AdminLog }) {
+function LogRow({ log, onUserPress }: { log: AdminLog; onUserPress: (id: string) => void }) {
   const meta = ACTION_META[log.action] ?? { color: '#6B7280', icon: '•', label: log.action };
+  const hasUserTarget = log.targetId && log.action !== 'EXPORT_USERS';
   return (
     <View style={styles.row}>
       <View style={styles.rowTop}>
@@ -31,19 +35,29 @@ function LogRow({ log }: { log: AdminLog }) {
           <View style={[styles.actionBadge, { backgroundColor: meta.color + '22' }]}>
             <Text style={[styles.actionText, { color: meta.color }]}>{log.action}</Text>
           </View>
-          <Text style={styles.admin}>{log.admin.firstName} {log.admin.lastName ?? ''}</Text>
+          <Text style={styles.admin}>{log.admin.firstName} {log.admin.lastName ?? ''} · {log.admin.email}</Text>
         </View>
         <Text style={styles.date}>
           {new Date(log.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
-      {log.targetId && <Text style={styles.target}>ID: {log.targetId}</Text>}
+      {log.targetId && (
+        <TouchableOpacity
+          onPress={() => hasUserTarget && onUserPress(log.targetId!)}
+          disabled={!hasUserTarget}
+        >
+          <Text style={[styles.target, hasUserTarget && { color: '#6366F190', textDecorationLine: 'underline' }]}>
+            {hasUserTarget ? 'Открыть пользователя' : `ID: ${log.targetId}`}
+          </Text>
+        </TouchableOpacity>
+      )}
       {log.details && <Text style={styles.details}>{log.details}</Text>}
     </View>
   );
 }
 
 export default function AdminLogsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [logs, setLogs] = useState<AdminLog[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -102,7 +116,12 @@ export default function AdminLogsScreen() {
         <FlatList
           data={logs}
           keyExtractor={(l) => l.id}
-          renderItem={({ item }) => <LogRow log={item} />}
+          renderItem={({ item }) => (
+            <LogRow
+              log={item}
+              onUserPress={(id) => navigation.navigate('AdminUserDetailScreen', { userId: id })}
+            />
+          )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(1)} tintColor="#6366F1" />}
