@@ -81,6 +81,7 @@ export default function AdminAnalyticsScreen() {
   const [exporting, setExporting] = useState(false);
   const [cohorts, setCohorts] = useState<Array<{ week: string; signups: number; activeThisWeek: number; retentionPct: number }>>([]);
   const [subTimeline, setSubTimeline] = useState<{ timeline: Array<{ date: string; pro: number; trainer: number; club: number; total: number }>; totalNew: number } | null>(null);
+  const [segments, setSegments] = useState<Array<{ plan: string; userCount: number; avgWorkoutsPerUser: number; avgAiPerUser: number; activeRate: number }>>([]);
 
   const exportCSV = useCallback(async () => {
     const canShare = await Sharing.isAvailableAsync();
@@ -100,14 +101,16 @@ export default function AdminAnalyticsScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [res, cohortsRes, subRes] = await Promise.all([
+      const [res, cohortsRes, subRes, segRes] = await Promise.all([
         adminService.getAnalytics(period),
         adminService.getCohorts(),
         adminService.getSubscriptionTimeline(period),
+        adminService.getSegments(),
       ]);
       setData(res);
       setCohorts(cohortsRes);
       setSubTimeline(subRes);
+      setSegments(segRes);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -341,6 +344,40 @@ export default function AdminAnalyticsScreen() {
                 </View>
                 <View style={styles.funnelTrack}>
                   <View style={[styles.funnelFill, { width: `${pct}%` as any, backgroundColor: step.color }]} />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Segment comparison */}
+      {segments.length > 1 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Вовлечённость по тарифам (30 дней)</Text>
+          <Text style={styles.chartSub}>Среднее количество активностей на пользователя</Text>
+          <View style={{ flexDirection: 'row', marginBottom: 8, gap: 4 }}>
+            {['', 'Трен.', 'ИИ', 'Актив.%'].map((h, i) => (
+              <Text key={i} style={[styles.tableHead, { flex: i === 0 ? 1.5 : 1, textAlign: i === 0 ? 'left' : 'right' }]}>{h}</Text>
+            ))}
+          </View>
+          {segments.map((seg) => {
+            const PLAN_COLOR: Record<string, string> = { free: '#6B7280', pro: '#6366F1', trainer: '#F59E0B', club: '#10B981' };
+            const color = PLAN_COLOR[seg.plan] ?? '#6B7280';
+            const maxW = Math.max(...segments.map((s) => s.avgWorkoutsPerUser), 1);
+            const barW = Math.round((seg.avgWorkoutsPerUser / maxW) * 100);
+            return (
+              <View key={seg.plan} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color, flex: 1.5 }}>
+                    {seg.plan.toUpperCase()} <Text style={{ color: '#6B7280', fontWeight: '400' }}>({seg.userCount})</Text>
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#F59E0B', fontWeight: '700', flex: 1, textAlign: 'right' }}>{seg.avgWorkoutsPerUser}</Text>
+                  <Text style={{ fontSize: 12, color: '#8B5CF6', fontWeight: '700', flex: 1, textAlign: 'right' }}>{seg.avgAiPerUser}</Text>
+                  <Text style={{ fontSize: 12, color: seg.activeRate > 30 ? '#10B981' : '#EF4444', fontWeight: '700', flex: 1, textAlign: 'right' }}>{seg.activeRate}%</Text>
+                </View>
+                <View style={styles.funnelTrack}>
+                  <View style={[styles.funnelFill, { width: `${barW}%` as any, backgroundColor: color }]} />
                 </View>
               </View>
             );

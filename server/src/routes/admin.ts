@@ -1521,6 +1521,49 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
   }
 });
 
+/** GET /admin/analytics/segments — engagement metrics by subscription plan */
+router.get('/analytics/segments', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const thirtyAgo = new Date(Date.now() - 30 * 86400 * 1000);
+    const sevenAgo = new Date(Date.now() - 7 * 86400 * 1000);
+    const plans = ['free', 'pro', 'trainer', 'club'];
+
+    const results = await Promise.all(
+      plans.map(async (plan) => {
+        const userFilter = plan === 'free'
+          ? { OR: [{ subscription: null }, { subscription: { plan: 'free' } }] }
+          : { subscription: { plan, status: 'active' } };
+
+        const [userCount, workouts30d, ai30d, activeLastWeek] = await Promise.all([
+          prisma.user.count({ where: { isBanned: false, ...userFilter } }),
+          prisma.workout.count({ where: { completedAt: { gte: thirtyAgo }, user: { ...userFilter } } }),
+          prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: thirtyAgo }, user: { ...userFilter } } }),
+          prisma.workout.groupBy({
+            by: ['userId'],
+            where: { completedAt: { gte: sevenAgo }, user: { ...userFilter } },
+          }).then((r) => r.length),
+        ]);
+
+        return {
+          plan,
+          userCount,
+          workouts30d,
+          ai30d,
+          activeLastWeek,
+          avgWorkoutsPerUser: userCount > 0 ? Math.round((workouts30d / userCount) * 10) / 10 : 0,
+          avgAiPerUser: userCount > 0 ? Math.round((ai30d / userCount) * 10) / 10 : 0,
+          activeRate: userCount > 0 ? Math.round((activeLastWeek / userCount) * 100) : 0,
+        };
+      })
+    );
+
+    res.json(results.filter((r) => r.userCount > 0));
+  } catch (e) {
+    logger.error('GET /admin/analytics/segments:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 /** GET /admin/activity-feed — last N platform events across all activity types */
 router.get('/activity-feed', requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
