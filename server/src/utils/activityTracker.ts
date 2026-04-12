@@ -30,5 +30,6 @@ export function pruneOldEntries(): void {
   }
 }
 
-// Auto-prune every hour
+// Prune on startup, then every hour
+pruneOldEntries();
 setInterval(pruneOldEntries, 60 * 60 * 1000);
