@@ -42,7 +42,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
             <View style={styles.prSection}>
               {newPRs.map((pr, i) => (
                 <View key={i} style={styles.prBadge}>
-                  <Text style={styles.prText}>
+                  <Text style={styles.prText} numberOfLines={1}>
                     PR {pr.name} — {pr.weight}кг × {pr.reps}
                   </Text>
                 </View>
