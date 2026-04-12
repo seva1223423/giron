@@ -74,8 +74,8 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
   return (
     <Card style={{ marginBottom: spacing.md }}>
       <View style={styles.header}>
-        <Text style={[typography.h4, { color: colors.text }]}>{meta.label}</Text>
-        <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>{typeCalories} ккал</Text>
+        <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>{meta.label}</Text>
+        <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>{typeCalories} ккал</Text>
       </View>
 
       {meals.length > 0 ? (
@@ -127,7 +127,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                           </TouchableOpacity>
                         )
                       ) : null}
-                      <Text style={[typography.small, { color: colors.textSecondary }]}>
+                      <Text style={[typography.small, { color: colors.textSecondary }]} numberOfLines={1}>
                         {item.calories} ккал{itemPct > 0 ? ` (${itemPct}%)` : ''}
                       </Text>
                       {/* Delete individual item button */}
