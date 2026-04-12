@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../../store';
-import { Card, Button } from '../../../components';
+import { Card, Button, AnimatedPressable } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Workout, WorkoutExercise } from '../../../types';
@@ -160,8 +160,10 @@ export const SetsSection: React.FC<Props> = ({
 
       {/* Copy from last button */}
       {previousSets && previousSets.sets.length > 0 && currentExercise.sets.some((s) => !s.completed) && (
-        <TouchableOpacity
+        <AnimatedPressable
           onPress={handleCopyFromLast}
+          haptic={false}
+          scaleDown={0.97}
           style={{
             flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
             paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
@@ -170,9 +172,9 @@ export const SetsSection: React.FC<Props> = ({
           }}
         >
           <Text style={[typography.smallMedium, { color: colors.primary }]}>
-            {'\u21A9 \u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0438\u0437 \u043F\u0440\u043E\u0448\u043B\u043E\u0433\u043E \u0440\u0430\u0437\u0430'}
+            {'↩ Копировать из прошлого раза'}
           </Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       )}
 
       {/* Table header */}
@@ -238,11 +240,11 @@ export const SetsSection: React.FC<Props> = ({
       {currentExercise.sets.length <= 1 && (
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
           {[
-            { label: '3\u00D710', sets: 3, reps: 10 },
-            { label: '4\u00D78', sets: 4, reps: 8 },
-            { label: '5\u00D75', sets: 5, reps: 5 },
+            { label: '3×10', sets: 3, reps: 10 },
+            { label: '4×8', sets: 4, reps: 8 },
+            { label: '5×5', sets: 5, reps: 5 },
           ].map((template) => (
-            <TouchableOpacity
+            <AnimatedPressable
               key={template.label}
               onPress={() => {
                 haptic.selection();
@@ -254,10 +256,12 @@ export const SetsSection: React.FC<Props> = ({
                   updateSetData(currentExerciseIndex, idx, { reps: template.reps });
                 });
               }}
-              style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.border }}
+              haptic={false}
+              scaleDown={0.94}
+              style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.border }}
             >
               <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{template.label}</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           ))}
         </View>
       )}
@@ -273,16 +277,16 @@ export const SetsSection: React.FC<Props> = ({
         />
         {!currentExercise.sets.some((s) => s.type === 'warmup') &&
           currentExercise.sets.some((s) => (s.weight || 0) > 0) && (
-            <TouchableOpacity
+            <Button
+              title="Разминка"
+              variant="secondary"
+              size="sm"
               onPress={() => {
-                haptic.selection();
                 const workingSet = currentExercise.sets.find((s) => (s.weight || 0) > 0);
                 if (workingSet?.weight) generateWarmupSets(currentExerciseIndex, workingSet.weight);
               }}
-              style={{ flex: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderColor: colors.border }}
-            >
-              <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>{'\u0420\u0430\u0437\u043C\u0438\u043D\u043A\u0430'}</Text>
-            </TouchableOpacity>
+              style={{ flex: 1 }}
+            />
           )}
       </View>
 

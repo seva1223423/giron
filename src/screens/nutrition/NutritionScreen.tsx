@@ -58,13 +58,13 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <View style={styles.header}>
         <Text style={[typography.h2, { color: colors.text }]}>Питание</Text>
         <View style={{ flexDirection: 'row', gap: spacing.lg }}>
-          <TouchableOpacity onPress={() => navigation.navigate('NutritionHistory')}>
+          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('NutritionHistory'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>История</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }}>
+          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Калькулятор</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { haptic.selection(); setShowGoalsModal(true); }}>
+          <TouchableOpacity onPress={() => { haptic.selection(); setShowGoalsModal(true); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
             <Text style={[typography.smallMedium, { color: colors.primary }]}>Цели</Text>
           </TouchableOpacity>
         </View>

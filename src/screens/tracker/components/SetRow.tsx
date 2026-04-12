@@ -1,14 +1,19 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, Dimensions, Animated } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TextInput, StyleSheet, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withSpring, withSequence,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { AnimatedPressable } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
 const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  normal:  { label: '\u0420\u0410\u0411',  color: '#9E9E9E' },
-  warmup:  { label: '\u0420\u0410\u0417\u041C', color: '#FF9800' },
-  dropset: { label: '\u0414\u0420\u041E\u041F', color: '#9C27B0' },
+  normal:  { label: 'РАБ',  color: '#9E9E9E' },
+  warmup:  { label: 'РАЗМ', color: '#FF9800' },
+  dropset: { label: 'ДРОП', color: '#9C27B0' },
 };
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 const SHOW_PLATE_CALC = Dimensions.get('window').width > 360;
@@ -33,12 +38,44 @@ interface Props {
   colors: any;
 }
 
-// Estimate 1RM using Epley formula
 function estimate1RM(weight: number, reps: number): number {
   if (reps <= 0 || weight <= 0) return 0;
   if (reps === 1) return weight;
   return Math.round(weight * (1 + reps / 30));
 }
+
+// Animated complete button with spring pop
+const CompleteButton: React.FC<{ completed: boolean; onPress: () => void; colors: any; est1RM: number }> = ({ completed, onPress, colors, est1RM }) => {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const handlePress = useCallback(() => {
+    scale.value = withSequence(
+      withSpring(1.2, { damping: 6, stiffness: 700 }),
+      withSpring(1, { damping: 12, stiffness: 400 }),
+    );
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onPress();
+  }, [onPress, scale]);
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <Animated.View style={[animStyle, styles.checkBtn, { backgroundColor: completed ? colors.success : colors.inputBackground, borderColor: completed ? colors.success : colors.border }]}>
+        <Text
+          onPress={handlePress}
+          style={{ color: completed ? '#FFF' : colors.textSecondary, fontWeight: '700', fontSize: 18, lineHeight: 44, textAlign: 'center', width: 44 }}
+        >
+          ✓
+        </Text>
+      </Animated.View>
+      {est1RM > 0 && (
+        <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, marginTop: 2 }}>
+          ~{est1RM} 1ПМ
+        </Text>
+      )}
+    </View>
+  );
+};
 
 export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const haptic = useHaptic();
@@ -49,11 +86,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
   const [showRpe, setShowRpe] = useState(false);
   const currentType = set.type || 'normal';
 
-  // Scale animation on complete
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
   const handleComplete = useCallback(() => {
-    // Auto-fill from prevSet if weight is 0/empty and prevSet exists
     let finalWeight = parseFloat(weight.replace(',', '.')) || 0;
     let finalReps = parseInt(reps) || 0;
     if (finalWeight === 0 && prevSet?.weight) {
@@ -64,34 +97,25 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
       finalReps = prevSet.reps;
       setReps(String(prevSet.reps));
     }
-
-    // Scale animation: briefly scale to 1.02 then back
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 1.02, duration: 100, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-    ]).start();
-
     onComplete(finalReps, finalWeight);
     setShowRpe(true);
-  }, [weight, reps, prevSet, onComplete, scaleAnim]);
+  }, [weight, reps, prevSet, onComplete]);
 
-  // 1RM estimate for completed sets
   const completed1RM = set.completed && set.weight && set.reps
     ? estimate1RM(set.weight, set.reps)
     : 0;
 
   return (
-    <Animated.View style={{
+    <View style={{
       backgroundColor: set.completed ? colors.success + '10' : 'transparent',
       borderRadius: borderRadius.sm,
       marginBottom: 2,
       borderLeftWidth: set.completed ? 3 : 0,
       borderLeftColor: set.completed ? colors.success : 'transparent',
-      transform: [{ scale: scaleAnim }],
     }}>
       <View style={[styles.setRow, { paddingVertical: spacing.sm }]}>
         {/* Set number / type badge */}
-        <TouchableOpacity
+        <AnimatedPressable
           onPress={onTypeChange ? () => {
             haptic.selection();
             const idx = SET_TYPES.indexOf(currentType as any);
@@ -99,22 +123,26 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           } : undefined}
           onLongPress={onRemove}
           delayLongPress={500}
-          style={{ width: 40, alignItems: 'center' }}
+          haptic={false}
+          scaleDown={0.9}
+          style={{ width: 40, alignItems: 'center', paddingVertical: spacing.xs } as any}
         >
           <Text style={{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 1, color: SET_TYPE_CONFIG[currentType].color }}>
             {SET_TYPE_CONFIG[currentType].label}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>{setIndex + 1}</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
 
         {/* Weight stepper */}
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-          <TouchableOpacity
+          <AnimatedPressable
             onPress={() => { haptic.selection(); const v = parseFloat(weight.replace(',', '.')) || 0; setWeight(String(Math.max(0, Math.round((v - 2.5) * 4) / 4))); }}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+            haptic={false}
+            scaleDown={0.85}
+            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
           >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>{'\u2212'}</Text>
-          </TouchableOpacity>
+            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>−</Text>
+          </AnimatedPressable>
           <TextInput
             style={[styles.setInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
             value={weight}
@@ -123,33 +151,38 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             placeholder={prevSet?.weight ? prevSet.weight.toString() : '0'}
             placeholderTextColor={prevSet?.weight ? colors.primary + '60' : colors.inputPlaceholder}
           />
-          <TouchableOpacity
+          <AnimatedPressable
             onPress={() => { haptic.selection(); const v = parseFloat(weight.replace(',', '.')) || 0; setWeight(String(Math.round((v + 2.5) * 4) / 4)); }}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+            haptic={false}
+            scaleDown={0.85}
+            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
           >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
-          </TouchableOpacity>
+            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>+</Text>
+          </AnimatedPressable>
         </View>
 
         {/* Plate calc */}
         {SHOW_PLATE_CALC && onOpenPlates && (
-          <TouchableOpacity
+          <AnimatedPressable
             onPress={() => { haptic.selection(); onOpenPlates(parseFloat(weight) || 0); }}
-            style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            haptic={false}
+            scaleDown={0.9}
+            style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm } as any}
           >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>{'\u25CE'}</Text>
-          </TouchableOpacity>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>◎</Text>
+          </AnimatedPressable>
         )}
 
         {/* Reps stepper */}
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-          <TouchableOpacity
+          <AnimatedPressable
             onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(Math.max(1, v - 1))); }}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+            haptic={false}
+            scaleDown={0.85}
+            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
           >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>{'\u2212'}</Text>
-          </TouchableOpacity>
+            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>−</Text>
+          </AnimatedPressable>
           <TextInput
             style={[styles.setInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
             value={reps}
@@ -158,41 +191,33 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             placeholder="10"
             placeholderTextColor={colors.inputPlaceholder}
           />
-          <TouchableOpacity
+          <AnimatedPressable
             onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(v + 1)); }}
-            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+            haptic={false}
+            scaleDown={0.85}
+            style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
           >
-            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 15 }}>+</Text>
-          </TouchableOpacity>
+            <Text style={{ color: colors.textSecondary, fontWeight: '800', fontSize: 17 }}>+</Text>
+          </AnimatedPressable>
         </View>
 
-        {/* Complete button + 1RM estimate */}
-        <View style={{ alignItems: 'center' }}>
-          <TouchableOpacity
-            style={[styles.checkBtn, { backgroundColor: set.completed ? colors.success : colors.inputBackground, borderColor: set.completed ? colors.success : colors.border }]}
-            onPress={handleComplete}
-          >
-            <Text style={{ color: set.completed ? '#FFF' : colors.textSecondary, fontWeight: '700' }}>{'\u2713'}</Text>
-          </TouchableOpacity>
-          {completed1RM > 0 && (
-            <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, marginTop: 2 }}>
-              ~{completed1RM} 1{'\u041F\u041C'}
-            </Text>
-          )}
-        </View>
+        {/* Complete button */}
+        <CompleteButton completed={set.completed} onPress={handleComplete} colors={colors} est1RM={completed1RM} />
       </View>
 
       {/* Quick weight presets */}
       {!set.completed && (parseFloat(weight) === 0 || weight === '') && prevSet?.weight && (
-        <View style={{ flexDirection: 'row', gap: 4, marginTop: 4, paddingHorizontal: spacing.sm }}>
+        <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}>
           {[prevSet.weight, prevSet.weight + 2.5, prevSet.weight + 5, prevSet.weight - 5].filter(w => w > 0).map((w) => (
-            <TouchableOpacity
+            <AnimatedPressable
               key={w}
               onPress={() => { haptic.selection(); setWeight(String(w)); }}
-              style={{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6, backgroundColor: colors.primary + '12', borderWidth: 1, borderColor: colors.primary + '30' }}
+              haptic={false}
+              scaleDown={0.91}
+              style={{ paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6, backgroundColor: colors.primary + '12', borderWidth: 1, borderColor: colors.primary + '30' } as any}
             >
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>{w}</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           ))}
         </View>
       )}
@@ -203,29 +228,31 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           <Text style={[typography.caption, { color: colors.textTertiary, marginRight: spacing.sm }]}>RPE</Text>
           {RPE_VALUES.map((v) => (
             <View key={v} style={{ alignItems: 'center' }}>
-              <TouchableOpacity
+              <AnimatedPressable
                 onPress={() => { haptic.selection(); onRpeChange(v); setShowRpe(false); }}
+                haptic={false}
+                scaleDown={0.88}
                 style={[styles.rpeBtn, {
                   backgroundColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary + '18' : colors.inputBackground,
                   borderColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary : colors.border,
                   borderWidth: suggestedRpe === v && set.rpe !== v ? 2 : 1,
-                }]}
+                }] as any}
               >
                 <Text style={[typography.small, { color: set.rpe === v ? '#fff' : suggestedRpe === v ? colors.primary : colors.textSecondary, fontWeight: '700' }]}>{v}</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
               {suggestedRpe === v && set.rpe !== v && (
-                <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', marginTop: 1 }}>{'\u043E\u0436\u0438\u0434.'}</Text>
+                <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', marginTop: 1 }}>ожид.</Text>
               )}
             </View>
           ))}
           {set.rpe && (
             <Text style={[typography.caption, { color: rpeColor(set.rpe), marginLeft: spacing.xs, fontWeight: '700' }]}>
-              {set.rpe >= 10 ? '\u041C\u0430\u043A\u0441' : set.rpe >= 9 ? '\u0422\u044F\u0436\u0435\u043B\u043E' : set.rpe >= 8 ? '\u0421\u043B\u043E\u0436\u043D\u043E' : '\u041B\u0435\u0433\u043A\u043E'}
+              {set.rpe >= 10 ? 'Макс' : set.rpe >= 9 ? 'Тяжело' : set.rpe >= 8 ? 'Сложно' : 'Легко'}
             </Text>
           )}
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 });
 
@@ -237,22 +264,23 @@ const styles = StyleSheet.create({
   setInput: {
     flex: 1, textAlign: 'center', paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm, borderWidth: 1, fontSize: 16, fontWeight: '600',
+    minHeight: 40,
   },
   checkBtn: {
-    width: 40, height: 40, borderRadius: borderRadius.sm,
+    width: 44, height: 44, borderRadius: borderRadius.sm,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
   },
   stepBtn: {
-    width: 26, height: 36, borderRadius: borderRadius.sm,
+    width: 32, height: 44, borderRadius: borderRadius.sm,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
   rpePicker: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs, marginTop: 2, marginBottom: spacing.xs,
+    paddingVertical: spacing.sm, marginTop: 2, marginBottom: spacing.xs,
     borderRadius: borderRadius.sm, borderWidth: 1, flexWrap: 'wrap', gap: 4,
   },
   rpeBtn: {
-    width: 34, height: 28, borderRadius: borderRadius.sm,
+    width: 38, height: 38, borderRadius: borderRadius.sm,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
 });

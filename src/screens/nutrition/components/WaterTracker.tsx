@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { Card } from '../../../components';
+import { Card, AnimatedPressable } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -82,14 +82,16 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
       {/* Quick add buttons */}
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
         {QUICK_AMOUNTS.map(({ label, ml }) => (
-          <TouchableOpacity
+          <AnimatedPressable
             key={ml}
             style={[styles.waterBtn, { backgroundColor: colors.info + '12', borderColor: colors.info + '60', flex: 1 }]}
             onPress={() => handleAddWater(ml)}
+            haptic={false}
+            scaleDown={0.93}
           >
             <Text style={{ fontSize: 11, fontWeight: '700', color: colors.info }}>{label}</Text>
             <Text style={{ fontSize: 10, color: colors.info + 'AA' }}>{ml}мл</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         ))}
       </View>
 

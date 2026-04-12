@@ -89,13 +89,13 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                   <Text style={[typography.caption, { color: colors.textTertiary }]}>
                     {meta.label} · {mealTime}
                   </Text>
-                  <TouchableOpacity onPress={() => { haptic.light(); removeMeal(selectedDate, meal.id); }}>
+                  <TouchableOpacity onPress={() => { haptic.warning(); removeMeal(selectedDate, meal.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Text style={[typography.caption, { color: colors.error }]}>Удалить всё</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.xs }}>
-                  <TouchableOpacity onPress={() => { haptic.light(); removeMeal(selectedDate, meal.id); }}>
+                  <TouchableOpacity onPress={() => { haptic.warning(); removeMeal(selectedDate, meal.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Text style={[typography.caption, { color: colors.error }]}>Удалить всё</Text>
                   </TouchableOpacity>
                 </View>
@@ -149,10 +149,16 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
       )}
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-        <TouchableOpacity onPress={() => navigation.navigate('ManualFoodAdd', { mealType, date: selectedDate })}>
+        <TouchableOpacity
+          onPress={() => { haptic.selection(); navigation.navigate('ManualFoodAdd', { mealType, date: selectedDate }); }}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+        >
           <Text style={[typography.smallMedium, { color: colors.primary }]}>+ Добавить</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onPhotoScan}>
+        <TouchableOpacity
+          onPress={() => { haptic.selection(); onPhotoScan(); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+        >
           <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Фото</Text>
         </TouchableOpacity>
       </View>
