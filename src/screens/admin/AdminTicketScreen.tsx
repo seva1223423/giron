@@ -1,14 +1,25 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView, Modal,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supportService } from '../../services/supportService';
 import { adminService } from '../../services/adminService';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { SupportTicket, SupportMessage, TicketStatus, TicketPriority } from '../../types';
+
+const CANNED_REPLIES = [
+  'Здравствуйте! Спасибо за обращение. Мы рассмотрим ваш вопрос в ближайшее время.',
+  'Ваша проблема была зафиксирована и передана в технический отдел.',
+  'Пожалуйста, опишите подробнее: какое устройство используете и какая версия приложения?',
+  'Проблема решена. Пожалуйста, перезапустите приложение и проверьте.',
+  'К сожалению, данный функционал пока не поддерживается. Мы учтём ваш запрос.',
+  'Подписка успешно активирована. Наслаждайтесь Iron Gym PRO!',
+  'Спасибо за терпение! Закрываем тикет. Если возникнут вопросы — пишите снова.',
+] as const;
 
 type RouteParams = { ticketId: string };
 
@@ -40,6 +51,7 @@ function MessageBubble({ msg, myId }: { msg: SupportMessage; myId?: string }) {
 
 export default function AdminTicketScreen() {
   const route = useRoute<RouteProp<{ AdminTicketScreen: RouteParams }, 'AdminTicketScreen'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { ticketId } = route.params;
   const userId = useAuthStore((s) => s.user?.id);
   const flatRef = useRef<FlatList>(null);
@@ -48,6 +60,7 @@ export default function AdminTicketScreen() {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showCanned, setShowCanned] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,14 +116,56 @@ export default function AdminTicketScreen() {
     }
   }, [ticket, ticketId]);
 
+  const quickClose = useCallback(async () => {
+    Alert.alert('Закрыть тикет?', 'Тикет будет помечен как "closed".', [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Закрыть',
+        onPress: async () => {
+          try {
+            const updated = await supportService.updateTicketStatus(ticketId, { status: 'closed' });
+            setTicket(updated);
+          } catch {
+            Alert.alert('Ошибка', 'Не удалось закрыть тикет');
+          }
+        },
+      },
+    ]);
+  }, [ticketId]);
+
   if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
   if (!ticket) return <View style={styles.center}><Text style={{ color: '#9CA3AF' }}>Тикет не найден</Text></View>;
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      {/* Canned replies modal */}
+      <Modal visible={showCanned} transparent animationType="slide" onRequestClose={() => setShowCanned(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Быстрые ответы</Text>
+              <TouchableOpacity onPress={() => setShowCanned(false)}>
+                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {CANNED_REPLIES.map((reply, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.cannedItem}
+                onPress={() => { setText(reply); setShowCanned(false); }}
+              >
+                <Text style={styles.cannedText} numberOfLines={2}>{reply}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
       {/* Ticket meta */}
       <ScrollView style={styles.meta} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metaContent}>
-        <Text style={styles.metaUser}>👤 {ticket.user?.firstName} {ticket.user?.lastName}</Text>
+        <TouchableOpacity onPress={() => ticket.user && navigation.navigate('AdminUserDetailScreen', { userId: ticket.user.id })}>
+          <Text style={[styles.metaUser, { textDecorationLine: 'underline' }]}>👤 {ticket.user?.firstName} {ticket.user?.lastName}</Text>
+        </TouchableOpacity>
         <Text style={styles.metaDot}>·</Text>
         {/* Status chips */}
         {STATUS_OPTIONS.map((s) => (
@@ -147,6 +202,18 @@ export default function AdminTicketScreen() {
         renderItem={({ item }) => <MessageBubble msg={item} myId={userId} />}
         contentContainerStyle={styles.messages}
       />
+
+      {/* Action bar above input */}
+      <View style={styles.actionBar}>
+        <TouchableOpacity style={styles.actionBarBtn} onPress={() => setShowCanned(true)}>
+          <Text style={styles.actionBarBtnText}>💬 Шаблоны</Text>
+        </TouchableOpacity>
+        {ticket.status !== 'closed' && (
+          <TouchableOpacity style={[styles.actionBarBtn, { borderColor: '#6B728060' }]} onPress={quickClose}>
+            <Text style={[styles.actionBarBtnText, { color: '#6B7280' }]}>✓ Закрыть тикет</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={styles.inputRow}>
         <TextInput
@@ -200,4 +267,16 @@ const styles = StyleSheet.create({
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
   sendBtnDisabled: { opacity: 0.5 },
   sendIcon: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
+
+  actionBar: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#0F0F0F', borderTopWidth: 1, borderTopColor: '#1C1C1E' },
+  actionBarBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#6366F140' },
+  actionBarBtnText: { fontSize: 12, color: '#6366F1', fontWeight: '600' },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  cannedItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  cannedText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20 },
 });
