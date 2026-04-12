@@ -151,7 +151,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
               return (
                 <Card key={`${dateStr}-${wi}`} style={{ marginBottom: spacing.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                    <View style={[styles.dateBadge, { backgroundColor: colors.primary + '20' }]}>
+                    <View style={[styles.dateBadge, { backgroundColor: colors.primary + '20', borderWidth: 1.5, borderColor: colors.primary + '40' }]}>
                       <Text style={[typography.number, { color: colors.primary, fontSize: 18 }]}>{d.getDate()}</Text>
                       <Text style={[typography.small, { color: colors.primary, fontSize: 10 }]}>{WEEKDAY_LABELS[mondayWeekday(d)]}</Text>
                     </View>

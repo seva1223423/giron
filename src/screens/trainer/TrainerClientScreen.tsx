@@ -128,7 +128,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
         {/* Profile card */}
         <Card style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary + '20', borderWidth: 1.5, borderColor: colors.primary + '40' }]}>
               <Text style={{ fontSize: 32, fontWeight: '700', color: colors.primary }}>{client.emoji || '◉'}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -143,9 +143,9 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
             </TouchableOpacity>
           </View>
           <View style={styles.tagsRow}>
-            {goal && <View style={[styles.tag, { backgroundColor: colors.primary + '15' }]}><Text style={[typography.caption, { color: colors.primary }]}>{goal}</Text></View>}
-            {level && <View style={[styles.tag, { backgroundColor: colors.accent + '15' }]}><Text style={[typography.caption, { color: colors.accent }]}>{level}</Text></View>}
-            {client.totalWorkouts !== undefined && <View style={[styles.tag, { backgroundColor: colors.success + '15' }]}><Text style={[typography.caption, { color: colors.success }]}>{client.totalWorkouts} тренировок</Text></View>}
+            {goal && <View style={[styles.tag, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '35' }]}><Text style={[typography.caption, { color: colors.primary }]}>{goal}</Text></View>}
+            {level && <View style={[styles.tag, { backgroundColor: colors.accent + '15', borderWidth: 1, borderColor: colors.accent + '35' }]}><Text style={[typography.caption, { color: colors.accent }]}>{level}</Text></View>}
+            {client.totalWorkouts !== undefined && <View style={[styles.tag, { backgroundColor: colors.success + '15', borderWidth: 1, borderColor: colors.success + '35' }]}><Text style={[typography.caption, { color: colors.success }]}>{client.totalWorkouts} тренировок</Text></View>}
           </View>
         </Card>
 
