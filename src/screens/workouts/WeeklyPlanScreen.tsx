@@ -99,7 +99,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                     <>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                         <Text style={{ fontSize: 16 }}>{entry.emoji}</Text>
-                        <Text style={[typography.bodySemibold, { color: colors.text }]}>{entry.name}</Text>
+                        <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{entry.name}</Text>
                       </View>
                       {entry.exercises.length > 0 && (
                         <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>

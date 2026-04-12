@@ -215,7 +215,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
             </View>
             <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
               {unlockedAchievements.slice(0, 4).map((ach) => (
-                <View key={ach.id} style={{ alignItems: 'center', width: 64 }}>
+                <View key={ach.id} style={{ alignItems: 'center', flex: 1, minWidth: '22%' }}>
                   <Text style={{ fontSize: 24 }}>{ach.emoji}</Text>
                   <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textSecondary, marginTop: 2, textAlign: 'center' }} numberOfLines={2}>{ach.title}</Text>
                 </View>

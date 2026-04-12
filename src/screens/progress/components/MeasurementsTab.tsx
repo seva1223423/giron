@@ -121,7 +121,7 @@ export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
                     <Text style={[typography.numberSmall, { color: colors.primary, fontSize: 18 }]}>
                       {(latest[f.key] as number).toFixed(1)}
                     </Text>
-                    <Text style={[typography.caption, { color: colors.textSecondary, textAlign: 'center' }]}>{f.label}</Text>
+                    <Text style={[typography.caption, { color: colors.textSecondary, textAlign: 'center' }]} numberOfLines={1}>{f.label}</Text>
                     {d && (
                       <Text style={[typography.caption, { color: d.startsWith('+') ? colors.error : colors.success, fontSize: 10 }]}>
                         {d} см
