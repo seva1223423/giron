@@ -120,6 +120,7 @@ export const CalendarTab: React.FC<CalendarTabProps> = ({ colors, workoutHistory
                 activeOpacity={day.hasWorkout ? 0.7 : 1}
                 style={[
                   styles.calendarCell,
+                  { width: CELL_SIZE, height: CELL_SIZE },
                   day.isToday && { borderWidth: 2, borderColor: colors.primary },
                   day.hasWorkout && { backgroundColor: isSelected ? colors.success + '60' : colors.success + '30' },
                   isSelected && { borderWidth: 2, borderColor: colors.success },
@@ -155,8 +156,6 @@ const styles = StyleSheet.create({
   calendarHeader: { flexDirection: 'row', marginBottom: spacing.sm },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calendarCell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.sm,
