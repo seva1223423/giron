@@ -3,11 +3,11 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'rea
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
-import { Card, Button } from '../../components';
+import { Card, Button, AnimatedPressable } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
-import { LifetimeStatsCard, AchievementsCard } from './components';
+import { LifetimeStatsCard } from './components';
 import { userService } from '../../services';
 import type { BodyWeight } from '../../types';
 
@@ -34,6 +34,44 @@ const ProfileRow: React.FC<{ label: string; value: string; colors: any; isLast?:
   </View>
 );
 
+// Single row in the navigation menu
+const MenuRow: React.FC<{
+  icon: string;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
+  isLast?: boolean;
+  colors: any;
+  badge?: string;
+  badgeColor?: string;
+}> = ({ icon, iconBg, iconColor, title, subtitle, onPress, isLast, colors, badge, badgeColor }) => (
+  <AnimatedPressable
+    onPress={onPress}
+    haptic={false}
+    scaleDown={0.985}
+    style={[
+      { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, gap: spacing.md } as any,
+      !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider },
+    ]}
+  >
+    <View style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: iconBg, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 15, fontWeight: '700', color: iconColor }}>{icon}</Text>
+    </View>
+    <View style={{ flex: 1 }}>
+      <Text style={[typography.body, { color: colors.text }]}>{title}</Text>
+      {subtitle && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 1 }]}>{subtitle}</Text>}
+    </View>
+    {badge && (
+      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: (badgeColor || colors.primary) + '20' }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: badgeColor || colors.primary }}>{badge}</Text>
+      </View>
+    )}
+    <Text style={[typography.body, { color: colors.textTertiary }]}>›</Text>
+  </AnimatedPressable>
+);
+
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
@@ -48,20 +86,17 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     userService.getWeightHistory().then(setWeightHistory).catch(() => {});
   }, []);
 
-  // Days since account creation
   const daysWithUs = useMemo(() => {
     if (!user?.createdAt) return null;
     const created = new Date(user.createdAt);
-    const now = new Date();
-    return Math.max(1, Math.floor((now.getTime() - created.getTime()) / 86400000));
+    return Math.max(1, Math.floor((Date.now() - created.getTime()) / 86400000));
   }, [user?.createdAt]);
 
-  // Weight trend: last 3 entries
   const weightTrend = useMemo(() => {
     if (weightHistory.length < 2) return null;
     const last = weightHistory.slice(-3);
-    const diff = last[last.length - 1].weightKg - last[0].weightKg;
-    return { entries: last, diff: Math.round(diff * 10) / 10 };
+    const diff = Math.round((last[last.length - 1].weightKg - last[0].weightKg) * 10) / 10;
+    return { entries: last, diff };
   }, [weightHistory]);
 
   const achievements = useMemo(() => {
@@ -82,6 +117,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     return computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak });
   }, [workoutHistory, dailyLog]);
 
+  const unlockedAchievements = achievements.filter((a) => a.unlockedAt);
+
   const handleLogout = () => {
     Alert.alert('Выйти из аккаунта?', '', [
       { text: 'Отмена', style: 'cancel' },
@@ -90,8 +127,12 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false}>
-      {/* Profile header */}
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ── Profile header ── */}
       <View style={styles.profileHeader}>
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
           <Text style={{ color: '#FFF', fontSize: 32, fontWeight: '800' }}>{(user?.firstName?.[0] || 'A').toUpperCase()}</Text>
@@ -105,8 +146,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         )}
       </View>
 
-      {/* Stats summary */}
-      <View style={styles.statsRow}>
+      {/* ── Stats row ── */}
+      <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.statItem}>
           <Text style={[typography.numberSmall, { color: colors.primary }]}>{workoutHistory.length}</Text>
           <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
@@ -118,145 +159,138 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         </View>
         <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <View style={styles.statItem}>
-          <Text style={[typography.numberSmall, { color: colors.primary }]}>{user?.fitnessLevel ? LEVEL_LABELS[user.fitnessLevel] : '—'}</Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>Уровень</Text>
+          <Text style={[typography.numberSmall, { color: colors.primary }]}>{unlockedAchievements.length}</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>Ачивок</Text>
         </View>
       </View>
 
-      {/* Weight trend */}
+      {/* ── Weight trend (compact inline, only if data exists) ── */}
       {weightTrend && (
-        <View style={{
-          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          marginBottom: spacing.lg, padding: spacing.md,
-          borderRadius: borderRadius.md, backgroundColor: colors.surface,
-          borderWidth: 1, borderColor: colors.border,
-        }}>
-          <View>
-            <Text style={[typography.caption, { color: colors.textTertiary }]}>Тренд веса</Text>
-            <Text style={[typography.bodySemibold, { color: weightTrend.diff > 0 ? colors.warning : weightTrend.diff < 0 ? colors.success : colors.text }]}>
-              {weightTrend.diff > 0 ? '+' : ''}{weightTrend.diff} кг
-            </Text>
-            <Text style={[typography.caption, { color: colors.textTertiary }]}>за {weightTrend.entries.length - 1} замера</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 32 }}>
+        <View style={[styles.trendRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 28 }}>
             {weightTrend.entries.map((e, i) => {
               const vals = weightTrend.entries.map((x) => x.weightKg);
               const min = Math.min(...vals); const max = Math.max(...vals);
-              const range = max - min || 1;
-              const h = Math.max(4, Math.round(((e.weightKg - min) / range) * 28) + 4);
-              return (
-                <View key={i} style={{ width: 10, height: h, borderRadius: 3, backgroundColor: i === weightTrend.entries.length - 1 ? colors.primary : colors.border }} />
-              );
+              const h = Math.max(4, Math.round(((e.weightKg - min) / (max - min || 1)) * 24) + 4);
+              return <View key={i} style={{ width: 8, height: h, borderRadius: 2, backgroundColor: i === weightTrend.entries.length - 1 ? colors.primary : colors.border }} />;
             })}
           </View>
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренд веса</Text>
+          <Text style={[typography.bodyMedium, { color: weightTrend.diff > 0 ? colors.warning : weightTrend.diff < 0 ? colors.success : colors.text }]}>
+            {weightTrend.diff > 0 ? '+' : ''}{weightTrend.diff} кг
+          </Text>
         </View>
       )}
 
-      {/* Unlocked achievements preview (top 3) */}
-      {achievements.filter((a) => a.unlockedAt).slice(0, 3).length > 0 && (
-        <View style={{
-          flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg,
-        }}>
-          {achievements.filter((a) => a.unlockedAt).slice(0, 3).map((ach) => (
-            <TouchableOpacity
-              key={ach.id}
-              onPress={() => navigation.navigate('ProgressTab' as any)}
-              style={{ flex: 1, alignItems: 'center', padding: spacing.sm, borderRadius: borderRadius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary + '30' }}
-            >
-              <Text style={{ fontSize: 22 }}>{ach.emoji}</Text>
-              <Text style={{ fontSize: 9, fontWeight: '600', color: colors.primary, marginTop: 2, textAlign: 'center' }} numberOfLines={2}>{ach.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      {/* ── Section: Данные ── */}
+      <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ДАННЫЕ</Text>
 
-      <LifetimeStatsCard delay={100} />
-      <AchievementsCard achievements={achievements} delay={180} />
+      <LifetimeStatsCard delay={0} />
 
-      {/* Personal info */}
       <Card style={{ marginBottom: spacing.lg }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
           <Text style={[typography.h4, { color: colors.text }]}>Личные данные</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('EditProfile'); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={[typography.smallMedium, { color: colors.primary }]}>Изменить</Text>
           </TouchableOpacity>
         </View>
         <ProfileRow label="Рост" value={user?.heightCm ? `${user.heightCm} см` : 'Не указан'} colors={colors} />
         <ProfileRow label="Вес" value={user?.weightKg ? `${user.weightKg} кг` : 'Не указан'} colors={colors} />
         <ProfileRow label="Пол" value={user?.gender === 'male' ? 'Мужской' : user?.gender === 'female' ? 'Женский' : 'Не указан'} colors={colors} />
-        <ProfileRow label="Цель" value={user?.goal ? GOAL_LABELS[user.goal] : 'Не указана'} colors={colors} />
-        <ProfileRow label="Уровень" value={user?.fitnessLevel ? LEVEL_LABELS[user.fitnessLevel] : 'Не указан'} colors={colors} />
+        <ProfileRow label="Цель" value={user?.goal ? GOAL_LABELS[user.goal] ?? user.goal : 'Не указана'} colors={colors} />
+        <ProfileRow label="Уровень" value={user?.fitnessLevel ? LEVEL_LABELS[user.fitnessLevel] ?? user.fitnessLevel : 'Не указан'} colors={colors} />
         <ProfileRow label="Стаж" value={user?.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'Не указан'} colors={colors} isLast />
       </Card>
 
-      {/* Settings */}
-      <Card style={{ marginBottom: spacing.lg }}>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('Settings'); }} style={styles.settingRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textSecondary }}>SET</Text>
-            <Text style={[typography.body, { color: colors.text }]}>Настройки</Text>
-          </View>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>›</Text>
-        </TouchableOpacity>
-      </Card>
-
-      {/* Subscription */}
-      <Card style={{ marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.accent }}>
-        <Text style={[typography.captionMedium, { color: colors.accent }]}>PREMIUM</Text>
-        <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xs }]}>Iron Gym Pro</Text>
-        <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]}>
-          Безлимитный ИИ-тренер, расширенная аналитика, персональные программы, КБЖУ без ограничений
-        </Text>
-        <Button title="Попробовать бесплатно — 7 дней" onPress={() => navigation.navigate('Subscription')} style={{ marginTop: spacing.lg }} fullWidth />
-      </Card>
-
-      {/* Trainer mode */}
-      <Card style={{ marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.primary + '40' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>T</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.h4, { color: colors.text }]}>Режим тренера</Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>Управляй клиентами, назначай программы и отслеживай прогресс</Text>
-          </View>
-        </View>
-        <Button title="Открыть кабинет тренера" variant="outline" onPress={() => navigation.navigate('TrainerDashboard')} fullWidth />
-      </Card>
-
-      {/* Support */}
-      <Card style={{ marginBottom: spacing.lg }}>
-        <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('SupportScreen'); }} style={styles.settingRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#6366F118', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 14 }}>🎧</Text>
+      {/* ── Section: Достижения ── */}
+      {unlockedAchievements.length > 0 && (
+        <>
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ДОСТИЖЕНИЯ</Text>
+          <Card style={{ marginBottom: spacing.lg }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+              <Text style={[typography.h4, { color: colors.text }]}>{unlockedAchievements.length} из {achievements.length}</Text>
+              <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('ProgressTab' as any); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={[typography.smallMedium, { color: colors.primary }]}>Все →</Text>
+              </TouchableOpacity>
             </View>
-            <View>
-              <Text style={[typography.body, { color: colors.text }]}>Техническая поддержка</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>Вопросы, проблемы, предложения</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
+              {unlockedAchievements.slice(0, 4).map((ach) => (
+                <View key={ach.id} style={{ alignItems: 'center', width: 64 }}>
+                  <Text style={{ fontSize: 24 }}>{ach.emoji}</Text>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textSecondary, marginTop: 2, textAlign: 'center' }} numberOfLines={2}>{ach.title}</Text>
+                </View>
+              ))}
             </View>
-          </View>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>›</Text>
-        </TouchableOpacity>
-      </Card>
-
-      {/* Admin panel — visible only for admin/support roles */}
-      {(user?.role === 'admin' || user?.role === 'support') && (
-        <Card style={{ marginBottom: spacing.lg, borderWidth: 1, borderColor: '#EF444440' }}>
-          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('AdminDashboardScreen'); }} style={styles.settingRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#EF444418', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#EF4444' }}>A</Text>
-              </View>
-              <View>
-                <Text style={[typography.body, { color: colors.text }]}>Панель администратора</Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>Пользователи, поддержка, статистика</Text>
-              </View>
-            </View>
-            <Text style={[typography.body, { color: colors.textSecondary }]}>›</Text>
-          </TouchableOpacity>
-        </Card>
+          </Card>
+        </>
       )}
 
-      <Button title="Выйти из аккаунта" variant="ghost" onPress={handleLogout} fullWidth textStyle={{ color: colors.error }} style={{ marginBottom: spacing.huge }} />
+      {/* ── Section: Меню ── */}
+      <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ПРИЛОЖЕНИЕ</Text>
+
+      <Card style={{ marginBottom: spacing.lg }}>
+        <MenuRow
+          icon="⚙"
+          iconBg={colors.border}
+          iconColor={colors.textSecondary}
+          title="Настройки"
+          subtitle="Тема, уведомления, единицы"
+          onPress={() => { haptic.selection(); navigation.navigate('Settings'); }}
+          colors={colors}
+        />
+        <MenuRow
+          icon="T"
+          iconBg={colors.primary + '18'}
+          iconColor={colors.primary}
+          title="Режим тренера"
+          subtitle="Клиенты, программы, прогресс"
+          onPress={() => { haptic.selection(); navigation.navigate('TrainerDashboard'); }}
+          colors={colors}
+        />
+        <MenuRow
+          icon="★"
+          iconBg={colors.accent + '18'}
+          iconColor={colors.accent}
+          title="Подписка"
+          subtitle="Iron Gym Pro — 7 дней бесплатно"
+          badge="PRO"
+          badgeColor={colors.accent}
+          onPress={() => { haptic.selection(); navigation.navigate('Subscription'); }}
+          colors={colors}
+        />
+        <MenuRow
+          icon="?"
+          iconBg="#6366F118"
+          iconColor="#6366F1"
+          title="Техническая поддержка"
+          subtitle="Вопросы, проблемы, предложения"
+          onPress={() => { haptic.selection(); navigation.navigate('SupportScreen'); }}
+          isLast={!(user?.role === 'admin' || user?.role === 'support')}
+          colors={colors}
+        />
+        {(user?.role === 'admin' || user?.role === 'support') && (
+          <MenuRow
+            icon="A"
+            iconBg="#EF444418"
+            iconColor="#EF4444"
+            title="Панель администратора"
+            subtitle="Пользователи, поддержка, статистика"
+            onPress={() => { haptic.selection(); navigation.navigate('AdminDashboardScreen'); }}
+            isLast
+            colors={colors}
+          />
+        )}
+      </Card>
+
+      {/* ── Logout ── */}
+      <Button
+        title="Выйти из аккаунта"
+        variant="ghost"
+        onPress={handleLogout}
+        fullWidth
+        textStyle={{ color: colors.error }}
+        style={{ marginBottom: spacing.huge }}
+      />
     </ScrollView>
   );
 };
@@ -264,10 +298,23 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
-  profileHeader: { alignItems: 'center', marginBottom: spacing.xxl },
+  profileHeader: { alignItems: 'center', marginBottom: spacing.xl },
   avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: spacing.xxl },
+  statsRow: {
+    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
+    borderRadius: borderRadius.lg, borderWidth: 1,
+    paddingVertical: spacing.lg, marginBottom: spacing.md,
+  },
   statItem: { alignItems: 'center' },
   statDivider: { width: 1, height: 30 },
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md },
+  trendRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderRadius: borderRadius.md, borderWidth: 1,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '700', letterSpacing: 0.8,
+    marginBottom: spacing.sm, marginTop: spacing.xs,
+  },
 });
