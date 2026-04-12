@@ -6,7 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { adminService } from '../../services/adminService';
-import type { AdminStats } from '../../types';
+import type { AdminStats, AdminAnalytics } from '../../types';
 
 type AdminNav = NativeStackNavigationProp<any>;
 
@@ -48,6 +48,26 @@ function StatCard({
           {trend > 0 ? `↑ +${trend}%` : trend < 0 ? `↓ ${trend}%` : '→ 0%'} vs пред. нед.
         </Text>
       )}
+    </View>
+  );
+}
+
+/** Inline sparkline — shows 7-day trend */
+function Sparkline({ values, color }: { values: number[]; color: string }) {
+  const max = Math.max(...values, 1);
+  const H = 28;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: H, gap: 2 }}>
+      {values.map((v, i) => {
+        const h = Math.max(2, Math.round((v / max) * H));
+        const isLast = i === values.length - 1;
+        return (
+          <View
+            key={i}
+            style={{ flex: 1, height: h, borderRadius: 2, backgroundColor: isLast ? color : color + '60' }}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -145,6 +165,7 @@ function MemBar({
 export default function AdminDashboardScreen() {
   const navigation = useNavigation<AdminNav>();
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -155,8 +176,12 @@ export default function AdminDashboardScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const data = await adminService.getStats();
-      setStats(data);
+      const [statsData, analyticsData] = await Promise.all([
+        adminService.getStats(),
+        adminService.getAnalytics(7),
+      ]);
+      setStats(statsData);
+      setAnalytics(analyticsData);
       setLastRefreshed(new Date());
     } finally {
       setLoading(false);
@@ -177,6 +202,8 @@ export default function AdminDashboardScreen() {
   const memPct = Math.round((stats.server.memoryUsedMb / stats.server.memoryTotalMb) * 100);
   const sysPct = stats.server.systemMemUsedPct;
   const loadAvg1 = stats.server.loadAvg?.[0] ?? 0;
+  const signups7d = analytics?.timeline.map((t) => t.signups) ?? [];
+  const workouts7d = analytics?.timeline.map((t) => t.workouts) ?? [];
 
   return (
     <ScrollView
@@ -242,6 +269,23 @@ export default function AdminDashboardScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ── 7-day activity sparklines ──────────────────────────────────── */}
+      {signups7d.length > 0 && (
+        <View style={styles.sparkCard}>
+          <Text style={styles.sparkTitle}>Активность за 7 дней</Text>
+          <View style={styles.sparkRow}>
+            <View style={styles.sparkItem}>
+              <Text style={styles.sparkLabel}>Регистрации</Text>
+              <Sparkline values={signups7d} color="#6366F1" />
+            </View>
+            <View style={[styles.sparkItem, { borderLeftWidth: 1, borderLeftColor: '#2C2C2E', paddingLeft: 12 }]}>
+              <Text style={styles.sparkLabel}>Тренировки</Text>
+              <Sparkline values={workouts7d} color="#F59E0B" />
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* ── Users ──────────────────────────────────────────────────────── */}
       <SectionTitle title="Пользователи" />
@@ -503,6 +547,13 @@ const styles = StyleSheet.create({
   statTitle: { fontSize: 11, color: '#6B7280', marginBottom: 6 },
   statValue: { fontSize: 22, fontWeight: '700', color: '#6366F1' },
   statSub: { fontSize: 11, color: '#4B5563', marginTop: 2 },
+
+  // Sparkline card
+  sparkCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
+  sparkTitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  sparkRow: { flexDirection: 'row', gap: 0 },
+  sparkItem: { flex: 1, paddingRight: 12 },
+  sparkLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 6 },
 
   // Revenue card
   revenueCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
