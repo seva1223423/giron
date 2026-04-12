@@ -87,6 +87,7 @@ export default function AdminAnalyticsScreen() {
   const [segments, setSegments] = useState<Array<{ plan: string; userCount: number; avgWorkoutsPerUser: number; avgAiPerUser: number; activeRate: number }>>([]);
   const [forecast, setForecast] = useState<Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }>>([]);
   const [churnRisk, setChurnRisk] = useState<Array<{ id: string; firstName: string; lastName?: string | null; email: string; plan: string; totalWorkouts: number; daysSinceWorkout: number | null; daysUntilExpiry: number | null }>>([]);
+  const [topRevenue, setTopRevenue] = useState<Array<{ id: string; firstName: string; lastName?: string | null; email: string; plan: string; revenue: number; workouts: number }>>([]);
 
   const exportCSV = useCallback(async () => {
     const canShare = await Sharing.isAvailableAsync();
@@ -106,13 +107,14 @@ export default function AdminAnalyticsScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [res, cohortsRes, subRes, segRes, forecastRes, churnRes] = await Promise.all([
+      const [res, cohortsRes, subRes, segRes, forecastRes, churnRes, topRevRes] = await Promise.all([
         adminService.getAnalytics(period),
         adminService.getCohorts(),
         adminService.getSubscriptionTimeline(period),
         adminService.getSegments(),
         adminService.getSubscriptionForecast(),
         adminService.getChurnRiskUsers(),
+        adminService.getTopRevenueUsers(),
       ]);
       setData(res);
       setCohorts(cohortsRes);
@@ -120,6 +122,7 @@ export default function AdminAnalyticsScreen() {
       setSegments(segRes);
       setForecast(forecastRes);
       setChurnRisk(churnRes);
+      setTopRevenue(topRevRes);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -458,6 +461,37 @@ export default function AdminAnalyticsScreen() {
                     {u.daysUntilExpiry != null && u.daysUntilExpiry < 30 ? ` · ⏰${u.daysUntilExpiry}д` : ''}
                   </Text>
                 </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Top revenue users */}
+      {topRevenue.length > 0 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Топ плательщиков</Text>
+          <Text style={styles.chartSub}>Пользователи с активными платными подписками</Text>
+          {topRevenue.slice(0, 8).map((u, i) => {
+            const PLAN_COLOR: Record<string, string> = { pro: '#6366F1', trainer: '#F59E0B', club: '#10B981' };
+            const planColor = PLAN_COLOR[u.plan] ?? '#6B7280';
+            return (
+              <TouchableOpacity
+                key={u.id}
+                style={[styles.tableRow, { paddingVertical: 8 }]}
+                onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: u.id })}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tableCell, { color: '#6B7280', flex: 0.3 }]}>{i + 1}</Text>
+                <View style={{ flex: 3 }}>
+                  <Text style={[styles.tableCell, { color: '#FFFFFF', textAlign: 'left' }]} numberOfLines={1}>
+                    {u.firstName} {u.lastName ?? ''}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: '#6B7280', marginTop: 1 }} numberOfLines={1}>{u.email}</Text>
+                </View>
+                <Text style={[styles.tableCell, { color: planColor, fontWeight: '700', flex: 1 }]}>{u.plan.toUpperCase()}</Text>
+                <Text style={[styles.tableCell, { color: '#10B981', fontWeight: '700', flex: 0.8 }]}>${u.revenue}</Text>
+                <Text style={[styles.tableCell, { color: '#F59E0B', flex: 0.7 }]}>{u.workouts}🏋</Text>
               </TouchableOpacity>
             );
           })}
