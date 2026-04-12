@@ -31,8 +31,8 @@ export const ProgressionCard: React.FC<Props> = ({ workout }) => {
       </Text>
       {suggestions.map((s, i) => (
         <View key={i} style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs }, i < suggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-          <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{s.name}</Text>
-          <Text style={[typography.smallMedium, { color: colors.success }]}>{s.currentWeight} → {s.nextWeight} кг</Text>
+          <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{s.name}</Text>
+          <Text style={[typography.smallMedium, { color: colors.success }]} numberOfLines={1}>{s.currentWeight} → {s.nextWeight} кг</Text>
         </View>
       ))}
     </Card>

@@ -45,5 +45,5 @@ export const FeaturesTable: React.FC = () => {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  proHeader: { width: 64, borderRadius: borderRadius.sm, paddingVertical: 3, alignItems: 'center' },
+  proHeader: { width: 52, borderRadius: borderRadius.sm, paddingVertical: 3, alignItems: 'center' },
 });
