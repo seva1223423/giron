@@ -262,13 +262,17 @@ export async function scheduleWeeklySummaryNotification(
       body = `${workoutsThisWeek} тренировок за неделю! Объём ${totalVolumeKg} кг. Феноменальная работа!`;
     }
 
-    // Schedule for next Sunday at 20:00 (one-time, re-scheduled each week from HomeScreen)
+    // Schedule for the coming Sunday at 20:00 (same day if it's Sunday before 20:00, else next Sunday)
     const now = new Date();
-    const daysUntilSunday = (7 - now.getDay()) % 7 || 7; // 0=Sun, so next Sun
+    const daysUntilSunday = (7 - now.getDay()) % 7;
     const nextSunday = new Date(now);
     nextSunday.setDate(now.getDate() + daysUntilSunday);
     nextSunday.setHours(20, 0, 0, 0);
-    const secondsUntilSunday = Math.max(60, Math.round((nextSunday.getTime() - now.getTime()) / 1000));
+    // If the target time is already past, advance to next Sunday
+    if (nextSunday <= now) {
+      nextSunday.setDate(nextSunday.getDate() + 7);
+    }
+    const secondsUntilSunday = Math.round((nextSunday.getTime() - now.getTime()) / 1000);
 
     await Notifications.scheduleNotificationAsync({
       identifier: NOTIFICATION_IDS.WEEKLY_SUMMARY,

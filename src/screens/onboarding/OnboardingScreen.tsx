@@ -43,7 +43,8 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
     const heightVal = parseInt(height) || 175;
     const weightVal = parseFloat(weight) || 75;
     const ageVal = parseInt(age) || 25;
-    const dateOfBirth = ageVal > 0 ? new Date(new Date().getFullYear() - ageVal, 0, 1).toISOString() : undefined;
+    // Use July 1 as estimated birth date (midpoint of year) to minimise ±1 year error
+    const dateOfBirth = ageVal > 0 ? new Date(new Date().getFullYear() - ageVal, 6, 1).toISOString() : undefined;
 
     updateProfile({ gender: gender || undefined, heightCm: heightVal, weightKg: weightVal, goal: goal || undefined, fitnessLevel: level || undefined, dateOfBirth });
 
