@@ -114,6 +114,8 @@ const subStyles = StyleSheet.create({
   btnText: { fontSize: 11, fontWeight: '700' },
 });
 
+const DAY_MS = 86400 * 1000;
+
 function UserRow({
   user, onPress, onRefresh,
 }: {
@@ -123,6 +125,11 @@ function UserRow({
 }) {
   const sub = user.subscription;
   const planColor = PLAN_COLOR[sub?.plan ?? 'free'] ?? '#6B7280';
+  const isNew = Date.now() - new Date(user.createdAt).getTime() < DAY_MS;
+  const lastWorkoutAt = user.workouts?.[0]?.completedAt;
+  const daysSinceWorkout = lastWorkoutAt
+    ? Math.floor((Date.now() - new Date(lastWorkoutAt).getTime()) / DAY_MS)
+    : null;
 
   return (
     <View style={[styles.row, user.isBanned && styles.rowBanned]}>
@@ -133,10 +140,13 @@ function UserRow({
           </Text>
         </View>
         <View style={styles.info}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
             {user.isBanned && (
               <View style={styles.bannedBadge}><Text style={styles.bannedText}>БАН</Text></View>
+            )}
+            {isNew && !user.isBanned && (
+              <View style={styles.newBadge}><Text style={styles.newText}>NEW</Text></View>
             )}
           </View>
           <Text style={styles.email} numberOfLines={1}>{user.email}</Text>
@@ -144,6 +154,14 @@ function UserRow({
             <Text style={styles.meta}>{ROLE_LABEL[user.role] ?? user.role}</Text>
             <Text style={styles.metaDot}>·</Text>
             <Text style={styles.meta}>{user._count.workouts} тренировок</Text>
+            {daysSinceWorkout !== null && (
+              <>
+                <Text style={styles.metaDot}>·</Text>
+                <Text style={[styles.meta, daysSinceWorkout > 14 && { color: '#EF444460' }]}>
+                  {daysSinceWorkout === 0 ? 'сегодня' : `${daysSinceWorkout}д назад`}
+                </Text>
+              </>
+            )}
             {sub && sub.plan !== 'free' && (
               <>
                 <Text style={styles.metaDot}>·</Text>
@@ -366,4 +384,6 @@ const styles = StyleSheet.create({
   bannedBadge: { backgroundColor: '#EF444422', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#EF444450' },
   bannedText: { fontSize: 9, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5 },
   banReason: { fontSize: 11, color: '#EF444488', marginTop: 2, fontStyle: 'italic' },
+  newBadge: { backgroundColor: '#10B98122', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: '#10B98150' },
+  newText: { fontSize: 9, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
 });
