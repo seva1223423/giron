@@ -65,7 +65,7 @@ export const AchievementsCard: React.FC<Props> = ({ achievements, delay = 180 })
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                     <Text style={{ fontSize: 18 }}>{a.emoji}</Text>
-                    <Text style={[typography.small, { color: colors.text }]}>{a.title}</Text>
+                    <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{a.title}</Text>
                   </View>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>{a.progressLabel}</Text>
                 </View>
