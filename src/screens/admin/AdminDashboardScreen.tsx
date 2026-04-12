@@ -701,6 +701,63 @@ export default function AdminDashboardScreen() {
           </View>
         </>
       )}
+
+      {/* ── User demographics ──────────────────────────────────────────── */}
+      {stats.demographics && (
+        <>
+          <SectionTitle title="Демография пользователей" />
+          {(() => {
+            const GOAL_LABEL: Record<string, string> = {
+              weight_loss: 'Похудение', muscle_gain: 'Набор массы',
+              strength: 'Сила', endurance: 'Выносливость',
+              flexibility: 'Гибкость', general_fitness: 'Общий фитнес',
+            };
+            const LEVEL_LABEL: Record<string, string> = {
+              beginner: 'Новичок', intermediate: 'Средний', advanced: 'Продвинутый', expert: 'Эксперт',
+            };
+            const goalEntries = Object.entries(stats.demographics!.goals).sort((a, b) => b[1] - a[1]);
+            const levelEntries = Object.entries(stats.demographics!.levels).sort((a, b) => b[1] - a[1]);
+            const genderEntries = Object.entries(stats.demographics!.genders);
+            const maxGoal = Math.max(...goalEntries.map((e) => e[1]), 1);
+            const maxLevel = Math.max(...levelEntries.map((e) => e[1]), 1);
+            return (
+              <View style={styles.demoCard}>
+                <Text style={styles.demoSubtitle}>Цели</Text>
+                {goalEntries.map(([goal, count]) => (
+                  <View key={goal} style={styles.demoRow}>
+                    <Text style={styles.demoLabel}>{GOAL_LABEL[goal] ?? goal}</Text>
+                    <View style={styles.demoBarWrap}>
+                      <View style={[styles.demoBar, { width: `${Math.round((count / maxGoal) * 100)}%` }]} />
+                    </View>
+                    <Text style={styles.demoCount}>{count}</Text>
+                  </View>
+                ))}
+                <Text style={[styles.demoSubtitle, { marginTop: 12 }]}>Уровень</Text>
+                {levelEntries.map(([level, count]) => (
+                  <View key={level} style={styles.demoRow}>
+                    <Text style={styles.demoLabel}>{LEVEL_LABEL[level] ?? level}</Text>
+                    <View style={styles.demoBarWrap}>
+                      <View style={[styles.demoBar, { width: `${Math.round((count / maxLevel) * 100)}%`, backgroundColor: '#F59E0B' }]} />
+                    </View>
+                    <Text style={styles.demoCount}>{count}</Text>
+                  </View>
+                ))}
+                {genderEntries.length > 0 && (
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                    {genderEntries.map(([gender, count]) => (
+                      <View key={gender} style={styles.genderChip}>
+                        <Text style={styles.genderIcon}>{gender === 'male' ? '♂' : '♀'}</Text>
+                        <Text style={styles.genderLabel}>{gender === 'male' ? 'Муж.' : 'Жен.'}</Text>
+                        <Text style={styles.genderCount}>{count}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })()}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -825,4 +882,16 @@ const styles = StyleSheet.create({
   memLabel: { fontSize: 11, color: '#6B7280', marginTop: 5 },
   serverInfoRow: { flexDirection: 'row', gap: 12, marginTop: 12, flexWrap: 'wrap' },
   serverInfoItem: { fontSize: 11, color: '#4B5563', backgroundColor: '#2C2C2E', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+
+  demoCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  demoSubtitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  demoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  demoLabel: { fontSize: 12, color: '#9CA3AF', width: 110 },
+  demoBarWrap: { flex: 1, height: 6, backgroundColor: '#2C2C2E', borderRadius: 3, overflow: 'hidden' },
+  demoBar: { height: '100%', backgroundColor: '#6366F1', borderRadius: 3 },
+  demoCount: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', width: 28, textAlign: 'right' },
+  genderChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2C2C2E', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  genderIcon: { fontSize: 16, color: '#9CA3AF' },
+  genderLabel: { fontSize: 12, color: '#9CA3AF' },
+  genderCount: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 });
