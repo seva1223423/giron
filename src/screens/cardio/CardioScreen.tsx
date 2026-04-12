@@ -145,7 +145,7 @@ export const CardioScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {grouped.length === 0 ? (
           <FadeIn delay={100}>
             <View style={styles.emptyState}>
-              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>◑</Text></View>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '12', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>◑</Text></View>
               <Text style={[typography.h4, { color: colors.text, marginTop: spacing.lg }]}>Нет записей</Text>
               <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
                 Запиши первую кардио-сессию

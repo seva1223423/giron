@@ -50,7 +50,7 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.content}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.success + '18', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl }}><Text style={{ fontSize: 28, fontWeight: '700', color: colors.success }}>✓</Text></View>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.success + '18', borderWidth: 1.5, borderColor: colors.success + '40', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl }}><Text style={{ fontSize: 28, fontWeight: '700', color: colors.success }}>✓</Text></View>
           <Text style={[typography.h2, { color: colors.text, textAlign: 'center', marginBottom: spacing.md }]}>
             Пароль изменён
           </Text>
@@ -70,7 +70,7 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>◈</Text></View>
+          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>◈</Text></View>
           <Text style={[typography.h2, { color: colors.text }]}>Новый пароль</Text>
           <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
             Придумай надёжный пароль (минимум 6 символов)

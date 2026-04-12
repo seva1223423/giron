@@ -154,7 +154,7 @@ export const SetsSection: React.FC<Props> = ({
           backgroundColor: colors.success + '12', borderColor: colors.success + '40',
           marginBottom: spacing.sm,
         }}>
-          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>{'\u25B2'}</Text></View>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.success + '18', borderWidth: 1, borderColor: colors.success + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>{'\u25B2'}</Text></View>
           <Text style={[typography.caption, { color: colors.success, flex: 1 }]} numberOfLines={2}>
             {'\u0412 \u043F\u0440\u043E\u0448\u043B\u044B\u0439 \u0440\u0430\u0437 \u0432\u0441\u0435 \u043F\u043E\u0434\u0445\u043E\u0434\u044B \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u044B \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 '}
             <Text style={{ fontWeight: '700' }}>{overloadSuggestion} {'\u043A\u0433'}</Text> {'\u0441\u0435\u0433\u043E\u0434\u043D\u044F (+2.5)'}
@@ -311,7 +311,7 @@ export const SetsSection: React.FC<Props> = ({
           onPress={() => { haptic.selection(); toggleSuperset(currentExerciseIndex); }}
           style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, backgroundColor: currentExercise.supersetGroupId ? colors.accent + '15' : colors.surface, borderColor: currentExercise.supersetGroupId ? colors.accent + '80' : colors.border }}
         >
-          <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent + '20', alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs }}><Text style={{ fontSize: 10, fontWeight: '800', color: colors.accent }}>SS</Text></View>
+          <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent + '20', borderWidth: 1, borderColor: colors.accent + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs }}><Text style={{ fontSize: 10, fontWeight: '800', color: colors.accent }}>SS</Text></View>
           <Text style={[typography.small, { color: currentExercise.supersetGroupId ? colors.accent : colors.textSecondary }]}>
             {currentExercise.supersetGroupId
               ? `\u0421\u0443\u043F\u0435\u0440\u0441\u0435\u0442 \u0441\u043E \u00AB${workout.exercises[currentExerciseIndex + 1]?.exercise.name}\u00BB \u2014 \u043E\u0442\u043C\u0435\u043D\u0438\u0442\u044C`

@@ -339,7 +339,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
             {isBarcodeResult && (
               <View style={[{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.md }, { backgroundColor: colors.accent + '15' }]}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.accent }}>i</Text></View>
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.accent + '18', borderWidth: 1, borderColor: colors.accent + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}><Text style={{ fontSize: 11, fontWeight: '700', color: colors.accent }}>i</Text></View>
                 <Text style={[typography.small, { color: colors.accent, flex: 1 }]}>
                   КБЖУ указано на 100г. Измените вес в поле справа от названия продукта.
                 </Text>

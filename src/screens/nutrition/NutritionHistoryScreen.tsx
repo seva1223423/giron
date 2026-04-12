@@ -132,7 +132,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
 
       {logsWithData.length === 0 ? (
         <View style={styles.emptyState}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>◑</Text></View>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary + '12', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>◑</Text></View>
           <Text style={[typography.h4, { color: colors.text }]}>Нет данных</Text>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
             Начни отслеживать питание, и история появится здесь
