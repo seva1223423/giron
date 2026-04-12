@@ -27,7 +27,7 @@ export const WaterCard: React.FC<Props> = ({ dayLog, today }) => {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
         <View>
           <Text style={[typography.h4, { color: colors.text }]}>Вода</Text>
-          <Text style={[typography.small, { color: colors.textSecondary }]}>
+          <Text style={[typography.small, { color: colors.textSecondary }]} numberOfLines={1}>
             {dayLog.waterMl} / {target} мл
           </Text>
         </View>

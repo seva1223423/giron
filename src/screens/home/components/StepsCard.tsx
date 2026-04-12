@@ -40,7 +40,7 @@ export const StepsCard: React.FC = () => {
             </View>
             <View>
               <Text style={[typography.h4, { color: colors.text }]}>Шагомер</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
                 {goalReached ? 'Цель достигнута!' : `Ещё ${formatSteps(remaining)} до цели`}
               </Text>
             </View>
@@ -49,7 +49,7 @@ export const StepsCard: React.FC = () => {
             <Text style={[typography.numberSmall, { color: goalReached ? colors.success : colors.primary }]}>
               {formatSteps(todaySteps)}
             </Text>
-            <Text style={[typography.caption, { color: colors.textTertiary }]}>из {formatSteps(DAILY_GOAL)}</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>из {formatSteps(DAILY_GOAL)}</Text>
           </View>
         </View>
 
