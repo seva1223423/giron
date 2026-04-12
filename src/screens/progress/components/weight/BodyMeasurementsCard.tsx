@@ -83,7 +83,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                   const prevVal = prev?.[key] as number | undefined;
                   const diff = prevVal != null ? val - prevVal : null;
                   return (
-                    <View key={key} style={[styles.measureBox, { backgroundColor: colors.surface }]}>
+                    <View key={key} style={[styles.measureBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                       <Text style={{ fontSize: 16 }}>{emoji}</Text>
                       <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{label}</Text>
                       <Text style={[typography.bodySemibold, { color: colors.primary }]}>{val} см</Text>
@@ -146,7 +146,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                   <Text style={[typography.number, { color: bodyFatEstimate.color, fontSize: 36 }]}>{bodyFatEstimate.pct}</Text>
                   <Text style={[typography.h4, { color: bodyFatEstimate.color }]}>%</Text>
                 </View>
-                <View style={[{ alignSelf: 'flex-start', marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full, backgroundColor: bodyFatEstimate.color + '20' }]}>
+                <View style={[{ alignSelf: 'flex-start', marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full, borderWidth: 1, backgroundColor: bodyFatEstimate.color + '20', borderColor: bodyFatEstimate.color + '40' }]}>
                   <Text style={[typography.captionMedium, { color: bodyFatEstimate.color }]} numberOfLines={1}>{bodyFatEstimate.category}</Text>
                 </View>
               </View>
@@ -164,6 +164,6 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
 
 const styles = StyleSheet.create({
   addBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1 },
-  measureBox: { borderRadius: borderRadius.md, padding: spacing.sm, minWidth: 90, alignItems: 'center' },
+  measureBox: { borderRadius: borderRadius.md, padding: spacing.sm, minWidth: 90, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   measureChip: { paddingVertical: 5, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
 });

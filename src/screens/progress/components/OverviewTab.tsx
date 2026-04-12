@@ -236,7 +236,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
                     <Text style={[typography.body, { color: colors.text, flex: 1 }]} numberOfLines={1}>
                       {row.label}: <Text style={{ fontWeight: '700' }}>{row.current}{row.suffix}</Text> vs {row.previous}{row.suffix}
                     </Text>
-                    <View style={{ backgroundColor: cmp.color + '15', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, marginLeft: spacing.sm, flexShrink: 0 }}>
+                    <View style={{ backgroundColor: cmp.color + '15', borderWidth: 1, borderColor: cmp.color + '40', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, marginLeft: spacing.sm, flexShrink: 0 }}>
                       <Text style={{ color: cmp.color, fontWeight: '700', fontSize: 12 }}>
                         {cmp.icon} {cmp.pct}
                       </Text>
