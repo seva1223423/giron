@@ -42,16 +42,16 @@ export const PersonalRecordCard: React.FC<Props> = ({ record, topRM, isSelected,
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
-            <View>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>Макс. вес</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>Макс. вес</Text>
               <Text style={[typography.numberSmall, { color: colors.primary }]}>{record.maxWeight} кг</Text>
             </View>
-            <View>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>Повторений</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>Повторений</Text>
               <Text style={[typography.numberSmall, { color: colors.text }]}>{record.maxReps}</Text>
             </View>
-            <View>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>~1ПМ</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>~1ПМ</Text>
               <Text style={[typography.numberSmall, { color: colors.accent }]}>{record.estimated1RM} кг</Text>
             </View>
           </View>
