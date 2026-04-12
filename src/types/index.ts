@@ -313,6 +313,7 @@ export interface AdminUserDetail extends AdminUserSummary {
   fitnessLevel?: string;
   bannedAt?: string;
   adminNote?: string;
+  firstWorkoutAt?: string | null;
   _count: { workouts: number; meals: number; chatMessages: number; cardioSessions: number; supportTickets: number };
   workouts: Array<{ id: string; name: string; completedAt?: string; totalVolume?: number; durationMinutes?: number }>;
   supportTickets: Array<{ id: string; subject: string; status: string; createdAt: string }>;
@@ -405,5 +406,6 @@ export interface AdminAnalytics {
     conversionRate: number;
     retentionRate: number;
   };
+  previous?: { signups: number; workouts: number; ai: number; cardio: number };
   period: number;
 }
