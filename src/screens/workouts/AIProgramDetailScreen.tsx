@@ -282,13 +282,13 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-              <View style={[styles.aiBadge, { backgroundColor: colors.primary + '15' }]}>
+              <View style={[styles.aiBadge, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '35' }]}>
                 <Text style={[typography.captionMedium, { color: colors.primary }]}>
                   {program.createdBy === 'ai' ? 'AI' : 'Моя'}
                 </Text>
               </View>
               {program.isActive && (
-                <View style={[styles.activeBadge, { backgroundColor: colors.success + '20' }]}>
+                <View style={[styles.activeBadge, { backgroundColor: colors.success + '20', borderWidth: 1, borderColor: colors.success + '40' }]}>
                   <Text style={[typography.captionMedium, { color: colors.success }]}>Активная</Text>
                 </View>
               )}
@@ -307,12 +307,12 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
       <FadeIn delay={60}>
         <View style={styles.tagsRow}>
           {[
-            { label: GOAL_LABELS[program.goal] || program.goal, bg: goalColor + '20', color: goalColor },
-            { label: LEVEL_LABELS[program.level] || program.level, bg: colors.primary + '15', color: colors.primary },
-            { label: `${program.daysPerWeek} дн/нед`, bg: colors.surface, color: colors.textSecondary },
-            { label: `${program.workouts.length} тренировок`, bg: colors.surface, color: colors.textSecondary },
-          ].map(({ label, bg, color }) => label ? (
-            <View key={label} style={[styles.tag, { backgroundColor: bg }]}>
+            { label: GOAL_LABELS[program.goal] || program.goal, bg: goalColor + '20', color: goalColor, border: goalColor + '40' },
+            { label: LEVEL_LABELS[program.level] || program.level, bg: colors.primary + '15', color: colors.primary, border: colors.primary + '35' },
+            { label: `${program.daysPerWeek} дн/нед`, bg: colors.surface, color: colors.textSecondary, border: colors.border },
+            { label: `${program.workouts.length} тренировок`, bg: colors.surface, color: colors.textSecondary, border: colors.border },
+          ].map(({ label, bg, color, border }) => label ? (
+            <View key={label} style={[styles.tag, { backgroundColor: bg, borderWidth: 1, borderColor: border }]}>
               <Text style={[typography.captionMedium, { color }]}>{label}</Text>
             </View>
           ) : null)}
