@@ -100,7 +100,7 @@ export const AddMeasurementsModal: React.FC<Props> = ({ visible, measurementHist
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { maxHeight: '85%', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.xl, paddingBottom: 48 },
+  sheet: { maxHeight: '92%', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.xl, paddingBottom: 48 },
   input: { height: 52, borderRadius: borderRadius.lg, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 20, fontWeight: '700', textAlign: 'center' },
   btn: { height: 48, borderRadius: borderRadius.lg, alignItems: 'center', justifyContent: 'center' },
 });
