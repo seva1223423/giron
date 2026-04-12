@@ -70,7 +70,29 @@ export const RecoveryScoreCard: React.FC = () => {
     // Last sleep entry detail
     const lastSleep = getLastEntries(1)[0] ?? null;
 
-    return { score, label, color, icon, reasons, lastSleep, avgSleep, avgQuality };
+    // Deload detection: if avg RPE >= 8.0 for 2+ consecutive weeks, recommend deload
+    let deloadSuggested = false;
+    const threeWeeksAgo = Date.now() - 21 * 86400000;
+    const recentWorkouts = workoutHistory.filter(
+      (w) => w.completedAt && new Date(w.completedAt).getTime() > threeWeeksAgo,
+    );
+    const weekRpes: number[] = [];
+    for (let w = 0; w < 3; w++) {
+      const start = Date.now() - (w + 1) * 7 * 86400000;
+      const end = Date.now() - w * 7 * 86400000;
+      const weekW = recentWorkouts.filter((wk) => {
+        const t = new Date(wk.completedAt!).getTime();
+        return t >= start && t < end;
+      });
+      const rpes = weekW.flatMap((wk) => wk.exercises.flatMap((e) => e.sets.filter((s) => s.rpe).map((s) => s.rpe!)));
+      if (rpes.length >= 4) {
+        weekRpes.push(rpes.reduce((a, b) => a + b, 0) / rpes.length);
+      }
+    }
+    const highRpeWeeks = weekRpes.filter((r) => r >= 8.0).length;
+    if (highRpeWeeks >= 2) deloadSuggested = true;
+
+    return { score, label, color, icon, reasons, lastSleep, avgSleep, avgQuality, deloadSuggested };
   }, [workoutHistory, getAverageDuration, getAverageQuality, getLastEntries, getWeekSessions]);
 
   return (
@@ -106,6 +128,16 @@ export const RecoveryScoreCard: React.FC = () => {
             {recovery.reasons.map((r, i) => (
               <Text key={i} style={[typography.small, { color: colors.textTertiary }]}>• {r}</Text>
             ))}
+          </View>
+        )}
+        {recovery.deloadSuggested && (
+          <View style={{ marginTop: spacing.sm, backgroundColor: colors.warning + '15', borderRadius: 8, padding: spacing.sm }}>
+            <Text style={[typography.smallMedium, { color: colors.warning }]}>
+              Рекомендуется разгрузочная неделя
+            </Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+              2+ недели с высоким RPE. Снизь рабочий вес на 40–50% для восстановления.
+            </Text>
           </View>
         )}
       </Card>
