@@ -29,6 +29,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       newThisMonth,
       usersByRole,
       subscriptionCounts,
+      usersWithActiveSub,
       workoutsToday,
       workoutsThisWeek,
       aiMessagesToday,
@@ -42,6 +43,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.user.count({ where: { createdAt: { gte: monthStart } } }),
       prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
       prisma.subscription.groupBy({ by: ['plan', 'status'], _count: { id: true } }),
+      // Users with any active paid subscription (plan != free AND status = active)
+      prisma.subscription.count({ where: { status: 'active', plan: { not: 'free' } } }),
       prisma.workout.count({ where: { completedAt: { gte: todayStart } } }),
       prisma.workout.count({ where: { completedAt: { gte: weekStart } } }),
       prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: todayStart } } }),
@@ -68,6 +71,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         newThisMonth,
         activeNow,
         activeHour,
+        withSubscription: usersWithActiveSub,
+        withoutSubscription: totalUsers - usersWithActiveSub,
         byRole: Object.fromEntries(usersByRole.map((r) => [r.role, r._count.id])),
       },
       subscriptions: subscriptionCounts.map((s) => ({
