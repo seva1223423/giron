@@ -103,6 +103,11 @@ export const adminService = {
     await api.delete(`/admin/announcements/${id}`);
   },
 
+  async duplicateAnnouncement(id: string): Promise<Announcement> {
+    const res = await api.post(`/admin/announcements/${id}/duplicate`);
+    return res.data;
+  },
+
   // ── Logs ──────────────────────────────────────────────────────────────────
   async getLogs(params?: {
     page?: number;
