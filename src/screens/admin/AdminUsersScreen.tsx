@@ -18,6 +18,13 @@ const ROLE_LABEL: Record<string, string> = {
   '': 'Все', client: 'Клиент', trainer: 'Тренер',
   support: 'Поддержка', admin: 'Админ', visitor: 'Гость', guest: 'Guest',
 };
+const SORT_OPTIONS = [
+  { sort: 'createdAt', order: 'desc' as const, label: 'Новые' },
+  { sort: 'createdAt', order: 'asc' as const, label: 'Старые' },
+  { sort: 'firstName', order: 'asc' as const, label: 'А→Я' },
+  { sort: 'email', order: 'asc' as const, label: 'Email' },
+];
+
 const PLAN_FILTERS = [
   { key: '', label: 'Все планы' },
   { key: 'pro', label: 'PRO' },
@@ -239,13 +246,15 @@ export default function AdminUsersScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dormant, setDormant] = useState(false);
+  const [sortIdx, setSortIdx] = useState(0);
 
   const load = useCallback(async (p: number, append = false, silent = false) => {
     if (p === 1 && !silent) setLoading(true);
     else if (p === 1 && silent) setRefreshing(true);
     else setLoadingMore(true);
+    const { sort, order } = SORT_OPTIONS[sortIdx];
     try {
-      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, page: p, limit: 20 });
+      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, sort, order, page: p, limit: 20 });
       setUsers(append ? (prev) => [...prev, ...res.users] : res.users);
       setTotal(res.total);
       setPage(res.page);
@@ -257,9 +266,9 @@ export default function AdminUsersScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [search, role, dormant]);
+  }, [search, role, dormant, sortIdx]);
 
-  useEffect(() => { load(1); }, [search, role, planFilter, dormant]);
+  useEffect(() => { load(1); }, [search, role, planFilter, dormant, sortIdx]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -338,6 +347,20 @@ export default function AdminUsersScreen() {
             Неактивные (30д)
           </Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.filterRow}>
+        {SORT_OPTIONS.map((opt, i) => (
+          <TouchableOpacity
+            key={i}
+            style={[styles.filterBtn, sortIdx === i && { backgroundColor: '#374151' }]}
+            onPress={() => setSortIdx(i)}
+          >
+            <Text style={[styles.filterText, sortIdx === i && { color: '#9CA3AF' }]}>
+              {sortIdx === i ? '↕ ' : ''}{opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <View style={styles.totalRow}>
