@@ -6,6 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { adminService } from '../../services/adminService';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { SupportTicket, TicketStatus, TicketPriority } from '../../types';
 
 type AdminNav = NativeStackNavigationProp<any>;
@@ -36,6 +37,7 @@ const PRIORITY_LABEL: Record<TicketPriority, string> = {
 
 function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => void }) {
   const isUrgent = ticket.priority === 'urgent' && ticket.status !== 'closed';
+  const lastMsg = ticket.messages?.[0];
   return (
     <TouchableOpacity
       style={[styles.card, isUrgent && { borderLeftWidth: 3, borderLeftColor: '#EF4444', borderColor: '#EF444430' }]}
@@ -54,6 +56,11 @@ function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => 
           {PRIORITY_LABEL[ticket.priority]}
         </Text>
       </View>
+      {lastMsg && (
+        <Text style={styles.lastMsg} numberOfLines={1}>
+          {lastMsg.isStaff ? '↩ ' : '↳ '}{lastMsg.content}
+        </Text>
+      )}
       <View style={styles.cardBottom}>
         <Text style={styles.date}>{new Date(ticket.updatedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
         {ticket.assignedTo
@@ -67,12 +74,14 @@ function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => 
 
 export default function AdminSupportScreen() {
   const navigation = useNavigation<AdminNav>();
+  const myId = useAuthStore((s) => s.user?.id);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [status, setStatus] = useState<TicketStatus | ''>('');
   const [priority, setPriority] = useState<TicketPriority | ''>('');
+  const [assignedToMe, setAssignedToMe] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -81,7 +90,7 @@ export default function AdminSupportScreen() {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
       const [res, cnts] = await Promise.all([
-        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, page: p, limit: 20 }),
+        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, assignedToMe: assignedToMe || undefined, page: p, limit: 20 }),
         p === 1 ? adminService.getSupportCounts() : Promise.resolve(counts),
       ]);
       setTickets(append ? (prev) => [...prev, ...res.tickets] : res.tickets);
@@ -93,9 +102,9 @@ export default function AdminSupportScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [status]);
+  }, [status, assignedToMe]);
 
-  useEffect(() => { load(1); }, [status, priority]);
+  useEffect(() => { load(1); }, [status, priority, assignedToMe]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -128,6 +137,17 @@ export default function AdminSupportScreen() {
             <Text style={[styles.priorityText, priority === p.value && { color: p.color }]}>{p.label}</Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      <View style={styles.priorityRow}>
+        <TouchableOpacity
+          style={[styles.priorityBtn, assignedToMe && { backgroundColor: '#10B98122', borderColor: '#10B98160' }]}
+          onPress={() => setAssignedToMe(!assignedToMe)}
+        >
+          <Text style={[styles.priorityText, assignedToMe && { color: '#10B981' }]}>
+            {assignedToMe ? '✓ Мои тикеты' : 'Мои тикеты'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.totalLabel}>Всего: {total}</Text>
@@ -177,6 +197,7 @@ const styles = StyleSheet.create({
   cardMid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   user: { fontSize: 12, color: '#9CA3AF', flex: 1, marginRight: 8 },
   priority: { fontSize: 12, fontWeight: '600' },
+  lastMsg: { fontSize: 12, color: '#6B7280', fontStyle: 'italic', marginBottom: 6 },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between' },
   date: { fontSize: 11, color: '#6B7280' },
   assigned: { fontSize: 11, color: '#10B981' },
