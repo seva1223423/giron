@@ -68,6 +68,35 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
   const workoutDates = useMemo(() => workoutHistory.filter((w) => w.completedAt).map((w) => w.completedAt!), [workoutHistory]);
   const muscleDistribution = useMemo(() => computeMuscleDistribution(workoutHistory), [workoutHistory]);
 
+  const muscleImbalances = useMemo(() => {
+    const fourWeeksAgo = Date.now() - 28 * 86400000;
+    const recent = workoutHistory.filter((w) => w.completedAt && new Date(w.completedAt).getTime() > fourWeeksAgo);
+    if (recent.length < 4) return [];
+
+    const sets: Record<string, number> = {};
+    recent.forEach((w) => {
+      w.exercises.forEach((ex) => {
+        const done = ex.sets.filter((s) => s.completed).length;
+        ex.exercise.primaryMuscles.forEach((m) => { sets[m] = (sets[m] || 0) + done; });
+      });
+    });
+
+    const alerts: string[] = [];
+    const PAIRS: Array<{ a: string[]; aLabel: string; b: string[]; bLabel: string }> = [
+      { a: ['chest', 'triceps', 'shoulders'], aLabel: 'Жим', b: ['back', 'biceps', 'lats'], bLabel: 'Тяга' },
+      { a: ['quadriceps'], aLabel: 'Квадрицепс', b: ['hamstrings', 'glutes'], bLabel: 'Задняя цепь' },
+    ];
+    PAIRS.forEach(({ a, aLabel, b, bLabel }) => {
+      const sumA = a.reduce((s, m) => s + (sets[m] || 0), 0);
+      const sumB = b.reduce((s, m) => s + (sets[m] || 0), 0);
+      if (sumA === 0 || sumB === 0) return;
+      const ratio = sumA / sumB;
+      if (ratio >= 2.5) alerts.push(`${aLabel} (${sumA} подх.) >> ${bLabel} (${sumB} подх.) — добавь тяговые`);
+      else if (ratio <= 0.4) alerts.push(`${bLabel} (${sumB} подх.) >> ${aLabel} (${sumA} подх.) — добавь жимовые`);
+    });
+    return alerts;
+  }, [workoutHistory]);
+
   const MUSCLE_LABELS: Record<string, string> = {
     chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
     triceps: 'Трицепс', quadriceps: 'Квадр.', hamstrings: 'Бицепс б.', glutes: 'Ягодицы',
@@ -222,6 +251,19 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
           <Card style={{ marginTop: spacing.lg }}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Объём за неделю по мышцам (кг)</Text>
             <BarChart data={weeklyMuscleVolume} color={colors.accent} height={120} colors={colors} />
+          </Card>
+        </FadeIn>
+      )}
+
+      {muscleImbalances.length > 0 && (
+        <FadeIn delay={390}>
+          <Card style={{ marginTop: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.warning }}>
+            <Text style={[typography.smallMedium, { color: colors.warning, marginBottom: spacing.xs }]}>
+              Дисбаланс нагрузки (4 недели)
+            </Text>
+            {muscleImbalances.map((alert, i) => (
+              <Text key={i} style={[typography.small, { color: colors.textSecondary }]}>• {alert}</Text>
+            ))}
           </Card>
         </FadeIn>
       )}
