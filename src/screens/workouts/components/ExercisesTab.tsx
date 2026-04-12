@@ -59,7 +59,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
       if (raw) {
         try { setFavoriteIds(new Set(JSON.parse(raw))); } catch {}
       }
-    });
+    }).catch(() => {});
     const loadServerExercises = async () => {
       setLoadingExercises(true);
       try {
