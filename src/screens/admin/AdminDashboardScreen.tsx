@@ -188,6 +188,7 @@ export default function AdminDashboardScreen() {
   const [quickSearch, setQuickSearch] = useState('');
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [recentLogs, setRecentLogs] = useState<AdminLog[]>([]);
+  const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; label: string; userId?: string; date: string }>>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Reload recently viewed whenever the screen comes into focus
@@ -201,14 +202,16 @@ export default function AdminDashboardScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [statsData, analyticsData, logsData] = await Promise.all([
+      const [statsData, analyticsData, logsData, feedData] = await Promise.all([
         adminService.getStats(),
         adminService.getAnalytics(7),
         adminService.getLogs({ limit: 6 }),
+        adminService.getActivityFeed(),
       ]);
       setStats(statsData);
       setAnalytics(analyticsData);
       setRecentLogs(logsData.logs);
+      setActivityFeed(feedData);
       setLastRefreshed(new Date());
     } finally {
       setLoading(false);
@@ -491,6 +494,47 @@ export default function AdminDashboardScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </>
+      )}
+
+      {/* ── Live activity feed ──────────────────────────────────────────── */}
+      {activityFeed.length > 0 && (
+        <>
+          <SectionTitle title="Лента активности" />
+          <View style={styles.feedCard}>
+            {activityFeed.slice(0, 8).map((ev) => {
+              const TYPE_META: Record<string, { icon: string; color: string }> = {
+                workout: { icon: '💪', color: '#F59E0B' },
+                signup:  { icon: '🆕', color: '#6366F1' },
+                ai:      { icon: '🤖', color: '#8B5CF6' },
+                cardio:  { icon: '🏃', color: '#10B981' },
+              };
+              const meta = TYPE_META[ev.type] ?? { icon: '•', color: '#6B7280' };
+              const timeAgo = (() => {
+                const ms = Date.now() - new Date(ev.date).getTime();
+                const m = Math.floor(ms / 60000);
+                if (m < 1) return 'только что';
+                if (m < 60) return `${m}м назад`;
+                const h = Math.floor(m / 60);
+                if (h < 24) return `${h}ч назад`;
+                return new Date(ev.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+              })();
+              return (
+                <TouchableOpacity
+                  key={ev.id}
+                  style={styles.feedRow}
+                  onPress={() => ev.userId && navigation.navigate('AdminUserDetailScreen', { userId: ev.userId })}
+                  activeOpacity={ev.userId ? 0.7 : 1}
+                >
+                  <View style={[styles.feedIcon, { backgroundColor: meta.color + '20' }]}>
+                    <Text style={{ fontSize: 12 }}>{meta.icon}</Text>
+                  </View>
+                  <Text style={styles.feedLabel} numberOfLines={1}>{ev.label}</Text>
+                  <Text style={styles.feedTime}>{timeAgo}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </>
       )}
@@ -1026,6 +1070,13 @@ const styles = StyleSheet.create({
   // Alert banners
   alertBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 8 },
   alertText: { fontSize: 13, fontWeight: '600', flex: 1 },
+
+  // Activity feed
+  feedCard: { backgroundColor: '#1C1C1E', borderRadius: 12, overflow: 'hidden', marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  feedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  feedIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  feedLabel: { flex: 1, fontSize: 12, color: '#D1D5DB' },
+  feedTime: { fontSize: 10, color: '#4B5563', flexShrink: 0 },
 
   // Sparkline card
   sparkCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
