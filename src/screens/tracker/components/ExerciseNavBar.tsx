@@ -55,6 +55,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
           <View style={{
             paddingHorizontal: spacing.sm, paddingVertical: 2,
             borderRadius: borderRadius.full, backgroundColor: colors.primary + '18',
+            borderWidth: 1, borderColor: colors.primary + '35',
           }}>
             <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary, letterSpacing: 0.5 }} numberOfLines={1}>
               {currentExerciseIndex + 1} / {totalExercises}
