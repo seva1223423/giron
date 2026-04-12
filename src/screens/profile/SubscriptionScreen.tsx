@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingBottom: spacing.md, borderBottomWidth: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   hero: { alignItems: 'center', paddingVertical: spacing.xxl },
-  crownBadge: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
+  crownBadge: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#A78BFA40' },
   activeProBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.xl, borderWidth: 1 },
   socialProof: { alignItems: 'center', marginTop: spacing.xxl, marginBottom: spacing.lg },
   loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
