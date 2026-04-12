@@ -35,19 +35,40 @@ const PRIORITY_LABEL: Record<TicketPriority, string> = {
   urgent: '🔴 Срочно', high: '🟠 Высокий', normal: '🔵 Норм', low: '⚪ Низкий',
 };
 
+function formatWait(dateStr: string): { label: string; color: string } {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const h = ms / 3600000;
+  if (h < 1) return { label: `${Math.round(ms / 60000)}м`, color: '#10B981' };
+  if (h < 8) return { label: `${Math.round(h)}ч`, color: '#F59E0B' };
+  return { label: `${Math.round(h)}ч`, color: '#EF4444' };
+}
+
 function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => void }) {
   const isUrgent = ticket.priority === 'urgent' && ticket.status !== 'closed';
   const lastMsg = ticket.messages?.[0];
+  const needsReply = lastMsg && !lastMsg.isStaff && ticket.status !== 'closed' && ticket.status !== 'resolved';
+  const wait = needsReply && lastMsg ? formatWait(lastMsg.createdAt) : null;
   return (
     <TouchableOpacity
-      style={[styles.card, isUrgent && { borderLeftWidth: 3, borderLeftColor: '#EF4444', borderColor: '#EF444430' }]}
+      style={[
+        styles.card,
+        isUrgent && { borderLeftWidth: 3, borderLeftColor: '#EF4444', borderColor: '#EF444430' },
+        needsReply && !isUrgent && { borderLeftWidth: 3, borderLeftColor: '#F59E0B', borderColor: '#F59E0B20' },
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       <View style={styles.cardTop}>
         <Text style={styles.subject} numberOfLines={1}>{ticket.subject}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[ticket.status] + '22' }]}>
-          <Text style={[styles.statusText, { color: STATUS_COLOR[ticket.status] }]}>{ticket.status}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {wait && (
+            <View style={[styles.waitBadge, { backgroundColor: wait.color + '22' }]}>
+              <Text style={[styles.waitText, { color: wait.color }]}>⏱ {wait.label}</Text>
+            </View>
+          )}
+          <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[ticket.status] + '22' }]}>
+            <Text style={[styles.statusText, { color: STATUS_COLOR[ticket.status] }]}>{ticket.status}</Text>
+          </View>
         </View>
       </View>
       <View style={styles.cardMid}>
@@ -57,7 +78,7 @@ function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => 
         </Text>
       </View>
       {lastMsg && (
-        <Text style={styles.lastMsg} numberOfLines={1}>
+        <Text style={[styles.lastMsg, needsReply && { color: '#9CA3AF' }]} numberOfLines={1}>
           {lastMsg.isStaff ? '↩ ' : '↳ '}{lastMsg.content}
         </Text>
       )}
@@ -82,6 +103,7 @@ export default function AdminSupportScreen() {
   const [status, setStatus] = useState<TicketStatus | ''>('');
   const [priority, setPriority] = useState<TicketPriority | ''>('');
   const [assignedToMe, setAssignedToMe] = useState(false);
+  const [needsReplyFilter, setNeedsReplyFilter] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -159,6 +181,14 @@ export default function AdminSupportScreen() {
             {assignedToMe ? '✓ Мои тикеты' : 'Мои тикеты'}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.priorityBtn, needsReplyFilter && { backgroundColor: '#F59E0B22', borderColor: '#F59E0B60' }]}
+          onPress={() => setNeedsReplyFilter(!needsReplyFilter)}
+        >
+          <Text style={[styles.priorityText, needsReplyFilter && { color: '#F59E0B' }]}>
+            {needsReplyFilter ? '✓ Ждут ответа' : 'Ждут ответа'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.totalLabel}>Всего: {total}</Text>
@@ -167,7 +197,13 @@ export default function AdminSupportScreen() {
         <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
       ) : (
         <FlatList
-          data={tickets}
+          data={needsReplyFilter
+            ? tickets.filter((t) => {
+                const m = t.messages?.[0];
+                return m && !m.isStaff && t.status !== 'closed' && t.status !== 'resolved';
+              })
+            : tickets
+          }
           keyExtractor={(t) => t.id}
           renderItem={({ item }) => (
             <TicketRow
@@ -221,4 +257,6 @@ const styles = StyleSheet.create({
   priorityRow: { flexDirection: 'row', paddingHorizontal: 12, gap: 6, flexWrap: 'wrap', marginBottom: 4 },
   priorityBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E' },
   priorityText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  waitBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  waitText: { fontSize: 10, fontWeight: '700' },
 });
