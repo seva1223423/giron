@@ -41,11 +41,15 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       firstName: z.string().min(1).max(100).optional(),
       lastName: z.string().max(100).optional(),
       dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), 'Некорректная дата').optional(),
-      gender: z.string().max(20).optional(),
+      gender: z.string().transform(v => v.toUpperCase()).pipe(z.enum(['MALE', 'FEMALE'])).optional(),
       heightCm: z.number().min(50).max(300).optional(),
       weightKg: z.number().min(20).max(400).optional(),
-      goal: z.string().max(50).optional(),
-      fitnessLevel: z.string().max(50).optional(),
+      goal: z.string().transform(v => v.toUpperCase()).pipe(
+        z.enum(['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'])
+      ).optional(),
+      fitnessLevel: z.string().transform(v => v.toUpperCase()).pipe(
+        z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'])
+      ).optional(),
       trainingExperienceYears: z.number().min(0).max(80).optional(),
       avatarUrl: z.string().url('Некорректный URL').max(2048).optional(),
     });
@@ -60,10 +64,6 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
     if (data.dateOfBirth) {
       data.dateOfBirth = new Date(data.dateOfBirth);
     }
-    // Normalize enum fields to uppercase for Prisma
-    if (data.goal) data.goal = String(data.goal).toUpperCase();
-    if (data.fitnessLevel) data.fitnessLevel = String(data.fitnessLevel).toUpperCase();
-    if (data.gender) data.gender = String(data.gender).toUpperCase();
 
     const user = await prisma.user.update({
       where: { id: req.userId },

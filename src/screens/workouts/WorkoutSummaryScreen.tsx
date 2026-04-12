@@ -70,9 +70,10 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
     const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => d.meals.length > 0).length;
     const sortedDates = workoutHistory
       .filter((w) => w.completedAt)
-      .map((w) => new Date(w.completedAt!).toDateString())
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      .map((w) => ({ str: new Date(w.completedAt!).toDateString(), ts: new Date(w.completedAt!).getTime() }))
+      .filter((v, i, a) => a.findIndex((x) => x.str === v.str) === i)
+      .sort((a, b) => b.ts - a.ts)
+      .map((v) => v.str);
     let streak = 0;
     const today = new Date();
     for (let i = 0; i < sortedDates.length; i++) {
