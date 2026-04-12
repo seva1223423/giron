@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { Button } from '../../../components';
@@ -46,6 +46,7 @@ interface Props {
 export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExercises, userTemplateEntries, onSelect, onClose }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
+  const { height: screenHeight } = useWindowDimensions();
 
   const TemplateRow: React.FC<{ template: WeekPlanEntry; exercises: { id: string; name: string }[] }> = ({ template, exercises }) => {
     const isActive = pickerDay !== null && weekPlan[pickerDay]?.name === template.name;
@@ -54,7 +55,7 @@ export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExerci
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Text style={{ fontSize: 18 }}>{template.emoji}</Text>
-            <Text style={[typography.body, { color: isActive ? colors.primary : colors.text }]}>{template.name}</Text>
+            <Text style={[typography.body, { color: isActive ? colors.primary : colors.text }]} numberOfLines={1}>{template.name}</Text>
           </View>
           {template.exercises.length > 0 && (
             <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]} numberOfLines={1}>
@@ -74,7 +75,7 @@ export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExerci
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>
             {pickerDay !== null ? DAY_LABELS_FULL[pickerDay] : ''}
           </Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: Math.min(400, screenHeight * 0.55) }}>
             <TouchableOpacity onPress={() => { haptic.selection(); onSelect(null); }} style={[styles.row, { borderBottomColor: colors.divider }]}>
               <Text style={[typography.body, { color: colors.textSecondary }]}>Отдых</Text>
               {pickerDay !== null && !weekPlan[pickerDay] && <Text style={{ color: colors.primary }}>✓</Text>}
