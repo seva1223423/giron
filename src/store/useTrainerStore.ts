@@ -17,20 +17,36 @@ export interface TrainerClient {
   emoji?: string;
 }
 
+export interface TrainerWorkoutSession {
+  id: string;
+  clientId: string;
+  date: string; // YYYY-MM-DD
+  name: string;
+  durationMinutes: number;
+  volumeKg?: number;
+  notes?: string;
+}
+
 interface TrainerStore {
   clients: TrainerClient[];
+  sessions: TrainerWorkoutSession[];
   isLoading: boolean;
 
   fetchClients: () => Promise<void>;
   addClient: (client: Omit<TrainerClient, 'id'>) => Promise<void>;
   updateClient: (id: string, data: Partial<TrainerClient>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
+
+  logWorkoutSession: (session: Omit<TrainerWorkoutSession, 'id'>) => void;
+  removeWorkoutSession: (id: string) => void;
+  getClientSessions: (clientId: string) => TrainerWorkoutSession[];
 }
 
 export const useTrainerStore = create<TrainerStore>()(
   persist(
     (set, get) => ({
       clients: [],
+      sessions: [],
       isLoading: false,
 
       fetchClients: async () => {
@@ -44,25 +60,21 @@ export const useTrainerStore = create<TrainerStore>()(
       },
 
       addClient: async (data) => {
-        // Optimistic: add locally first
         const tempId = Date.now().toString();
         const tempClient: TrainerClient = { ...data, id: tempId };
         set((s) => ({ clients: [tempClient, ...s.clients] }));
 
         try {
           const serverClient = await trainerService.addClient(data);
-          // Replace temp with server response
           set((s) => ({
             clients: s.clients.map((c) => c.id === tempId ? serverClient : c),
           }));
         } catch {
-          // Revert on failure
           set((s) => ({ clients: s.clients.filter((c) => c.id !== tempId) }));
         }
       },
 
       updateClient: async (id, data) => {
-        // Optimistic update
         const prev = get().clients.find((c) => c.id === id);
         set((s) => ({
           clients: s.clients.map((c) => c.id === id ? { ...c, ...data } : c),
@@ -71,7 +83,6 @@ export const useTrainerStore = create<TrainerStore>()(
         try {
           await trainerService.updateClient(id, data);
         } catch {
-          // Revert on failure
           if (prev) {
             set((s) => ({
               clients: s.clients.map((c) => c.id === id ? prev : c),
@@ -82,20 +93,37 @@ export const useTrainerStore = create<TrainerStore>()(
 
       deleteClient: async (id) => {
         const prev = get().clients;
-        set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }));
+        set((s) => ({
+          clients: s.clients.filter((c) => c.id !== id),
+          sessions: s.sessions.filter((s) => s.clientId !== id),
+        }));
 
         try {
           await trainerService.deleteClient(id);
         } catch {
-          // Revert on failure
           set({ clients: prev });
         }
+      },
+
+      logWorkoutSession: (data) => {
+        const session: TrainerWorkoutSession = { ...data, id: `session-${Date.now()}` };
+        set((s) => ({ sessions: [session, ...s.sessions] }));
+      },
+
+      removeWorkoutSession: (id) => {
+        set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
+      },
+
+      getClientSessions: (clientId) => {
+        return get().sessions
+          .filter((s) => s.clientId === clientId)
+          .sort((a, b) => b.date.localeCompare(a.date));
       },
     }),
     {
       name: 'iron-gym-trainer',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ clients: state.clients }),
+      partialize: (state) => ({ clients: state.clients, sessions: state.sessions }),
     }
   )
 );
