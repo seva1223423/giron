@@ -1521,6 +1521,37 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
   }
 });
 
+/** GET /admin/subscriptions/forecast — upcoming subscription expirations by week */
+router.get('/subscriptions/forecast', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const weeks = 4;
+    const forecast: Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }> = [];
+    const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
+
+    for (let i = 0; i < weeks; i++) {
+      const start = new Date(now.getTime() + i * 7 * 86400 * 1000);
+      const end = new Date(start.getTime() + 7 * 86400 * 1000);
+      const expiring = await prisma.subscription.findMany({
+        where: { status: 'active', plan: { not: 'free' }, endDate: { gte: start, lt: end } },
+        select: { plan: true },
+      });
+      const revenue = expiring.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
+      forecast.push({
+        weekStart: start.toISOString().split('T')[0],
+        weekEnd: end.toISOString().split('T')[0],
+        count: expiring.length,
+        revenue: Math.round(revenue * 100) / 100,
+      });
+    }
+
+    res.json(forecast);
+  } catch (e) {
+    logger.error('GET /admin/subscriptions/forecast:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 /** GET /admin/analytics/segments — engagement metrics by subscription plan */
 router.get('/analytics/segments', requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {

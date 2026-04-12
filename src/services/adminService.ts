@@ -193,6 +193,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getSubscriptionForecast(): Promise<Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }>> {
+    const res = await api.get('/admin/subscriptions/forecast');
+    return res.data;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;
