@@ -118,6 +118,7 @@ type SupportMetrics = {
   unassigned: number;
   avgResponseHours: number | null;
   categoryBreakdown: Record<string, number>;
+  staffWorkload?: Array<{ id: string; name: string; count: number }>;
 };
 
 export default function AdminSupportScreen() {
@@ -298,6 +299,22 @@ export default function AdminSupportScreen() {
                 </TouchableOpacity>
               );
             })}
+        </ScrollView>
+      )}
+
+      {/* Staff workload */}
+      {metrics?.staffWorkload && metrics.staffWorkload.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+          {metrics.staffWorkload.sort((a, b) => b.count - a.count).map((s) => (
+            <TouchableOpacity
+              key={s.id}
+              style={[styles.catChip, { borderColor: '#10B98140' }]}
+              onPress={() => setAssignedToMe(false)}
+            >
+              <Text style={[styles.catCount, { color: '#10B981' }]}>{s.count}</Text>
+              <Text style={styles.catLabel}>{s.name || 'Агент'}</Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       )}
 
