@@ -156,7 +156,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
                 )}
               </View>
               <CalorieBarChart data={chartData} colors={colors} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm, flexWrap: 'wrap' }}>
                 {[{ color: colors.accent + '80', label: 'Цель', h: 3, w: 12 }, { color: colors.success, label: 'В норме', h: 10, w: 10 }, { color: colors.error, label: 'Перебор', h: 10, w: 10 }].map(({ color, label, h, w }) => (
                   <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <View style={{ width: w, height: h, backgroundColor: color, borderRadius: 1 }} />
