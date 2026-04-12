@@ -806,6 +806,14 @@ export default function AdminDashboardScreen() {
         </View>
       )}
 
+      {/* ── MAU ────────────────────────────────────────────────────────── */}
+      {stats.mau && (
+        <View style={styles.row}>
+          <StatCard title="MAU (трен.)" value={stats.mau.workoutUsers} sub="уник. польз. за 30 дн." color="#F59E0B" />
+          <StatCard title="MAU (ИИ)" value={stats.mau.aiUsers} sub="уник. польз. за 30 дн." color="#8B5CF6" />
+        </View>
+      )}
+
       {/* ── Top active users this week ─────────────────────────────────── */}
       {stats.topActiveUsers && stats.topActiveUsers.length > 0 && (
         <>
