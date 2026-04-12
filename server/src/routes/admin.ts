@@ -655,11 +655,19 @@ router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/support — all tickets with filters */
 router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, priority, assignedToMe, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const { status, priority, assignedToMe, search, page = '1', limit = '20' } = req.query as Record<string, string>;
     const where: any = {};
     if (status) where.status = status;
     if (priority) where.priority = priority;
     if (assignedToMe === 'true') where.assignedToId = req.userId;
+    if (search) {
+      where.OR = [
+        { subject: { contains: search, mode: 'insensitive' } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { lastName: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [tickets, total] = await Promise.all([

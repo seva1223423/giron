@@ -118,6 +118,7 @@ export const adminService = {
     status?: TicketStatus;
     priority?: TicketPriority;
     assignedToMe?: boolean;
+    search?: string;
     page?: number;
     limit?: number;
   }): Promise<{ tickets: SupportTicket[]; total: number; page: number; pages: number }> {
