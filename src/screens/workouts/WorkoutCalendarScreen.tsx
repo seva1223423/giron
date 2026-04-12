@@ -157,7 +157,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name || 'Тренировка'}</Text>
-                      <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                      <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>
                         {totalSets} подходов · {totalVol > 0 ? `${Math.round(totalVol)} кг` : '—'}
                         {w.durationMinutes ? ` · ${formatDuration(w.durationMinutes)}` : ''}
                       </Text>
@@ -191,8 +191,8 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
   todayBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-  statItem: { alignItems: 'center' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' },
+  statItem: { flex: 1, alignItems: 'center' },
   statDivider: { width: 1, height: 40 },
   dateBadge: { width: 44, height: 44, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
   viewBtn: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

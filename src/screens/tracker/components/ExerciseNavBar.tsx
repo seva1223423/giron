@@ -100,7 +100,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         )}
 
         {/* Actions row: substitute + YouTube */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
           {onSubstitute && (
             <TouchableOpacity
               onPress={() => { haptic.selection(); onSubstitute(); }}

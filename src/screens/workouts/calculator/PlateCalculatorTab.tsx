@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   weightRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   adjustBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   weightInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  weightInput: { width: 120, textAlign: 'center', fontSize: 36, fontWeight: '800', paddingVertical: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1.5 },
+  weightInput: { flex: 1, minWidth: 80, maxWidth: 140, textAlign: 'center', fontSize: 36, fontWeight: '800', paddingVertical: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1.5 },
   quickBtns: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', flexWrap: 'wrap' },
   quickBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.md, borderWidth: 1 },
   barbellRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, marginBottom: spacing.xs },
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   barSleeve: { height: 8, width: 28, borderRadius: 4 },
   plateList: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg, justifyContent: 'center' },
   plateChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1.5, alignItems: 'center' },
-  summary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingTop: spacing.lg, borderTopWidth: 1, marginTop: spacing.sm },
+  summary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', rowGap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, marginTop: spacing.sm },
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   presetBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, minWidth: 52, alignItems: 'center' },
 });
