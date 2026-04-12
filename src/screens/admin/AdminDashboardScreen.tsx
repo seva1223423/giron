@@ -493,6 +493,49 @@ export default function AdminDashboardScreen() {
         </>
       )}
 
+      {/* ── Hourly activity pulse ──────────────────────────────────────── */}
+      {stats.hourlyPulse && stats.hourlyPulse.some((v) => v > 0) && (
+        <>
+          <SectionTitle title="Пульс активности сегодня" />
+          <View style={styles.pulseCard}>
+            {(() => {
+              const max = Math.max(...stats.hourlyPulse!, 1);
+              const now = new Date().getHours();
+              return (
+                <>
+                  <View style={styles.pulseBars}>
+                    {stats.hourlyPulse!.map((v, h) => {
+                      const barH = Math.max(2, Math.round((v / max) * 36));
+                      const isCurrent = h === now;
+                      const isPast = h < now;
+                      return (
+                        <View key={h} style={styles.pulseBarCol}>
+                          <View style={[
+                            styles.pulseBar,
+                            { height: barH },
+                            isCurrent && { backgroundColor: '#6366F1' },
+                            !isCurrent && isPast && v > 0 && { backgroundColor: '#6366F180' },
+                            !isCurrent && !isPast && { backgroundColor: '#2C2C2E' },
+                          ]} />
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <View style={styles.pulseLabels}>
+                    {[0, 6, 12, 18, 23].map((h) => (
+                      <Text key={h} style={styles.pulseLabel}>{h}:00</Text>
+                    ))}
+                  </View>
+                  <Text style={styles.pulseSub}>
+                    Пик: {stats.hourlyPulse!.indexOf(max)}:00 — {max} действий · текущий час выделен
+                  </Text>
+                </>
+              );
+            })()}
+          </View>
+        </>
+      )}
+
       {/* ── Users ──────────────────────────────────────────────────────── */}
       <SectionTitle title="Пользователи" />
       <View style={styles.row}>
@@ -880,6 +923,15 @@ const styles = StyleSheet.create({
   signupAvatar: { fontSize: 18, fontWeight: '700', color: '#6366F1', marginBottom: 2 },
   signupName: { fontSize: 11, fontWeight: '600', color: '#D1D5DB', marginBottom: 2, maxWidth: 64, textAlign: 'center' },
   signupTime: { fontSize: 10, color: '#6B7280' },
+
+  // Hourly pulse
+  pulseCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
+  pulseBars: { flexDirection: 'row', alignItems: 'flex-end', height: 40, gap: 1 },
+  pulseBarCol: { flex: 1, justifyContent: 'flex-end', height: 40 },
+  pulseBar: { width: '80%', borderRadius: 2, backgroundColor: '#2C2C2E' },
+  pulseLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  pulseLabel: { fontSize: 8, color: '#4B5563' },
+  pulseSub: { fontSize: 10, color: '#6B7280', marginTop: 4 },
 
   // Today vs Yesterday grid
   todayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },

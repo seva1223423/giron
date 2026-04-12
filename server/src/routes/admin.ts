@@ -111,8 +111,8 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       dbPingMs = Date.now() - dbStart;
     } catch { dbPingMs = null; }
 
-    // Top active users this week (by workout count) + top AI users + demographics + recent signups
-    const [topUsers, topAiUsers, dauWorkout, dauAi, goalCounts, levelCounts, genderCounts, recentSignups] = await Promise.all([
+    // Top active users this week (by workout count) + top AI users + demographics + recent signups + hourly pulse
+    const [topUsers, topAiUsers, dauWorkout, dauAi, goalCounts, levelCounts, genderCounts, recentSignups, workoutsTodayRaw, aiTodayRaw] = await Promise.all([
       prisma.workout.groupBy({
         by: ['userId'],
         where: { completedAt: { gte: weekStart } },
@@ -138,7 +138,19 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         take: 6,
         select: { id: true, firstName: true, lastName: true, email: true, createdAt: true, role: true },
       }),
+      // Hourly pulse: individual records for today to bucket by hour
+      prisma.workout.findMany({ where: { completedAt: { gte: todayStart } }, select: { completedAt: true } }),
+      prisma.chatMessage.findMany({ where: { role: 'user', createdAt: { gte: todayStart } }, select: { createdAt: true } }),
     ]);
+
+    // Build 24-hour activity pulse for today
+    const hourlyPulse = new Array(24).fill(0);
+    workoutsTodayRaw.forEach((w) => {
+      if (w.completedAt) hourlyPulse[new Date(w.completedAt).getHours()]++;
+    });
+    aiTodayRaw.forEach((m) => {
+      hourlyPulse[new Date(m.createdAt).getHours()]++;
+    });
 
     const allTopIds = [...new Set([...topUsers.map((t) => t.userId), ...topAiUsers.map((t) => t.userId)])];
     const topUserDetails = allTopIds.length > 0 ? await prisma.user.findMany({
@@ -218,6 +230,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         meals: { today: mealsToday, yesterday: mealsYesterday },
         cardio: { today: cardioToday, yesterday: cardioYesterday },
       },
+      hourlyPulse,
       demographics: {
         goals: Object.fromEntries(goalCounts.map((g) => [g.goal, g._count.id])),
         levels: Object.fromEntries(levelCounts.map((l) => [l.fitnessLevel, l._count.id])),
