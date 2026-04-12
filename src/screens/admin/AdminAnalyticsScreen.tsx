@@ -82,6 +82,7 @@ export default function AdminAnalyticsScreen() {
   const [cohorts, setCohorts] = useState<Array<{ week: string; signups: number; activeThisWeek: number; retentionPct: number }>>([]);
   const [subTimeline, setSubTimeline] = useState<{ timeline: Array<{ date: string; pro: number; trainer: number; club: number; total: number }>; totalNew: number } | null>(null);
   const [segments, setSegments] = useState<Array<{ plan: string; userCount: number; avgWorkoutsPerUser: number; avgAiPerUser: number; activeRate: number }>>([]);
+  const [forecast, setForecast] = useState<Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }>>([]);
 
   const exportCSV = useCallback(async () => {
     const canShare = await Sharing.isAvailableAsync();
@@ -101,16 +102,18 @@ export default function AdminAnalyticsScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [res, cohortsRes, subRes, segRes] = await Promise.all([
+      const [res, cohortsRes, subRes, segRes, forecastRes] = await Promise.all([
         adminService.getAnalytics(period),
         adminService.getCohorts(),
         adminService.getSubscriptionTimeline(period),
         adminService.getSegments(),
+        adminService.getSubscriptionForecast(),
       ]);
       setData(res);
       setCohorts(cohortsRes);
       setSubTimeline(subRes);
       setSegments(segRes);
+      setForecast(forecastRes);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -348,6 +351,42 @@ export default function AdminAnalyticsScreen() {
               </View>
             );
           })}
+        </View>
+      )}
+
+      {/* Subscription expiry forecast */}
+      {forecast.some((w) => w.count > 0) && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Прогноз истечения подписок (4 недели)</Text>
+          <Text style={styles.chartSub}>Сколько платных подписок истекает и потенциальная потеря дохода</Text>
+          {forecast.map((week, i) => {
+            const weekLabel = i === 0 ? 'Эта неделя' : i === 1 ? 'Следующая' : `+${i} нед.`;
+            const maxCount = Math.max(...forecast.map((w) => w.count), 1);
+            const barW = Math.round((week.count / maxCount) * 100);
+            return (
+              <View key={week.weekStart} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <Text style={styles.funnelLabel}>{weekLabel}</Text>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <Text style={[styles.funnelValue, { color: week.count > 0 ? '#F59E0B' : '#4B5563' }]}>
+                      {week.count} <Text style={styles.funnelPct}>польз.</Text>
+                    </Text>
+                    {week.revenue > 0 && (
+                      <Text style={[styles.funnelValue, { color: '#EF4444' }]}>
+                        -${week.revenue}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.funnelTrack}>
+                  <View style={[styles.funnelFill, { width: `${barW}%` as any, backgroundColor: week.count > 0 ? '#F59E0B' : '#2C2C2E' }]} />
+                </View>
+              </View>
+            );
+          })}
+          <Text style={[styles.chartSub, { marginTop: 8 }]}>
+            Итого: {forecast.reduce((s, w) => s + w.count, 0)} подписок / ${forecast.reduce((s, w) => s + w.revenue, 0).toFixed(0)} потенц. выручки
+          </Text>
         </View>
       )}
 
