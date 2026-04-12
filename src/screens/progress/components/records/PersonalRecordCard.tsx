@@ -37,7 +37,7 @@ export const PersonalRecordCard: React.FC<Props> = ({ record, topRM, isSelected,
         <Card style={{ marginBottom: spacing.sm, borderWidth: isSelected ? 1.5 : 0, borderColor: isSelected ? colors.accent : 'transparent' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]} numberOfLines={1}>{record.name}</Text>
-            <Text style={[typography.caption, { color: isSelected ? colors.accent : colors.textTertiary, marginLeft: spacing.sm }]}>
+            <Text style={[typography.caption, { color: isSelected ? colors.accent : colors.textTertiary, marginLeft: spacing.sm, flexShrink: 0 }]}>
               {isSelected ? 'Скрыть ▲' : 'График ▼'}
             </Text>
           </View>

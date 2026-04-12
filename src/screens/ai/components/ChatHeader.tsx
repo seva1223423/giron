@@ -43,7 +43,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
           )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Text style={[typography.caption, { color: colors.textTertiary }]}>
+          <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
             {isPremiumActive()
               ? '∞ Безлимитный доступ'
               : `${aiMessagesLeft()} / ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}

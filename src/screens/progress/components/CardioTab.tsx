@@ -225,11 +225,11 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
               <Text style={{ fontSize: 20 }}>{TYPE_EMOJI[s.type] || '🏋'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>{TYPE_LABELS[s.type] || s.type}</Text>
-                <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
                   {new Date(s.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                 </Text>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
+              <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
                 <Text style={[typography.captionMedium, { color: colors.primary }]}>{formatDuration(s.durationMinutes)}</Text>
                 {s.distanceKm ? <Text style={[typography.caption, { color: colors.textTertiary }]}>{s.distanceKm.toFixed(1)} км</Text> : null}
                 {s.caloriesBurned ? <Text style={[typography.caption, { color: colors.textTertiary }]}>{s.caloriesBurned} ккал</Text> : null}

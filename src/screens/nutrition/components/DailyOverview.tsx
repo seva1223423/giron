@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
 import { Card, ProgressRing, MacroBar } from '../../../components';
 import { typography } from '../../../theme';
@@ -39,6 +39,7 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
   const { colors } = useThemeStore();
   const { getDayLog } = useNutritionStore();
   const { user } = useAuthStore();
+  const { width: screenWidth } = useWindowDimensions();
   const dayLog = getDayLog(selectedDate);
   const [ringMode, setRingMode] = useState<RingMode>('calories');
 
@@ -90,7 +91,7 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
         <TouchableOpacity onPress={handleRingTap} activeOpacity={0.7}>
           <ProgressRing
             progress={ringData.progress}
-            size={110}
+            size={screenWidth < 340 ? 84 : 110}
             strokeWidth={10}
             color={getRingColor(ringData.progress, ringData.colorKey)}
             value={ringData.value}

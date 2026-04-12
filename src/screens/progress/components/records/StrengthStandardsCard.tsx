@@ -55,7 +55,7 @@ export const StrengthStandardsCard: React.FC<Props> = ({ personalRecords, bodyWe
         {standardData.map((item, idx) => (
           <View key={item.exerciseId} style={idx < standardData.length - 1 ? { marginBottom: spacing.lg } : {}}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing.xs }}>
-              <Text style={[typography.smallMedium, { color: colors.text }]}>{item.name}</Text>
+              <Text style={[typography.smallMedium, { color: colors.text, flex: 1, marginRight: spacing.sm }]} numberOfLines={1}>{item.name}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{item.pr} кг  ({item.ratio}×)</Text>
                 <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: LEVEL_COLORS[item.levelIdx] + '25' }}>

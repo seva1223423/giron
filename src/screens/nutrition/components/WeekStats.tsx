@@ -76,7 +76,7 @@ export const WeekStats: React.FC = () => {
           { label: 'Жиры', value: `${weekStats.avgFats}г`, color: colors.warning },
           { label: 'Углев.', value: `${weekStats.avgCarbs}г`, color: colors.accent },
         ].map(({ label, value, color }) => (
-          <View key={label} style={{ alignItems: 'center' }}>
+          <View key={label} style={{ alignItems: 'center', flex: 1 }}>
             <Text style={[typography.bodySemibold, { color }]} numberOfLines={1}>{value}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{label}/день</Text>
           </View>
