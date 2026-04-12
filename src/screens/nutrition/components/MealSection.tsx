@@ -86,7 +86,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
               {/* Meal time header */}
               {mealTime ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
-                  <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                  <Text style={[typography.caption, { color: colors.textTertiary, flex: 1, marginRight: 8 }]} numberOfLines={1}>
                     {meta.label} · {mealTime}
                   </Text>
                   <TouchableOpacity onPress={() => { haptic.warning(); removeMeal(selectedDate, meal.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
