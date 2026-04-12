@@ -606,6 +606,24 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
 
     const timeline = Object.entries(buckets).map(([date, v]) => ({ date, ...v }));
 
+    // Top programs by completed workout count in the period
+    const topProgramsRaw = await prisma.workout.groupBy({
+      by: ['programId'],
+      where: { completedAt: { gte: since, not: null }, programId: { not: null } },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+    const programIds = topProgramsRaw.map((p) => p.programId!).filter(Boolean);
+    const programDetails = programIds.length > 0 ? await prisma.program.findMany({
+      where: { id: { in: programIds } },
+      select: { id: true, name: true, type: true },
+    }) : [];
+    const topPrograms = topProgramsRaw.map((p) => {
+      const prog = programDetails.find((d) => d.id === p.programId);
+      return { id: p.programId!, name: prog?.name ?? 'Unknown', type: prog?.type ?? '', count: p._count.id };
+    });
+
     // Totals for conversion funnel
     const [totalUsers, paidUsers, activeLastWeek] = await Promise.all([
       prisma.user.count(),
@@ -626,6 +644,7 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
         retentionRate: totalUsers > 0 ? Math.round((activeLastWeek / totalUsers) * 100) : 0,
       },
       previous: { signups: prevSignups, workouts: prevWorkouts, ai: prevAi, cardio: prevCardio },
+      topPrograms,
       period: numDays,
     });
   } catch (e) {

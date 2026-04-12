@@ -249,6 +249,21 @@ export default function AdminAnalyticsScreen() {
         </View>
       </View>
 
+      {/* Top programs */}
+      {data.topPrograms && data.topPrograms.length > 0 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Топ программ тренировок</Text>
+          {data.topPrograms.map((p, i) => (
+            <View key={p.id} style={styles.tableRow}>
+              <Text style={[styles.tableCell, { color: '#9CA3AF', flex: 0.3 }]}>{i + 1}</Text>
+              <Text style={[styles.tableCell, { flex: 3, color: '#FFFFFF', textAlign: 'left' }]} numberOfLines={1}>{p.name}</Text>
+              <Text style={[styles.tableCell, { color: '#6B7280', flex: 1.5, textAlign: 'left' }]} numberOfLines={1}>{p.type}</Text>
+              <Text style={[styles.tableCell, { color: '#F59E0B', fontWeight: '700' }]}>{p.count}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Timeline table — last 7 days */}
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Последние 7 дней</Text>
