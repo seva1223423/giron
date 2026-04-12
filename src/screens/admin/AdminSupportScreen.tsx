@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, TextInput,
+  ActivityIndicator, RefreshControl, TextInput, Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { adminService } from '../../services/adminService';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { SupportTicket, TicketStatus, TicketPriority } from '../../types';
@@ -107,7 +109,22 @@ export default function AdminSupportScreen() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
+
+  const exportCSV = useCallback(async () => {
+    const canShare = await Sharing.isAvailableAsync();
+    if (!canShare) { Alert.alert('Недоступно', 'Функция недоступна на этом устройстве'); return; }
+    setExporting(true);
+    try {
+      const csv = await adminService.exportTicketsCSV();
+      const fileName = `tickets_${new Date().toISOString().split('T')[0]}.csv`;
+      const path = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Экспорт тикетов' });
+    } catch { Alert.alert('Ошибка', 'Не удалось экспортировать тикеты'); }
+    finally { setExporting(false); }
+  }, []);
 
   const load = useCallback(async (p: number, append = false) => {
     if (p === 1) setLoading(true); else setLoadingMore(true);
@@ -191,7 +208,12 @@ export default function AdminSupportScreen() {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.totalLabel}>Всего: {total}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 4 }}>
+        <Text style={styles.totalLabel}>Всего: {total}</Text>
+        <TouchableOpacity onPress={exportCSV} disabled={exporting} style={styles.exportBtn}>
+          {exporting ? <ActivityIndicator size="small" color="#6366F1" /> : <Text style={styles.exportBtnText}>CSV</Text>}
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
@@ -259,4 +281,6 @@ const styles = StyleSheet.create({
   priorityText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
   waitBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   waitText: { fontSize: 10, fontWeight: '700' },
+  exportBtn: { backgroundColor: '#1C1C1E', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#2C2C2E' },
+  exportBtnText: { fontSize: 12, color: '#6366F1', fontWeight: '700' },
 });
