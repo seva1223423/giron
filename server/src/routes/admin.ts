@@ -622,6 +622,63 @@ router.post('/users/:id/message', requireAdmin, async (req: AuthRequest, res: Re
 });
 
 
+/** POST /admin/mass-message — send a message to multiple users (creates support tickets) */
+router.post('/mass-message', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { userIds, subject, message } = z.object({
+      userIds: z.array(z.string()).min(1).max(100),
+      subject: z.string().min(1).max(200),
+      message: z.string().min(1).max(2000),
+    }).parse(req.body);
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, isBanned: false },
+      select: { id: true },
+    });
+
+    const results = await Promise.allSettled(
+      users.map((u) =>
+        prisma.supportTicket.create({
+          data: {
+            subject,
+            category: 'other',
+            status: 'in_progress',
+            priority: 'normal',
+            userId: u.id,
+            assignedToId: req.userId!,
+            messages: {
+              create: {
+                content: message,
+                authorId: req.userId!,
+                isStaff: true,
+                isInternal: false,
+              },
+            },
+          },
+          select: { id: true },
+        })
+      )
+    );
+
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'MASS_MESSAGE',
+        details: `Sent to ${succeeded}/${users.length} users: "${subject}"`,
+      },
+    });
+
+    res.json({ sent: succeeded, failed, total: users.length });
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /admin/mass-message:', e);
+    res.status(500).json({ error: 'Ошибка массовой рассылки' });
+  }
+});
+
 /** GET /admin/users/export — CSV export of user list */
 router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
