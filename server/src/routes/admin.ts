@@ -780,6 +780,42 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
   }
 });
 
+/** GET /admin/analytics/export — CSV export of daily timeline data */
+router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '30' } = req.query as Record<string, string>;
+    const numDays = Math.min(365, Math.max(1, parseInt(days) || 30));
+    const now = new Date();
+    const start = new Date(now.getTime() - numDays * 86400 * 1000);
+
+    const [signups, workouts, aiMessages, cardio] = await Promise.all([
+      prisma.user.groupBy({ by: ['createdAt'], where: { createdAt: { gte: start } }, _count: { id: true } }),
+      prisma.workout.groupBy({ by: ['completedAt'], where: { completedAt: { gte: start } }, _count: { id: true } }),
+      prisma.chatMessage.groupBy({ by: ['createdAt'], where: { role: 'user', createdAt: { gte: start } }, _count: { id: true } }),
+      prisma.cardioSession.groupBy({ by: ['createdAt'], where: { createdAt: { gte: start } }, _count: { id: true } }),
+    ]);
+
+    const buckets: Record<string, { signups: number; workouts: number; ai: number; cardio: number }> = {};
+    for (let i = 0; i < numDays; i++) {
+      const d = new Date(start.getTime() + i * 86400 * 1000);
+      buckets[d.toISOString().split('T')[0]] = { signups: 0, workouts: 0, ai: 0, cardio: 0 };
+    }
+    signups.forEach((r) => { const d = new Date(r.createdAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].signups += r._count.id; });
+    workouts.forEach((r) => { if (r.completedAt) { const d = new Date(r.completedAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].workouts += r._count.id; } });
+    aiMessages.forEach((r) => { const d = new Date(r.createdAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].ai += r._count.id; });
+    cardio.forEach((r) => { const d = new Date(r.createdAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].cardio += r._count.id; });
+
+    const header = 'date,signups,workouts,ai_messages,cardio_sessions';
+    const rows = Object.entries(buckets).map(([date, v]) => `${date},${v.signups},${v.workouts},${v.ai},${v.cardio}`);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="analytics_${numDays}d_${now.toISOString().split('T')[0]}.csv"`);
+    res.send('\uFEFF' + [header, ...rows].join('\n'));
+  } catch (e) {
+    logger.error('GET /admin/analytics/export:', e);
+    res.status(500).json({ error: 'Ошибка экспорта аналитики' });
+  }
+});
+
 // ── ADMIN LOG ────────────────────────────────────────────────────────────────
 
 /** GET /admin/logs — recent admin actions with filter */
