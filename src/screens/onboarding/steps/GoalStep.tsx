@@ -35,7 +35,7 @@ export const GoalStep: React.FC<Props> = ({ goal, onSelect }) => {
           style={[styles.option, { backgroundColor: goal === g.key ? colors.primary : colors.surface, borderColor: goal === g.key ? colors.primary : colors.border }]}
         >
           <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: goal === g.key ? 'rgba(255,255,255,0.2)' : colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: goal === g.key ? '#fff' : colors.primary }}>{g.emoji}</Text></View>
-          <Text style={[typography.bodySemibold, { color: goal === g.key ? '#FFF' : colors.text }]}>{g.label}</Text>
+          <Text style={[typography.bodySemibold, { color: goal === g.key ? '#FFF' : colors.text, flex: 1 }]} numberOfLines={1}>{g.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
