@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Platform } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Platform, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useTrainerStore } from '../../store';
@@ -21,17 +21,23 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
-  const { updateClient, logWorkoutSession, removeWorkoutSession, getClientSessions } = useTrainerStore();
+  const { updateClient, logWorkoutSession, removeWorkoutSession, getClientSessions, fetchSessions } = useTrainerStore();
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
   const [showProgramPicker, setShowProgramPicker] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showLogSession, setShowLogSession] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
 
   // Log session form state
   const [sessionName, setSessionName] = useState('');
   const [sessionDuration, setSessionDuration] = useState('');
   const [sessionVolume, setSessionVolume] = useState('');
   const [sessionNotes, setSessionNotes] = useState('');
+
+  // Sync sessions from server on mount
+  useEffect(() => {
+    if (client?.id) fetchSessions(client.id).catch(() => {});
+  }, [client?.id]);
 
   if (!client) { navigation.goBack(); return null; }
 
@@ -78,27 +84,31 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
     updateClient(client.id, patch);
   };
 
-  const handleLogSession = () => {
+  const handleLogSession = async () => {
     if (!sessionName.trim() || !sessionDuration.trim()) return;
     haptic.success();
-    logWorkoutSession({
-      clientId: client.id,
-      date: today,
-      name: sessionName.trim(),
-      durationMinutes: parseInt(sessionDuration, 10) || 60,
-      volumeKg: sessionVolume ? parseFloat(sessionVolume) * 1000 : undefined,
-      notes: sessionNotes.trim() || undefined,
-    });
-    // Also update lastVisit and total count
-    const patch: Partial<TrainerClient> = { lastVisit: today, totalWorkouts: (client.totalWorkouts || 0) + 1 };
-    setClient((prev) => ({ ...prev, ...patch }));
-    updateClient(client.id, patch);
-    // Reset form
-    setSessionName('');
-    setSessionDuration('');
-    setSessionVolume('');
-    setSessionNotes('');
-    setShowLogSession(false);
+    setSavingSession(true);
+    try {
+      await logWorkoutSession({
+        clientId: client.id,
+        date: today,
+        name: sessionName.trim(),
+        durationMinutes: parseInt(sessionDuration, 10) || 60,
+        volumeKg: sessionVolume ? parseFloat(sessionVolume) * 1000 : undefined,
+        notes: sessionNotes.trim() || undefined,
+      });
+      // Update local client state to reflect new totalWorkouts / lastVisit
+      const patch: Partial<TrainerClient> = { lastVisit: today, totalWorkouts: (client.totalWorkouts || 0) + 1 };
+      setClient((prev) => ({ ...prev, ...patch }));
+      // Reset form
+      setSessionName('');
+      setSessionDuration('');
+      setSessionVolume('');
+      setSessionNotes('');
+      setShowLogSession(false);
+    } finally {
+      setSavingSession(false);
+    }
   };
 
   const goal = client.goal ? GOAL_LABELS[client.goal] ?? client.goal : null;
@@ -293,9 +303,9 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
             />
 
             <Button
-              title="Сохранить"
+              title={savingSession ? 'Сохранение...' : 'Сохранить'}
               onPress={handleLogSession}
-              disabled={!sessionName.trim() || !sessionDuration.trim()}
+              disabled={!sessionName.trim() || !sessionDuration.trim() || savingSession}
               style={{ marginTop: spacing.lg }}
             />
           </View>

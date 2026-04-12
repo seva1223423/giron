@@ -107,4 +107,92 @@ router.delete('/clients/:id', authenticate, requireTrainerRole as any, async (re
   }
 });
 
+// ── Sessions ─────────────────────────────────────────────────────────────────
+
+const sessionSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  name: z.string().min(1).max(200),
+  durationMinutes: z.number().int().min(1).max(600),
+  volumeKg: z.number().min(0).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+/** GET /trainer/sessions/:clientId — list sessions for a client */
+router.get('/sessions/:clientId', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  try {
+    // Verify trainer owns this client
+    const client = await prisma.trainerClient.findFirst({
+      where: { id: req.params.clientId as string, trainerId: req.userId! },
+    });
+    if (!client) return res.status(404).json({ error: 'Клиент не найден' });
+
+    const sessions = await prisma.trainerSession.findMany({
+      where: { clientId: req.params.clientId as string },
+      orderBy: { date: 'desc' },
+    });
+    res.json(sessions);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения тренировок' });
+  }
+});
+
+/** POST /trainer/sessions/:clientId — log a session */
+router.post('/sessions/:clientId', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const client = await prisma.trainerClient.findFirst({
+      where: { id: req.params.clientId as string, trainerId: req.userId! },
+    });
+    if (!client) return res.status(404).json({ error: 'Клиент не найден' });
+
+    const parsed = sessionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+
+    const session = await prisma.trainerSession.create({
+      data: { clientId: req.params.clientId as string, ...parsed.data },
+    });
+
+    // Update totalWorkouts counter and lastVisit on client
+    await prisma.trainerClient.update({
+      where: { id: req.params.clientId as string },
+      data: {
+        totalWorkouts: { increment: 1 },
+        lastVisit: new Date(parsed.data.date),
+      },
+    });
+
+    res.status(201).json(session);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка записи тренировки' });
+  }
+});
+
+/** DELETE /trainer/sessions/:id — remove a session */
+router.delete('/sessions/:id', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  try {
+    // Find session and verify ownership via client
+    const session = await prisma.trainerSession.findUnique({
+      where: { id: req.params.id as string },
+      include: { client: { select: { trainerId: true } } },
+    });
+    if (!session || session.client.trainerId !== req.userId) {
+      return res.status(404).json({ error: 'Тренировка не найдена' });
+    }
+
+    await prisma.trainerSession.delete({ where: { id: req.params.id as string } });
+
+    // Decrement totalWorkouts
+    await prisma.trainerClient.update({
+      where: { id: session.clientId },
+      data: { totalWorkouts: { decrement: 1 } },
+    });
+
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка удаления тренировки' });
+  }
+});
+
 export { router as trainerRouter };

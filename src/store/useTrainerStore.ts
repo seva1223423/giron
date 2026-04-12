@@ -37,8 +37,9 @@ interface TrainerStore {
   updateClient: (id: string, data: Partial<TrainerClient>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
 
-  logWorkoutSession: (session: Omit<TrainerWorkoutSession, 'id'>) => void;
-  removeWorkoutSession: (id: string) => void;
+  fetchSessions: (clientId: string) => Promise<void>;
+  logWorkoutSession: (session: Omit<TrainerWorkoutSession, 'id'>) => Promise<void>;
+  removeWorkoutSession: (id: string) => Promise<void>;
   getClientSessions: (clientId: string) => TrainerWorkoutSession[];
 }
 
@@ -105,13 +106,53 @@ export const useTrainerStore = create<TrainerStore>()(
         }
       },
 
-      logWorkoutSession: (data) => {
-        const session: TrainerWorkoutSession = { ...data, id: `session-${Date.now()}` };
-        set((s) => ({ sessions: [session, ...s.sessions] }));
+      fetchSessions: async (clientId) => {
+        try {
+          const serverSessions = await trainerService.getSessions(clientId);
+          // Replace all sessions for this client with server data
+          set((s) => ({
+            sessions: [
+              ...s.sessions.filter((sess) => sess.clientId !== clientId),
+              ...serverSessions,
+            ],
+          }));
+        } catch {
+          // Keep local sessions if server unreachable
+        }
       },
 
-      removeWorkoutSession: (id) => {
+      logWorkoutSession: async (data) => {
+        const tempId = `session-${Date.now()}`;
+        const tempSession: TrainerWorkoutSession = { ...data, id: tempId };
+        set((s) => ({ sessions: [tempSession, ...s.sessions] }));
+
+        try {
+          const { clientId, ...rest } = data;
+          const serverSession = await trainerService.logSession(clientId, rest);
+          // Replace temp with real server record
+          set((s) => ({
+            sessions: s.sessions.map((sess) => sess.id === tempId ? serverSession : sess),
+          }));
+          // Sync updated client (totalWorkouts incremented server-side)
+          const updatedClients = await trainerService.getClients();
+          set({ clients: updatedClients });
+        } catch {
+          // Keep optimistic session locally — will reconcile on next fetchSessions
+        }
+      },
+
+      removeWorkoutSession: async (id) => {
+        const prev = get().sessions;
         set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
+
+        try {
+          await trainerService.deleteSession(id);
+          // Re-fetch clients to get updated totalWorkouts
+          const updatedClients = await trainerService.getClients();
+          set({ clients: updatedClients });
+        } catch {
+          set({ sessions: prev });
+        }
       },
 
       getClientSessions: (clientId) => {
