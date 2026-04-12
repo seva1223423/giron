@@ -270,8 +270,9 @@ function UserRow({
 
 export default function AdminUsersScreen() {
   const navigation = useNavigation<AdminNav>();
-  const route = useRoute<RouteProp<{ AdminUsersScreen: { initialSearch?: string } }, 'AdminUsersScreen'>>();
-  const initialSearch = (route.params as any)?.initialSearch ?? '';
+  const route = useRoute<RouteProp<{ AdminUsersScreen: { initialSearch?: string; subExpiringSoon?: boolean; dormant?: boolean } }, 'AdminUsersScreen'>>();
+  const params = (route.params as any) ?? {};
+  const initialSearch = params.initialSearch ?? '';
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -283,9 +284,9 @@ export default function AdminUsersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [dormant, setDormant] = useState(false);
+  const [dormant, setDormant] = useState<boolean>(params.dormant ?? false);
   const [bannedOnly, setBannedOnly] = useState(false);
-  const [subExpiringSoon, setSubExpiringSoon] = useState(false);
+  const [subExpiringSoon, setSubExpiringSoon] = useState<boolean>(params.subExpiringSoon ?? false);
   const [sortIdx, setSortIdx] = useState(0);
 
   const load = useCallback(async (p: number, append = false, silent = false) => {

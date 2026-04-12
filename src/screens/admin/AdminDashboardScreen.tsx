@@ -57,12 +57,14 @@ function StatCard({
 }
 
 /** System alert banner */
-function AlertBanner({ icon, message, color }: { icon: string; message: string; color: string }) {
+function AlertBanner({ icon, message, color, onPress }: { icon: string; message: string; color: string; onPress?: () => void }) {
+  const Wrap = onPress ? TouchableOpacity : View;
   return (
-    <View style={[styles.alertBanner, { borderColor: color + '50', backgroundColor: color + '10' }]}>
+    <Wrap style={[styles.alertBanner, { borderColor: color + '50', backgroundColor: color + '10' }]} onPress={onPress} activeOpacity={0.7}>
       <Text style={{ fontSize: 14 }}>{icon}</Text>
       <Text style={[styles.alertText, { color }]}>{message}</Text>
-    </View>
+      {onPress && <Text style={{ fontSize: 12, color, fontWeight: '700' }}>→</Text>}
+    </Wrap>
   );
 }
 
@@ -280,13 +282,13 @@ export default function AdminDashboardScreen() {
         <AlertBanner icon="💾" color="#EF4444" message={`Системная память ${stats.server.systemMemUsedPct}% — критический уровень`} />
       )}
       {(stats.subsExpiringSoon ?? 0) > 0 && (
-        <AlertBanner icon="⏰" color="#F59E0B" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} />
+        <AlertBanner icon="⏰" color="#F59E0B" message={`${stats.subsExpiringSoon} подписок истекают в ближайшие 7 дней`} onPress={() => navigation.navigate('AdminUsersScreen', { subExpiringSoon: true })} />
       )}
       {(stats.support.overdueTickets ?? 0) > 0 && (
-        <AlertBanner icon="🕐" color="#F59E0B" message={`${stats.support.overdueTickets} тикетов без ответа более 24 часов`} />
+        <AlertBanner icon="🕐" color="#F59E0B" message={`${stats.support.overdueTickets} тикетов без ответа более 24 часов`} onPress={() => navigation.navigate('AdminSupportScreen')} />
       )}
       {(stats.churnRiskUsers ?? 0) > 0 && (
-        <AlertBanner icon="⚡" color="#8B5CF6" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} />
+        <AlertBanner icon="⚡" color="#8B5CF6" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} onPress={() => navigation.navigate('AdminUsersScreen', { dormant: true })} />
       )}
 
       {/* Quick nav */}

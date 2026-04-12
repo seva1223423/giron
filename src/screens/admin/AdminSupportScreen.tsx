@@ -205,11 +205,12 @@ export default function AdminSupportScreen() {
     setSelected(new Set(displayedTickets.map((t) => t.id)));
   }, [tickets, needsReplyFilter]);
 
-  const bulkUpdate = useCallback(async (newStatus: TicketStatus) => {
+  const bulkUpdate = useCallback(async (update: { status?: TicketStatus; priority?: TicketPriority }) => {
     if (selected.size === 0 || bulkBusy) return;
+    const label = update.status === 'closed' ? 'Закрыть' : update.status === 'resolved' ? 'Решить' : 'Эскалировать';
     Alert.alert(
-      `${newStatus === 'closed' ? 'Закрыть' : 'Решить'} ${selected.size} тикетов?`,
-      'Это действие изменит статус выбранных тикетов.',
+      `${label} ${selected.size} тикетов?`,
+      'Это действие изменит выбранные тикеты.',
       [
         { text: 'Отмена', style: 'cancel' },
         {
@@ -219,7 +220,7 @@ export default function AdminSupportScreen() {
             try {
               await Promise.all(
                 Array.from(selected).map((id) =>
-                  supportService.updateTicketStatus(id, { status: newStatus })
+                  supportService.updateTicketStatus(id, update)
                 )
               );
               exitSelectMode();
@@ -411,11 +412,14 @@ export default function AdminSupportScreen() {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <TouchableOpacity style={styles.bulkBtn} onPress={() => bulkUpdate('resolved')}>
+              <TouchableOpacity style={styles.bulkBtn} onPress={() => bulkUpdate({ status: 'resolved' })}>
                 <Text style={styles.bulkBtnText}>✓ Решить ({selected.size})</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.bulkBtn, styles.bulkBtnClose]} onPress={() => bulkUpdate('closed')}>
+              <TouchableOpacity style={[styles.bulkBtn, styles.bulkBtnClose]} onPress={() => bulkUpdate({ status: 'closed' })}>
                 <Text style={[styles.bulkBtnText, { color: '#EF4444' }]}>✕ Закрыть ({selected.size})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.bulkBtn, { borderColor: '#F59E0B60' }]} onPress={() => bulkUpdate({ priority: 'urgent' })}>
+                <Text style={[styles.bulkBtnText, { color: '#F59E0B' }]}>🔴 Urgent</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bulkCancelBtn} onPress={exitSelectMode}>
                 <Text style={styles.bulkCancelText}>Отмена</Text>
