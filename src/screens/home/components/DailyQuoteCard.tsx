@@ -49,7 +49,7 @@ export const DailyQuoteCard: React.FC = () => {
   const quote = getDailyQuote();
 
   return (
-    <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '08' }}>
+    <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '08', borderLeftWidth: 3, borderLeftColor: colors.primary + '50' }}>
       <Text style={[typography.captionMedium, { color: colors.primary, marginBottom: spacing.sm }]}>
         ЦИТАТА ДНЯ
       </Text>

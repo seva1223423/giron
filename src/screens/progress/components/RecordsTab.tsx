@@ -99,8 +99,8 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
               <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{unlockedCount} из {ACHIEVEMENT_DEFINITIONS.length}</Text>
             </View>
             {/* Progress bar */}
-            <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, marginBottom: spacing.lg }}>
-              <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.accent, width: `${(unlockedCount / ACHIEVEMENT_DEFINITIONS.length) * 100}%` as any }} />
+            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, marginBottom: spacing.lg }}>
+              <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.accent, width: `${(unlockedCount / ACHIEVEMENT_DEFINITIONS.length) * 100}%` as any }} />
             </View>
             {(['workout', 'strength', 'streak', 'exploration', 'nutrition'] as const).map((cat) => {
               const catItems = achievements.filter((a) => a.category === cat);
