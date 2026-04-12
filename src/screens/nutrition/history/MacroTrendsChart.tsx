@@ -92,7 +92,7 @@ export const MacroTrendsChart: React.FC<Props> = ({ data, targetProtein, targetF
         );
       })}
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2, flex: 1 }}>
         {data.filter((_, i) => i % 2 === 0).map((d, i) => (
           <Text key={i} style={[typography.caption, { color: colors.textTertiary, fontSize: 9 }]} numberOfLines={1}>
             {d.label}
