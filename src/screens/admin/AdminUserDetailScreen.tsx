@@ -3,8 +3,9 @@ import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
   TouchableOpacity, Alert, TextInput,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { adminService } from '../../services/adminService';
 import type { AdminUserDetail, UserRole } from '../../types';
 
@@ -31,6 +32,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export default function AdminUserDetailScreen() {
   const route = useRoute<RouteProp<{ AdminUserDetailScreen: RouteParams }, 'AdminUserDetailScreen'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { userId } = route.params;
 
   const [user, setUser] = useState<AdminUserDetail | null>(null);
@@ -475,10 +477,15 @@ export default function AdminUserDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Обращения в поддержку</Text>
           {user.supportTickets.map((t) => (
-            <View key={t.id} style={styles.listRow}>
-              <Text style={styles.listMain} numberOfLines={1}>{t.subject}</Text>
-              <Text style={styles.listMeta}>{t.status} · {new Date(t.createdAt).toLocaleDateString('ru-RU')}</Text>
-            </View>
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.listRow, { borderRadius: 6 }]}
+              onPress={() => navigation.navigate('AdminTicketScreen', { ticketId: t.id })}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.listMain, { color: '#A5B4FC' }]} numberOfLines={1}>{t.subject}</Text>
+              <Text style={styles.listMeta}>{t.status} · {new Date(t.createdAt).toLocaleDateString('ru-RU')} →</Text>
+            </TouchableOpacity>
           ))}
         </View>
       )}
