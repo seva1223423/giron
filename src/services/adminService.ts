@@ -109,6 +109,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getAnnouncementAudience(targetRole?: string): Promise<{ count: number }> {
+    const res = await api.get('/admin/announcements/preview', { params: { targetRole: targetRole || undefined } });
+    return res.data;
+  },
+
   // ── Logs ──────────────────────────────────────────────────────────────────
   async getLogs(params?: {
     page?: number;
