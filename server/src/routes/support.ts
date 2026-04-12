@@ -130,10 +130,17 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
         data: { status: 'open', updatedAt: new Date() },
       });
     } else {
-      // Touch updatedAt so ticket bubbles to top
+      // Auto-assign to staff member on first reply; upgrade status to in_progress
+      const updateData: any = { updatedAt: new Date() };
+      if (isStaff && !ticket.assignedToId) {
+        updateData.assignedToId = req.userId!;
+      }
+      if (isStaff && ticket.status === 'open') {
+        updateData.status = 'in_progress';
+      }
       await prisma.supportTicket.update({
         where: { id: req.params.id as string },
-        data: { updatedAt: new Date() },
+        data: updateData,
       });
     }
 
