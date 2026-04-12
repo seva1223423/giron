@@ -238,6 +238,11 @@ export const adminService = {
     return res.data;
   },
 
+  async broadcastToSegment(plan: string, subject: string, message: string, expiringSoonOnly?: boolean): Promise<{ sent: number; failed: number; total: number }> {
+    const res = await api.post('/admin/subscriptions/broadcast', { plan, subject, message, expiringSoonOnly });
+    return res.data;
+  },
+
   async getSubscriptions(params?: {
     plan?: string;
     status?: string;
