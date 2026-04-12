@@ -11,6 +11,18 @@ import { adminService } from '../../services/adminService';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { SupportTicket, SupportMessage, TicketStatus, TicketPriority } from '../../types';
 
+const SUB_PLANS = [
+  { value: 'pro', label: 'PRO', color: '#6366F1' },
+  { value: 'trainer', label: 'Trainer', color: '#F59E0B' },
+  { value: 'club', label: 'Club', color: '#10B981' },
+] as const;
+const SUB_DURATIONS = [
+  { days: 30, label: '1 месяц' },
+  { days: 90, label: '3 месяца' },
+  { days: 180, label: '6 месяцев' },
+  { days: 365, label: '1 год' },
+];
+
 const CANNED_REPLIES = [
   'Здравствуйте! Спасибо за обращение. Мы рассмотрим ваш вопрос в ближайшее время.',
   'Ваша проблема была зафиксирована и передана в технический отдел.',
@@ -61,6 +73,10 @@ export default function AdminTicketScreen() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showCanned, setShowCanned] = useState(false);
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [subPlan, setSubPlan] = useState<'pro' | 'trainer' | 'club'>('pro');
+  const [subDays, setSubDays] = useState(30);
+  const [grantingSubb, setGrantingSubb] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,6 +143,26 @@ export default function AdminTicketScreen() {
     }
   }, [ticket, ticketId, userId]);
 
+  const grantSubscription = useCallback(async () => {
+    if (!ticket?.user?.id || grantingSubb) return;
+    setGrantingSubb(true);
+    try {
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + subDays);
+      await adminService.changeUserSubscription(ticket.user.id, {
+        plan: subPlan,
+        status: 'active',
+        endDate: endDate.toISOString().split('T')[0],
+      });
+      setShowSubModal(false);
+      Alert.alert('Готово', `Подписка ${subPlan.toUpperCase()} выдана на ${subDays} дней`);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось выдать подписку');
+    } finally {
+      setGrantingSubb(false);
+    }
+  }, [ticket, subPlan, subDays, grantingSubb]);
+
   const quickClose = useCallback(async () => {
     Alert.alert('Закрыть тикет?', 'Тикет будет помечен как "closed".', [
       { text: 'Отмена', style: 'cancel' },
@@ -168,6 +204,54 @@ export default function AdminTicketScreen() {
                 <Text style={styles.cannedText} numberOfLines={2}>{reply}</Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Subscription grant modal */}
+      <Modal visible={showSubModal} transparent animationType="slide" onRequestClose={() => setShowSubModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🎁 Выдать подписку</Text>
+              <TouchableOpacity onPress={() => setShowSubModal(false)}>
+                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.subModalSection}>Тариф</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              {SUB_PLANS.map((p) => (
+                <TouchableOpacity
+                  key={p.value}
+                  style={[styles.subPlanBtn, subPlan === p.value && { backgroundColor: p.color + '22', borderColor: p.color }]}
+                  onPress={() => setSubPlan(p.value)}
+                >
+                  <Text style={[styles.subPlanText, subPlan === p.value && { color: p.color }]}>{p.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.subModalSection}>Срок</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {SUB_DURATIONS.map((d) => (
+                <TouchableOpacity
+                  key={d.days}
+                  style={[styles.subPlanBtn, subDays === d.days && { backgroundColor: '#6366F122', borderColor: '#6366F1' }]}
+                  onPress={() => setSubDays(d.days)}
+                >
+                  <Text style={[styles.subPlanText, subDays === d.days && { color: '#6366F1' }]}>{d.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[styles.subGrantBtn, grantingSubb && { opacity: 0.6 }]}
+              onPress={grantSubscription}
+              disabled={grantingSubb}
+            >
+              {grantingSubb
+                ? <ActivityIndicator color="#FFFFFF" size="small" />
+                : <Text style={styles.subGrantBtnText}>Выдать {subPlan.toUpperCase()} на {subDays} дней</Text>
+              }
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -228,6 +312,9 @@ export default function AdminTicketScreen() {
       <View style={styles.actionBar}>
         <TouchableOpacity style={styles.actionBarBtn} onPress={() => setShowCanned(true)}>
           <Text style={styles.actionBarBtnText}>💬 Шаблоны</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionBarBtn, { borderColor: '#10B98140' }]} onPress={() => setShowSubModal(true)}>
+          <Text style={[styles.actionBarBtnText, { color: '#10B981' }]}>🎁 Подписка</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBarBtn, ticket.assignedToId === userId && { borderColor: '#10B98160', backgroundColor: '#10B98108' }]}
@@ -318,4 +405,9 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   cannedItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
   cannedText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20 },
+  subModalSection: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  subPlanBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: 'transparent', alignItems: 'center' },
+  subPlanText: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
+  subGrantBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  subGrantBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });
