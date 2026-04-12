@@ -396,6 +396,11 @@ router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) =
             take: 12,
             select: { id: true, weightKg: true, date: true },
           },
+          sleepEntries: {
+            orderBy: { date: 'desc' },
+            take: 14,
+            select: { id: true, date: true, durationHours: true, quality: true },
+          },
         },
       }),
       prisma.workout.findFirst({

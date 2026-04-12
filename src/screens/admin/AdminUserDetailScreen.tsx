@@ -640,6 +640,52 @@ export default function AdminUserDetailScreen() {
         );
       })()}
 
+      {/* Sleep stats */}
+      {user.sleepEntries && user.sleepEntries.length >= 3 && (() => {
+        const entries = user.sleepEntries!;
+        const avgDuration = entries.reduce((s, e) => s + e.durationHours, 0) / entries.length;
+        const qualityEntries = entries.filter((e) => e.quality != null);
+        const avgQuality = qualityEntries.length > 0
+          ? qualityEntries.reduce((s, e) => s + (e.quality ?? 0), 0) / qualityEntries.length
+          : null;
+        const sleepColor = avgDuration >= 7.5 ? '#10B981' : avgDuration >= 6 ? '#F59E0B' : '#EF4444';
+        return (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Сон (последние {entries.length} записей)</Text>
+            <View style={{ flexDirection: 'row', gap: 16, marginBottom: 8 }}>
+              <View>
+                <Text style={[styles.statValue, { fontSize: 20, color: sleepColor }]}>
+                  {avgDuration.toFixed(1)}ч
+                </Text>
+                <Text style={styles.statLabel}>ср. продолж.</Text>
+              </View>
+              {avgQuality !== null && (
+                <View>
+                  <Text style={[styles.statValue, { fontSize: 20, color: avgQuality >= 4 ? '#10B981' : avgQuality >= 3 ? '#F59E0B' : '#EF4444' }]}>
+                    {avgQuality.toFixed(1)}/5
+                  </Text>
+                  <Text style={styles.statLabel}>ср. качество</Text>
+                </View>
+              )}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 32, gap: 2 }}>
+              {[...entries].reverse().map((e, i) => {
+                const h = Math.max(3, Math.round((e.durationHours / 12) * 32));
+                return (
+                  <View
+                    key={e.id}
+                    style={{
+                      flex: 1, height: h, borderRadius: 2,
+                      backgroundColor: i === entries.length - 1 ? '#6366F1' : '#6366F150',
+                    }}
+                  />
+                );
+              })}
+            </View>
+          </View>
+        );
+      })()}
+
       {/* Workout heatmap (last 90 days) */}
       {user.workoutDates90d && user.workoutDates90d.length > 0 && (
         <View style={styles.card}>
