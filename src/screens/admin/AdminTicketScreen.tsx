@@ -88,7 +88,27 @@ export default function AdminTicketScreen() {
     }
   }, [ticketId]);
 
+  // Silent poll — only append new messages, no loading spinner
+  const poll = useCallback(async () => {
+    try {
+      const data = await supportService.getTicket(ticketId);
+      setTicket((prev) => {
+        if (!prev) return data;
+        if (data.messages.length !== prev.messages.length) {
+          setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+        }
+        return data;
+      });
+    } catch { /* ignore */ }
+  }, [ticketId]);
+
   useEffect(() => { load(); }, []);
+
+  // Auto-poll every 20s while screen is mounted
+  useEffect(() => {
+    const interval = setInterval(poll, 20000);
+    return () => clearInterval(interval);
+  }, [poll]);
 
   useEffect(() => {
     if (ticket?.messages.length) {
