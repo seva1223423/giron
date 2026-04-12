@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  RefreshControl, TouchableOpacity,
+  RefreshControl, TouchableOpacity, Alert,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { adminService } from '../../services/adminService';
 import type { AdminAnalytics } from '../../types';
 
@@ -76,6 +78,21 @@ export default function AdminAnalyticsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState(30);
+  const [exporting, setExporting] = useState(false);
+
+  const exportCSV = useCallback(async () => {
+    const canShare = await Sharing.isAvailableAsync();
+    if (!canShare) { Alert.alert('Недоступно', 'Функция экспорта недоступна на этом устройстве'); return; }
+    setExporting(true);
+    try {
+      const csv = await adminService.exportAnalyticsCSV(period);
+      const fileName = `analytics_${period}d_${new Date().toISOString().split('T')[0]}.csv`;
+      const path = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Экспорт аналитики' });
+    } catch { Alert.alert('Ошибка', 'Не удалось экспортировать аналитику'); }
+    finally { setExporting(false); }
+  }, [period]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -145,16 +162,24 @@ export default function AdminAnalyticsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#6366F1" />}
     >
       {/* Period selector */}
-      <View style={styles.periodRow}>
-        {PERIODS.map((p) => (
-          <TouchableOpacity
-            key={p.value}
-            style={[styles.periodBtn, period === p.value && styles.periodBtnActive]}
-            onPress={() => setPeriod(p.value)}
-          >
-            <Text style={[styles.periodText, period === p.value && styles.periodTextActive]}>{p.label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={[styles.periodRow, { justifyContent: 'space-between' }]}>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {PERIODS.map((p) => (
+            <TouchableOpacity
+              key={p.value}
+              style={[styles.periodBtn, period === p.value && styles.periodBtnActive]}
+              onPress={() => setPeriod(p.value)}
+            >
+              <Text style={[styles.periodText, period === p.value && styles.periodTextActive]}>{p.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity style={styles.periodBtn} onPress={exportCSV} disabled={exporting}>
+          {exporting
+            ? <ActivityIndicator size="small" color="#6366F1" />
+            : <Text style={[styles.periodText, { color: '#6366F1' }]}>CSV</Text>
+          }
+        </TouchableOpacity>
       </View>
 
       {/* Insights */}

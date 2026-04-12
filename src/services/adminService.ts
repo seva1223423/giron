@@ -157,6 +157,11 @@ export const adminService = {
     return res.data as string;
   },
 
+  async exportAnalyticsCSV(days?: number): Promise<string> {
+    const res = await api.get('/admin/analytics/export', { params: { days }, responseType: 'text' });
+    return res.data as string;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;
