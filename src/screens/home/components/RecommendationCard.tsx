@@ -79,7 +79,7 @@ export const RecommendationCard: React.FC<Props> = ({
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{workoutRecommendation.emoji}</Text>
-            <Text style={[typography.h4, { color: colors.text }]}>{workoutRecommendation.name}</Text>
+            <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>{workoutRecommendation.name}</Text>
           </View>
           <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
             {workoutRecommendation.daysLabel}

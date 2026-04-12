@@ -131,7 +131,7 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
       )}
 
       {/* Stats row */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', flexWrap: 'wrap' }}>
         <View style={{ alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <Text style={[typography.number, { color: colors.primary }]}>{weekWorkouts.length}</Text>
