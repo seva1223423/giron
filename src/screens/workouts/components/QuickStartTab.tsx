@@ -106,7 +106,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
                   }}
                   style={[styles.templateCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◎</Text></View>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◎</Text></View>
                   <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.xs }]} numberOfLines={2}>{tpl.name}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>{tpl.exercises.length} упр.</Text>
                 </TouchableOpacity>
@@ -121,7 +121,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
         <FadeIn key={i} delay={i * 80}>
           <Card style={{ marginBottom: spacing.md }} onPress={() => createWorkoutFromTemplate(template)}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{template.emoji}</Text></View>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{template.emoji}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{template.name}</Text>
                 <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>

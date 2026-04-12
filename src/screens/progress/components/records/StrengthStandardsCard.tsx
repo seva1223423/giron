@@ -58,7 +58,7 @@ export const StrengthStandardsCard: React.FC<Props> = ({ personalRecords, bodyWe
               <Text style={[typography.smallMedium, { color: colors.text, flex: 1, marginRight: spacing.sm }]} numberOfLines={1}>{item.name}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{item.pr} кг  ({item.ratio}×)</Text>
-                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: LEVEL_COLORS[item.levelIdx] + '25' }}>
+                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: LEVEL_COLORS[item.levelIdx] + '25', borderWidth: 1, borderColor: LEVEL_COLORS[item.levelIdx] + '45' }}>
                   <Text style={[typography.captionMedium, { color: LEVEL_COLORS[item.levelIdx], fontSize: 10 }]}>{LEVEL_NAMES[item.levelIdx]}</Text>
                 </View>
               </View>

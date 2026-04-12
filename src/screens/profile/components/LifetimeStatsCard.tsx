@@ -77,7 +77,7 @@ export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 })
 };
 
 const StatBox: React.FC<{ emoji: string; value: string; label: string; bg: string; color: string; textSecondary: string }> = ({ emoji, value, label, bg, color, textSecondary }) => (
-  <View style={{ borderRadius: 12, padding: 12, alignItems: 'center', flex: 1, minWidth: '45%', backgroundColor: bg }}>
+  <View style={{ borderRadius: 12, padding: 12, alignItems: 'center', flex: 1, minWidth: '45%', backgroundColor: bg, borderWidth: 1, borderColor: color + '30' }}>
     <Text style={{ fontSize: 16, fontWeight: '700', color }}>{emoji}</Text>
     <Text style={[typography.number, { color, marginTop: 4 }]}>{value}</Text>
     <Text style={[typography.caption, { color: textSecondary }]} numberOfLines={1}>{label}</Text>

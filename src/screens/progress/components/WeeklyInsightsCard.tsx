@@ -99,7 +99,7 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
           {!loading && (
             <TouchableOpacity
               onPress={generate}
-              style={{ backgroundColor: colors.primary + '15', borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}
+              style={{ backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40', borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}
             >
               <Text style={[typography.captionMedium, { color: colors.primary }]}>
                 {insight ? 'Обновить' : 'Получить'}

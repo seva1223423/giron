@@ -35,7 +35,7 @@ export const StepsCard: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <View style={[styles.iconBox, { backgroundColor: colors.success + '15' }]}>
+            <View style={[styles.iconBox, { backgroundColor: colors.success + '15', borderColor: colors.success + '40' }]}>
               <Text style={{ fontSize: 16 }}>👣</Text>
             </View>
             <View>
@@ -120,7 +120,7 @@ export const StepsCard: React.FC = () => {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  iconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  iconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
   progressTrack: { height: 8, borderRadius: 4, marginBottom: spacing.xs, overflow: 'hidden', position: 'relative' },
   progressFill: { height: 8, borderRadius: 4 },
   goalMarker: { position: 'absolute', right: 0, top: -2, width: 2, height: 12, borderRadius: 1 },
