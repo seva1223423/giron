@@ -827,7 +827,7 @@ router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/support — all tickets with filters */
 router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, priority, assignedToMe, search, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const { status, priority, assignedToMe, search, sort = 'priority', page = '1', limit = '20' } = req.query as Record<string, string>;
     const where: any = {};
     if (status) where.status = status;
     if (priority) where.priority = priority;
@@ -840,6 +840,13 @@ router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => 
         { user: { lastName: { contains: search, mode: 'insensitive' } } },
       ];
     }
+
+    // Build sort order
+    const orderBy: any[] =
+      sort === 'oldest' ? [{ createdAt: 'asc' }] :
+      sort === 'newest' ? [{ updatedAt: 'desc' }] :
+      sort === 'created_desc' ? [{ createdAt: 'desc' }] :
+      [{ priority: 'desc' }, { status: 'asc' }, { updatedAt: 'desc' }]; // default: priority
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [tickets, total] = await Promise.all([
@@ -854,11 +861,7 @@ router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => 
             include: { author: { select: { firstName: true, lastName: true } } },
           },
         },
-        orderBy: [
-          { priority: 'desc' },
-          { status: 'asc' },
-          { updatedAt: 'desc' },
-        ],
+        orderBy,
         skip,
         take: parseInt(limit),
       }),
