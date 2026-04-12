@@ -203,7 +203,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
-  periodRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderBottomWidth: 1 },
+  periodRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderBottomWidth: 1, flexWrap: 'wrap' },
   periodChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: 16, borderWidth: 1 },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

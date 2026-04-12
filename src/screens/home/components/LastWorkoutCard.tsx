@@ -48,7 +48,7 @@ export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWor
     <Card style={{ marginBottom: spacing.lg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
         <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>{label}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
           <TouchableOpacity
             onPress={handleShare}
             style={{ backgroundColor: colors.primary + '15', paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: borderRadius.sm }}

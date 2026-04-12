@@ -27,7 +27,7 @@ export const ComparisonCard: React.FC<Props> = ({ workout }) => {
       <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>
         VS ПРОШЛЫЙ РАЗ ({new Date(prevSameWorkout.completedAt!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })})
       </Text>
-      <View style={{ flexDirection: 'row', gap: spacing.xxl, marginTop: spacing.md }}>
+      <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.md, flexWrap: 'wrap' }}>
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
             <Text style={[typography.numberSmall, { fontSize: 22, color: volumeDiff > 0 ? colors.success : volumeDiff < 0 ? colors.error : colors.textSecondary }]}>
