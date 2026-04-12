@@ -67,7 +67,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // PR toast state
-  const [prToast, setPrToast] = useState<{ name: string; rm: number } | null>(null);
+  const [prToast, setPrToast] = useState<{ name: string; rm: number; prevRm?: number } | null>(null);
   const prToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -92,11 +92,11 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     return () => clearInterval(interval);
   }, [activeWorkout?.workout?.id]);
 
-  const showPrToast = useCallback((name: string, rm: number) => {
+  const showPrToast = useCallback((name: string, rm: number, prevRm?: number) => {
     if (prToastTimer.current) clearTimeout(prToastTimer.current);
-    setPrToast({ name, rm });
+    setPrToast({ name, rm, prevRm });
     haptic.success();
-    prToastTimer.current = setTimeout(() => setPrToast(null), 3500);
+    prToastTimer.current = setTimeout(() => setPrToast(null), 3800);
   }, []);
 
   // Auto-advance to next exercise when rest is done after last set
@@ -248,7 +248,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       const newRM = weight * (1 + reps / 30);
       const prevBest = bestRMs[currentExercise.exerciseId] ?? 0;
       if (newRM > prevBest) {
-        showPrToast(currentExercise.exercise.name, Math.round(newRM));
+        showPrToast(currentExercise.exercise.name, Math.round(newRM), prevBest > 0 ? Math.round(prevBest) : undefined);
         setSessionPRs((prev) => new Set(prev).add(currentExercise.exerciseId));
       }
     }

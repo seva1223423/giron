@@ -1,12 +1,37 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeStore, useWorkoutStore, useAuthStore } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
-import { Workout } from '../../../types';
+import { Workout, MuscleGroup, ExerciseType } from '../../../types';
+
+// Muscle group → short label + hue (HSL)
+const MUSCLE_META: Partial<Record<MuscleGroup, { abbr: string; color: string }>> = {
+  chest:       { abbr: 'Гр', color: '#EF4444' },
+  back:        { abbr: 'Сп', color: '#3B82F6' },
+  shoulders:   { abbr: 'Пл', color: '#8B5CF6' },
+  biceps:      { abbr: 'Бц', color: '#F59E0B' },
+  triceps:     { abbr: 'Тц', color: '#F97316' },
+  forearms:    { abbr: 'Пр', color: '#84CC16' },
+  abs:         { abbr: 'Пр', color: '#14B8A6' },
+  quads:       { abbr: 'Кв', color: '#EC4899' },
+  hamstrings:  { abbr: 'Бд', color: '#A855F7' },
+  glutes:      { abbr: 'Яг', color: '#F43F5E' },
+  calves:      { abbr: 'Ик', color: '#06B6D4' },
+  lower_back:  { abbr: 'Пс', color: '#10B981' },
+  traps:       { abbr: 'Тр', color: '#6366F1' },
+  lats:        { abbr: 'Ши', color: '#2563EB' },
+};
+
+// MET values per exercise type for calorie estimation
+const MET_BY_TYPE: Record<ExerciseType, number> = {
+  barbell: 6, dumbbell: 5, machine: 4, cable: 4,
+  bodyweight: 5, kettlebell: 6, band: 3,
+  cardio: 7, stretch: 2,
+};
 
 interface Props {
   workout: Workout;
@@ -45,6 +70,7 @@ const MiniProgressRing: React.FC<{ progress: number; color: string; bgColor: str
 export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalCompletedSets, totalSets, onCancel, onFinish }) => {
   const { colors } = useThemeStore();
   const { workoutDurationGoal } = useSettingsStore();
+  const { user } = useAuthStore();
   const safeTop = useSafeTop();
 
   const completionProgress = totalSets > 0 ? totalCompletedSets / totalSets : 0;
@@ -58,12 +84,45 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
     }, 0);
   }, [workout.exercises]);
 
+  // Unique primary muscles from all exercises (up to 6)
+  const muscleDots = useMemo(() => {
+    const seen = new Set<MuscleGroup>();
+    const result: Array<{ muscle: MuscleGroup; abbr: string; color: string }> = [];
+    for (const ex of workout.exercises) {
+      for (const m of ex.exercise.primaryMuscles) {
+        if (!seen.has(m) && MUSCLE_META[m]) {
+          seen.add(m);
+          result.push({ muscle: m, ...MUSCLE_META[m]! });
+          if (result.length >= 6) break;
+        }
+      }
+      if (result.length >= 6) break;
+    }
+    return result;
+  }, [workout.exercises]);
+
+  // Estimated calories burned: MET-based
+  const estimatedCalories = useMemo(() => {
+    const bodyWeightKg = user?.weightKg || 80;
+    // Average MET across exercises (weighted by set count)
+    let totalMet = 0; let setCount = 0;
+    for (const ex of workout.exercises) {
+      const met = MET_BY_TYPE[ex.exercise.type] ?? 5;
+      const count = ex.sets.length;
+      totalMet += met * count;
+      setCount += count;
+    }
+    const avgMet = setCount > 0 ? totalMet / setCount : 5;
+    const hours = elapsed / 60;
+    return Math.round(avgMet * bodyWeightKg * hours);
+  }, [workout.exercises, elapsed, user?.weightKg]);
+
   const goalText = workoutDurationGoal > 0 ? (() => {
     const remaining = workoutDurationGoal - elapsed;
     if (remaining > 0) {
-      return { text: `\u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C ${remaining} \u043C\u0438\u043D`, color: colors.success };
+      return { text: `осталось ${remaining} мин`, color: colors.success };
     }
-    return { text: `\u2212${Math.abs(remaining)} \u043C\u0438\u043D (\u043F\u0435\u0440\u0435\u0431\u043E\u0440)`, color: colors.warning };
+    return { text: `\u2212${Math.abs(remaining)} мин (перебор)`, color: colors.warning };
   })() : null;
 
   const formatVolume = (kg: number) => {
@@ -73,48 +132,69 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
 
   return (
     <View style={{
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      paddingTop: safeTop, paddingBottom: spacing.md, paddingHorizontal: spacing.xl,
+      paddingTop: safeTop, paddingBottom: spacing.sm, paddingHorizontal: spacing.xl,
       backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
     }}>
-      <TouchableOpacity onPress={onCancel}>
-        <Text style={[typography.bodySemibold, { color: colors.error }]}>{'\u041E\u0442\u043C\u0435\u043D\u0430'}</Text>
-      </TouchableOpacity>
+      {/* Top row: cancel / name / finish */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <TouchableOpacity onPress={onCancel} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
+        </TouchableOpacity>
 
-      <View style={{ alignItems: 'center', flex: 1 }}>
-        <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>
-          {workout.name}
-        </Text>
-
-        {/* Elapsed time - more prominent */}
-        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginTop: 2 }}>
-          {elapsed} {'\u043C\u0438\u043D'}
-        </Text>
-
-        {/* Stats row with progress ring */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 }}>
-          <MiniProgressRing progress={completionProgress} color={colors.primary} bgColor={colors.border} />
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-            {totalCompletedSets}/{totalSets} {'\u043F\u043E\u0434\u0445.'} {'\u2022'} {formatVolume(totalVolume)} {'\u043A\u0433'}
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>
+            {workout.name}
+          </Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginTop: 1 }}>
+            {elapsed} мин
           </Text>
         </View>
 
-        {goalText && (
-          <Text style={[typography.caption, { color: goalText.color, marginTop: 1 }]}>
-            {goalText.text}
+        <TouchableOpacity onPress={onFinish} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={[typography.bodySemibold, {
+            color: colors.success,
+            fontSize: totalCompletedSets === totalSets && totalSets > 0 ? 18 : 16,
+            fontWeight: totalCompletedSets === totalSets && totalSets > 0 ? '800' : '600',
+          }]}>
+            {totalCompletedSets === totalSets && totalSets > 0 ? 'Завершить ◉' : 'Готово'}
           </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bottom row: progress ring + stats + muscle dots + calories */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs, gap: spacing.md }}>
+        <MiniProgressRing progress={completionProgress} color={colors.primary} bgColor={colors.border} />
+        <Text style={[typography.caption, { color: colors.textSecondary }]}>
+          {totalCompletedSets}/{totalSets} подх. • {formatVolume(totalVolume)} кг
+        </Text>
+
+        {estimatedCalories > 0 && (
+          <Text style={[typography.caption, { color: colors.warning }]}>
+            ~{estimatedCalories} ккал
+          </Text>
+        )}
+
+        {/* Muscle group dots */}
+        {muscleDots.length > 0 && (
+          <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+            {muscleDots.map(({ muscle, abbr, color }) => (
+              <View key={muscle} style={{
+                width: 20, height: 20, borderRadius: 10,
+                backgroundColor: color + '22', borderWidth: 1, borderColor: color + '80',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ fontSize: 7, fontWeight: '700', color }}>{abbr}</Text>
+              </View>
+            ))}
+          </View>
         )}
       </View>
 
-      <TouchableOpacity onPress={onFinish}>
-        <Text style={[typography.bodySemibold, {
-          color: colors.success,
-          fontSize: totalCompletedSets === totalSets && totalSets > 0 ? 18 : 16,
-          fontWeight: totalCompletedSets === totalSets && totalSets > 0 ? '800' : '600',
-        }]}>
-          {totalCompletedSets === totalSets && totalSets > 0 ? '\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u25C9' : '\u0413\u043E\u0442\u043E\u0432\u043E'}
+      {goalText && (
+        <Text style={[typography.caption, { color: goalText.color, textAlign: 'center', marginTop: 2 }]}>
+          {goalText.text}
         </Text>
-      </TouchableOpacity>
+      )}
     </View>
   );
 };

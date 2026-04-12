@@ -14,3 +14,4 @@ export { WaterCard } from './WaterCard';
 export { CardioWeekCard } from './CardioWeekCard';
 export { SleepCard } from './SleepCard';
 export { RecoveryScoreCard } from './RecoveryScoreCard';
+export { TodaySummaryCard } from './TodaySummaryCard';
