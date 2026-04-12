@@ -87,9 +87,9 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.md }}>
-        <Text style={[typography.h2, { color: colors.text }]}>Новости</Text>
+        <Text style={[typography.h2, { color: colors.text }]} numberOfLines={1}>Новости</Text>
         <TouchableOpacity onPress={onFetchFreshNews} disabled={refreshing}>
-          <Text style={[typography.small, { color: refreshing ? colors.textTertiary : colors.primary }]}>{refreshing ? 'Обновление...' : '↻ Обновить'}</Text>
+          <Text style={[typography.small, { color: refreshing ? colors.textTertiary : colors.primary }]} numberOfLines={1}>{refreshing ? 'Обновление...' : '↻ Обновить'}</Text>
         </TouchableOpacity>
       </View>
 
