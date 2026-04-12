@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet, Image,
-  Dimensions, Linking, Alert, Animated,
+  Dimensions, Linking, Animated, ScrollView,
 } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
@@ -19,13 +19,14 @@ interface Props {
   muscleLabels: Record<string, string>;
   description?: string;
   instructions?: string[];
+  tips?: string[];
+  commonMistakes?: string[];
 }
 
 async function openYouTube(youtubeId?: string, exerciseName?: string) {
   try {
     const query = encodeURIComponent(`${exerciseName || ''} техника выполнения`);
     if (youtubeId) {
-      // Try YouTube app first, then browser
       const appUrl = `youtube://www.youtube.com/watch?v=${youtubeId}`;
       const webUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
       const canApp = await Linking.canOpenURL(appUrl);
@@ -44,126 +45,148 @@ async function openYouTube(youtubeId?: string, exerciseName?: string) {
 
 export const ExerciseVideoModal: React.FC<Props> = ({
   visible, onClose, exerciseName, youtubeId,
-  primaryMuscles, muscleLabels, description, instructions,
+  primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
   const thumbUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
-  const fallbackUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
+  const [activeTab, setActiveTab] = useState<'steps' | 'tips'>('steps');
 
-  // Pulse animation for play button
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (!visible) return;
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.12, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
       ])
     );
     anim.start();
     return () => anim.stop();
   }, [visible]);
 
-  const slideAnim = useRef(new Animated.Value(600)).current;
+  const slideAnim = useRef(new Animated.Value(700)).current;
   useEffect(() => {
     if (visible) {
+      setActiveTab('steps');
       Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }).start();
     } else {
-      slideAnim.setValue(600);
+      slideAnim.setValue(700);
     }
   }, [visible]);
+
+  const hasTips = (tips?.length ?? 0) > 0;
+  const hasMistakes = (commonMistakes?.length ?? 0) > 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-      <Animated.View
-        style={[styles.sheet, { backgroundColor: colors.surface, transform: [{ translateY: slideAnim }] }]}
-      >
+      <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, transform: [{ translateY: slideAnim }] }]}>
         {/* Drag handle */}
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
         {/* YouTube thumbnail */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => openYouTube(youtubeId, exerciseName)}
-          style={styles.thumbnailWrapper}
-        >
+        <TouchableOpacity activeOpacity={0.88} onPress={() => openYouTube(youtubeId, exerciseName)} style={styles.thumbnailWrapper}>
           {thumbUrl ? (
-            <Image
-              source={{ uri: thumbUrl }}
-              style={styles.thumbnail}
-              resizeMode="cover"
-              defaultSource={fallbackUrl ? { uri: fallbackUrl } : undefined}
-            />
+            <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
           ) : (
             <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
-              <Text style={styles.placeholderSearch}>🔍</Text>
-              <Text style={styles.placeholderText}>Поиск в YouTube</Text>
+              <Text style={styles.placeholderIcon}>▶</Text>
+              <Text style={styles.placeholderText}>Найти в YouTube</Text>
             </View>
           )}
-
-          {/* Dark overlay */}
           <View style={styles.overlay} />
-
-          {/* Muscle label */}
           <Text style={styles.muscleLabel}>
             {primaryMuscles.slice(0, 3).map((m) => muscleLabels[m] || m).join(' · ')}
           </Text>
-
-          {/* Play button */}
           <Animated.View style={[styles.playWrapper, { transform: [{ scale: pulse }] }]}>
             <View style={styles.playCircle}>
               <Text style={styles.playIcon}>▶</Text>
             </View>
           </Animated.View>
-
-          {/* YouTube badge */}
           <View style={styles.ytBadge}>
-            <Text style={styles.ytBadgeText}>YouTube</Text>
+            <Text style={styles.ytBadgeText}>{youtubeId ? 'YouTube' : 'Найти'}</Text>
           </View>
         </TouchableOpacity>
 
-        {/* Exercise info */}
-        <View style={styles.info}>
-          <Text style={[typography.h4, { color: colors.text }]} numberOfLines={2}>{exerciseName}</Text>
+        {/* Exercise name + description */}
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+          <Text style={[typography.h4, { color: colors.text }]}>{exerciseName}</Text>
           {description && (
-            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm }]} numberOfLines={3}>
+            <Text style={[typography.small, { color: colors.textSecondary, marginTop: 4 }]} numberOfLines={2}>
               {description}
             </Text>
           )}
-
-          {/* Instructions preview (first 2 steps) */}
-          {instructions && instructions.length > 0 && (
-            <View style={{ marginTop: spacing.md }}>
-              {instructions.slice(0, 2).map((step, i) => (
-                <View key={i} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-                  <View style={[styles.stepDot, { backgroundColor: colors.primary }]}>
-                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>{i + 1}</Text>
-                  </View>
-                  <Text style={[typography.small, { color: colors.textSecondary, flex: 1 }]} numberOfLines={2}>{step}</Text>
-                </View>
-              ))}
-              {instructions.length > 2 && (
-                <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                  +{instructions.length - 2} шагов техники...
-                </Text>
-              )}
-            </View>
-          )}
         </View>
 
+        {/* Tab switcher */}
+        {(hasTips || hasMistakes) && (
+          <View style={{ flexDirection: 'row', paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm }}>
+            <TouchableOpacity
+              onPress={() => setActiveTab('steps')}
+              style={[styles.tabBtn, { borderColor: activeTab === 'steps' ? colors.primary : colors.border, backgroundColor: activeTab === 'steps' ? colors.primary + '10' : 'transparent' }]}
+            >
+              <Text style={[typography.small, { color: activeTab === 'steps' ? colors.primary : colors.textSecondary, fontWeight: '600' }]}>
+                Техника ({instructions?.length ?? 0})
+              </Text>
+            </TouchableOpacity>
+            {hasTips && (
+              <TouchableOpacity
+                onPress={() => setActiveTab('tips')}
+                style={[styles.tabBtn, { borderColor: activeTab === 'tips' ? colors.success : colors.border, backgroundColor: activeTab === 'tips' ? colors.success + '10' : 'transparent' }]}
+              >
+                <Text style={[typography.small, { color: activeTab === 'tips' ? colors.success : colors.textSecondary, fontWeight: '600' }]}>
+                  Советы {hasMistakes ? `+ Ошибки` : `(${tips!.length})`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Scrollable content */}
+        <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md }} showsVerticalScrollIndicator={false}>
+          {activeTab === 'steps' && instructions && instructions.map((step, i) => (
+            <View key={i} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+              <View style={[styles.stepDot, { backgroundColor: colors.primary }]}>
+                <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>{i + 1}</Text>
+              </View>
+              <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{step}</Text>
+            </View>
+          ))}
+
+          {activeTab === 'tips' && (
+            <>
+              {hasTips && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: colors.success }]}>СОВЕТЫ</Text>
+                  {tips!.map((tip, i) => (
+                    <View key={i} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+                      <Text style={{ fontSize: 12, color: colors.success }}>✓</Text>
+                      <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{tip}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+              {hasMistakes && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: colors.error, marginTop: spacing.sm }]}>ТИПИЧНЫЕ ОШИБКИ</Text>
+                  {commonMistakes!.map((m, i) => (
+                    <View key={i} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+                      <Text style={{ fontSize: 12, color: colors.error }}>✕</Text>
+                      <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{m}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </ScrollView>
+
         {/* CTA buttons */}
-        <View style={styles.buttons}>
-          <TouchableOpacity
-            style={[styles.watchBtn, { backgroundColor: '#FF0000' }]}
-            onPress={() => openYouTube(youtubeId, exerciseName)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.watchBtnText}>
-              {youtubeId ? '▶ Открыть видео в YouTube' : '🔍 Найти в YouTube'}
-            </Text>
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
+          <TouchableOpacity style={[styles.watchBtn]} onPress={() => openYouTube(youtubeId, exerciseName)}>
+            <Text style={styles.watchBtnText}>{youtubeId ? '▶ Открыть в YouTube' : '🔍 Найти в YouTube'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.closeBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]} onPress={onClose}>
+          <TouchableOpacity style={[styles.closeBtn, { borderColor: colors.border }]} onPress={onClose}>
             <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>Закрыть</Text>
           </TouchableOpacity>
         </View>
@@ -173,99 +196,37 @@ export const ExerciseVideoModal: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-  },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)' },
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
-    paddingBottom: 36,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    overflow: 'hidden', paddingBottom: 36,
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  thumbnailWrapper: {
-    width: '100%',
-    height: THUMB_H,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  thumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  thumbnailPlaceholder: {
-    backgroundColor: '#1A1A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderSearch: { fontSize: 40, marginBottom: 8 },
-  placeholderText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.38)',
-  },
+  handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
+  thumbnailWrapper: { width: '100%', height: THUMB_H, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  thumbnail: { width: '100%', height: '100%' },
+  thumbnailPlaceholder: { backgroundColor: '#0F0F1A', alignItems: 'center', justifyContent: 'center' },
+  placeholderIcon: { fontSize: 44, marginBottom: 8, color: '#FFF' },
+  placeholderText: { color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '600' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
   muscleLabel: {
-    position: 'absolute',
-    top: 12,
-    left: 14,
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    position: 'absolute', top: 12, left: 14,
+    color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700',
+    textTransform: 'uppercase', letterSpacing: 1,
   },
-  playWrapper: {
-    position: 'absolute',
-  },
+  playWrapper: { position: 'absolute' },
   playCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#FF0000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FF0000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 8,
+    width: 72, height: 72, borderRadius: 36, backgroundColor: '#FF0000',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#FF0000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.6, shadowRadius: 14, elevation: 10,
   },
-  playIcon: { color: '#FFFFFF', fontSize: 24, marginLeft: 4 },
-  ytBadge: {
-    position: 'absolute',
-    bottom: 10,
-    right: 12,
-    backgroundColor: '#FF0000',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  ytBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  info: { padding: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm },
-  stepDot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  buttons: { paddingHorizontal: spacing.lg, gap: spacing.sm },
-  watchBtn: {
-    borderRadius: borderRadius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  watchBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  closeBtn: {
-    borderRadius: borderRadius.md,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
+  playIcon: { color: '#FFF', fontSize: 26, marginLeft: 4 },
+  ytBadge: { position: 'absolute', bottom: 10, right: 12, backgroundColor: '#FF0000', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
+  ytBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  tabBtn: { paddingVertical: 5, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
+  sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, marginBottom: spacing.xs },
+  stepDot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
+  watchBtn: { backgroundColor: '#FF0000', borderRadius: borderRadius.md, paddingVertical: 14, alignItems: 'center' },
+  watchBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  closeBtn: { borderRadius: borderRadius.md, paddingVertical: 12, alignItems: 'center', borderWidth: 1 },
 });
