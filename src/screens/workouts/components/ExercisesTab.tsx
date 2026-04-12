@@ -112,7 +112,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             activeOpacity={0.7}
             onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
           >
-            <Text style={[typography.bodySemibold, { color: colors.text }]}>{ex.name}</Text>
+            <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
             <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
               {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
             </Text>

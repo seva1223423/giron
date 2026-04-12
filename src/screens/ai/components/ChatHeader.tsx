@@ -34,7 +34,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
       <View style={{ alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>IC</Text></View>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 }}>Iron Coach</Text>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 }} numberOfLines={1}>Iron Coach</Text>
           <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
           {isPremiumActive() && (
             <View style={[styles.badge, { backgroundColor: colors.accent }]}>
@@ -42,7 +42,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
             </View>
           )}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
           <Text style={[typography.caption, { color: colors.textTertiary }]}>
             {isPremiumActive()
               ? '∞ Безлимитный доступ'
