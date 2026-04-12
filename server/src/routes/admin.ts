@@ -47,6 +47,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       newPrevWeek,
       workoutsPrevWeek,
       aiPrevWeek,
+      subsExpiringSoon,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
@@ -71,6 +72,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.user.count({ where: { createdAt: { gte: prevWeekStart, lt: weekStart } } }),
       prisma.workout.count({ where: { completedAt: { gte: prevWeekStart, lt: weekStart } } }),
       prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevWeekStart, lt: weekStart } } }),
+      prisma.subscription.count({ where: { status: 'active', plan: { not: 'free' }, endDate: { gte: now, lte: new Date(now.getTime() + 7 * 86400 * 1000) } } }),
     ]);
 
     // Server metrics
@@ -127,6 +129,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         status: s.status,
         count: s._count.id,
       })),
+      subsExpiringSoon,
       trends: {
         usersWeekVsPrev: newPrevWeek > 0 ? Math.round(((newThisWeek - newPrevWeek) / newPrevWeek) * 100) : null,
         workoutsWeekVsPrev: workoutsPrevWeek > 0 ? Math.round(((workoutsThisWeek - workoutsPrevWeek) / workoutsPrevWeek) * 100) : null,
