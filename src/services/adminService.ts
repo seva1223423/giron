@@ -162,6 +162,11 @@ export const adminService = {
     return res.data as string;
   },
 
+  async getCohorts(): Promise<Array<{ week: string; signups: number; activeThisWeek: number; retentionPct: number }>> {
+    const res = await api.get('/admin/analytics/cohorts');
+    return res.data;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;

@@ -837,6 +837,48 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
   }
 });
 
+/** GET /admin/analytics/cohorts — weekly cohort retention: % of each signup week still active */
+router.get('/analytics/cohorts', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const weeks = 8; // last 8 weeks
+    const cohorts: Array<{ week: string; signups: number; activeThisWeek: number; retentionPct: number }> = [];
+
+    for (let i = weeks - 1; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 86400 * 1000);
+      const weekEnd = new Date(now.getTime() - i * 7 * 86400 * 1000);
+      const activeStart = new Date(now.getTime() - 7 * 86400 * 1000); // last 7 days
+
+      const [signupIds, activeIds] = await Promise.all([
+        prisma.user.findMany({
+          where: { createdAt: { gte: weekStart, lt: weekEnd } },
+          select: { id: true },
+        }),
+        prisma.workout.groupBy({
+          by: ['userId'],
+          where: { completedAt: { gte: activeStart } },
+        }),
+      ]);
+
+      const signupSet = new Set(signupIds.map((u) => u.id));
+      const activeSet = new Set(activeIds.map((w) => w.userId));
+      const cohortActive = [...signupSet].filter((id) => activeSet.has(id)).length;
+
+      cohorts.push({
+        week: weekStart.toISOString().split('T')[0],
+        signups: signupSet.size,
+        activeThisWeek: cohortActive,
+        retentionPct: signupSet.size > 0 ? Math.round((cohortActive / signupSet.size) * 100) : 0,
+      });
+    }
+
+    res.json(cohorts);
+  } catch (e) {
+    logger.error('GET /admin/analytics/cohorts:', e);
+    res.status(500).json({ error: 'Ошибка когортного анализа' });
+  }
+});
+
 /** GET /admin/analytics/export — CSV export of daily timeline data */
 router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
