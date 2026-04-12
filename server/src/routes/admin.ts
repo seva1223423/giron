@@ -1521,6 +1521,56 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
   }
 });
 
+/** GET /admin/report/daily — generate text summary for a given date (defaults to today) */
+router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { date } = req.query as Record<string, string>;
+    const reportDate = date ? new Date(date) : new Date();
+    reportDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(reportDate.getTime() + 86400 * 1000);
+    const weekAgo = new Date(reportDate.getTime() - 7 * 86400 * 1000);
+
+    const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
+
+    const [signups, workouts, aiMessages, cardio, meals, activeSubscriptions, newSubscriptions, openTickets] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: reportDate, lt: nextDay } } }),
+      prisma.workout.count({ where: { completedAt: { gte: reportDate, lt: nextDay } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: reportDate, lt: nextDay } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: reportDate, lt: nextDay } } }),
+      prisma.meal.count({ where: { createdAt: { gte: reportDate, lt: nextDay } } }),
+      prisma.subscription.findMany({ where: { status: 'active', plan: { not: 'free' } }, select: { plan: true } }),
+      prisma.subscription.count({ where: { plan: { not: 'free' }, createdAt: { gte: reportDate, lt: nextDay } } }),
+      prisma.supportTicket.count({ where: { status: 'open' } }),
+    ]);
+
+    const mrr = activeSubscriptions.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
+    const dateStr = reportDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+
+    const report = [
+      `📊 Iron Gym — Отчёт за ${dateStr}`,
+      ``,
+      `👤 Новых пользователей: ${signups}`,
+      `💪 Тренировок завершено: ${workouts}`,
+      `🤖 ИИ-запросов: ${aiMessages}`,
+      `🏃 Кардио-сессий: ${cardio}`,
+      `🥗 Приёмов пищи: ${meals}`,
+      ``,
+      `💳 Активных подписок: ${activeSubscriptions.length}`,
+      `💚 Новых подписок сегодня: ${newSubscriptions}`,
+      `💰 Оценка MRR: $${mrr.toFixed(0)}/мес`,
+      ``,
+      `🎫 Открытых тикетов: ${openTickets}`,
+      ``,
+      `Сформировано: ${new Date().toLocaleString('ru-RU')}`,
+    ].join('\n');
+
+    res.json({ report, date: reportDate.toISOString().split('T')[0], metrics: { signups, workouts, aiMessages, cardio, meals, mrr: Math.round(mrr), newSubscriptions, openTickets } });
+  } catch (e) {
+    logger.error('GET /admin/report/daily:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 /** GET /admin/users/top-revenue — users with highest subscription value (active paid plans) */
 router.get('/users/top-revenue', requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
@@ -1770,6 +1820,89 @@ router.get('/activity-feed', requireAdmin, async (_req: AuthRequest, res: Respon
   } catch (e) {
     logger.error('GET /admin/activity-feed:', e);
     res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+/** GET /admin/report/daily — generates a text summary report for a given date */
+router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { date } = req.query as Record<string, string>;
+    const targetDate = date ? new Date(date) : new Date();
+    if (isNaN(targetDate.getTime())) return res.status(400).json({ error: 'Неверная дата' });
+
+    const dayStart = new Date(targetDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setHours(23, 59, 59, 999);
+    const prevDayStart = new Date(dayStart); prevDayStart.setDate(prevDayStart.getDate() - 1);
+    const prevDayEnd = new Date(dayEnd); prevDayEnd.setDate(prevDayEnd.getDate() - 1);
+    const monthStart = new Date(dayStart); monthStart.setDate(monthStart.getDate() - 30);
+
+    const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
+
+    const [
+      signups, prevSignups,
+      workouts, prevWorkouts,
+      aiMessages, prevAi,
+      cardio, prevCardio,
+      meals, prevMeals,
+      newSubs, openTickets, resolvedTickets,
+      totalUsers, activeSubs,
+    ] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.user.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.workout.count({ where: { completedAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.workout.count({ where: { completedAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.meal.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.meal.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.subscription.count({ where: { plan: { not: 'free' }, createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] } } }),
+      prisma.supportTicket.count({ where: { status: 'resolved', updatedAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.user.count(),
+      prisma.subscription.findMany({ where: { status: 'active', plan: { not: 'free' } }, select: { plan: true } }),
+    ]);
+
+    const mrr = activeSubs.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
+
+    function delta(now: number, prev: number): string {
+      if (prev === 0) return now > 0 ? ` (+${now})` : '';
+      const d = now - prev;
+      if (d === 0) return ' (=)';
+      return d > 0 ? ` (+${d})` : ` (${d})`;
+    }
+
+    const dateStr = dayStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const lines = [
+      `📊 Iron Gym — Отчёт за ${dateStr}`,
+      ``,
+      `👤 Новых пользователей: ${signups}${delta(signups, prevSignups)}`,
+      `💪 Тренировок завершено: ${workouts}${delta(workouts, prevWorkouts)}`,
+      `🤖 ИИ-сообщений: ${aiMessages}${delta(aiMessages, prevAi)}`,
+      `🏃 Кардио-сессий: ${cardio}${delta(cardio, prevCardio)}`,
+      `🍽 Приёмов пищи: ${meals}${delta(meals, prevMeals)}`,
+      ``,
+      `💳 Новых подписок: ${newSubs}`,
+      `💰 MRR (оценка): $${mrr.toFixed(0)}`,
+      ``,
+      `🎧 Открытых тикетов: ${openTickets}`,
+      `✅ Решено сегодня: ${resolvedTickets}`,
+      ``,
+      `📈 Всего пользователей: ${totalUsers}`,
+    ];
+
+    const metrics: Record<string, number> = {
+      signups, workouts, aiMessages, cardio, meals,
+      mrr: Math.round(mrr), newSubscriptions: newSubs, openTickets,
+    };
+
+    res.json({ report: lines.join('\n'), date: dayStart.toISOString().split('T')[0], metrics });
+  } catch (e) {
+    logger.error('GET /admin/report/daily:', e);
+    res.status(500).json({ error: 'Ошибка генерации отчёта' });
   }
 });
 
