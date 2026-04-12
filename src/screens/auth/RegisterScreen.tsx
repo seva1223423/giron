@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl, paddingVertical: spacing.huge },
   header: { alignItems: 'center', marginBottom: spacing.xxxl },
-  row: { flexDirection: 'row' },
+  row: { flexDirection: 'row', flexWrap: 'wrap' },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',

@@ -25,7 +25,7 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={containerStyle}>
       {label && (
-        <Text style={[typography.smallMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+        <Text style={[typography.smallMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]} numberOfLines={1}>
           {label}
         </Text>
       )}
