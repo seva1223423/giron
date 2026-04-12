@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text } from 'react-native';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
@@ -8,6 +8,7 @@ import { LineChart } from './LineChart';
 import { WeeklyHeatmap } from './WeeklyHeatmap';
 import { MuscleDistributionCard, computeMuscleDistribution } from './MuscleDistributionCard';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
+import { WeeklyInsightsCard } from './WeeklyInsightsCard';
 import { useCardioStore } from '../../../store';
 import { getMonday, localDateStr, formatNum } from '../../../utils/date';
 import type { Workout } from '../../../types';
@@ -278,6 +279,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
           </Card>
         </FadeIn>
       )}
+
+      <WeeklyInsightsCard colors={colors} workoutHistory={workoutHistory} />
 
       <WorkoutHistoryList workouts={workoutHistory} delay={600} navigation={navigation} />
     </>
