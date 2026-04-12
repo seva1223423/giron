@@ -188,6 +188,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getSegments(): Promise<Array<{ plan: string; userCount: number; workouts30d: number; ai30d: number; activeLastWeek: number; avgWorkoutsPerUser: number; avgAiPerUser: number; activeRate: number }>> {
+    const res = await api.get('/admin/analytics/segments');
+    return res.data;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;
