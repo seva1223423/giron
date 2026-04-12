@@ -16,6 +16,7 @@
  */
 
 import { logger } from '../utils/logger';
+import { recordAIRequest } from '../utils/aiMetrics';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -165,6 +166,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
   };
 
   let lastError: Error | null = null;
+  const callStart = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -185,6 +187,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
 
       if (!response.ok) {
         const errorText = await response.text();
+        // Error is recorded in the catch block — no double-record here
         throw new Error(`AI API error ${response.status}: ${errorText}`);
       }
 
@@ -217,6 +220,11 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
         })
         .filter((tc): tc is NonNullable<typeof tc> => tc !== null);
 
+      const latencyMs = Date.now() - callStart;
+      // Record successful non-cache call with latency (token estimate based on response length)
+      const tokensEstimate = Math.ceil(((msg.content || '').length + JSON.stringify(rawToolCalls).length) / 4);
+      recordAIRequest({ cacheHit: false, latencyMs, tokensEstimate });
+
       return {
         content: msg.content || '',
         toolCalls,
@@ -237,6 +245,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
         continue;
       }
 
+      recordAIRequest({ cacheHit: false, error: true });
       throw err;
     }
   }
