@@ -55,6 +55,7 @@ import AdminUserDetailScreen from '../screens/admin/AdminUserDetailScreen';
 import AdminSupportScreen from '../screens/admin/AdminSupportScreen';
 import AdminTicketScreen from '../screens/admin/AdminTicketScreen';
 import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
+import { AdminGuard } from '../screens/admin/AdminGuard';
 import { AIProgramDetailScreen } from '../screens/workouts/AIProgramDetailScreen';
 
 const Stack = createNativeStackNavigator();
@@ -154,13 +155,25 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="SupportScreen" component={SupportScreen} options={{ title: 'Поддержка' }} />
       <ProfileStack.Screen name="CreateTicketScreen" component={CreateTicketScreen} options={{ title: 'Новое обращение' }} />
       <ProfileStack.Screen name="SupportTicketScreen" component={SupportTicketScreen} options={{ title: 'Обращение' }} />
-      {/* Admin */}
-      <ProfileStack.Screen name="AdminDashboardScreen" component={AdminDashboardScreen} options={{ title: 'Панель администратора' }} />
-      <ProfileStack.Screen name="AdminUsersScreen" component={AdminUsersScreen} options={{ title: 'Пользователи' }} />
-      <ProfileStack.Screen name="AdminUserDetailScreen" component={AdminUserDetailScreen} options={{ title: 'Пользователь' }} />
-      <ProfileStack.Screen name="AdminSupportScreen" component={AdminSupportScreen} options={{ title: 'Тикеты поддержки' }} />
-      <ProfileStack.Screen name="AdminTicketScreen" component={AdminTicketScreen} options={{ title: 'Тикет' }} />
-      <ProfileStack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ title: 'Лог действий' }} />
+      {/* Admin — all screens wrapped in AdminGuard for role+PIN verification */}
+      <ProfileStack.Screen name="AdminDashboardScreen" options={{ title: 'Панель администратора' }}>
+        {() => <AdminGuard><AdminDashboardScreen /></AdminGuard>}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminUsersScreen" options={{ title: 'Пользователи' }}>
+        {() => <AdminGuard requireVerified><AdminUsersScreen /></AdminGuard>}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminUserDetailScreen" options={{ title: 'Пользователь' }}>
+        {() => <AdminGuard requireVerified><AdminUserDetailScreen /></AdminGuard>}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminSupportScreen" options={{ title: 'Тикеты поддержки' }}>
+        {() => <AdminGuard requireVerified><AdminSupportScreen /></AdminGuard>}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminTicketScreen" options={{ title: 'Тикет' }}>
+        {() => <AdminGuard requireVerified><AdminTicketScreen /></AdminGuard>}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminLogsScreen" options={{ title: 'Лог действий' }}>
+        {() => <AdminGuard requireVerified><AdminLogsScreen /></AdminGuard>}
+      </ProfileStack.Screen>
     </ProfileStack.Navigator>
   );
 }

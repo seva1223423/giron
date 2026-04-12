@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { authRouter } from './routes/auth';
 import { userRouter } from './routes/user';
@@ -33,8 +34,30 @@ app.get('/health', (_, res) => {
   res.json({ status: 'ok', version: '1.0.0' });
 });
 
+// ── Rate limiters ────────────────────────────────────────────────────────────
+
+/** Admin endpoints: very strict — 30 requests per 15 minutes per IP */
+const adminRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов к панели администратора. Попробуйте через 15 минут.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+});
+
+/** Auth endpoints: 20 attempts per 15 minutes per IP to slow brute-force */
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много попыток входа. Попробуйте через 15 минут.' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+});
+
 // Routes
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authRateLimiter, authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/workouts', workoutRouter);
 app.use('/api/nutrition', nutritionRouter);
@@ -44,7 +67,7 @@ app.use('/api/subscription', subscriptionRouter);
 app.use('/api/trainer', trainerRouter);
 app.use('/api/cardio', cardioRouter);
 app.use('/api/support', supportRouter);
-app.use('/api/admin', adminRouter);
+app.use('/api/admin', adminRateLimiter, adminRouter);
 
 // Global error handler (catches both sync and async errors forwarded via next())
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {

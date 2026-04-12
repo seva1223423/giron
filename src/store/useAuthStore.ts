@@ -4,12 +4,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
 
-// Backend returns Prisma enum values (MALE/FEMALE, MUSCLE_GAIN, BEGINNER); normalize to frontend types
+// Backend returns Prisma enum values (MALE/FEMALE, MUSCLE_GAIN, BEGINNER, ADMIN); normalize to frontend types
 const normalizeUser = (user: User): User => ({
   ...user,
   gender: user.gender ? (user.gender.toLowerCase() as User['gender']) : user.gender,
   goal: user.goal ? (user.goal.toLowerCase() as User['goal']) : user.goal,
   fitnessLevel: user.fitnessLevel ? (user.fitnessLevel.toLowerCase() as User['fitnessLevel']) : user.fitnessLevel,
+  role: user.role ? (user.role.toLowerCase() as User['role']) : user.role,
 });
 
 interface AuthStore {
@@ -119,15 +120,16 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: 'iron-gym-auth',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: 2,
       migrate: (persistedState: any, version: number) => {
-        if (version === 0) {
-          // v0 → v1: normalize gender/goal/fitnessLevel casing (backend returned UPPER_CASE)
+        if (version === 0 || version === 1) {
+          // v0/v1 → v2: normalize gender/goal/fitnessLevel/role casing (backend returned UPPER_CASE)
           const s = persistedState as any;
           if (s.user) {
             if (s.user.gender) s.user.gender = s.user.gender.toLowerCase();
             if (s.user.goal) s.user.goal = s.user.goal.toLowerCase();
             if (s.user.fitnessLevel) s.user.fitnessLevel = s.user.fitnessLevel.toLowerCase();
+            if (s.user.role) s.user.role = s.user.role.toLowerCase();
           }
         }
         return persistedState as any;

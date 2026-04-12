@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { recordActivity } from '../utils/activityTracker';
+import { logger } from '../utils/logger';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -29,9 +30,12 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 /** Middleware: allow only ADMIN role */
 export const requireAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!req.userId) return res.status(401).json({ error: 'Требуется авторизация' });
+  const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true, email: true } });
     if (!user || user.role !== 'ADMIN') {
+      // Log unauthorized admin access attempts — could indicate a compromised account or probe
+      logger.warn(`[SECURITY] Unauthorized admin access attempt by userId=${req.userId} email=${user?.email ?? 'unknown'} role=${user?.role ?? 'none'} ip=${ip} path=${req.path}`);
       return res.status(403).json({ error: 'Доступ запрещён — только для администраторов' });
     }
     req.userRole = user.role;
