@@ -164,7 +164,7 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
       {/* Bottom row: progress ring + stats + muscle dots + calories */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs, gap: spacing.md, flexWrap: 'wrap' }}>
         <MiniProgressRing progress={completionProgress} color={colors.primary} bgColor={colors.border} />
-        <Text style={[typography.caption, { color: colors.textSecondary }]}>
+        <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>
           {totalCompletedSets}/{totalSets} подх. • {formatVolume(totalVolume)} кг
         </Text>
 

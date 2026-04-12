@@ -35,7 +35,7 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ insights, delay = 80 }) =>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md }}>
           <View>
             <Text style={[typography.h4, { color: colors.text }]}>Итоги недели</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={2}>
               Среднее за {insights.daysTracked} из 7 дней · Отслеженность {insights.consistency}%
             </Text>
           </View>

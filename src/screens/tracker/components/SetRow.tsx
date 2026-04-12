@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TextInput, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withSequence,
 } from 'react-native-reanimated';
@@ -16,7 +16,6 @@ const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   dropset: { label: 'ДРОП', color: '#9C27B0' },
 };
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
-const SHOW_PLATE_CALC = Dimensions.get('window').width > 360;
 
 function rpeColor(rpe: number): string {
   if (rpe <= 7) return '#3BC46E';
@@ -78,6 +77,8 @@ const CompleteButton: React.FC<{ completed: boolean; onPress: () => void; colors
 };
 
 export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
+  const { width: screenW } = useWindowDimensions();
+  const SHOW_PLATE_CALC = screenW > 360;
   const haptic = useHaptic();
   const initialWeight = set.weight ? set.weight.toString() : (prevSet?.weight ? prevSet.weight.toString() : '');
   const initialReps = set.reps ? set.reps.toString() : (prevSet?.reps ? prevSet.reps.toString() : '10');
