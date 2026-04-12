@@ -1,9 +1,7 @@
 import React from 'react';
-import { View, Dimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { spacing } from '../../../theme/spacing';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHART_WIDTH = SCREEN_WIDTH - spacing.xl * 2 - spacing.lg * 2;
 
 interface WeeklyHeatmapProps {
   workoutDates: string[];
@@ -12,6 +10,8 @@ interface WeeklyHeatmapProps {
 }
 
 export const WeeklyHeatmap: React.FC<WeeklyHeatmapProps> = ({ workoutDates, weeks = 12, colors }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const chartWidth = screenWidth - spacing.xl * 2 - spacing.lg * 2;
   const today = new Date();
   const cells: { date: string; count: number; dayOfWeek: number }[] = [];
 
@@ -23,7 +23,7 @@ export const WeeklyHeatmap: React.FC<WeeklyHeatmapProps> = ({ workoutDates, week
     cells.push({ date: dateStr, count, dayOfWeek: d.getDay() });
   }
 
-  const cellSize = Math.floor((CHART_WIDTH - 24) / weeks) - 2;
+  const cellSize = Math.floor((chartWidth - 24) / weeks) - 2;
 
   return (
     <View style={{ flexDirection: 'row', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
