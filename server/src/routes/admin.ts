@@ -1521,6 +1521,59 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
   }
 });
 
+/** GET /admin/users/churn-risk — paid users at risk of churning (no workout in 14+ days) */
+router.get('/users/churn-risk', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const cutoff = new Date(Date.now() - 14 * 86400 * 1000);
+    const users = await prisma.user.findMany({
+      where: {
+        isBanned: false,
+        subscription: { status: 'active', plan: { not: 'free' } },
+        workouts: { none: { completedAt: { gte: cutoff } } },
+      },
+      select: {
+        id: true, firstName: true, lastName: true, email: true,
+        subscription: { select: { plan: true, endDate: true } },
+        workouts: {
+          orderBy: { completedAt: 'desc' },
+          take: 1,
+          select: { completedAt: true },
+          where: { completedAt: { not: null } },
+        },
+        _count: { select: { workouts: true } },
+      },
+      take: 20,
+      orderBy: { createdAt: 'asc' }, // oldest first = highest risk
+    });
+
+    const result = users.map((u) => {
+      const lastWorkout = u.workouts[0]?.completedAt ?? null;
+      const daysSinceWorkout = lastWorkout
+        ? Math.floor((Date.now() - lastWorkout.getTime()) / 86400000)
+        : null;
+      const daysUntilExpiry = u.subscription?.endDate
+        ? Math.ceil((new Date(u.subscription.endDate).getTime() - Date.now()) / 86400000)
+        : null;
+      return {
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        plan: u.subscription?.plan ?? 'free',
+        totalWorkouts: u._count.workouts,
+        daysSinceWorkout,
+        daysUntilExpiry,
+        riskScore: (daysSinceWorkout ?? 99) + (daysUntilExpiry != null && daysUntilExpiry < 30 ? 50 : 0),
+      };
+    }).sort((a, b) => b.riskScore - a.riskScore);
+
+    res.json(result);
+  } catch (e) {
+    logger.error('GET /admin/users/churn-risk:', e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 /** GET /admin/subscriptions/forecast — upcoming subscription expirations by week */
 router.get('/subscriptions/forecast', requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {

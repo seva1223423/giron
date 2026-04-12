@@ -6,6 +6,8 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { adminService } from '../../services/adminService';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AdminAnalytics } from '../../types';
 
 const PERIODS = [
@@ -74,6 +76,7 @@ function FunnelBar({ label, value, total, color }: { label: string; value: numbe
 }
 
 export default function AdminAnalyticsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [data, setData] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,6 +86,7 @@ export default function AdminAnalyticsScreen() {
   const [subTimeline, setSubTimeline] = useState<{ timeline: Array<{ date: string; pro: number; trainer: number; club: number; total: number }>; totalNew: number } | null>(null);
   const [segments, setSegments] = useState<Array<{ plan: string; userCount: number; avgWorkoutsPerUser: number; avgAiPerUser: number; activeRate: number }>>([]);
   const [forecast, setForecast] = useState<Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }>>([]);
+  const [churnRisk, setChurnRisk] = useState<Array<{ id: string; firstName: string; lastName?: string | null; email: string; plan: string; totalWorkouts: number; daysSinceWorkout: number | null; daysUntilExpiry: number | null }>>([]);
 
   const exportCSV = useCallback(async () => {
     const canShare = await Sharing.isAvailableAsync();
@@ -102,18 +106,20 @@ export default function AdminAnalyticsScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [res, cohortsRes, subRes, segRes, forecastRes] = await Promise.all([
+      const [res, cohortsRes, subRes, segRes, forecastRes, churnRes] = await Promise.all([
         adminService.getAnalytics(period),
         adminService.getCohorts(),
         adminService.getSubscriptionTimeline(period),
         adminService.getSegments(),
         adminService.getSubscriptionForecast(),
+        adminService.getChurnRiskUsers(),
       ]);
       setData(res);
       setCohorts(cohortsRes);
       setSubTimeline(subRes);
       setSegments(segRes);
       setForecast(forecastRes);
+      setChurnRisk(churnRes);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -419,6 +425,40 @@ export default function AdminAnalyticsScreen() {
                   <View style={[styles.funnelFill, { width: `${barW}%` as any, backgroundColor: color }]} />
                 </View>
               </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Churn risk users */}
+      {churnRisk.length > 0 && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Риск оттока ({churnRisk.length} польз.)</Text>
+          <Text style={styles.chartSub}>Платные пользователи без тренировок 14+ дней</Text>
+          {churnRisk.slice(0, 8).map((u) => {
+            const PLAN_COLOR: Record<string, string> = { pro: '#6366F1', trainer: '#F59E0B', club: '#10B981' };
+            const planColor = PLAN_COLOR[u.plan] ?? '#6B7280';
+            return (
+              <TouchableOpacity
+                key={u.id}
+                style={[styles.tableRow, { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }]}
+                onPress={() => navigation.navigate('AdminUserDetailScreen', { userId: u.id })}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#FFFFFF' }} numberOfLines={1}>
+                    {u.firstName} {u.lastName ?? ''}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={1}>{u.email}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: planColor }}>{u.plan.toUpperCase()}</Text>
+                  <Text style={{ fontSize: 11, color: '#EF4444' }}>
+                    {u.daysSinceWorkout != null ? `${u.daysSinceWorkout}д` : '—'}
+                    {u.daysUntilExpiry != null && u.daysUntilExpiry < 30 ? ` · ⏰${u.daysUntilExpiry}д` : ''}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             );
           })}
         </View>

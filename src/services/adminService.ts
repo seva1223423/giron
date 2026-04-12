@@ -198,6 +198,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getChurnRiskUsers(): Promise<Array<{ id: string; firstName: string; lastName?: string | null; email: string; plan: string; totalWorkouts: number; daysSinceWorkout: number | null; daysUntilExpiry: number | null; riskScore: number }>> {
+    const res = await api.get('/admin/users/churn-risk');
+    return res.data;
+  },
+
   async sendMessageToUser(userId: string, subject: string, message: string): Promise<unknown> {
     const res = await api.post(`/admin/users/${userId}/message`, { subject, message });
     return res.data;
