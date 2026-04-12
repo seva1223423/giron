@@ -5,8 +5,15 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { WeightTab } from './WeightTab';
 import { PhotosTab } from './PhotosTab';
+import { MeasurementsTab } from './MeasurementsTab';
 
-type Section = 'weight' | 'photos';
+type Section = 'weight' | 'measurements' | 'photos';
+
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: 'weight', label: 'Вес' },
+  { key: 'measurements', label: 'Замеры' },
+  { key: 'photos', label: 'Фото' },
+];
 
 interface Props {
   colors: any;
@@ -29,10 +36,7 @@ export const BodyTab: React.FC<Props> = ({ colors, user }) => {
         borderWidth: 1,
         borderColor: colors.border,
       }}>
-        {([
-          { key: 'weight' as const, label: 'Вес тела' },
-          { key: 'photos' as const, label: 'Фото' },
-        ] as { key: Section; label: string }[]).map((s) => (
+        {SECTIONS.map((s) => (
           <TouchableOpacity
             key={s.key}
             onPress={() => { haptic.selection(); setSection(s.key); }}
@@ -53,6 +57,7 @@ export const BodyTab: React.FC<Props> = ({ colors, user }) => {
       </View>
 
       {section === 'weight' && <WeightTab colors={colors} user={user} />}
+      {section === 'measurements' && <MeasurementsTab colors={colors} />}
       {section === 'photos' && <PhotosTab colors={colors} />}
     </View>
   );

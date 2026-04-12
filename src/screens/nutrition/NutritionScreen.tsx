@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useAchievementCheck } from '../../hooks/useAchievementCheck';
-import { useThemeStore } from '../../store';
+import { useThemeStore, useNutritionStore } from '../../store';
 import type { Achievement } from '../../utils/achievements';
 import { Button, Tooltip } from '../../components';
 import { typography } from '../../theme';
@@ -32,6 +32,10 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   }, []);
 
   useAchievementCheck(handleAchievementsUnlocked);
+
+  // Auto-clean nutrition logs older than 90 days on screen mount
+  const { cleanupOldLogs } = useNutritionStore();
+  useEffect(() => { cleanupOldLogs(90); }, []);
 
   const handleQuickAdd = (food: NutritionItem) => {
     haptic.selection();

@@ -144,8 +144,8 @@ export const aiService = {
     }
   },
 
-  async analyzeFood(imageBase64: string): Promise<FoodAnalysisResult> {
-    const { data } = await api.post('/ai/analyze-food', { imageBase64 });
+  async analyzeFood(imageBase64: string, signal?: AbortSignal): Promise<FoodAnalysisResult> {
+    const { data } = await api.post('/ai/analyze-food', { imageBase64 }, { signal });
     return data;
   },
 
