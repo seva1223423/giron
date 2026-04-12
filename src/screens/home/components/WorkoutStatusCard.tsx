@@ -30,7 +30,7 @@ export const WorkoutStatusCard: React.FC<{ navigation: any }> = ({ navigation })
   return (
     <Card style={{ marginBottom: spacing.lg }} onPress={() => navigation.navigate('WorkoutsTab')}>
       <Text style={[typography.h4, { color: colors.text }]}>Начать тренировку</Text>
-      <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+      <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]} numberOfLines={1}>
         {activeProgram ? `Программа: ${activeProgram.name}` : 'Выбери программу или создай свою'}
       </Text>
     </Card>
