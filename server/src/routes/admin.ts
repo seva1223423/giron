@@ -1823,6 +1823,48 @@ router.get('/activity-feed', requireAdmin, async (_req: AuthRequest, res: Respon
   }
 });
 
+/** GET /admin/subscriptions — paginated list of paid subscriptions with filters */
+router.get('/subscriptions', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { plan, status, expiringSoon, page = '1', limit = '30', sort = 'endDate', order = 'asc' } = req.query as Record<string, string>;
+    const take = Math.min(100, Math.max(1, parseInt(limit) || 30));
+    const skip = (Math.max(1, parseInt(page) || 1) - 1) * take;
+    const now = new Date();
+
+    const where: Record<string, unknown> = { plan: { not: 'free' } };
+    if (plan) where.plan = plan;
+    if (status) where.status = status;
+    if (expiringSoon === 'true') {
+      where.status = 'active';
+      where.endDate = { gte: now, lte: new Date(now.getTime() + 14 * 86400 * 1000) };
+    }
+
+    const orderBy: Record<string, string> = {};
+    if (sort === 'endDate') orderBy.endDate = order === 'desc' ? 'desc' : 'asc';
+    else if (sort === 'createdAt') orderBy.createdAt = order === 'desc' ? 'desc' : 'asc';
+    else if (sort === 'plan') orderBy.plan = order === 'desc' ? 'desc' : 'asc';
+    else orderBy.endDate = 'asc';
+
+    const [subs, total] = await Promise.all([
+      prisma.subscription.findMany({
+        where,
+        orderBy,
+        skip,
+        take,
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true, isBanned: true } },
+        },
+      }),
+      prisma.subscription.count({ where }),
+    ]);
+
+    res.json({ subscriptions: subs, total, page: parseInt(page) || 1, pages: Math.ceil(total / take) });
+  } catch (e) {
+    logger.error('GET /admin/subscriptions:', e);
+    res.status(500).json({ error: 'Ошибка получения подписок' });
+  }
+});
+
 /** GET /admin/report/daily — generates a text summary report for a given date */
 router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
