@@ -68,6 +68,11 @@ export const adminService = {
     return res.data;
   },
 
+  async exportUsersCSV(params?: { role?: string; plan?: string; banned?: boolean }): Promise<string> {
+    const res = await api.get('/admin/users/export', { params, responseType: 'text' });
+    return res.data as string;
+  },
+
   // ── Logs ──────────────────────────────────────────────────────────────────
   async getLogs(params?: {
     page?: number;
