@@ -40,7 +40,7 @@ router.get('/tickets', authenticate, async (req: AuthRequest, res: Response) => 
 router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const ticket = await prisma.supportTicket.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         messages: {
           include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
@@ -100,7 +100,7 @@ router.post('/tickets', authenticate, async (req: AuthRequest, res: Response) =>
 router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const data = sendMessageSchema.parse(req.body);
-    const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id } });
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
 
     const userRecord = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
@@ -116,7 +116,7 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
     const message = await prisma.supportMessage.create({
       data: {
         content: data.content,
-        ticketId: req.params.id,
+        ticketId: req.params.id as string,
         authorId: req.userId!,
         isStaff,
       },
@@ -126,13 +126,13 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
     // If user replies to resolved ticket — reopen it
     if (!isStaff && ticket.status === 'resolved') {
       await prisma.supportTicket.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { status: 'open', updatedAt: new Date() },
       });
     } else {
       // Touch updatedAt so ticket bubbles to top
       await prisma.supportTicket.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { updatedAt: new Date() },
       });
     }
@@ -148,11 +148,11 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
 /** PATCH /support/tickets/:id/close — user closes their own ticket */
 router.patch('/tickets/:id/close', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id } });
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
     if (ticket.userId !== req.userId) return res.status(403).json({ error: 'Нет доступа' });
     const updated = await prisma.supportTicket.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: { status: 'closed', updatedAt: new Date() },
     });
     res.json(updated);
@@ -201,7 +201,7 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
     const data: any = { updatedAt: new Date() };
     if (status) data.status = status;
     if (priority) data.priority = priority;
-    const ticket = await prisma.supportTicket.update({ where: { id: req.params.id }, data });
+    const ticket = await prisma.supportTicket.update({ where: { id: req.params.id as string }, data });
     res.json(ticket);
   } catch (e) {
     logger.error('PATCH /support/tickets/:id/status:', e);
@@ -214,7 +214,7 @@ router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: Auth
   try {
     const { assignedToId } = req.body;
     const ticket = await prisma.supportTicket.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: {
         assignedToId: assignedToId || null,
         status: assignedToId ? 'in_progress' : 'open',
