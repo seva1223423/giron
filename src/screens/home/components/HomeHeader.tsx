@@ -45,11 +45,11 @@ export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xxl }}>
-      <View>
+      <View style={{ flex: 1, marginRight: spacing.md }}>
         <Text style={[typography.small, { color: colors.textSecondary }]}>{getGreeting()}</Text>
-        <Text style={[typography.h2, { color: colors.text }]}>{user?.firstName || 'Атлет'}</Text>
+        <Text style={[typography.h2, { color: colors.text }]} numberOfLines={1}>{user?.firstName || 'Атлет'}</Text>
         {streakDisplay && (
-          <Text style={[typography.smallMedium, { color: streakDisplay.color, marginTop: 2 }]}>
+          <Text style={[typography.smallMedium, { color: streakDisplay.color, marginTop: 2 }]} numberOfLines={1}>
             {streakDisplay.text}
           </Text>
         )}

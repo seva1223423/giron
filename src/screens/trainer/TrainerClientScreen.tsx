@@ -120,8 +120,8 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
-        <Text style={[typography.h3, { color: colors.text }]} numberOfLines={1}>{client.name}</Text>
-        <View style={{ width: 40 }} />
+        <Text style={[typography.h3, { color: colors.text, flex: 1, textAlign: 'center' }]} numberOfLines={1}>{client.name}</Text>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

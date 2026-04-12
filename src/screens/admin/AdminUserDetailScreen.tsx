@@ -148,8 +148,8 @@ export default function AdminUserDetailScreen() {
           <Text style={styles.avatarText}>{user.firstName[0]}{user.lastName?.[0] ?? ''}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
-          <Text style={styles.email}>{user.email}</Text>
+          <Text style={styles.name} numberOfLines={1}>{user.firstName} {user.lastName}</Text>
+          <Text style={styles.email} numberOfLines={1}>{user.email}</Text>
           {user.phone && <Text style={styles.meta}>{user.phone}</Text>}
           <Text style={[styles.roleBadge, { color: roleLower === 'admin' ? '#F59E0B' : '#9CA3AF' }]}>
             {roleLower.toUpperCase()}
@@ -168,7 +168,7 @@ export default function AdminUserDetailScreen() {
         ].map((s) => (
           <View key={s.label} style={styles.statItem}>
             <Text style={styles.statValue}>{s.value}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
+            <Text style={styles.statLabel} numberOfLines={1}>{s.label}</Text>
           </View>
         ))}
       </View>

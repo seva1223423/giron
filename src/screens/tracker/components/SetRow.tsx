@@ -207,7 +207,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
 
       {/* Quick weight presets */}
       {!set.completed && (parseFloat(weight) === 0 || weight === '') && prevSet?.weight && (
-        <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}>
+        <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, paddingHorizontal: spacing.sm, paddingBottom: spacing.xs, flexWrap: 'wrap' }}>
           {[prevSet.weight, prevSet.weight + 2.5, prevSet.weight + 5, prevSet.weight - 5].filter(w => w > 0).map((w) => (
             <AnimatedPressable
               key={w}

@@ -15,7 +15,7 @@ export const WaterCard: React.FC<Props> = ({ dayLog, today }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
   const target = dayLog.waterTargetMl ?? 2500;
-  const pct = Math.min((dayLog.waterMl / target) * 100, 100);
+  const pct = target > 0 ? Math.min((dayLog.waterMl / target) * 100, 100) : 0;
 
   const handleWater = (ml: number) => {
     haptic.light();

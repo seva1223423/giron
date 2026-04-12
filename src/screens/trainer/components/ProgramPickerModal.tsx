@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { Button } from '../../../components';
@@ -22,13 +22,14 @@ interface Props {
 export const ProgramPickerModal: React.FC<Props> = ({ visible, currentProgram, onClose, onSelect, onClear }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
+  const { height: screenHeight } = useWindowDimensions();
 
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Назначить программу</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 320 }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: Math.min(320, screenHeight * 0.45) }}>
             {PROGRAMS.map((program) => (
               <TouchableOpacity
                 key={program}

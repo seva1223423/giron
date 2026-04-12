@@ -146,7 +146,7 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
         </Text>
       )}
 
-      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, flexWrap: 'wrap', justifyContent: 'center' }}>
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onAddTime(15); }}
           style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.2)' }}

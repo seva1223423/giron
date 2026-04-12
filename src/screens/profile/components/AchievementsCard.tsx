@@ -43,14 +43,14 @@ export const AchievementsCard: React.FC<Props> = ({ achievements, delay = 180 })
               <TouchableOpacity
                 key={a.id}
                 onPress={() => Alert.alert(`${a.emoji} ${a.title}`, a.description)}
-                style={{ width: 68, alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: 4, borderRadius: borderRadius.md, borderWidth: 1, backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }}
+                style={{ flex: 1, minWidth: '22%', maxWidth: '25%', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: 4, borderRadius: borderRadius.md, borderWidth: 1, backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }}
               >
                 <Text style={{ fontSize: 22 }}>{a.emoji}</Text>
                 <Text style={[typography.caption, { color: colors.primary, marginTop: 4, textAlign: 'center' }]} numberOfLines={2}>{a.title}</Text>
               </TouchableOpacity>
             ))}
             {!showAll && unlocked.length > 8 && (
-              <TouchableOpacity onPress={() => setShowAll(true)} style={{ width: 68, alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: 4, borderRadius: borderRadius.md, borderWidth: 1, backgroundColor: colors.surface, borderColor: colors.border }}>
+              <TouchableOpacity onPress={() => setShowAll(true)} style={{ flex: 1, minWidth: '22%', maxWidth: '25%', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: 4, borderRadius: borderRadius.md, borderWidth: 1, backgroundColor: colors.surface, borderColor: colors.border }}>
                 <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>+{unlocked.length - 8}</Text>
               </TouchableOpacity>
             )}

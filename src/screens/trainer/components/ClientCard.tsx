@@ -43,7 +43,7 @@ export const ClientCard: React.FC<Props> = ({ client, onPress, onLongPress }) =>
           </View>
           <View style={{ flex: 1, marginLeft: spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={[typography.bodySemibold, { color: colors.text }]}>{client.name}</Text>
+              <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]} numberOfLines={1}>{client.name}</Text>
               {isToday && (
                 <View style={[styles.todayBadge, { backgroundColor: colors.success + '20' }]}>
                   <Text style={[typography.caption, { color: colors.success, fontSize: 10 }]}>сегодня</Text>

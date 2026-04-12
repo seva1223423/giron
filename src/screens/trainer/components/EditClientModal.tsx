@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { Button } from '../../../components';
@@ -34,6 +34,7 @@ interface Props {
 export const EditClientModal: React.FC<Props> = ({ visible, client, onClose, onSave }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
+  const { height: screenHeight } = useWindowDimensions();
 
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -71,7 +72,7 @@ export const EditClientModal: React.FC<Props> = ({ visible, client, onClose, onS
       <View style={styles.overlay}>
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Профиль клиента</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: Math.min(520, screenHeight * 0.65) }}>
             <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>АВАТАР</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {EMOJI_OPTIONS.map((em) => (

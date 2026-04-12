@@ -129,8 +129,8 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isLocked ? colors.border + '40' : colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: isLocked ? colors.textTertiary : colors.primary }}>{isLocked ? '◈' : program.emoji}</Text></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[typography.bodySemibold, { color: isLocked ? colors.textSecondary : colors.text }]}>{program.name}</Text>
-                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                  <Text style={[typography.bodySemibold, { color: isLocked ? colors.textSecondary : colors.text }]} numberOfLines={1}>{program.name}</Text>
+                  <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
                     {program.daysPerWeek} дн/нед • {program.durationWeeks} нед • {program.split}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
