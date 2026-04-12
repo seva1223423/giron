@@ -378,6 +378,31 @@ export default function AdminDashboardScreen() {
         </>
       )}
 
+      {/* ── Quick actions ────────────────────────────────────────────── */}
+      <View style={styles.quickActionsCard}>
+        <Text style={styles.quickActionsTitle}>Быстрые действия</Text>
+        <View style={styles.quickActionsGrid}>
+          {[
+            { label: 'Новое объявление', color: '#6366F1', onPress: () => navigation.navigate('AdminAnnouncementsScreen') },
+            { label: 'Срочные тикеты', color: '#EF4444', onPress: () => navigation.navigate('AdminSupportScreen') },
+            { label: 'Экспорт пользователей', color: '#10B981', onPress: () => navigation.navigate('AdminUsersScreen') },
+            { label: 'Просмотр логов', color: '#F59E0B', onPress: () => navigation.navigate('AdminLogsScreen') },
+          ].map((action) => (
+            <TouchableOpacity
+              key={action.label}
+              style={[styles.quickActionBtn, { borderColor: action.color + '40' }]}
+              onPress={action.onPress}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionDot, { backgroundColor: action.color }]} />
+              <Text style={[styles.quickActionLabel, { color: action.color }]} numberOfLines={2}>
+                {action.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* ── Recent admin activity ─────────────────────────────────────── */}
       {recentLogs.length > 0 && (
         <>
@@ -923,6 +948,14 @@ const styles = StyleSheet.create({
   signupAvatar: { fontSize: 18, fontWeight: '700', color: '#6366F1', marginBottom: 2 },
   signupName: { fontSize: 11, fontWeight: '600', color: '#D1D5DB', marginBottom: 2, maxWidth: 64, textAlign: 'center' },
   signupTime: { fontSize: 10, color: '#6B7280' },
+
+  // Quick actions card
+  quickActionsCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
+  quickActionsTitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
+  quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  quickActionBtn: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0F0F0F', borderRadius: 10, borderWidth: 1, padding: 10 },
+  quickActionDot: { width: 8, height: 8, borderRadius: 4 },
+  quickActionLabel: { fontSize: 12, fontWeight: '600', flex: 1 },
 
   // Hourly pulse
   pulseCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#2C2C2E' },
