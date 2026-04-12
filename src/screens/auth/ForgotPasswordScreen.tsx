@@ -54,7 +54,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>◈</Text></View>
+          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '12', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>◈</Text></View>
           <Text style={[typography.h2, { color: colors.text }]}>Забыли пароль?</Text>
           <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center', lineHeight: 22 }]}>
             Введи email и мы отправим ссылку для сброса пароля

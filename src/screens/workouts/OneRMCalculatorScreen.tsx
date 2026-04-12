@@ -78,7 +78,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
       {!validInput && (
         <FadeIn delay={120}>
           <View style={styles.emptyState}>
-            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>1RM</Text></View>
+            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>1RM</Text></View>
             <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md }]}>Введи рабочий вес и количество повторений</Text>
             <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.sm }]}>Например: 100 кг × 5 повторений</Text>
           </View>
