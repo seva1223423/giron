@@ -135,12 +135,21 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // Sync a locally-completed workout to the server (offline-first pattern)
+// Uses clientId as idempotency key — if the workout was already synced, returns the existing record
 router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = req.body;
+    const { clientId, name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = req.body;
 
     if (!name || !exercises || !Array.isArray(exercises)) {
       return res.status(400).json({ error: 'Название и упражнения обязательны' });
+    }
+
+    // If clientId provided, check if this workout was already synced
+    if (clientId) {
+      const existing = await prisma.workout.findUnique({ where: { clientId } });
+      if (existing) {
+        return res.status(200).json(existing);
+      }
     }
 
     // Find or get active program
@@ -150,6 +159,7 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
 
     const workout = await prisma.workout.create({
       data: {
+        clientId: clientId || null,
         name,
         notes: notes || null,
         startedAt: startedAt ? new Date(startedAt) : new Date(),

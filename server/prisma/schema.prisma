@@ -142,6 +142,7 @@ model Program {
 
 model Workout {
   id              String    @id @default(cuid())
+  clientId        String?   @unique // client-generated ID for offline-first idempotency
   name            String
   description     String?
   scheduledDate   DateTime?
