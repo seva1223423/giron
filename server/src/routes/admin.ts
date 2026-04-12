@@ -930,7 +930,7 @@ router.get('/support/metrics', requireStaff, async (_req: AuthRequest, res: Resp
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const weekStart = new Date(Date.now() - 7 * 86400 * 1000);
 
-    const [resolvedToday, openCount, unassigned, categoryCounts, ticketsWithFirstReply] = await Promise.all([
+    const [resolvedToday, openCount, unassigned, categoryCounts, ticketsWithFirstReply, staffAssignedCounts] = await Promise.all([
       prisma.supportTicket.count({ where: { status: { in: ['resolved', 'closed'] }, updatedAt: { gte: todayStart } } }),
       prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] } } }),
       prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] }, assignedToId: null } }),
@@ -948,6 +948,12 @@ router.get('/support/metrics', requireStaff, async (_req: AuthRequest, res: Resp
           },
         },
       }),
+      // Staff workload: open/in-progress tickets per assignee
+      prisma.supportTicket.groupBy({
+        by: ['assignedToId'],
+        where: { status: { in: ['open', 'in_progress'] }, assignedToId: { not: null } },
+        _count: { id: true },
+      }),
     ]);
 
     // Compute avg first response time in hours
@@ -958,12 +964,23 @@ router.get('/support/metrics', requireStaff, async (_req: AuthRequest, res: Resp
       ? Math.round((responseTimes.reduce((s, v) => s + v, 0) / responseTimes.length) * 10) / 10
       : null;
 
+    // Enrich staff workload with names
+    const staffIds = staffAssignedCounts.map((s) => s.assignedToId).filter(Boolean) as string[];
+    const staffDetails = staffIds.length > 0
+      ? await prisma.user.findMany({ where: { id: { in: staffIds } }, select: { id: true, firstName: true, lastName: true } })
+      : [];
+    const staffWorkload = staffAssignedCounts.map((s) => {
+      const staff = staffDetails.find((d) => d.id === s.assignedToId);
+      return { id: s.assignedToId!, name: `${staff?.firstName ?? ''} ${staff?.lastName ?? ''}`.trim(), count: s._count.id };
+    });
+
     res.json({
       resolvedToday,
       openCount,
       unassigned,
       avgResponseHours,
       categoryBreakdown: Object.fromEntries(categoryCounts.map((c) => [c.category, c._count.id])),
+      staffWorkload,
     });
   } catch (e) {
     logger.error('GET /admin/support/metrics:', e);
