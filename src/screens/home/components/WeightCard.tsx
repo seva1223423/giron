@@ -87,7 +87,7 @@ export const WeightCard: React.FC<Props> = ({ user, setUser }) => {
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
-                style={{ flex: 1, paddingVertical: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', backgroundColor: colors.surface }}
+                style={{ flex: 1, paddingVertical: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
               >
                 <Text style={[typography.buttonMedium, { color: colors.textSecondary }]}>Отмена</Text>
               </TouchableOpacity>
