@@ -28,7 +28,7 @@ export const ComparisonCard: React.FC<Props> = ({ workout }) => {
         VS ПРОШЛЫЙ РАЗ ({new Date(prevSameWorkout.completedAt!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })})
       </Text>
       <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.md, flexWrap: 'wrap' }}>
-        <View>
+        <View style={{ flex: 1, minWidth: '40%' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
             <Text style={[typography.numberSmall, { fontSize: 22, color: volumeDiff > 0 ? colors.success : volumeDiff < 0 ? colors.error : colors.textSecondary }]}>
               {volumeDiff > 0 ? '+' : ''}{volumeDiff}
@@ -40,7 +40,7 @@ export const ComparisonCard: React.FC<Props> = ({ workout }) => {
           <Text style={[typography.caption, { color: colors.textSecondary }]}>кг объём</Text>
         </View>
         {durationDiff !== null && (
-          <View>
+          <View style={{ flex: 1, minWidth: '40%' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
               <Text style={[typography.numberSmall, { fontSize: 22, color: durationDiff < 0 ? colors.success : durationDiff > 5 ? colors.error : colors.textSecondary }]}>
                 {durationDiff > 0 ? '+' : ''}{durationDiff}

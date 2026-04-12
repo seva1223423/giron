@@ -80,8 +80,8 @@ const Stat: React.FC<{ label: string; value: string; color: string }> = ({ label
   const { colors } = useThemeStore();
   return (
     <View style={{ alignItems: 'center', marginRight: spacing.lg }}>
-      <Text style={[typography.bodySemibold, { color }]}>{value}</Text>
-      <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[typography.bodySemibold, { color }]} numberOfLines={1}>{value}</Text>
+      <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
     </View>
   );
 };
@@ -90,6 +90,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, flexWrap: 'wrap' },
   badges: { flexDirection: 'row', gap: 4 },
-  statsRow: { flexDirection: 'row', alignItems: 'center' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginLeft: spacing.md },
 });

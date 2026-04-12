@@ -190,9 +190,9 @@ export const SleepTab: React.FC<Props> = ({ colors }) => {
                   { value: avgQuality7 > 0 ? `${avgQuality7.toFixed(1)}/5` : '—', label: 'качество', color: qualityColor },
                   { value: String(Math.min(sorted.length, 7)), label: 'записей', color: colors.accent },
                 ].map(({ value, label, color }, i) => (
-                  <View key={i} style={{ alignItems: 'center' }}>
-                    <Text style={[typography.number, { color, fontSize: 22 }]}>{value}</Text>
-                    <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
+                  <View key={i} style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={[typography.number, { color, fontSize: 22 }]} numberOfLines={1}>{value}</Text>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
                   </View>
                 ))}
               </View>
@@ -276,12 +276,12 @@ export const SleepTab: React.FC<Props> = ({ colors }) => {
                         {entry.bedtime} → {entry.wakeTime}
                       </Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
-                      <Text style={[typography.captionMedium, { color: colors.primary }]}>
+                    <View style={{ alignItems: 'flex-end', marginRight: 8, maxWidth: 70 }}>
+                      <Text style={[typography.captionMedium, { color: colors.primary }]} numberOfLines={1}>
                         {entry.durationHours.toFixed(1)}ч
                       </Text>
                       {entry.quality != null && (
-                        <Text style={[typography.caption, { color: qColor }]}>
+                        <Text style={[typography.caption, { color: qColor }]} numberOfLines={1}>
                           {QUALITY_LABELS[entry.quality]}
                         </Text>
                       )}

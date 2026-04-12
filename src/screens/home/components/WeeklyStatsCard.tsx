@@ -144,7 +144,7 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
               </Text>
             )}
           </View>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>Тренировок</Text>
         </View>
 
         <View style={{ alignItems: 'center' }}>
@@ -159,14 +159,14 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
               </Text>
             )}
           </View>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>Тонн</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>Тонн</Text>
         </View>
 
         <View style={{ alignItems: 'center' }}>
           <Text style={[typography.number, { color: colors.success }]}>
             {weekWorkouts.reduce((s, w) => s + (w.durationMinutes || 0), 0)}
           </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>Минут</Text>
+          <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>Минут</Text>
         </View>
 
         {streak > 0 && (
@@ -175,7 +175,7 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
               <Text style={[typography.number, { color: colors.error }]}>{streak}</Text>
               <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.error }} />
             </View>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>Дней</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>Дней</Text>
           </View>
         )}
       </View>
