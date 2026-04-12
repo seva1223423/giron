@@ -17,6 +17,13 @@ const STATUS_TABS: { value: TicketStatus | ''; label: string }[] = [
   { value: 'resolved', label: 'Решённые' },
   { value: 'closed', label: 'Закрытые' },
 ];
+const PRIORITY_TABS: { value: TicketPriority | ''; label: string; color: string }[] = [
+  { value: '', label: 'Все', color: '#6B7280' },
+  { value: 'urgent', label: '🔴 Срочно', color: '#EF4444' },
+  { value: 'high', label: '🟠 Высокий', color: '#F59E0B' },
+  { value: 'normal', label: '🔵 Норм', color: '#6366F1' },
+  { value: 'low', label: '⚪ Низкий', color: '#6B7280' },
+];
 const STATUS_COLOR: Record<TicketStatus, string> = {
   open: '#EF4444', in_progress: '#F59E0B', resolved: '#10B981', closed: '#6B7280',
 };
@@ -28,8 +35,13 @@ const PRIORITY_LABEL: Record<TicketPriority, string> = {
 };
 
 function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => void }) {
+  const isUrgent = ticket.priority === 'urgent' && ticket.status !== 'closed';
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[styles.card, isUrgent && { borderLeftWidth: 3, borderLeftColor: '#EF4444', borderColor: '#EF444430' }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.cardTop}>
         <Text style={styles.subject} numberOfLines={1}>{ticket.subject}</Text>
         <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[ticket.status] + '22' }]}>
@@ -60,6 +72,7 @@ export default function AdminSupportScreen() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [status, setStatus] = useState<TicketStatus | ''>('');
+  const [priority, setPriority] = useState<TicketPriority | ''>('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -68,7 +81,7 @@ export default function AdminSupportScreen() {
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
       const [res, cnts] = await Promise.all([
-        adminService.getSupportTickets({ status: status || undefined, page: p, limit: 20 }),
+        adminService.getSupportTickets({ status: status || undefined, priority: priority || undefined, page: p, limit: 20 }),
         p === 1 ? adminService.getSupportCounts() : Promise.resolve(counts),
       ]);
       setTickets(append ? (prev) => [...prev, ...res.tickets] : res.tickets);
@@ -82,7 +95,7 @@ export default function AdminSupportScreen() {
     }
   }, [status]);
 
-  useEffect(() => { load(1); }, [status]);
+  useEffect(() => { load(1); }, [status, priority]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -101,6 +114,18 @@ export default function AdminSupportScreen() {
             {counts[t.value] !== undefined && t.value !== '' && (
               <View style={styles.countBadge}><Text style={styles.countText}>{counts[t.value]}</Text></View>
             )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.priorityRow}>
+        {PRIORITY_TABS.map((p) => (
+          <TouchableOpacity
+            key={p.value}
+            style={[styles.priorityBtn, priority === p.value && { backgroundColor: p.color + '22', borderColor: p.color + '60' }]}
+            onPress={() => setPriority(p.value as any)}
+          >
+            <Text style={[styles.priorityText, priority === p.value && { color: p.color }]}>{p.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -156,4 +181,7 @@ const styles = StyleSheet.create({
   date: { fontSize: 11, color: '#6B7280' },
   assigned: { fontSize: 11, color: '#10B981' },
   unassigned: { fontSize: 11, color: '#6B7280' },
+  priorityRow: { flexDirection: 'row', paddingHorizontal: 12, gap: 6, flexWrap: 'wrap', marginBottom: 4 },
+  priorityBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E' },
+  priorityText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
 });
