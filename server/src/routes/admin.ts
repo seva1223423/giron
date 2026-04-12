@@ -753,6 +753,72 @@ router.post('/mass-message', requireAdmin, async (req: AuthRequest, res: Respons
   }
 });
 
+/** POST /admin/subscriptions/broadcast — send a support ticket message to all users in a plan segment */
+router.post('/subscriptions/broadcast', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { plan, subject, message, expiringSoonOnly } = z.object({
+      plan: z.string().min(1),
+      subject: z.string().min(1).max(200),
+      message: z.string().min(1).max(2000),
+      expiringSoonOnly: z.boolean().optional(),
+    }).parse(req.body);
+
+    const now = new Date();
+    const subWhere: Record<string, unknown> = { plan, status: 'active' };
+    if (expiringSoonOnly) {
+      subWhere.endDate = { gte: now, lte: new Date(now.getTime() + 14 * 86400 * 1000) };
+    }
+
+    const users = await prisma.user.findMany({
+      where: { isBanned: false, subscription: subWhere },
+      select: { id: true },
+    });
+
+    if (users.length === 0) return res.json({ sent: 0, failed: 0, total: 0 });
+
+    const results = await Promise.allSettled(
+      users.map((u) =>
+        prisma.supportTicket.create({
+          data: {
+            subject,
+            category: 'other',
+            status: 'in_progress',
+            priority: 'normal',
+            userId: u.id,
+            assignedToId: req.userId!,
+            messages: {
+              create: {
+                content: message,
+                authorId: req.userId!,
+                isStaff: true,
+                isInternal: false,
+              },
+            },
+          },
+          select: { id: true },
+        })
+      )
+    );
+
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'SEGMENT_BROADCAST',
+        details: `plan=${plan}${expiringSoonOnly ? ' expiring' : ''} · ${succeeded}/${users.length} tickets: "${subject}"`,
+      },
+    });
+
+    res.json({ sent: succeeded, failed, total: users.length });
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /admin/subscriptions/broadcast:', e);
+    res.status(500).json({ error: 'Ошибка рассылки' });
+  }
+});
+
 /** GET /admin/users/export — CSV export of user list */
 router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
