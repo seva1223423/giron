@@ -436,8 +436,50 @@ export default function AdminSupportScreen() {
                 navigation.navigate('AdminTicketScreen', { ticketId: item.id });
               }}
               onLongPress={() => {
-                if (!selectMode) { setSelectMode(true); }
-                toggleSelect(item.id);
+                if (selectMode) { toggleSelect(item.id); return; }
+                // Quick action context menu
+                const isOpen = item.status === 'open' || item.status === 'in_progress';
+                const options: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
+                  { text: 'Открыть тикет', onPress: () => navigation.navigate('AdminTicketScreen', { ticketId: item.id }) },
+                ];
+                if (isOpen) {
+                  options.push({
+                    text: '✓ Пометить решённым',
+                    onPress: async () => {
+                      try {
+                        await supportService.updateTicketStatus(item.id, { status: 'resolved' });
+                        load(1);
+                      } catch { Alert.alert('Ошибка', 'Не удалось обновить тикет'); }
+                    },
+                  });
+                  options.push({
+                    text: '✕ Закрыть',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await supportService.updateTicketStatus(item.id, { status: 'closed' });
+                        load(1);
+                      } catch { Alert.alert('Ошибка', 'Не удалось закрыть тикет'); }
+                    },
+                  });
+                  if (!item.assignedToId || item.assignedToId !== myId) {
+                    options.push({
+                      text: '👤 Назначить себе',
+                      onPress: async () => {
+                        try {
+                          await adminService.assignTicket(item.id, myId ?? null);
+                          load(1);
+                        } catch { Alert.alert('Ошибка', 'Не удалось назначить'); }
+                      },
+                    });
+                  }
+                }
+                options.push({
+                  text: '☑ Выбрать',
+                  onPress: () => { setSelectMode(true); toggleSelect(item.id); },
+                });
+                options.push({ text: 'Отмена', style: 'cancel' });
+                Alert.alert(item.subject, `${item.user?.firstName ?? ''} · ${item.status} · ${PRIORITY_LABEL[item.priority]}`, options);
               }}
             />
           )}
