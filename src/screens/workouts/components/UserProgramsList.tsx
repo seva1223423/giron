@@ -43,7 +43,7 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
               <Card style={{ marginBottom: spacing.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   {/* Icon */}
-                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: goalColor + '18', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: goalColor + '18', borderWidth: 1.5, borderColor: goalColor + '40', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ fontSize: 13, fontWeight: '800', color: goalColor }}>
                       {program.createdBy === 'ai' ? 'AI' : 'MY'}
                     </Text>
@@ -56,7 +56,7 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
                         {program.name}
                       </Text>
                       {program.isActive && (
-                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.success + '22' }}>
+                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.success + '22', borderWidth: 1, borderColor: colors.success + '40' }}>
                           <Text style={{ fontSize: 10, fontWeight: '700', color: colors.success }}>АКТИВНАЯ</Text>
                         </View>
                       )}
@@ -64,7 +64,7 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
 
                     {/* Meta row */}
                     <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: 4, flexWrap: 'wrap' }}>
-                      <View style={[{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: goalColor + '18' }]}>
+                      <View style={[{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: goalColor + '18', borderWidth: 1, borderColor: goalColor + '35' }]}>
                         <Text style={{ fontSize: 10, fontWeight: '600', color: goalColor }}>
                           {GOAL_LABELS[program.goal] || program.goal}
                         </Text>

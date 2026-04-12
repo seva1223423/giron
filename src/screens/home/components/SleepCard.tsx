@@ -159,7 +159,7 @@ export const SleepCard: React.FC = () => {
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
-                style={{ flex: 1, paddingVertical: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', backgroundColor: colors.surface }}
+                style={{ flex: 1, paddingVertical: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
               >
                 <Text style={[typography.buttonMedium, { color: colors.textSecondary }]}>Отмена</Text>
               </TouchableOpacity>
