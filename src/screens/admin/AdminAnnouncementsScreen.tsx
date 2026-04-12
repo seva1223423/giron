@@ -45,10 +45,18 @@ function AnnouncementCard({
       <Text style={styles.cardTitle}>{item.title}</Text>
       <Text style={styles.cardBody} numberOfLines={3}>{item.body}</Text>
       <View style={styles.cardFooter}>
-        <Text style={styles.cardMeta}>
-          {new Date(item.createdAt).toLocaleDateString('ru-RU')}
-          {item.author ? ` · ${item.author.firstName}` : ''}
-        </Text>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <Text style={styles.cardMeta}>
+            {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+            {item.author ? ` · ${item.author.firstName}` : ''}
+          </Text>
+          {(item.viewCount ?? 0) > 0 && (
+            <Text style={styles.cardMeta}>👁 {item.viewCount}</Text>
+          )}
+          {item.targetRole && (
+            <Text style={[styles.cardMeta, { color: '#F59E0B' }]}>🎯 {item.targetRole}</Text>
+          )}
+        </View>
         {item.endsAt && (
           <Text style={[styles.cardMeta, isExpired && { color: '#EF4444' }]}>
             до {new Date(item.endsAt).toLocaleDateString('ru-RU')}
@@ -72,6 +80,7 @@ export default function AdminAnnouncementsScreen() {
   const [formBody, setFormBody] = useState('');
   const [formType, setFormType] = useState<AnnouncementType>('info');
   const [formEndsAt, setFormEndsAt] = useState('');
+  const [formTarget, setFormTarget] = useState<string>('');
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -101,9 +110,10 @@ export default function AdminAnnouncementsScreen() {
         body: formBody.trim(),
         type: formType,
         endsAt: formEndsAt.trim() || undefined,
-      });
+        targetRole: formTarget || undefined,
+      } as any);
       setShowForm(false);
-      setFormTitle(''); setFormBody(''); setFormType('info'); setFormEndsAt('');
+      setFormTitle(''); setFormBody(''); setFormType('info'); setFormEndsAt(''); setFormTarget('');
       await load();
     } catch {
       Alert.alert('Ошибка', 'Не удалось создать объявление');
@@ -194,6 +204,19 @@ export default function AdminAnnouncementsScreen() {
                 multiline
                 maxLength={2000}
               />
+
+              <Text style={styles.fieldLabel}>Аудитория (необязательно)</Text>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                {[{ key: '', label: 'Все' }, { key: 'free', label: 'Free' }, { key: 'pro', label: 'PRO' }, { key: 'trainer', label: 'Trainer' }, { key: 'club', label: 'Club' }].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.typeBtn, formTarget === opt.key && { backgroundColor: '#6366F122', borderColor: '#6366F1' }]}
+                    onPress={() => setFormTarget(opt.key)}
+                  >
+                    <Text style={[styles.typeBtnText, formTarget === opt.key && { color: '#6366F1' }]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <Text style={styles.fieldLabel}>Действует до (необязательно)</Text>
               <TextInput
