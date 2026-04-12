@@ -168,16 +168,16 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
                 </View>
                 <View style={{ flexDirection: 'row', gap: spacing.xs }}>
                   {i > 0 && (
-                    <TouchableOpacity onPress={() => onMove(i, 'up')} style={styles.moveBtn}>
+                    <TouchableOpacity onPress={() => onMove(i, 'up')} style={[styles.moveBtn, { borderColor: colors.border }]}>
                       <Text style={[typography.body, { color: colors.textSecondary }]}>↑</Text>
                     </TouchableOpacity>
                   )}
                   {i < selectedExercises.length - 1 && (
-                    <TouchableOpacity onPress={() => onMove(i, 'down')} style={styles.moveBtn}>
+                    <TouchableOpacity onPress={() => onMove(i, 'down')} style={[styles.moveBtn, { borderColor: colors.border }]}>
                       <Text style={[typography.body, { color: colors.textSecondary }]}>↓</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity onPress={() => onRemove(ex)} style={[styles.moveBtn, { backgroundColor: colors.error + '15' }]}>
+                  <TouchableOpacity onPress={() => onRemove(ex)} style={[styles.moveBtn, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
                     <Text style={[typography.body, { color: colors.error }]}>✕</Text>
                   </TouchableOpacity>
                 </View>
@@ -196,7 +196,7 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
                       <View style={styles.stepper}>
                         <TouchableOpacity
                           onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.max(s.min, cfg[s.field] - s.step) }); }}
-                          style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                          style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
                         >
                           <Text style={[typography.bodySemibold, { color: colors.text }]}>−</Text>
                         </TouchableOpacity>
@@ -205,7 +205,7 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
                         </Text>
                         <TouchableOpacity
                           onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.min(s.max, cfg[s.field] + s.step) }); }}
-                          style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                          style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
                         >
                           <Text style={[typography.bodySemibold, { color: colors.text }]}>+</Text>
                         </TouchableOpacity>
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
   nameInput: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16 },
   configRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
-  moveBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  moveBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   steppersRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stepperGroup: { flex: 1, alignItems: 'center', gap: 4 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
