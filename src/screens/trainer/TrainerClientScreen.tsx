@@ -162,7 +162,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
           <TouchableOpacity onPress={() => { haptic.selection(); setShowLogSession(true); }} activeOpacity={0.8} style={{ flex: 2 }}>
             <View style={[styles.markDoneBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
               <Text style={{ fontWeight: '700', color: '#fff' }}>+</Text>
-              <Text style={[typography.small, { color: '#fff', marginLeft: spacing.sm }]}>Записать тренировку</Text>
+              <Text style={[typography.small, { color: '#fff', marginLeft: spacing.sm }]} numberOfLines={1}>Записать тренировку</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -212,7 +212,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
               <View key={w.id} style={[styles.workoutRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name}</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
                     {new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                     {'  •  '}{w.durationMinutes} мин
                     {w.notes ? `  •  ${w.notes}` : ''}
@@ -268,7 +268,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
 
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 6 }]}>Длительность (мин) *</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 6 }]} numberOfLines={1}>Длительность (мин) *</Text>
                 <TextInput
                   value={sessionDuration}
                   onChangeText={setSessionDuration}
