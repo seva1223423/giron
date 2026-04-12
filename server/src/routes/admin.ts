@@ -222,6 +222,7 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
         { email: { contains: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
       ];
     }
 

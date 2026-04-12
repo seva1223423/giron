@@ -123,6 +123,47 @@ function UserRow({
   onPress: () => void;
   onRefresh: () => void;
 }) {
+  const handleLongPress = useCallback(() => {
+    const options: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
+      { text: 'Подробнее', onPress },
+    ];
+    if (user.isBanned) {
+      options.push({
+        text: 'Разблокировать',
+        onPress: async () => {
+          try {
+            await adminService.unbanUser(user.id);
+            onRefresh();
+          } catch {
+            Alert.alert('Ошибка', 'Не удалось разблокировать');
+          }
+        },
+      });
+    } else {
+      options.push({
+        text: 'Заблокировать',
+        style: 'destructive',
+        onPress: () => {
+          Alert.prompt(
+            'Причина блокировки',
+            `Укажи причину для ${user.firstName}:`,
+            async (reason) => {
+              if (!reason?.trim()) return;
+              try {
+                await adminService.banUser(user.id, reason.trim());
+                onRefresh();
+              } catch {
+                Alert.alert('Ошибка', 'Не удалось заблокировать');
+              }
+            },
+            'plain-text'
+          );
+        },
+      });
+    }
+    options.push({ text: 'Отмена', style: 'cancel' });
+    Alert.alert(`${user.firstName} ${user.lastName ?? ''}`, user.email, options);
+  }, [user, onPress, onRefresh]);
   const sub = user.subscription;
   const planColor = PLAN_COLOR[sub?.plan ?? 'free'] ?? '#6B7280';
   const isNew = Date.now() - new Date(user.createdAt).getTime() < DAY_MS;
@@ -133,7 +174,7 @@ function UserRow({
 
   return (
     <View style={[styles.row, user.isBanned && styles.rowBanned]}>
-      <TouchableOpacity style={styles.rowTop} onPress={onPress} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.rowTop} onPress={onPress} onLongPress={handleLongPress} delayLongPress={400} activeOpacity={0.7}>
         <View style={[styles.avatar, { backgroundColor: user.isBanned ? '#EF444433' : planColor + '33', borderColor: user.isBanned ? '#EF4444' : planColor }]}>
           <Text style={[styles.avatarText, { color: user.isBanned ? '#EF4444' : planColor }]}>
             {user.firstName[0]}{user.lastName?.[0] ?? ''}
