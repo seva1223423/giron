@@ -133,8 +133,8 @@ export const PRRecordCard: React.FC<Props> = ({ record, idx, isExpanded, onToggl
                     </Text>
                     <Text style={[typography.captionMedium, { color: isFirst ? colors.primary : colors.text }]}>{h.estimated1RM} кг</Text>
                   </View>
-                  <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.surface }}>
-                    <View style={{ height: 4, borderRadius: 2, width: `${barPct}%` as any, backgroundColor: isFirst ? colors.primary : colors.primary + '40' }} />
+                  <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surface }}>
+                    <View style={{ height: 6, borderRadius: 3, width: `${barPct}%` as any, backgroundColor: isFirst ? colors.primary : colors.primary + '40' }} />
                   </View>
                 </View>
               );
