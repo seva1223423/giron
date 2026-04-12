@@ -236,6 +236,18 @@ function UserRow({
                 <View style={[styles.planBadge, { backgroundColor: planColor + '22', borderWidth: 1, borderColor: planColor + '50' }]}>
                   <Text style={[styles.planText, { color: planColor }]}>{sub.plan.toUpperCase()}</Text>
                 </View>
+                {sub.endDate && (() => {
+                  const daysLeft = Math.ceil((new Date(sub.endDate).getTime() - Date.now()) / DAY_MS);
+                  if (daysLeft <= 7 && daysLeft > 0) {
+                    return (
+                      <>
+                        <Text style={styles.metaDot}>·</Text>
+                        <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: '600' }}>⏰ {daysLeft}д</Text>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
               </>
             )}
           </View>
@@ -273,6 +285,7 @@ export default function AdminUsersScreen() {
   const [exporting, setExporting] = useState(false);
   const [dormant, setDormant] = useState(false);
   const [bannedOnly, setBannedOnly] = useState(false);
+  const [subExpiringSoon, setSubExpiringSoon] = useState(false);
   const [sortIdx, setSortIdx] = useState(0);
 
   const load = useCallback(async (p: number, append = false, silent = false) => {
@@ -281,7 +294,7 @@ export default function AdminUsersScreen() {
     else setLoadingMore(true);
     const { sort, order } = SORT_OPTIONS[sortIdx];
     try {
-      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, banned: bannedOnly || undefined, sort, order, page: p, limit: 20 });
+      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, banned: bannedOnly || undefined, subExpiringSoon: subExpiringSoon || undefined, sort, order, page: p, limit: 20 });
       setUsers(append ? (prev) => [...prev, ...res.users] : res.users);
       setTotal(res.total);
       setPage(res.page);
@@ -293,9 +306,9 @@ export default function AdminUsersScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [search, role, dormant, bannedOnly, sortIdx]);
+  }, [search, role, dormant, bannedOnly, subExpiringSoon, sortIdx]);
 
-  useEffect(() => { load(1); }, [search, role, planFilter, dormant, bannedOnly, sortIdx]);
+  useEffect(() => { load(1); }, [search, role, planFilter, dormant, bannedOnly, subExpiringSoon, sortIdx]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -380,6 +393,14 @@ export default function AdminUsersScreen() {
         >
           <Text style={[styles.filterText, bannedOnly && styles.filterTextActive]}>
             {bannedOnly ? '⛔ Заблокированные' : 'Заблокированные'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterBtn, subExpiringSoon && { backgroundColor: '#F59E0B' }]}
+          onPress={() => setSubExpiringSoon(!subExpiringSoon)}
+        >
+          <Text style={[styles.filterText, subExpiringSoon && styles.filterTextActive]}>
+            {subExpiringSoon ? '⏰ Истекает ≤7д' : 'Истекает ≤7д'}
           </Text>
         </TouchableOpacity>
       </View>
