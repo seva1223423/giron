@@ -151,19 +151,19 @@ export const RestTimerOverlay: React.FC<Props> = ({ isResting, restTime, restTot
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onAddTime(15); }}
           style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.2)' }}
         >
-          <Text style={[typography.buttonSmall, { color: '#FFF' }]}>+15с</Text>
+          <Text style={[typography.buttonSmall, { color: '#FFF' }]} numberOfLines={1}>+15с</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onAddTime(30); }}
           style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.2)' }}
         >
-          <Text style={[typography.buttonSmall, { color: '#FFF' }]}>+30с</Text>
+          <Text style={[typography.buttonSmall, { color: '#FFF' }]} numberOfLines={1}>+30с</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onSkip(); }}
           style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, backgroundColor: '#FFF' }}
         >
-          <Text style={[typography.buttonSmall, { color: colors.primary }]}>Пропустить</Text>
+          <Text style={[typography.buttonSmall, { color: colors.primary }]} numberOfLines={1}>Пропустить</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>

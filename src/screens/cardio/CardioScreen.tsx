@@ -181,6 +181,6 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', flexWrap: 'wrap' },
   sessionCard: { borderRadius: borderRadius.lg, borderWidth: 1, padding: spacing.md, marginBottom: spacing.sm },
-  sessionRow: { flexDirection: 'row', alignItems: 'center' },
+  sessionRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   emptyState: { alignItems: 'center', paddingTop: spacing.huge },
 });

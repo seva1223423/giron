@@ -89,7 +89,7 @@ export const PRRecordCard: React.FC<Props> = ({ record, idx, isExpanded, onToggl
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{record.exerciseName}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2, flexWrap: 'wrap' }}>
                 <Text style={[typography.caption, { color: colors.textTertiary }]}>{MUSCLE_LABELS[record.muscle] || record.muscle}</Text>
                 <Text style={[typography.caption, { color: colors.textTertiary }]}>·</Text>
                 <Text style={[typography.caption, { color: colors.textTertiary }]}>{formatDate(record.date)}</Text>
