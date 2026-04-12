@@ -5,9 +5,16 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { CalendarTab } from './CalendarTab';
 import { CardioTab } from './CardioTab';
+import { StepsSection } from './StepsSection';
 import type { Workout } from '../../../types';
 
-type Section = 'calendar' | 'cardio';
+type Section = 'calendar' | 'steps' | 'cardio';
+
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: 'calendar', label: 'Тренировки' },
+  { key: 'steps', label: 'Шаги' },
+  { key: 'cardio', label: 'Кардио' },
+];
 
 interface Props {
   colors: any;
@@ -30,10 +37,7 @@ export const ActivityTab: React.FC<Props> = ({ colors, workoutHistory }) => {
         borderWidth: 1,
         borderColor: colors.border,
       }}>
-        {([
-          { key: 'calendar' as const, label: 'Тренировки' },
-          { key: 'cardio' as const, label: 'Кардио' },
-        ] as { key: Section; label: string }[]).map((s) => (
+        {SECTIONS.map((s) => (
           <TouchableOpacity
             key={s.key}
             onPress={() => { haptic.selection(); setSection(s.key); }}
@@ -54,6 +58,7 @@ export const ActivityTab: React.FC<Props> = ({ colors, workoutHistory }) => {
       </View>
 
       {section === 'calendar' && <CalendarTab colors={colors} workoutHistory={workoutHistory} />}
+      {section === 'steps' && <StepsSection colors={colors} />}
       {section === 'cardio' && <CardioTab colors={colors} />}
     </View>
   );

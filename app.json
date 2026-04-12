@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "icon": "./assets/icon.png"
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "NSMotionUsageDescription": "Необходимо для подсчёта шагов и отслеживания активности"
+      }
     },
     "android": {
       "package": "com.irongym.app",
@@ -30,9 +33,19 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "data": [{ "scheme": "irongym" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "irongym"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
+      ],
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
       ]
     },
     "web": {

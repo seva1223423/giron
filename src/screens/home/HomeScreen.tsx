@@ -11,7 +11,7 @@ import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showToda
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   LastWorkoutCard, NutritionCard, WaterCard,
-  RecoveryScoreCard, TodaySummaryCard,
+  RecoveryScoreCard, TodaySummaryCard, StepsCard,
 } from './components';
 import { Text } from 'react-native';
 import { typography } from '../../theme';
@@ -273,6 +273,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <FadeIn delay={320}>
         <WaterCard dayLog={dayLog} today={today} />
       </FadeIn>
+
+      <StepsCard />
     </ScrollView>
 
     {/* Floating "Start workout" button — shown when no active workout */}
