@@ -100,7 +100,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.md }}
           >
             <Text style={{ fontSize: 18, marginRight: spacing.sm }}>G</Text>
-            <Text style={[typography.bodySemibold, { color: colors.text }]}>Войти через Google</Text>
+            <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>Войти через Google</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => Alert.alert('Скоро', 'Авторизация через VK будет доступна в следующем обновлении.')}
@@ -111,11 +111,11 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </View>
 
         <View style={styles.footer}>
-          <Text style={[typography.body, { color: colors.textSecondary }]}>
+          <Text style={[typography.body, { color: colors.textSecondary }]} numberOfLines={1}>
             Нет аккаунта?{' '}
           </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={[typography.bodySemibold, { color: colors.primary }]}>
+            <Text style={[typography.bodySemibold, { color: colors.primary }]} numberOfLines={1}>
               Зарегистрируйся
             </Text>
           </TouchableOpacity>
