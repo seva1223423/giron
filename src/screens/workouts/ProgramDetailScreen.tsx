@@ -115,7 +115,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>+</Text>
           <View style={{ flex: 1 }}>
             <Text style={[typography.bodySemibold, { color: goalColor }]}>Добавить в план недели</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary }]}>Расставить тренировки по дням автоматически</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>Расставить тренировки по дням автоматически</Text>
           </View>
           <Text style={[typography.captionMedium, { color: goalColor }]}>›</Text>
         </TouchableOpacity>
