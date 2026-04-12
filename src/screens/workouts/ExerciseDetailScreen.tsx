@@ -125,13 +125,13 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
       {/* Tags */}
       <FadeIn delay={60}>
         <View style={styles.tagsRow}>
-          <View style={[styles.tag, { backgroundColor: difficultyColor + '20' }]}>
+          <View style={[styles.tag, { backgroundColor: difficultyColor + '20', borderWidth: 1, borderColor: difficultyColor + '40' }]}>
             <Text style={[typography.captionMedium, { color: difficultyColor }]}>{DIFFICULTY_LABELS[exercise.difficulty] || exercise.difficulty}</Text>
           </View>
-          <View style={[styles.tag, { backgroundColor: colors.primary + '15' }]}>
+          <View style={[styles.tag, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40' }]}>
             <Text style={[typography.captionMedium, { color: colors.primary }]}>{TYPE_LABELS[exercise.type] || exercise.type}</Text>
           </View>
-          <View style={[styles.tag, { backgroundColor: colors.info + '15' }]}>
+          <View style={[styles.tag, { backgroundColor: colors.info + '15', borderWidth: 1, borderColor: colors.info + '40' }]}>
             <Text style={[typography.captionMedium, { color: colors.info }]}>
               {exercise.category === 'strength' ? 'Силовое' : exercise.category === 'cardio' ? 'Кардио' : exercise.category === 'functional' ? 'Функционал' : exercise.category}
             </Text>
@@ -194,7 +194,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
           <Text style={[typography.smallMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>Основные:</Text>
           <View style={styles.muscleRow}>
             {exercise.primaryMuscles.map((m) => (
-              <View key={m} style={[styles.muscleChip, { backgroundColor: colors.primary + '15' }]}>
+              <View key={m} style={[styles.muscleChip, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '35' }]}>
                 <Text style={[typography.captionMedium, { color: colors.primary }]}>{MUSCLE_LABELS[m] || m}</Text>
               </View>
             ))}
@@ -204,7 +204,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
               <Text style={[typography.smallMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>Вспомогательные:</Text>
               <View style={styles.muscleRow}>
                 {exercise.secondaryMuscles.map((m) => (
-                  <View key={m} style={[styles.muscleChip, { backgroundColor: colors.surface }]}>
+                  <View key={m} style={[styles.muscleChip, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
                     <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{MUSCLE_LABELS[m] || m}</Text>
                   </View>
                 ))}
@@ -315,6 +315,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
                 <View style={{
                   width: 36, height: 36, borderRadius: borderRadius.sm,
                   backgroundColor: (DIFFICULTY_COLORS[ex.difficulty] || colors.primary) + '15',
+                  borderWidth: 1.5, borderColor: (DIFFICULTY_COLORS[ex.difficulty] || colors.primary) + '40',
                   alignItems: 'center', justifyContent: 'center',
                 }}>
                   <Text style={{ fontSize: 11, fontWeight: '700', color: DIFFICULTY_COLORS[ex.difficulty] || colors.primary }}>

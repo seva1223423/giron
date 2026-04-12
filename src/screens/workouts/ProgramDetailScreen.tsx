@@ -64,7 +64,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             <Text style={[typography.h3, { color: colors.primary }]}>{'‹'} </Text>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{program.emoji}</Text></View>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + '12', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{program.emoji}</Text></View>
             <Text style={[typography.h2, { color: colors.text }]}>{program.name}</Text>
           </View>
         </View>
@@ -73,12 +73,12 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
       <FadeIn delay={80}>
         <View style={styles.tagsRow}>
           {[
-            { label: GOAL_LABELS[program.goal], bg: goalColor + '20', color: goalColor },
-            { label: LEVEL_LABELS[program.level], bg: colors.primary + '15', color: colors.primary },
-            { label: `${program.daysPerWeek}д/нед`, bg: colors.surface, color: colors.textSecondary },
-            { label: `${program.durationWeeks} нед`, bg: colors.surface, color: colors.textSecondary },
-          ].map(({ label, bg, color }) => (
-            <View key={label} style={[styles.tag, { backgroundColor: bg }]}>
+            { label: GOAL_LABELS[program.goal], bg: goalColor + '20', color: goalColor, border: goalColor + '40' },
+            { label: LEVEL_LABELS[program.level], bg: colors.primary + '15', color: colors.primary, border: colors.primary + '40' },
+            { label: `${program.daysPerWeek}д/нед`, bg: colors.surface, color: colors.textSecondary, border: colors.border },
+            { label: `${program.durationWeeks} нед`, bg: colors.surface, color: colors.textSecondary, border: colors.border },
+          ].map(({ label, bg, color, border }) => (
+            <View key={label} style={[styles.tag, { backgroundColor: bg, borderWidth: 1, borderColor: border }]}>
               <Text style={[typography.captionMedium, { color }]}>{label}</Text>
             </View>
           ))}

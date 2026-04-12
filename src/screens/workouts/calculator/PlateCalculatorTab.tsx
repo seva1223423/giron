@@ -89,7 +89,7 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
       <Card style={{ marginBottom: spacing.lg }}>
         <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>ЦЕЛЕВОЙ ВЕС</Text>
         <View style={styles.weightRow}>
-          <TouchableOpacity onPress={() => adjustWeight(-2.5)} style={[styles.adjustBtn, { backgroundColor: colors.surface }]}>
+          <TouchableOpacity onPress={() => adjustWeight(-2.5)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.h3, { color: colors.primary }]}>−</Text>
           </TouchableOpacity>
           <View style={styles.weightInputWrap}>
@@ -102,7 +102,7 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
             />
             <Text style={[typography.h4, { color: colors.textSecondary }]}>кг</Text>
           </View>
-          <TouchableOpacity onPress={() => adjustWeight(2.5)} style={[styles.adjustBtn, { backgroundColor: colors.surface }]}>
+          <TouchableOpacity onPress={() => adjustWeight(2.5)} style={[styles.adjustBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.h3, { color: colors.primary }]}>+</Text>
           </TouchableOpacity>
         </View>
@@ -194,7 +194,7 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
 
 const styles = StyleSheet.create({
   weightRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
-  adjustBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  adjustBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
   weightInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   weightInput: { flex: 1, minWidth: 80, maxWidth: 140, textAlign: 'center', fontSize: 36, fontWeight: '800', paddingVertical: spacing.sm, borderRadius: borderRadius.lg, borderWidth: 1.5 },
   quickBtns: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', flexWrap: 'wrap' },
