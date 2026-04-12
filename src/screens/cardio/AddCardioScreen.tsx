@@ -142,7 +142,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
       <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.lg, marginBottom: spacing.sm, letterSpacing: 0.5 }]}>
         КАЛОРИИ — необязательно
       </Text>
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+      <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
         <TextInput
           style={[styles.input, { flex: 1, backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
           value={calories}
