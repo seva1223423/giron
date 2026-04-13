@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
+import { normalizePhone } from '../services/smsService';
+import { sendPushToUser } from '../services/pushService';
 
 const router = Router();
 
@@ -429,6 +431,66 @@ router.delete('/sessions', authenticate, async (req: AuthRequest, res: Response)
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка выхода из всех устройств' });
+  }
+});
+
+// ── Change phone ──────────────────────────────────────────────────────────────
+
+/**
+ * POST /user/change-phone — update phone number.
+ * Requires a valid OTP sent to the new phone via POST /auth/send-otp (purpose: 'phone-change').
+ */
+router.post('/change-phone', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { phone: rawPhone, code } = z.object({
+      phone: z.string().min(10, 'Введите номер телефона'),
+      code: z.string().length(6, 'Код должен быть 6 цифр'),
+    }).parse(req.body);
+
+    const phone = normalizePhone(rawPhone);
+
+    // Check phone isn't already used by another user
+    const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
+    if (existing && existing.id !== req.userId) {
+      return res.status(409).json({ error: 'Этот номер телефона уже используется', code: 'PHONE_TAKEN' });
+    }
+
+    // Find active OTP for this phone
+    const activeOtp = await prisma.otpCode.findFirst({
+      where: { phone, purpose: 'phone-change', used: false, expiresAt: { gte: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!activeOtp) {
+      return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
+    }
+    if (activeOtp.code !== code) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      return res.status(400).json({ error: 'Неверный код подтверждения', code: 'INVALID_OTP' });
+    }
+    await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+
+    // Update phone number
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { phone, phoneVerified: true },
+    });
+
+    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    await prisma.securityEvent.create({
+      data: { userId: req.userId!, action: 'PHONE_CHANGED', ip, details: `phone=${phone}` },
+    });
+
+    sendPushToUser(req.userId!, {
+      title: 'Номер телефона изменён',
+      body: `К аккаунту привязан новый номер. Если это не вы — смените пароль.`,
+      data: { url: 'irongym://profile/security' },
+    }).catch(() => {});
+
+    res.json({ ok: true, phone, phoneVerified: true });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /user/change-phone:', e);
+    res.status(500).json({ error: 'Ошибка смены номера телефона' });
   }
 });
 

@@ -407,7 +407,7 @@ router.post('/google', async (req: Request, res: Response) => {
 
 router.post('/vk', async (req: Request, res: Response) => {
   try {
-    const { accessToken, userId: vkUserId, email: vkEmail } = z.object({
+    const { accessToken, userId: claimedVkUserId, email: vkEmail } = z.object({
       accessToken: z.string().min(1),
       userId: z.number().int().positive(),
       email: z.string().email().optional(),
@@ -419,8 +419,8 @@ router.post('/vk', async (req: Request, res: Response) => {
 
     let vkUser: any;
     try {
+      // Omit user_ids to get the token owner's own profile — prevents user ID spoofing
       const params = new URLSearchParams({
-        user_ids: String(vkUserId),
         fields: 'photo_200',
         access_token: accessToken,
         v: '5.199',
@@ -435,7 +435,13 @@ router.post('/vk', async (req: Request, res: Response) => {
 
     if (!vkUser) return res.status(401).json({ error: 'Пользователь VK не найден' });
 
-    const vkId = String(vkUserId);
+    // Verify token owner matches the claimed userId
+    if (vkUser.id !== claimedVkUserId) {
+      logger.warn(`VK auth mismatch: claimed=${claimedVkUserId} actual=${vkUser.id} ip=${(req as any).ip}`);
+      return res.status(401).json({ error: 'Токен VK не совпадает с указанным пользователем' });
+    }
+
+    const vkId = String(vkUser.id);
     const firstName = vkUser.first_name || 'Пользователь';
     const lastName = vkUser.last_name || undefined;
     const avatarUrl = vkUser.photo_200 || undefined;
@@ -526,7 +532,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     const { phone: rawPhone, email, purpose } = z.object({
       phone: z.string().optional(),
       email: z.string().email().optional(),
-      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
@@ -539,8 +545,8 @@ router.post('/send-otp', async (req: Request, res: Response) => {
       }
     }
 
-    // For 'register': check that phone is NOT already taken to avoid wasting SMS
-    if (purpose === 'register' && phone) {
+    // For 'register' and 'phone-change': check that phone is NOT already taken to avoid wasting SMS
+    if ((purpose === 'register' || purpose === 'phone-change') && phone) {
       const taken = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
       if (taken) {
         return res.status(409).json({ error: 'Этот номер телефона уже зарегистрирован', code: 'PHONE_TAKEN' });
@@ -619,7 +625,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       phone: z.string().optional(),
       email: z.string().email().optional(),
       code: z.string().length(6),
-      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change']).default('register'),
     }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
@@ -653,9 +659,9 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     }
 
     // Correct code
-    // For 'register' and 'phone-reset': leave OTP intact — dedicated endpoints will consume it
+    // For 'register', 'phone-reset', 'phone-change': leave OTP intact — dedicated endpoints will consume it
     // For all other purposes: mark used now
-    if (purpose !== 'register' && purpose !== 'phone-reset') {
+    if (purpose !== 'register' && purpose !== 'phone-reset' && purpose !== 'phone-change') {
       await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
     }
 
