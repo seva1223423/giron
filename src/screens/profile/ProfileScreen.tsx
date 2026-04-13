@@ -9,6 +9,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
 import { LifetimeStatsCard } from './components';
 import { userService } from '../../services';
+import { authService } from '../../services/authService';
 import type { BodyWeight } from '../../types';
 
 const GOAL_LABELS: Record<string, string> = {
@@ -81,6 +82,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const { dailyLog } = useNutritionStore();
 
   const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
+  const [resendingVerif, setResendingVerif] = useState(false);
 
   useEffect(() => {
     userService.getWeightHistory().then(setWeightHistory).catch(() => {});
@@ -323,6 +325,27 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               {user?.emailVerified ? ' · подтверждён' : ' · не подтверждён'}
             </Text>
           </View>
+          {!user?.emailVerified && (
+            <TouchableOpacity
+              onPress={async () => {
+                if (resendingVerif || !user?.email) return;
+                setResendingVerif(true);
+                try {
+                  await authService.resendVerification(user.email);
+                  Alert.alert('Готово', 'Код подтверждения отправлен на ' + user.email);
+                } catch (e: any) {
+                  Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отправить');
+                } finally {
+                  setResendingVerif(false);
+                }
+              }}
+              style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: colors.primary + '60', backgroundColor: colors.primary + '10' }}
+            >
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+                {resendingVerif ? '...' : 'Подтвердить'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Linked social accounts */}
