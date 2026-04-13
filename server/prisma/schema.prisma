@@ -73,6 +73,7 @@ model User {
   passwordHistory         PasswordHistory[]
   refreshTokens           RefreshToken[]
   pushTokens              PushToken[]
+  trustedDevices          TrustedDevice[]
 }
 
 enum Gender {
@@ -584,4 +585,18 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+}
+
+model TrustedDevice {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique  // SHA256 of the device token stored on client
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent   String?
+  ip          String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
 }

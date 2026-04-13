@@ -144,6 +144,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+  deviceToken: z.string().optional(), // trusted device token for skipping TOTP
 });
 
 // ── Register ──────────────────────────────────────────────────────────────────
@@ -272,14 +273,29 @@ router.post('/login', async (req: Request, res: Response) => {
       await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null } });
     }
 
-    // TOTP 2FA gate — if enabled, return a short-lived pending token instead of full JWT
+    // TOTP 2FA gate — if enabled, check for trusted device token first
     if ((user as any).totpEnabled && (user as any).totpSecret) {
-      const pendingToken = jwt.sign(
-        { userId: user.id, phase: 'totp' },
-        process.env.JWT_SECRET!,
-        { expiresIn: '5m', issuer: JWT_ISS, audience: JWT_AUD },
-      );
-      return res.json({ requiresTOTP: true, pendingToken });
+      let skipTotp = false;
+      if (data.deviceToken) {
+        const tokenHash = crypto.createHash('sha256').update(data.deviceToken).digest('hex');
+        const trusted = await prisma.trustedDevice.findFirst({
+          where: { tokenHash, userId: user.id, expiresAt: { gte: new Date() } },
+        });
+        skipTotp = !!trusted;
+      }
+      if (!skipTotp) {
+        const pendingToken = jwt.sign(
+          { userId: user.id, phase: 'totp' },
+          process.env.JWT_SECRET!,
+          { expiresIn: '5m', issuer: JWT_ISS, audience: JWT_AUD },
+        );
+        return res.json({ requiresTOTP: true, pendingToken });
+      }
+      // Trusted device: fall through to normal login below
+      await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email} method=trusted_device`);
+      const { token: tk, refreshToken: rt } = await signTokens(user.id, req);
+      const { passwordHash: ph, googleId: gi, vkId: vi, yandexId: yi, ...uwsTrusted } = user as any;
+      return res.json({ user: uwsTrusted, token: tk, refreshToken: rt });
     }
 
     const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
@@ -331,10 +347,11 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.post('/totp-verify', async (req: Request, res: Response) => {
   try {
-    const { pendingToken, code, backupCode } = z.object({
+    const { pendingToken, code, backupCode, rememberDevice } = z.object({
       pendingToken: z.string().min(1),
       code: z.string().length(6).optional(),
       backupCode: z.string().min(1).optional(),
+      rememberDevice: z.boolean().optional().default(false),
     }).refine((d) => d.code || d.backupCode, { message: 'Введите код или резервный код' }).parse(req.body);
 
     // Verify pending token
@@ -417,8 +434,26 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     }
 
     const { token, refreshToken } = await signTokens(user.id, req);
+
+    // Remember this device: generate a plain device token, store its SHA256 hash in DB
+    let deviceToken: string | undefined;
+    if (rememberDevice) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      await prisma.trustedDevice.create({
+        data: {
+          tokenHash,
+          userId: user.id,
+          userAgent: currentUa,
+          ip: currentIp,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        },
+      });
+      deviceToken = rawToken;
+    }
+
     const { passwordHash, googleId, vkId, yandexId, totpSecret, ...userWithoutSecrets } = user as any;
-    res.json({ user: userWithoutSecrets, token, refreshToken });
+    res.json({ user: userWithoutSecrets, token, refreshToken, ...(deviceToken ? { deviceToken } : {}) });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /auth/totp-verify:', e);
