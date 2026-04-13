@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, StyleSheet,
@@ -11,7 +11,7 @@ import { userService } from '../../services/userService';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { Button } from '../../components';
 
-type Step = 'enter_phone' | 'enter_code';
+type Step = 'enter_phone' | 'enter_code' | 'enter_totp';
 
 export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -19,9 +19,18 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [step, setStep] = useState<Step>('enter_phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hasTwoFactor, setHasTwoFactor] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const verifiedCodeRef = useRef('');
+
+  useEffect(() => {
+    api.get<{ enabled: boolean }>('/user/2fa/status')
+      .then(({ data }) => setHasTwoFactor(data.enabled))
+      .catch(() => {});
+  }, []);
 
   const startCountdown = (seconds: number) => {
     setResendCountdown(seconds);
@@ -62,18 +71,24 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
     }
   };
 
-  const submitCode = async (codeValue: string) => {
-    if (codeValue.length !== 6) return;
+  const submitChange = async (smsOtp: string, totp?: string) => {
     setLoading(true);
     try {
-      await userService.changePhone(phone.trim(), codeValue);
+      await userService.changePhone(phone.trim(), smsOtp, totp);
       Alert.alert('Готово', 'Номер телефона успешно изменён', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
+      const errCode = e?.response?.data?.code;
       const msg = e?.response?.data?.error || 'Ошибка смены номера';
-      Alert.alert('Ошибка', msg);
-      setCode('');
+      if (errCode === 'TOTP_REQUIRED' || errCode === 'INVALID_TOTP') {
+        Alert.alert('Ошибка', 'Неверный код 2FA');
+        setTotpCode('');
+      } else {
+        Alert.alert('Ошибка', msg);
+        setCode('');
+        setStep('enter_code');
+      }
     } finally {
       setLoading(false);
     }
@@ -83,7 +98,20 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
     const digits = value.replace(/\D/g, '').slice(0, 6);
     setCode(digits);
     if (digits.length === 6) {
-      setTimeout(() => submitCode(digits), 100);
+      if (hasTwoFactor) {
+        verifiedCodeRef.current = digits;
+        setTimeout(() => setStep('enter_totp'), 100);
+      } else {
+        setTimeout(() => submitChange(digits), 100);
+      }
+    }
+  };
+
+  const onTotpChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    setTotpCode(digits);
+    if (digits.length === 6) {
+      setTimeout(() => submitChange(verifiedCodeRef.current, digits), 100);
     }
   };
 
@@ -121,7 +149,7 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
             style={{ marginTop: spacing.xl }}
           />
         </>
-      ) : (
+      ) : step === 'enter_code' ? (
         <>
           <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.xl }]}>
             Код отправлен на номер {phone}. Введите 6-значный код из SMS.
@@ -151,6 +179,27 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
 
           <TouchableOpacity onPress={() => { setStep('enter_phone'); setCode(''); }} style={{ marginTop: spacing.lg, alignItems: 'center' }}>
             <Text style={[typography.body, { color: colors.textSecondary }]}>Изменить номер</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.xl }]}>
+            Введите 6-значный код из приложения-аутентификатора для подтверждения смены номера телефона.
+          </Text>
+          <TextInput
+            style={[styles.input, styles.codeInput, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+            placeholder="------"
+            placeholderTextColor={colors.textTertiary}
+            value={totpCode}
+            onChangeText={onTotpChange}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoFocus
+          />
+          {loading && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />}
+
+          <TouchableOpacity onPress={() => { setStep('enter_code'); setTotpCode(''); }} style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+            <Text style={[typography.body, { color: colors.textSecondary }]}>← Назад</Text>
           </TouchableOpacity>
         </>
       )}
