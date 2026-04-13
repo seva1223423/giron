@@ -30,6 +30,15 @@ export interface User {
   role: UserRole;
   avatarUrl?: string;
   createdAt: string;
+  // Auth & security
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  vkId?: string | null;
+  googleId?: string | null;
+  isBanned?: boolean;
+  banReason?: string | null;
+  lockedUntil?: string | null;
+  loginAttempts?: number;
 }
 
 // ==================== EXERCISES ====================
@@ -301,6 +310,13 @@ export interface AdminUserSummary {
   createdAt: string;
   isBanned: boolean;
   banReason?: string;
+  phone?: string | null;
+  phoneVerified?: boolean;
+  emailVerified?: boolean;
+  vkId?: string | null;
+  googleId?: string | null;
+  lockedUntil?: string | null;
+  loginAttempts?: number;
   subscription?: { plan: string; status: string; endDate?: string | null } | null;
   workouts?: Array<{ completedAt?: string | null }>;
   _count: { workouts: number; chatMessages: number };

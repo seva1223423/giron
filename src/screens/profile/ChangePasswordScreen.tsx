@@ -25,12 +25,13 @@ const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший',
 
 export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const user = useAuthStore((s) => s.user) as any;
-  const hasPrevPassword = !!(user?.passwordHash !== undefined ? user.passwordHash : true); // optimistic: assume has password
-  // Note: passwordHash is not sent to client — we show current password field by default,
-  // but if user has no password (social-only), we skip it.
-  // We detect social-only via: user has googleId or vkId but no indication of password.
-  const isSocialOnly = !!(user?.googleId || user?.vkId) && !user?.passwordHash;
+  const user = useAuthStore((s) => s.user);
+  // passwordHash is never sent to client.
+  // Social-only users: have vkId/googleId but registered without password (email ends in .internal or no login-by-email possible).
+  // Best heuristic: if user only has vkId/googleId and no indication they set a password
+  // We show the current-password field by default and let the server handle the case.
+  // The server allows skipping currentPassword if user has no passwordHash.
+  const isSocialOnly = !!(user?.vkId || user?.googleId) && user?.email?.endsWith('@irongym.internal');
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
