@@ -302,12 +302,16 @@ async function recordPasswordHistory(userId: string, hash: string): Promise<void
 
 router.post('/change-password', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { currentPassword, newPassword } = z.object({
+    const { currentPassword, newPassword, totpCode } = z.object({
       currentPassword: z.string().min(1, 'Введите текущий пароль'),
       newPassword: strongPassword,
+      totpCode: z.string().length(6).optional(),
     }).parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true, email: true, emailVerified: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { passwordHash: true, email: true, emailVerified: true, totpEnabled: true, totpSecret: true },
+    });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
     // Social-only users don't have a password — they're creating one for the first time
@@ -315,6 +319,17 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       const valid = await bcrypt.compare(currentPassword, user.passwordHash);
       if (!valid) {
         return res.status(401).json({ error: 'Неверный текущий пароль', code: 'WRONG_CURRENT_PASSWORD' });
+      }
+    }
+
+    // If 2FA is enabled, also require TOTP code
+    if (user.totpEnabled && user.totpSecret) {
+      if (!totpCode) {
+        return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
+      }
+      const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
     }
 

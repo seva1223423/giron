@@ -54,8 +54,8 @@ export const userService = {
     await api.put('/user/week-plan', plan);
   },
 
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await api.post('/user/change-password', { currentPassword, newPassword });
+  async changePassword(currentPassword: string, newPassword: string, totpCode?: string): Promise<void> {
+    await api.post('/user/change-password', { currentPassword, newPassword, totpCode });
   },
 
   async getSecurityEvents(): Promise<Array<{ id: string; action: string; ip: string | null; createdAt: string; details?: string | null }>> {
