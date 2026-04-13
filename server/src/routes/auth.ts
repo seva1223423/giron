@@ -258,7 +258,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // Social-only user
     if (!user.passwordHash) {
       return res.status(401).json({
-        error: 'Этот аккаунт создан через соцсеть. Войдите через Google или VK.',
+        error: 'Этот аккаунт создан через соцсеть. Войдите через VK или Яндекс.',
         code: 'SOCIAL_ONLY',
       });
     }
@@ -486,15 +486,15 @@ router.post('/check-email', async (req: Request, res: Response) => {
     const { email } = z.object({ email: z.string().email() }).parse(req.body);
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, googleId: true, passwordHash: true, vkId: true },
+      select: { id: true, googleId: true, passwordHash: true, vkId: true, yandexId: true },
     });
     if (!user) return res.json({ exists: false });
     res.json({
       exists: true,
       hasPassword: !!user.passwordHash,
       hasGoogle: !!user.googleId,
-      hasVk: !!(user as any).vkId,
-      hasYandex: !!(user as any).yandexId,
+      hasVk: !!user.vkId,
+      hasYandex: !!user.yandexId,
     });
   } catch {
     res.json({ exists: false });

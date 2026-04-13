@@ -98,8 +98,8 @@ export const userService = {
     await api.delete(`/user/linked-accounts/${provider}`);
   },
 
-  async deleteAccount(password?: string): Promise<void> {
-    await api.delete('/user/account', { data: { password } });
+  async deleteAccount(password?: string, totpCode?: string): Promise<void> {
+    await api.delete('/user/account', { data: { password, totpCode } });
   },
 
   async changePhone(phone: string, code: string): Promise<{ ok: boolean; phone: string; phoneVerified: boolean }> {

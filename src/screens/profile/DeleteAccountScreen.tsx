@@ -7,24 +7,35 @@ import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { userService } from '../../services/userService';
+import { api } from '../../services/api';
 
 export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const logout = useAuthStore((s) => s.logout);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [hasTwoFactor, setHasTwoFactor] = useState(false);
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    userService.hasPassword()
-      .then(setHasPassword)
-      .catch(() => setHasPassword(false));
+    Promise.all([
+      userService.hasPassword().catch(() => false),
+      api.get<{ enabled: boolean }>('/user/2fa/status').then(({ data }) => data.enabled).catch(() => false),
+    ]).then(([hp, totp]) => {
+      setHasPassword(hp);
+      setHasTwoFactor(totp);
+    });
   }, []);
 
   const handleDelete = () => {
     if (hasPassword && !password) {
       setError('Введите пароль для подтверждения');
+      return;
+    }
+    if (hasTwoFactor && totpCode.length !== 6) {
+      setError('Введите 6-значный код 2FA');
       return;
     }
     Alert.alert(
@@ -39,12 +50,17 @@ export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation 
             setLoading(true);
             setError('');
             try {
-              await userService.deleteAccount(hasPassword ? password : undefined);
+              await userService.deleteAccount(
+                hasPassword ? password : undefined,
+                hasTwoFactor ? totpCode : undefined,
+              );
               logout();
             } catch (e: any) {
               const code = e?.response?.data?.code;
               if (code === 'WRONG_PASSWORD') setError('Неверный пароль');
               else if (code === 'PASSWORD_REQUIRED') setError('Введите пароль для подтверждения');
+              else if (code === 'TOTP_REQUIRED') setError('Введите код 2FA');
+              else if (code === 'INVALID_TOTP') setError('Неверный код 2FA');
               else setError(e?.response?.data?.error || 'Ошибка удаления');
             } finally {
               setLoading(false);
@@ -62,6 +78,8 @@ export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation 
       </View>
     );
   }
+
+  const canSubmit = (!hasPassword || password.length > 0) && (!hasTwoFactor || totpCode.length === 6);
 
   return (
     <KeyboardAvoidingView
@@ -91,6 +109,17 @@ export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation 
             containerStyle={{ marginBottom: spacing.md }}
           />
         )}
+        {hasTwoFactor && (
+          <Input
+            label="Код двухфакторной аутентификации"
+            placeholder="6 цифр из приложения"
+            value={totpCode}
+            onChangeText={(t) => { setTotpCode(t.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+            keyboardType="number-pad"
+            maxLength={6}
+            containerStyle={{ marginBottom: spacing.md }}
+          />
+        )}
 
         {error ? (
           <Text style={[typography.small, { color: colors.error, marginBottom: spacing.md, textAlign: 'center' }]}>{error}</Text>
@@ -100,7 +129,7 @@ export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation 
           title="Удалить аккаунт навсегда"
           onPress={handleDelete}
           loading={loading}
-          disabled={loading}
+          disabled={loading || !canSubmit}
           fullWidth
           size="lg"
           style={{ backgroundColor: colors.error }}

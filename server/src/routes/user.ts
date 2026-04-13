@@ -876,14 +876,19 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
 /**
  * DELETE /user/account — permanently delete the authenticated user's account.
  * Requires password confirmation (or skip if social-only with no password).
+ * If 2FA is enabled, also requires a valid TOTP code.
  */
 router.delete('/account', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { password } = z.object({
+    const { password, totpCode } = z.object({
       password: z.string().optional(),
+      totpCode: z.string().length(6).optional(),
     }).parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true, email: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { passwordHash: true, email: true, totpEnabled: true, totpSecret: true },
+    });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
     // If user has a password, they must provide it to confirm deletion
@@ -894,6 +899,17 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) {
         return res.status(401).json({ error: 'Неверный пароль', code: 'WRONG_PASSWORD' });
+      }
+    }
+
+    // If 2FA is enabled, require TOTP code
+    if (user.totpEnabled && user.totpSecret) {
+      if (!totpCode) {
+        return res.status(400).json({ error: 'Введите код из аутентификатора для подтверждения', code: 'TOTP_REQUIRED' });
+      }
+      const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
     }
 
