@@ -273,6 +273,8 @@ router.post('/login', async (req: Request, res: Response) => {
         select: { ip: true },
       });
       if (lastLogin?.ip && lastLogin.ip !== currentIp) {
+        // Log suspicious login event and send push notification
+        logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastLogin.ip} new_ip=${currentIp}`);
         sendPushToUser(user.id, {
           title: 'Новый вход в аккаунт',
           body: `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`,

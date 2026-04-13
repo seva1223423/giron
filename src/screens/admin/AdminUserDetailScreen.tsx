@@ -1134,6 +1134,42 @@ export default function AdminUserDetailScreen() {
         <Text style={styles.msgUserBtnSub}>Создаст тикет в поддержке</Text>
       </TouchableOpacity>
 
+      {/* Force logout */}
+      <TouchableOpacity
+        style={[styles.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+        onPress={() => {
+          Alert.alert(
+            'Принудительный выход',
+            'Все активные сессии пользователя будут завершены. Он будет автоматически разлогинен.',
+            [
+              { text: 'Отмена', style: 'cancel' },
+              {
+                text: 'Выйти со всех устройств',
+                style: 'destructive',
+                onPress: async () => {
+                  if (busy) return;
+                  setBusy(true);
+                  try {
+                    const result = await adminService.forceLogoutUser(userId);
+                    Alert.alert('Готово', `Завершено ${result.revokedCount} сессий`);
+                  } catch {
+                    Alert.alert('Ошибка', 'Не удалось завершить сессии');
+                  } finally {
+                    setBusy(false);
+                  }
+                },
+              },
+            ],
+          );
+        }}
+      >
+        <View>
+          <Text style={[styles.cardTitle, { marginBottom: 2, color: '#EF4444' }]}>Выйти со всех устройств</Text>
+          <Text style={{ fontSize: 12, color: '#6B7280' }}>Отзывает все refresh-токены пользователя</Text>
+        </View>
+        <Text style={{ color: '#EF4444', fontSize: 20 }}>›</Text>
+      </TouchableOpacity>
+
       {/* Ban / Delete actions */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Опасные действия</Text>

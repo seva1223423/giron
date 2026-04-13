@@ -2117,4 +2117,24 @@ router.get('/users/:id/security-events', requireAdmin, async (req: AuthRequest, 
   }
 });
 
+/** POST /admin/users/:id/force-logout — revoke all refresh tokens for a user */
+router.post('/users/:id/force-logout', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { count } = await prisma.refreshToken.updateMany({
+      where: { userId: req.params.id as string, revoked: false },
+      data: { revoked: true },
+    });
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'FORCE_LOGOUT', targetId: req.params.id as string, details: `revoked ${count} sessions` },
+    });
+    await prisma.securityEvent.create({
+      data: { userId: req.params.id as string, action: 'TOKEN_REVOKED', details: `admin_force_logout by=${req.userId}` },
+    });
+    res.json({ ok: true, revokedCount: count });
+  } catch (e) {
+    logger.error('POST /admin/users/:id/force-logout:', e);
+    res.status(500).json({ error: 'Ошибка принудительного выхода' });
+  }
+});
+
 export { router as adminRouter };
