@@ -47,6 +47,7 @@ import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ChangePasswordScreen } from '../screens/profile/ChangePasswordScreen';
 import { SessionsScreen } from '../screens/profile/SessionsScreen';
 import { DeleteAccountScreen } from '../screens/profile/DeleteAccountScreen';
+import { SecurityEventsScreen } from '../screens/profile/SecurityEventsScreen';
 import { CardioScreen } from '../screens/cardio/CardioScreen';
 import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
 import SupportScreen from '../screens/support/SupportScreen';
@@ -61,6 +62,7 @@ import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
 import AdminAnalyticsScreen from '../screens/admin/AdminAnalyticsScreen';
 import AdminAnnouncementsScreen from '../screens/admin/AdminAnnouncementsScreen';
 import AdminSubscriptionsScreen from '../screens/admin/AdminSubscriptionsScreen';
+import AdminSecurityEventsScreen from '../screens/admin/AdminSecurityEventsScreen';
 import { AdminGuard } from '../screens/admin/AdminGuard';
 import { AIProgramDetailScreen } from '../screens/workouts/AIProgramDetailScreen';
 
@@ -143,7 +145,7 @@ function ProfileStackNavigator() {
         headerShown: ['SupportScreen','CreateTicketScreen','SupportTicketScreen',
           'AdminDashboardScreen','AdminUsersScreen','AdminUserDetailScreen',
           'AdminSupportScreen','AdminTicketScreen','AdminLogsScreen','AdminAnalyticsScreen',
-          'AdminAnnouncementsScreen','AdminSubscriptionsScreen'].includes(route.name),
+          'AdminAnnouncementsScreen','AdminSubscriptionsScreen','AdminSecurityEventsScreen'].includes(route.name),
         animation: 'slide_from_right',
         headerStyle: { backgroundColor: '#0F0F0F' },
         headerTintColor: '#FFFFFF',
@@ -160,6 +162,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ animation: 'slide_from_right' }} />
       <ProfileStack.Screen name="SessionsScreen" component={SessionsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="DeleteAccountScreen" component={DeleteAccountScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="SecurityEventsScreen" component={SecurityEventsScreen} options={{ headerShown: false }} />
       {/* Support */}
       <ProfileStack.Screen name="NewsScreen" component={NewsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="SupportScreen" component={SupportScreen} options={{ title: 'Поддержка' }} />
@@ -192,6 +195,9 @@ function ProfileStackNavigator() {
       </ProfileStack.Screen>
       <ProfileStack.Screen name="AdminSubscriptionsScreen" options={{ title: 'Подписки' }}>
         {() => <AdminGuard requireVerified><AdminSubscriptionsScreen /></AdminGuard>}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminSecurityEventsScreen" options={{ title: 'События безопасности' }}>
+        {() => <AdminGuard requireVerified><AdminSecurityEventsScreen /></AdminGuard>}
       </ProfileStack.Screen>
     </ProfileStack.Navigator>
   );

@@ -478,7 +478,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Sessions */}
         <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md }}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}
           onPress={() => navigation.navigate('SessionsScreen')}
         >
           <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#6366F118', borderWidth: 1, borderColor: '#6366F140', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
@@ -487,6 +487,21 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Активные сессии</Text>
             <Text style={[typography.caption, { color: colors.textTertiary }]}>Управление устройствами</Text>
+          </View>
+          <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
+
+        {/* Security history */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md }}
+          onPress={() => navigation.navigate('SecurityEventsScreen')}
+        >
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#F59E0B18', borderWidth: 1, borderColor: '#F59E0B40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#F59E0B' }}>⚠</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>История безопасности</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>Входы, смены пароля, попытки взлома</Text>
           </View>
           <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
         </TouchableOpacity>

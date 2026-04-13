@@ -82,6 +82,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getUserSecurityEvents(userId: string): Promise<Array<{ id: string; action: string; ip: string | null; userAgent: string | null; details: string | null; createdAt: string }>> {
+    const res = await api.get(`/admin/users/${userId}/security-events`);
+    return res.data;
+  },
+
   async exportUsersCSV(params?: { role?: string; plan?: string; banned?: boolean }): Promise<string> {
     const res = await api.get('/admin/users/export', { params, responseType: 'text' });
     return res.data as string;
