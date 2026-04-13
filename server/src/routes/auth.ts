@@ -51,9 +51,12 @@ async function timingSafeLogin(): Promise<void> {
   await bcrypt.compare('dummy', DUMMY_HASH).catch(() => {});
 }
 
+const JWT_ISS = 'irongym-api';
+const JWT_AUD = 'irongym-app';
+
 async function signTokens(userId: string, req?: Request) {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-  const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d' });
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '7d', issuer: JWT_ISS, audience: JWT_AUD });
+  const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
   const ip = req
     ? ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null)
     : null;
@@ -274,7 +277,7 @@ router.post('/login', async (req: Request, res: Response) => {
       const pendingToken = jwt.sign(
         { userId: user.id, phase: 'totp' },
         process.env.JWT_SECRET!,
-        { expiresIn: '5m' },
+        { expiresIn: '5m', issuer: JWT_ISS, audience: JWT_AUD },
       );
       return res.json({ requiresTOTP: true, pendingToken });
     }
@@ -337,7 +340,7 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     // Verify pending token
     let payload: { userId: string; phase: string };
     try {
-      payload = jwt.verify(pendingToken, process.env.JWT_SECRET!) as any;
+      payload = jwt.verify(pendingToken, process.env.JWT_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD }) as any;
     } catch {
       return res.status(401).json({ error: 'Токен истёк. Войдите снова.', code: 'PENDING_TOKEN_EXPIRED' });
     }
@@ -811,7 +814,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     let payload: { userId: string };
     try {
-      payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { userId: string };
+      payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD }) as { userId: string };
     } catch {
       return res.status(401).json({ error: 'Недействительный refresh token' });
     }
