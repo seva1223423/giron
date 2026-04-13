@@ -439,7 +439,7 @@ router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) =
       }),
     ]);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-    const { passwordHash, ...safeUser } = user as any;
+    const { passwordHash, totpSecret, totpBackupCodes, ...safeUser } = user as any;
     const workoutDates = recentWorkoutDates.map((w) => w.completedAt!.toISOString().split('T')[0]);
     res.json({ ...safeUser, firstWorkoutAt: firstWorkout?.completedAt ?? null, workoutDates90d: workoutDates });
   } catch (e) {
