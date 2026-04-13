@@ -38,6 +38,24 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return status === 'granted';
 }
 
+/**
+ * Get the Expo push token for this device and register it with the server.
+ * Should be called after authentication and permissions are granted.
+ */
+export async function registerPushTokenWithServer(): Promise<void> {
+  try {
+    const granted = await requestNotificationPermissions();
+    if (!granted) return;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const token = tokenData.data;
+    if (!token) return;
+
+    const { api } = await import('./api');
+    await api.post('/user/push-token', { token });
+  } catch { /* non-critical — ignore */ }
+}
+
 export async function getNotificationPermissionStatus(): Promise<string> {
   const { status } = await Notifications.getPermissionsAsync();
   return status;

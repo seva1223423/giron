@@ -282,7 +282,14 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
             <TextInput
               style={[styles.otpInput, { backgroundColor: colors.surface, borderColor: otpCode.length === 6 ? colors.primary : colors.border, color: colors.text }]}
               value={otpCode}
-              onChangeText={(t) => { setOtpCode(t.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+              onChangeText={(t) => {
+                const clean = t.replace(/\D/g, '').slice(0, 6);
+                setOtpCode(clean);
+                setError('');
+                if (clean.length === 6 && !phoneLoading) {
+                  setTimeout(() => handleVerifyOtp(), 0);
+                }
+              }}
               keyboardType="number-pad"
               maxLength={6}
               placeholder="——————"

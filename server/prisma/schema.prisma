@@ -67,6 +67,7 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   passwordHistory         PasswordHistory[]
   refreshTokens           RefreshToken[]
+  pushTokens              PushToken[]
 }
 
 enum Gender {
@@ -400,6 +401,18 @@ model CardioSession {
   createdAt      DateTime @default(now())
 
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ==================== PUSH TOKENS ====================
+model PushToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }

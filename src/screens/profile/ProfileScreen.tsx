@@ -166,7 +166,29 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 textAlign: 'center', paddingVertical: spacing.md, marginBottom: spacing.md,
               }}
               value={emailVerifCode}
-              onChangeText={(t) => { setEmailVerifCode(t.replace(/\D/g, '').slice(0, 6)); setEmailVerifError(''); }}
+              onChangeText={async (t) => {
+                const clean = t.replace(/\D/g, '').slice(0, 6);
+                setEmailVerifCode(clean);
+                setEmailVerifError('');
+                // Auto-submit when 6 digits entered
+                if (clean.length === 6 && !emailVerifLoading && user?.email) {
+                  setEmailVerifLoading(true);
+                  try {
+                    const valid = await authService.verifyEmail(user.email, clean);
+                    if (valid) {
+                      setShowEmailVerifModal(false);
+                      await useAuthStore.getState().fetchProfile();
+                      Alert.alert('Готово', 'Email успешно подтверждён!');
+                    } else {
+                      setEmailVerifError('Неверный код');
+                    }
+                  } catch (e: any) {
+                    setEmailVerifError(e?.response?.data?.error || 'Ошибка подтверждения');
+                  } finally {
+                    setEmailVerifLoading(false);
+                  }
+                }
+              }}
               keyboardType="number-pad"
               maxLength={6}
               placeholder="——————"
