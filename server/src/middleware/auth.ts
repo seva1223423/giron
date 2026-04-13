@@ -31,12 +31,16 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   try {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { isBanned: true, role: true },
+      select: { isBanned: true, role: true, lockedUntil: true },
     });
     if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
     if (user.isBanned) {
       logger.warn(`[SECURITY] Banned user attempted API access: userId=${payload.userId} path=${req.path}`);
       return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED' });
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED' });
     }
     req.userId = payload.userId;
     req.userRole = user.role;
