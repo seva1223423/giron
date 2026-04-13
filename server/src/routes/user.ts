@@ -590,6 +590,64 @@ router.delete('/2fa', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ── Change email ──────────────────────────────────────────────────────────────
+
+/**
+ * POST /user/change-email — update email address with OTP verification.
+ * Client must first call POST /auth/send-otp with { email: newEmail, purpose: 'email-change' }.
+ */
+router.post('/change-email', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { email: newEmail, code } = z.object({
+      email: z.string().email('Некорректный email'),
+      code: z.string().length(6, 'Код должен быть 6 цифр'),
+    }).parse(req.body);
+
+    // Check email isn't already taken by another user
+    const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
+    if (existing && existing.id !== req.userId) {
+      return res.status(409).json({ error: 'Этот email уже используется', code: 'EMAIL_TAKEN' });
+    }
+
+    // Find active OTP for new email (purpose: email-change)
+    const activeOtp = await prisma.otpCode.findFirst({
+      where: { email: newEmail, purpose: 'email-change', used: false, expiresAt: { gte: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!activeOtp) {
+      return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
+    }
+    if (activeOtp.code !== code) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      return res.status(400).json({ error: 'Неверный код подтверждения', code: 'INVALID_OTP' });
+    }
+    await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+
+    // Update email
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { email: newEmail, emailVerified: true },
+    });
+
+    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    await prisma.securityEvent.create({
+      data: { userId: req.userId!, action: 'EMAIL_CHANGED', ip, details: `email=${newEmail}` },
+    });
+
+    sendPushToUser(req.userId!, {
+      title: 'Email аккаунта изменён',
+      body: `К аккаунту привязан новый email. Если это не вы — немедленно смените пароль.`,
+      data: { url: 'irongym://profile/security' },
+    }).catch(() => {});
+
+    res.json({ ok: true, email: newEmail, emailVerified: true });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /user/change-email:', e);
+    res.status(500).json({ error: 'Ошибка смены email' });
+  }
+});
+
 // ── Change phone ──────────────────────────────────────────────────────────────
 
 /**
