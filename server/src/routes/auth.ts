@@ -57,7 +57,7 @@ const JWT_AUD = 'irongym-app';
 const MAX_SESSIONS_PER_USER = 10;
 
 async function signTokens(userId: string, req?: Request) {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '7d', issuer: JWT_ISS, audience: JWT_AUD });
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
   const ip = req
     ? ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null)
