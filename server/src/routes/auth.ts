@@ -39,6 +39,8 @@ function safeUser(user: any) {
 // ── Email verification helper ─────────────────────────────────────────────────
 
 async function sendEmailVerificationOtp(email: string): Promise<void> {
+  // Skip internal/placeholder addresses (VK users without real email)
+  if (email.endsWith('@irongym.internal')) return;
   // Invalidate old unused codes
   await prisma.otpCode.updateMany({ where: { email, purpose: 'email-verify', used: false }, data: { used: true } });
   const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -693,6 +695,9 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
   try {
     const { email } = z.object({ email: z.string().email() }).parse(req.body);
 
+    if (email.endsWith('@irongym.internal')) {
+      return res.status(400).json({ error: 'Email verification не поддерживается для этого аккаунта' });
+    }
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true, emailVerified: true } });
     if (!user) return res.json({ message: 'Если такой email зарегистрирован, письмо отправлено' });
     if (user.emailVerified) return res.json({ message: 'Email уже подтверждён' });
