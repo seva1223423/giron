@@ -18,7 +18,10 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   const token = authHeader.split(' ')[1];
   let payload: { userId: string };
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    payload = jwt.verify(token, process.env.JWT_SECRET!, {
+      issuer: 'irongym-api',
+      audience: 'irongym-app',
+    }) as { userId: string };
   } catch {
     return res.status(401).json({ error: 'Недействительный токен' });
   }
