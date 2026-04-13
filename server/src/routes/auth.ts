@@ -819,10 +819,25 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Недействительный refresh token' });
     }
 
-    // Check DB: token must exist and not be revoked
+    // Check DB: token must exist
     const dbToken = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-    if (!dbToken || dbToken.revoked || dbToken.expiresAt < new Date()) {
-      return res.status(401).json({ error: 'Refresh token отозван или истёк' });
+    if (!dbToken) return res.status(401).json({ error: 'Refresh token не найден' });
+
+    // Reuse detection: if the token was already revoked, someone may have stolen it.
+    // Revoke ALL tokens for this user to protect the account.
+    if (dbToken.revoked) {
+      await prisma.refreshToken.updateMany({ where: { userId: dbToken.userId, revoked: false }, data: { revoked: true } });
+      logSecurityEvent('SUSPICIOUS_LOGIN', dbToken.userId, req, 'refresh_token_reuse_detected');
+      sendPushToUser(dbToken.userId, {
+        title: 'Подозрительная активность',
+        body: 'Обнаружено повторное использование токена. Все устройства отключены для вашей безопасности.',
+        data: { url: 'irongym://profile/security' },
+      }).catch(() => {});
+      return res.status(401).json({ error: 'Обнаружено повторное использование токена. Войдите заново.', code: 'TOKEN_REUSE' });
+    }
+
+    if (dbToken.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Refresh token истёк' });
     }
 
     const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, isBanned: true } });
