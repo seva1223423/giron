@@ -939,7 +939,10 @@ router.post('/refresh', async (req: Request, res: Response) => {
     // Reuse detection: if the token was already revoked, someone may have stolen it.
     // Revoke ALL tokens for this user to protect the account.
     if (dbToken.revoked) {
-      await prisma.refreshToken.updateMany({ where: { userId: dbToken.userId, revoked: false }, data: { revoked: true } });
+      await Promise.all([
+        prisma.refreshToken.updateMany({ where: { userId: dbToken.userId, revoked: false }, data: { revoked: true } }),
+        prisma.trustedDevice.deleteMany({ where: { userId: dbToken.userId } }),
+      ]);
       logSecurityEvent('SUSPICIOUS_LOGIN', dbToken.userId, req, 'refresh_token_reuse_detected');
       sendPushToUser(dbToken.userId, {
         title: 'Подозрительная активность',
@@ -1043,6 +1046,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     await prisma.$transaction([
       prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
       prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { used: true } }),
+      prisma.trustedDevice.deleteMany({ where: { userId: resetToken.userId } }),
     ]);
     await recordPasswordHistory(resetToken.userId, passwordHash);
     await logSecurityEvent('PASSWORD_CHANGE', resetToken.userId, req, 'method=email_reset');
@@ -1180,8 +1184,8 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     await prisma.$transaction([
       prisma.user.update({ where: { id: user.id }, data: { passwordHash, loginAttempts: 0, lockedUntil: null } }),
       prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } }),
-      // Revoke all active refresh tokens (security: force re-login)
       prisma.refreshToken.updateMany({ where: { userId: user.id, revoked: false }, data: { revoked: true } }),
+      prisma.trustedDevice.deleteMany({ where: { userId: user.id } }),
     ]);
     await recordPasswordHistory(user.id, passwordHash);
 

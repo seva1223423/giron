@@ -323,8 +323,11 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
     await prisma.user.update({ where: { id: req.userId! }, data: { passwordHash: newHash } });
     await recordPasswordHistory(req.userId!, newHash);
 
-    // Revoke all refresh tokens except the current session (force other devices to re-login)
-    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    // Revoke all refresh tokens and trusted devices (security reset after password change)
+    await Promise.all([
+      prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
+      prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
+    ]);
 
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'PASSWORD_CHANGE', details: 'method=change_password' } });
 

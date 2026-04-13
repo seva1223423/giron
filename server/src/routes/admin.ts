@@ -2155,12 +2155,15 @@ router.get('/users/:id/sessions', requireAdmin, async (req: AuthRequest, res: Re
 /** POST /admin/users/:id/force-logout — revoke all refresh tokens for a user */
 router.post('/users/:id/force-logout', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { count } = await prisma.refreshToken.updateMany({
-      where: { userId: req.params.id as string, revoked: false },
-      data: { revoked: true },
-    });
+    const [{ count }, { count: deviceCount }] = await Promise.all([
+      prisma.refreshToken.updateMany({
+        where: { userId: req.params.id as string, revoked: false },
+        data: { revoked: true },
+      }),
+      prisma.trustedDevice.deleteMany({ where: { userId: req.params.id as string } }),
+    ]);
     await prisma.adminLog.create({
-      data: { adminId: req.userId!, action: 'FORCE_LOGOUT', targetId: req.params.id as string, details: `revoked ${count} sessions` },
+      data: { adminId: req.userId!, action: 'FORCE_LOGOUT', targetId: req.params.id as string, details: `revoked ${count} sessions, ${deviceCount} trusted devices` },
     });
     await prisma.securityEvent.create({
       data: { userId: req.params.id as string, action: 'TOKEN_REVOKED', details: `admin_force_logout by=${req.userId}` },
