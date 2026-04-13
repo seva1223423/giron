@@ -65,6 +65,7 @@ model User {
 
   gym                     Gym?      @relation(fields: [gymId], references: [id])
   passwordResetTokens     PasswordResetToken[]
+  passwordHistory         PasswordHistory[]
   refreshTokens           RefreshToken[]
 }
 
@@ -403,6 +404,18 @@ model CardioSession {
   @@index([userId])
 }
 
+// ==================== PASSWORD HISTORY ====================
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 // ==================== PASSWORD RESET ====================
 model PasswordResetToken {
   id        String   @id @default(cuid())
@@ -516,11 +529,27 @@ model OtpCode {
   code      String
   purpose   String   // "register", "login", "phone-login", "phone-reset", "email-verify"
   used      Boolean  @default(false)
+  attempts  Int      @default(0)  // wrong-guess counter; code invalidated at 5
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   @@index([phone])
   @@index([email])
+}
+
+// ==================== SECURITY EVENTS ====================
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  userId    String?  // null for events before user is identified
+  action    String   // LOGIN_SUCCESS, LOGIN_FAIL, PASSWORD_CHANGE, EMAIL_VERIFIED, PHONE_VERIFIED, ACCOUNT_DELETED, OTP_BRUTEFORCE, TOKEN_REVOKED, ACCOUNT_LOCKED
+  ip        String?
+  userAgent String?
+  details   String?  // JSON or plain text extra info
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // ==================== REFRESH TOKENS ====================

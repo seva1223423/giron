@@ -57,4 +57,26 @@ export const userService = {
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     await api.post('/user/change-password', { currentPassword, newPassword });
   },
+
+  async hasPassword(): Promise<boolean> {
+    const { data } = await api.get<{ hasPassword: boolean }>('/user/has-password');
+    return data.hasPassword;
+  },
+
+  async getSessions(): Promise<Array<{ id: string; createdAt: string; expiresAt: string }>> {
+    const { data } = await api.get('/user/sessions');
+    return data;
+  },
+
+  async revokeSession(id: string): Promise<void> {
+    await api.delete(`/user/sessions/${id}`);
+  },
+
+  async revokeAllSessions(): Promise<void> {
+    await api.delete('/user/sessions');
+  },
+
+  async deleteAccount(password?: string): Promise<void> {
+    await api.delete('/user/account', { data: { password } });
+  },
 };

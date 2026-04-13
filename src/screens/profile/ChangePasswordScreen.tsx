@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, KeyboardAvoidingView, Platform,
   ScrollView, TouchableOpacity,
 } from 'react-native';
-import { useThemeStore, useAuthStore } from '../../store';
+import { useThemeStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -25,13 +25,14 @@ const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший',
 
 export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const user = useAuthStore((s) => s.user);
-  // passwordHash is never sent to client.
-  // Social-only users: have vkId/googleId but registered without password (email ends in .internal or no login-by-email possible).
-  // Best heuristic: if user only has vkId/googleId and no indication they set a password
-  // We show the current-password field by default and let the server handle the case.
-  // The server allows skipping currentPassword if user has no passwordHash.
-  const isSocialOnly = !!(user?.vkId || user?.googleId) && user?.email?.endsWith('@irongym.internal');
+  // isSocialOnly is determined server-side — we ask the /has-password endpoint
+  const [isSocialOnly, setIsSocialOnly] = useState<boolean | null>(null); // null = loading
+
+  useEffect(() => {
+    userService.hasPassword()
+      .then((has) => setIsSocialOnly(!has))
+      .catch(() => setIsSocialOnly(false)); // default: assume password exists (safe)
+  }, []);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -55,6 +56,7 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
     } catch (e: any) {
       const code = e?.response?.data?.code;
       if (code === 'WRONG_CURRENT_PASSWORD') setError('Неверный текущий пароль');
+      else if (code === 'PASSWORD_REUSED') setError(`Нельзя использовать один из последних 3 паролей`);
       else setError(e?.response?.data?.error || 'Ошибка изменения пароля');
     } finally {
       setLoading(false);
@@ -72,6 +74,14 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
           </Text>
           <Button title="Готово" onPress={() => navigation.goBack()} fullWidth size="lg" />
         </View>
+      </View>
+    );
+  }
+
+  if (isSocialOnly === null) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={[typography.body, { color: colors.textSecondary }]}>Загрузка...</Text>
       </View>
     );
   }
