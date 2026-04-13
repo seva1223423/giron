@@ -577,6 +577,24 @@ router.post('/users/:id/unban', requireAdmin, async (req: AuthRequest, res: Resp
   }
 });
 
+/** POST /admin/users/:id/unlock — clear login lockout */
+router.post('/users/:id/unlock', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.params.id as string },
+      data: { loginAttempts: 0, lockedUntil: null },
+      select: { id: true, email: true, firstName: true, loginAttempts: true, lockedUntil: true },
+    });
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'UNLOCK_USER', targetId: req.params.id as string },
+    });
+    res.json(user);
+  } catch (e) {
+    logger.error('POST /admin/users/:id/unlock:', e);
+    res.status(500).json({ error: 'Ошибка снятия блокировки' });
+  }
+});
+
 const noteSchema = z.object({
   note: z.string().max(1000),
 });

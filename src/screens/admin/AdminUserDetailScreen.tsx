@@ -368,6 +368,30 @@ export default function AdminUserDetailScreen() {
         </View>
       )}
 
+      {/* Lockout banner */}
+      {!user.isBanned && (user as any).lockedUntil && new Date((user as any).lockedUntil) > new Date() && (
+        <View style={[styles.banBanner, { backgroundColor: '#F59E0B12', borderColor: '#F59E0B50' }]}>
+          <Text style={[styles.banBannerTitle, { color: '#F59E0B' }]}>🔒 Временная блокировка</Text>
+          <Text style={[styles.banBannerReason, { color: '#F59E0BAA' }]}>
+            Слишком много неверных паролей. До: {new Date((user as any).lockedUntil).toLocaleString('ru-RU')}
+          </Text>
+          <TouchableOpacity
+            onPress={async () => {
+              if (busy) return;
+              setBusy(true);
+              try {
+                await adminService.unlockUser(userId);
+                setUser({ ...(user as any), lockedUntil: null, loginAttempts: 0 });
+              } catch { Alert.alert('Ошибка', 'Не удалось снять блокировку'); }
+              finally { setBusy(false); }
+            }}
+            style={{ marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: '#F59E0B22', borderWidth: 1, borderColor: '#F59E0B' }}
+          >
+            <Text style={{ fontSize: 12, color: '#F59E0B', fontWeight: '700' }}>Снять блокировку</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Contextual alerts */}
       {!user.isBanned && (() => {
         const alerts: Array<{ icon: string; text: string; color: string; action?: { label: string; onPress: () => void } }> = [];
@@ -415,7 +439,17 @@ export default function AdminUserDetailScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>{user.firstName} {user.lastName}</Text>
           <Text style={styles.email} numberOfLines={1}>{user.email}</Text>
-          {user.phone && <Text style={styles.meta}>{user.phone}</Text>}
+          {user.phone && (
+            <Text style={styles.meta}>
+              {user.phone}
+              {(user as any).phoneVerified ? ' ✓' : ' (не подтверждён)'}
+            </Text>
+          )}
+          {/* Linked accounts */}
+          <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+            {(user as any).googleId && <Text style={{ fontSize: 10, color: '#4285F4', fontWeight: '700', backgroundColor: '#4285F415', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>G</Text>}
+            {(user as any).vkId && <Text style={{ fontSize: 10, color: '#0077FF', fontWeight: '700', backgroundColor: '#0077FF15', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>ВК</Text>}
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
             <Text style={[styles.roleBadge, { color: roleLower === 'admin' ? '#F59E0B' : '#9CA3AF' }]}>
               {roleLower.toUpperCase()}
