@@ -278,6 +278,11 @@ const linking: any = {
   prefixes: ['irongym://', 'https://irongym.app'],
   config: {
     screens: {
+      Auth: {
+        screens: {
+          ResetPassword: 'reset-password',
+        },
+      },
       Main: {
         screens: {
           HomeTab: 'home',
