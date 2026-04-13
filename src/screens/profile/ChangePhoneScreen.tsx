@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { useThemeStore } from '../../store';
+import { useAuthStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { api } from '../../services/api';
@@ -74,7 +75,11 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
   const submitChange = async (smsOtp: string, totp?: string) => {
     setLoading(true);
     try {
-      await userService.changePhone(phone.trim(), smsOtp, totp);
+      const result = await userService.changePhone(phone.trim(), smsOtp, totp);
+      // Update stored tokens — server issued fresh tokens after revoking all other sessions
+      if (result.token && result.refreshToken) {
+        useAuthStore.setState({ token: result.token, refreshToken: result.refreshToken });
+      }
       Alert.alert('Готово', 'Номер телефона успешно изменён', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
