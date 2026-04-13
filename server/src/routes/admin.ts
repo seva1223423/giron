@@ -338,6 +338,7 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
       ];
     }
     if (search) {
+      if (search.length > 100) return res.status(400).json({ error: 'Запрос слишком длинный' });
       where.OR = [
         { email: { contains: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
@@ -1162,6 +1163,7 @@ router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
     if (action) where.action = action;
     if (adminId) where.adminId = adminId;
     if (search) {
+      if (search.length > 100) return res.status(400).json({ error: 'Запрос слишком длинный' });
       where.OR = [
         { details: { contains: search, mode: 'insensitive' } },
         { admin: { email: { contains: search, mode: 'insensitive' } } },
@@ -1241,6 +1243,7 @@ router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => 
     if (priority) where.priority = priority;
     if (assignedToMe === 'true') where.assignedToId = req.userId;
     if (search) {
+      if (search.length > 100) return res.status(400).json({ error: 'Запрос слишком длинный' });
       where.OR = [
         { subject: { contains: search, mode: 'insensitive' } },
         { user: { email: { contains: search, mode: 'insensitive' } } },

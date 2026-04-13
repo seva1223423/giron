@@ -74,6 +74,7 @@ model User {
   refreshTokens           RefreshToken[]
   pushTokens              PushToken[]
   trustedDevices          TrustedDevice[]
+  usedTotpCodes           UsedTotpCode[]
 }
 
 enum Gender {
@@ -538,6 +539,18 @@ model Announcement {
   updatedAt DateTime  @updatedAt
 
   @@index([isActive, createdAt])
+}
+
+// ==================== USED TOTP CODES (replay prevention) ====================
+model UsedTotpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String   // 6-digit TOTP code
+  usedAt    DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
 }
 
 // ==================== OTP CODES ====================

@@ -18,7 +18,7 @@ const mealItemSchema = z.object({
 const addMealSchema = z.object({
   type: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   items: z.array(mealItemSchema).min(1).max(50),
-  photoUrl: z.string().optional(),
+  photoUrl: z.string().url('Некорректный URL').max(2048).refine((u) => u.startsWith('https://'), 'URL должен использовать HTTPS').optional(),
 });
 
 // Add meal
