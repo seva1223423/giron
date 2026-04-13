@@ -702,6 +702,12 @@ router.post('/yandex', async (req: Request, res: Response) => {
 
     if (!yandexUser?.id) return res.status(401).json({ error: 'Пользователь Яндекса не найден' });
 
+    // Verify token was issued for our app (prevents token injection from other Yandex apps)
+    if (yandexUser.client_id && yandexUser.client_id !== process.env.YANDEX_CLIENT_ID) {
+      logger.warn(`[SECURITY] Yandex token client_id mismatch: expected=${process.env.YANDEX_CLIENT_ID} got=${yandexUser.client_id}`);
+      return res.status(401).json({ error: 'Токен выдан для другого приложения' });
+    }
+
     const yandexId = String(yandexUser.id);
     const firstName = yandexUser.first_name || yandexUser.display_name || 'Пользователь';
     const lastName = yandexUser.last_name || undefined;
