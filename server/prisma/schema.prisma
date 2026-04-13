@@ -32,6 +32,9 @@ model User {
   vkId                    String?   @unique
   phoneVerified           Boolean   @default(false)
 
+  totpSecret              String?   // base32 TOTP secret (set during 2FA setup, before enabled)
+  totpEnabled             Boolean   @default(false)
+
   isBanned                Boolean   @default(false)
   bannedAt                DateTime?
   banReason               String?

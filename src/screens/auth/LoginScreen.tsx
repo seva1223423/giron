@@ -38,9 +38,11 @@ function formatPhoneDisplay(digits: string): string {
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { login, loginWithGoogle, loginByPhone, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithGoogle, loginByPhone, loginWithTotp, isLoading, error, clearError } = useAuthStore();
 
   const [tab, setTab] = useState<LoginTab>('email');
+  const [showTotpInput, setShowTotpInput] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
 
   // Email tab state
   const [email, setEmail] = useState('');
@@ -130,6 +132,11 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     try {
       await login(email.trim(), password);
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') {
+        setShowTotpInput(true);
+        setTotpCode('');
+        return;
+      }
       const code = e?.response?.data?.code;
       const serverMsg = e?.response?.data?.error;
       if (code === 'EMAIL_NOT_FOUND' || code === 'INVALID_CREDENTIALS') setLocalError(serverMsg || 'Неверный email или пароль');
@@ -138,6 +145,33 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       else if (code === 'ACCOUNT_LOCKED') setLocalError(serverMsg || 'Аккаунт временно заблокирован');
       else if (code === 'BANNED') setLocalError(serverMsg || 'Аккаунт заблокирован');
       else setLocalError(serverMsg || 'Ошибка входа');
+    }
+  };
+
+  const handleTotpSubmit = async (codeValue: string) => {
+    if (codeValue.length !== 6) return;
+    clearErrors();
+    try {
+      await loginWithTotp(codeValue);
+    } catch (e: any) {
+      const serverMsg = e?.response?.data?.error;
+      const errCode = e?.response?.data?.code;
+      if (errCode === 'PENDING_TOKEN_EXPIRED') {
+        setShowTotpInput(false);
+        setTotpCode('');
+        setLocalError('Время сессии истекло. Войдите снова.');
+      } else {
+        setLocalError(serverMsg || 'Неверный код');
+        setTotpCode('');
+      }
+    }
+  };
+
+  const handleTotpCodeChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    setTotpCode(digits);
+    if (digits.length === 6) {
+      setTimeout(() => handleTotpSubmit(digits), 100);
     }
   };
 
@@ -242,7 +276,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </View>
 
         {/* Tabs */}
-        <View style={[styles.tabRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {!showTotpInput && <View style={[styles.tabRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {(['email', 'phone'] as LoginTab[]).map((t) => (
             <TouchableOpacity
               key={t}
@@ -254,10 +288,41 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </View>}
+
+        {/* ── TOTP Step ── */}
+        {showTotpInput && (
+          <View style={styles.form}>
+            <Text style={[typography.h3, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
+              Двухфакторная аутентификация
+            </Text>
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
+              Введите 6-значный код из приложения-аутентификатора (Google Authenticator, Яндекс.Ключ).
+            </Text>
+            <TextInput
+              style={[{
+                height: 64, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16,
+                textAlign: 'center', fontSize: 28, fontWeight: '700', letterSpacing: 8,
+                backgroundColor: colors.card, color: colors.text, borderColor: colors.border,
+              }]}
+              placeholder="------"
+              placeholderTextColor={colors.textTertiary}
+              value={totpCode}
+              onChangeText={handleTotpCodeChange}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+            />
+            {displayError ? <Text style={[typography.small, { color: colors.error, marginTop: spacing.md, textAlign: 'center' }]}>{displayError}</Text> : null}
+            {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />}
+            <TouchableOpacity onPress={() => { setShowTotpInput(false); setTotpCode(''); clearErrors(); }} style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+              <Text style={[typography.body, { color: colors.textSecondary }]}>← Назад</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Email Tab ── */}
-        {tab === 'email' && (
+        {!showTotpInput && tab === 'email' && (
           <View style={styles.form}>
             <View style={{ marginBottom: spacing.xl }}>
               <Input
@@ -296,7 +361,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         )}
 
         {/* ── Phone Tab ── */}
-        {tab === 'phone' && phoneStep === 'input' && (
+        {!showTotpInput && tab === 'phone' && phoneStep === 'input' && (
           <View style={styles.form}>
             <View style={[styles.phoneInputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[typography.body, { color: colors.textSecondary, marginRight: 8, fontWeight: '600' }]}>🇷🇺</Text>
@@ -331,7 +396,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         )}
 
-        {tab === 'phone' && phoneStep === 'otp' && (
+        {!showTotpInput && tab === 'phone' && phoneStep === 'otp' && (
           <View style={styles.form}>
             <TouchableOpacity onPress={() => { setPhoneStep('input'); setOtpCode(''); clearErrors(); }} style={{ alignSelf: 'flex-start', marginBottom: spacing.lg }}>
               <Text style={[typography.small, { color: colors.primary }]}>← Изменить номер</Text>

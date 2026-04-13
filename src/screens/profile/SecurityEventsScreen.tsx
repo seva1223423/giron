@@ -27,6 +27,8 @@ const ACTION_META: Record<string, { icon: string; label: string; color: string }
   ACCOUNT_DELETED: { icon: 'X', label: 'Удаление аккаунта', color: '#EF4444' },
   OTP_BRUTEFORCE:  { icon: '!', label: 'Подбор OTP-кода', color: '#EF4444' },
   TOKEN_REVOKED:   { icon: 'O', label: 'Сессии завершены', color: '#FF9F0A' },
+  TOTP_ENABLED:    { icon: 'A', label: '2FA включена', color: '#34C759' },
+  TOTP_DISABLED:   { icon: 'A', label: '2FA отключена', color: '#FF9F0A' },
 };
 
 function getActionMeta(action: string) {
