@@ -2137,6 +2137,21 @@ router.post('/users/:id/force-disable-2fa', requireAdmin, async (req: AuthReques
   }
 });
 
+/** GET /admin/users/:id/sessions — list active sessions for a user */
+router.get('/users/:id/sessions', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const sessions = await prisma.refreshToken.findMany({
+      where: { userId: req.params.id as string, revoked: false, expiresAt: { gte: new Date() } },
+      select: { id: true, createdAt: true, expiresAt: true, userAgent: true, ip: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(sessions);
+  } catch (e) {
+    logger.error('GET /admin/users/:id/sessions:', e);
+    res.status(500).json({ error: 'Ошибка получения сессий' });
+  }
+});
+
 /** POST /admin/users/:id/force-logout — revoke all refresh tokens for a user */
 router.post('/users/:id/force-logout', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

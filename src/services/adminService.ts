@@ -87,6 +87,11 @@ export const adminService = {
     return res.data;
   },
 
+  async getUserSessions(userId: string): Promise<Array<{ id: string; createdAt: string; expiresAt: string; userAgent: string | null; ip: string | null }>> {
+    const res = await api.get(`/admin/users/${userId}/sessions`);
+    return res.data;
+  },
+
   async forceLogoutUser(userId: string): Promise<{ ok: boolean; revokedCount: number }> {
     const res = await api.post(`/admin/users/${userId}/force-logout`);
     return res.data;

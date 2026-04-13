@@ -72,3 +72,36 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
   });
   logger.info(`[Email] OTP sent to ${email}`);
 }
+
+export async function sendNewLoginAlert(email: string, ip: string, userAgent: string | null, date: Date): Promise<void> {
+  const dateStr = date.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'medium', timeStyle: 'short' });
+  const device = userAgent
+    ? (userAgent.includes('iPhone') ? 'iPhone' : userAgent.includes('Android') ? 'Android' : userAgent.slice(0, 60))
+    : 'Неизвестное устройство';
+
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: `${APP_NAME} — вход с нового устройства`,
+    text: `В ваш аккаунт выполнен вход с нового устройства.\n\nДата: ${dateStr} (МСК)\nIP: ${ip}\nУстройство: ${device}\n\nЕсли это были не вы — немедленно смените пароль и включите двухфакторную аутентификацию.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #8B5CF6; margin-bottom: 8px;">🏋️ ${APP_NAME}</h2>
+        <h3 style="color: #333; margin-bottom: 16px;">Вход с нового устройства</h3>
+        <p style="color: #555; line-height: 1.6;">В ваш аккаунт выполнен вход с нового IP-адреса или устройства.</p>
+        <div style="background: #f5f5f7; border-radius: 12px; padding: 20px; margin: 16px 0;">
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Дата:</strong> ${dateStr} (МСК)</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${ip}</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Устройство:</strong> ${device}</p>
+        </div>
+        <p style="color: #EF4444; font-weight: bold; font-size: 14px;">
+          Если это были не вы — немедленно смените пароль и включите двухфакторную аутентификацию.
+        </p>
+        <p style="color: #888; font-size: 12px; margin-top: 16px;">
+          Это автоматическое уведомление системы безопасности ${APP_NAME}.
+        </p>
+      </div>
+    `,
+  });
+  logger.info(`[Email] New login alert sent to ${email}`);
+}
