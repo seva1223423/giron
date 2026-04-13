@@ -24,7 +24,21 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — API-only server
-app.use(cors());
+
+// Restrict CORS — allow Expo Go, production app, and local dev only
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    // Allow Expo development tools
+    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.startsWith('exp://')) return callback(null, true);
+    // Allow configured production origins
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 // Capture raw body for webhook signature verification via verify callback
 app.use(express.json({
   limit: '10mb',
