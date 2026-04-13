@@ -84,4 +84,9 @@ export const userService = {
   async deleteAccount(password?: string): Promise<void> {
     await api.delete('/user/account', { data: { password } });
   },
+
+  async changePhone(phone: string, code: string): Promise<{ ok: boolean; phone: string; phoneVerified: boolean }> {
+    const { data } = await api.post('/user/change-phone', { phone, code });
+    return data;
+  },
 };

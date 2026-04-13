@@ -7,13 +7,14 @@ import { adminService } from '../../services/adminService';
 const ACTION_META: Record<string, { icon: string; label: string; color: string }> = {
   LOGIN_SUCCESS:   { icon: '✓', label: 'Вход выполнен', color: '#34C759' },
   LOGIN_FAIL:      { icon: '✗', label: 'Неверный пароль', color: '#FF9F0A' },
-  ACCOUNT_LOCKED:  { icon: '🔒', label: 'Аккаунт заблокирован', color: '#EF4444' },
-  PASSWORD_CHANGE: { icon: '🔑', label: 'Смена пароля', color: '#6366F1' },
+  ACCOUNT_LOCKED:  { icon: '!', label: 'Аккаунт заблокирован', color: '#EF4444' },
+  PASSWORD_CHANGE: { icon: 'P', label: 'Смена пароля', color: '#6366F1' },
   EMAIL_VERIFIED:  { icon: '@', label: 'Email подтверждён', color: '#34C759' },
   PHONE_VERIFIED:  { icon: '#', label: 'Телефон подтверждён', color: '#34C759' },
-  ACCOUNT_DELETED: { icon: '✕', label: 'Удаление аккаунта', color: '#EF4444' },
-  OTP_BRUTEFORCE:  { icon: '⚠', label: 'Подбор OTP-кода', color: '#EF4444' },
-  TOKEN_REVOKED:   { icon: '◻', label: 'Сессии завершены', color: '#FF9F0A' },
+  PHONE_CHANGED:   { icon: '#', label: 'Смена номера телефона', color: '#6366F1' },
+  ACCOUNT_DELETED: { icon: 'X', label: 'Удаление аккаунта', color: '#EF4444' },
+  OTP_BRUTEFORCE:  { icon: '!', label: 'Подбор OTP-кода', color: '#EF4444' },
+  TOKEN_REVOKED:   { icon: 'O', label: 'Сессии завершены', color: '#FF9F0A' },
 };
 
 function getActionMeta(action: string) {

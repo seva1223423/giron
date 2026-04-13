@@ -430,6 +430,11 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 : 'Не привязан'}
             </Text>
           </View>
+          <TouchableOpacity onPress={() => navigation.navigate('ChangePhoneScreen')} style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '15' }}>
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
+              {user?.phone ? 'Сменить' : 'Привязать'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Email verification */}
