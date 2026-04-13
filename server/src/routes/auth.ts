@@ -54,6 +54,8 @@ async function timingSafeLogin(): Promise<void> {
 const JWT_ISS = 'irongym-api';
 const JWT_AUD = 'irongym-app';
 
+const MAX_SESSIONS_PER_USER = 10;
+
 async function signTokens(userId: string, req?: Request) {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '7d', issuer: JWT_ISS, audience: JWT_AUD });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
@@ -61,6 +63,21 @@ async function signTokens(userId: string, req?: Request) {
     ? ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null)
     : null;
   const userAgent = req ? ((req.headers['user-agent'] as string | undefined) ?? null) : null;
+
+  // Enforce max sessions per user: revoke oldest active sessions if limit exceeded
+  const activeSessions = await prisma.refreshToken.findMany({
+    where: { userId, revoked: false, expiresAt: { gte: new Date() } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+  if (activeSessions.length >= MAX_SESSIONS_PER_USER) {
+    const toRevoke = activeSessions.slice(0, activeSessions.length - MAX_SESSIONS_PER_USER + 1);
+    await prisma.refreshToken.updateMany({
+      where: { id: { in: toRevoke.map((s) => s.id) } },
+      data: { revoked: true },
+    });
+  }
+
   await prisma.refreshToken.create({
     data: {
       token: rawRefresh,
@@ -133,7 +150,7 @@ const strongPassword = z
   .refine((p) => /[0-9]/.test(p), { message: 'Пароль должен содержать хотя бы одну цифру' });
 
 const registerSchema = z.object({
-  email: z.string().email('Некорректный email'),
+  email: z.string().email('Некорректный email').max(254, 'Email слишком длинный'),
   password: strongPassword,
   firstName: z.string().min(1, 'Введите имя').max(100, 'Имя слишком длинное'),
   lastName: z.string().max(100, 'Фамилия слишком длинная').optional(),
@@ -142,8 +159,8 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
+  email: z.string().email().max(254),
+  password: z.string().max(1000), // prevent bcrypt DoS (bcrypt truncates at 72 chars anyway)
   deviceToken: z.string().optional(), // trusted device token for skipping TOTP
 });
 
