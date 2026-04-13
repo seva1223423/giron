@@ -30,8 +30,12 @@ export const authService = {
     return data;
   },
 
-  async verifyTotp(pendingToken: string, code: string): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/totp-verify', { pendingToken, code });
+  async verifyTotp(pendingToken: string, code?: string, backupCode?: string): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/totp-verify', {
+      pendingToken,
+      ...(code ? { code } : {}),
+      ...(backupCode ? { backupCode } : {}),
+    });
     return data;
   },
 

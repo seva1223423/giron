@@ -314,10 +314,11 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.post('/totp-verify', async (req: Request, res: Response) => {
   try {
-    const { pendingToken, code } = z.object({
+    const { pendingToken, code, backupCode } = z.object({
       pendingToken: z.string().min(1),
-      code: z.string().length(6),
-    }).parse(req.body);
+      code: z.string().length(6).optional(),
+      backupCode: z.string().min(1).optional(),
+    }).refine((d) => d.code || d.backupCode, { message: 'Введите код или резервный код' }).parse(req.body);
 
     // Verify pending token
     let payload: { userId: string; phase: string };
@@ -342,21 +343,36 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
       return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
     }
 
-    // Verify TOTP code
-    const totp = new TOTP({
-      secret: Secret.fromBase32((user as any).totpSecret),
-      algorithm: 'SHA1',
-      digits: 6,
-      period: 30,
-    });
-    const delta = totp.validate({ token: code, window: 1 });
-    if (delta === null) {
-      await logSecurityEvent('LOGIN_FAIL', user.id, req, 'totp_invalid');
-      return res.status(401).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
+    // Verify TOTP code or backup code
+    if (backupCode) {
+      // Backup code flow
+      const rawBackupCodes: Array<{ hash: string; used: boolean }> = JSON.parse((user as any).totpBackupCodes || '[]');
+      const codeHash = crypto.createHash('sha256').update(backupCode.toUpperCase()).digest('hex');
+      const matchIdx = rawBackupCodes.findIndex((c) => c.hash === codeHash && !c.used);
+      if (matchIdx === -1) {
+        await logSecurityEvent('LOGIN_FAIL', user.id, req, 'backup_code_invalid');
+        return res.status(401).json({ error: 'Резервный код недействителен или уже использован', code: 'INVALID_BACKUP_CODE' });
+      }
+      rawBackupCodes[matchIdx].used = true;
+      await prisma.user.update({ where: { id: user.id }, data: { totpBackupCodes: JSON.stringify(rawBackupCodes) } });
+      await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=backup_code');
+    } else {
+      // TOTP code flow
+      const totp = new TOTP({
+        secret: Secret.fromBase32((user as any).totpSecret),
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+      });
+      const delta = totp.validate({ token: code!, window: 1 });
+      if (delta === null) {
+        await logSecurityEvent('LOGIN_FAIL', user.id, req, 'totp_invalid');
+        return res.status(401).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
+      }
+      await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=totp');
     }
 
     const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
-    await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `method=totp`);
 
     // Suspicious login check
     if (currentIp) {

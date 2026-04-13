@@ -2117,6 +2117,26 @@ router.get('/users/:id/security-events', requireAdmin, async (req: AuthRequest, 
   }
 });
 
+/** POST /admin/users/:id/force-disable-2fa — disable 2FA for a user (for recovery purposes) */
+router.post('/users/:id/force-disable-2fa', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.params.id as string },
+      data: { totpEnabled: false, totpSecret: null, totpBackupCodes: null },
+    });
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'FORCE_DISABLE_2FA', targetId: req.params.id as string },
+    });
+    await prisma.securityEvent.create({
+      data: { userId: req.params.id as string, action: 'TOTP_DISABLED', details: `admin_force by=${req.userId}` },
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /admin/users/:id/force-disable-2fa:', e);
+    res.status(500).json({ error: 'Ошибка отключения 2FA' });
+  }
+});
+
 /** POST /admin/users/:id/force-logout — revoke all refresh tokens for a user */
 router.post('/users/:id/force-logout', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
