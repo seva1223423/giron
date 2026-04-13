@@ -41,6 +41,14 @@ const googleClient = new OAuth2Client();
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
+// Dummy hash for timing-safe login (prevents user enumeration via response time)
+const DUMMY_HASH = '$2b$12$invalidhashfortimingsafety.........................................';
+
+async function timingSafeLogin(): Promise<void> {
+  // Consume roughly the same time as a real bcrypt.compare regardless of user existence
+  await bcrypt.compare('dummy', DUMMY_HASH).catch(() => {});
+}
+
 async function signTokens(userId: string) {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '7d' });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d' });
@@ -104,9 +112,9 @@ async function sendEmailVerificationOtp(email: string): Promise<void> {
 
 const registerSchema = z.object({
   email: z.string().email('Некорректный email'),
-  password: z.string().min(6, 'Пароль минимум 6 символов'),
-  firstName: z.string().min(1, 'Введите имя'),
-  lastName: z.string().optional(),
+  password: z.string().min(8, 'Пароль минимум 8 символов'),
+  firstName: z.string().min(1, 'Введите имя').max(100, 'Имя слишком длинное'),
+  lastName: z.string().max(100, 'Фамилия слишком длинная').optional(),
   phone: z.string().optional(),
   otpToken: z.string().optional(), // token returned by /auth/verify-otp
 });
@@ -189,7 +197,8 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Аккаунт с таким email не найден', code: 'EMAIL_NOT_FOUND' });
+      await timingSafeLogin(); // constant-time response to prevent email enumeration
+      return res.status(401).json({ error: 'Неверный email или пароль', code: 'INVALID_CREDENTIALS' });
     }
 
     if (user.isBanned) {
@@ -230,8 +239,8 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({
         error: shouldLock
           ? `Слишком много попыток. Аккаунт заблокирован на ${LOCKOUT_MINUTES} мин.`
-          : `Неверный пароль. Осталось попыток: ${attemptsLeft}`,
-        code: 'WRONG_PASSWORD',
+          : `Неверный email или пароль. Осталось попыток: ${attemptsLeft}`,
+        code: 'INVALID_CREDENTIALS',
         attemptsLeft,
       });
     }
@@ -697,7 +706,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { token, password } = z.object({
       token: z.string().min(1),
-      password: z.string().min(6, 'Пароль минимум 6 символов'),
+      password: z.string().min(8, 'Пароль минимум 8 символов'),
     }).parse(req.body);
 
     const resetToken = await prisma.passwordResetToken.findUnique({
@@ -822,7 +831,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     const { phone: rawPhone, code, password } = z.object({
       phone: z.string().min(10, 'Введите номер телефона'),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
-      password: z.string().min(6, 'Пароль минимум 6 символов'),
+      password: z.string().min(8, 'Пароль минимум 8 символов'),
     }).parse(req.body);
 
     const phone = normalizePhone(rawPhone);

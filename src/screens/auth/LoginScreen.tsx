@@ -132,11 +132,12 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     } catch (e: any) {
       const code = e?.response?.data?.code;
       const serverMsg = e?.response?.data?.error;
-      if (code === 'EMAIL_NOT_FOUND') setLocalError('Аккаунт с таким email не найден');
+      if (code === 'EMAIL_NOT_FOUND' || code === 'INVALID_CREDENTIALS') setLocalError(serverMsg || 'Неверный email или пароль');
       else if (code === 'SOCIAL_ONLY') setLocalError('Войдите через Google или VK');
-      else if (code === 'WRONG_PASSWORD') setLocalError(serverMsg || 'Неверный пароль');
+      else if (code === 'WRONG_PASSWORD') setLocalError(serverMsg || 'Неверный email или пароль');
       else if (code === 'ACCOUNT_LOCKED') setLocalError(serverMsg || 'Аккаунт временно заблокирован');
       else if (code === 'BANNED') setLocalError(serverMsg || 'Аккаунт заблокирован');
+      else setLocalError(serverMsg || 'Ошибка входа');
     }
   };
 

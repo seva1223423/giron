@@ -26,8 +26,8 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
       setError('Токен сброса отсутствует. Перейди по ссылке из письма.');
       return;
     }
-    if (password.length < 6) {
-      setError('Пароль минимум 6 символов');
+    if (password.length < 8) {
+      setError('Пароль минимум 8 символов');
       return;
     }
     if (password !== confirmPassword) {
@@ -73,13 +73,13 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
           <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>◈</Text></View>
           <Text style={[typography.h2, { color: colors.text }]}>Новый пароль</Text>
           <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
-            Придумай надёжный пароль (минимум 6 символов)
+            Придумай надёжный пароль (минимум 8 символов)
           </Text>
         </View>
 
         <Input
           label="Новый пароль"
-          placeholder="Минимум 6 символов"
+          placeholder="Минимум 8 символов"
           secureTextEntry
           value={password}
           onChangeText={(t) => { setPassword(t); setError(''); }}
