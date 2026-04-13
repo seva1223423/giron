@@ -17,6 +17,11 @@ export interface CheckEmailResponse {
   hasPassword?: boolean;
   hasGoogle?: boolean;
   hasVk?: boolean;
+  hasYandex?: boolean;
+}
+
+export interface TotpVerifyResponse extends AuthResponse {
+  deviceToken?: string;
 }
 
 export interface CheckPhoneResponse {
@@ -25,16 +30,20 @@ export interface CheckPhoneResponse {
 }
 
 export const authService = {
-  async login(email: string, password: string): Promise<AuthResponse | TOTPLoginResponse> {
-    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/login', { email, password });
+  async login(email: string, password: string, deviceToken?: string): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/login', {
+      email, password,
+      ...(deviceToken ? { deviceToken } : {}),
+    });
     return data;
   },
 
-  async verifyTotp(pendingToken: string, code?: string, backupCode?: string): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/totp-verify', {
+  async verifyTotp(pendingToken: string, code?: string, backupCode?: string, rememberDevice?: boolean): Promise<TotpVerifyResponse> {
+    const { data } = await api.post<TotpVerifyResponse>('/auth/totp-verify', {
       pendingToken,
       ...(code ? { code } : {}),
       ...(backupCode ? { backupCode } : {}),
+      ...(rememberDevice ? { rememberDevice: true } : {}),
     });
     return data;
   },

@@ -134,13 +134,18 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-// Cleanup expired/revoked refresh tokens every 6 hours
+// Cleanup expired/revoked refresh tokens and expired trusted devices every 6 hours
 setInterval(async () => {
   try {
-    const { count } = await (await import('./db')).prisma.refreshToken.deleteMany({
+    const db = (await import('./db')).prisma;
+    const { count: rtCount } = await db.refreshToken.deleteMany({
       where: { OR: [{ expiresAt: { lt: new Date() } }, { revoked: true, createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }] },
     });
-    if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/revoked refresh tokens`);
+    const { count: tdCount } = await db.trustedDevice.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    if (rtCount > 0) logger.info(`[Cleanup] Deleted ${rtCount} expired/revoked refresh tokens`);
+    if (tdCount > 0) logger.info(`[Cleanup] Deleted ${tdCount} expired trusted devices`);
   } catch {}
 }, 6 * 60 * 60 * 1000);
 

@@ -22,11 +22,12 @@ interface AuthStore {
   isLoading: boolean;
   error: string | null;
   totpPendingToken: string | null;
+  deviceToken: string | null;
 
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   login: (email: string, password: string) => Promise<void>;
-  loginWithTotp: (code: string) => Promise<void>;
+  loginWithTotp: (code: string, rememberDevice?: boolean) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
   loginWithYandex: (accessToken: string) => Promise<void>;
@@ -50,6 +51,7 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       error: null,
       totpPendingToken: null,
+      deviceToken: null,
 
       setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
@@ -58,7 +60,8 @@ export const useAuthStore = create<AuthStore>()(
       login: async (email, password) => {
         set({ isLoading: true, error: null, totpPendingToken: null });
         try {
-          const response = await authService.login(email, password);
+          const { deviceToken } = get();
+          const response = await authService.login(email, password, deviceToken ?? undefined);
           if ('requiresTOTP' in response && response.requiresTOTP) {
             set({ isLoading: false, totpPendingToken: response.pendingToken });
             const err: any = new Error('TOTP_REQUIRED');
@@ -82,12 +85,12 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      loginWithTotp: async (code) => {
+      loginWithTotp: async (code, rememberDevice?: boolean) => {
         const { totpPendingToken } = get();
         if (!totpPendingToken) throw new Error('No pending TOTP token');
         set({ isLoading: true, error: null });
         try {
-          const response = await authService.verifyTotp(totpPendingToken, code);
+          const response = await authService.verifyTotp(totpPendingToken, code, undefined, rememberDevice);
           set({
             user: normalizeUser(response.user),
             token: response.token,
@@ -95,6 +98,7 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
             totpPendingToken: null,
+            ...(response.deviceToken ? { deviceToken: response.deviceToken } : {}),
           });
         } catch (e) {
           const apiError = getApiError(e);

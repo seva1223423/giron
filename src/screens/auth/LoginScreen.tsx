@@ -46,6 +46,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [totpCode, setTotpCode] = useState('');
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [backupCode, setBackupCode] = useState('');
+  const [rememberDevice, setRememberDevice] = useState(false);
 
   // Email tab state
   const [email, setEmail] = useState('');
@@ -156,7 +157,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (codeValue.length !== 6) return;
     clearErrors();
     try {
-      await loginWithTotp(codeValue);
+      await loginWithTotp(codeValue, rememberDevice);
     } catch (e: any) {
       const serverMsg = e?.response?.data?.error;
       const errCode = e?.response?.data?.code;
@@ -369,7 +370,22 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   maxLength={6}
                   autoFocus
                 />
-                <TouchableOpacity onPress={() => { setUseBackupCode(true); setTotpCode(''); clearErrors(); }} style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setRememberDevice((v) => !v)}
+                  style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, gap: spacing.sm }}
+                >
+                  <View style={{
+                    width: 20, height: 20, borderRadius: 4, borderWidth: 2,
+                    borderColor: rememberDevice ? colors.primary : colors.border,
+                    backgroundColor: rememberDevice ? colors.primary : 'transparent',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {rememberDevice && <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>✓</Text>}
+                  </View>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>Запомнить это устройство на 30 дней</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => { setUseBackupCode(true); setTotpCode(''); clearErrors(); }} style={{ marginTop: spacing.md, alignItems: 'center' }}>
                   <Text style={[typography.caption, { color: colors.primary }]}>Использовать резервный код</Text>
                 </TouchableOpacity>
               </>
