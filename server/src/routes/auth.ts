@@ -50,11 +50,21 @@ async function timingSafeLogin(): Promise<void> {
   await bcrypt.compare('dummy', DUMMY_HASH).catch(() => {});
 }
 
-async function signTokens(userId: string) {
+async function signTokens(userId: string, req?: Request) {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '7d' });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d' });
+  const ip = req
+    ? ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null)
+    : null;
+  const userAgent = req ? ((req.headers['user-agent'] as string | undefined) ?? null) : null;
   await prisma.refreshToken.create({
-    data: { token: rawRefresh, userId, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+    data: {
+      token: rawRefresh,
+      userId,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      ip,
+      userAgent,
+    },
   });
   return { token, refreshToken: rawRefresh };
 }
@@ -163,7 +173,7 @@ router.post('/register', async (req: Request, res: Response) => {
       },
     });
 
-    const { token, refreshToken } = await signTokens(user.id);
+    const { token, refreshToken } = await signTokens(user.id, req);
 
     // Send email verification OTP (non-blocking — don't fail registration if email fails)
     sendEmailVerificationOtp(user.email).catch((e) => logger.warn('Email verification send failed:', e.message));
@@ -271,7 +281,7 @@ router.post('/login', async (req: Request, res: Response) => {
       }
     }
 
-    const { token, refreshToken } = await signTokens(user.id);
+    const { token, refreshToken } = await signTokens(user.id, req);
     const { passwordHash, googleId, vkId, ...userWithoutSecrets } = user as any;
     res.json({ user: userWithoutSecrets, token, refreshToken });
   } catch (e: any) {
@@ -384,7 +394,7 @@ router.post('/google', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user!.banReason });
     }
 
-    const { token, refreshToken } = await signTokens(user!.id);
+    const { token, refreshToken } = await signTokens(user!.id, req);
     res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -455,7 +465,7 @@ router.post('/vk', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user!.banReason });
     }
 
-    const { token, refreshToken } = await signTokens(user!.id);
+    const { token, refreshToken } = await signTokens(user!.id, req);
     res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -498,7 +508,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true, loginAttempts: 0, lockedUntil: null } });
 
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `phone=${phone} method=sms_otp`);
-    const { token, refreshToken } = await signTokens(user.id);
+    const { token, refreshToken } = await signTokens(user.id, req);
     const { passwordHash, googleId, vkId, ...rest } = user as any;
     res.json({ user: rest, token, refreshToken });
   } catch (e: any) {
@@ -535,6 +545,25 @@ router.post('/send-otp', async (req: Request, res: Response) => {
       if (taken) {
         return res.status(409).json({ error: 'Этот номер телефона уже зарегистрирован', code: 'PHONE_TAKEN' });
       }
+    }
+
+    // Cooldown: enforce 60-second minimum between OTP resend requests
+    const cooldownSince = new Date(Date.now() - 60 * 1000);
+    const recentOtp = await prisma.otpCode.findFirst({
+      where: {
+        ...(phone ? { phone } : { email }),
+        purpose,
+        createdAt: { gte: cooldownSince },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (recentOtp) {
+      const secondsLeft = Math.ceil((recentOtp.createdAt.getTime() + 60 * 1000 - Date.now()) / 1000);
+      return res.status(429).json({
+        error: `Подождите ${secondsLeft} сек. перед повторной отправкой кода`,
+        code: 'OTP_COOLDOWN',
+        secondsLeft,
+      });
     }
 
     // Rate limit: max 3 active OTPs in last 10 minutes per phone/email
@@ -663,7 +692,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     // Rotate: revoke old token, issue new
     await prisma.refreshToken.update({ where: { id: dbToken.id }, data: { revoked: true } });
-    const { token, refreshToken: newRefreshToken } = await signTokens(payload.userId);
+    const { token, refreshToken: newRefreshToken } = await signTokens(payload.userId, req);
     res.json({ token, refreshToken: newRefreshToken });
   } catch {
     res.status(401).json({ error: 'Недействительный refresh token' });

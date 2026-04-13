@@ -393,7 +393,7 @@ router.get('/sessions', authenticate, async (req: AuthRequest, res: Response) =>
   try {
     const sessions = await prisma.refreshToken.findMany({
       where: { userId: req.userId!, revoked: false, expiresAt: { gte: new Date() } },
-      select: { id: true, createdAt: true, expiresAt: true },
+      select: { id: true, createdAt: true, expiresAt: true, userAgent: true, ip: true },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
