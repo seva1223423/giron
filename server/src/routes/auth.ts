@@ -431,7 +431,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     const { phone: rawPhone, email, purpose } = z.object({
       phone: z.string().optional(),
       email: z.string().email().optional(),
-      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
@@ -441,6 +441,14 @@ router.post('/send-otp', async (req: Request, res: Response) => {
       const exists = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
       if (!exists) {
         return res.status(404).json({ error: 'Пользователь с таким номером не найден', code: 'PHONE_NOT_FOUND' });
+      }
+    }
+
+    // For 'register': check that phone is NOT already taken to avoid wasting SMS
+    if (purpose === 'register' && phone) {
+      const taken = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
+      if (taken) {
+        return res.status(409).json({ error: 'Этот номер телефона уже зарегистрирован', code: 'PHONE_TAKEN' });
       }
     }
 
@@ -497,7 +505,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       phone: z.string().optional(),
       email: z.string().email().optional(),
       code: z.string().length(6),
-      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify']).default('register'),
     }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
