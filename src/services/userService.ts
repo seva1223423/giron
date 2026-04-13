@@ -58,7 +58,7 @@ export const userService = {
     await api.post('/user/change-password', { currentPassword, newPassword });
   },
 
-  async getSecurityEvents(): Promise<Array<{ id: string; action: string; ip: string | null; createdAt: string }>> {
+  async getSecurityEvents(): Promise<Array<{ id: string; action: string; ip: string | null; createdAt: string; details?: string | null }>> {
     const { data } = await api.get('/user/security-events');
     return data;
   },

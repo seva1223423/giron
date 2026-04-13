@@ -13,6 +13,7 @@ interface SecurityEvent {
   action: string;
   ip: string | null;
   createdAt: string;
+  details?: string | null;
 }
 
 const ACTION_META: Record<string, { icon: string; label: string; color: string }> = {
@@ -30,7 +31,22 @@ const ACTION_META: Record<string, { icon: string; label: string; color: string }
   TOTP_ENABLED:    { icon: 'A', label: '2FA включена', color: '#34C759' },
   TOTP_DISABLED:   { icon: 'A', label: '2FA отключена', color: '#FF9F0A' },
   EMAIL_CHANGED:   { icon: '@', label: 'Смена email', color: '#6366F1' },
+  ACCOUNT_UPDATED: { icon: 'U', label: 'Изменение аккаунта', color: '#6366F1' },
 };
+
+const DETAILS_LABELS: Record<string, string> = {
+  'backup_codes_regenerated': 'Резервные коды обновлены',
+  'all_sessions': 'Все сессии',
+  'unlinked:yandex': 'Яндекс отвязан',
+  'unlinked:vk': 'VK отвязан',
+  'unlinked:google': 'Google отвязан',
+  'method=change_password': '',
+};
+
+function getDetailsLabel(details?: string | null): string {
+  if (!details) return '';
+  return DETAILS_LABELS[details] ?? details;
+}
 
 function getActionMeta(action: string) {
   return ACTION_META[action] ?? { icon: '·', label: action, color: '#6B7280' };
@@ -102,7 +118,9 @@ export const SecurityEventsScreen: React.FC<{ navigation: any }> = ({ navigation
                 <Text style={{ fontSize: 14, color: meta.color, fontWeight: '700' }}>{meta.icon}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.smallMedium, { color: colors.text }]}>{meta.label}</Text>
+                <Text style={[typography.smallMedium, { color: colors.text }]}>
+                  {meta.label}{getDetailsLabel(evt.details) ? ` · ${getDetailsLabel(evt.details)}` : ''}
+                </Text>
                 <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
                   {formatDate(evt.createdAt)}
                   {evt.ip ? `  ·  IP: ${evt.ip}` : ''}
