@@ -87,6 +87,11 @@ export const adminService = {
     return res.data;
   },
 
+  async forceLogoutUser(userId: string): Promise<{ ok: boolean; revokedCount: number }> {
+    const res = await api.post(`/admin/users/${userId}/force-logout`);
+    return res.data;
+  },
+
   async exportUsersCSV(params?: { role?: string; plan?: string; banned?: boolean }): Promise<string> {
     const res = await api.get('/admin/users/export', { params, responseType: 'text' });
     return res.data as string;

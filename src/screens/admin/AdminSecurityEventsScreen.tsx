@@ -5,9 +5,10 @@ import type { RouteProp } from '@react-navigation/native';
 import { adminService } from '../../services/adminService';
 
 const ACTION_META: Record<string, { icon: string; label: string; color: string }> = {
-  LOGIN_SUCCESS:   { icon: '✓', label: 'Вход выполнен', color: '#34C759' },
-  LOGIN_FAIL:      { icon: '✗', label: 'Неверный пароль', color: '#FF9F0A' },
-  ACCOUNT_LOCKED:  { icon: '!', label: 'Аккаунт заблокирован', color: '#EF4444' },
+  LOGIN_SUCCESS:      { icon: '✓', label: 'Вход выполнен', color: '#34C759' },
+  LOGIN_FAIL:         { icon: '✗', label: 'Неверный пароль', color: '#FF9F0A' },
+  ACCOUNT_LOCKED:     { icon: '!', label: 'Аккаунт заблокирован', color: '#EF4444' },
+  SUSPICIOUS_LOGIN:   { icon: '!', label: 'Вход с нового IP', color: '#EF4444' },
   PASSWORD_CHANGE: { icon: 'P', label: 'Смена пароля', color: '#6366F1' },
   EMAIL_VERIFIED:  { icon: '@', label: 'Email подтверждён', color: '#34C759' },
   PHONE_VERIFIED:  { icon: '#', label: 'Телефон подтверждён', color: '#34C759' },
