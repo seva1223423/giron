@@ -641,7 +641,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     const { phone: rawPhone, email, purpose } = z.object({
       phone: z.string().optional(),
       email: z.string().email().optional(),
-      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change', 'email-change']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
@@ -734,7 +734,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       phone: z.string().optional(),
       email: z.string().email().optional(),
       code: z.string().length(6),
-      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change', 'email-change']).default('register'),
     }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
@@ -768,9 +768,9 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     }
 
     // Correct code
-    // For 'register', 'phone-reset', 'phone-change': leave OTP intact — dedicated endpoints will consume it
+    // For 'register', 'phone-reset', 'phone-change', 'email-change': leave OTP intact — dedicated endpoints will consume it
     // For all other purposes: mark used now
-    if (purpose !== 'register' && purpose !== 'phone-reset' && purpose !== 'phone-change') {
+    if (!['register', 'phone-reset', 'phone-change', 'email-change'].includes(purpose)) {
       await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
     }
 

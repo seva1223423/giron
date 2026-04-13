@@ -449,30 +449,38 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               {user?.emailVerified ? ' · подтверждён' : ' · не подтверждён'}
             </Text>
           </View>
-          {!user?.emailVerified && (
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            {!user?.emailVerified && (
+              <TouchableOpacity
+                onPress={async () => {
+                  if (resendingVerif || !user?.email) return;
+                  setResendingVerif(true);
+                  try {
+                    await authService.resendVerification(user.email);
+                    setEmailVerifCode('');
+                    setEmailVerifError('');
+                    startResendCountdown(60);
+                    setShowEmailVerifModal(true);
+                  } catch (e: any) {
+                    Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отправить');
+                  } finally {
+                    setResendingVerif(false);
+                  }
+                }}
+                style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: colors.primary + '60', backgroundColor: colors.primary + '10' }}
+              >
+                <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+                  {resendingVerif ? '...' : 'Подтвердить'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
-              onPress={async () => {
-                if (resendingVerif || !user?.email) return;
-                setResendingVerif(true);
-                try {
-                  await authService.resendVerification(user.email);
-                  setEmailVerifCode('');
-                  setEmailVerifError('');
-                  startResendCountdown(60);
-                  setShowEmailVerifModal(true);
-                } catch (e: any) {
-                  Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отправить');
-                } finally {
-                  setResendingVerif(false);
-                }
-              }}
-              style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: colors.primary + '60', backgroundColor: colors.primary + '10' }}
+              onPress={() => navigation.navigate('ChangeEmailScreen')}
+              style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '15' }}
             >
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
-                {resendingVerif ? '...' : 'Подтвердить'}
-              </Text>
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>Сменить</Text>
             </TouchableOpacity>
-          )}
+          </View>
         </View>
 
         {/* Linked social accounts */}
