@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { authRouter } from './routes/auth';
@@ -22,6 +23,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — API-only server
 app.use(cors());
 // Capture raw body for webhook signature verification via verify callback
 app.use(express.json({
@@ -96,6 +98,16 @@ process.on('uncaughtException', (err) => {
   logger.error('Uncaught exception:', err);
   process.exit(1);
 });
+
+// Cleanup expired/revoked refresh tokens every 6 hours
+setInterval(async () => {
+  try {
+    const { count } = await (await import('./db')).prisma.refreshToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: new Date() } }, { revoked: true, createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }] },
+    });
+    if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/revoked refresh tokens`);
+  } catch {}
+}, 6 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
   logger.info(`Iron Gym API server running on port ${PORT}`);

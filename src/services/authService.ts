@@ -1,4 +1,4 @@
-import { api, getApiError } from './api';
+import { api } from './api';
 import { User } from '../types';
 
 export interface AuthResponse {
@@ -11,6 +11,12 @@ export interface CheckEmailResponse {
   exists: boolean;
   hasPassword?: boolean;
   hasGoogle?: boolean;
+  hasVk?: boolean;
+}
+
+export interface CheckPhoneResponse {
+  exists: boolean;
+  phone?: string;
 }
 
 export const authService = {
@@ -40,18 +46,43 @@ export const authService = {
     }
   },
 
+  async checkPhone(phone: string): Promise<CheckPhoneResponse> {
+    try {
+      const { data } = await api.post<CheckPhoneResponse>('/auth/check-phone', { phone });
+      return data;
+    } catch {
+      return { exists: false };
+    }
+  },
+
   async loginWithGoogle(idToken: string): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>('/auth/google', { idToken });
     return data;
   },
 
-  async sendOtp(params: { phone?: string; email?: string; purpose?: 'register' | 'login' }): Promise<void> {
+  async loginWithVk(params: { accessToken: string; userId: number; email?: string }): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/vk', params);
+    return data;
+  },
+
+  async loginByPhone(phone: string, code: string): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/login-by-phone', { phone, code });
+    return data;
+  },
+
+  async sendOtp(params: { phone?: string; email?: string; purpose?: 'register' | 'login' | 'phone-login' }): Promise<void> {
     await api.post('/auth/send-otp', params);
   },
 
-  async verifyOtp(params: { phone?: string; email?: string; code: string; purpose?: 'register' | 'login' }): Promise<boolean> {
+  async verifyOtp(params: { phone?: string; email?: string; code: string; purpose?: 'register' | 'login' | 'phone-login' }): Promise<boolean> {
     const { data } = await api.post<{ valid: boolean }>('/auth/verify-otp', params);
     return data.valid;
+  },
+
+  async logout(refreshToken?: string): Promise<void> {
+    try {
+      await api.post('/auth/logout', { refreshToken });
+    } catch {}
   },
 
   async refreshToken(refreshToken: string): Promise<{ token: string; refreshToken: string }> {
