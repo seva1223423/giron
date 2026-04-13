@@ -9,6 +9,7 @@ import { FadeIn, Button, Card } from '../../components';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showTodayPlanNotification } from '../../services/notificationService';
 import { adminService } from '../../services/adminService';
+import { authService } from '../../services/authService';
 import type { AnnouncementType } from '../../types';
 import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
@@ -51,6 +52,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const [announcements, setAnnouncements] = useState<Array<{ id: string; title: string; body: string; type: AnnouncementType; createdAt: string }>>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
   const { user } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
@@ -239,7 +242,39 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         );
       })}
 
-      {/* ── СЕГОДНЯ ──────────────────────────���───── */}
+      {/* ── Email verification banner ─────────── */}
+      {!user?.emailVerified && !emailBannerDismissed && (
+        <View style={[annStyles.banner, { borderColor: '#6366F140', backgroundColor: '#6366F110', marginBottom: spacing.md }]}>
+          <Text style={{ fontSize: 16 }}>✉️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[annStyles.title, { color: '#6366F1' }]}>Подтвердите email</Text>
+            <Text style={annStyles.body}>Код подтверждения отправлен на {user?.email}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={async () => {
+                if (resendingVerification || !user?.email) return;
+                setResendingVerification(true);
+                try {
+                  await authService.resendVerification(user.email);
+                } catch { /* ignore */ } finally {
+                  setResendingVerification(false);
+                }
+              }}
+              style={{ padding: 4 }}
+            >
+              <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '600' }}>
+                {resendingVerification ? '...' : 'Отправить'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEmailBannerDismissed(true)} style={{ padding: 4 }}>
+              <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── СЕГОДНЯ ──────────────────────────────── */}
       <FadeIn delay={60}>
         <TodaySummaryCard navigation={navigation} />
       </FadeIn>

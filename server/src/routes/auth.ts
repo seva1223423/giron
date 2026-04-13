@@ -36,7 +36,18 @@ function safeUser(user: any) {
   return rest;
 }
 
-// ── Schemas ──────────────────────────────────────────────────────────────────
+// ── Email verification helper ─────────────────────────────────────────────────
+
+async function sendEmailVerificationOtp(email: string): Promise<void> {
+  // Invalidate old unused codes
+  await prisma.otpCode.updateMany({ where: { email, purpose: 'email-verify', used: false }, data: { used: true } });
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  await prisma.otpCode.create({ data: { email, code, purpose: 'email-verify', expiresAt } });
+  await sendOtpEmail(email, code);
+}
+
+// ── Schemas ───────────────────────────────────────────────────────────────────
 
 const registerSchema = z.object({
   email: z.string().email('Некорректный email'),
@@ -91,6 +102,9 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     const { token, refreshToken } = await signTokens(user.id);
+
+    // Send email verification OTP (non-blocking — don't fail registration if email fails)
+    sendEmailVerificationOtp(user.email).catch((e) => logger.warn('Email verification send failed:', e.message));
 
     res.status(201).json({
       user: {
@@ -633,6 +647,61 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка сброса пароля' });
+  }
+});
+
+// ── Email verification ────────────────────────────────────────────────────────
+
+/** POST /auth/verify-email — verify email with 6-digit OTP */
+router.post('/verify-email', async (req: Request, res: Response) => {
+  try {
+    const { email, code } = z.object({
+      email: z.string().email(),
+      code: z.string().length(6),
+    }).parse(req.body);
+
+    const otp = await prisma.otpCode.findFirst({
+      where: { email, code, purpose: 'email-verify', used: false, expiresAt: { gte: new Date() } },
+    });
+
+    if (!otp) {
+      return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
+    }
+
+    await prisma.$transaction([
+      prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } }),
+      prisma.user.updateMany({ where: { email, emailVerified: false }, data: { emailVerified: true } }),
+    ]);
+
+    res.json({ valid: true, message: 'Email подтверждён' });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    res.status(500).json({ error: 'Ошибка подтверждения' });
+  }
+});
+
+/** POST /auth/resend-verification — resend email verification OTP */
+router.post('/resend-verification', async (req: Request, res: Response) => {
+  try {
+    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, emailVerified: true } });
+    if (!user) return res.json({ message: 'Если такой email зарегистрирован, письмо отправлено' });
+    if (user.emailVerified) return res.json({ message: 'Email уже подтверждён' });
+
+    // Rate limit: max 3 per hour
+    const since = new Date(Date.now() - 60 * 60 * 1000);
+    const recentCount = await prisma.otpCode.count({ where: { email, purpose: 'email-verify', createdAt: { gte: since } } });
+    if (recentCount >= 3) {
+      return res.status(429).json({ error: 'Слишком много запросов. Попробуйте через час.' });
+    }
+
+    await sendEmailVerificationOtp(email);
+    res.json({ message: 'Код подтверждения отправлен на ' + email });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /auth/resend-verification:', e);
+    res.status(500).json({ error: 'Не удалось отправить письмо' });
   }
 });
 
