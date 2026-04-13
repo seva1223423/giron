@@ -7,7 +7,7 @@ import { TOTP, Secret } from 'otpauth';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
-import { sendPasswordResetEmail, sendOtpEmail, sendNewLoginAlert } from '../services/emailService';
+import { sendPasswordResetEmail, sendOtpEmail, sendNewLoginAlert, sendPasswordChangedAlert } from '../services/emailService';
 import { sendSmsOtp, normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
 
@@ -31,6 +31,18 @@ async function logSecurityEvent(
 }
 
 const MAX_OTP_ATTEMPTS = 5;
+
+/** Prevent TOTP replay: check if code was used within the validity window, then record it. Returns true if replay. */
+async function isTotpReplay(userId: string, code: string): Promise<boolean> {
+  const since = new Date(Date.now() - 90 * 1000); // window=1 → ±1 period = 90s
+  const existing = await prisma.usedTotpCode.findFirst({
+    where: { userId, code, usedAt: { gte: since } },
+    select: { id: true },
+  });
+  if (existing) return true;
+  await prisma.usedTotpCode.create({ data: { userId, code } });
+  return false;
+}
 
 const GOOGLE_CLIENT_IDS = [
   process.env.GOOGLE_CLIENT_ID_WEB,
@@ -428,6 +440,10 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
       if (delta === null) {
         await logSecurityEvent('LOGIN_FAIL', user.id, req, 'totp_invalid');
         return res.status(401).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
+      }
+      if (await isTotpReplay(user.id, code!)) {
+        await logSecurityEvent('LOGIN_FAIL', user.id, req, 'totp_replayed');
+        return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
       await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=totp');
     }

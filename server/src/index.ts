@@ -151,6 +151,16 @@ setInterval(async () => {
   } catch {}
 }, 6 * 60 * 60 * 1000);
 
+// Cleanup used TOTP codes older than 90s (replay window) every 5 minutes
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - 90 * 1000);
+    await (await import('./db')).prisma.usedTotpCode.deleteMany({
+      where: { usedAt: { lt: cutoff } },
+    });
+  } catch {}
+}, 5 * 60 * 1000);
+
 // Cleanup expired/used OTP codes every hour
 setInterval(async () => {
   try {

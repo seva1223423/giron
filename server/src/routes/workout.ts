@@ -29,6 +29,34 @@ const startWorkoutSchema = z.object({
   })).min(1),
 });
 
+const syncWorkoutSetSchema = z.object({
+  type: z.string().max(50).optional(),
+  reps: z.number().int().min(0).max(999).optional().nullable(),
+  weight: z.number().min(0).max(2000).optional().nullable(),
+  rpe: z.number().min(1).max(10).optional().nullable(),
+  completed: z.boolean().optional(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+const syncWorkoutExerciseSchema = z.object({
+  exerciseId: z.string().min(1).max(100),
+  restSeconds: z.number().int().min(0).max(600).optional(),
+  supersetGroupId: z.string().max(100).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+  sets: z.array(syncWorkoutSetSchema).max(30).optional(),
+});
+
+const syncWorkoutSchema = z.object({
+  clientId: z.string().max(100).optional().nullable(),
+  name: z.string().min(1).max(200),
+  notes: z.string().max(2000).optional().nullable(),
+  completedAt: z.string().datetime().optional().nullable(),
+  startedAt: z.string().datetime().optional().nullable(),
+  durationMinutes: z.number().int().min(0).max(1440).optional(),
+  totalVolume: z.number().min(0).max(1_000_000).optional(),
+  exercises: z.array(syncWorkoutExerciseSchema).min(1).max(50),
+});
+
 // Get all programs
 router.get('/programs', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -138,11 +166,9 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
 // Uses clientId as idempotency key — if the workout was already synced, returns the existing record
 router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { clientId, name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = req.body;
-
-    if (!name || !exercises || !Array.isArray(exercises)) {
-      return res.status(400).json({ error: 'Название и упражнения обязательны' });
-    }
+    const parsed = syncWorkoutSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+    const { clientId, name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = parsed.data;
 
     // If clientId provided, check if this workout was already synced (idempotency)
     // IMPORTANT: verify ownership to prevent cross-user data exposure

@@ -15,6 +15,21 @@ import { sendPasswordChangedAlert } from '../services/emailService';
 const JWT_ISS = 'irongym-api';
 const JWT_AUD = 'irongym-app';
 
+/** Prevent TOTP replay attacks: check if code was recently used, then record it. Returns true if replay detected. */
+async function isTotpReplay(userId: string, code: string): Promise<boolean> {
+  // TOTP window=1 means codes are valid for up to 90 seconds (prev + current + next period)
+  const windowMs = 90 * 1000;
+  const since = new Date(Date.now() - windowMs);
+  const existing = await prisma.usedTotpCode.findFirst({
+    where: { userId, code, usedAt: { gte: since } },
+    select: { id: true },
+  });
+  if (existing) return true;
+  // Record this code as used
+  await prisma.usedTotpCode.create({ data: { userId, code } });
+  return false;
+}
+
 /** Issue new access + refresh tokens after revoking all old sessions for the user */
 async function reissueTokens(userId: string, req: AuthRequest): Promise<{ token: string; refreshToken: string }> {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
@@ -271,7 +286,7 @@ router.put('/week-plan', authenticate, async (req: AuthRequest, res: Response) =
     const weekPlanSchema = z.record(
       z.string().regex(/^[0-6]$/, 'Ключ должен быть числом 0-6'),
       z.array(z.string().max(100)).max(20),
-    ).max(7);
+    ).refine((v) => Object.keys(v).length <= 7, 'Не более 7 дней');
 
     const parsed = weekPlanSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -347,6 +362,9 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
+      }
+      if (await isTotpReplay(req.userId!, totpCode)) {
+        return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
     }
 
@@ -622,6 +640,9 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
     if (delta === null) {
       return res.status(400).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
     }
+    if (await isTotpReplay(req.userId!, code)) {
+      return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
+    }
 
     // Generate 8 single-use backup codes
     const plainCodes: string[] = Array.from({ length: 8 }, () =>
@@ -674,6 +695,9 @@ router.delete('/2fa', authenticate, async (req: AuthRequest, res: Response) => {
     if (code && user.totpSecret) {
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       verified = totp.validate({ token: code, window: 1 }) !== null;
+      if (verified && await isTotpReplay(req.userId!, code)) {
+        return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
+      }
     } else if (password && user.passwordHash) {
       verified = await bcrypt.compare(password, user.passwordHash);
     }
@@ -709,6 +733,9 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
     const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
     if (totp.validate({ token: code, window: 1 }) === null) {
       return res.status(401).json({ error: 'Неверный код', code: 'INVALID_TOTP' });
+    }
+    if (await isTotpReplay(req.userId!, code)) {
+      return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
     }
 
     const plainCodes: string[] = Array.from({ length: 8 }, () =>
@@ -757,6 +784,9 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      if (await isTotpReplay(req.userId!, totpCode)) {
+        return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
+      }
     }
 
     // Check email isn't already taken by another user
@@ -784,12 +814,15 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     }
     await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
 
-    // Update email, revoke all sessions, issue new tokens for the current device
+    // Update email, revoke all sessions + trusted devices, issue new tokens for the current device
     await prisma.user.update({
       where: { id: req.userId! },
       data: { email: newEmail, emailVerified: true },
     });
-    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    await Promise.all([
+      prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
+      prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
+    ]);
     const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
     const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
@@ -840,6 +873,9 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
       }
+      if (await isTotpReplay(req.userId!, totpCode)) {
+        return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
+      }
     }
 
     // Check phone isn't already used by another user
@@ -867,12 +903,15 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     }
     await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
 
-    // Update phone number, revoke all sessions, issue new tokens for the current device
+    // Update phone number, revoke all sessions + trusted devices, issue new tokens for the current device
     await prisma.user.update({
       where: { id: req.userId! },
       data: { phone, phoneVerified: true },
     });
-    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    await Promise.all([
+      prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
+      prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
+    ]);
     const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
     const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
@@ -988,6 +1027,9 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
       const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
       if (totp.validate({ token: totpCode, window: 1 }) === null) {
         return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
+      }
+      if (await isTotpReplay(req.userId!, totpCode)) {
+        return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
       }
     }
 
