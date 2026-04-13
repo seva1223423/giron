@@ -8,6 +8,7 @@ import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { userService } from '../../services/userService';
+import { api } from '../../services/api';
 
 function passwordStrength(p: string): number {
   if (!p) return 0;
@@ -27,16 +28,22 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
   const { colors } = useThemeStore();
   // isSocialOnly is determined server-side — we ask the /has-password endpoint
   const [isSocialOnly, setIsSocialOnly] = useState<boolean | null>(null); // null = loading
+  const [hasTwoFactor, setHasTwoFactor] = useState(false);
 
   useEffect(() => {
-    userService.hasPassword()
-      .then((has) => setIsSocialOnly(!has))
-      .catch(() => setIsSocialOnly(false)); // default: assume password exists (safe)
+    Promise.all([
+      userService.hasPassword().then((has) => !has).catch(() => false),
+      api.get<{ enabled: boolean }>('/user/2fa/status').then(({ data }) => data.enabled).catch(() => false),
+    ]).then(([social, totp]) => {
+      setIsSocialOnly(social);
+      setHasTwoFactor(totp);
+    });
   }, []);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -51,15 +58,17 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
     if (!/[0-9]/.test(newPassword)) { setError('Пароль должен содержать хотя бы одну цифру'); return; }
     if (newPassword !== confirmPassword) { setError('Пароли не совпадают'); return; }
     if (!isSocialOnly && !currentPassword) { setError('Введите текущий пароль'); return; }
+    if (hasTwoFactor && totpCode.length !== 6) { setError('Введите код из аутентификатора'); return; }
     setError('');
     setLoading(true);
     try {
-      await userService.changePassword(currentPassword, newPassword);
+      await userService.changePassword(currentPassword, newPassword, hasTwoFactor ? totpCode : undefined);
       setDone(true);
     } catch (e: any) {
       const code = e?.response?.data?.code;
       if (code === 'WRONG_CURRENT_PASSWORD') setError('Неверный текущий пароль');
       else if (code === 'PASSWORD_REUSED') setError(`Нельзя использовать один из последних 3 паролей`);
+      else if (code === 'TOTP_REQUIRED' || code === 'INVALID_TOTP') setError('Неверный код 2FA');
       else setError(e?.response?.data?.error || 'Ошибка изменения пароля');
     } finally {
       setLoading(false);
@@ -157,6 +166,18 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
           onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
           containerStyle={{ marginBottom: spacing.md }}
         />
+
+        {hasTwoFactor && (
+          <Input
+            label="Код двухфакторной аутентификации"
+            placeholder="6 цифр из приложения"
+            value={totpCode}
+            onChangeText={(t) => { setTotpCode(t.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+            keyboardType="number-pad"
+            maxLength={6}
+            containerStyle={{ marginBottom: spacing.md }}
+          />
+        )}
 
         {error ? <Text style={[typography.small, { color: colors.error, marginBottom: spacing.md }]}>{error}</Text> : null}
 
