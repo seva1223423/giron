@@ -816,6 +816,61 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
   }
 });
 
+// ── Linked accounts ───────────────────────────────────────────────────────────
+
+/**
+ * DELETE /user/linked-accounts/:provider — unlink a social provider from the account.
+ * Safety: user must have either a password or another linked provider to log in after unlinking.
+ */
+router.delete('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const provider = z.enum(['yandex', 'vk', 'google']).parse(req.params.provider);
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true },
+    });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    const fieldMap: Record<typeof provider, keyof typeof user> = {
+      yandex: 'yandexId',
+      vk: 'vkId',
+      google: 'googleId',
+    };
+
+    if (!user[fieldMap[provider]]) {
+      return res.status(400).json({ error: `Аккаунт ${provider} не привязан`, code: 'NOT_LINKED' });
+    }
+
+    // Ensure user won't lose all login methods
+    const otherProviders = (['google', 'vk', 'yandex'] as const)
+      .filter((p) => p !== provider)
+      .filter((p) => !!user[fieldMap[p]]);
+    if (!user.passwordHash && otherProviders.length === 0) {
+      return res.status(400).json({
+        error: 'Нельзя отвязать единственный способ входа. Сначала установите пароль.',
+        code: 'LAST_LOGIN_METHOD',
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { [fieldMap[provider]]: null },
+    });
+
+    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    await prisma.securityEvent.create({
+      data: { userId: req.userId!, action: 'ACCOUNT_UPDATED', ip, details: `unlinked:${provider}` },
+    });
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: 'Неверный провайдер' });
+    logger.error('DELETE /user/linked-accounts/:provider:', e);
+    res.status(500).json({ error: 'Ошибка отвязки аккаунта' });
+  }
+});
+
 // ── Delete account ────────────────────────────────────────────────────────────
 
 /**
