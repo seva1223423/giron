@@ -1,4 +1,5 @@
 import { Router, Response, Request } from 'express';
+import { z } from 'zod';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
@@ -60,25 +61,20 @@ router.get('/status', authenticate, async (req: AuthRequest, res: Response) => {
 router.post('/activate', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { plan, durationDays, transactionId } = req.body as {
-      plan: 'pro' | 'trainer' | 'club';
-      durationDays: number;
-      transactionId?: string;
-    };
-
-    if (!plan || !durationDays) {
-      return res.status(400).json({ error: 'Необходимо указать plan и durationDays' });
+    const parsed = z.object({
+      plan: z.enum(['pro', 'trainer', 'club']),
+      durationDays: z.number().int().min(1).max(7),
+      transactionId: z.string().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
     }
+    const { plan, durationDays, transactionId } = parsed.data;
 
     // With transactionId: only allow activation via webhook (server-to-server).
     // The /activate endpoint from the client can ONLY start a trial.
     if (transactionId) {
       return res.status(403).json({ error: 'Активация платных подписок доступна только через webhook после подтверждения оплаты' });
-    }
-
-    // Trial: max 7 days
-    if (durationDays > 7) {
-      return res.status(403).json({ error: 'Пробный период — максимум 7 дней' });
     }
 
     // Prevent duplicate trials — block if user ever had any subscription
