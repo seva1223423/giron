@@ -1932,6 +1932,7 @@ router.get('/moderation/search', requireAdmin, async (req: AuthRequest, res: Res
   try {
     const { q } = req.query as Record<string, string>;
     if (!q || q.trim().length < 2) return res.status(400).json({ error: 'Запрос слишком короткий' });
+    if (q.trim().length > 100) return res.status(400).json({ error: 'Запрос слишком длинный' });
     const keyword = q.trim().toLowerCase();
 
     const [aiMatches, ticketMatches] = await Promise.all([

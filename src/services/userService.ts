@@ -102,8 +102,8 @@ export const userService = {
     await api.delete('/user/account', { data: { password, totpCode } });
   },
 
-  async changePhone(phone: string, code: string): Promise<{ ok: boolean; phone: string; phoneVerified: boolean }> {
-    const { data } = await api.post('/user/change-phone', { phone, code });
+  async changePhone(phone: string, code: string, totpCode?: string): Promise<{ ok: boolean; phone: string; phoneVerified: boolean }> {
+    const { data } = await api.post('/user/change-phone', { phone, code, totpCode });
     return data;
   },
 };

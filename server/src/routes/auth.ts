@@ -764,11 +764,24 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     const phone = normalizePhone(rawPhone);
 
     const otp = await prisma.otpCode.findFirst({
-      where: { phone, code, purpose: 'phone-login', used: false, expiresAt: { gte: new Date() } },
+      where: { phone, purpose: 'phone-login', used: false, expiresAt: { gte: new Date() } },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!otp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
+    }
+
+    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+      await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-login phone=${phone}`);
+      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
+    }
+
+    if (otp.code !== code) {
+      await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+      const attemptsLeft = MAX_OTP_ATTEMPTS - otp.attempts - 1;
+      return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
 
     await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
@@ -787,7 +800,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
 
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `phone=${phone} method=sms_otp`);
     const { token, refreshToken } = await signTokens(user.id, req);
-    const { passwordHash, googleId, vkId, yandexId, totpSecret, ...rest } = user as any;
+    const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...rest } = user as any;
     res.json({ user: rest, token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -1190,11 +1203,24 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     const phone = normalizePhone(rawPhone);
 
     const otp = await prisma.otpCode.findFirst({
-      where: { phone, code, purpose: 'phone-reset', used: false, expiresAt: { gte: new Date() } },
+      where: { phone, purpose: 'phone-reset', used: false, expiresAt: { gte: new Date() } },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!otp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
+    }
+
+    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+      await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-reset phone=${phone}`);
+      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
+    }
+
+    if (otp.code !== code) {
+      await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+      const attemptsLeft = MAX_OTP_ATTEMPTS - otp.attempts - 1;
+      return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
 
     const user = await prisma.user.findUnique({ where: { phone } });

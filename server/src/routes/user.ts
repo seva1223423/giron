@@ -13,6 +13,8 @@ import { sendPasswordChangedAlert } from '../services/emailService';
 
 const router = Router();
 
+const MAX_OTP_ATTEMPTS = 5;
+
 const strongPassword = z
   .string()
   .min(8, 'Пароль минимум 8 символов')
@@ -721,10 +723,26 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
  */
 router.post('/change-email', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { email: newEmail, code } = z.object({
+    const { email: newEmail, code, totpCode } = z.object({
       email: z.string().email('Некорректный email'),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
+      totpCode: z.string().length(6).optional(),
     }).parse(req.body);
+
+    // If 2FA is enabled, require TOTP before allowing email change
+    const userFor2fa = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { totpEnabled: true, totpSecret: true },
+    });
+    if (userFor2fa?.totpEnabled && userFor2fa.totpSecret) {
+      if (!totpCode) {
+        return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
+      }
+      const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
+      }
+    }
 
     // Check email isn't already taken by another user
     const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
@@ -740,9 +758,14 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     if (!activeOtp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
+    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
+    }
     if (activeOtp.code !== code) {
       await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
-      return res.status(400).json({ error: 'Неверный код подтверждения', code: 'INVALID_OTP' });
+      const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
+      return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
     await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
 
@@ -779,12 +802,28 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
  */
 router.post('/change-phone', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { phone: rawPhone, code } = z.object({
+    const { phone: rawPhone, code, totpCode } = z.object({
       phone: z.string().min(10, 'Введите номер телефона'),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
+      totpCode: z.string().length(6).optional(),
     }).parse(req.body);
 
     const phone = normalizePhone(rawPhone);
+
+    // If 2FA is enabled, require TOTP before allowing phone change
+    const userFor2fa = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { totpEnabled: true, totpSecret: true },
+    });
+    if (userFor2fa?.totpEnabled && userFor2fa.totpSecret) {
+      if (!totpCode) {
+        return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
+      }
+      const totp = new TOTP({ secret: Secret.fromBase32(userFor2fa.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
+      }
+    }
 
     // Check phone isn't already used by another user
     const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
@@ -800,9 +839,14 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     if (!activeOtp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
+    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
+    }
     if (activeOtp.code !== code) {
       await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
-      return res.status(400).json({ error: 'Неверный код подтверждения', code: 'INVALID_OTP' });
+      const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
+      return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
     await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
 
