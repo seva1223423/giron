@@ -11,6 +11,25 @@ import { sendSmsOtp, normalizePhone } from '../services/smsService';
 
 const router = Router();
 
+// ── Security event logger ─────────────────────────────────────────────────────
+
+async function logSecurityEvent(
+  action: string,
+  userId?: string | null,
+  req?: Request,
+  details?: string,
+): Promise<void> {
+  try {
+    const ip = req
+      ? ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null)
+      : null;
+    const userAgent = req ? ((req.headers['user-agent'] as string | undefined) ?? null) : null;
+    await prisma.securityEvent.create({ data: { userId: userId ?? null, action, ip, userAgent, details: details ?? null } });
+  } catch { /* non-critical — never throw */ }
+}
+
+const MAX_OTP_ATTEMPTS = 5;
+
 const GOOGLE_CLIENT_IDS = [
   process.env.GOOGLE_CLIENT_ID_WEB,
   process.env.GOOGLE_CLIENT_ID_IOS,
@@ -34,6 +53,38 @@ async function signTokens(userId: string) {
 function safeUser(user: any) {
   const { passwordHash, googleId, vkId, ...rest } = user;
   return rest;
+}
+
+// ── Email verification helper ─────────────────────────────────────────────────
+
+// ── Password history helpers ──────────────────────────────────────────────────
+
+const PASSWORD_HISTORY_DEPTH = 3;
+
+async function checkPasswordHistory(userId: string, newPassword: string): Promise<boolean> {
+  const recent = await prisma.passwordHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: PASSWORD_HISTORY_DEPTH,
+    select: { passwordHash: true },
+  });
+  for (const entry of recent) {
+    if (await bcrypt.compare(newPassword, entry.passwordHash)) return true;
+  }
+  return false;
+}
+
+async function recordPasswordHistory(userId: string, hash: string): Promise<void> {
+  await prisma.passwordHistory.create({ data: { userId, passwordHash: hash } });
+  const all = await prisma.passwordHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+  const toDelete = all.slice(PASSWORD_HISTORY_DEPTH + 2);
+  if (toDelete.length > 0) {
+    await prisma.passwordHistory.deleteMany({ where: { id: { in: toDelete.map((r) => r.id) } } });
+  }
 }
 
 // ── Email verification helper ─────────────────────────────────────────────────
@@ -174,6 +225,7 @@ router.post('/login', async (req: Request, res: Response) => {
           ...(shouldLock ? { lockedUntil: new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) } : {}),
         },
       });
+      await logSecurityEvent(shouldLock ? 'ACCOUNT_LOCKED' : 'LOGIN_FAIL', user.id, req, `email=${data.email} attempts=${attempts}`);
       const attemptsLeft = Math.max(0, MAX_LOGIN_ATTEMPTS - attempts);
       return res.status(401).json({
         error: shouldLock
@@ -189,6 +241,7 @@ router.post('/login', async (req: Request, res: Response) => {
       await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null } });
     }
 
+    await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email}`);
     const { token, refreshToken } = await signTokens(user.id);
     const { passwordHash, googleId, vkId, ...userWithoutSecrets } = user as any;
     res.json({ user: userWithoutSecrets, token, refreshToken });
@@ -415,6 +468,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
 
     await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true, loginAttempts: 0, lockedUntil: null } });
 
+    await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `phone=${phone} method=sms_otp`);
     const { token, refreshToken } = await signTokens(user.id);
     const { passwordHash, googleId, vkId, ...rest } = user as any;
     res.json({ user: rest, token, refreshToken });
@@ -512,21 +566,39 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
 
-    const otp = await prisma.otpCode.findFirst({
+    // Find any active OTP for this phone/email+purpose (even wrong code) for brute-force check
+    const activeOtp = await prisma.otpCode.findFirst({
       where: {
         ...(phone ? { phone } : { email }),
-        code, purpose, used: false, expiresAt: { gte: new Date() },
+        purpose, used: false, expiresAt: { gte: new Date() },
       },
+      orderBy: { createdAt: 'desc' },
     });
 
-    if (!otp) {
+    if (!activeOtp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
+    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=${purpose} phone=${phone ?? ''} email=${email ?? ''}`);
+      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
+    }
+
+    if (activeOtp.code !== code) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
+      return res.status(400).json({
+        error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.',
+        valid: false,
+      });
+    }
+
+    // Correct code
     // For 'register' and 'phone-reset': leave OTP intact — dedicated endpoints will consume it
     // For all other purposes: mark used now
     if (purpose !== 'register' && purpose !== 'phone-reset') {
-      await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
     }
 
     res.json({ valid: true, message: 'Код подтверждён' });
@@ -637,18 +709,18 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Ссылка недействительна или истекла' });
     }
 
+    if (await checkPasswordHistory(resetToken.userId, password)) {
+      return res.status(400).json({ error: `Нельзя использовать один из последних ${PASSWORD_HISTORY_DEPTH} паролей`, code: 'PASSWORD_REUSED' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
 
     await prisma.$transaction([
-      prisma.user.update({
-        where: { id: resetToken.userId },
-        data: { passwordHash },
-      }),
-      prisma.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { used: true },
-      }),
+      prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+      prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { used: true } }),
     ]);
+    await recordPasswordHistory(resetToken.userId, passwordHash);
+    await logSecurityEvent('PASSWORD_CHANGE', resetToken.userId, req, 'method=email_reset');
 
     res.json({ message: 'Пароль успешно изменён' });
   } catch (e: any) {
@@ -670,20 +742,41 @@ router.post('/verify-email', async (req: Request, res: Response) => {
       code: z.string().length(6),
     }).parse(req.body);
 
-    const otp = await prisma.otpCode.findFirst({
-      where: { email, code, purpose: 'email-verify', used: false, expiresAt: { gte: new Date() } },
+    // Find the active OTP for brute-force check
+    const activeOtp = await prisma.otpCode.findFirst({
+      where: { email, purpose: 'email-verify', used: false, expiresAt: { gte: new Date() } },
+      orderBy: { createdAt: 'desc' },
     });
 
-    if (!otp) {
+    if (!activeOtp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
+    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=email-verify email=${email}`);
+      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
+    }
+
+    if (activeOtp.code !== code) {
+      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
+      return res.status(400).json({
+        error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.',
+        valid: false,
+      });
+    }
+
     await prisma.$transaction([
-      prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } }),
+      prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } }),
       prisma.user.updateMany({ where: { email, emailVerified: false }, data: { emailVerified: true } }),
     ]);
 
-    res.json({ valid: true, message: 'Email подтверждён' });
+    // Look up userId for security log
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    await logSecurityEvent('EMAIL_VERIFIED', user?.id, req, `email=${email}`);
+
+    res.json({ valid: true, emailVerified: true, message: 'Email подтверждён' });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     res.status(500).json({ error: 'Ошибка подтверждения' });
@@ -747,6 +840,10 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Пользователь не найден', code: 'USER_NOT_FOUND' });
     }
 
+    if (await checkPasswordHistory(user.id, password)) {
+      return res.status(400).json({ error: `Нельзя использовать один из последних ${PASSWORD_HISTORY_DEPTH} паролей`, code: 'PASSWORD_REUSED' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
 
     await prisma.$transaction([
@@ -755,7 +852,9 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
       // Revoke all active refresh tokens (security: force re-login)
       prisma.refreshToken.updateMany({ where: { userId: user.id, revoked: false }, data: { revoked: true } }),
     ]);
+    await recordPasswordHistory(user.id, passwordHash);
 
+    await logSecurityEvent('PASSWORD_CHANGE', user.id, req, 'method=phone_reset');
     res.json({ message: 'Пароль успешно изменён' });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });

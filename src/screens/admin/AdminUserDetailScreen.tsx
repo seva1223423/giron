@@ -445,6 +445,28 @@ export default function AdminUserDetailScreen() {
               {user.phoneVerified ? ' ✓' : ' (не подтверждён)'}
             </Text>
           )}
+          {/* Email verification badge + quick action */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <Text style={{ fontSize: 11, color: user.emailVerified ? '#34C759' : '#F59E0B', fontWeight: '600' }}>
+              {user.emailVerified ? '✓ Email подтверждён' : '⚠ Email не подтверждён'}
+            </Text>
+            {!user.emailVerified && (
+              <TouchableOpacity
+                onPress={async () => {
+                  if (busy) return;
+                  setBusy(true);
+                  try {
+                    await adminService.forceVerifyEmail(userId);
+                    setUser({ ...user, emailVerified: true });
+                  } catch { Alert.alert('Ошибка', 'Не удалось верифицировать email'); }
+                  finally { setBusy(false); }
+                }}
+                style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, backgroundColor: '#34C75920', borderWidth: 1, borderColor: '#34C75960' }}
+              >
+                <Text style={{ fontSize: 10, color: '#34C759', fontWeight: '700' }}>Верифицировать</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {/* Linked accounts */}
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
             {user.googleId && <Text style={{ fontSize: 10, color: '#4285F4', fontWeight: '700', backgroundColor: '#4285F415', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>G</Text>}

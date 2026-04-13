@@ -579,6 +579,24 @@ router.post('/users/:id/unban', requireAdmin, async (req: AuthRequest, res: Resp
   }
 });
 
+/** POST /admin/users/:id/force-verify-email — mark user email as verified */
+router.post('/users/:id/force-verify-email', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.params.id as string },
+      data: { emailVerified: true },
+      select: { id: true, email: true, emailVerified: true },
+    });
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'FORCE_VERIFY_EMAIL', targetId: req.params.id as string, details: `email=${user.email}` },
+    });
+    res.json(user);
+  } catch (e) {
+    logger.error('POST /admin/users/:id/force-verify-email:', e);
+    res.status(500).json({ error: 'Ошибка верификации email' });
+  }
+});
+
 /** POST /admin/users/:id/unlock — clear login lockout */
 router.post('/users/:id/unlock', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

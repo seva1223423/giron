@@ -245,6 +245,36 @@ router.put('/week-plan', authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
+const PASSWORD_HISTORY_DEPTH = 3;
+
+async function checkPasswordHistory(userId: string, newPassword: string): Promise<boolean> {
+  // Returns true if newPassword was recently used (reuse detected)
+  const recent = await prisma.passwordHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: PASSWORD_HISTORY_DEPTH,
+    select: { passwordHash: true },
+  });
+  for (const entry of recent) {
+    if (await bcrypt.compare(newPassword, entry.passwordHash)) return true;
+  }
+  return false;
+}
+
+async function recordPasswordHistory(userId: string, hash: string): Promise<void> {
+  await prisma.passwordHistory.create({ data: { userId, passwordHash: hash } });
+  // Prune: keep only last PASSWORD_HISTORY_DEPTH+2 entries
+  const all = await prisma.passwordHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+  const toDelete = all.slice(PASSWORD_HISTORY_DEPTH + 2);
+  if (toDelete.length > 0) {
+    await prisma.passwordHistory.deleteMany({ where: { id: { in: toDelete.map((r) => r.id) } } });
+  }
+}
+
 // ── Change password ───────────────────────────────────────────────────────────
 
 router.post('/change-password', authenticate, async (req: AuthRequest, res: Response) => {
@@ -265,21 +295,125 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       }
     }
 
+    // Check password history
+    if (await checkPasswordHistory(req.userId!, newPassword)) {
+      return res.status(400).json({ error: `Нельзя использовать один из последних ${PASSWORD_HISTORY_DEPTH} паролей`, code: 'PASSWORD_REUSED' });
+    }
+
     const newHash = await bcrypt.hash(newPassword, 12);
     await prisma.user.update({ where: { id: req.userId! }, data: { passwordHash: newHash } });
+    await recordPasswordHistory(req.userId!, newHash);
 
     // Revoke all refresh tokens except the current session (force other devices to re-login)
-    // We don't have the current token here, so we revoke ALL — user stays logged in via access token
-    await prisma.refreshToken.updateMany({
-      where: { userId: req.userId!, revoked: false },
-      data: { revoked: true },
-    });
+    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+
+    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'PASSWORD_CHANGE', details: 'method=change_password' } });
 
     res.json({ message: 'Пароль успешно изменён' });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /user/change-password:', e);
     res.status(500).json({ error: 'Ошибка изменения пароля' });
+  }
+});
+
+// ── Has password ──────────────────────────────────────────────────────────────
+
+/** GET /user/has-password — returns whether the authenticated user has a password set */
+router.get('/has-password', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true } });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+    res.json({ hasPassword: !!user.passwordHash });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+// ── Sessions (refresh tokens) ─────────────────────────────────────────────────
+
+/** GET /user/sessions — list active sessions for the authenticated user */
+router.get('/sessions', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const sessions = await prisma.refreshToken.findMany({
+      where: { userId: req.userId!, revoked: false, expiresAt: { gte: new Date() } },
+      select: { id: true, createdAt: true, expiresAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    res.json(sessions);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения сессий' });
+  }
+});
+
+/** DELETE /user/sessions/:id — revoke a specific session */
+router.delete('/sessions/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const session = await prisma.refreshToken.findUnique({ where: { id }, select: { userId: true } });
+    if (!session || session.userId !== req.userId) {
+      return res.status(404).json({ error: 'Сессия не найдена' });
+    }
+    await prisma.refreshToken.update({ where: { id }, data: { revoked: true } });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка отзыва сессии' });
+  }
+});
+
+/** DELETE /user/sessions — revoke all sessions (logout everywhere) */
+router.delete('/sessions', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOKEN_REVOKED', details: 'all_sessions' } });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка выхода из всех устройств' });
+  }
+});
+
+// ── Delete account ────────────────────────────────────────────────────────────
+
+/**
+ * DELETE /user/account — permanently delete the authenticated user's account.
+ * Requires password confirmation (or skip if social-only with no password).
+ */
+router.delete('/account', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { password } = z.object({
+      password: z.string().optional(),
+    }).parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true, email: true } });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    // If user has a password, they must provide it to confirm deletion
+    if (user.passwordHash) {
+      if (!password) {
+        return res.status(400).json({ error: 'Введите пароль для подтверждения удаления', code: 'PASSWORD_REQUIRED' });
+      }
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ error: 'Неверный пароль', code: 'WRONG_PASSWORD' });
+      }
+    }
+
+    // Log before deletion (userId will be gone after cascade delete)
+    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'ACCOUNT_DELETED', details: `email=${user.email}` } });
+
+    // Cascade delete: Prisma schema has onDelete: Cascade on all user relations
+    await prisma.user.delete({ where: { id: req.userId! } });
+
+    res.json({ message: 'Аккаунт удалён' });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('DELETE /user/account:', e);
+    res.status(500).json({ error: 'Ошибка удаления аккаунта' });
   }
 });
 

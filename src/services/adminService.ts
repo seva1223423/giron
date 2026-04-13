@@ -67,6 +67,11 @@ export const adminService = {
     return res.data;
   },
 
+  async forceVerifyEmail(userId: string): Promise<unknown> {
+    const res = await api.post(`/admin/users/${userId}/force-verify-email`);
+    return res.data;
+  },
+
   async setAdminNote(userId: string, note: string): Promise<unknown> {
     const res = await api.patch(`/admin/users/${userId}/note`, { note });
     return res.data;

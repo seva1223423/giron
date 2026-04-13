@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -87,10 +87,25 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const [emailVerifCode, setEmailVerifCode] = useState('');
   const [emailVerifLoading, setEmailVerifLoading] = useState(false);
   const [emailVerifError, setEmailVerifError] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     userService.getWeightHistory().then(setWeightHistory).catch(() => {});
   }, []);
+
+  const startResendCountdown = (seconds = 60) => {
+    setResendCountdown(seconds);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setResendCountdown((s) => {
+        if (s <= 1) { clearInterval(countdownRef.current!); countdownRef.current = null; return 0; }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
   const daysWithUs = useMemo(() => {
     if (!user?.createdAt) return null;
@@ -168,9 +183,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                   const valid = await authService.verifyEmail(user.email, emailVerifCode);
                   if (valid) {
                     setShowEmailVerifModal(false);
-                    // Update user in store
-                    const { fetchProfile } = useAuthStore.getState();
-                    await fetchProfile();
+                    await useAuthStore.getState().fetchProfile();
                     Alert.alert('Готово', 'Email успешно подтверждён!');
                   } else {
                     setEmailVerifError('Неверный код');
@@ -183,8 +196,30 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               }}
               loading={emailVerifLoading}
               disabled={emailVerifCode.length !== 6 || emailVerifLoading}
-              fullWidth size="lg" style={{ marginBottom: spacing.md }}
+              fullWidth size="lg" style={{ marginBottom: spacing.sm }}
             />
+            <TouchableOpacity
+              disabled={resendCountdown > 0 || resendingVerif}
+              onPress={async () => {
+                if (!user?.email) return;
+                setResendingVerif(true);
+                try {
+                  await authService.resendVerification(user.email);
+                  setEmailVerifCode('');
+                  setEmailVerifError('');
+                  startResendCountdown(60);
+                } catch (e: any) {
+                  Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отправить');
+                } finally {
+                  setResendingVerif(false);
+                }
+              }}
+              style={{ paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md }}
+            >
+              <Text style={[typography.small, { color: resendCountdown > 0 ? colors.textTertiary : colors.primary, fontWeight: '600' }]}>
+                {resendCountdown > 0 ? `Отправить повторно через ${resendCountdown} с` : resendingVerif ? 'Отправка...' : 'Отправить код повторно'}
+              </Text>
+            </TouchableOpacity>
             <Button title="Отмена" variant="outline" onPress={() => setShowEmailVerifModal(false)} fullWidth />
           </View>
         </View>
@@ -396,6 +431,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                   await authService.resendVerification(user.email);
                   setEmailVerifCode('');
                   setEmailVerifError('');
+                  startResendCountdown(60);
                   setShowEmailVerifModal(true);
                 } catch (e: any) {
                   Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отправить');
@@ -427,7 +463,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Change password */}
         <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md }}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}
           onPress={() => navigation.navigate('ChangePassword')}
         >
           <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.primary + '18', borderWidth: 1, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
@@ -436,6 +472,21 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Сменить пароль</Text>
             <Text style={[typography.caption, { color: colors.textTertiary }]}>Изменить пароль от аккаунта</Text>
+          </View>
+          <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
+
+        {/* Sessions */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md }}
+          onPress={() => navigation.navigate('SessionsScreen')}
+        >
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#6366F118', borderWidth: 1, borderColor: '#6366F140', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 15 }}>◻</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Активные сессии</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>Управление устройствами</Text>
           </View>
           <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
         </TouchableOpacity>
@@ -448,8 +499,29 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         onPress={handleLogout}
         fullWidth
         textStyle={{ color: colors.error }}
-        style={{ marginBottom: spacing.huge }}
+        style={{ marginBottom: spacing.md }}
       />
+
+      {/* ── Delete account ── */}
+      <TouchableOpacity
+        onPress={() => {
+          Alert.alert(
+            'Удалить аккаунт',
+            'Все ваши данные будут безвозвратно удалены. Это действие нельзя отменить.',
+            [
+              { text: 'Отмена', style: 'cancel' },
+              {
+                text: 'Удалить',
+                style: 'destructive',
+                onPress: () => navigation.navigate('DeleteAccountScreen'),
+              },
+            ],
+          );
+        }}
+        style={{ alignSelf: 'center', marginBottom: spacing.huge }}
+      >
+        <Text style={[typography.small, { color: colors.textTertiary }]}>Удалить аккаунт</Text>
+      </TouchableOpacity>
     </ScrollView>
     </>
   );

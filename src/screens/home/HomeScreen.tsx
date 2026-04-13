@@ -16,7 +16,7 @@ import {
   LastWorkoutCard, NutritionCard, WaterCard,
   RecoveryScoreCard, TodaySummaryCard, StepsCard,
 } from './components';
-import { Text, ActivityIndicator } from 'react-native';
+import { Text, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography } from '../../theme';
 
 const SPLITS = [
@@ -54,6 +54,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
+  const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
+  const [emailVerifCode, setEmailVerifCode] = useState('');
+  const [emailVerifLoading, setEmailVerifLoading] = useState(false);
+  const [emailVerifError, setEmailVerifError] = useState('');
   const { user } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
@@ -248,7 +252,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <Text style={{ fontSize: 16 }}>✉️</Text>
           <View style={{ flex: 1 }}>
             <Text style={[annStyles.title, { color: '#6366F1' }]}>Подтвердите email</Text>
-            <Text style={annStyles.body}>Код подтверждения отправлен на {user?.email}</Text>
+            <Text style={annStyles.body} numberOfLines={1}>{user?.email}</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
@@ -257,14 +261,17 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 setResendingVerification(true);
                 try {
                   await authService.resendVerification(user.email);
+                  setEmailVerifCode('');
+                  setEmailVerifError('');
+                  setShowEmailVerifModal(true);
                 } catch { /* ignore */ } finally {
                   setResendingVerification(false);
                 }
               }}
-              style={{ padding: 4 }}
+              style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#6366F120', borderWidth: 1, borderColor: '#6366F140' }}
             >
-              <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '600' }}>
-                {resendingVerification ? '...' : 'Отправить'}
+              <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '700' }}>
+                {resendingVerification ? '...' : 'Ввести код'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setEmailBannerDismissed(true)} style={{ padding: 4 }}>
@@ -273,6 +280,60 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </View>
       )}
+
+      {/* Email verification modal */}
+      <Modal visible={showEmailVerifModal} transparent animationType="fade" onRequestClose={() => setShowEmailVerifModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: spacing.xxl }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: spacing.xxl, width: '100%', borderWidth: 1, borderColor: colors.border }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>Подтверждение email</Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 20 }}>
+                Введите код из письма на{'\n'}<Text style={{ color: colors.text, fontWeight: '600' }}>{user?.email}</Text>
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: colors.background, borderWidth: 2, borderRadius: 12,
+                  borderColor: emailVerifCode.length === 6 ? '#6366F1' : colors.border,
+                  color: colors.text, fontSize: 28, fontWeight: '700', letterSpacing: 10,
+                  textAlign: 'center', paddingVertical: spacing.md, marginBottom: spacing.md,
+                }}
+                value={emailVerifCode}
+                onChangeText={(t) => { setEmailVerifCode(t.replace(/\D/g, '').slice(0, 6)); setEmailVerifError(''); }}
+                keyboardType="number-pad"
+                maxLength={6}
+                placeholder="——————"
+                placeholderTextColor={colors.textTertiary}
+                autoFocus
+              />
+              {emailVerifError ? <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center', marginBottom: spacing.md }}>{emailVerifError}</Text> : null}
+              <Button
+                title={emailVerifLoading ? '...' : 'Подтвердить'}
+                onPress={async () => {
+                  if (emailVerifCode.length !== 6 || !user?.email || emailVerifLoading) return;
+                  setEmailVerifLoading(true);
+                  try {
+                    const valid = await authService.verifyEmail(user.email, emailVerifCode);
+                    if (valid) {
+                      setShowEmailVerifModal(false);
+                      setEmailBannerDismissed(true);
+                      await useAuthStore.getState().fetchProfile();
+                    } else {
+                      setEmailVerifError('Неверный код');
+                    }
+                  } catch (e: any) {
+                    setEmailVerifError(e?.response?.data?.error || 'Ошибка подтверждения');
+                  } finally {
+                    setEmailVerifLoading(false);
+                  }
+                }}
+                disabled={emailVerifCode.length !== 6 || emailVerifLoading}
+                fullWidth size="lg" style={{ marginBottom: spacing.md }}
+              />
+              <Button title="Отмена" variant="outline" onPress={() => setShowEmailVerifModal(false)} fullWidth />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ── СЕГОДНЯ ──────────────────────────────── */}
       <FadeIn delay={60}>

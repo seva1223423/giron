@@ -84,7 +84,7 @@ export const authService = {
   },
 
   async verifyEmail(email: string, code: string): Promise<boolean> {
-    const { data } = await api.post<{ valid: boolean }>('/auth/verify-email', { email, code });
+    const { data } = await api.post<{ valid: boolean; emailVerified?: boolean }>('/auth/verify-email', { email, code });
     return data.valid;
   },
 
