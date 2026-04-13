@@ -7,6 +7,11 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+export interface TOTPLoginResponse {
+  requiresTOTP: true;
+  pendingToken: string;
+}
+
 export interface CheckEmailResponse {
   exists: boolean;
   hasPassword?: boolean;
@@ -20,8 +25,13 @@ export interface CheckPhoneResponse {
 }
 
 export const authService = {
-  async login(email: string, password: string): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
+  async login(email: string, password: string): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/login', { email, password });
+    return data;
+  },
+
+  async verifyTotp(pendingToken: string, code: string): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/totp-verify', { pendingToken, code });
     return data;
   },
 
@@ -70,11 +80,11 @@ export const authService = {
     return data;
   },
 
-  async sendOtp(params: { phone?: string; email?: string; purpose?: 'register' | 'login' | 'phone-login' | 'phone-reset' }): Promise<void> {
+  async sendOtp(params: { phone?: string; email?: string; purpose?: 'register' | 'login' | 'phone-login' | 'phone-reset' | 'phone-change' }): Promise<void> {
     await api.post('/auth/send-otp', params);
   },
 
-  async verifyOtp(params: { phone?: string; email?: string; code: string; purpose?: 'register' | 'login' | 'phone-login' | 'phone-reset' }): Promise<boolean> {
+  async verifyOtp(params: { phone?: string; email?: string; code: string; purpose?: 'register' | 'login' | 'phone-login' | 'phone-reset' | 'phone-change' }): Promise<boolean> {
     const { data } = await api.post<{ valid: boolean }>('/auth/verify-otp', params);
     return data.valid;
   },

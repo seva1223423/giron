@@ -503,6 +503,21 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
         </TouchableOpacity>
 
+        {/* 2FA */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}
+          onPress={() => navigation.navigate('TwoFactorScreen')}
+        >
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#8B5CF618', borderWidth: 1, borderColor: '#8B5CF640', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 15, color: colors.primary }}>A</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Двухфакторная аутентификация</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>Защита входа кодом из приложения</Text>
+          </View>
+          <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
+
         {/* Sessions */}
         <TouchableOpacity
           style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}

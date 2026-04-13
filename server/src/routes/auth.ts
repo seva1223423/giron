@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { z } from 'zod';
+import { TOTP, Secret } from 'otpauth';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -261,6 +262,16 @@ router.post('/login', async (req: Request, res: Response) => {
       await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null } });
     }
 
+    // TOTP 2FA gate — if enabled, return a short-lived pending token instead of full JWT
+    if ((user as any).totpEnabled && (user as any).totpSecret) {
+      const pendingToken = jwt.sign(
+        { userId: user.id, phase: 'totp' },
+        process.env.JWT_SECRET!,
+        { expiresIn: '5m' },
+      );
+      return res.json({ requiresTOTP: true, pendingToken });
+    }
+
     const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email}`);
 
@@ -292,6 +303,86 @@ router.post('/login', async (req: Request, res: Response) => {
     }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка входа' });
+  }
+});
+
+// ── TOTP 2FA verify ───────────────────────────────────────────────────────────
+
+/**
+ * POST /auth/totp-verify — verify TOTP code after password login gate
+ * Accepts a short-lived pendingToken (5min) returned when 2FA is required
+ */
+router.post('/totp-verify', async (req: Request, res: Response) => {
+  try {
+    const { pendingToken, code } = z.object({
+      pendingToken: z.string().min(1),
+      code: z.string().length(6),
+    }).parse(req.body);
+
+    // Verify pending token
+    let payload: { userId: string; phase: string };
+    try {
+      payload = jwt.verify(pendingToken, process.env.JWT_SECRET!) as any;
+    } catch {
+      return res.status(401).json({ error: 'Токен истёк. Войдите снова.', code: 'PENDING_TOKEN_EXPIRED' });
+    }
+
+    if (payload.phase !== 'totp') {
+      return res.status(401).json({ error: 'Недействительный токен', code: 'INVALID_TOKEN' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { healthRestrictions: true },
+    });
+
+    if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
+    if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user.banReason });
+    if (!(user as any).totpEnabled || !(user as any).totpSecret) {
+      return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
+    }
+
+    // Verify TOTP code
+    const totp = new TOTP({
+      secret: Secret.fromBase32((user as any).totpSecret),
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+    });
+    const delta = totp.validate({ token: code, window: 1 });
+    if (delta === null) {
+      await logSecurityEvent('LOGIN_FAIL', user.id, req, 'totp_invalid');
+      return res.status(401).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
+    }
+
+    const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `method=totp`);
+
+    // Suspicious login check
+    if (currentIp) {
+      const lastLogin = await prisma.securityEvent.findFirst({
+        where: { userId: user.id, action: 'LOGIN_SUCCESS' },
+        orderBy: { createdAt: 'desc' },
+        skip: 1,
+        select: { ip: true },
+      });
+      if (lastLogin?.ip && lastLogin.ip !== currentIp) {
+        logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastLogin.ip} new_ip=${currentIp}`);
+        sendPushToUser(user.id, {
+          title: 'Новый вход в аккаунт',
+          body: `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`,
+          data: { url: 'irongym://profile/security' },
+        }).catch(() => {});
+      }
+    }
+
+    const { token, refreshToken } = await signTokens(user.id, req);
+    const { passwordHash, googleId, vkId, totpSecret, ...userWithoutSecrets } = user as any;
+    res.json({ user: userWithoutSecrets, token, refreshToken });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /auth/totp-verify:', e);
+    res.status(500).json({ error: 'Ошибка проверки кода' });
   }
 });
 

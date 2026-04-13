@@ -21,10 +21,12 @@ interface AuthStore {
   isOnboarded: boolean;
   isLoading: boolean;
   error: string | null;
+  totpPendingToken: string | null;
 
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   login: (email: string, password: string) => Promise<void>;
+  loginWithTotp: (code: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
   loginByPhone: (phone: string, code: string) => Promise<void>;
@@ -46,21 +48,52 @@ export const useAuthStore = create<AuthStore>()(
       isOnboarded: false,
       isLoading: false,
       error: null,
+      totpPendingToken: null,
 
       setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
       clearError: () => set({ error: null }),
 
       login: async (email, password) => {
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null, totpPendingToken: null });
         try {
           const response = await authService.login(email, password);
+          if ('requiresTOTP' in response && response.requiresTOTP) {
+            set({ isLoading: false, totpPendingToken: response.pendingToken });
+            const err: any = new Error('TOTP_REQUIRED');
+            err.code = 'TOTP_REQUIRED';
+            throw err;
+          }
           set({
             user: normalizeUser(response.user),
             token: response.token,
             refreshToken: response.refreshToken,
             isAuthenticated: true,
             isLoading: false,
+            totpPendingToken: null,
+          });
+        } catch (e: any) {
+          if (e.code !== 'TOTP_REQUIRED') {
+            const apiError = getApiError(e);
+            set({ isLoading: false, error: apiError.message });
+          }
+          throw e;
+        }
+      },
+
+      loginWithTotp: async (code) => {
+        const { totpPendingToken } = get();
+        if (!totpPendingToken) throw new Error('No pending TOTP token');
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authService.verifyTotp(totpPendingToken, code);
+          set({
+            user: normalizeUser(response.user),
+            token: response.token,
+            refreshToken: response.refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+            totpPendingToken: null,
           });
         } catch (e) {
           const apiError = getApiError(e);

@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import { TOTP, Secret } from 'otpauth';
+import * as QRCode from 'qrcode';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -431,6 +433,146 @@ router.delete('/sessions', authenticate, async (req: AuthRequest, res: Response)
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка выхода из всех устройств' });
+  }
+});
+
+// ── Two-factor authentication (TOTP) ─────────────────────────────────────────
+
+const APP_NAME = 'Iron Gym';
+
+/** GET /user/2fa/status — returns current 2FA state */
+router.get('/2fa/status', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { totpEnabled: true, totpSecret: true },
+    });
+    res.json({ enabled: user?.totpEnabled ?? false, setupPending: !!(user?.totpSecret && !user.totpEnabled) });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения статуса 2FA' });
+  }
+});
+
+/** POST /user/2fa/setup — generate TOTP secret, return QR code (2FA not enabled until verified) */
+router.post('/2fa/setup', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { email: true, totpEnabled: true },
+    });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+    if (user.totpEnabled) {
+      return res.status(400).json({ error: 'Двухфакторная аутентификация уже включена', code: 'TOTP_ALREADY_ENABLED' });
+    }
+
+    const secret = new Secret();
+    const totp = new TOTP({
+      issuer: APP_NAME,
+      label: user.email,
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      secret,
+    });
+
+    const otpauthUri = totp.toString();
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUri, { width: 256, margin: 2 });
+
+    // Store secret (unconfirmed — not enabled yet)
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { totpSecret: secret.base32, totpEnabled: false },
+    });
+
+    res.json({
+      secret: secret.base32,
+      otpauthUri,
+      qrCodeDataUrl,
+      instructions: 'Отсканируйте QR-код в Google Authenticator или Яндекс.Ключ, затем введите 6-значный код для подтверждения.',
+    });
+  } catch (e) {
+    logger.error('POST /user/2fa/setup:', e);
+    res.status(500).json({ error: 'Ошибка настройки 2FA' });
+  }
+});
+
+/** POST /user/2fa/enable — verify TOTP code and enable 2FA */
+router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { code } = z.object({ code: z.string().length(6) }).parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { totpSecret: true, totpEnabled: true },
+    });
+    if (!user?.totpSecret) {
+      return res.status(400).json({ error: 'Сначала настройте 2FA', code: 'TOTP_NOT_SETUP' });
+    }
+    if (user.totpEnabled) {
+      return res.status(400).json({ error: 'Двухфакторная аутентификация уже включена', code: 'TOTP_ALREADY_ENABLED' });
+    }
+
+    const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+    const delta = totp.validate({ token: code, window: 1 });
+    if (delta === null) {
+      return res.status(400).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
+    }
+
+    await prisma.user.update({ where: { id: req.userId! }, data: { totpEnabled: true } });
+    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOTP_ENABLED' } });
+
+    sendPushToUser(req.userId!, {
+      title: 'Двухфакторная аутентификация включена',
+      body: 'Ваш аккаунт теперь защищён 2FA. Если это не вы — немедленно смените пароль.',
+      data: { url: 'irongym://profile/security' },
+    }).catch(() => {});
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /user/2fa/enable:', e);
+    res.status(500).json({ error: 'Ошибка включения 2FA' });
+  }
+});
+
+/** DELETE /user/2fa — disable 2FA (requires current TOTP code or password for social-only) */
+router.delete('/2fa', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { code, password } = z.object({
+      code: z.string().length(6).optional(),
+      password: z.string().optional(),
+    }).parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { totpSecret: true, totpEnabled: true, passwordHash: true },
+    });
+    if (!user?.totpEnabled) {
+      return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
+    }
+
+    // Verify via TOTP code OR password (whichever is provided)
+    let verified = false;
+    if (code && user.totpSecret) {
+      const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      verified = totp.validate({ token: code, window: 1 }) !== null;
+    } else if (password && user.passwordHash) {
+      verified = await bcrypt.compare(password, user.passwordHash);
+    }
+
+    if (!verified) {
+      return res.status(401).json({ error: 'Неверный код или пароль', code: 'VERIFICATION_FAILED' });
+    }
+
+    await prisma.user.update({ where: { id: req.userId! }, data: { totpEnabled: false, totpSecret: null } });
+    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOTP_DISABLED' } });
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('DELETE /user/2fa:', e);
+    res.status(500).json({ error: 'Ошибка отключения 2FA' });
   }
 });
 

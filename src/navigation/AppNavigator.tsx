@@ -49,6 +49,7 @@ import { SessionsScreen } from '../screens/profile/SessionsScreen';
 import { DeleteAccountScreen } from '../screens/profile/DeleteAccountScreen';
 import { SecurityEventsScreen } from '../screens/profile/SecurityEventsScreen';
 import { ChangePhoneScreen } from '../screens/profile/ChangePhoneScreen';
+import { TwoFactorScreen } from '../screens/profile/TwoFactorScreen';
 import { CardioScreen } from '../screens/cardio/CardioScreen';
 import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
 import SupportScreen from '../screens/support/SupportScreen';
@@ -165,6 +166,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="DeleteAccountScreen" component={DeleteAccountScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="SecurityEventsScreen" component={SecurityEventsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="ChangePhoneScreen" component={ChangePhoneScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="TwoFactorScreen" component={TwoFactorScreen} options={{ headerShown: false }} />
       {/* Support */}
       <ProfileStack.Screen name="NewsScreen" component={NewsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="SupportScreen" component={SupportScreen} options={{ title: 'Поддержка' }} />
