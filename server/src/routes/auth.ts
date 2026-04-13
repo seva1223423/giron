@@ -51,6 +51,39 @@ async function timingSafeLogin(): Promise<void> {
   await bcrypt.compare('dummy', DUMMY_HASH).catch(() => {});
 }
 
+/** Check if login IP/device differs from last known — sends push + logs SUSPICIOUS_LOGIN if so */
+async function checkSuspiciousLogin(userId: string, req: Request, userEmail?: string | null, emailVerified?: boolean): Promise<void> {
+  const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+  const currentUa = req.headers['user-agent'] ?? null;
+  try {
+    const lastLogin = await prisma.securityEvent.findFirst({
+      where: { userId, action: 'LOGIN_SUCCESS' },
+      orderBy: { createdAt: 'desc' },
+      skip: 1,
+      select: { ip: true, userAgent: true },
+    });
+    if (!lastLogin) return; // first ever login — no alert
+    const isNewIp = currentIp && lastLogin.ip && lastLogin.ip !== currentIp;
+    const isNewDevice = currentUa && lastLogin.userAgent && lastLogin.userAgent !== currentUa;
+    if (isNewIp || isNewDevice) {
+      logSecurityEvent('SUSPICIOUS_LOGIN', userId, req, `prev_ip=${lastLogin.ip} new_ip=${currentIp}`);
+      const alertMsg = isNewIp
+        ? `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`
+        : `Вход с нового устройства. Если это не вы — смените пароль.`;
+      sendPushToUser(userId, {
+        title: 'Новый вход в аккаунт',
+        body: alertMsg,
+        data: { url: 'irongym://profile/security' },
+      }).catch(() => {});
+      if (userEmail && emailVerified && currentIp) {
+        sendNewLoginAlert(userEmail, currentIp, currentUa, new Date()).catch(() => {});
+      }
+    }
+  } catch {
+    // non-critical — don't fail the login
+  }
+}
+
 const JWT_ISS = 'irongym-api';
 const JWT_AUD = 'irongym-app';
 
@@ -317,34 +350,8 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.json({ user: uwsTrusted, token: tk, refreshToken: rt });
     }
 
-    const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
-    const currentUa = req.headers['user-agent'] ?? null;
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email}`);
-
-    // Suspicious login: check if IP or userAgent differs from most recent successful login
-    const lastLogin = await prisma.securityEvent.findFirst({
-      where: { userId: user.id, action: 'LOGIN_SUCCESS' },
-      orderBy: { createdAt: 'desc' },
-      skip: 1,
-      select: { ip: true, userAgent: true },
-    });
-    const isNewIp = currentIp && lastLogin?.ip && lastLogin.ip !== currentIp;
-    const isNewDevice = currentUa && lastLogin?.userAgent && lastLogin.userAgent !== currentUa;
-    if (isNewIp || isNewDevice) {
-      logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastLogin?.ip} new_ip=${currentIp}`);
-      const alertMsg = isNewIp
-        ? `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`
-        : `Вход с нового устройства. Если это не вы — смените пароль.`;
-      sendPushToUser(user.id, {
-        title: 'Новый вход в аккаунт',
-        body: alertMsg,
-        data: { url: 'irongym://profile/security' },
-      }).catch(() => {});
-      // Also send email alert if user has verified email
-      if (user.email && user.emailVerified && currentIp) {
-        sendNewLoginAlert(user.email, currentIp, currentUa, new Date()).catch(() => {});
-      }
-    }
+    checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
 
     const { token, refreshToken } = await signTokens(user.id, req);
     const { passwordHash, googleId, vkId, yandexId, ...userWithoutSecrets } = user as any;
@@ -425,32 +432,9 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
       await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=totp');
     }
 
-    const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
     const currentUa = req.headers['user-agent'] ?? null;
-
-    // Suspicious login check (new IP or new device)
-    const lastTotpLogin = await prisma.securityEvent.findFirst({
-      where: { userId: user.id, action: 'LOGIN_SUCCESS' },
-      orderBy: { createdAt: 'desc' },
-      skip: 1,
-      select: { ip: true, userAgent: true },
-    });
-    const totpNewIp = currentIp && lastTotpLogin?.ip && lastTotpLogin.ip !== currentIp;
-    const totpNewDevice = currentUa && lastTotpLogin?.userAgent && lastTotpLogin.userAgent !== currentUa;
-    if (totpNewIp || totpNewDevice) {
-      logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastTotpLogin?.ip} new_ip=${currentIp}`);
-      const alertMsg = totpNewIp
-        ? `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`
-        : `Вход с нового устройства. Если это не вы — смените пароль.`;
-      sendPushToUser(user.id, {
-        title: 'Новый вход в аккаунт',
-        body: alertMsg,
-        data: { url: 'irongym://profile/security' },
-      }).catch(() => {});
-      if (user.email && user.emailVerified && currentIp) {
-        sendNewLoginAlert(user.email, currentIp, currentUa, new Date()).catch(() => {});
-      }
-    }
+    const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
 
     const { token, refreshToken } = await signTokens(user.id, req);
 
@@ -584,6 +568,7 @@ router.post('/google', async (req: Request, res: Response) => {
 
     const { token, refreshToken } = await signTokens(user!.id, req);
     await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=google');
+    checkSuspiciousLogin(user!.id, req, user!.email, user!.emailVerified).catch(() => {});
     res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -662,6 +647,7 @@ router.post('/vk', async (req: Request, res: Response) => {
 
     const { token, refreshToken } = await signTokens(user!.id, req);
     await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=vk');
+    checkSuspiciousLogin(user!.id, req, user!.email, user!.emailVerified).catch(() => {});
     res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -744,6 +730,7 @@ router.post('/yandex', async (req: Request, res: Response) => {
     const { passwordHash, googleId, vkId, yandexId: _ya, totpSecret, totpBackupCodes, ...safeYandexUser } = user as any;
     const { token, refreshToken } = await signTokens(user!.id, req);
     await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=yandex');
+    checkSuspiciousLogin(user!.id, req, safeYandexUser.email, safeYandexUser.emailVerified).catch(() => {});
     res.json({ user: safeYandexUser, token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -799,6 +786,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true, loginAttempts: 0, lockedUntil: null } });
 
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `phone=${phone} method=sms_otp`);
+    checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
     const { token, refreshToken } = await signTokens(user.id, req);
     const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...rest } = user as any;
     res.json({ user: rest, token, refreshToken });
