@@ -658,6 +658,7 @@ router.post('/vk', async (req: Request, res: Response) => {
     }
 
     const { token, refreshToken } = await signTokens(user!.id, req);
+    await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=vk');
     res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -701,9 +702,8 @@ router.post('/yandex', async (req: Request, res: Response) => {
     const yandexId = String(yandexUser.id);
     const firstName = yandexUser.first_name || yandexUser.display_name || 'Пользователь';
     const lastName = yandexUser.last_name || undefined;
-    const yandexEmail = yandexUser.default_email && !yandexUser.default_email.endsWith('@yandex.ru') === false
-      ? yandexUser.default_email
-      : yandexUser.default_email || undefined;
+    // Use the user's default Yandex email (yandex.ru or custom domain) — Yandex has verified it
+    const yandexEmail: string | undefined = yandexUser.default_email || undefined;
     const avatarId = yandexUser.default_avatar_id;
     const avatarUrl = avatarId && avatarId !== '0' ? `https://avatars.yandex.net/get-yapic/${avatarId}/islands-200` : undefined;
 
@@ -732,7 +732,7 @@ router.post('/yandex', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: (user as any).banReason });
     }
 
-    const { passwordHash, googleId, vkId, yandexId: _ya, ...safeYandexUser } = user as any;
+    const { passwordHash, googleId, vkId, yandexId: _ya, totpSecret, totpBackupCodes, ...safeYandexUser } = user as any;
     const { token, refreshToken } = await signTokens(user!.id, req);
     await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=yandex');
     res.json({ user: safeYandexUser, token, refreshToken });
