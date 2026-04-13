@@ -456,6 +456,51 @@ router.delete('/sessions', authenticate, async (req: AuthRequest, res: Response)
   }
 });
 
+// ── Trusted devices ───────────────────────────────────────────────────────────
+
+/** GET /user/trusted-devices — list active trusted devices */
+router.get('/trusted-devices', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const devices = await prisma.trustedDevice.findMany({
+      where: { userId: req.userId!, expiresAt: { gte: new Date() } },
+      select: { id: true, createdAt: true, expiresAt: true, userAgent: true, ip: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    res.json(devices);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения устройств' });
+  }
+});
+
+/** DELETE /user/trusted-devices/:id — revoke a specific trusted device */
+router.delete('/trusted-devices/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const device = await prisma.trustedDevice.findUnique({ where: { id }, select: { userId: true } });
+    if (!device || device.userId !== req.userId) {
+      return res.status(404).json({ error: 'Устройство не найдено' });
+    }
+    await prisma.trustedDevice.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка удаления устройства' });
+  }
+});
+
+/** DELETE /user/trusted-devices — revoke all trusted devices */
+router.delete('/trusted-devices', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка удаления устройств' });
+  }
+});
+
 // ── Two-factor authentication (TOTP) ─────────────────────────────────────────
 
 const APP_NAME = 'Iron Gym';

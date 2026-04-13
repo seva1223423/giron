@@ -39,15 +39,21 @@ export const SessionsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [trustedDevices, setTrustedDevices] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokingAll, setRevokingAll] = useState(false);
+  const [revokingDevice, setRevokingDevice] = useState<string | null>(null);
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await userService.getSessions();
-      setSessions(data);
+      const [sessionData, deviceData] = await Promise.all([
+        userService.getSessions(),
+        userService.getTrustedDevices(),
+      ]);
+      setSessions(sessionData);
+      setTrustedDevices(deviceData);
     } catch {
       Alert.alert('Ошибка', 'Не удалось загрузить сессии');
     } finally {
@@ -87,6 +93,40 @@ export const SessionsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               Alert.alert('Ошибка', 'Не удалось завершить сессии');
             } finally {
               setRevokingAll(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const revokeDevice = async (id: string) => {
+    setRevokingDevice(id);
+    try {
+      await userService.revokeTrustedDevice(id);
+      setTrustedDevices((d) => d.filter((x) => x.id !== id));
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось удалить доверенное устройство');
+    } finally {
+      setRevokingDevice(null);
+    }
+  };
+
+  const revokeAllDevices = () => {
+    Alert.alert(
+      'Удалить все доверенные устройства?',
+      'На всех устройствах потребуется повторная 2FA-верификация.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить все',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await userService.revokeAllTrustedDevices();
+              setTrustedDevices([]);
+            } catch {
+              Alert.alert('Ошибка', 'Не удалось удалить устройства');
             }
           },
         },
@@ -168,6 +208,63 @@ export const SessionsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               textStyle={{ color: colors.error }}
             />
           )}
+        </>
+      )}
+
+      {trustedDevices.length > 0 && (
+        <>
+          <Text style={[typography.h3, { color: colors.text, marginTop: spacing.xxl, marginBottom: spacing.sm }]}>
+            Доверенные устройства
+          </Text>
+          <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
+            На этих устройствах 2FA не запрашивается (30 дней).
+          </Text>
+          {trustedDevices.map((d) => (
+            <Card key={d.id} style={{ marginBottom: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.smallMedium, { color: colors.text }]}>
+                    {parseDevice(d.userAgent)}
+                  </Text>
+                  {d.ip && (
+                    <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
+                      IP: {d.ip}
+                    </Text>
+                  )}
+                  <Text style={[typography.caption, { color: colors.textTertiary, marginTop: d.ip ? 0 : 2 }]}>
+                    Добавлено: {formatDate(d.createdAt)}
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                    Истекает: {formatDate(d.expiresAt)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => revokeDevice(d.id)}
+                  disabled={revokingDevice === d.id}
+                  style={{
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.xs,
+                    borderRadius: borderRadius.sm,
+                    backgroundColor: colors.error + '15',
+                    borderWidth: 1,
+                    borderColor: colors.error + '40',
+                  }}
+                >
+                  <Text style={[typography.caption, { color: colors.error, fontWeight: '700' }]}>
+                    {revokingDevice === d.id ? '...' : 'Удалить'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+          ))}
+          <Button
+            title="Удалить все доверенные устройства"
+            variant="outline"
+            onPress={revokeAllDevices}
+            fullWidth
+            style={{ marginTop: spacing.sm }}
+            textStyle={{ color: colors.error }}
+          />
         </>
       )}
     </ScrollView>

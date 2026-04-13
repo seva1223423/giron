@@ -81,6 +81,19 @@ export const userService = {
     await api.delete('/user/sessions');
   },
 
+  async getTrustedDevices(): Promise<Array<{ id: string; createdAt: string; expiresAt: string; userAgent?: string | null; ip?: string | null }>> {
+    const { data } = await api.get('/user/trusted-devices');
+    return data;
+  },
+
+  async revokeTrustedDevice(id: string): Promise<void> {
+    await api.delete(`/user/trusted-devices/${id}`);
+  },
+
+  async revokeAllTrustedDevices(): Promise<void> {
+    await api.delete('/user/trusted-devices');
+  },
+
   async deleteAccount(password?: string): Promise<void> {
     await api.delete('/user/account', { data: { password } });
   },
