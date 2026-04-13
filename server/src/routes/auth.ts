@@ -204,6 +204,8 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const { token, refreshToken } = await signTokens(user.id, req);
 
+    await logSecurityEvent('REGISTER', user.id, req, `email=${user.email}`);
+
     // Send email verification OTP (non-blocking — don't fail registration if email fails)
     sendEmailVerificationOtp(user.email).catch((e) => logger.warn('Email verification send failed:', e.message));
 

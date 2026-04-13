@@ -5,6 +5,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { adminService } from '../../services/adminService';
 
 const ACTION_META: Record<string, { icon: string; label: string; color: string }> = {
+  REGISTER:           { icon: '+', label: 'Регистрация', color: '#34C759' },
   LOGIN_SUCCESS:      { icon: '✓', label: 'Вход выполнен', color: '#34C759' },
   LOGIN_FAIL:         { icon: '✗', label: 'Неверный пароль', color: '#FF9F0A' },
   ACCOUNT_LOCKED:     { icon: '!', label: 'Аккаунт заблокирован', color: '#EF4444' },
