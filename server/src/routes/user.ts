@@ -12,6 +12,13 @@ import { sendPushToUser } from '../services/pushService';
 
 const router = Router();
 
+const strongPassword = z
+  .string()
+  .min(8, 'Пароль минимум 8 символов')
+  .refine((p) => /[A-Z]/.test(p), { message: 'Пароль должен содержать хотя бы одну заглавную букву' })
+  .refine((p) => /[a-z]/.test(p), { message: 'Пароль должен содержать хотя бы одну строчную букву' })
+  .refine((p) => /[0-9]/.test(p), { message: 'Пароль должен содержать хотя бы одну цифру' });
+
 const weightSchema = z.object({
   weightKg: z.number().min(20, 'Вес не может быть менее 20 кг').max(400, 'Вес не может быть более 400 кг'),
   date: z.string().refine((d) => !isNaN(Date.parse(d)), 'Некорректная дата'),
@@ -292,7 +299,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
   try {
     const { currentPassword, newPassword } = z.object({
       currentPassword: z.string().min(1, 'Введите текущий пароль'),
-      newPassword: z.string().min(8, 'Новый пароль минимум 8 символов'),
+      newPassword: strongPassword,
     }).parse(req.body);
 
     const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true } });

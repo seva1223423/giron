@@ -122,9 +122,16 @@ async function sendEmailVerificationOtp(email: string): Promise<void> {
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
+const strongPassword = z
+  .string()
+  .min(8, 'Пароль минимум 8 символов')
+  .refine((p) => /[A-Z]/.test(p), { message: 'Пароль должен содержать хотя бы одну заглавную букву' })
+  .refine((p) => /[a-z]/.test(p), { message: 'Пароль должен содержать хотя бы одну строчную букву' })
+  .refine((p) => /[0-9]/.test(p), { message: 'Пароль должен содержать хотя бы одну цифру' });
+
 const registerSchema = z.object({
   email: z.string().email('Некорректный email'),
-  password: z.string().min(8, 'Пароль минимум 8 символов'),
+  password: strongPassword,
   firstName: z.string().min(1, 'Введите имя').max(100, 'Имя слишком длинное'),
   lastName: z.string().max(100, 'Фамилия слишком длинная').optional(),
   phone: z.string().optional(),
@@ -870,7 +877,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
   try {
     const { token, password } = z.object({
       token: z.string().min(1),
-      password: z.string().min(8, 'Пароль минимум 8 символов'),
+      password: strongPassword,
     }).parse(req.body);
 
     const resetToken = await prisma.passwordResetToken.findUnique({
@@ -995,7 +1002,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     const { phone: rawPhone, code, password } = z.object({
       phone: z.string().min(10, 'Введите номер телефона'),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
-      password: z.string().min(8, 'Пароль минимум 8 символов'),
+      password: strongPassword,
     }).parse(req.body);
 
     const phone = normalizePhone(rawPhone);

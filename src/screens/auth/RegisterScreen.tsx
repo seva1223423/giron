@@ -111,6 +111,9 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     if (!email.trim() || !email.includes('@')) { setLocalError('Введите корректный email'); return false; }
     if (!password) { setLocalError('Введите пароль'); return false; }
     if (password.length < 8) { setLocalError('Пароль минимум 8 символов'); return false; }
+    if (!/[A-Z]/.test(password)) { setLocalError('Пароль должен содержать хотя бы одну заглавную букву'); return false; }
+    if (!/[a-z]/.test(password)) { setLocalError('Пароль должен содержать хотя бы одну строчную букву'); return false; }
+    if (!/[0-9]/.test(password)) { setLocalError('Пароль должен содержать хотя бы одну цифру'); return false; }
     if (password !== confirmPassword) { setLocalError('Пароли не совпадают'); return false; }
     return true;
   };
@@ -320,12 +323,22 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         />
         {password.length > 0 && (
           <View style={{ marginTop: 6 }}>
-            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 6 }}>
               {[1, 2, 3, 4].map((i) => (
                 <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= strength ? STRENGTH_COLORS[strength] : colors.border }} />
               ))}
             </View>
-            <Text style={[typography.caption, { color: STRENGTH_COLORS[strength] }]}>{STRENGTH_LABELS[strength]}</Text>
+            <Text style={[typography.caption, { color: STRENGTH_COLORS[strength], marginBottom: 4 }]}>{STRENGTH_LABELS[strength]}</Text>
+            {[
+              { ok: password.length >= 8, label: 'Не менее 8 символов' },
+              { ok: /[A-Z]/.test(password), label: 'Заглавная буква (A–Z)' },
+              { ok: /[a-z]/.test(password), label: 'Строчная буква (a–z)' },
+              { ok: /[0-9]/.test(password), label: 'Цифра (0–9)' },
+            ].map(({ ok, label }) => (
+              <Text key={label} style={[typography.caption, { color: ok ? '#34C759' : colors.textTertiary }]}>
+                {ok ? '✓' : '·'} {label}
+              </Text>
+            ))}
           </View>
         )}
 
