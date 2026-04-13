@@ -79,6 +79,11 @@ export const authService = {
     return data;
   },
 
+  async loginWithYandex(accessToken: string): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/yandex', { accessToken });
+    return data;
+  },
+
   async loginByPhone(phone: string, code: string): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>('/auth/login-by-phone', { phone, code });
     return data;

@@ -74,7 +74,7 @@ async function signTokens(userId: string, req?: Request) {
 }
 
 function safeUser(user: any) {
-  const { passwordHash, googleId, vkId, ...rest } = user;
+  const { passwordHash, googleId, vkId, yandexId, totpSecret, ...rest } = user;
   return rest;
 }
 
@@ -312,7 +312,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     const { token, refreshToken } = await signTokens(user.id, req);
-    const { passwordHash, googleId, vkId, ...userWithoutSecrets } = user as any;
+    const { passwordHash, googleId, vkId, yandexId, ...userWithoutSecrets } = user as any;
     res.json({ user: userWithoutSecrets, token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) {
@@ -417,7 +417,7 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     }
 
     const { token, refreshToken } = await signTokens(user.id, req);
-    const { passwordHash, googleId, vkId, totpSecret, ...userWithoutSecrets } = user as any;
+    const { passwordHash, googleId, vkId, yandexId, totpSecret, ...userWithoutSecrets } = user as any;
     res.json({ user: userWithoutSecrets, token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -442,6 +442,7 @@ router.post('/check-email', async (req: Request, res: Response) => {
       hasPassword: !!user.passwordHash,
       hasGoogle: !!user.googleId,
       hasVk: !!(user as any).vkId,
+      hasYandex: !!(user as any).yandexId,
     });
   } catch {
     res.json({ exists: false });
@@ -613,6 +614,83 @@ router.post('/vk', async (req: Request, res: Response) => {
   }
 });
 
+// ── Yandex Auth ──────────────────────────────────────────────────────────────
+
+/**
+ * POST /auth/yandex
+ * Exchange a Yandex OAuth access token for Iron Gym JWT tokens.
+ * The client obtains the Yandex token via OAuth 2.0 (WebBrowser or Yandex SDK),
+ * then sends it here for server-side validation.
+ */
+router.post('/yandex', async (req: Request, res: Response) => {
+  try {
+    const { accessToken } = z.object({
+      accessToken: z.string().min(1, 'Yandex access token обязателен'),
+    }).parse(req.body);
+
+    if (!process.env.YANDEX_CLIENT_ID) {
+      return res.status(503).json({ error: 'Yandex OAuth не настроен на сервере' });
+    }
+
+    // Validate token with Yandex API
+    let yandexUser: any;
+    try {
+      const resp = await fetch('https://login.yandex.ru/info?format=json', {
+        headers: { Authorization: `OAuth ${accessToken}` },
+      });
+      if (!resp.ok) throw new Error(`Yandex API error: ${resp.status}`);
+      yandexUser = await resp.json();
+    } catch (e: any) {
+      return res.status(401).json({ error: 'Не удалось проверить Yandex токен: ' + e.message });
+    }
+
+    if (!yandexUser?.id) return res.status(401).json({ error: 'Пользователь Яндекса не найден' });
+
+    const yandexId = String(yandexUser.id);
+    const firstName = yandexUser.first_name || yandexUser.display_name || 'Пользователь';
+    const lastName = yandexUser.last_name || undefined;
+    const yandexEmail = yandexUser.default_email && !yandexUser.default_email.endsWith('@yandex.ru') === false
+      ? yandexUser.default_email
+      : yandexUser.default_email || undefined;
+    const avatarId = yandexUser.default_avatar_id;
+    const avatarUrl = avatarId && avatarId !== '0' ? `https://avatars.yandex.net/get-yapic/${avatarId}/islands-200` : undefined;
+
+    // Find existing user by yandexId or email
+    let user = await prisma.user.findFirst({
+      where: { OR: [{ yandexId }, ...(yandexEmail ? [{ email: yandexEmail }] : [])] },
+      include: { healthRestrictions: true },
+    });
+
+    if (user) {
+      if (!user.yandexId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { yandexId, avatarUrl: avatarUrl || user.avatarUrl || undefined },
+        });
+      }
+    } else {
+      const email = yandexEmail || `yandex_${yandexId}@irongym.internal`;
+      user = await prisma.user.create({
+        data: { email, yandexId, firstName, lastName, avatarUrl, emailVerified: !!yandexEmail },
+        include: { healthRestrictions: true },
+      }) as any;
+    }
+
+    if ((user as any).isBanned) {
+      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: (user as any).banReason });
+    }
+
+    const { passwordHash, googleId, vkId, yandexId: _ya, ...safeYandexUser } = user as any;
+    const { token, refreshToken } = await signTokens(user!.id, req);
+    await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=yandex');
+    res.json({ user: safeYandexUser, token, refreshToken });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /auth/yandex:', e);
+    res.status(500).json({ error: 'Ошибка авторизации через Яндекс' });
+  }
+});
+
 // ── Login by phone (OTP) ──────────────────────────────────────────────────────
 
 router.post('/login-by-phone', async (req: Request, res: Response) => {
@@ -648,7 +726,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
 
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `phone=${phone} method=sms_otp`);
     const { token, refreshToken } = await signTokens(user.id, req);
-    const { passwordHash, googleId, vkId, ...rest } = user as any;
+    const { passwordHash, googleId, vkId, yandexId, totpSecret, ...rest } = user as any;
     res.json({ user: rest, token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });

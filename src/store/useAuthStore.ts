@@ -29,6 +29,7 @@ interface AuthStore {
   loginWithTotp: (code: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
+  loginWithYandex: (accessToken: string) => Promise<void>;
   loginByPhone: (phone: string, code: string) => Promise<void>;
   register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -118,6 +119,18 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithVk(params);
+          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+        } catch (e) {
+          const apiError = getApiError(e);
+          set({ isLoading: false, error: apiError.message });
+          throw e;
+        }
+      },
+
+      loginWithYandex: async (accessToken) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authService.loginWithYandex(accessToken);
           set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
           const apiError = getApiError(e);

@@ -19,6 +19,7 @@ const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
 const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
 const googleConfigured = !!(GOOGLE_CLIENT_ID_WEB || GOOGLE_CLIENT_ID_IOS || GOOGLE_CLIENT_ID_ANDROID);
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
+const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 
 type LoginTab = 'email' | 'phone';
 type PhoneStep = 'input' | 'otp';
@@ -38,7 +39,7 @@ function formatPhoneDisplay(digits: string): string {
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { login, loginWithGoogle, loginByPhone, loginWithTotp, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithGoogle, loginByPhone, loginWithTotp, loginWithYandex, isLoading, error, clearError } = useAuthStore();
 
   const [tab, setTab] = useState<LoginTab>('email');
   const [showTotpInput, setShowTotpInput] = useState(false);
@@ -65,6 +66,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [localError, setLocalError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [vkLoading, setVkLoading] = useState(false);
+  const [yandexLoading, setYandexLoading] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: GOOGLE_CLIENT_ID_WEB,
@@ -279,8 +281,33 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  const handleYandexPress = async () => {
+    if (!YANDEX_CLIENT_ID) { setLocalError('Yandex OAuth не настроен (нужен EXPO_PUBLIC_YANDEX_CLIENT_ID)'); return; }
+    clearErrors();
+    setYandexLoading(true);
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/yandex' });
+      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type === 'success') {
+        const fragment = result.url.split('#')[1] || '';
+        const params = new URLSearchParams(fragment);
+        const accessToken = params.get('access_token');
+        if (accessToken) {
+          await loginWithYandex(accessToken);
+        } else {
+          setLocalError('Не удалось получить токен от Яндекса');
+        }
+      }
+    } catch (e: any) {
+      setLocalError(e?.response?.data?.error || 'Ошибка авторизации через Яндекс');
+    } finally {
+      setYandexLoading(false);
+    }
+  };
+
   const displayError = localError || error;
-  const anyLoading = isLoading || googleLoading || otpSending || vkLoading;
+  const anyLoading = isLoading || googleLoading || otpSending || vkLoading || yandexLoading;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -540,6 +567,18 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ВК</Text>
               }
               <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Войти через VK</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleYandexPress}
+              disabled={anyLoading}
+              style={[styles.socialBtn, { backgroundColor: '#FC3F1D', marginTop: spacing.sm, borderColor: '#FC3F1D' }, anyLoading && { opacity: 0.5 }]}
+            >
+              {yandexLoading
+                ? <ActivityIndicator size="small" color="#FFF" style={{ marginRight: spacing.sm }} />
+                : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>Я</Text>
+              }
+              <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Войти через Яндекс</Text>
             </TouchableOpacity>
           </>
         )}
