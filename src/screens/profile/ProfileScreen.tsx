@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
@@ -83,6 +83,10 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
   const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
   const [resendingVerif, setResendingVerif] = useState(false);
+  const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
+  const [emailVerifCode, setEmailVerifCode] = useState('');
+  const [emailVerifLoading, setEmailVerifLoading] = useState(false);
+  const [emailVerifError, setEmailVerifError] = useState('');
 
   useEffect(() => {
     userService.getWeightHistory().then(setWeightHistory).catch(() => {});
@@ -129,6 +133,64 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   };
 
   return (
+    <>
+    {/* Email verification modal */}
+    <Modal visible={showEmailVerifModal} transparent animationType="fade" onRequestClose={() => setShowEmailVerifModal(false)}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: spacing.xxl }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: spacing.xxl, width: '100%', borderWidth: 1, borderColor: colors.border }}>
+            <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.sm }]}>Подтверждение email</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.xl }]}>
+              Введите 6-значный код, отправленный на{'\n'}{user?.email}
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.background, borderWidth: 2, borderRadius: 12,
+                borderColor: emailVerifCode.length === 6 ? colors.primary : colors.border,
+                color: colors.text, fontSize: 28, fontWeight: '700', letterSpacing: 10,
+                textAlign: 'center', paddingVertical: spacing.md, marginBottom: spacing.md,
+              }}
+              value={emailVerifCode}
+              onChangeText={(t) => { setEmailVerifCode(t.replace(/\D/g, '').slice(0, 6)); setEmailVerifError(''); }}
+              keyboardType="number-pad"
+              maxLength={6}
+              placeholder="——————"
+              placeholderTextColor={colors.textTertiary}
+              autoFocus
+            />
+            {emailVerifError ? <Text style={[typography.small, { color: colors.error, textAlign: 'center', marginBottom: spacing.md }]}>{emailVerifError}</Text> : null}
+            <Button
+              title="Подтвердить"
+              onPress={async () => {
+                if (emailVerifCode.length !== 6 || !user?.email) return;
+                setEmailVerifLoading(true);
+                try {
+                  const valid = await authService.verifyEmail(user.email, emailVerifCode);
+                  if (valid) {
+                    setShowEmailVerifModal(false);
+                    // Update user in store
+                    const { fetchProfile } = useAuthStore.getState();
+                    await fetchProfile();
+                    Alert.alert('Готово', 'Email успешно подтверждён!');
+                  } else {
+                    setEmailVerifError('Неверный код');
+                  }
+                } catch (e: any) {
+                  setEmailVerifError(e?.response?.data?.error || 'Ошибка подтверждения');
+                } finally {
+                  setEmailVerifLoading(false);
+                }
+              }}
+              loading={emailVerifLoading}
+              disabled={emailVerifCode.length !== 6 || emailVerifLoading}
+              fullWidth size="lg" style={{ marginBottom: spacing.md }}
+            />
+            <Button title="Отмена" variant="outline" onPress={() => setShowEmailVerifModal(false)} fullWidth />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
@@ -332,7 +394,9 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 setResendingVerif(true);
                 try {
                   await authService.resendVerification(user.email);
-                  Alert.alert('Готово', 'Код подтверждения отправлен на ' + user.email);
+                  setEmailVerifCode('');
+                  setEmailVerifError('');
+                  setShowEmailVerifModal(true);
                 } catch (e: any) {
                   Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отправить');
                 } finally {
@@ -387,6 +451,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         style={{ marginBottom: spacing.huge }}
       />
     </ScrollView>
+    </>
   );
 };
 
