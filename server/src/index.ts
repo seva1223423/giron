@@ -160,6 +160,41 @@ setInterval(async () => {
   } catch {}
 }, 60 * 60 * 1000);
 
+// Cleanup expired password reset tokens every 6 hours
+setInterval(async () => {
+  try {
+    const { count } = await (await import('./db')).prisma.passwordResetToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: new Date() } }, { used: true, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } }] },
+    });
+    if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used password reset tokens`);
+  } catch {}
+}, 6 * 60 * 60 * 1000);
+
+// Trim security events per user to last 200 entries (prevents unbounded DB growth) — runs daily
+setInterval(async () => {
+  try {
+    const db = (await import('./db')).prisma;
+    // Find users with more than 200 security events and delete the oldest
+    const users = await db.$queryRaw<Array<{ userId: string; cnt: bigint }>>`
+      SELECT "userId", COUNT(*) as cnt FROM "SecurityEvent" GROUP BY "userId" HAVING COUNT(*) > 200
+    `;
+    let deletedTotal = 0;
+    for (const row of users) {
+      const keepIds = await db.securityEvent.findMany({
+        where: { userId: row.userId },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        select: { id: true },
+      });
+      const { count } = await db.securityEvent.deleteMany({
+        where: { userId: row.userId, id: { notIn: keepIds.map((r) => r.id) } },
+      });
+      deletedTotal += count;
+    }
+    if (deletedTotal > 0) logger.info(`[Cleanup] Trimmed ${deletedTotal} old security events`);
+  } catch {}
+}, 24 * 60 * 60 * 1000);
+
 app.listen(PORT, () => {
   logger.info(`Iron Gym API server running on port ${PORT}`);
   startNewsRefreshScheduler();

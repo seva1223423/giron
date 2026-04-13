@@ -19,6 +19,7 @@ const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
 const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
 const googleConfigured = !!(GOOGLE_CLIENT_ID_WEB || GOOGLE_CLIENT_ID_IOS || GOOGLE_CLIENT_ID_ANDROID);
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
+const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 
 type Step = 'form' | 'otp';
 
@@ -50,7 +51,7 @@ function formatPhone(digits: string): string {
 
 export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { register, loginWithGoogle, isLoading, error, clearError } = useAuthStore();
+  const { register, loginWithGoogle, loginWithYandex, isLoading, error, clearError } = useAuthStore();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -68,6 +69,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const [vkLoading, setVkLoading] = useState(false);
+  const [yandexLoading, setYandexLoading] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: GOOGLE_CLIENT_ID_WEB,
@@ -181,6 +183,32 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   };
 
   const strength = passwordStrength(password);
+
+  const handleYandexPress = async () => {
+    if (!YANDEX_CLIENT_ID) { setLocalError('Yandex OAuth не настроен (нужен EXPO_PUBLIC_YANDEX_CLIENT_ID)'); return; }
+    clearErrors();
+    setYandexLoading(true);
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/yandex' });
+      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type === 'success') {
+        const fragment = result.url.split('#')[1] || '';
+        const params = new URLSearchParams(fragment);
+        const accessToken = params.get('access_token');
+        if (accessToken) {
+          await loginWithYandex(accessToken);
+        } else {
+          setLocalError('Не удалось получить токен от Яндекса');
+        }
+      }
+    } catch (e: any) {
+      setLocalError(e?.response?.data?.error || 'Ошибка через Яндекс');
+    } finally {
+      setYandexLoading(false);
+    }
+  };
+
   const handleVkPress = async () => {
     if (!VK_APP_ID) { setLocalError('VK OAuth не настроен (нужен EXPO_PUBLIC_VK_APP_ID)'); return; }
     clearErrors();
@@ -209,7 +237,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     }
   };
 
-  const anyLoading = isLoading || otpSending || googleLoading || vkLoading;
+  const anyLoading = isLoading || otpSending || googleLoading || vkLoading || yandexLoading;
   const displayError = localError || error;
 
   // ── OTP step ─────────────────────────────────────────────────────────────────
@@ -386,6 +414,18 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ВК</Text>
           }
           <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через VK</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleYandexPress}
+          disabled={anyLoading}
+          style={[styles.socialBtn, { backgroundColor: '#FC3F1D', borderColor: '#FC3F1D', marginTop: spacing.sm }, anyLoading && { opacity: 0.5 }]}
+        >
+          {yandexLoading
+            ? <ActivityIndicator size="small" color="#FFF" style={{ marginRight: spacing.sm }} />
+            : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>Я</Text>
+          }
+          <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через Яндекс</Text>
         </TouchableOpacity>
 
         <View style={styles.footer}>

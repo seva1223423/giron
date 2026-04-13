@@ -30,6 +30,7 @@ model User {
   weekPlan                Json?
 
   vkId                    String?   @unique
+  yandexId                String?   @unique
   phoneVerified           Boolean   @default(false)
 
   totpSecret              String?   // base32 TOTP secret (set during 2FA setup, before enabled)
