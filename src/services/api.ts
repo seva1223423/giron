@@ -52,6 +52,15 @@ api.interceptors.response.use(
     }
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Handle banned account — force logout immediately
+    if (error.response?.status === 403 && (error.response?.data as any)?.code === 'BANNED') {
+      try {
+        const { useAuthStore } = require('../store');
+        useAuthStore.getState().logout();
+      } catch { /* best effort */ }
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
