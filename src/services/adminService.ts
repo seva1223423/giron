@@ -20,6 +20,7 @@ export const adminService = {
     role?: string;
     plan?: string;
     banned?: boolean;
+    locked?: boolean;
     dormant?: boolean;
     subExpiringSoon?: boolean;
     recentlyActive?: boolean;

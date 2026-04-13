@@ -11,7 +11,7 @@ datasource db {
 model User {
   id                      String   @id @default(cuid())
   email                   String   @unique
-  phone                   String?
+  phone                   String?   @unique
   passwordHash            String?
   googleId                String?  @unique
   emailVerified           Boolean  @default(false)
@@ -514,7 +514,7 @@ model OtpCode {
   phone     String?
   email     String?
   code      String
-  purpose   String   // "register", "login", "phone-login"
+  purpose   String   // "register", "login", "phone-login", "phone-reset"
   used      Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())

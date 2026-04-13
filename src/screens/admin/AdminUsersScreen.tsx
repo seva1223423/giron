@@ -286,6 +286,7 @@ export default function AdminUsersScreen() {
   const [exporting, setExporting] = useState(false);
   const [dormant, setDormant] = useState<boolean>(params.dormant ?? false);
   const [bannedOnly, setBannedOnly] = useState(false);
+  const [lockedOnly, setLockedOnly] = useState(false);
   const [subExpiringSoon, setSubExpiringSoon] = useState<boolean>(params.subExpiringSoon ?? false);
   const [recentlyActive, setRecentlyActive] = useState(false);
   const [sortIdx, setSortIdx] = useState(0);
@@ -305,7 +306,7 @@ export default function AdminUsersScreen() {
     else setLoadingMore(true);
     const { sort, order } = SORT_OPTIONS[sortIdx];
     try {
-      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, banned: bannedOnly || undefined, subExpiringSoon: subExpiringSoon || undefined, recentlyActive: recentlyActive || undefined, sort, order, page: p, limit: 20 });
+      const res = await adminService.getUsers({ search, role: role || undefined, plan: planFilter || undefined, dormant: dormant || undefined, banned: bannedOnly || undefined, locked: lockedOnly || undefined, subExpiringSoon: subExpiringSoon || undefined, recentlyActive: recentlyActive || undefined, sort, order, page: p, limit: 20 });
       setUsers(append ? (prev) => [...prev, ...res.users] : res.users);
       setTotal(res.total);
       setPage(res.page);
@@ -317,9 +318,9 @@ export default function AdminUsersScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [search, role, dormant, bannedOnly, subExpiringSoon, recentlyActive, sortIdx]);
+  }, [search, role, dormant, bannedOnly, lockedOnly, subExpiringSoon, recentlyActive, sortIdx]);
 
-  useEffect(() => { load(1); }, [search, role, planFilter, dormant, bannedOnly, subExpiringSoon, recentlyActive, sortIdx]);
+  useEffect(() => { load(1); }, [search, role, planFilter, dormant, bannedOnly, lockedOnly, subExpiringSoon, recentlyActive, sortIdx]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && page < pages) load(page + 1, true);
@@ -457,6 +458,14 @@ export default function AdminUsersScreen() {
         >
           <Text style={[styles.filterText, bannedOnly && styles.filterTextActive]}>
             {bannedOnly ? '⛔ Заблокированные' : 'Заблокированные'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterBtn, lockedOnly && { backgroundColor: '#F59E0B' }]}
+          onPress={() => setLockedOnly(!lockedOnly)}
+        >
+          <Text style={[styles.filterText, lockedOnly && styles.filterTextActive]}>
+            {lockedOnly ? '🔒 Залочены входом' : 'Залочены входом'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity

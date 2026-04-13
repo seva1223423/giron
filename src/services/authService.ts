@@ -70,13 +70,17 @@ export const authService = {
     return data;
   },
 
-  async sendOtp(params: { phone?: string; email?: string; purpose?: 'register' | 'login' | 'phone-login' }): Promise<void> {
+  async sendOtp(params: { phone?: string; email?: string; purpose?: 'register' | 'login' | 'phone-login' | 'phone-reset' }): Promise<void> {
     await api.post('/auth/send-otp', params);
   },
 
-  async verifyOtp(params: { phone?: string; email?: string; code: string; purpose?: 'register' | 'login' | 'phone-login' }): Promise<boolean> {
+  async verifyOtp(params: { phone?: string; email?: string; code: string; purpose?: 'register' | 'login' | 'phone-login' | 'phone-reset' }): Promise<boolean> {
     const { data } = await api.post<{ valid: boolean }>('/auth/verify-otp', params);
     return data.valid;
+  },
+
+  async resetPasswordByPhone(phone: string, code: string, password: string): Promise<void> {
+    await api.post('/auth/reset-password-by-phone', { phone, code, password });
   },
 
   async logout(refreshToken?: string): Promise<void> {

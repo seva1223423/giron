@@ -304,7 +304,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
 /** GET /admin/users — paginated user list */
 router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { search = '', role, plan, banned, dormant, subExpiringSoon, recentlyActive, page = '1', limit = '20', sort = 'createdAt', order = 'desc' } = req.query as Record<string, string>;
+    const { search = '', role, plan, banned, locked, dormant, subExpiringSoon, recentlyActive, page = '1', limit = '20', sort = 'createdAt', order = 'desc' } = req.query as Record<string, string>;
     const ALLOWED_SORT = ['createdAt', 'email', 'firstName', 'lastName'] as const;
     const safeSort = ALLOWED_SORT.includes(sort as any) ? sort : 'createdAt';
     const safeOrder = order === 'asc' ? 'asc' : 'desc';
@@ -314,6 +314,7 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
     const where: any = {};
     if (role) where.role = role.toUpperCase();
     if (banned === 'true') where.isBanned = true;
+    if (locked === 'true') where.lockedUntil = { gt: new Date() };
     if (plan) {
       where.subscription = { plan, status: 'active' };
     }
@@ -350,8 +351,9 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
       prisma.user.findMany({
         where,
         select: {
-          id: true, email: true, firstName: true, lastName: true,
+          id: true, email: true, firstName: true, lastName: true, phone: true,
           role: true, createdAt: true, isBanned: true, banReason: true,
+          lockedUntil: true, loginAttempts: true, phoneVerified: true,
           subscription: { select: { plan: true, status: true, endDate: true } },
           _count: { select: { workouts: true, chatMessages: true } },
           workouts: { where: { completedAt: { not: null } }, orderBy: { completedAt: 'desc' }, take: 1, select: { completedAt: true } },

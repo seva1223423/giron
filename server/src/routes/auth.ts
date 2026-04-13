@@ -417,13 +417,13 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     const { phone: rawPhone, email, purpose } = z.object({
       phone: z.string().optional(),
       email: z.string().email().optional(),
-      purpose: z.enum(['register', 'login', 'phone-login']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
 
-    // For phone-login: check that phone is registered
-    if (purpose === 'phone-login' && phone) {
+    // For phone-login and phone-reset: check that phone is registered
+    if ((purpose === 'phone-login' || purpose === 'phone-reset') && phone) {
       const exists = await prisma.user.findFirst({ where: { phone }, select: { id: true } });
       if (!exists) {
         return res.status(404).json({ error: 'Пользователь с таким номером не найден', code: 'PHONE_NOT_FOUND' });
@@ -483,7 +483,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       phone: z.string().optional(),
       email: z.string().email().optional(),
       code: z.string().length(6),
-      purpose: z.enum(['register', 'login', 'phone-login']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset']).default('register'),
     }).parse(req.body);
 
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
@@ -499,9 +499,9 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
-    // For 'register': leave OTP intact — /register will consume it
+    // For 'register' and 'phone-reset': leave OTP intact — dedicated endpoints will consume it
     // For all other purposes: mark used now
-    if (purpose !== 'register') {
+    if (purpose !== 'register' && purpose !== 'phone-reset') {
       await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
     }
 
@@ -632,6 +632,52 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return res.status(400).json({ error: e.errors[0].message });
     }
     logger.error(e);
+    res.status(500).json({ error: 'Ошибка сброса пароля' });
+  }
+});
+
+// ── Reset password by phone (OTP) ────────────────────────────────────────────
+
+/**
+ * POST /auth/reset-password-by-phone
+ * Verify a 'phone-reset' OTP and set a new password.
+ */
+router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
+  try {
+    const { phone: rawPhone, code, password } = z.object({
+      phone: z.string().min(10, 'Введите номер телефона'),
+      code: z.string().length(6, 'Код должен быть 6 цифр'),
+      password: z.string().min(6, 'Пароль минимум 6 символов'),
+    }).parse(req.body);
+
+    const phone = normalizePhone(rawPhone);
+
+    const otp = await prisma.otpCode.findFirst({
+      where: { phone, code, purpose: 'phone-reset', used: false, expiresAt: { gte: new Date() } },
+    });
+
+    if (!otp) {
+      return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
+    }
+
+    const user = await prisma.user.findFirst({ where: { phone } });
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден', code: 'USER_NOT_FOUND' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { passwordHash, loginAttempts: 0, lockedUntil: null } }),
+      prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } }),
+      // Revoke all active refresh tokens (security: force re-login)
+      prisma.refreshToken.updateMany({ where: { userId: user.id, revoked: false }, data: { revoked: true } }),
+    ]);
+
+    res.json({ message: 'Пароль успешно изменён' });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /auth/reset-password-by-phone:', e);
     res.status(500).json({ error: 'Ошибка сброса пароля' });
   }
 });
