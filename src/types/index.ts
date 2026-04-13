@@ -35,6 +35,8 @@ export interface User {
   phoneVerified?: boolean;
   vkId?: string | null;
   googleId?: string | null;
+  hasYandex?: boolean;
+  hasGoogle?: boolean;
   isBanned?: boolean;
   banReason?: string | null;
   lockedUntil?: string | null;

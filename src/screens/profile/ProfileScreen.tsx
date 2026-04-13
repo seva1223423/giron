@@ -483,15 +483,28 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
         </View>
 
-        {/* Linked social accounts */}
+        {/* Linked social accounts — VK */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textSecondary }}>ВК</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.vkId ? '#0077FF18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.vkId ? '#0077FF40' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.vkId ? '#0077FF' : colors.textSecondary }}>ВК</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>VK ID</Text>
-            <Text style={[typography.caption, { color: colors.textTertiary }]}>
+            <Text style={[typography.caption, { color: user?.vkId ? '#34C759' : colors.textTertiary }]}>
               {user?.vkId ? 'Привязан' : 'Не привязан'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Linked social accounts — Yandex */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.hasYandex ? '#FC3F1D18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.hasYandex ? '#FC3F1D40' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.hasYandex ? '#FC3F1D' : colors.textSecondary }}>Я</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Яндекс ID</Text>
+            <Text style={[typography.caption, { color: user?.hasYandex ? '#34C759' : colors.textTertiary }]}>
+              {user?.hasYandex ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
         </View>

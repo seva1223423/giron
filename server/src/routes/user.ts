@@ -34,8 +34,12 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const { passwordHash, ...profile } = user;
-    res.json(profile);
+    const { passwordHash, googleId, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
+    res.json({
+      ...safeProfile,
+      hasGoogle: !!googleId,
+      hasYandex: !!yandexId,
+    });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка получения профиля' });
@@ -654,6 +658,43 @@ router.delete('/2fa', authenticate, async (req: AuthRequest, res: Response) => {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('DELETE /user/2fa:', e);
     res.status(500).json({ error: 'Ошибка отключения 2FA' });
+  }
+});
+
+/** POST /user/2fa/backup-codes — regenerate backup codes (requires current TOTP code) */
+router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { code } = z.object({ code: z.string().length(6) }).parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { totpSecret: true, totpEnabled: true },
+    });
+    if (!user?.totpEnabled || !user.totpSecret) {
+      return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
+    }
+
+    const totp = new TOTP({ secret: Secret.fromBase32(user.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+    if (totp.validate({ token: code, window: 1 }) === null) {
+      return res.status(401).json({ error: 'Неверный код', code: 'INVALID_TOTP' });
+    }
+
+    const plainCodes: string[] = Array.from({ length: 8 }, () =>
+      crypto.randomBytes(4).toString('hex').toUpperCase(),
+    );
+    const backupCodeEntries = plainCodes.map((c) => ({
+      hash: crypto.createHash('sha256').update(c).digest('hex'),
+      used: false,
+    }));
+
+    await prisma.user.update({ where: { id: req.userId! }, data: { totpBackupCodes: JSON.stringify(backupCodeEntries) } });
+    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOTP_ENABLED', details: 'backup_codes_regenerated' } });
+
+    res.json({ ok: true, backupCodes: plainCodes });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /user/2fa/backup-codes:', e);
+    res.status(500).json({ error: 'Ошибка регенерации резервных кодов' });
   }
 });
 
