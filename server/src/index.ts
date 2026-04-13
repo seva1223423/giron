@@ -108,14 +108,14 @@ app.use('/api/auth', authRateLimiter, authRouter);
 // Apply strict TOTP rate limiter to 2FA code-accepting user endpoints
 app.use('/api/user/2fa', totpRateLimiter);
 app.use('/api/user', userRateLimiter, userRouter);
-app.use('/api/workouts', workoutRouter);
-app.use('/api/nutrition', nutritionRouter);
+app.use('/api/workouts', userRateLimiter, workoutRouter);
+app.use('/api/nutrition', userRateLimiter, nutritionRouter);
 app.use('/api/ai', aiRateLimiter, aiRouter);
-app.use('/api/news', newsRouter);
-app.use('/api/subscription', subscriptionRouter);
-app.use('/api/trainer', trainerRouter);
-app.use('/api/cardio', cardioRouter);
-app.use('/api/support', supportRouter);
+app.use('/api/news', userRateLimiter, newsRouter);
+app.use('/api/subscription', userRateLimiter, subscriptionRouter);
+app.use('/api/trainer', userRateLimiter, trainerRouter);
+app.use('/api/cardio', userRateLimiter, cardioRouter);
+app.use('/api/support', userRateLimiter, supportRouter);
 app.use('/api/admin', adminRateLimiter, adminRouter);
 
 // Global error handler (catches both sync and async errors forwarded via next())
