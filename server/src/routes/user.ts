@@ -3,6 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { TOTP, Secret } from 'otpauth';
 import * as QRCode from 'qrcode';
+import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -519,7 +520,19 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
       return res.status(400).json({ error: 'Неверный код. Проверьте время на устройстве.', code: 'INVALID_TOTP' });
     }
 
-    await prisma.user.update({ where: { id: req.userId! }, data: { totpEnabled: true } });
+    // Generate 8 single-use backup codes
+    const plainCodes: string[] = Array.from({ length: 8 }, () =>
+      crypto.randomBytes(4).toString('hex').toUpperCase(), // 8-char hex codes like "A3F7B2D1"
+    );
+    const backupCodeEntries = plainCodes.map((code) => ({
+      hash: crypto.createHash('sha256').update(code).digest('hex'),
+      used: false,
+    }));
+
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { totpEnabled: true, totpBackupCodes: JSON.stringify(backupCodeEntries) },
+    });
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOTP_ENABLED' } });
 
     sendPushToUser(req.userId!, {
@@ -528,7 +541,8 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
       data: { url: 'irongym://profile/security' },
     }).catch(() => {});
 
-    res.json({ ok: true });
+    // Return plaintext backup codes only once — user must save them
+    res.json({ ok: true, backupCodes: plainCodes });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /user/2fa/enable:', e);
@@ -565,7 +579,7 @@ router.delete('/2fa', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Неверный код или пароль', code: 'VERIFICATION_FAILED' });
     }
 
-    await prisma.user.update({ where: { id: req.userId! }, data: { totpEnabled: false, totpSecret: null } });
+    await prisma.user.update({ where: { id: req.userId! }, data: { totpEnabled: false, totpSecret: null, totpBackupCodes: null } });
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'TOTP_DISABLED' } });
 
     res.json({ ok: true });

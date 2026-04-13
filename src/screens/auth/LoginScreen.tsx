@@ -43,6 +43,8 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [tab, setTab] = useState<LoginTab>('email');
   const [showTotpInput, setShowTotpInput] = useState(false);
   const [totpCode, setTotpCode] = useState('');
+  const [useBackupCode, setUseBackupCode] = useState(false);
+  const [backupCode, setBackupCode] = useState('');
 
   // Email tab state
   const [email, setEmail] = useState('');
@@ -159,11 +161,36 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       if (errCode === 'PENDING_TOKEN_EXPIRED') {
         setShowTotpInput(false);
         setTotpCode('');
+        setUseBackupCode(false);
+        setBackupCode('');
         setLocalError('Время сессии истекло. Войдите снова.');
       } else {
         setLocalError(serverMsg || 'Неверный код');
         setTotpCode('');
       }
+    }
+  };
+
+  const handleBackupCodeSubmit = async () => {
+    if (!backupCode.trim()) return;
+    clearErrors();
+    // useAuthStore's loginWithTotp can pass backupCode via authService.verifyTotp
+    // We need to call the API directly here since loginWithTotp only handles TOTP codes
+    const { totpPendingToken } = useAuthStore.getState();
+    if (!totpPendingToken) { setLocalError('Сессия истекла. Войдите снова.'); return; }
+    try {
+      const response = await authService.verifyTotp(totpPendingToken, '', backupCode.trim().replace(/-/g, '').toUpperCase());
+      useAuthStore.setState({
+        user: response.user,
+        token: response.token,
+        refreshToken: response.refreshToken,
+        isAuthenticated: true,
+        totpPendingToken: null,
+      });
+    } catch (e: any) {
+      const serverMsg = e?.response?.data?.error;
+      setLocalError(serverMsg || 'Неверный резервный код');
+      setBackupCode('');
     }
   };
 
@@ -296,26 +323,62 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Text style={[typography.h3, { color: colors.text, textAlign: 'center', marginBottom: spacing.sm }]}>
               Двухфакторная аутентификация
             </Text>
-            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
-              Введите 6-значный код из приложения-аутентификатора (Google Authenticator, Яндекс.Ключ).
-            </Text>
-            <TextInput
-              style={[{
-                height: 64, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16,
-                textAlign: 'center', fontSize: 28, fontWeight: '700', letterSpacing: 8,
-                backgroundColor: colors.card, color: colors.text, borderColor: colors.border,
-              }]}
-              placeholder="------"
-              placeholderTextColor={colors.textTertiary}
-              value={totpCode}
-              onChangeText={handleTotpCodeChange}
-              keyboardType="number-pad"
-              maxLength={6}
-              autoFocus
-            />
+            {!useBackupCode ? (
+              <>
+                <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
+                  Введите 6-значный код из приложения-аутентификатора.
+                </Text>
+                <TextInput
+                  style={[{
+                    height: 64, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16,
+                    textAlign: 'center', fontSize: 28, fontWeight: '700', letterSpacing: 8,
+                    backgroundColor: colors.card, color: colors.text, borderColor: colors.border,
+                  }]}
+                  placeholder="------"
+                  placeholderTextColor={colors.textTertiary}
+                  value={totpCode}
+                  onChangeText={handleTotpCodeChange}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus
+                />
+                <TouchableOpacity onPress={() => { setUseBackupCode(true); setTotpCode(''); clearErrors(); }} style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+                  <Text style={[typography.caption, { color: colors.primary }]}>Использовать резервный код</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
+                  Введите резервный код из сохранённого списка.
+                </Text>
+                <TextInput
+                  style={[{
+                    height: 52, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16,
+                    textAlign: 'center', fontSize: 18, fontWeight: '700', letterSpacing: 4,
+                    backgroundColor: colors.card, color: colors.text, borderColor: colors.border,
+                  }]}
+                  placeholder="XXXX-XXXX"
+                  placeholderTextColor={colors.textTertiary}
+                  value={backupCode}
+                  onChangeText={setBackupCode}
+                  autoCapitalize="characters"
+                  autoFocus
+                />
+                <Button
+                  title="Войти"
+                  onPress={handleBackupCodeSubmit}
+                  loading={isLoading}
+                  fullWidth
+                  style={{ marginTop: spacing.xl }}
+                />
+                <TouchableOpacity onPress={() => { setUseBackupCode(false); setBackupCode(''); clearErrors(); }} style={{ marginTop: spacing.lg, alignItems: 'center' }}>
+                  <Text style={[typography.caption, { color: colors.primary }]}>Использовать код из приложения</Text>
+                </TouchableOpacity>
+              </>
+            )}
             {displayError ? <Text style={[typography.small, { color: colors.error, marginTop: spacing.md, textAlign: 'center' }]}>{displayError}</Text> : null}
-            {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />}
-            <TouchableOpacity onPress={() => { setShowTotpInput(false); setTotpCode(''); clearErrors(); }} style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+            {isLoading && !useBackupCode && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />}
+            <TouchableOpacity onPress={() => { setShowTotpInput(false); setTotpCode(''); setUseBackupCode(false); setBackupCode(''); clearErrors(); }} style={{ marginTop: spacing.xl, alignItems: 'center' }}>
               <Text style={[typography.body, { color: colors.textSecondary }]}>← Назад</Text>
             </TouchableOpacity>
           </View>

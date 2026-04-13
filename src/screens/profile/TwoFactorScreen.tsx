@@ -31,6 +31,7 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const [submitting, setSubmitting] = useState(false);
   const [code, setCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -62,11 +63,11 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     if (codeValue.length !== 6) return;
     setSubmitting(true);
     try {
-      await api.post('/user/2fa/enable', { code: codeValue });
+      const { data } = await api.post<{ ok: boolean; backupCodes: string[] }>('/user/2fa/enable', { code: codeValue });
       setSetupData(null);
       setCode('');
+      setBackupCodes(data.backupCodes);
       await loadStatus();
-      Alert.alert('Готово', 'Двухфакторная аутентификация успешно включена.');
     } catch (e: any) {
       const msg = e?.response?.data?.error || 'Неверный код';
       Alert.alert('Ошибка', msg);
@@ -131,6 +132,28 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       {loading ? (
         <ActivityIndicator color={colors.primary} />
+      ) : backupCodes ? (
+        /* Backup codes display — shown only once after enabling */
+        <View>
+          <View style={{ backgroundColor: '#34C75915', borderRadius: borderRadius.md, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: '#34C75940' }}>
+            <Text style={[typography.smallMedium, { color: '#34C759', marginBottom: 4 }]}>2FA успешно включена!</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              Сохраните резервные коды в безопасном месте. Они помогут восстановить доступ, если вы потеряете аутентификатор. Каждый код можно использовать только один раз.
+            </Text>
+          </View>
+          <View style={{ backgroundColor: colors.card, borderRadius: borderRadius.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.xl }}>
+            {backupCodes.map((c, i) => (
+              <Text key={i} style={{ fontFamily: 'monospace', color: colors.text, fontSize: 16, letterSpacing: 2, textAlign: 'center', paddingVertical: 4 }}>
+                {c.slice(0, 4)}-{c.slice(4)}
+              </Text>
+            ))}
+          </View>
+          <Button
+            title="Я сохранил(а) резервные коды"
+            onPress={() => setBackupCodes(null)}
+            fullWidth
+          />
+        </View>
       ) : setupData ? (
         /* Setup flow */
         <View>

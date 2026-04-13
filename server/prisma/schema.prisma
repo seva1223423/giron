@@ -34,6 +34,7 @@ model User {
 
   totpSecret              String?   // base32 TOTP secret (set during 2FA setup, before enabled)
   totpEnabled             Boolean   @default(false)
+  totpBackupCodes         String?   // JSON: [{hash: string, used: boolean}] — single-use recovery codes
 
   isBanned                Boolean   @default(false)
   bannedAt                DateTime?
