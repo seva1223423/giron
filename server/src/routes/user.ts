@@ -69,7 +69,7 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
         z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'])
       ).optional(),
       trainingExperienceYears: z.number().min(0).max(80).optional(),
-      avatarUrl: z.string().url('Некорректный URL').max(2048).optional(),
+      avatarUrl: z.string().url('Некорректный URL').max(2048).refine((u) => u.startsWith('https://'), 'URL должен использовать HTTPS').optional(),
     });
 
     const parsed = profileUpdateSchema.safeParse(req.body);

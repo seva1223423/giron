@@ -1067,6 +1067,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
       prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { used: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: resetToken.userId } }),
+      prisma.refreshToken.updateMany({ where: { userId: resetToken.userId, revoked: false }, data: { revoked: true } }),
     ]);
     await recordPasswordHistory(resetToken.userId, passwordHash);
     await logSecurityEvent('PASSWORD_CHANGE', resetToken.userId, req, 'method=email_reset');
