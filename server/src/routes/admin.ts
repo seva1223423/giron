@@ -541,6 +541,11 @@ router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Respon
       data: { isBanned: true, bannedAt: new Date(), banReason: reason },
       select: { id: true, email: true, firstName: true, isBanned: true },
     });
+    // Revoke all sessions immediately so banned user can't stay logged in
+    await Promise.all([
+      prisma.refreshToken.updateMany({ where: { userId: req.params.id as string, revoked: false }, data: { revoked: true } }),
+      prisma.trustedDevice.deleteMany({ where: { userId: req.params.id as string } }),
+    ]);
     await prisma.adminLog.create({
       data: {
         adminId: req.userId!,

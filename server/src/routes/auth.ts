@@ -999,9 +999,13 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Refresh token истёк' });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, isBanned: true } });
+    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, isBanned: true, lockedUntil: true } });
     if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
-    if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован' });
+    if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED' });
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED' });
+    }
 
     // Rotate: revoke old token, issue new
     await prisma.refreshToken.update({ where: { id: dbToken.id }, data: { revoked: true } });
