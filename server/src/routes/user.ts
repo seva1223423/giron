@@ -323,6 +323,37 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
   }
 });
 
+// ── Push tokens ──────────────────────────────────────────────────────────────
+
+/** POST /user/push-token — register or update Expo push token for this device */
+router.post('/push-token', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { token } = z.object({ token: z.string().min(1).max(200) }).parse(req.body);
+    // Upsert: if this token already exists for another user (device transfer), reassign it
+    await prisma.pushToken.upsert({
+      where: { token },
+      update: { userId: req.userId!, updatedAt: new Date() },
+      create: { token, userId: req.userId! },
+    });
+    res.json({ ok: true });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /user/push-token:', e);
+    res.status(500).json({ error: 'Ошибка регистрации токена' });
+  }
+});
+
+/** DELETE /user/push-token — remove push token on logout */
+router.delete('/push-token', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { token } = z.object({ token: z.string().min(1) }).parse(req.body);
+    await prisma.pushToken.deleteMany({ where: { token, userId: req.userId! } });
+    res.json({ ok: true });
+  } catch {
+    res.json({ ok: true });
+  }
+});
+
 // ── Security events (user's own log) ─────────────────────────────────────────
 
 /** GET /user/security-events — last 30 security events for the authenticated user */

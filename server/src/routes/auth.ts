@@ -8,6 +8,7 @@ import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { sendPasswordResetEmail, sendOtpEmail } from '../services/emailService';
 import { sendSmsOtp, normalizePhone } from '../services/smsService';
+import { sendPushToUser } from '../services/pushService';
 
 const router = Router();
 
@@ -250,7 +251,26 @@ router.post('/login', async (req: Request, res: Response) => {
       await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null } });
     }
 
+    const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email}`);
+
+    // Suspicious login: check if IP differs from most recent successful login
+    if (currentIp) {
+      const lastLogin = await prisma.securityEvent.findFirst({
+        where: { userId: user.id, action: 'LOGIN_SUCCESS' },
+        orderBy: { createdAt: 'desc' },
+        skip: 1, // skip the one we just created
+        select: { ip: true },
+      });
+      if (lastLogin?.ip && lastLogin.ip !== currentIp) {
+        sendPushToUser(user.id, {
+          title: 'Новый вход в аккаунт',
+          body: `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`,
+          data: { url: 'irongym://profile/security' },
+        }).catch(() => {});
+      }
+    }
+
     const { token, refreshToken } = await signTokens(user.id);
     const { passwordHash, googleId, vkId, ...userWithoutSecrets } = user as any;
     res.json({ user: userWithoutSecrets, token, refreshToken });

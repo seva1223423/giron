@@ -8,7 +8,7 @@ import { useThemeStore, useAuthStore } from '../store';
 import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
 import * as Notifications from 'expo-notifications';
-import { requestNotificationPermissions } from '../services/notificationService';
+import { requestNotificationPermissions, registerPushTokenWithServer } from '../services/notificationService';
 import { ErrorBoundary } from '../components';
 
 // Screens
@@ -321,10 +321,11 @@ export const AppNavigator: React.FC = () => {
   const { colors, applyAutoTheme } = useThemeStore();
   const { isOnline } = useConnectionStore();
 
-  // Request notification permissions once on first authenticated launch
+  // Request notification permissions and register push token once on first authenticated launch
   useEffect(() => {
     if (isAuthenticated && isOnboarded) {
       requestNotificationPermissions();
+      registerPushTokenWithServer();
     }
   }, [isAuthenticated, isOnboarded]);
 

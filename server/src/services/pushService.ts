@@ -1,0 +1,62 @@
+import Expo, { ExpoPushMessage } from 'expo-server-sdk';
+import { prisma } from '../db';
+import { logger } from '../utils/logger';
+
+const expo = new Expo();
+
+/**
+ * Send a push notification to all registered devices of a user.
+ * Silently removes invalid tokens from the database.
+ */
+export async function sendPushToUser(
+  userId: string,
+  notification: { title: string; body: string; data?: Record<string, unknown> },
+): Promise<void> {
+  try {
+    const tokenRecords = await prisma.pushToken.findMany({
+      where: { userId },
+      select: { id: true, token: true },
+    });
+
+    if (tokenRecords.length === 0) return;
+
+    const messages: ExpoPushMessage[] = tokenRecords
+      .filter((r) => Expo.isExpoPushToken(r.token))
+      .map((r) => ({
+        to: r.token,
+        sound: 'default' as const,
+        title: notification.title,
+        body: notification.body,
+        data: notification.data ?? {},
+      }));
+
+    if (messages.length === 0) return;
+
+    const chunks = expo.chunkPushNotifications(messages);
+    const invalidTokenIds: string[] = [];
+
+    for (const chunk of chunks) {
+      try {
+        const receipts = await expo.sendPushNotificationsAsync(chunk);
+        receipts.forEach((receipt, i) => {
+          if (receipt.status === 'error') {
+            if (receipt.details?.error === 'DeviceNotRegistered') {
+              const badToken = messages[i]?.to as string;
+              const record = tokenRecords.find((r) => r.token === badToken);
+              if (record) invalidTokenIds.push(record.id);
+            }
+          }
+        });
+      } catch (e) {
+        logger.warn('Push notification chunk failed:', e);
+      }
+    }
+
+    // Clean up invalid tokens
+    if (invalidTokenIds.length > 0) {
+      await prisma.pushToken.deleteMany({ where: { id: { in: invalidTokenIds } } });
+    }
+  } catch (e) {
+    logger.warn('sendPushToUser failed:', e);
+  }
+}
