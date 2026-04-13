@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { TOTP, Secret } from 'otpauth';
 import * as QRCode from 'qrcode';
 import crypto from 'crypto';
@@ -10,6 +11,20 @@ import { logger } from '../utils/logger';
 import { normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
 import { sendPasswordChangedAlert } from '../services/emailService';
+
+const JWT_ISS = 'irongym-api';
+const JWT_AUD = 'irongym-app';
+
+/** Issue new access + refresh tokens after revoking all old sessions for the user */
+async function reissueTokens(userId: string, req: AuthRequest): Promise<{ token: string; refreshToken: string }> {
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
+  const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
+  const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+  const userAgent = req.headers['user-agent'] ?? null;
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await prisma.refreshToken.create({ data: { token: rawRefresh, userId, expiresAt, ip, userAgent } });
+  return { token, refreshToken: rawRefresh };
+}
 
 const router = Router();
 
@@ -769,11 +784,13 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     }
     await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
 
-    // Update email
+    // Update email, revoke all sessions, issue new tokens for the current device
     await prisma.user.update({
       where: { id: req.userId! },
       data: { email: newEmail, emailVerified: true },
     });
+    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
     const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
     await prisma.securityEvent.create({
@@ -782,11 +799,11 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
 
     sendPushToUser(req.userId!, {
       title: 'Email аккаунта изменён',
-      body: `К аккаунту привязан новый email. Если это не вы — немедленно смените пароль.`,
+      body: `К аккаунту привязан новый email. Другие устройства были отключены.`,
       data: { url: 'irongym://profile/security' },
     }).catch(() => {});
 
-    res.json({ ok: true, email: newEmail, emailVerified: true });
+    res.json({ ok: true, email: newEmail, emailVerified: true, token: newToken, refreshToken: newRefreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /user/change-email:', e);
@@ -850,11 +867,13 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     }
     await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
 
-    // Update phone number
+    // Update phone number, revoke all sessions, issue new tokens for the current device
     await prisma.user.update({
       where: { id: req.userId! },
       data: { phone, phoneVerified: true },
     });
+    await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
+    const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
     const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
     await prisma.securityEvent.create({
@@ -863,11 +882,11 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
 
     sendPushToUser(req.userId!, {
       title: 'Номер телефона изменён',
-      body: `К аккаунту привязан новый номер. Если это не вы — смените пароль.`,
+      body: `К аккаунту привязан новый номер. Другие устройства были отключены.`,
       data: { url: 'irongym://profile/security' },
     }).catch(() => {});
 
-    res.json({ ok: true, phone, phoneVerified: true });
+    res.json({ ok: true, phone, phoneVerified: true, token: newToken, refreshToken: newRefreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /user/change-phone:', e);

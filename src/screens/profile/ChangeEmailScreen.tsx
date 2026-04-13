@@ -72,12 +72,16 @@ export const ChangeEmailScreen: React.FC<{ navigation: any }> = ({ navigation })
   const submitChange = async (emailOtp: string, totp?: string) => {
     setLoading(true);
     try {
-      await api.post('/user/change-email', {
+      const { data } = await api.post<{ ok: boolean; email: string; emailVerified: boolean; token?: string; refreshToken?: string }>('/user/change-email', {
         email: email.trim().toLowerCase(),
         code: emailOtp,
         ...(totp ? { totpCode: totp } : {}),
       });
       if (user) setUser({ ...user, email: email.trim().toLowerCase(), emailVerified: true });
+      // Update stored tokens — server issued fresh tokens after revoking all other sessions
+      if (data.token && data.refreshToken) {
+        useAuthStore.setState({ token: data.token, refreshToken: data.refreshToken });
+      }
       Alert.alert('Готово', 'Email успешно изменён', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
