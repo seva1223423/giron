@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import { useThemeStore, useAuthStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
@@ -17,6 +18,7 @@ const GOOGLE_CLIENT_ID_WEB = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
 const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
 const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
 const googleConfigured = !!(GOOGLE_CLIENT_ID_WEB || GOOGLE_CLIENT_ID_IOS || GOOGLE_CLIENT_ID_ANDROID);
+const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 
 type Step = 'form' | 'otp';
 
@@ -65,6 +67,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [vkLoading, setVkLoading] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: GOOGLE_CLIENT_ID_WEB,
@@ -175,7 +178,35 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   };
 
   const strength = passwordStrength(password);
-  const anyLoading = isLoading || otpSending || googleLoading;
+  const handleVkPress = async () => {
+    if (!VK_APP_ID) { setLocalError('VK OAuth не настроен (нужен EXPO_PUBLIC_VK_APP_ID)'); return; }
+    clearErrors();
+    setVkLoading(true);
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/vk' });
+      const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type === 'success') {
+        const fragment = result.url.split('#')[1] || '';
+        const params = new URLSearchParams(fragment);
+        const accessToken = params.get('access_token');
+        const userId = parseInt(params.get('user_id') || '0', 10);
+        const email = params.get('email') || undefined;
+        if (accessToken && userId) {
+          const store = useAuthStore.getState();
+          await store.loginWithVk({ accessToken, userId, email });
+        } else {
+          setLocalError('Не удалось получить данные от VK');
+        }
+      }
+    } catch (e: any) {
+      setLocalError(e?.response?.data?.error || 'Ошибка через VK');
+    } finally {
+      setVkLoading(false);
+    }
+  };
+
+  const anyLoading = isLoading || otpSending || googleLoading || vkLoading;
   const displayError = localError || error;
 
   // ── OTP step ─────────────────────────────────────────────────────────────────
@@ -333,10 +364,14 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => setLocalError('Укажите VK_APP_ID в настройках сервера')}
-          style={[styles.socialBtn, { backgroundColor: '#0077FF', borderColor: '#0077FF' }]}
+          onPress={handleVkPress}
+          disabled={anyLoading}
+          style={[styles.socialBtn, { backgroundColor: '#0077FF', borderColor: '#0077FF' }, anyLoading && { opacity: 0.5 }]}
         >
-          <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ВК</Text>
+          {vkLoading
+            ? <ActivityIndicator size="small" color="#FFF" style={{ marginRight: spacing.sm }} />
+            : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ВК</Text>
+          }
           <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через VK</Text>
         </TouchableOpacity>
 

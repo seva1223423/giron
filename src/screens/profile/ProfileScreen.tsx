@@ -293,6 +293,52 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         )}
       </Card>
 
+      {/* ── Section: Безопасность ── */}
+      <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>АККАУНТ И БЕЗОПАСНОСТЬ</Text>
+      <Card style={{ marginBottom: spacing.xl }}>
+        {/* Phone verification */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user as any)?.phoneVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 15 }}>{(user as any)?.phoneVerified ? '✓' : '?'}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Телефон</Text>
+            <Text style={[typography.caption, { color: (user as any)?.phoneVerified ? '#34C759' : colors.textTertiary }]}>
+              {user?.phone
+                ? ((user as any)?.phoneVerified ? `${user.phone} · подтверждён` : `${user.phone} · не подтверждён`)
+                : 'Не привязан'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Email verification */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user as any)?.emailVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 15 }}>{(user as any)?.emailVerified ? '✓' : '@'}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Email</Text>
+            <Text style={[typography.caption, { color: (user as any)?.emailVerified ? '#34C759' : colors.textTertiary }]}>
+              {user?.email}
+              {(user as any)?.emailVerified ? ' · подтверждён' : ' · не подтверждён'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Linked social accounts */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textSecondary }}>ВК</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>VK ID</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>
+              {(user as any)?.vkId ? 'Привязан' : 'Не привязан'}
+            </Text>
+          </View>
+        </View>
+      </Card>
+
       {/* ── Logout ── */}
       <Button
         title="Выйти из аккаунта"
