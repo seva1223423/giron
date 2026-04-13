@@ -13,10 +13,26 @@ interface Session {
   id: string;
   createdAt: string;
   expiresAt: string;
+  userAgent?: string | null;
+  ip?: string | null;
 }
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function parseDevice(ua?: string | null): string {
+  if (!ua) return 'Неизвестное устройство';
+  if (/iPhone/i.test(ua)) return 'iPhone';
+  if (/iPad/i.test(ua)) return 'iPad';
+  if (/Android/i.test(ua)) {
+    const model = ua.match(/Android[^;]*;\s*([^)]+)\)/)?.[1]?.trim();
+    return model ? `Android · ${model}` : 'Android';
+  }
+  if (/Expo/i.test(ua)) return 'Expo Go';
+  if (/okhttp/i.test(ua)) return 'Android';
+  if (/CFNetwork/i.test(ua)) return 'iOS';
+  return 'Мобильное приложение';
 }
 
 export const SessionsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -105,10 +121,15 @@ export const SessionsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.smallMedium, { color: colors.text }]}>
-                    {i === 0 ? 'Текущая сессия' : `Сессия ${i + 1}`}
+                    {i === 0 ? 'Текущая сессия' : parseDevice(s.userAgent)}
                   </Text>
-                  <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-                    Создана: {formatDate(s.createdAt)}
+                  {s.ip && (
+                    <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
+                      IP: {s.ip}
+                    </Text>
+                  )}
+                  <Text style={[typography.caption, { color: colors.textTertiary, marginTop: s.ip ? 0 : 2 }]}>
+                    Вход: {formatDate(s.createdAt)}
                   </Text>
                   <Text style={[typography.caption, { color: colors.textTertiary }]}>
                     Истекает: {formatDate(s.expiresAt)}

@@ -68,7 +68,7 @@ export const userService = {
     return data.hasPassword;
   },
 
-  async getSessions(): Promise<Array<{ id: string; createdAt: string; expiresAt: string }>> {
+  async getSessions(): Promise<Array<{ id: string; createdAt: string; expiresAt: string; userAgent?: string | null; ip?: string | null }>> {
     const { data } = await api.get('/user/sessions');
     return data;
   },

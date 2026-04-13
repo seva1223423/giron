@@ -123,6 +123,22 @@ setInterval(async () => {
   } catch {}
 }, 6 * 60 * 60 * 1000);
 
+// Cleanup expired/used OTP codes every hour
+setInterval(async () => {
+  try {
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const { count } = await (await import('./db')).prisma.otpCode.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: new Date() } }, // expired (regardless of used status)
+          { used: true, createdAt: { lt: cutoff24h } }, // used + older than 24h
+        ],
+      },
+    });
+    if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used OTP codes`);
+  } catch {}
+}, 60 * 60 * 1000);
+
 app.listen(PORT, () => {
   logger.info(`Iron Gym API server running on port ${PORT}`);
   startNewsRefreshScheduler();
