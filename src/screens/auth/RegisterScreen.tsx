@@ -110,7 +110,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     if (!firstName.trim()) { setLocalError('Введите имя'); return false; }
     if (!email.trim() || !email.includes('@')) { setLocalError('Введите корректный email'); return false; }
     if (!password) { setLocalError('Введите пароль'); return false; }
-    if (password.length < 6) { setLocalError('Пароль минимум 6 символов'); return false; }
+    if (password.length < 8) { setLocalError('Пароль минимум 8 символов'); return false; }
     if (password !== confirmPassword) { setLocalError('Пароли не совпадают'); return false; }
     return true;
   };
@@ -314,7 +314,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
         {/* Password with strength indicator */}
         <Input
-          label="Пароль *" placeholder="Минимум 6 символов" secureTextEntry
+          label="Пароль *" placeholder="Минимум 8 символов" secureTextEntry
           value={password} onChangeText={(t) => { setPassword(t); clearErrors(); }}
           containerStyle={{ marginTop: spacing.xl }}
         />

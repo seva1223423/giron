@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useState } from 'react';
+import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { ScrollView, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { AnimatedPressable } from '../../components';
 import { useHaptic } from '../../hooks/useHaptic';
@@ -58,6 +58,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [emailVerifCode, setEmailVerifCode] = useState('');
   const [emailVerifLoading, setEmailVerifLoading] = useState(false);
   const [emailVerifError, setEmailVerifError] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startResendCountdown = (seconds = 60) => {
+    setResendCountdown(seconds);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setResendCountdown((s) => {
+        if (s <= 1) { clearInterval(countdownRef.current!); countdownRef.current = null; return 0; }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
   const { user } = useAuthStore();
   const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
@@ -263,6 +278,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   await authService.resendVerification(user.email);
                   setEmailVerifCode('');
                   setEmailVerifError('');
+                  startResendCountdown(60);
                   setShowEmailVerifModal(true);
                 } catch { /* ignore */ } finally {
                   setResendingVerification(false);
@@ -329,6 +345,26 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 disabled={emailVerifCode.length !== 6 || emailVerifLoading}
                 fullWidth size="lg" style={{ marginBottom: spacing.md }}
               />
+              <TouchableOpacity
+                disabled={resendCountdown > 0 || resendingVerification}
+                onPress={async () => {
+                  if (!user?.email) return;
+                  setResendingVerification(true);
+                  try {
+                    await authService.resendVerification(user.email);
+                    setEmailVerifCode('');
+                    setEmailVerifError('');
+                    startResendCountdown(60);
+                  } catch { /* ignore */ } finally {
+                    setResendingVerification(false);
+                  }
+                }}
+                style={{ paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md }}
+              >
+                <Text style={{ fontSize: 13, color: resendCountdown > 0 ? colors.textTertiary : '#6366F1', fontWeight: '600' }}>
+                  {resendCountdown > 0 ? `Повторно через ${resendCountdown} с` : resendingVerification ? 'Отправка...' : 'Отправить повторно'}
+                </Text>
+              </TouchableOpacity>
               <Button title="Отмена" variant="outline" onPress={() => setShowEmailVerifModal(false)} fullWidth />
             </View>
           </View>

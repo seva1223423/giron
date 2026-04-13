@@ -135,7 +135,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
   // ── Phone: set new password ────────────────────────────────────────────────────
 
   const handlePhoneReset = async () => {
-    if (newPassword.length < 6) { setError('Пароль минимум 6 символов'); return; }
+    if (newPassword.length < 8) { setError('Пароль минимум 8 символов'); return; }
     if (newPassword !== confirmPassword) { setError('Пароли не совпадают'); return; }
     setError('');
     setPhoneLoading(true);
@@ -316,7 +316,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
             </Text>
             <Input
               label="Новый пароль"
-              placeholder="Минимум 6 символов"
+              placeholder="Минимум 8 символов"
               secureTextEntry
               value={newPassword}
               onChangeText={(t) => { setNewPassword(t); setError(''); }}

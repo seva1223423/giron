@@ -233,11 +233,17 @@ router.get('/week-plan', authenticate, async (req: AuthRequest, res: Response) =
 
 router.put('/week-plan', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const weekPlan = req.body;
-    if (typeof weekPlan !== 'object' || weekPlan === null) {
-      return res.status(400).json({ error: 'Некорректный формат плана' });
+    // Validate: week plan is a map of day (0-6) to array of workout name strings (max 10 chars each)
+    const weekPlanSchema = z.record(
+      z.string().regex(/^[0-6]$/, 'Ключ должен быть числом 0-6'),
+      z.array(z.string().max(100)).max(20),
+    ).max(7);
+
+    const parsed = weekPlanSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Некорректный формат недельного плана' });
     }
-    await prisma.user.update({ where: { id: req.userId! }, data: { weekPlan } });
+    await prisma.user.update({ where: { id: req.userId! }, data: { weekPlan: parsed.data } });
     res.json({ ok: true });
   } catch (e) {
     logger.error(e);
@@ -281,7 +287,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
   try {
     const { currentPassword, newPassword } = z.object({
       currentPassword: z.string().min(1, 'Введите текущий пароль'),
-      newPassword: z.string().min(6, 'Новый пароль минимум 6 символов'),
+      newPassword: z.string().min(8, 'Новый пароль минимум 8 символов'),
     }).parse(req.body);
 
     const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true } });

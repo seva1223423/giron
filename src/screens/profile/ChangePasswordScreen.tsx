@@ -45,7 +45,7 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
 
   const handleSubmit = async () => {
     if (!newPassword) { setError('Введите новый пароль'); return; }
-    if (newPassword.length < 6) { setError('Пароль минимум 6 символов'); return; }
+    if (newPassword.length < 8) { setError('Пароль минимум 8 символов'); return; }
     if (newPassword !== confirmPassword) { setError('Пароли не совпадают'); return; }
     if (!isSocialOnly && !currentPassword) { setError('Введите текущий пароль'); return; }
     setError('');
@@ -117,7 +117,7 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
 
         <Input
           label="Новый пароль"
-          placeholder="Минимум 6 символов"
+          placeholder="Минимум 8 символов"
           secureTextEntry
           value={newPassword}
           onChangeText={(t) => { setNewPassword(t); setError(''); }}
