@@ -91,7 +91,7 @@ async function signTokens(userId: string, req?: Request) {
 }
 
 function safeUser(user: any) {
-  const { passwordHash, googleId, vkId, yandexId, totpSecret, ...rest } = user;
+  const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...rest } = user;
   return rest;
 }
 
@@ -581,6 +581,7 @@ router.post('/google', async (req: Request, res: Response) => {
     }
 
     const { token, refreshToken } = await signTokens(user!.id, req);
+    await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=google');
     res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
