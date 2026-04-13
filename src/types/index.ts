@@ -330,6 +330,7 @@ export interface AdminUserDetail extends AdminUserSummary {
   fitnessLevel?: string;
   bannedAt?: string;
   adminNote?: string;
+  totpEnabled?: boolean;
   firstWorkoutAt?: string | null;
   workoutDates90d?: string[];
   _count: { workouts: number; meals: number; chatMessages: number; cardioSessions: number; supportTickets: number };

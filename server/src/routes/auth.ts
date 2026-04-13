@@ -916,6 +916,12 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     await recordPasswordHistory(resetToken.userId, passwordHash);
     await logSecurityEvent('PASSWORD_CHANGE', resetToken.userId, req, 'method=email_reset');
 
+    // Security alert to the user's email
+    const resetIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? 'unknown';
+    if (resetToken.user.email && resetToken.user.emailVerified) {
+      sendPasswordChangedAlert(resetToken.user.email, resetIp, new Date()).catch(() => {});
+    }
+
     res.json({ message: 'Пароль успешно изменён' });
   } catch (e: any) {
     if (e instanceof z.ZodError) {
@@ -1049,6 +1055,13 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     await recordPasswordHistory(user.id, passwordHash);
 
     await logSecurityEvent('PASSWORD_CHANGE', user.id, req, 'method=phone_reset');
+
+    // Security alert to the user's email
+    const phoneResetIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? 'unknown';
+    if (user.email && user.emailVerified) {
+      sendPasswordChangedAlert(user.email, phoneResetIp, new Date()).catch(() => {});
+    }
+
     res.json({ message: 'Пароль успешно изменён' });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });

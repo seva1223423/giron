@@ -97,6 +97,11 @@ export const adminService = {
     return res.data;
   },
 
+  async forceDisable2FA(userId: string): Promise<{ ok: boolean }> {
+    const res = await api.post(`/admin/users/${userId}/force-disable-2fa`);
+    return res.data;
+  },
+
   async exportUsersCSV(params?: { role?: string; plan?: string; banned?: boolean }): Promise<string> {
     const res = await api.get('/admin/users/export', { params, responseType: 'text' });
     return res.data as string;
