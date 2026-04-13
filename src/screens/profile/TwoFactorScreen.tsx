@@ -32,6 +32,10 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const [code, setCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [showRegen, setShowRegen] = useState(false);
+  const [regenCode, setRegenCode] = useState('');
+  const [regenerating, setRegenerating] = useState(false);
+  const [isRegenResult, setIsRegenResult] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -66,6 +70,7 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       const { data } = await api.post<{ ok: boolean; backupCodes: string[] }>('/user/2fa/enable', { code: codeValue });
       setSetupData(null);
       setCode('');
+      setIsRegenResult(false);
       setBackupCodes(data.backupCodes);
       await loadStatus();
     } catch (e: any) {
@@ -82,6 +87,31 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     setCode(digits);
     if (digits.length === 6) {
       setTimeout(() => enableTotp(digits), 100);
+    }
+  };
+
+  const regenerateBackupCodes = async (codeValue: string) => {
+    if (codeValue.length !== 6) return;
+    setRegenerating(true);
+    try {
+      const { data } = await api.post<{ ok: boolean; backupCodes: string[] }>('/user/2fa/backup-codes', { code: codeValue });
+      setIsRegenResult(true);
+      setBackupCodes(data.backupCodes);
+      setShowRegen(false);
+      setRegenCode('');
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Неверный код');
+      setRegenCode('');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const handleRegenCodeChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    setRegenCode(digits);
+    if (digits.length === 6) {
+      setTimeout(() => regenerateBackupCodes(digits), 100);
     }
   };
 
@@ -136,7 +166,9 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         /* Backup codes display — shown only once after enabling */
         <View>
           <View style={{ backgroundColor: '#34C75915', borderRadius: borderRadius.md, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: '#34C75940' }}>
-            <Text style={[typography.smallMedium, { color: '#34C759', marginBottom: 4 }]}>2FA успешно включена!</Text>
+            <Text style={[typography.smallMedium, { color: '#34C759', marginBottom: 4 }]}>
+              {isRegenResult ? 'Новые резервные коды сгенерированы!' : '2FA успешно включена!'}
+            </Text>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>
               Сохраните резервные коды в безопасном месте. Они помогут восстановить доступ, если вы потеряете аутентификатор. Каждый код можно использовать только один раз.
             </Text>
@@ -234,6 +266,51 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             style={{ marginTop: spacing.xl }}
             textStyle={{ color: colors.error }}
           />
+
+          <View style={{ marginTop: spacing.xxl, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.xl }}>
+            <Text style={[typography.smallMedium, { color: colors.text, marginBottom: spacing.sm }]}>
+              Резервные коды
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.lg }]}>
+              Если вы потеряли резервные коды, сгенерируйте новые. Старые коды станут недействительными.
+            </Text>
+            {!showRegen ? (
+              <Button
+                title="Сгенерировать новые резервные коды"
+                variant="outline"
+                onPress={() => { setShowRegen(true); setRegenCode(''); }}
+                fullWidth
+              />
+            ) : (
+              <View>
+                <Text style={[typography.body, { color: colors.text, marginBottom: spacing.md }]}>
+                  Введите код из аутентификатора для подтверждения:
+                </Text>
+                <TextInput
+                  style={[styles.codeInput, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+                  placeholder="------"
+                  placeholderTextColor={colors.textTertiary}
+                  value={regenCode}
+                  onChangeText={handleRegenCodeChange}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus
+                />
+                {regenerating && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.md }} />}
+                <Button
+                  title="Подтвердить"
+                  onPress={() => regenerateBackupCodes(regenCode)}
+                  loading={regenerating}
+                  disabled={regenCode.length !== 6}
+                  fullWidth
+                  style={{ marginTop: spacing.lg }}
+                />
+                <TouchableOpacity onPress={() => { setShowRegen(false); setRegenCode(''); }} style={{ marginTop: spacing.md, alignItems: 'center' }}>
+                  <Text style={[typography.body, { color: colors.textSecondary }]}>Отмена</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
       ) : (
         /* Not enabled */
