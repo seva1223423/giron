@@ -58,6 +58,7 @@ export default function AdminUserDetailScreen() {
   const [msgSubject, setMsgSubject] = useState('');
   const [msgBody, setMsgBody] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<Array<{ id: string; createdAt: string; expiresAt: string; userAgent: string | null; ip: string | null }> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1134,6 +1135,39 @@ export default function AdminUserDetailScreen() {
         <Text style={styles.msgUserBtnSub}>Создаст тикет в поддержке</Text>
       </TouchableOpacity>
 
+      {/* Active sessions */}
+      <View style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={styles.cardTitle}>Активные сессии</Text>
+          <TouchableOpacity onPress={async () => {
+            try {
+              const sessions = await adminService.getUserSessions(userId);
+              setActiveSessions(sessions);
+            } catch {
+              Alert.alert('Ошибка', 'Не удалось загрузить сессии');
+            }
+          }}>
+            <Text style={{ fontSize: 12, color: '#8B5CF6' }}>Загрузить</Text>
+          </TouchableOpacity>
+        </View>
+        {activeSessions === null ? (
+          <Text style={{ fontSize: 12, color: '#6B7280' }}>Нажмите «Загрузить» для просмотра</Text>
+        ) : activeSessions.length === 0 ? (
+          <Text style={{ fontSize: 12, color: '#6B7280' }}>Нет активных сессий</Text>
+        ) : (
+          activeSessions.map((s) => (
+            <View key={s.id} style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }}>
+                {s.userAgent ? (s.userAgent.includes('iPhone') ? 'iPhone' : s.userAgent.includes('Android') ? 'Android' : s.userAgent.slice(0, 30)) : 'Неизвестное устройство'}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#6B7280' }}>
+                IP: {s.ip ?? '—'} · Вход: {new Date(s.createdAt).toLocaleDateString('ru-RU')}
+              </Text>
+            </View>
+          ))
+        )}
+      </View>
+
       {/* Force logout */}
       <TouchableOpacity
         style={[styles.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
@@ -1152,6 +1186,7 @@ export default function AdminUserDetailScreen() {
                   try {
                     const result = await adminService.forceLogoutUser(userId);
                     Alert.alert('Готово', `Завершено ${result.revokedCount} сессий`);
+                    setActiveSessions([]);
                   } catch {
                     Alert.alert('Ошибка', 'Не удалось завершить сессии');
                   } finally {

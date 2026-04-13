@@ -92,7 +92,18 @@ const userRateLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
 });
 
+/** TOTP verify: strict 5 attempts per 5 minutes per IP to mitigate brute-force */
+const totpRateLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много попыток ввода кода 2FA. Подождите 5 минут.', code: 'TOTP_RATE_LIMIT' },
+  keyGenerator: (req) => req.ip ?? 'unknown',
+});
+
 // Routes
+app.use('/api/auth/totp-verify', totpRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
 app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', workoutRouter);

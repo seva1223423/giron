@@ -7,7 +7,7 @@ import { TOTP, Secret } from 'otpauth';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
-import { sendPasswordResetEmail, sendOtpEmail } from '../services/emailService';
+import { sendPasswordResetEmail, sendOtpEmail, sendNewLoginAlert } from '../services/emailService';
 import { sendSmsOtp, normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
 
@@ -280,24 +280,31 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    const currentUa = req.headers['user-agent'] ?? null;
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email}`);
 
-    // Suspicious login: check if IP differs from most recent successful login
-    if (currentIp) {
-      const lastLogin = await prisma.securityEvent.findFirst({
-        where: { userId: user.id, action: 'LOGIN_SUCCESS' },
-        orderBy: { createdAt: 'desc' },
-        skip: 1, // skip the one we just created
-        select: { ip: true },
-      });
-      if (lastLogin?.ip && lastLogin.ip !== currentIp) {
-        // Log suspicious login event and send push notification
-        logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastLogin.ip} new_ip=${currentIp}`);
-        sendPushToUser(user.id, {
-          title: 'Новый вход в аккаунт',
-          body: `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`,
-          data: { url: 'irongym://profile/security' },
-        }).catch(() => {});
+    // Suspicious login: check if IP or userAgent differs from most recent successful login
+    const lastLogin = await prisma.securityEvent.findFirst({
+      where: { userId: user.id, action: 'LOGIN_SUCCESS' },
+      orderBy: { createdAt: 'desc' },
+      skip: 1,
+      select: { ip: true, userAgent: true },
+    });
+    const isNewIp = currentIp && lastLogin?.ip && lastLogin.ip !== currentIp;
+    const isNewDevice = currentUa && lastLogin?.userAgent && lastLogin.userAgent !== currentUa;
+    if (isNewIp || isNewDevice) {
+      logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastLogin?.ip} new_ip=${currentIp}`);
+      const alertMsg = isNewIp
+        ? `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`
+        : `Вход с нового устройства. Если это не вы — смените пароль.`;
+      sendPushToUser(user.id, {
+        title: 'Новый вход в аккаунт',
+        body: alertMsg,
+        data: { url: 'irongym://profile/security' },
+      }).catch(() => {});
+      // Also send email alert if user has verified email
+      if (user.email && user.emailVerified && currentIp) {
+        sendNewLoginAlert(user.email, currentIp, currentUa, new Date()).catch(() => {});
       }
     }
 
@@ -380,22 +387,29 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     }
 
     const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    const currentUa = req.headers['user-agent'] ?? null;
 
-    // Suspicious login check
-    if (currentIp) {
-      const lastLogin = await prisma.securityEvent.findFirst({
-        where: { userId: user.id, action: 'LOGIN_SUCCESS' },
-        orderBy: { createdAt: 'desc' },
-        skip: 1,
-        select: { ip: true },
-      });
-      if (lastLogin?.ip && lastLogin.ip !== currentIp) {
-        logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastLogin.ip} new_ip=${currentIp}`);
-        sendPushToUser(user.id, {
-          title: 'Новый вход в аккаунт',
-          body: `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`,
-          data: { url: 'irongym://profile/security' },
-        }).catch(() => {});
+    // Suspicious login check (new IP or new device)
+    const lastTotpLogin = await prisma.securityEvent.findFirst({
+      where: { userId: user.id, action: 'LOGIN_SUCCESS' },
+      orderBy: { createdAt: 'desc' },
+      skip: 1,
+      select: { ip: true, userAgent: true },
+    });
+    const totpNewIp = currentIp && lastTotpLogin?.ip && lastTotpLogin.ip !== currentIp;
+    const totpNewDevice = currentUa && lastTotpLogin?.userAgent && lastTotpLogin.userAgent !== currentUa;
+    if (totpNewIp || totpNewDevice) {
+      logSecurityEvent('SUSPICIOUS_LOGIN', user.id, req, `prev_ip=${lastTotpLogin?.ip} new_ip=${currentIp}`);
+      const alertMsg = totpNewIp
+        ? `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`
+        : `Вход с нового устройства. Если это не вы — смените пароль.`;
+      sendPushToUser(user.id, {
+        title: 'Новый вход в аккаунт',
+        body: alertMsg,
+        data: { url: 'irongym://profile/security' },
+      }).catch(() => {});
+      if (user.email && user.emailVerified && currentIp) {
+        sendNewLoginAlert(user.email, currentIp, currentUa, new Date()).catch(() => {});
       }
     }
 
