@@ -48,3 +48,27 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
 
   logger.info(`[Email] Password reset sent to ${email}`);
 }
+
+export async function sendOtpEmail(email: string, code: string): Promise<void> {
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: `${APP_NAME} — код подтверждения`,
+    text: `Ваш код подтверждения: ${code}\n\nКод действителен 10 минут. Если вы не запрашивали код — проигнорируйте это письмо.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #8B5CF6; margin-bottom: 8px;">🏋️ ${APP_NAME}</h2>
+        <h3 style="color: #333; margin-bottom: 16px;">Код подтверждения</h3>
+        <p style="color: #555; line-height: 1.6;">Введите этот код в приложении:</p>
+        <div style="background: #f5f5f7; border-radius: 12px; padding: 24px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #8B5CF6;">${code}</span>
+        </div>
+        <p style="color: #888; font-size: 13px;">
+          Код действителен <strong>10 минут</strong>.<br>
+          Если вы не запрашивали код — проигнорируйте это письмо.
+        </p>
+      </div>
+    `,
+  });
+  logger.info(`[Email] OTP sent to ${email}`);
+}

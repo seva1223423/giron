@@ -626,6 +626,76 @@ export default function AdminUserDetailScreen() {
         );
       })()}
 
+      {/* Workout frequency chart — 12-week heatmap */}
+      {user.workoutDates90d && user.workoutDates90d.length > 0 && (() => {
+        const today = new Date();
+        // Build 12-week grid (Mon→Sun), oldest week first
+        const weeks: Array<{ label: string; days: Array<{ date: string; count: number }> }> = [];
+        // Start from 12 weeks ago on Monday
+        const startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 83); // ~12 weeks back
+        // Align to Monday
+        const dow = (startDate.getDay() + 6) % 7; // 0=Mon
+        startDate.setDate(startDate.getDate() - dow);
+
+        const countMap: Record<string, number> = {};
+        user.workoutDates90d!.forEach((d) => { countMap[d] = (countMap[d] ?? 0) + 1; });
+
+        for (let w = 0; w < 12; w++) {
+          const weekStart = new Date(startDate);
+          weekStart.setDate(weekStart.getDate() + w * 7);
+          const days = [];
+          for (let d = 0; d < 7; d++) {
+            const day = new Date(weekStart);
+            day.setDate(day.getDate() + d);
+            const key = day.toISOString().split('T')[0];
+            days.push({ date: key, count: countMap[key] ?? 0 });
+          }
+          const monthLabel = weekStart.toLocaleDateString('ru-RU', { month: 'short' });
+          weeks.push({ label: monthLabel, days });
+        }
+
+        const totalWorkouts = user.workoutDates90d!.length;
+        const activeWeeks = weeks.filter((w) => w.days.some((d) => d.count > 0)).length;
+
+        return (
+          <View style={styles.card}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.cardTitle}>Частота тренировок (90 дней)</Text>
+              <Text style={{ fontSize: 11, color: '#6B7280' }}>{totalWorkouts} тр · {activeWeeks}/12 нед</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 3 }}>
+              {weeks.map((week, wi) => (
+                <View key={wi} style={{ flex: 1, gap: 2 }}>
+                  {week.days.map((day, di) => {
+                    const isFuture = day.date > today.toISOString().split('T')[0];
+                    const bg = isFuture ? 'transparent' : day.count > 1 ? '#6366F1' : day.count === 1 ? '#6366F170' : '#1C1C1E';
+                    return (
+                      <View
+                        key={di}
+                        style={{
+                          aspectRatio: 1, borderRadius: 2,
+                          backgroundColor: bg,
+                          borderWidth: isFuture ? 0 : 0,
+                        }}
+                      />
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'center' }}>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: '#2C2C2E' }} />
+              <Text style={{ fontSize: 10, color: '#6B7280' }}>0</Text>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#6366F170' }} />
+              <Text style={{ fontSize: 10, color: '#6B7280' }}>1</Text>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#6366F1' }} />
+              <Text style={{ fontSize: 10, color: '#6B7280' }}>2+</Text>
+            </View>
+          </View>
+        );
+      })()}
+
       {/* Fitness info */}
       {(user.weightKg || user.heightCm || user.goal) && (
         <View style={styles.card}>
@@ -884,14 +954,14 @@ export default function AdminUserDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Лента активности (последние события)</Text>
             {top.map((ev, i) => (
-              <View key={ev.id} style={styles.timelineRow}>
-                <View style={[styles.timelineDot, { backgroundColor: ev.color + '30', borderColor: ev.color }]}>
+              <View key={ev.id} style={styles.evtRow}>
+                <View style={[styles.evtDot, { backgroundColor: ev.color + '30', borderColor: ev.color }]}>
                   <Text style={{ fontSize: 11 }}>{ev.icon}</Text>
                 </View>
-                {i < top.length - 1 && <View style={styles.timelineLine} />}
-                <View style={styles.timelineContent}>
-                  <Text style={styles.timelineLabel} numberOfLines={2}>{ev.label}</Text>
-                  <Text style={styles.timelineDate}>
+                {i < top.length - 1 && <View style={styles.evtLine} />}
+                <View style={styles.evtContent}>
+                  <Text style={styles.evtLabel} numberOfLines={2}>{ev.label}</Text>
+                  <Text style={styles.evtDate}>
                     {new Date(ev.date).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
@@ -1176,18 +1246,18 @@ const styles = StyleSheet.create({
   alertText: { fontSize: 12, fontWeight: '600', flex: 1 },
   alertActionBtn: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
 
-  // Activity Timeline
-  timelineRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 },
-  timelineDot: {
+  // Activity Timeline (event feed)
+  evtRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 },
+  evtDot: {
     width: 28, height: 28, borderRadius: 14, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  timelineLine: {
+  evtLine: {
     position: 'absolute', left: 13, top: 28, width: 2, height: 14, backgroundColor: '#2C2C2E',
   },
-  timelineContent: { flex: 1, paddingTop: 2 },
-  timelineLabel: { fontSize: 12, color: '#D1D5DB', lineHeight: 16 },
-  timelineDate: { fontSize: 10, color: '#6B7280', marginTop: 2 },
+  evtContent: { flex: 1, paddingTop: 2 },
+  evtLabel: { fontSize: 12, color: '#D1D5DB', lineHeight: 16 },
+  evtDate: { fontSize: 10, color: '#6B7280', marginTop: 2 },
 
   // AI Memories
   memGroup: { marginBottom: 12 },
