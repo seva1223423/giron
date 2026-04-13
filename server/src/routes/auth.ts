@@ -226,7 +226,7 @@ router.post('/check-phone', async (req: Request, res: Response) => {
   try {
     const { phone: rawPhone } = z.object({ phone: z.string().min(10) }).parse(req.body);
     const phone = normalizePhone(rawPhone);
-    const user = await prisma.user.findFirst({ where: { phone }, select: { id: true } });
+    const user = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
     res.json({ exists: !!user, phone });
   } catch {
     res.json({ exists: false });
@@ -401,7 +401,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
 
     await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
 
-    const user = await prisma.user.findFirst({ where: { phone }, include: { healthRestrictions: true } });
+    const user = await prisma.user.findUnique({ where: { phone }, include: { healthRestrictions: true } });
 
     if (!user) {
       return res.status(404).json({ error: 'Пользователь с таким номером не найден', code: 'PHONE_NOT_FOUND' });
@@ -438,7 +438,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
 
     // For phone-login and phone-reset: check that phone is registered
     if ((purpose === 'phone-login' || purpose === 'phone-reset') && phone) {
-      const exists = await prisma.user.findFirst({ where: { phone }, select: { id: true } });
+      const exists = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
       if (!exists) {
         return res.status(404).json({ error: 'Пользователь с таким номером не найден', code: 'PHONE_NOT_FOUND' });
       }
@@ -729,7 +729,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
 
-    const user = await prisma.user.findFirst({ where: { phone } });
+    const user = await prisma.user.findUnique({ where: { phone } });
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден', code: 'USER_NOT_FOUND' });
     }
