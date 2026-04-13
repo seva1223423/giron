@@ -83,6 +83,15 @@ export const authService = {
     await api.post('/auth/reset-password-by-phone', { phone, code, password });
   },
 
+  async verifyEmail(email: string, code: string): Promise<boolean> {
+    const { data } = await api.post<{ valid: boolean }>('/auth/verify-email', { email, code });
+    return data.valid;
+  },
+
+  async resendVerification(email: string): Promise<void> {
+    await api.post('/auth/resend-verification', { email });
+  },
+
   async logout(refreshToken?: string): Promise<void> {
     try {
       await api.post('/auth/logout', { refreshToken });

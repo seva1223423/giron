@@ -514,7 +514,7 @@ model OtpCode {
   phone     String?
   email     String?
   code      String
-  purpose   String   // "register", "login", "phone-login", "phone-reset"
+  purpose   String   // "register", "login", "phone-login", "phone-reset", "email-verify"
   used      Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
