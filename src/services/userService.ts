@@ -94,6 +94,10 @@ export const userService = {
     await api.delete('/user/trusted-devices');
   },
 
+  async unlinkProvider(provider: 'yandex' | 'vk' | 'google'): Promise<void> {
+    await api.delete(`/user/linked-accounts/${provider}`);
+  },
+
   async deleteAccount(password?: string): Promise<void> {
     await api.delete('/user/account', { data: { password } });
   },

@@ -82,6 +82,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const { dailyLog } = useNutritionStore();
 
   const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
+  const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
   const [resendingVerif, setResendingVerif] = useState(false);
   const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
   const [emailVerifCode, setEmailVerifCode] = useState('');
@@ -139,6 +140,31 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   }, [workoutHistory, dailyLog]);
 
   const unlockedAchievements = achievements.filter((a) => a.unlockedAt);
+
+  const handleUnlink = (provider: 'yandex' | 'vk' | 'google', label: string) => {
+    Alert.alert(
+      `Отвязать ${label}?`,
+      'Вы больше не сможете входить через этот аккаунт.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Отвязать',
+          style: 'destructive',
+          onPress: async () => {
+            setUnlinkingProvider(provider);
+            try {
+              await userService.unlinkProvider(provider);
+              await useAuthStore.getState().fetchProfile();
+            } catch (e: any) {
+              Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отвязать аккаунт');
+            } finally {
+              setUnlinkingProvider(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleLogout = () => {
     Alert.alert('Выйти из аккаунта?', '', [
@@ -494,6 +520,17 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               {user?.vkId ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
+          {user?.vkId && (
+            <TouchableOpacity
+              onPress={() => handleUnlink('vk', 'VK')}
+              disabled={unlinkingProvider === 'vk'}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
+                {unlinkingProvider === 'vk' ? '...' : 'Отвязать'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Linked social accounts — Yandex */}
@@ -507,6 +544,17 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               {user?.hasYandex ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
+          {user?.hasYandex && (
+            <TouchableOpacity
+              onPress={() => handleUnlink('yandex', 'Яндекс')}
+              disabled={unlinkingProvider === 'yandex'}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
+                {unlinkingProvider === 'yandex' ? '...' : 'Отвязать'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Change password */}

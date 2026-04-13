@@ -105,6 +105,8 @@ const totpRateLimiter = rateLimit({
 // Routes
 app.use('/api/auth/totp-verify', totpRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
+// Apply strict TOTP rate limiter to 2FA code-accepting user endpoints
+app.use('/api/user/2fa', totpRateLimiter);
 app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', workoutRouter);
 app.use('/api/nutrition', nutritionRouter);
