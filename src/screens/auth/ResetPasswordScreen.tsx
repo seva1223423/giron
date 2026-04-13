@@ -30,6 +30,9 @@ export const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({
       setError('Пароль минимум 8 символов');
       return;
     }
+    if (!/[A-Z]/.test(password)) { setError('Пароль должен содержать хотя бы одну заглавную букву'); return; }
+    if (!/[a-z]/.test(password)) { setError('Пароль должен содержать хотя бы одну строчную букву'); return; }
+    if (!/[0-9]/.test(password)) { setError('Пароль должен содержать хотя бы одну цифру'); return; }
     if (password !== confirmPassword) {
       setError('Пароли не совпадают');
       return;
