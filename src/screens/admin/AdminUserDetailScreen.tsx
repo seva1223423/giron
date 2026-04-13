@@ -1205,6 +1205,45 @@ export default function AdminUserDetailScreen() {
         <Text style={{ color: '#EF4444', fontSize: 20 }}>›</Text>
       </TouchableOpacity>
 
+      {/* Force disable 2FA */}
+      {user.totpEnabled && (
+        <TouchableOpacity
+          style={[styles.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+          onPress={() => {
+            Alert.alert(
+              'Отключить 2FA',
+              'Двухфакторная аутентификация пользователя будет отключена. Использовать только для восстановления доступа.',
+              [
+                { text: 'Отмена', style: 'cancel' },
+                {
+                  text: 'Отключить 2FA',
+                  style: 'destructive',
+                  onPress: async () => {
+                    if (busy) return;
+                    setBusy(true);
+                    try {
+                      await adminService.forceDisable2FA(userId);
+                      Alert.alert('Готово', 'Двухфакторная аутентификация отключена');
+                      setUser((u) => u ? { ...u, totpEnabled: false } : u);
+                    } catch {
+                      Alert.alert('Ошибка', 'Не удалось отключить 2FA');
+                    } finally {
+                      setBusy(false);
+                    }
+                  },
+                },
+              ],
+            );
+          }}
+        >
+          <View>
+            <Text style={[styles.cardTitle, { marginBottom: 2, color: '#FF9F0A' }]}>Отключить 2FA</Text>
+            <Text style={{ fontSize: 12, color: '#6B7280' }}>Для восстановления доступа пользователя</Text>
+          </View>
+          <Text style={{ color: '#FF9F0A', fontSize: 20 }}>›</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Ban / Delete actions */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Опасные действия</Text>

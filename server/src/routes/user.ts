@@ -9,6 +9,7 @@ import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
+import { sendPasswordChangedAlert } from '../services/emailService';
 
 const router = Router();
 
@@ -302,7 +303,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       newPassword: strongPassword,
     }).parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true } });
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true, email: true, emailVerified: true } });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
     // Social-only users don't have a password — they're creating one for the first time
@@ -326,6 +327,17 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
     await prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } });
 
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'PASSWORD_CHANGE', details: 'method=change_password' } });
+
+    // Send email security alert for password change
+    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? 'unknown';
+    if (user.email && user.emailVerified) {
+      sendPasswordChangedAlert(user.email, ip, new Date()).catch(() => {});
+    }
+    sendPushToUser(req.userId!, {
+      title: 'Пароль изменён',
+      body: 'Пароль вашего аккаунта был изменён. Если это не вы — обратитесь в поддержку.',
+      data: { url: 'irongym://profile/security' },
+    }).catch(() => {});
 
     res.json({ message: 'Пароль успешно изменён' });
   } catch (e: any) {
