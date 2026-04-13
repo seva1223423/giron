@@ -44,6 +44,7 @@ import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TrainerDashboardScreen } from '../screens/trainer/TrainerDashboardScreen';
 import { TrainerClientScreen } from '../screens/trainer/TrainerClientScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
+import { ChangePasswordScreen } from '../screens/profile/ChangePasswordScreen';
 import { CardioScreen } from '../screens/cardio/CardioScreen';
 import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
 import SupportScreen from '../screens/support/SupportScreen';
@@ -154,6 +155,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="TrainerDashboard" component={TrainerDashboardScreen} />
       <ProfileStack.Screen name="TrainerClient" component={TrainerClientScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+      <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ animation: 'slide_from_right' }} />
       {/* Support */}
       <ProfileStack.Screen name="NewsScreen" component={NewsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="SupportScreen" component={SupportScreen} options={{ title: 'Поддержка' }} />

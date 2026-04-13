@@ -53,4 +53,8 @@ export const userService = {
   async saveWeekPlan(plan: Record<number, any>): Promise<void> {
     await api.put('/user/week-plan', plan);
   },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await api.post('/user/change-password', { currentPassword, newPassword });
+  },
 };
