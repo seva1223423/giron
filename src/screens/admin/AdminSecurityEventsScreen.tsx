@@ -19,6 +19,7 @@ const ACTION_META: Record<string, { icon: string; label: string; color: string }
   TOTP_ENABLED:    { icon: 'A', label: '2FA включена', color: '#34C759' },
   TOTP_DISABLED:   { icon: 'A', label: '2FA отключена', color: '#FF9F0A' },
   EMAIL_CHANGED:   { icon: '@', label: 'Смена email', color: '#6366F1' },
+  ACCOUNT_UPDATED: { icon: 'U', label: 'Изменение аккаунта', color: '#6366F1' },
 };
 
 function getActionMeta(action: string) {
