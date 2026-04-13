@@ -89,8 +89,8 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       include: { healthRestrictions: true },
     });
 
-    const { passwordHash, ...profile } = user;
-    res.json(profile);
+    const { passwordHash, googleId, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
+    res.json({ ...safeProfile, hasGoogle: !!googleId, hasYandex: !!yandexId });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления профиля' });
