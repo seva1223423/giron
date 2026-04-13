@@ -409,7 +409,7 @@ router.get('/security-events', authenticate, async (req: AuthRequest, res: Respo
       where: { userId: req.userId! },
       orderBy: { createdAt: 'desc' },
       take: 30,
-      select: { id: true, action: true, ip: true, createdAt: true, details: true },
+      select: { id: true, action: true, ip: true, userAgent: true, createdAt: true, details: true },
     });
     res.json(events);
   } catch (e) {

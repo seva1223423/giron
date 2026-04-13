@@ -12,6 +12,7 @@ interface SecurityEvent {
   id: string;
   action: string;
   ip: string | null;
+  userAgent?: string | null;
   createdAt: string;
   details?: string | null;
 }
@@ -46,6 +47,20 @@ const DETAILS_LABELS: Record<string, string> = {
 function getDetailsLabel(details?: string | null): string {
   if (!details) return '';
   return DETAILS_LABELS[details] ?? details;
+}
+
+function parseDevice(ua?: string | null): string {
+  if (!ua) return '';
+  if (/iPhone/i.test(ua)) return 'iPhone';
+  if (/iPad/i.test(ua)) return 'iPad';
+  if (/Android/i.test(ua)) {
+    const model = ua.match(/Android[^;]*;\s*([^)]+)\)/)?.[1]?.trim();
+    return model ? `Android · ${model}` : 'Android';
+  }
+  if (/Expo/i.test(ua)) return 'Expo Go';
+  if (/okhttp/i.test(ua)) return 'Android';
+  if (/CFNetwork/i.test(ua)) return 'iOS';
+  return '';
 }
 
 function getActionMeta(action: string) {
@@ -123,8 +138,13 @@ export const SecurityEventsScreen: React.FC<{ navigation: any }> = ({ navigation
                 </Text>
                 <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
                   {formatDate(evt.createdAt)}
-                  {evt.ip ? `  ·  IP: ${evt.ip}` : ''}
+                  {evt.ip ? `  ·  ${evt.ip}` : ''}
                 </Text>
+                {(evt.action === 'SUSPICIOUS_LOGIN' || evt.action === 'LOGIN_SUCCESS') && parseDevice(evt.userAgent) ? (
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                    {parseDevice(evt.userAgent)}
+                  </Text>
+                ) : null}
               </View>
             </View>
           );
