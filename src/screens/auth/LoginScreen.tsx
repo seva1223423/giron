@@ -1,16 +1,87 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { useThemeStore, useAuthStore } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
+import { authService } from '../../services/authService';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_CLIENT_ID_WEB = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
+const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
+const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
+
+const googleConfigured = !!(GOOGLE_CLIENT_ID_WEB || GOOGLE_CLIENT_ID_IOS || GOOGLE_CLIENT_ID_ANDROID);
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithGoogle, isLoading, error, clearError } = useAuthStore();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
+  const [emailHint, setEmailHint] = useState(''); // e.g. "Используйте Google"
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: GOOGLE_CLIENT_ID_WEB,
+    iosClientId: GOOGLE_CLIENT_ID_IOS,
+    androidClientId: GOOGLE_CLIENT_ID_ANDROID,
+    scopes: ['openid', 'profile', 'email'],
+  });
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.authentication?.idToken;
+      if (idToken) {
+        setGoogleLoading(true);
+        loginWithGoogle(idToken)
+          .catch((e) => {
+            const msg = e?.response?.data?.error || e?.message || 'Ошибка входа через Google';
+            setLocalError(msg);
+          })
+          .finally(() => setGoogleLoading(false));
+      } else {
+        setLocalError('Не удалось получить токен от Google');
+      }
+    } else if (response?.type === 'error') {
+      setLocalError('Ошибка авторизации через Google');
+    }
+  }, [response]);
+
+  // Debounced email check
+  useEffect(() => {
+    if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current);
+    setEmailHint('');
+
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes('@') || !trimmed.includes('.')) return;
+
+    emailCheckTimer.current = setTimeout(async () => {
+      setEmailChecking(true);
+      try {
+        const result = await authService.checkEmail(trimmed);
+        if (!result.exists) {
+          setEmailHint('Email не зарегистрирован');
+        } else if (result.hasGoogle && !result.hasPassword) {
+          setEmailHint('Используйте вход через Google');
+        }
+      } finally {
+        setEmailChecking(false);
+      }
+    }, 600);
+
+    return () => {
+      if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current);
+    };
+  }, [email]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -20,13 +91,28 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setLocalError('');
     clearError();
     try {
-      await login(email, password);
-    } catch {
-      // Error is set in the store
+      await login(email.trim(), password);
+    } catch (e: any) {
+      const code = e?.response?.data?.code;
+      if (code === 'EMAIL_NOT_FOUND') setLocalError('Аккаунт с таким email не найден');
+      else if (code === 'GOOGLE_ONLY') setLocalError('Этот аккаунт создан через Google. Используйте «Войти через Google».');
+      else if (code === 'WRONG_PASSWORD') setLocalError('Неверный пароль');
+      else if (code === 'BANNED') setLocalError(e?.response?.data?.error || 'Аккаунт заблокирован');
     }
   };
 
+  const handleGooglePress = async () => {
+    if (!googleConfigured) {
+      setLocalError('Google OAuth не настроен');
+      return;
+    }
+    setLocalError('');
+    clearError();
+    await promptAsync();
+  };
+
   const displayError = localError || error;
+  const anyLoading = isLoading || googleLoading;
 
   return (
     <KeyboardAvoidingView
@@ -49,15 +135,25 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </View>
 
         <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="email@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={(t) => { setEmail(t); setLocalError(''); clearError(); }}
-            containerStyle={{ marginBottom: spacing.xl }}
-          />
+          <View style={{ marginBottom: spacing.xl }}>
+            <Input
+              label="Email"
+              placeholder="email@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={(t) => { setEmail(t); setLocalError(''); clearError(); setEmailHint(''); }}
+            />
+            {emailChecking && (
+              <ActivityIndicator size="small" color={colors.primary} style={{ position: 'absolute', right: 12, bottom: 12 }} />
+            )}
+            {emailHint ? (
+              <Text style={[typography.small, { color: colors.warning || '#FF9F0A', marginTop: spacing.xs }]}>
+                {emailHint}
+              </Text>
+            ) : null}
+          </View>
+
           <Input
             label="Пароль"
             placeholder="Введите пароль"
@@ -83,6 +179,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             title="Войти"
             onPress={handleLogin}
             loading={isLoading}
+            disabled={anyLoading}
             fullWidth
             size="lg"
           />
@@ -96,17 +193,19 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
 
           <TouchableOpacity
-            onPress={() => Alert.alert('Скоро', 'Авторизация через Google будет доступна в следующем обновлении.')}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.md }}
+            onPress={handleGooglePress}
+            disabled={anyLoading || !request}
+            style={[
+              { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.md },
+              (anyLoading || !request) && { opacity: 0.5 },
+            ]}
           >
-            <Text style={{ fontSize: 18, marginRight: spacing.sm }}>G</Text>
+            {googleLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
+            ) : (
+              <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
+            )}
             <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>Войти через Google</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => Alert.alert('Скоро', 'Авторизация через VK будет доступна в следующем обновлении.')}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, backgroundColor: '#0077FF' }}
-          >
-            <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Войти через VK</Text>
           </TouchableOpacity>
         </View>
 

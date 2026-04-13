@@ -25,7 +25,8 @@ interface AuthStore {
   setUser: (user: User) => void;
   setToken: (token: string) => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (params: { email: string; password: string; firstName: string; lastName?: string }) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
+  register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string }) => Promise<void>;
   logout: () => void;
   completeOnboarding: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -52,6 +53,24 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.login(email, password);
+          set({
+            user: normalizeUser(response.user),
+            token: response.token,
+            refreshToken: response.refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } catch (e) {
+          const apiError = getApiError(e);
+          set({ isLoading: false, error: apiError.message });
+          throw e;
+        }
+      },
+
+      loginWithGoogle: async (idToken) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authService.loginWithGoogle(idToken);
           set({
             user: normalizeUser(response.user),
             token: response.token,
