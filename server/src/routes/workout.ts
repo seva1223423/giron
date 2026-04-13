@@ -450,7 +450,7 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
 });
 
 // Get exercises database
-router.get('/exercises', async (_req, res: Response) => {
+router.get('/exercises', authenticate, async (_req, res: Response) => {
   try {
     const exercises = await prisma.exercise.findMany({
       orderBy: { name: 'asc' },
