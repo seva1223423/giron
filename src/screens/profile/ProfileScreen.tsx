@@ -298,14 +298,14 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       <Card style={{ marginBottom: spacing.xl }}>
         {/* Phone verification */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user as any)?.phoneVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
-            <Text style={{ fontSize: 15 }}>{(user as any)?.phoneVerified ? '✓' : '?'}</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.phoneVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 15 }}>{user?.phoneVerified ? '✓' : '?'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Телефон</Text>
-            <Text style={[typography.caption, { color: (user as any)?.phoneVerified ? '#34C759' : colors.textTertiary }]}>
+            <Text style={[typography.caption, { color: user?.phoneVerified ? '#34C759' : colors.textTertiary }]}>
               {user?.phone
-                ? ((user as any)?.phoneVerified ? `${user.phone} · подтверждён` : `${user.phone} · не подтверждён`)
+                ? (user?.phoneVerified ? `${user.phone} · подтверждён` : `${user.phone} · не подтверждён`)
                 : 'Не привязан'}
             </Text>
           </View>
@@ -313,14 +313,14 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Email verification */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user as any)?.emailVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
-            <Text style={{ fontSize: 15 }}>{(user as any)?.emailVerified ? '✓' : '@'}</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.emailVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Text style={{ fontSize: 15 }}>{user?.emailVerified ? '✓' : '@'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Email</Text>
-            <Text style={[typography.caption, { color: (user as any)?.emailVerified ? '#34C759' : colors.textTertiary }]}>
+            <Text style={[typography.caption, { color: user?.emailVerified ? '#34C759' : colors.textTertiary }]}>
               {user?.email}
-              {(user as any)?.emailVerified ? ' · подтверждён' : ' · не подтверждён'}
+              {user?.emailVerified ? ' · подтверждён' : ' · не подтверждён'}
             </Text>
           </View>
         </View>
@@ -333,7 +333,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>VK ID</Text>
             <Text style={[typography.caption, { color: colors.textTertiary }]}>
-              {(user as any)?.vkId ? 'Привязан' : 'Не привязан'}
+              {user?.vkId ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
         </View>
