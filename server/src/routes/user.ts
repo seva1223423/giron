@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -241,6 +242,44 @@ router.put('/week-plan', authenticate, async (req: AuthRequest, res: Response) =
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка сохранения недельного плана' });
+  }
+});
+
+// ── Change password ───────────────────────────────────────────────────────────
+
+router.post('/change-password', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = z.object({
+      currentPassword: z.string().min(1, 'Введите текущий пароль'),
+      newPassword: z.string().min(6, 'Новый пароль минимум 6 символов'),
+    }).parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { passwordHash: true } });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    // Social-only users don't have a password — they're creating one for the first time
+    if (user.passwordHash) {
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ error: 'Неверный текущий пароль', code: 'WRONG_CURRENT_PASSWORD' });
+      }
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({ where: { id: req.userId! }, data: { passwordHash: newHash } });
+
+    // Revoke all refresh tokens except the current session (force other devices to re-login)
+    // We don't have the current token here, so we revoke ALL — user stays logged in via access token
+    await prisma.refreshToken.updateMany({
+      where: { userId: req.userId!, revoked: false },
+      data: { revoked: true },
+    });
+
+    res.json({ message: 'Пароль успешно изменён' });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /user/change-password:', e);
+    res.status(500).json({ error: 'Ошибка изменения пароля' });
   }
 });
 
