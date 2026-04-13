@@ -26,8 +26,10 @@ interface AuthStore {
   setToken: (token: string) => void;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
+  loginByPhone: (phone: string, code: string) => Promise<void>;
   register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string }) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   completeOnboarding: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
   fetchProfile: () => Promise<void>;
@@ -71,13 +73,31 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithGoogle(idToken);
-          set({
-            user: normalizeUser(response.user),
-            token: response.token,
-            refreshToken: response.refreshToken,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+        } catch (e) {
+          const apiError = getApiError(e);
+          set({ isLoading: false, error: apiError.message });
+          throw e;
+        }
+      },
+
+      loginWithVk: async (params) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authService.loginWithVk(params);
+          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+        } catch (e) {
+          const apiError = getApiError(e);
+          set({ isLoading: false, error: apiError.message });
+          throw e;
+        }
+      },
+
+      loginByPhone: async (phone, code) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authService.loginByPhone(phone, code);
+          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
           const apiError = getApiError(e);
           set({ isLoading: false, error: apiError.message });
@@ -103,13 +123,12 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      logout: () => set({
-        user: null,
-        token: null,
-        refreshToken: null,
-        isAuthenticated: false,
-        error: null,
-      }),
+      logout: async () => {
+        const { refreshToken } = get();
+        // Revoke refresh token on server (non-blocking)
+        if (refreshToken) authService.logout(refreshToken).catch(() => {});
+        set({ user: null, token: null, refreshToken: null, isAuthenticated: false, error: null });
+      },
 
       completeOnboarding: () => set({ isOnboarded: true }),
 

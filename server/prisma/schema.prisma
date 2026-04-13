@@ -29,10 +29,17 @@ model User {
   gymId                   String?
   weekPlan                Json?
 
+  vkId                    String?   @unique
+  phoneVerified           Boolean   @default(false)
+
   isBanned                Boolean   @default(false)
   bannedAt                DateTime?
   banReason               String?
   adminNote               String?
+
+  // Login lockout (brute-force protection)
+  loginAttempts           Int       @default(0)
+  lockedUntil             DateTime?
 
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
@@ -58,6 +65,7 @@ model User {
 
   gym                     Gym?      @relation(fields: [gymId], references: [id])
   passwordResetTokens     PasswordResetToken[]
+  refreshTokens           RefreshToken[]
 }
 
 enum Gender {
@@ -506,11 +514,25 @@ model OtpCode {
   phone     String?
   email     String?
   code      String
-  purpose   String   // "register", "login"
+  purpose   String   // "register", "login", "phone-login"
   used      Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   @@index([phone])
   @@index([email])
+}
+
+// ==================== REFRESH TOKENS ====================
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
 }

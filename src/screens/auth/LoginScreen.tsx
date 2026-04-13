@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, TextInput,
+} from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { useThemeStore, useAuthStore } from '../../store';
@@ -13,21 +16,48 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_CLIENT_ID_WEB = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
 const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
 const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
-
 const googleConfigured = !!(GOOGLE_CLIENT_ID_WEB || GOOGLE_CLIENT_ID_IOS || GOOGLE_CLIENT_ID_ANDROID);
+
+type LoginTab = 'email' | 'phone';
+type PhoneStep = 'input' | 'otp';
+
+/** Format Russian phone to +7 (XXX) XXX-XX-XX display format */
+function formatPhoneDisplay(digits: string): string {
+  const d = digits.replace(/\D/g, '');
+  if (!d) return '';
+  const local = d.startsWith('7') || d.startsWith('8') ? d.slice(1) : d;
+  let result = '+7';
+  if (local.length > 0) result += ' (' + local.slice(0, 3);
+  if (local.length >= 3) result += ') ' + local.slice(3, 6);
+  if (local.length >= 6) result += '-' + local.slice(6, 8);
+  if (local.length >= 8) result += '-' + local.slice(8, 10);
+  return result;
+}
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { login, loginWithGoogle, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithGoogle, loginByPhone, isLoading, error, clearError } = useAuthStore();
 
+  const [tab, setTab] = useState<LoginTab>('email');
+
+  // Email tab state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [localError, setLocalError] = useState('');
-  const [emailHint, setEmailHint] = useState(''); // e.g. "Используйте Google"
+  const [emailHint, setEmailHint] = useState('');
   const [emailChecking, setEmailChecking] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-
   const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Phone tab state
+  const [phoneRaw, setPhoneRaw] = useState('');
+  const [phoneStep, setPhoneStep] = useState<PhoneStep>('input');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Shared
+  const [localError, setLocalError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: GOOGLE_CLIENT_ID_WEB,
@@ -36,17 +66,14 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     scopes: ['openid', 'profile', 'email'],
   });
 
-  // Handle Google OAuth response
+  // Google OAuth response handler
   useEffect(() => {
     if (response?.type === 'success') {
       const idToken = response.authentication?.idToken;
       if (idToken) {
         setGoogleLoading(true);
         loginWithGoogle(idToken)
-          .catch((e) => {
-            const msg = e?.response?.data?.error || e?.message || 'Ошибка входа через Google';
-            setLocalError(msg);
-          })
+          .catch((e) => setLocalError(e?.response?.data?.error || 'Ошибка входа через Google'))
           .finally(() => setGoogleLoading(false));
       } else {
         setLocalError('Не удалось получить токен от Google');
@@ -56,74 +83,122 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   }, [response]);
 
+  // Countdown timer cleanup
+  useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
+
   // Debounced email check
   useEffect(() => {
     if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current);
     setEmailHint('');
-
     const trimmed = email.trim();
-    if (!trimmed || !trimmed.includes('@') || !trimmed.includes('.')) return;
+    if (!trimmed.includes('@') || !trimmed.includes('.')) return;
 
     emailCheckTimer.current = setTimeout(async () => {
       setEmailChecking(true);
       try {
         const result = await authService.checkEmail(trimmed);
-        if (!result.exists) {
-          setEmailHint('Email не зарегистрирован');
-        } else if (result.hasGoogle && !result.hasPassword) {
-          setEmailHint('Используйте вход через Google');
-        }
+        if (!result.exists) setEmailHint('Email не зарегистрирован');
+        else if (!result.hasPassword && (result.hasGoogle || result.hasVk))
+          setEmailHint('Используйте вход через соцсеть');
       } finally {
         setEmailChecking(false);
       }
     }, 600);
-
-    return () => {
-      if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current);
-    };
+    return () => { if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current); };
   }, [email]);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setLocalError('Заполните все поля');
-      return;
-    }
-    setLocalError('');
-    clearError();
+  const startCountdown = (seconds = 60) => {
+    setOtpCountdown(seconds);
+    countdownRef.current = setInterval(() => {
+      setOtpCountdown((v) => {
+        if (v <= 1) { if (countdownRef.current) clearInterval(countdownRef.current); return 0; }
+        return v - 1;
+      });
+    }, 1000);
+  };
+
+  const clearErrors = () => { setLocalError(''); clearError(); };
+
+  // ── Email login ─────────────────────────────────────────────────────────────
+
+  const handleEmailLogin = async () => {
+    if (!email || !password) { setLocalError('Заполните все поля'); return; }
+    clearErrors();
     try {
       await login(email.trim(), password);
     } catch (e: any) {
       const code = e?.response?.data?.code;
+      const serverMsg = e?.response?.data?.error;
       if (code === 'EMAIL_NOT_FOUND') setLocalError('Аккаунт с таким email не найден');
-      else if (code === 'GOOGLE_ONLY') setLocalError('Этот аккаунт создан через Google. Используйте «Войти через Google».');
-      else if (code === 'WRONG_PASSWORD') setLocalError('Неверный пароль');
-      else if (code === 'BANNED') setLocalError(e?.response?.data?.error || 'Аккаунт заблокирован');
+      else if (code === 'SOCIAL_ONLY') setLocalError('Войдите через Google или VK');
+      else if (code === 'WRONG_PASSWORD') setLocalError(serverMsg || 'Неверный пароль');
+      else if (code === 'ACCOUNT_LOCKED') setLocalError(serverMsg || 'Аккаунт временно заблокирован');
+      else if (code === 'BANNED') setLocalError(serverMsg || 'Аккаунт заблокирован');
+    }
+  };
+
+  // ── Phone login ─────────────────────────────────────────────────────────────
+
+  const handleSendPhoneOtp = async () => {
+    if (phoneRaw.replace(/\D/g, '').length < 10) { setLocalError('Введите корректный номер телефона'); return; }
+    clearErrors();
+    setOtpSending(true);
+    try {
+      await authService.sendOtp({ phone: phoneRaw, purpose: 'phone-login' });
+      setPhoneStep('otp');
+      startCountdown();
+    } catch (e: any) {
+      const code = e?.response?.data?.code;
+      if (code === 'PHONE_NOT_FOUND') setLocalError('Номер не зарегистрирован. Пройдите регистрацию.');
+      else setLocalError(e?.response?.data?.error || 'Не удалось отправить SMS');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handlePhoneOtpLogin = async () => {
+    if (otpCode.length !== 6) { setLocalError('Введите 6-значный код'); return; }
+    clearErrors();
+    try {
+      await loginByPhone(phoneRaw, otpCode);
+    } catch (e: any) {
+      setLocalError(e?.response?.data?.error || 'Неверный код');
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpCountdown > 0) return;
+    clearErrors();
+    setOtpSending(true);
+    try {
+      await authService.sendOtp({ phone: phoneRaw, purpose: 'phone-login' });
+      startCountdown();
+    } catch (e: any) {
+      setLocalError(e?.response?.data?.error || 'Не удалось отправить SMS');
+    } finally {
+      setOtpSending(false);
     }
   };
 
   const handleGooglePress = async () => {
-    if (!googleConfigured) {
-      setLocalError('Google OAuth не настроен');
-      return;
-    }
-    setLocalError('');
-    clearError();
+    if (!googleConfigured) { setLocalError('Google OAuth не настроен'); return; }
+    clearErrors();
     await promptAsync();
   };
 
   const displayError = localError || error;
-  const anyLoading = isLoading || googleLoading;
+  const anyLoading = isLoading || googleLoading || otpSending;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+        {/* Logo */}
         <View style={styles.header}>
           <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md }}>
             <Text style={{ fontSize: 24, fontWeight: '800', color: '#FFF' }}>IG</Text>
@@ -134,89 +209,173 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
         </View>
 
-        <View style={styles.form}>
-          <View style={{ marginBottom: spacing.xl }}>
-            <Input
-              label="Email"
-              placeholder="email@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={(t) => { setEmail(t); setLocalError(''); clearError(); setEmailHint(''); }}
-            />
-            {emailChecking && (
-              <ActivityIndicator size="small" color={colors.primary} style={{ position: 'absolute', right: 12, bottom: 12 }} />
-            )}
-            {emailHint ? (
-              <Text style={[typography.small, { color: colors.warning || '#FF9F0A', marginTop: spacing.xs }]}>
-                {emailHint}
+        {/* Tabs */}
+        <View style={[styles.tabRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {(['email', 'phone'] as LoginTab[]).map((t) => (
+            <TouchableOpacity
+              key={t}
+              onPress={() => { setTab(t); clearErrors(); setPhoneStep('input'); setOtpCode(''); }}
+              style={[styles.tabBtn, tab === t && { backgroundColor: colors.primary }]}
+            >
+              <Text style={[typography.smallMedium, { color: tab === t ? '#FFF' : colors.textSecondary }]}>
+                {t === 'email' ? 'Email' : 'Телефон'}
               </Text>
-            ) : null}
-          </View>
-
-          <Input
-            label="Пароль"
-            placeholder="Введите пароль"
-            secureTextEntry
-            value={password}
-            onChangeText={(t) => { setPassword(t); setLocalError(''); clearError(); }}
-            containerStyle={{ marginBottom: spacing.md }}
-          />
-
-          {displayError ? (
-            <Text style={[typography.small, { color: colors.error, marginBottom: spacing.md }]}>
-              {displayError}
-            </Text>
-          ) : null}
-
-          <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: spacing.xxl }} onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={[typography.smallMedium, { color: colors.primary }]}>
-              Забыли пароль?
-            </Text>
-          </TouchableOpacity>
-
-          <Button
-            title="Войти"
-            onPress={handleLogin}
-            loading={isLoading}
-            disabled={anyLoading}
-            fullWidth
-            size="lg"
-          />
-
-          <View style={styles.divider}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[typography.small, { color: colors.textTertiary, marginHorizontal: spacing.lg }]}>
-              или
-            </Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          </View>
-
-          <TouchableOpacity
-            onPress={handleGooglePress}
-            disabled={anyLoading || !request}
-            style={[
-              { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.md },
-              (anyLoading || !request) && { opacity: 0.5 },
-            ]}
-          >
-            {googleLoading ? (
-              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
-            ) : (
-              <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
-            )}
-            <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>Войти через Google</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <View style={styles.footer}>
-          <Text style={[typography.body, { color: colors.textSecondary }]} numberOfLines={1}>
-            Нет аккаунта?{' '}
-          </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={[typography.bodySemibold, { color: colors.primary }]} numberOfLines={1}>
-              Зарегистрируйся
+        {/* ── Email Tab ── */}
+        {tab === 'email' && (
+          <View style={styles.form}>
+            <View style={{ marginBottom: spacing.xl }}>
+              <Input
+                label="Email"
+                placeholder="email@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={(t) => { setEmail(t); setLocalError(''); clearError(); setEmailHint(''); }}
+              />
+              {emailChecking && (
+                <ActivityIndicator size="small" color={colors.primary} style={{ position: 'absolute', right: 12, bottom: 12 }} />
+              )}
+              {emailHint ? (
+                <Text style={[typography.small, { color: '#FF9F0A', marginTop: 4 }]}>{emailHint}</Text>
+              ) : null}
+            </View>
+
+            <Input
+              label="Пароль"
+              placeholder="Введите пароль"
+              secureTextEntry
+              value={password}
+              onChangeText={(t) => { setPassword(t); setLocalError(''); clearError(); }}
+              containerStyle={{ marginBottom: spacing.md }}
+            />
+
+            {displayError ? <Text style={[typography.small, { color: colors.error, marginBottom: spacing.md }]}>{displayError}</Text> : null}
+
+            <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: spacing.xxl }} onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={[typography.smallMedium, { color: colors.primary }]}>Забыли пароль?</Text>
+            </TouchableOpacity>
+
+            <Button title="Войти" onPress={handleEmailLogin} loading={isLoading} disabled={anyLoading} fullWidth size="lg" />
+          </View>
+        )}
+
+        {/* ── Phone Tab ── */}
+        {tab === 'phone' && phoneStep === 'input' && (
+          <View style={styles.form}>
+            <View style={[styles.phoneInputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[typography.body, { color: colors.textSecondary, marginRight: 8, fontWeight: '600' }]}>🇷🇺</Text>
+              <TextInput
+                style={[styles.phoneInput, { color: colors.text }]}
+                value={formatPhoneDisplay(phoneRaw)}
+                onChangeText={(t) => {
+                  const digits = t.replace(/\D/g, '');
+                  const local = digits.startsWith('7') || digits.startsWith('8') ? digits.slice(1) : digits;
+                  setPhoneRaw(local.slice(0, 10));
+                  clearErrors();
+                }}
+                keyboardType="phone-pad"
+                placeholder="+7 (999) 000-00-00"
+                placeholderTextColor={colors.textTertiary}
+                autoFocus
+              />
+            </View>
+            <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 6, marginBottom: spacing.xl }]}>
+              Мы отправим SMS с кодом подтверждения
             </Text>
+
+            {displayError ? <Text style={[typography.small, { color: colors.error, marginBottom: spacing.md }]}>{displayError}</Text> : null}
+
+            <Button
+              title="Получить код"
+              onPress={handleSendPhoneOtp}
+              loading={otpSending}
+              disabled={anyLoading || phoneRaw.length < 10}
+              fullWidth size="lg"
+            />
+          </View>
+        )}
+
+        {tab === 'phone' && phoneStep === 'otp' && (
+          <View style={styles.form}>
+            <TouchableOpacity onPress={() => { setPhoneStep('input'); setOtpCode(''); clearErrors(); }} style={{ alignSelf: 'flex-start', marginBottom: spacing.lg }}>
+              <Text style={[typography.small, { color: colors.primary }]}>← Изменить номер</Text>
+            </TouchableOpacity>
+            <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.lg, textAlign: 'center' }]}>
+              Код отправлен на{'\n'}
+              <Text style={{ color: colors.text, fontWeight: '700' }}>{formatPhoneDisplay(phoneRaw)}</Text>
+            </Text>
+
+            <TextInput
+              style={[styles.otpInput, { backgroundColor: colors.surface, borderColor: otpCode.length === 6 ? colors.primary : colors.border, color: colors.text }]}
+              value={otpCode}
+              onChangeText={(t) => { setOtpCode(t.replace(/\D/g, '').slice(0, 6)); clearErrors(); }}
+              keyboardType="number-pad"
+              maxLength={6}
+              placeholder="——————"
+              placeholderTextColor={colors.textTertiary}
+              autoFocus
+            />
+
+            {displayError ? <Text style={[typography.small, { color: colors.error, textAlign: 'center', marginBottom: spacing.md }]}>{displayError}</Text> : null}
+
+            <Button
+              title="Войти"
+              onPress={handlePhoneOtpLogin}
+              loading={isLoading}
+              disabled={anyLoading || otpCode.length !== 6}
+              fullWidth size="lg" style={{ marginBottom: spacing.md }}
+            />
+
+            <TouchableOpacity onPress={handleResendOtp} disabled={otpCountdown > 0 || otpSending} style={{ alignItems: 'center', padding: spacing.sm }}>
+              {otpSending
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Text style={[typography.small, { color: otpCountdown > 0 ? colors.textTertiary : colors.primary }]}>
+                    {otpCountdown > 0 ? `Отправить снова (${otpCountdown}с)` : 'Отправить код повторно'}
+                  </Text>
+              }
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Social auth */}
+        {phoneStep === 'input' && (
+          <>
+            <View style={styles.divider}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[typography.small, { color: colors.textTertiary, marginHorizontal: spacing.lg }]}>или</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            </View>
+
+            <TouchableOpacity
+              onPress={handleGooglePress}
+              disabled={anyLoading || !request}
+              style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.surface }, (anyLoading || !request) && { opacity: 0.5 }]}
+            >
+              {googleLoading
+                ? <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
+                : <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
+              }
+              <Text style={[typography.bodySemibold, { color: colors.text }]}>Войти через Google</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setLocalError('Укажите VK_APP_ID в настройках сервера')}
+              style={[styles.socialBtn, { backgroundColor: '#0077FF', marginTop: spacing.sm, borderColor: '#0077FF' }]}
+            >
+              <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ВК</Text>
+              <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Войти через VK</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        <View style={styles.footer}>
+          <Text style={[typography.body, { color: colors.textSecondary }]}>Нет аккаунта? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <Text style={[typography.bodySemibold, { color: colors.primary }]}>Зарегистрируйся</Text>
           </TouchableOpacity>
         </View>
         <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.xl }]}>v1.0.0</Text>
@@ -228,17 +387,31 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.xxl, paddingVertical: spacing.xxl },
-  header: { alignItems: 'center', marginBottom: spacing.huge },
+  header: { alignItems: 'center', marginBottom: spacing.xl },
+  tabRow: {
+    flexDirection: 'row', borderRadius: 12, borderWidth: 1,
+    padding: 4, marginBottom: spacing.xl,
+  },
+  tabBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+  },
   form: {},
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: spacing.xxl,
+  phoneInputWrapper: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: 14,
   },
+  phoneInput: { flex: 1, fontSize: 17, fontWeight: '500' },
+  otpInput: {
+    fontSize: 32, fontWeight: '700', letterSpacing: 12, textAlign: 'center',
+    borderWidth: 2, borderRadius: 16, paddingHorizontal: spacing.xl, paddingVertical: spacing.lg,
+    marginVertical: spacing.xl, alignSelf: 'center', width: 240,
+  },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl },
   dividerLine: { flex: 1, height: 1 },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: spacing.xxxl,
+  socialBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 14, borderRadius: 12, borderWidth: 1,
   },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xxxl },
 });

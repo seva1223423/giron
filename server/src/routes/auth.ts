@@ -7,7 +7,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { sendPasswordResetEmail, sendOtpEmail } from '../services/emailService';
-import { sendSmsOtp } from '../services/smsService';
+import { sendSmsOtp, normalizePhone } from '../services/smsService';
 
 const router = Router();
 
@@ -19,14 +19,20 @@ const GOOGLE_CLIENT_IDS = [
 
 const googleClient = new OAuth2Client();
 
-function signTokens(userId: string) {
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
+
+async function signTokens(userId: string) {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-  const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d' });
-  return { token, refreshToken };
+  const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d' });
+  await prisma.refreshToken.create({
+    data: { token: rawRefresh, userId, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+  });
+  return { token, refreshToken: rawRefresh };
 }
 
 function safeUser(user: any) {
-  const { passwordHash, googleId, ...rest } = user;
+  const { passwordHash, googleId, vkId, ...rest } = user;
   return rest;
 }
 
@@ -57,17 +63,13 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
     }
 
-    // If phone is provided, validate OTP token
+    const phone = data.phone ? normalizePhone(data.phone) : undefined;
+
+    // Validate OTP if phone provided
     let phoneVerified = false;
-    if (data.phone && data.otpToken) {
+    if (phone && data.otpToken) {
       const otp = await prisma.otpCode.findFirst({
-        where: {
-          phone: data.phone,
-          code: data.otpToken, // otpToken acts as the verified OTP code
-          purpose: 'register',
-          used: false,
-          expiresAt: { gte: new Date() },
-        },
+        where: { phone, code: data.otpToken, purpose: 'register', used: false, expiresAt: { gte: new Date() } },
       });
       if (otp) {
         await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
@@ -82,23 +84,19 @@ router.post('/register', async (req: Request, res: Response) => {
         passwordHash,
         firstName: data.firstName,
         lastName: data.lastName,
-        phone: data.phone,
+        phone,
+        phoneVerified,
         emailVerified: false,
       },
     });
 
-    const { token, refreshToken } = signTokens(user.id);
+    const { token, refreshToken } = await signTokens(user.id);
 
     res.status(201).json({
       user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        phone: user.phone,
-        emailVerified: user.emailVerified,
-        createdAt: user.createdAt,
+        id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName,
+        role: user.role, phone: user.phone, emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified, createdAt: user.createdAt,
       },
       token,
       refreshToken,
@@ -131,18 +129,52 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user.banReason });
     }
 
-    // Google-only user trying to login with password
+    // Check lockout
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({
+        error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`,
+        code: 'ACCOUNT_LOCKED',
+        lockedUntil: user.lockedUntil,
+      });
+    }
+
+    // Social-only user
     if (!user.passwordHash) {
-      return res.status(401).json({ error: 'Этот аккаунт создан через Google. Используйте «Войти через Google».', code: 'GOOGLE_ONLY' });
+      return res.status(401).json({
+        error: 'Этот аккаунт создан через соцсеть. Войдите через Google или VK.',
+        code: 'SOCIAL_ONLY',
+      });
     }
 
     const valid = await bcrypt.compare(data.password, user.passwordHash);
     if (!valid) {
-      return res.status(401).json({ error: 'Неверный пароль', code: 'WRONG_PASSWORD' });
+      const attempts = user.loginAttempts + 1;
+      const shouldLock = attempts >= MAX_LOGIN_ATTEMPTS;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          loginAttempts: attempts,
+          ...(shouldLock ? { lockedUntil: new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) } : {}),
+        },
+      });
+      const attemptsLeft = Math.max(0, MAX_LOGIN_ATTEMPTS - attempts);
+      return res.status(401).json({
+        error: shouldLock
+          ? `Слишком много попыток. Аккаунт заблокирован на ${LOCKOUT_MINUTES} мин.`
+          : `Неверный пароль. Осталось попыток: ${attemptsLeft}`,
+        code: 'WRONG_PASSWORD',
+        attemptsLeft,
+      });
     }
 
-    const { token, refreshToken } = signTokens(user.id);
-    const { passwordHash, googleId, ...userWithoutSecrets } = user as any;
+    // Reset lockout on success
+    if (user.loginAttempts > 0 || user.lockedUntil) {
+      await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null } });
+    }
+
+    const { token, refreshToken } = await signTokens(user.id);
+    const { passwordHash, googleId, vkId, ...userWithoutSecrets } = user as any;
     res.json({ user: userWithoutSecrets, token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) {
@@ -155,17 +187,33 @@ router.post('/login', async (req: Request, res: Response) => {
 
 // ── Check email ───────────────────────────────────────────────────────────────
 
-/** POST /auth/check-email — returns whether an email is registered */
+/** POST /auth/check-email — returns auth methods available for an email */
 router.post('/check-email', async (req: Request, res: Response) => {
   try {
     const { email } = z.object({ email: z.string().email() }).parse(req.body);
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, googleId: true, passwordHash: true } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, googleId: true, passwordHash: true, vkId: true },
+    });
     if (!user) return res.json({ exists: false });
     res.json({
       exists: true,
       hasPassword: !!user.passwordHash,
       hasGoogle: !!user.googleId,
+      hasVk: !!(user as any).vkId,
     });
+  } catch {
+    res.json({ exists: false });
+  }
+});
+
+/** POST /auth/check-phone — check if phone is registered */
+router.post('/check-phone', async (req: Request, res: Response) => {
+  try {
+    const { phone: rawPhone } = z.object({ phone: z.string().min(10) }).parse(req.body);
+    const phone = normalizePhone(rawPhone);
+    const user = await prisma.user.findFirst({ where: { phone }, select: { id: true } });
+    res.json({ exists: !!user, phone });
   } catch {
     res.json({ exists: false });
   }
@@ -238,7 +286,7 @@ router.post('/google', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user!.banReason });
     }
 
-    const { token, refreshToken } = signTokens(user!.id);
+    const { token, refreshToken } = await signTokens(user!.id);
     res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -247,16 +295,140 @@ router.post('/google', async (req: Request, res: Response) => {
   }
 });
 
+// ── VK Auth ───────────────────────────────────────────────────────────────────
+
+router.post('/vk', async (req: Request, res: Response) => {
+  try {
+    const { accessToken, userId: vkUserId, email: vkEmail } = z.object({
+      accessToken: z.string().min(1),
+      userId: z.number().int().positive(),
+      email: z.string().email().optional(),
+    }).parse(req.body);
+
+    if (!process.env.VK_APP_ID) {
+      return res.status(503).json({ error: 'VK OAuth не настроен на сервере' });
+    }
+
+    let vkUser: any;
+    try {
+      const params = new URLSearchParams({
+        user_ids: String(vkUserId),
+        fields: 'photo_200',
+        access_token: accessToken,
+        v: '5.199',
+      });
+      const resp = await fetch(`https://api.vk.com/method/users.get?${params}`);
+      const data = await resp.json() as any;
+      if (data.error) throw new Error(data.error.error_msg);
+      vkUser = data.response?.[0];
+    } catch (e: any) {
+      return res.status(401).json({ error: 'Не удалось получить данные из VK: ' + e.message });
+    }
+
+    if (!vkUser) return res.status(401).json({ error: 'Пользователь VK не найден' });
+
+    const vkId = String(vkUserId);
+    const firstName = vkUser.first_name || 'Пользователь';
+    const lastName = vkUser.last_name || undefined;
+    const avatarUrl = vkUser.photo_200 || undefined;
+
+    let user = await prisma.user.findFirst({
+      where: { OR: [{ vkId }, ...(vkEmail ? [{ email: vkEmail }] : [])] },
+      include: { healthRestrictions: true },
+    });
+
+    if (user) {
+      if (!user.vkId) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { vkId, avatarUrl: avatarUrl || user.avatarUrl || undefined },
+          include: { healthRestrictions: true },
+        }) as any;
+      }
+    } else {
+      const email = vkEmail || `vk_${vkId}@irongym.internal`;
+      user = await prisma.user.create({
+        data: { email, vkId, firstName, lastName, avatarUrl, emailVerified: !!vkEmail },
+        include: { healthRestrictions: true },
+      }) as any;
+    }
+
+    if (user!.isBanned) {
+      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user!.banReason });
+    }
+
+    const { token, refreshToken } = await signTokens(user!.id);
+    res.json({ user: safeUser(user), token, refreshToken });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /auth/vk:', e);
+    res.status(500).json({ error: 'Ошибка авторизации через VK' });
+  }
+});
+
+// ── Login by phone (OTP) ──────────────────────────────────────────────────────
+
+router.post('/login-by-phone', async (req: Request, res: Response) => {
+  try {
+    const { phone: rawPhone, code } = z.object({
+      phone: z.string().min(10, 'Введите номер телефона'),
+      code: z.string().length(6, 'Код должен быть 6 цифр'),
+    }).parse(req.body);
+
+    const phone = normalizePhone(rawPhone);
+
+    const otp = await prisma.otpCode.findFirst({
+      where: { phone, code, purpose: 'phone-login', used: false, expiresAt: { gte: new Date() } },
+    });
+
+    if (!otp) {
+      return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
+    }
+
+    await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+
+    const user = await prisma.user.findFirst({ where: { phone }, include: { healthRestrictions: true } });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь с таким номером не найден', code: 'PHONE_NOT_FOUND' });
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user.banReason });
+    }
+
+    await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true, loginAttempts: 0, lockedUntil: null } });
+
+    const { token, refreshToken } = await signTokens(user.id);
+    const { passwordHash, googleId, vkId, ...rest } = user as any;
+    res.json({ user: rest, token, refreshToken });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка входа по телефону' });
+  }
+});
+
 // ── OTP — send code ───────────────────────────────────────────────────────────
 
 /** POST /auth/send-otp — send 6-digit OTP via SMS (phone) or email */
 router.post('/send-otp', async (req: Request, res: Response) => {
   try {
-    const { phone, email, purpose } = z.object({
+    const { phone: rawPhone, email, purpose } = z.object({
       phone: z.string().optional(),
       email: z.string().email().optional(),
-      purpose: z.enum(['register', 'login']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
+
+    const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
+
+    // For phone-login: check that phone is registered
+    if (purpose === 'phone-login' && phone) {
+      const exists = await prisma.user.findFirst({ where: { phone }, select: { id: true } });
+      if (!exists) {
+        return res.status(404).json({ error: 'Пользователь с таким номером не найден', code: 'PHONE_NOT_FOUND' });
+      }
+    }
 
     // Rate limit: max 3 active OTPs in last 10 minutes per phone/email
     const since = new Date(Date.now() - 10 * 60 * 1000);
@@ -304,23 +476,22 @@ router.post('/send-otp', async (req: Request, res: Response) => {
 
 // ── OTP — verify code ─────────────────────────────────────────────────────────
 
-/** POST /auth/verify-otp — verify OTP and mark it used */
+/** POST /auth/verify-otp — verify OTP. For 'register' purpose, keeps OTP alive for /register to consume. */
 router.post('/verify-otp', async (req: Request, res: Response) => {
   try {
-    const { phone, email, code, purpose } = z.object({
+    const { phone: rawPhone, email, code, purpose } = z.object({
       phone: z.string().optional(),
       email: z.string().email().optional(),
       code: z.string().length(6),
-      purpose: z.enum(['register', 'login']).default('register'),
+      purpose: z.enum(['register', 'login', 'phone-login']).default('register'),
     }).parse(req.body);
+
+    const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
 
     const otp = await prisma.otpCode.findFirst({
       where: {
         ...(phone ? { phone } : { email }),
-        code,
-        purpose,
-        used: false,
-        expiresAt: { gte: new Date() },
+        code, purpose, used: false, expiresAt: { gte: new Date() },
       },
     });
 
@@ -328,8 +499,11 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
-    // Mark as used
-    await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+    // For 'register': leave OTP intact — /register will consume it
+    // For all other purposes: mark used now
+    if (purpose !== 'register') {
+      await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+    }
 
     res.json({ valid: true, message: 'Код подтверждён' });
   } catch (e: any) {
@@ -343,21 +517,45 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
-    if (!refreshToken) {
-      return res.status(400).json({ error: 'Refresh token обязателен' });
+    if (!refreshToken) return res.status(400).json({ error: 'Refresh token обязателен' });
+
+    let payload: { userId: string };
+    try {
+      payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { userId: string };
+    } catch {
+      return res.status(401).json({ error: 'Недействительный refresh token' });
     }
 
-    const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { userId: string };
-
-    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true } });
-    if (!user) {
-      return res.status(401).json({ error: 'Пользователь не найден' });
+    // Check DB: token must exist and not be revoked
+    const dbToken = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
+    if (!dbToken || dbToken.revoked || dbToken.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Refresh token отозван или истёк' });
     }
 
-    const { token, refreshToken: newRefreshToken } = signTokens(payload.userId);
+    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, isBanned: true } });
+    if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
+    if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован' });
+
+    // Rotate: revoke old token, issue new
+    await prisma.refreshToken.update({ where: { id: dbToken.id }, data: { revoked: true } });
+    const { token, refreshToken: newRefreshToken } = await signTokens(payload.userId);
     res.json({ token, refreshToken: newRefreshToken });
   } catch {
     res.status(401).json({ error: 'Недействительный refresh token' });
+  }
+});
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+
+router.post('/logout', async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      await prisma.refreshToken.updateMany({ where: { token: refreshToken, revoked: false }, data: { revoked: true } });
+    }
+    res.json({ message: 'Выход выполнен' });
+  } catch {
+    res.json({ message: 'Выход выполнен' });
   }
 });
 
