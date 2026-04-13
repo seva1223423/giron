@@ -2101,4 +2101,20 @@ router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response
   }
 });
 
+/** GET /admin/users/:id/security-events — user's security event log */
+router.get('/users/:id/security-events', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const events = await prisma.securityEvent.findMany({
+      where: { userId: req.params.id as string },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: { id: true, action: true, ip: true, userAgent: true, details: true, createdAt: true },
+    });
+    res.json(events);
+  } catch (e) {
+    logger.error('GET /admin/users/:id/security-events:', e);
+    res.status(500).json({ error: 'Ошибка загрузки событий безопасности' });
+  }
+});
+
 export { router as adminRouter };

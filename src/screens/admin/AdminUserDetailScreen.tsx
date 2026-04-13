@@ -1116,6 +1116,18 @@ export default function AdminUserDetailScreen() {
         )}
       </View>
 
+      {/* Security events quick-link */}
+      <TouchableOpacity
+        style={[styles.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+        onPress={() => navigation.navigate('AdminSecurityEventsScreen', { userId })}
+      >
+        <View>
+          <Text style={[styles.cardTitle, { marginBottom: 2 }]}>События безопасности</Text>
+          <Text style={{ fontSize: 12, color: '#6B7280' }}>Входы, смены пароля, OTP-атаки</Text>
+        </View>
+        <Text style={{ color: '#9CA3AF', fontSize: 20 }}>›</Text>
+      </TouchableOpacity>
+
       {/* Message user */}
       <TouchableOpacity style={styles.msgUserBtn} onPress={() => setShowMsgModal(true)}>
         <Text style={styles.msgUserBtnText}>💬 Написать пользователю</Text>

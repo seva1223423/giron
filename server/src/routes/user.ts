@@ -323,6 +323,24 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
   }
 });
 
+// ── Security events (user's own log) ─────────────────────────────────────────
+
+/** GET /user/security-events — last 30 security events for the authenticated user */
+router.get('/security-events', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const events = await prisma.securityEvent.findMany({
+      where: { userId: req.userId! },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      select: { id: true, action: true, ip: true, createdAt: true },
+    });
+    res.json(events);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка загрузки событий безопасности' });
+  }
+});
+
 // ── Has password ──────────────────────────────────────────────────────────────
 
 /** GET /user/has-password — returns whether the authenticated user has a password set */
