@@ -412,11 +412,12 @@ export const useWorkoutStore = create<WorkoutStore>()(
             0
           ),
         };
-        // Add to pendingSync first so data is never lost if server call fails
+        // Add to pendingSync first so data is never lost if server call fails.
+        // Cap at 50 to prevent unbounded AsyncStorage growth on prolonged offline use.
         set((s) => ({
           activeWorkout: null,
           workoutHistory: [completed, ...s.workoutHistory],
-          pendingSync: [...s.pendingSync.filter((w) => w.id !== completed.id), completed],
+          pendingSync: [...s.pendingSync.filter((w) => w.id !== completed.id), completed].slice(-50),
         }));
 
         // Attempt server sync; remove from pendingSync only on confirmed success

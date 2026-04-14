@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCameraPermissions } from 'expo-camera';
@@ -77,6 +77,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [manualBarcode, setManualBarcode] = useState('');
   const [lastBarcode, setLastBarcode] = useState('');
   const [notFound, setNotFound] = useState(false);
+
+  // Abort any in-flight AI analysis when the screen unmounts to avoid memory leaks
+  // and state updates on an unmounted component.
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const analyzeFood = async (base64: string) => {
     const controller = new AbortController();
