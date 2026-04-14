@@ -78,7 +78,7 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
       const result = await userService.changePhone(phone.trim(), smsOtp, totp);
       // Update stored tokens — server issued fresh tokens after revoking all other sessions
       if (result.token && result.refreshToken) {
-        useAuthStore.setState({ token: result.token, refreshToken: result.refreshToken });
+        await useAuthStore.getState().updateTokens(result.token, result.refreshToken);
       }
       Alert.alert('Готово', 'Номер телефона успешно изменён', [
         { text: 'OK', onPress: () => navigation.goBack() },
