@@ -2431,6 +2431,19 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
 
     const userId = req.userId!;
 
+    // ── Server-side daily message quota ──────────────────────────────────────
+    // Free-tier users: max 10 AI messages/day. Paid plans: unlimited.
+    const AI_FREE_DAILY_LIMIT = 10;
+    const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
+    const isPaidSub = userSub && userSub.status === 'active' && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    if (!isPaidSub) {
+      const todayFloor = new Date(); todayFloor.setHours(0, 0, 0, 0);
+      const todayCount = await prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
+      if (todayCount >= AI_FREE_DAILY_LIMIT) {
+        return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
+      }
+    }
+
     // Get user profile
     const user = await prisma.user.findUnique({
       where: { id: userId },
