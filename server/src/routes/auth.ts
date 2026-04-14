@@ -824,6 +824,19 @@ router.post('/send-otp', async (req: Request, res: Response) => {
       purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change', 'email-change']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
 
+    // Authenticated purposes: require a valid JWT — prevents unauthenticated OTP spam to arbitrary addresses
+    if (purpose === 'email-change' || purpose === 'phone-change') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Требуется авторизация', code: 'UNAUTHORIZED' });
+      }
+      try {
+        jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD });
+      } catch {
+        return res.status(401).json({ error: 'Недействительный токен', code: 'UNAUTHORIZED' });
+      }
+    }
+
     const phone = rawPhone ? normalizePhone(rawPhone) : undefined;
 
     // For phone-login and phone-reset: check that phone is registered
