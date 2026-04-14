@@ -4,6 +4,10 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { MemCache } from '../utils/memCache';
+import { getSubStatus } from '../utils/subscriptionCheck';
+
+/** Free plan: max workout history entries returned */
+const FREE_WORKOUT_HISTORY_LIMIT = 10;
 
 /** Leaderboard cache — 15 minutes (expensive query, changes slowly) */
 const leaderboardCache = new MemCache<unknown>(5);
@@ -423,8 +427,15 @@ router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Respons
 router.get('/history', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { limit: rawLimit = '50', offset: rawOffset = '0' } = req.query;
-    const limit = Math.min(Math.max(parseInt(rawLimit as string) || 50, 1), 200);
+    const requestedLimit = Math.min(Math.max(parseInt(rawLimit as string) || 50, 1), 200);
     const offset = Math.max(parseInt(rawOffset as string) || 0, 0);
+
+    // Free plan: cap at FREE_WORKOUT_HISTORY_LIMIT regardless of requested limit/offset.
+    // This prevents paywall bypass via direct API calls.
+    const { isPaid } = await getSubStatus(req.userId!);
+    const effectiveLimit = isPaid ? requestedLimit : Math.min(requestedLimit, FREE_WORKOUT_HISTORY_LIMIT);
+    const effectiveOffset = isPaid ? offset : 0; // free users always start from beginning (most recent)
+
     const where = { userId: req.userId, completedAt: { not: null } };
     const [workouts, total] = await Promise.all([
       prisma.workout.findMany({
@@ -436,12 +447,12 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
           },
         },
         orderBy: { completedAt: 'desc' },
-        take: limit,
-        skip: offset,
+        take: effectiveLimit,
+        skip: effectiveOffset,
       }),
       prisma.workout.count({ where }),
     ]);
-    res.json({ workouts, total, limit, offset });
+    res.json({ workouts, total: isPaid ? total : Math.min(total, FREE_WORKOUT_HISTORY_LIMIT), limit: effectiveLimit, offset: effectiveOffset });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка получения истории' });
@@ -449,8 +460,14 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
 });
 
 // Club leaderboard — top lifts per exercise across all users (cached 15 minutes)
-router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response) => {
+router.get('/leaderboard', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    // Require active paid subscription — prevent paywall bypass via direct API calls
+    const { isPaid } = await getSubStatus(req.userId!);
+    if (!isPaid) {
+      return res.status(402).json({ error: 'Клубный лидерборд доступен только для платных подписчиков', code: 'SUBSCRIPTION_REQUIRED' });
+    }
+
     const cached = leaderboardCache.get('leaderboard');
     if (cached) {
       res.setHeader('X-Cache', 'HIT');
