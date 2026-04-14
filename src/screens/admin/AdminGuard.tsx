@@ -6,18 +6,22 @@
  *          but this prevents accidental navigation and gives a clean UX.
  *
  * Layer 2 (requireVerified): PIN prompt — admin must enter a 6-digit PIN stored in
- *          AsyncStorage (set via ProfileScreen → Admin entry). Session flag is stored
+ *          SecureStore (set via ProfileScreen → Admin entry). Session flag is stored
  *          in memory so they only enter it once per app session.
  *          This adds friction against physical device access (e.g., unlocked phone).
+ *
+ * Brute-force protection: 5 wrong attempts → 60-second lockout (in-memory, resets on restart).
  */
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../../store';
 
 const ADMIN_PIN_KEY = 'iron_gym_admin_pin';
+const MAX_PIN_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 60;
 // In-memory flag — cleared when the app process restarts (e.g. force quit)
 let sessionVerified = false;
 
@@ -36,18 +40,36 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
   const [setupStep, setSetupStep] = useState<'enter' | 'confirm'>('enter');
   const [setupFirst, setSetupFirst] = useState('');
   const inputRef = useRef<TextInput>(null);
+  // Brute-force protection (in-memory — resets on app restart, sufficient for this use case)
+  const failedAttempts = useRef(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
 
   // Role check — immediate, synchronous
   const isAllowed = user?.role === 'admin' || user?.role === 'support';
 
   useEffect(() => {
-    AsyncStorage.getItem(ADMIN_PIN_KEY).then((pin) => {
+    SecureStore.getItemAsync(ADMIN_PIN_KEY).then((pin) => {
       setPinStored(pin);
       setLoaded(true);
     }).catch(() => {
       setLoaded(true); // fail open so screen doesn't hang on spinner
     });
   }, []);
+
+  // Tick state drives countdown display without mutating lockedUntil
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (lockedUntil <= Date.now()) return;
+    const id = setInterval(() => {
+      if (lockedUntil <= Date.now()) {
+        setLockedUntil(0);
+        clearInterval(id);
+      } else {
+        setTick((t) => t + 1); // force re-render to refresh countdown
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil]);
 
   if (!loaded) {
     return (
@@ -118,7 +140,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
                 setSetupStep('confirm');
               } else {
                 if (input === setupFirst) {
-                  AsyncStorage.setItem(ADMIN_PIN_KEY, input).then(() => {
+                  SecureStore.setItemAsync(ADMIN_PIN_KEY, input).then(() => {
                     setPinStored(input);
                     sessionVerified = true;
                     setInput('');
@@ -141,13 +163,27 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
     }
 
     // PIN configured — ask for it
+    const now = Date.now();
+    const isLocked = lockedUntil > now;
+    const lockSecondsLeft = isLocked ? Math.ceil((lockedUntil - now) / 1000) : 0;
+
     const verify = () => {
+      if (isLocked) return;
       if (input === pinStored) {
         sessionVerified = true;
+        failedAttempts.current = 0;
         setInput('');
         setError('');
       } else {
-        setError('Неверный PIN-код');
+        failedAttempts.current += 1;
+        const remaining = MAX_PIN_ATTEMPTS - failedAttempts.current;
+        if (failedAttempts.current >= MAX_PIN_ATTEMPTS) {
+          failedAttempts.current = 0;
+          setLockedUntil(Date.now() + LOCKOUT_SECONDS * 1000);
+          setError(`Слишком много попыток. Подождите ${LOCKOUT_SECONDS} секунд.`);
+        } else {
+          setError(`Неверный PIN-код. Осталось попыток: ${remaining}`);
+        }
         setInput('');
         inputRef.current?.focus();
       }
@@ -156,27 +192,28 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
     return (
       <View style={styles.pinContainer}>
         <Text style={styles.pinTitle}>Панель администратора</Text>
-        <Text style={styles.pinSub}>Введите PIN-код для входа</Text>
+        <Text style={styles.pinSub}>{isLocked ? `Доступ заблокирован. Подождите ${lockSecondsLeft} с.` : 'Введите PIN-код для входа'}</Text>
 
         <TextInput
           ref={inputRef}
-          style={styles.pinInput}
+          style={[styles.pinInput, isLocked && { opacity: 0.4 }]}
           value={input}
-          onChangeText={(t) => { setInput(t.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+          onChangeText={(t) => { if (!isLocked) { setInput(t.replace(/\D/g, '').slice(0, 6)); setError(''); } }}
           keyboardType="number-pad"
           maxLength={6}
           secureTextEntry
           placeholder="••••••"
           placeholderTextColor="#4B5563"
           autoFocus
+          editable={!isLocked}
           onSubmitEditing={verify}
         />
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <TouchableOpacity
-          style={[styles.pinBtn, input.length !== 6 && styles.pinBtnDisabled]}
-          disabled={input.length !== 6}
+          style={[styles.pinBtn, (input.length !== 6 || isLocked) && styles.pinBtnDisabled]}
+          disabled={input.length !== 6 || isLocked}
           onPress={verify}
         >
           <Text style={styles.pinBtnText}>Войти</Text>
@@ -194,8 +231,10 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
                   text: 'Сбросить',
                   style: 'destructive',
                   onPress: () => {
-                    AsyncStorage.removeItem(ADMIN_PIN_KEY);
+                    SecureStore.deleteItemAsync(ADMIN_PIN_KEY).catch(() => {});
                     setPinStored(null);
+                    failedAttempts.current = 0;
+                    setLockedUntil(0);
                     setInput('');
                     setSetupStep('enter');
                     setSetupFirst('');

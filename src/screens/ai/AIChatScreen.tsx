@@ -54,6 +54,9 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guard against concurrent sends: true while any request (streaming or fallback) is in flight.
+  // isTyping becomes false when streaming starts, so isSendingRef is the reliable lock.
+  const isSendingRef = useRef(false);
 
   // Stop speech and clear timers on unmount
   useEffect(() => () => {
@@ -96,7 +99,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
+    // Prevent concurrent sends: isSendingRef stays true for the full request lifecycle
+    // (streaming + fallback), whereas isTyping is set to false when streaming begins.
+    if (isSendingRef.current) return;
     if (!consumeAiMessage()) { haptic.warning(); setShowPaywall(true); return; }
+    isSendingRef.current = true;
     haptic.light();
 
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: text.trim(), createdAt: new Date().toISOString() };
@@ -208,6 +215,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'assistant', createdAt: new Date().toISOString(), content: apiError.status === 0 ? 'Нет подключения к серверу. Проверь, что сервер запущен и доступен.' : `Ошибка: ${apiError.message}` }]);
     } finally {
       setIsTyping(false);
+      isSendingRef.current = false;
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
   };
