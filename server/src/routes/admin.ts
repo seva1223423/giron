@@ -801,7 +801,7 @@ router.post('/mass-message', requireAdmin, async (req: AuthRequest, res: Respons
 router.post('/subscriptions/broadcast', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { plan, subject, message, expiringSoonOnly } = z.object({
-      plan: z.string().min(1),
+      plan: z.enum(['pro', 'trainer', 'club', 'free']),
       subject: z.string().min(1).max(200),
       message: z.string().min(1).max(2000),
       expiringSoonOnly: z.boolean().optional(),
