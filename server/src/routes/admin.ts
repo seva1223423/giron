@@ -958,13 +958,12 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
   try {
     const { days = '30' } = req.query as Record<string, string>;
     const numDays = Math.min(90, Math.max(7, parseInt(days) || 30));
-    const since = new Date();
-    since.setDate(since.getDate() - numDays);
-    since.setHours(0, 0, 0, 0);
+    const todayUtcStr = new Date().toISOString().slice(0, 10);
+    const since = new Date(`${todayUtcStr}T00:00:00.000Z`);
+    since.setUTCDate(since.getUTCDate() - numDays);
 
     // Previous period window for comparison
-    const prevSince = new Date(since);
-    prevSince.setDate(prevSince.getDate() - numDays);
+    const prevSince = new Date(since.getTime() - numDays * 86_400_000);
 
     const [signupsRaw, workoutsRaw, aiRaw, cardioRaw, prevSignups, prevWorkouts, prevAi, prevCardio] = await Promise.all([
       // Current period
@@ -1122,9 +1121,9 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
   try {
     const { days = '30' } = req.query as Record<string, string>;
     const numDays = Math.min(90, Math.max(7, parseInt(days) || 30));
-    const since = new Date();
-    since.setDate(since.getDate() - numDays);
-    since.setHours(0, 0, 0, 0);
+    const todayUtcStr2 = new Date().toISOString().slice(0, 10);
+    const since = new Date(`${todayUtcStr2}T00:00:00.000Z`);
+    since.setUTCDate(since.getUTCDate() - numDays);
 
     const subs = await prisma.subscription.findMany({
       where: { plan: { not: 'free' }, createdAt: { gte: since } },
@@ -1365,8 +1364,8 @@ router.get('/support/counts', requireStaff, async (_req: AuthRequest, res: Respo
 /** GET /admin/support/metrics — performance stats for support queue */
 router.get('/support/metrics', requireStaff, async (_req: AuthRequest, res: Response) => {
   try {
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const weekStart = new Date(Date.now() - 7 * 86400 * 1000);
+    const todayStart = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+    const weekStart = new Date(todayStart.getTime() - 7 * 86_400_000);
 
     const [resolvedToday, openCount, unassigned, categoryCounts, ticketsWithFirstReply, staffAssignedCounts] = await Promise.all([
       prisma.supportTicket.count({ where: { status: { in: ['resolved', 'closed'] }, updatedAt: { gte: todayStart } } }),
@@ -1701,53 +1700,77 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
 router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { date } = req.query as Record<string, string>;
-    const parsedReportDate = date ? new Date(date) : null;
-    if (parsedReportDate && isNaN(parsedReportDate.getTime())) {
-      return res.status(400).json({ error: 'Некорректная дата' });
+    const targetStr = date ? date.trim() : new Date().toISOString().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(targetStr) || isNaN(Date.parse(targetStr))) {
+      return res.status(400).json({ error: 'Некорректная дата. Формат: YYYY-MM-DD' });
     }
-    const reportDate = parsedReportDate ?? new Date();
-    reportDate.setHours(0, 0, 0, 0);
-    const nextDay = new Date(reportDate.getTime() + 86400 * 1000);
-    const weekAgo = new Date(reportDate.getTime() - 7 * 86400 * 1000);
+    const dayStart = new Date(`${targetStr}T00:00:00.000Z`);
+    const dayEnd = new Date(`${targetStr}T23:59:59.999Z`);
+    const prevDayStart = new Date(dayStart.getTime() - 86_400_000);
+    const prevDayEnd = new Date(dayEnd.getTime() - 86_400_000);
 
     const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
 
-    const [signups, workouts, aiMessages, cardio, meals, activeSubscriptions, newSubscriptions, openTickets] = await Promise.all([
-      prisma.user.count({ where: { createdAt: { gte: reportDate, lt: nextDay } } }),
-      prisma.workout.count({ where: { completedAt: { gte: reportDate, lt: nextDay } } }),
-      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: reportDate, lt: nextDay } } }),
-      prisma.cardioSession.count({ where: { createdAt: { gte: reportDate, lt: nextDay } } }),
-      prisma.meal.count({ where: { createdAt: { gte: reportDate, lt: nextDay } } }),
+    const [
+      signups, prevSignups,
+      workouts, prevWorkouts,
+      aiMessages, prevAi,
+      cardio, prevCardio,
+      meals, prevMeals,
+      newSubs, openTickets, resolvedTickets,
+      totalUsers, activeSubs,
+    ] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.user.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.workout.count({ where: { completedAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.workout.count({ where: { completedAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.cardioSession.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.meal.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.meal.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
+      prisma.subscription.count({ where: { plan: { not: 'free' }, createdAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] } } }),
+      prisma.supportTicket.count({ where: { status: 'resolved', updatedAt: { gte: dayStart, lte: dayEnd } } }),
+      prisma.user.count(),
       prisma.subscription.findMany({ where: { status: 'active', plan: { not: 'free' } }, select: { plan: true } }),
-      prisma.subscription.count({ where: { plan: { not: 'free' }, createdAt: { gte: reportDate, lt: nextDay } } }),
-      prisma.supportTicket.count({ where: { status: 'open' } }),
     ]);
 
-    const mrr = activeSubscriptions.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
-    const dateStr = reportDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+    const mrr = activeSubs.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
 
-    const report = [
-      `📊 Iron Gym — Отчёт за ${dateStr}`,
+    function delta(now: number, prev: number): string {
+      if (prev === 0) return now > 0 ? ` (+${now})` : '';
+      const d = now - prev;
+      if (d === 0) return ' (=)';
+      return d > 0 ? ` (+${d})` : ` (${d})`;
+    }
+
+    const dateLabel = dayStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const lines = [
+      `📊 Iron Gym — Отчёт за ${dateLabel}`,
       ``,
-      `👤 Новых пользователей: ${signups}`,
-      `💪 Тренировок завершено: ${workouts}`,
-      `🤖 ИИ-запросов: ${aiMessages}`,
-      `🏃 Кардио-сессий: ${cardio}`,
-      `🥗 Приёмов пищи: ${meals}`,
+      `👤 Новых пользователей: ${signups}${delta(signups, prevSignups)}`,
+      `💪 Тренировок завершено: ${workouts}${delta(workouts, prevWorkouts)}`,
+      `🤖 ИИ-сообщений: ${aiMessages}${delta(aiMessages, prevAi)}`,
+      `🏃 Кардио-сессий: ${cardio}${delta(cardio, prevCardio)}`,
+      `🍽 Приёмов пищи: ${meals}${delta(meals, prevMeals)}`,
       ``,
-      `💳 Активных подписок: ${activeSubscriptions.length}`,
-      `💚 Новых подписок сегодня: ${newSubscriptions}`,
-      `💰 Оценка MRR: $${mrr.toFixed(0)}/мес`,
+      `💳 Новых подписок: ${newSubs}`,
+      `💰 MRR (оценка): $${mrr.toFixed(0)}`,
       ``,
-      `🎫 Открытых тикетов: ${openTickets}`,
+      `🎧 Открытых тикетов: ${openTickets}`,
+      `✅ Решено сегодня: ${resolvedTickets}`,
+      ``,
+      `📈 Всего пользователей: ${totalUsers}`,
       ``,
       `Сформировано: ${new Date().toLocaleString('ru-RU')}`,
-    ].join('\n');
+    ];
 
-    res.json({ report, date: reportDate.toISOString().split('T')[0], metrics: { signups, workouts, aiMessages, cardio, meals, mrr: Math.round(mrr), newSubscriptions, openTickets } });
+    res.json({ report: lines.join('\n'), date: dayStart.toISOString().split('T')[0], metrics: { signups, workouts, aiMessages, cardio, meals, mrr: Math.round(mrr), newSubscriptions: newSubs, openTickets } });
   } catch (e) {
     logger.error('GET /admin/report/daily:', e);
-    res.status(500).json({ error: 'Ошибка' });
+    res.status(500).json({ error: 'Ошибка генерации отчёта' });
   }
 });
 
@@ -2092,89 +2115,6 @@ router.get('/subscriptions', requireAdmin, async (req: AuthRequest, res: Respons
   } catch (e) {
     logger.error('GET /admin/subscriptions:', e);
     res.status(500).json({ error: 'Ошибка получения подписок' });
-  }
-});
-
-/** GET /admin/report/daily — generates a text summary report for a given date */
-router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response) => {
-  try {
-    const { date } = req.query as Record<string, string>;
-    const targetDate = date ? new Date(date) : new Date();
-    if (isNaN(targetDate.getTime())) return res.status(400).json({ error: 'Неверная дата' });
-
-    const dayStart = new Date(targetDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(targetDate);
-    dayEnd.setHours(23, 59, 59, 999);
-    const prevDayStart = new Date(dayStart); prevDayStart.setDate(prevDayStart.getDate() - 1);
-    const prevDayEnd = new Date(dayEnd); prevDayEnd.setDate(prevDayEnd.getDate() - 1);
-    const monthStart = new Date(dayStart); monthStart.setDate(monthStart.getDate() - 30);
-
-    const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
-
-    const [
-      signups, prevSignups,
-      workouts, prevWorkouts,
-      aiMessages, prevAi,
-      cardio, prevCardio,
-      meals, prevMeals,
-      newSubs, openTickets, resolvedTickets,
-      totalUsers, activeSubs,
-    ] = await Promise.all([
-      prisma.user.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.user.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
-      prisma.workout.count({ where: { completedAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.workout.count({ where: { completedAt: { gte: prevDayStart, lte: prevDayEnd } } }),
-      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
-      prisma.cardioSession.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.cardioSession.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
-      prisma.meal.count({ where: { createdAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.meal.count({ where: { createdAt: { gte: prevDayStart, lte: prevDayEnd } } }),
-      prisma.subscription.count({ where: { plan: { not: 'free' }, createdAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] } } }),
-      prisma.supportTicket.count({ where: { status: 'resolved', updatedAt: { gte: dayStart, lte: dayEnd } } }),
-      prisma.user.count(),
-      prisma.subscription.findMany({ where: { status: 'active', plan: { not: 'free' } }, select: { plan: true } }),
-    ]);
-
-    const mrr = activeSubs.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
-
-    function delta(now: number, prev: number): string {
-      if (prev === 0) return now > 0 ? ` (+${now})` : '';
-      const d = now - prev;
-      if (d === 0) return ' (=)';
-      return d > 0 ? ` (+${d})` : ` (${d})`;
-    }
-
-    const dateStr = dayStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-    const lines = [
-      `📊 Iron Gym — Отчёт за ${dateStr}`,
-      ``,
-      `👤 Новых пользователей: ${signups}${delta(signups, prevSignups)}`,
-      `💪 Тренировок завершено: ${workouts}${delta(workouts, prevWorkouts)}`,
-      `🤖 ИИ-сообщений: ${aiMessages}${delta(aiMessages, prevAi)}`,
-      `🏃 Кардио-сессий: ${cardio}${delta(cardio, prevCardio)}`,
-      `🍽 Приёмов пищи: ${meals}${delta(meals, prevMeals)}`,
-      ``,
-      `💳 Новых подписок: ${newSubs}`,
-      `💰 MRR (оценка): $${mrr.toFixed(0)}`,
-      ``,
-      `🎧 Открытых тикетов: ${openTickets}`,
-      `✅ Решено сегодня: ${resolvedTickets}`,
-      ``,
-      `📈 Всего пользователей: ${totalUsers}`,
-    ];
-
-    const metrics: Record<string, number> = {
-      signups, workouts, aiMessages, cardio, meals,
-      mrr: Math.round(mrr), newSubscriptions: newSubs, openTickets,
-    };
-
-    res.json({ report: lines.join('\n'), date: dayStart.toISOString().split('T')[0], metrics });
-  } catch (e) {
-    logger.error('GET /admin/report/daily:', e);
-    res.status(500).json({ error: 'Ошибка генерации отчёта' });
   }
 });
 
