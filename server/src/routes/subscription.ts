@@ -229,22 +229,27 @@ router.post('/webhook', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'userId обязателен' });
     }
 
+    // Validate plan and duration — prevent attacker-controlled values from slipping through
+    const VALID_PLANS = ['free', 'pro', 'trainer', 'club'] as const;
+    const resolvedPlan = VALID_PLANS.includes(plan) ? plan : 'pro';
+    const resolvedDays = Math.min(Math.max(parseInt(durationDays) || 30, 1), 3650); // 1 day – 10 years
+
     if (event === 'subscription_activated' || event === 'subscription_renewed') {
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setDate(endDate.getDate() + (durationDays || 30));
+      endDate.setDate(endDate.getDate() + resolvedDays);
 
       await prisma.subscription.upsert({
         where: { userId },
         create: {
           userId,
-          plan: plan || 'pro',
+          plan: resolvedPlan,
           status: 'active',
           startDate,
           endDate,
         },
         update: {
-          plan: plan || 'pro',
+          plan: resolvedPlan,
           status: 'active',
           startDate,
           endDate,

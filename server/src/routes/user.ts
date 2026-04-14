@@ -34,7 +34,7 @@ async function isTotpReplay(userId: string, code: string): Promise<boolean> {
 async function reissueTokens(userId: string, req: AuthRequest): Promise<{ token: string; refreshToken: string }> {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
-  const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+  const ip = (req as any).ip ?? null;
   const userAgent = req.headers['user-agent'] ?? null;
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   await prisma.refreshToken.create({ data: { token: rawRefresh, userId, expiresAt, ip, userAgent } });
@@ -246,8 +246,12 @@ router.post('/sleep', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.delete('/sleep/:date', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const dateParam = req.params.date as string;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      return res.status(400).json({ error: 'Некорректный формат даты. Используйте YYYY-MM-DD' });
+    }
     await prisma.sleepEntry.deleteMany({
-      where: { userId: req.userId!, date: req.params.date as string },
+      where: { userId: req.userId!, date: dateParam },
     });
     res.json({ ok: true });
   } catch (e) {
@@ -387,7 +391,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'PASSWORD_CHANGE', details: 'method=change_password' } });
 
     // Send email security alert for password change
-    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? 'unknown';
+    const ip = (req as any).ip ?? 'unknown';
     if (user.email && user.emailVerified) {
       sendPasswordChangedAlert(user.email, ip, new Date()).catch(() => {});
     }
@@ -826,7 +830,7 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     ]);
     const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
-    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    const ip = (req as any).ip ?? null;
     await prisma.securityEvent.create({
       data: { userId: req.userId!, action: 'EMAIL_CHANGED', ip, details: `email=${newEmail}` },
     });
@@ -915,7 +919,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     ]);
     const { token: newToken, refreshToken: newRefreshToken } = await reissueTokens(req.userId!, req);
 
-    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    const ip = (req as any).ip ?? null;
     await prisma.securityEvent.create({
       data: { userId: req.userId!, action: 'PHONE_CHANGED', ip, details: `phone=${phone}` },
     });
@@ -976,7 +980,7 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
       data: { [fieldMap[provider]]: null },
     });
 
-    const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    const ip = (req as any).ip ?? null;
     await prisma.securityEvent.create({
       data: { userId: req.userId!, action: 'ACCOUNT_UPDATED', ip, details: `unlinked:${provider}` },
     });

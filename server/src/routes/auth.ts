@@ -22,9 +22,9 @@ async function logSecurityEvent(
   details?: string,
 ): Promise<void> {
   try {
-    const ip = req
-      ? ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null)
-      : null;
+    // Use req.ip which respects Express trust-proxy setting (TRUST_PROXY env var).
+    // Do NOT fall back to raw X-Forwarded-For — it's attacker-controlled without trust proxy.
+    const ip = req ? ((req as any).ip ?? null) : null;
     const userAgent = req ? ((req.headers['user-agent'] as string | undefined) ?? null) : null;
     await prisma.securityEvent.create({ data: { userId: userId ?? null, action, ip, userAgent, details: details ?? null } });
   } catch { /* non-critical — never throw */ }
@@ -65,7 +65,7 @@ async function timingSafeLogin(): Promise<void> {
 
 /** Check if login IP/device differs from last known — sends push + logs SUSPICIOUS_LOGIN if so */
 async function checkSuspiciousLogin(userId: string, req: Request, userEmail?: string | null, emailVerified?: boolean): Promise<void> {
-  const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+  const currentIp = (req as any).ip ?? null;
   const currentUa = req.headers['user-agent'] ?? null;
   try {
     const lastLogin = await prisma.securityEvent.findFirst({
@@ -104,9 +104,7 @@ const MAX_SESSIONS_PER_USER = 10;
 async function signTokens(userId: string, req?: Request) {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
-  const ip = req
-    ? ((req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null)
-    : null;
+  const ip = req ? ((req as any).ip ?? null) : null;
   const userAgent = req ? ((req.headers['user-agent'] as string | undefined) ?? null) : null;
 
   // Enforce max sessions per user: revoke oldest active sessions if limit exceeded
@@ -449,7 +447,7 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     }
 
     const currentUa = req.headers['user-agent'] ?? null;
-    const currentIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? null;
+    const currentIp = (req as any).ip ?? null;
     checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
 
     const { token, refreshToken } = await signTokens(user.id, req);
@@ -1171,7 +1169,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     await logSecurityEvent('PASSWORD_CHANGE', resetToken.userId, req, 'method=email_reset');
 
     // Security alert to the user's email
-    const resetIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? 'unknown';
+    const resetIp = (req as any).ip ?? 'unknown';
     if (resetToken.user.email && resetToken.user.emailVerified) {
       sendPasswordChangedAlert(resetToken.user.email, resetIp, new Date()).catch(() => {});
     }
@@ -1324,7 +1322,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     await logSecurityEvent('PASSWORD_CHANGE', user.id, req, 'method=phone_reset');
 
     // Security alert to the user's email
-    const phoneResetIp = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? (req as any).ip ?? 'unknown';
+    const phoneResetIp = (req as any).ip ?? 'unknown';
     if (user.email && user.emailVerified) {
       sendPasswordChangedAlert(user.email, phoneResetIp, new Date()).catch(() => {});
     }

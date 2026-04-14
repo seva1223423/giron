@@ -39,6 +39,13 @@ if ((process.env.JWT_REFRESH_SECRET?.length ?? 0) < 32) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust exactly one reverse-proxy hop when TRUST_PROXY=true (e.g. nginx, Heroku, Railway).
+// This makes req.ip correct and prevents rate-limiter collapse (all traffic showing proxy IP).
+// DO NOT enable in direct-internet deployments — it would allow spoofed X-Forwarded-For.
+if (process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — API-only server
 
