@@ -289,7 +289,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     if (user.isBanned) {
-      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user.banReason });
+      return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
 
     // Check lockout
@@ -410,7 +410,7 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     });
 
     if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
-    if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user.banReason });
+    if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     if (!(user as any).totpEnabled || !(user as any).totpSecret) {
       return res.status(400).json({ error: '2FA не включена', code: 'TOTP_NOT_ENABLED' });
     }
@@ -579,7 +579,7 @@ router.post('/google', async (req: Request, res: Response) => {
     }
 
     if (user!.isBanned) {
-      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user!.banReason });
+      return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
 
     const { token, refreshToken } = await signTokens(user!.id, req);
@@ -658,7 +658,7 @@ router.post('/vk', async (req: Request, res: Response) => {
     }
 
     if (user!.isBanned) {
-      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user!.banReason });
+      return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
 
     const { token, refreshToken } = await signTokens(user!.id, req);
@@ -740,7 +740,7 @@ router.post('/yandex', async (req: Request, res: Response) => {
     }
 
     if ((user as any).isBanned) {
-      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: (user as any).banReason });
+      return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
 
     const { passwordHash, googleId, vkId, yandexId: _ya, totpSecret, totpBackupCodes, ...safeYandexUser } = user as any;
@@ -796,7 +796,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     }
 
     if (user.isBanned) {
-      return res.status(403).json({ error: 'Аккаунт заблокирован', code: 'BANNED', reason: user.banReason });
+      return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
 
     await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true, loginAttempts: 0, lockedUntil: null } });
