@@ -3,10 +3,11 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
-import { FadeIn } from '../../components';
+import { FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { HistoryStatsCard, WorkoutCard } from './history';
+import { useSubscriptionStore, FREE_LIMITS } from '../../store/useSubscriptionStore';
 
 const MUSCLE_FILTERS = [
   { key: 'all', label: 'Все' }, { key: 'chest', label: 'Грудь' }, { key: 'back', label: 'Спина' },
@@ -32,11 +33,20 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { workoutHistory } = useWorkoutStore();
+  const { canViewFullWorkoutHistory } = useSubscriptionStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
+  const [showPaywall, setShowPaywall] = useState(false);
 
-  const filtered = useMemo(() => workoutHistory.filter((w) => {
+  // Free users see only the most recent FREE_LIMITS.WORKOUT_HISTORY workouts
+  const visibleHistory = useMemo(
+    () => canViewFullWorkoutHistory() ? workoutHistory : workoutHistory.slice(0, FREE_LIMITS.WORKOUT_HISTORY),
+    [workoutHistory, canViewFullWorkoutHistory],
+  );
+  const isHistoryTruncated = !canViewFullWorkoutHistory() && workoutHistory.length > FREE_LIMITS.WORKOUT_HISTORY;
+
+  const filtered = useMemo(() => visibleHistory.filter((w) => {
     const q = searchQuery.toLowerCase();
     const matchSearch = !searchQuery || w.name.toLowerCase().includes(q) || w.exercises.some((ex: any) => ex.exercise?.name?.toLowerCase().includes(q));
     const matchMuscle = muscleFilter === 'all' || w.exercises.some((ex: any) => ex.exercise?.primaryMuscles?.includes(muscleFilter));
@@ -66,6 +76,22 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <HistoryStatsCard workoutHistory={workoutHistory} />
+
+          {isHistoryTruncated && (
+            <FadeIn delay={20}>
+              <TouchableOpacity
+                onPress={() => { haptic.medium(); setShowPaywall(true); }}
+                style={[styles.paywallBanner, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}
+              >
+                <Text style={[typography.captionMedium, { color: colors.primary }]}>
+                  ◈ Показаны последние {FREE_LIMITS.WORKOUT_HISTORY} тренировок
+                </Text>
+                <Text style={[typography.caption, { color: colors.primary + 'CC' }]}>
+                  Ещё {workoutHistory.length - FREE_LIMITS.WORKOUT_HISTORY} скрыто — открыть Pro →
+                </Text>
+              </TouchableOpacity>
+            </FadeIn>
+          )}
 
           <FadeIn delay={40}>
             <TextInput
@@ -118,6 +144,14 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
           ))}
         </ScrollView>
       )}
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        reason="feature"
+        featureName="Полная история тренировок"
+        navigation={navigation}
+      />
     </View>
   );
 };
@@ -129,4 +163,5 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   search: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, marginBottom: spacing.md },
   chip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
+  paywallBanner: { borderRadius: borderRadius.lg, borderWidth: 1, padding: spacing.lg, marginBottom: spacing.lg, gap: 4 },
 });

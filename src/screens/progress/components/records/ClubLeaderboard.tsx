@@ -1,20 +1,23 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useThemeStore } from '../../../../store';
-import { Card, FadeIn, SkeletonLoader } from '../../../../components';
+import { Card, FadeIn, SkeletonLoader, PaywallModal } from '../../../../components';
 import { typography } from '../../../../theme';
 import { spacing } from '../../../../theme/spacing';
 import { workoutService } from '../../../../services';
 import type { LeaderboardEntry } from '../../../../services/workoutService';
+import { useSubscriptionStore } from '../../../../store/useSubscriptionStore';
 
 export const ClubLeaderboard: React.FC = () => {
   const { colors } = useThemeStore();
+  const { canViewLeaderboard } = useSubscriptionStore();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const fetch = useCallback(async () => {
-    if (fetched) return;
+    if (fetched || !canViewLeaderboard()) return;
     setLoading(true);
     try {
       const data = await workoutService.getLeaderboard();
@@ -23,10 +26,36 @@ export const ClubLeaderboard: React.FC = () => {
       setLoading(false);
       setFetched(true);
     }
-  }, [fetched]);
+  }, [fetched, canViewLeaderboard]);
 
-  // Auto-fetch on mount
+  // Auto-fetch on mount (only for premium users)
   React.useEffect(() => { fetch(); }, [fetch]);
+
+  // Gate leaderboard behind premium
+  if (!canViewLeaderboard()) {
+    return (
+      <FadeIn>
+        <TouchableOpacity onPress={() => setShowPaywall(true)} activeOpacity={0.85}>
+          <Card style={{ marginTop: spacing.lg, alignItems: 'center', paddingVertical: spacing.xxl }}>
+            <Text style={{ fontSize: 32, marginBottom: spacing.md, color: colors.primary, fontWeight: '800' }}>◈</Text>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Клубный лидерборд</Text>
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }]}>
+              Соревнуйся с участниками клуба по силовым показателям
+            </Text>
+            <View style={{ backgroundColor: colors.primary + '15', borderRadius: 20, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm }}>
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>Открыть Pro →</Text>
+            </View>
+          </Card>
+        </TouchableOpacity>
+        <PaywallModal
+          visible={showPaywall}
+          onClose={() => setShowPaywall(false)}
+          reason="feature"
+          featureName="Клубный лидерборд"
+        />
+      </FadeIn>
+    );
+  }
 
   if (loading) return (
     <Card style={{ marginTop: spacing.lg }}>
@@ -85,3 +114,4 @@ export const ClubLeaderboard: React.FC = () => {
     </FadeIn>
   );
 };
+

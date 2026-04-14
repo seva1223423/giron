@@ -3,11 +3,12 @@ import {
   View, Text, TouchableOpacity, Modal, TextInput, ScrollView,
   StyleSheet, Alert, Platform,
 } from 'react-native';
-import { Card, FadeIn, Button } from '../../../components';
+import { Card, FadeIn, Button, PaywallModal } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { useMeasurementsStore, BodyMeasurement } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { useSubscriptionStore, FREE_LIMITS } from '../../../store/useSubscriptionStore';
 
 const FIELDS: { key: keyof Omit<BodyMeasurement, 'id' | 'date' | 'notes'>; label: string }[] = [
   { key: 'chest', label: 'Грудь' },
@@ -37,17 +38,24 @@ function diff(a?: number, b?: number): string | null {
 export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
   const haptic = useHaptic();
   const { entries, addEntry, deleteEntry } = useMeasurementsStore();
+  const { canViewFullMeasurements } = useSubscriptionStore();
   const [showModal, setShowModal] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Form state
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [formNotes, setFormNotes] = useState('');
 
-  const sorted = useMemo(
+  const allSorted = useMemo(
     () => [...entries].sort((a, b) => b.date.localeCompare(a.date)),
     [entries],
+  );
+  const isMeasurementsTruncated = !canViewFullMeasurements() && allSorted.length > FREE_LIMITS.MEASUREMENTS;
+  const sorted = useMemo(
+    () => canViewFullMeasurements() ? allSorted : allSorted.slice(0, FREE_LIMITS.MEASUREMENTS),
+    [allSorted, canViewFullMeasurements],
   );
 
   const latest = sorted[0] ?? null;
@@ -179,9 +187,26 @@ export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
                 </TouchableOpacity>
               </TouchableOpacity>
             ))}
+            {isMeasurementsTruncated && (
+              <TouchableOpacity
+                onPress={() => { haptic.medium(); setShowPaywall(true); }}
+                style={[styles.paywallRow, { borderTopColor: colors.divider }]}
+              >
+                <Text style={[typography.captionMedium, { color: colors.primary }]}>
+                  ◈ Ещё {allSorted.length - FREE_LIMITS.MEASUREMENTS} записей скрыто — открыть Pro →
+                </Text>
+              </TouchableOpacity>
+            )}
           </Card>
         </FadeIn>
       )}
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        reason="feature"
+        featureName="Полная история замеров"
+      />
 
       {/* Add Modal */}
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
@@ -251,4 +276,5 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.xl, paddingBottom: Platform.OS === 'ios' ? 40 : spacing.xl, maxHeight: '90%' },
   input: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md, fontSize: 15 },
   formGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  paywallRow: { borderTopWidth: 1, paddingTop: spacing.md, marginTop: spacing.sm },
 });

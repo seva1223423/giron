@@ -17,7 +17,7 @@ import { Button } from './Button';
 interface PaywallModalProps {
   visible: boolean;
   onClose: () => void;
-  reason: 'ai_limit' | 'food_scan_limit' | 'feature' | 'programs_limit';
+  reason: 'ai_limit' | 'food_scan_limit' | 'feature' | 'programs_limit' | 'history_limit' | 'leaderboard';
   featureName?: string;
   navigation?: any;
 }
@@ -46,6 +46,18 @@ const REASON_CONFIGS = {
     title: '3 программы бесплатно',
     subtitle: 'Подключи Pro и открой все 22 готовые программы тренировок',
     ctaTitle: 'Все программы за 299₽/мес',
+  },
+  history_limit: {
+    icon: 'HT',
+    title: 'История ограничена',
+    subtitle: 'Бесплатный план хранит последние 10 тренировок. Про — без ограничений',
+    ctaTitle: 'Полная история за 299₽/мес',
+  },
+  leaderboard: {
+    icon: '◈',
+    title: 'Клубный лидерборд',
+    subtitle: 'Соревнуйся с участниками Iron Gym по силовым показателям — только Pro',
+    ctaTitle: 'Открыть лидерборд за 299₽/мес',
   },
 };
 
