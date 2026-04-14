@@ -217,6 +217,23 @@ router.get('/measurements', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+router.delete('/measurements/:date', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { date } = req.params as { date: string };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Некорректная дата. Формат: YYYY-MM-DD' });
+    }
+    const deleted = await prisma.bodyMeasurement.deleteMany({
+      where: { userId: req.userId!, date: new Date(date) },
+    });
+    if (deleted.count === 0) return res.status(404).json({ error: 'Замер не найден' });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка удаления замера' });
+  }
+});
+
 // ── Sleep entries ─────────────────────────────────────────────────────────────
 
 const sleepSchema = z.object({

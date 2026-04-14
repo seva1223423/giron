@@ -32,6 +32,10 @@ export const userService = {
     return data;
   },
 
+  async deleteMeasurement(date: string): Promise<void> {
+    await api.delete(`/user/measurements/${date}`);
+  },
+
   async saveSleep(entry: { date: string; bedtime: string; wakeTime: string; durationHours: number; quality?: number | null }): Promise<void> {
     await api.post('/user/sleep', entry);
   },

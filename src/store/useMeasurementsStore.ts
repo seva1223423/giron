@@ -41,7 +41,12 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       },
 
       deleteEntry: (id) => {
+        const entry = get().entries.find((e) => e.id === id);
         set((s) => ({ entries: s.entries.filter((e) => e.id !== id) }));
+        // Sync deletion to server (entry.date is the key for server-side records)
+        if (entry?.date) {
+          userService.deleteMeasurement(entry.date).catch(() => {});
+        }
       },
 
       getLatest: () => {
