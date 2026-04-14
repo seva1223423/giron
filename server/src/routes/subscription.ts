@@ -229,6 +229,13 @@ router.post('/webhook', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'userId обязателен' });
     }
 
+    // Verify user exists — prevents P2003 FK violation on subscription upsert
+    const userExists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!userExists) {
+      logger.warn(`Webhook: unknown userId=${userId} provider=${provider} event=${event}`);
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
     // Validate plan and duration — prevent attacker-controlled values from slipping through
     const VALID_PLANS = ['free', 'pro', 'trainer', 'club'] as const;
     const resolvedPlan = VALID_PLANS.includes(plan) ? plan : 'pro';

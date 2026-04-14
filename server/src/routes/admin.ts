@@ -1244,6 +1244,11 @@ router.get('/logs/export', requireAdmin, async (req: AuthRequest, res: Response)
       orderBy: { createdAt: 'desc' },
       take: 5000,
     });
+    const logCsvCell = (v: unknown): string => {
+      let s = String(v ?? '');
+      if (['+', '-', '=', '@', '\t', '\r'].includes(s[0])) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const rows = [['id', 'action', 'admin_email', 'admin_name', 'targetId', 'details', 'createdAt'].join(',')];
     for (const l of logs) {
       rows.push([
@@ -1252,9 +1257,9 @@ router.get('/logs/export', requireAdmin, async (req: AuthRequest, res: Response)
         l.admin.email,
         `${l.admin.firstName} ${l.admin.lastName ?? ''}`.trim(),
         l.targetId ?? '',
-        `"${(l.details ?? '').replace(/"/g, '""')}"`,
+        l.details ?? '',
         l.createdAt.toISOString(),
-      ].join(','));
+      ].map(logCsvCell).join(','));
     }
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="admin_logs_${new Date().toISOString().split('T')[0]}.csv"`);
@@ -1271,9 +1276,11 @@ router.get('/logs/export', requireAdmin, async (req: AuthRequest, res: Response)
 router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => {
   try {
     const { status, priority, assignedToMe, search, sort = 'priority', page = '1', limit = '20' } = req.query as Record<string, string>;
+    const VALID_TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
+    const VALID_TICKET_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
     const where: any = {};
-    if (status) where.status = status;
-    if (priority) where.priority = priority;
+    if (status && VALID_TICKET_STATUSES.includes(status)) where.status = status;
+    if (priority && VALID_TICKET_PRIORITIES.includes(priority)) where.priority = priority;
     if (assignedToMe === 'true') where.assignedToId = req.userId;
     if (search) {
       if (search.length > 100) return res.status(400).json({ error: 'Запрос слишком длинный' });
@@ -1409,15 +1416,19 @@ router.get('/support/export', requireAdmin, async (_req: AuthRequest, res: Respo
       },
       orderBy: { createdAt: 'desc' },
     });
-    const escape = (s: string | null | undefined) => `"${(s ?? '').replace(/"/g, '""')}"`;
+    const ticketCsvCell = (v: unknown): string => {
+      let s = String(v ?? '');
+      if (['+', '-', '=', '@', '\t', '\r'].includes(s[0])) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const header = 'ID,Subject,Category,Status,Priority,User Email,User Name,Assigned To,Messages,Created,Updated';
     const rows = tickets.map((t) => [
-      escape(t.id), escape(t.subject), escape(t.category), escape(t.status), escape(t.priority),
-      escape(t.user?.email), escape(`${t.user?.firstName} ${t.user?.lastName ?? ''}`.trim()),
-      escape(t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName ?? ''}`.trim() : ''),
+      t.id, t.subject, t.category, t.status, t.priority,
+      t.user?.email, `${t.user?.firstName} ${t.user?.lastName ?? ''}`.trim(),
+      t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName ?? ''}`.trim() : '',
       t.messages.length,
-      escape(t.createdAt.toISOString()), escape(t.updatedAt.toISOString()),
-    ].join(','));
+      t.createdAt.toISOString(), t.updatedAt.toISOString(),
+    ].map(ticketCsvCell).join(','));
     const csv = [header, ...rows].join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=tickets.csv');
@@ -1669,7 +1680,11 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
 router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { date } = req.query as Record<string, string>;
-    const reportDate = date ? new Date(date) : new Date();
+    const parsedReportDate = date ? new Date(date) : null;
+    if (parsedReportDate && isNaN(parsedReportDate.getTime())) {
+      return res.status(400).json({ error: 'Некорректная дата' });
+    }
+    const reportDate = parsedReportDate ?? new Date();
     reportDate.setHours(0, 0, 0, 0);
     const nextDay = new Date(reportDate.getTime() + 86400 * 1000);
     const weekAgo = new Date(reportDate.getTime() - 7 * 86400 * 1000);
