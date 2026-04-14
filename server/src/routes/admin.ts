@@ -32,11 +32,13 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
 
   try {
     const now = new Date();
-    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-    const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-    const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
-    const prevWeekStart = new Date(now); prevWeekStart.setDate(now.getDate() - 14);
-    const monthStart = new Date(now); monthStart.setDate(now.getDate() - 30);
+    // Use UTC day boundaries to avoid server-local-timezone drift
+    const todayDateStr = now.toISOString().slice(0, 10);
+    const todayStart = new Date(`${todayDateStr}T00:00:00.000Z`);
+    const yesterdayStart = new Date(todayStart.getTime() - 86_400_000);
+    const weekStart = new Date(todayStart.getTime() - 7 * 86_400_000);
+    const prevWeekStart = new Date(todayStart.getTime() - 14 * 86_400_000);
+    const monthStart = new Date(todayStart.getTime() - 30 * 86_400_000);
 
     const [
       totalUsers,

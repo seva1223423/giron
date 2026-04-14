@@ -42,8 +42,8 @@ interface WorkoutStore {
   // Programs
   setPrograms: (programs: Program[]) => void;
   addProgram: (program: Program) => void;
-  updateProgram: (id: string, data: Partial<Program>) => void;
-  deleteProgram: (id: string) => void;
+  updateProgram: (id: string, data: Partial<Program>) => Promise<void>;
+  deleteProgram: (id: string) => Promise<void>;
   fetchPrograms: () => Promise<void>;
 
   // Active workout
@@ -141,12 +141,24 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       setPrograms: (programs) => set({ programs }),
       addProgram: (program) => set((s) => ({ programs: [...s.programs, program] })),
-      updateProgram: (id, data) => set((s) => ({
-        programs: s.programs.map((p) => p.id === id ? { ...p, ...data } : p),
-      })),
-      deleteProgram: (id) => set((s) => ({
-        programs: s.programs.filter((p) => p.id !== id),
-      })),
+      updateProgram: async (id, data) => {
+        // Optimistic local update
+        set((s) => ({
+          programs: s.programs.map((p) => p.id === id ? { ...p, ...data } : p),
+        }));
+        // Persist to server; on failure re-fetch to restore truth
+        workoutService.updateProgram(id, data as any).catch(() => {
+          get().fetchPrograms();
+        });
+      },
+      deleteProgram: async (id) => {
+        // Optimistic local delete
+        set((s) => ({ programs: s.programs.filter((p) => p.id !== id) }));
+        // Persist to server; on failure re-fetch to restore truth
+        workoutService.deleteProgram(id).catch(() => {
+          get().fetchPrograms();
+        });
+      },
 
       fetchPrograms: async () => {
         set({ isLoadingPrograms: true });
@@ -473,7 +485,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         }
 
         try {
-          const history = await workoutService.getHistory();
+          const { workouts: history } = await workoutService.getHistory();
           if (history.length > 0) {
             // Merge: keep local-only workouts that server doesn't know about
             const serverIds = new Set(history.map((w) => w.id));
