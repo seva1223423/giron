@@ -178,14 +178,12 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
     const { clientId, name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = parsed.data;
 
-    // If clientId provided, check if this workout was already synced (idempotency)
-    // IMPORTANT: verify ownership to prevent cross-user data exposure
+    // If clientId provided, check if this workout was already synced (idempotency).
+    // Scope lookup to the current user so clientId uniqueness is per-user and no
+    // information about other users' workouts is leaked.
     if (clientId) {
-      const existing = await prisma.workout.findUnique({ where: { clientId } });
+      const existing = await prisma.workout.findFirst({ where: { clientId, userId: req.userId! } });
       if (existing) {
-        if (existing.userId !== req.userId) {
-          return res.status(403).json({ error: 'Доступ запрещён' });
-        }
         return res.status(200).json(existing);
       }
     }
@@ -236,7 +234,11 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(workout);
-  } catch (e) {
+  } catch (e: any) {
+    // P2002 = unique constraint violation — clientId already taken globally (another user's workout)
+    if (e?.code === 'P2002' && e?.meta?.target?.includes?.('clientId')) {
+      return res.status(409).json({ error: 'Тренировка с данным clientId уже существует' });
+    }
     logger.error('Workout sync error:', e);
     res.status(500).json({ error: 'Ошибка синхронизации тренировки' });
   }

@@ -68,10 +68,11 @@ export const useAuthStore = create<AuthStore>()(
             err.code = 'TOTP_REQUIRED';
             throw err;
           }
+          const authResponse = response as import('../services/authService').AuthResponse;
           set({
-            user: normalizeUser(response.user),
-            token: response.token,
-            refreshToken: response.refreshToken,
+            user: normalizeUser(authResponse.user),
+            token: authResponse.token,
+            refreshToken: authResponse.refreshToken,
             isAuthenticated: true,
             isLoading: false,
             totpPendingToken: null,
