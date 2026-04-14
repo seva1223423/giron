@@ -3,10 +3,11 @@ import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
 import { refreshNews } from '../services/newsRefreshService';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
+import { newsCache } from '../utils/memCache';
 
 const router = Router();
 
-// Get news feed
+// Get news feed (cached 5 minutes per category/page combination)
 router.get('/', async (req, res: Response) => {
   try {
     const { category, limit = '20', offset = '0' } = req.query;
@@ -16,12 +17,19 @@ router.get('/', async (req, res: Response) => {
       return res.status(400).json({ error: 'Некорректная категория' });
     }
 
+    const take = Math.min(Math.max(parseInt(limit as string) || 20, 1), 100);
+    const skip = Math.min(Math.max(parseInt(offset as string) || 0, 0), 10000);
+
+    const cacheKey = `news:${category ?? 'all'}:${take}:${skip}`;
+    const cached = newsCache.get(cacheKey);
+    if (cached) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const where = category
       ? { categories: { has: category as string } }
       : {};
-
-    const take = Math.min(Math.max(parseInt(limit as string) || 20, 1), 100);
-    const skip = Math.min(Math.max(parseInt(offset as string) || 0, 0), 10000);
 
     const articles = await prisma.newsArticle.findMany({
       where,
@@ -30,6 +38,8 @@ router.get('/', async (req, res: Response) => {
       skip,
     });
 
+    newsCache.set(cacheKey, articles, 5 * 60 * 1000); // 5 minutes
+    res.setHeader('X-Cache', 'MISS');
     res.json(articles);
   } catch (e) {
     logger.error(e);
