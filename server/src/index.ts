@@ -64,15 +64,16 @@ app.use(cors({
   },
   credentials: true,
 }));
-// Capture raw body for webhook signature verification via verify callback
+// Capture raw body for webhook signature verification via verify callback.
+// Limit is 512kb — sufficient for all API payloads. Webhook raw body is stored for HMAC verification.
 app.use(express.json({
-  limit: '10mb',
+  limit: '512kb',
   verify: (req, _res, buf) => { (req as any).rawBody = buf.toString(); },
 }));
 
-// Health check
+// Health check — do not expose version or build info
 app.get('/health', (_, res) => {
-  res.json({ status: 'ok', version: '1.0.0' });
+  res.json({ status: 'ok' });
 });
 
 // ── Rate limiters ────────────────────────────────────────────────────────────

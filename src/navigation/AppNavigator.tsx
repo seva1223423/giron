@@ -335,11 +335,13 @@ export const AppNavigator: React.FC = () => {
     }
   }, [isAuthenticated, isOnboarded]);
 
-  // Handle notification taps — open deep-link URL from notification data
+  // Handle notification taps — open deep-link URL from notification data.
+  // Only allow URLs that match our own app scheme to prevent deep-link injection attacks.
   useEffect(() => {
+    const ALLOWED_PREFIXES = ['irongym://', 'https://irongym.app'];
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const url = response.notification.request.content.data?.url as string | undefined;
-      if (url) {
+      if (url && ALLOWED_PREFIXES.some((prefix) => url.startsWith(prefix))) {
         Linking.openURL(url).catch(() => {});
       }
     });
