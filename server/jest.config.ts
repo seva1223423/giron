@@ -9,6 +9,11 @@ const config: Config = {
   clearMocks: true,
   // Prevent actual DB/server connections in tests
   setupFiles: ['<rootDir>/src/__tests__/setup.ts'],
+  // expo-server-sdk ships as ES modules which ts-jest can't process.
+  // In tests we never actually send push notifications, so mock the whole package.
+  moduleNameMapper: {
+    '^expo-server-sdk$': '<rootDir>/src/__tests__/__mocks__/expo-server-sdk.ts',
+  },
 };
 
 export default config;
