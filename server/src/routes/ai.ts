@@ -2380,20 +2380,46 @@ async function executeTool(
   return { resultText: 'Неизвестный инструмент', actionDescription: '' };
 }
 
+const chatRequestSchema = z.object({
+  message: z.string().min(1, 'Сообщение обязательно').max(4000, 'Сообщение слишком длинное (макс. 4000 символов)'),
+  stream: z.boolean().optional(),
+  nutritionTargets: z.object({
+    calories: z.number().min(0).max(100000),
+    protein: z.number().min(0).max(10000),
+    fats: z.number().min(0).max(10000),
+    carbs: z.number().min(0).max(10000),
+    waterTargetMl: z.number().min(0).max(20000),
+  }).optional(),
+  waterMl: z.number().min(0).max(20000).optional(),
+  weekPlan: z.record(z.union([
+    z.object({
+      name: z.string().max(200),
+      emoji: z.string().max(10),
+      exercises: z.array(z.string().max(200)).max(50),
+    }),
+    z.null(),
+  ])).refine((v) => Object.keys(v).length <= 7, 'Не более 7 дней').optional(),
+  cardioSessions: z.array(z.object({
+    type: z.string().max(50),
+    date: z.string().max(30),
+    durationMinutes: z.number().min(0).max(1440),
+    distanceKm: z.number().min(0).max(1000).optional(),
+    caloriesBurned: z.number().min(0).max(10000).optional(),
+    avgHeartRate: z.number().min(0).max(300).optional(),
+  })).max(30).optional(),
+  sleepEntries: z.array(z.object({
+    date: z.string().max(30),
+    durationHours: z.number().min(0).max(24),
+    quality: z.number().min(1).max(10).nullable().optional(),
+  })).max(30).optional(),
+});
+
 // Chat with AI
 router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode } = req.body as {
-      message: string;
-      nutritionTargets?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number };
-      waterMl?: number;
-      weekPlan?: Record<string, { name: string; emoji: string; exercises: string[] } | null>;
-      cardioSessions?: Array<{ type: string; date: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; avgHeartRate?: number }>;
-      sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>;
-      stream?: boolean;
-    };
-    if (!message || typeof message !== 'string' || message.trim().length === 0) return res.status(400).json({ error: 'Сообщение обязательно' });
-    if (message.length > 4000) return res.status(400).json({ error: 'Сообщение слишком длинное (макс. 4000 символов)' });
+    const chatParsed = chatRequestSchema.safeParse(req.body);
+    if (!chatParsed.success) return res.status(400).json({ error: chatParsed.error.errors[0].message });
+    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode } = chatParsed.data;
 
     // Set SSE headers early if streaming requested
     if (streamMode) {
