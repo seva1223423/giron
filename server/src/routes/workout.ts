@@ -7,6 +7,8 @@ import { MemCache } from '../utils/memCache';
 
 /** Leaderboard cache — 15 minutes (expensive query, changes slowly) */
 const leaderboardCache = new MemCache<unknown>(5);
+/** Exercises cache — 1 hour (exercise library almost never changes) */
+const exercisesCache = new MemCache<unknown>(2);
 
 const router = Router();
 
@@ -127,6 +129,55 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка создания программы' });
+  }
+});
+
+// Update program (rename, change goal/level, toggle active)
+router.patch('/programs/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const updateProgramSchema = z.object({
+      name: z.string().min(1).max(200).optional(),
+      description: z.string().max(2000).optional().nullable(),
+      isActive: z.boolean().optional(),
+      goal: z.enum(['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS']).optional(),
+      level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
+      daysPerWeek: z.number().int().min(1).max(7).optional(),
+    });
+    const parsed = updateProgramSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+
+    // Verify ownership
+    const existing = await prisma.program.findUnique({ where: { id }, select: { userId: true } });
+    if (!existing || existing.userId !== req.userId) {
+      return res.status(404).json({ error: 'Программа не найдена' });
+    }
+
+    const program = await prisma.$transaction(async (tx) => {
+      // If activating this program, deactivate all others first
+      if (parsed.data.isActive === true) {
+        await tx.program.updateMany({ where: { userId: req.userId, isActive: true }, data: { isActive: false } });
+      }
+      return tx.program.update({ where: { id }, data: parsed.data });
+    });
+
+    res.json(program);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка обновления программы' });
+  }
+});
+
+// Delete program
+router.delete('/programs/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const deleted = await prisma.program.deleteMany({ where: { id, userId: req.userId! } });
+    if (deleted.count === 0) return res.status(404).json({ error: 'Программа не найдена' });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка удаления программы' });
   }
 });
 
@@ -275,17 +326,20 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       return res.status(404).json({ error: 'Тренировка не найдена' });
     }
 
-    // Update sets in parallel (only sets belonging to this workout)
+    // Update sets in a single transaction (only sets belonging to this workout)
     const validSetIds = new Set(workout.exercises.flatMap((ex: any) => ex.sets.map((s: any) => s.id)));
     if (sets) {
-      await Promise.all(
-        sets.filter((set: any) => validSetIds.has(set.id)).map((set: any) =>
-          prisma.workoutSet.update({
-            where: { id: set.id },
-            data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
-          })
-        )
-      );
+      const validSets = sets.filter((set: any) => validSetIds.has(set.id));
+      if (validSets.length > 0) {
+        await prisma.$transaction(
+          validSets.map((set: any) =>
+            prisma.workoutSet.update({
+              where: { id: set.id },
+              data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
+            })
+          )
+        );
+      }
     }
 
     // Refetch sets after update
@@ -344,16 +398,19 @@ router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Respons
       return res.status(404).json({ error: 'Тренировка не найдена' });
     }
 
-    // Only update sets belonging to this workout
+    // Only update sets belonging to this workout, in a single transaction
     const validSetIds = new Set(workout.exercises.flatMap((ex: any) => ex.sets.map((s: any) => s.id)));
-    await Promise.all(
-      sets.filter((set: any) => validSetIds.has(set.id)).map((set: any) =>
-        prisma.workoutSet.update({
-          where: { id: set.id },
-          data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
-        }).catch(() => {})
-      )
-    );
+    const validSets = sets.filter((set: any) => validSetIds.has(set.id));
+    if (validSets.length > 0) {
+      await prisma.$transaction(
+        validSets.map((set: any) =>
+          prisma.workoutSet.update({
+            where: { id: set.id },
+            data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
+          })
+        )
+      ).catch(() => {}); // autosave is fire-and-forget; ignore transaction errors
+    }
 
     res.json({ success: true });
   } catch (e) {
@@ -368,19 +425,23 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
     const { limit: rawLimit = '50', offset: rawOffset = '0' } = req.query;
     const limit = Math.min(Math.max(parseInt(rawLimit as string) || 50, 1), 200);
     const offset = Math.max(parseInt(rawOffset as string) || 0, 0);
-    const workouts = await prisma.workout.findMany({
-      where: { userId: req.userId, completedAt: { not: null } },
-      include: {
-        exercises: {
-          include: { exercise: true, sets: true },
-          orderBy: { order: 'asc' },
+    const where = { userId: req.userId, completedAt: { not: null } };
+    const [workouts, total] = await Promise.all([
+      prisma.workout.findMany({
+        where,
+        include: {
+          exercises: {
+            include: { exercise: true, sets: true },
+            orderBy: { order: 'asc' },
+          },
         },
-      },
-      orderBy: { completedAt: 'desc' },
-      take: limit,
-      skip: offset,
-    });
-    res.json(workouts);
+        orderBy: { completedAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.workout.count({ where }),
+    ]);
+    res.json({ workouts, total, limit, offset });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка получения истории' });
@@ -510,12 +571,17 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
   }
 });
 
-// Get exercises database
+// Get exercises database (cached 1 hour — library changes rarely)
 router.get('/exercises', authenticate, async (_req, res: Response) => {
   try {
-    const exercises = await prisma.exercise.findMany({
-      orderBy: { name: 'asc' },
-    });
+    const cached = exercisesCache.get('exercises');
+    if (cached) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+    const exercises = await prisma.exercise.findMany({ orderBy: { name: 'asc' } });
+    exercisesCache.set('exercises', exercises, 60 * 60 * 1000);
+    res.setHeader('X-Cache', 'MISS');
     res.json(exercises);
   } catch (e) {
     logger.error(e);

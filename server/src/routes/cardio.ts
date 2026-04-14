@@ -13,6 +13,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     const sessions = await prisma.cardioSession.findMany({
       where: { userId },
       orderBy: { date: 'desc' },
+      take: 365, // last year is sufficient; prevents unbounded response for heavy users
     });
     res.json(sessions);
   } catch (e) {

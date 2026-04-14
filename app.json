@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "icon": "./assets/icon.png",
       "infoPlist": {
-        "NSMotionUsageDescription": "Необходимо для подсчёта шагов и отслеживания активности"
+        "NSMotionUsageDescription": "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ"
       }
     },
     "android": {
@@ -52,7 +52,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

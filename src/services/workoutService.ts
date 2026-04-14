@@ -32,6 +32,22 @@ export const workoutService = {
     return data;
   },
 
+  async updateProgram(id: string, params: {
+    name?: string;
+    description?: string | null;
+    isActive?: boolean;
+    goal?: string;
+    level?: string;
+    daysPerWeek?: number;
+  }): Promise<Program> {
+    const { data } = await api.patch(`/workouts/programs/${id}`, params);
+    return data;
+  },
+
+  async deleteProgram(id: string): Promise<void> {
+    await api.delete(`/workouts/programs/${id}`);
+  },
+
   // Workouts
   async startWorkout(params: {
     name: string;
@@ -92,9 +108,11 @@ export const workoutService = {
     await api.post(`/workouts/${id}/autosave`, { sets }).catch(() => {}); // fire-and-forget
   },
 
-  async getHistory(limit = 50, offset = 0): Promise<Workout[]> {
+  async getHistory(limit = 50, offset = 0): Promise<{ workouts: Workout[]; total: number }> {
     const { data } = await api.get('/workouts/history', { params: { limit, offset } });
-    return data;
+    // Support both old array format and new { workouts, total } format
+    if (Array.isArray(data)) return { workouts: data, total: data.length };
+    return { workouts: data.workouts ?? [], total: data.total ?? 0 };
   },
 
   // Exercises database

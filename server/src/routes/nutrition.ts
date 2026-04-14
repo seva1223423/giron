@@ -70,15 +70,15 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
     const { date } = req.query;
     if (!date) return res.status(400).json({ error: 'Укажите дату' });
 
-    const parsedDate = new Date(date as string);
-    if (isNaN(parsedDate.getTime())) {
-      return res.status(400).json({ error: 'Некорректная дата' });
+    // Validate the date string looks like YYYY-MM-DD
+    const dateStr = (date as string).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || isNaN(Date.parse(dateStr))) {
+      return res.status(400).json({ error: 'Некорректная дата. Формат: YYYY-MM-DD' });
     }
 
-    const startOfDay = new Date(parsedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(parsedDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Use explicit UTC boundaries to avoid server-local-timezone day drift
+    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
 
     const meals = await prisma.meal.findMany({
       where: {
