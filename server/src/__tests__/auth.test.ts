@@ -2,6 +2,13 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
+// Disable rate limiting for tests
+jest.mock('express-rate-limit', () => {
+  const passthrough = () => (_req: any, _res: any, next: any) => next();
+  passthrough.ipKeyGenerator = (ip: string) => ip;
+  return passthrough;
+});
+
 // Mock prisma before importing app
 jest.mock('../db', () => ({
   prisma: {
