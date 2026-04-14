@@ -2453,7 +2453,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
     const isPaidSub = userSub && userSub.status === 'active' && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub) {
-      const todayFloor = new Date(); todayFloor.setHours(0, 0, 0, 0);
+      const todayFloor = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
       const todayCount = await prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
       if (todayCount >= AI_FREE_DAILY_LIMIT) {
         return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
@@ -9049,15 +9049,21 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         if (streamMode) {
           // Stream response chunk by chunk via SSE
           let fullContent = '';
+          // Track client disconnect — writing to a closed socket throws; check before each write
+          let clientGone = false;
+          res.on('close', () => { clientGone = true; });
           try {
             for await (const chunk of chatStream({ system: finalSystemPrompt, messages, maxTokens: intentConfig.maxTokens, temperature: intentConfig.temperature })) {
+              if (clientGone) break; // stop generating if client disconnected
               fullContent += chunk;
               res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
             }
           } catch (streamError) {
-            // Fallback: get full response and send at once
-            fullContent = await chatWithoutTools({ system: finalSystemPrompt, messages, maxTokens: intentConfig.maxTokens, temperature: intentConfig.temperature });
-            res.write(`data: ${JSON.stringify({ type: 'chunk', content: fullContent })}\n\n`);
+            if (!clientGone) {
+              // Fallback: get full response and send at once
+              fullContent = await chatWithoutTools({ system: finalSystemPrompt, messages, maxTokens: intentConfig.maxTokens, temperature: intentConfig.temperature });
+              res.write(`data: ${JSON.stringify({ type: 'chunk', content: fullContent })}\n\n`);
+            }
           }
           result = { content: fullContent, toolCalls: [], hasToolCalls: false };
         } else {

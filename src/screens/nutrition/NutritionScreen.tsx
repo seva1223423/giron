@@ -34,8 +34,11 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   useAchievementCheck(handleAchievementsUnlocked);
 
   // Auto-clean nutrition logs older than 90 days on screen mount
-  const { cleanupOldLogs } = useNutritionStore();
+  const { cleanupOldLogs, syncMealsFromServer } = useNutritionStore();
   useEffect(() => { cleanupOldLogs(90); }, []);
+
+  // Sync meals from server when date changes (catches additions from other devices or AI chat)
+  useEffect(() => { syncMealsFromServer(selectedDate).catch(() => {}); }, [selectedDate]);
 
   const handleQuickAdd = (food: NutritionItem) => {
     haptic.selection();
