@@ -22,8 +22,9 @@ import { useAuthStore } from '../../store';
 const ADMIN_PIN_KEY = 'iron_gym_admin_pin';
 const MAX_PIN_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 60;
-// In-memory flag — cleared when the app process restarts (e.g. force quit)
-let sessionVerified = false;
+// In-memory flag — cleared when the app process restarts (e.g. force quit).
+// Keyed by userId so a re-login or user switch resets the verified state.
+const sessionVerifiedByUser: Record<string, boolean> = {};
 
 interface Props {
   children: React.ReactNode;
@@ -32,6 +33,7 @@ interface Props {
 
 export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false }) => {
   const { user } = useAuthStore();
+  const userId = user?.id ?? '';
   const [pinStored, setPinStored] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState('');
@@ -43,18 +45,27 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
   // Brute-force protection (in-memory — resets on app restart, sufficient for this use case)
   const failedAttempts = useRef(0);
   const [lockedUntil, setLockedUntil] = useState(0);
+  // Re-render trigger when sessionVerifiedByUser changes (module-level, can't observe directly)
+  const [, forceUpdate] = useState(0);
 
   // Role check — immediate, synchronous
   const isAllowed = user?.role === 'admin' || user?.role === 'support';
+  const sessionVerified = !!userId && !!sessionVerifiedByUser[userId];
 
   useEffect(() => {
+    // Reset PIN state when user changes (logout/re-login)
+    setPinStored(null);
+    setLoaded(false);
     SecureStore.getItemAsync(ADMIN_PIN_KEY).then((pin) => {
       setPinStored(pin);
       setLoaded(true);
     }).catch(() => {
-      setLoaded(true); // fail open so screen doesn't hang on spinner
+      // Fail CLOSED on SecureStore error — show "unable to verify" rather than
+      // letting anyone past the PIN gate if keystore is unavailable.
+      setPinStored('__unavailable__');
+      setLoaded(true);
     });
-  }, []);
+  }, [userId]);
 
   // Tick state drives countdown display without mutating lockedUntil
   const [, setTick] = useState(0);
@@ -142,7 +153,8 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
                 if (input === setupFirst) {
                   SecureStore.setItemAsync(ADMIN_PIN_KEY, input).then(() => {
                     setPinStored(input);
-                    sessionVerified = true;
+                    sessionVerifiedByUser[userId] = true;
+                    forceUpdate((n) => n + 1);
                     setInput('');
                   }).catch(() => {});
                 } else {
@@ -169,8 +181,13 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
 
     const verify = () => {
       if (isLocked) return;
+      if (pinStored === '__unavailable__') {
+        setError('Не удалось открыть защищённое хранилище. Перезапустите приложение.');
+        return;
+      }
       if (input === pinStored) {
-        sessionVerified = true;
+        sessionVerifiedByUser[userId] = true;
+        forceUpdate((n) => n + 1);
         failedAttempts.current = 0;
         setInput('');
         setError('');

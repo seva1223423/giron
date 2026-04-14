@@ -20,10 +20,14 @@ interface Props {
   commonMistakes?: string[];
 }
 
+// YouTube video IDs are exactly 11 chars: alphanumeric + hyphen + underscore.
+// Validating prevents URL injection in case the backend or DB is ever compromised.
+const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
 async function openYouTube(youtubeId?: string, exerciseName?: string) {
   try {
     const query = encodeURIComponent(`${exerciseName || ''} техника выполнения`);
-    if (youtubeId) {
+    if (youtubeId && YOUTUBE_ID_RE.test(youtubeId)) {
       const appUrl = `youtube://www.youtube.com/watch?v=${youtubeId}`;
       const webUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
       const canApp = await Linking.canOpenURL(appUrl);
@@ -47,7 +51,8 @@ export const ExerciseVideoModal: React.FC<Props> = ({
   const { colors } = useThemeStore();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const THUMB_H = Math.round((screenW * 9) / 16);
-  const thumbUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
+  const safeYoutubeId = youtubeId && YOUTUBE_ID_RE.test(youtubeId) ? youtubeId : undefined;
+  const thumbUrl = safeYoutubeId ? `https://img.youtube.com/vi/${safeYoutubeId}/maxresdefault.jpg` : null;
   const [activeTab, setActiveTab] = useState<'steps' | 'tips'>('steps');
 
   const pulse = useRef(new Animated.Value(1)).current;
@@ -84,7 +89,7 @@ export const ExerciseVideoModal: React.FC<Props> = ({
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
         {/* YouTube thumbnail */}
-        <TouchableOpacity activeOpacity={0.88} onPress={() => openYouTube(youtubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
+        <TouchableOpacity activeOpacity={0.88} onPress={() => openYouTube(safeYoutubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
           {thumbUrl ? (
             <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
           ) : (
@@ -182,7 +187,7 @@ export const ExerciseVideoModal: React.FC<Props> = ({
 
         {/* CTA buttons */}
         <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
-          <TouchableOpacity style={[styles.watchBtn]} onPress={() => openYouTube(youtubeId, exerciseName)}>
+          <TouchableOpacity style={[styles.watchBtn]} onPress={() => openYouTube(safeYoutubeId, exerciseName)}>
             <Text style={styles.watchBtnText}>{youtubeId ? '▶ Открыть в YouTube' : '🔍 Найти в YouTube'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.closeBtn, { borderColor: colors.border }]} onPress={onClose}>
