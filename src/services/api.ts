@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { setOnlineStatus } from '../store/useConnectionStore';
+import { tokenStorage } from '../utils/secureStorage';
 
 // Production server on Render (works from any device/network)
 const BASE_URL = 'https://iron-gym-swoe.onrender.com/api';
@@ -12,17 +12,11 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Request interceptor — attach JWT token
+// Request interceptor — attach JWT from SecureStore
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  const stored = await AsyncStorage.getItem('iron-gym-auth');
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      const token = parsed?.state?.token;
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch {}
+  const token = await tokenStorage.getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -75,39 +69,28 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const stored = await AsyncStorage.getItem('iron-gym-auth');
-        const parsed = stored ? JSON.parse(stored) : null;
-        const refreshToken = parsed?.state?.refreshToken;
-
+        const refreshToken = await tokenStorage.getRefreshToken();
         if (!refreshToken) throw new Error('No refresh token');
 
         const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
 
-        // Update stored tokens
-        if (parsed?.state) {
-          parsed.state.token = data.token;
-          parsed.state.refreshToken = data.refreshToken;
-          await AsyncStorage.setItem('iron-gym-auth', JSON.stringify(parsed));
-        }
+        // Persist new tokens in SecureStore
+        await tokenStorage.setTokens(data.token, data.refreshToken);
+
+        // Keep Zustand in-memory store in sync and persist to SecureStore
+        try {
+          const { useAuthStore } = require('../store');
+          await useAuthStore.getState().updateTokens(data.token, data.refreshToken);
+        } catch { /* best effort */ }
 
         processQueue(null, data.token);
         originalRequest.headers.Authorization = `Bearer ${data.token}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Clear auth state on failed refresh — update both AsyncStorage AND in-memory Zustand store
+        // Clear tokens on failed refresh
+        await tokenStorage.clearTokens();
         try {
-          const stored = await AsyncStorage.getItem('iron-gym-auth');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed?.state) {
-              parsed.state.token = null;
-              parsed.state.refreshToken = null;
-              parsed.state.isAuthenticated = false;
-              await AsyncStorage.setItem('iron-gym-auth', JSON.stringify(parsed));
-            }
-          }
-          // Also update Zustand in-memory store to trigger UI re-render
           const { useAuthStore } = require('../store');
           useAuthStore.getState().logout();
         } catch { /* best effort */ }

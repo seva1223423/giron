@@ -183,10 +183,9 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (!totpPendingToken) { setLocalError('Сессия истекла. Войдите снова.'); return; }
     try {
       const response = await authService.verifyTotp(totpPendingToken, '', backupCode.trim().replace(/-/g, '').toUpperCase());
+      await useAuthStore.getState().updateTokens(response.token, response.refreshToken);
       useAuthStore.setState({
         user: response.user,
-        token: response.token,
-        refreshToken: response.refreshToken,
         isAuthenticated: true,
         totpPendingToken: null,
       });

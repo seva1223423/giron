@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
+import { tokenStorage } from '../utils/secureStorage';
 
 // Backend returns Prisma enum values (MALE/FEMALE, MUSCLE_GAIN, BEGINNER, ADMIN); normalize to frontend types
 const normalizeUser = (user: User): User => ({
@@ -26,6 +27,8 @@ interface AuthStore {
 
   setUser: (user: User) => void;
   setToken: (token: string) => void;
+  /** Called by api.ts or screens after receiving fresh tokens — persists to SecureStore and syncs in-memory state. */
+  updateTokens: (token: string, refreshToken: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   loginWithTotp: (code: string, rememberDevice?: boolean) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
@@ -57,6 +60,12 @@ export const useAuthStore = create<AuthStore>()(
       setToken: (token) => set({ token }),
       clearError: () => set({ error: null }),
 
+      /** Persist fresh tokens to SecureStore and sync in-memory Zustand state. */
+      updateTokens: async (token, refreshToken) => {
+        await tokenStorage.setTokens(token, refreshToken);
+        set({ token, refreshToken });
+      },
+
       login: async (email, password) => {
         set({ isLoading: true, error: null, totpPendingToken: null });
         try {
@@ -69,6 +78,7 @@ export const useAuthStore = create<AuthStore>()(
             throw err;
           }
           const authResponse = response as import('../services/authService').AuthResponse;
+          await tokenStorage.setTokens(authResponse.token, authResponse.refreshToken);
           set({
             user: normalizeUser(authResponse.user),
             token: authResponse.token,
@@ -92,6 +102,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.verifyTotp(totpPendingToken, code, undefined, rememberDevice);
+          await tokenStorage.setTokens(response.token, response.refreshToken);
           set({
             user: normalizeUser(response.user),
             token: response.token,
@@ -112,6 +123,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithGoogle(idToken);
+          await tokenStorage.setTokens(response.token, response.refreshToken);
           set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
           const apiError = getApiError(e);
@@ -124,6 +136,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithVk(params);
+          await tokenStorage.setTokens(response.token, response.refreshToken);
           set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
           const apiError = getApiError(e);
@@ -136,6 +149,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithYandex(accessToken);
+          await tokenStorage.setTokens(response.token, response.refreshToken);
           set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
           const apiError = getApiError(e);
@@ -148,6 +162,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginByPhone(phone, code);
+          await tokenStorage.setTokens(response.token, response.refreshToken);
           set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
           const apiError = getApiError(e);
@@ -160,6 +175,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.register(params);
+          await tokenStorage.setTokens(response.token, response.refreshToken);
           set({
             user: normalizeUser(response.user),
             token: response.token,
@@ -178,6 +194,8 @@ export const useAuthStore = create<AuthStore>()(
         const { refreshToken } = get();
         // Revoke refresh token on server (non-blocking)
         if (refreshToken) authService.logout(refreshToken).catch(() => {});
+        // Clear tokens from SecureStore (hardware-backed Keychain/Keystore)
+        await tokenStorage.clearTokens();
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, error: null });
       },
 
@@ -209,11 +227,11 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: 'iron-gym-auth',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
-      migrate: (persistedState: any, version: number) => {
+      version: 3,
+      migrate: async (persistedState: any, version: number) => {
+        const s = persistedState as any;
         if (version === 0 || version === 1) {
-          // v0/v1 → v2: normalize gender/goal/fitnessLevel/role casing (backend returned UPPER_CASE)
-          const s = persistedState as any;
+          // v0/v1 → normalize gender/goal/fitnessLevel/role casing
           if (s.user) {
             if (s.user.gender) s.user.gender = s.user.gender.toLowerCase();
             if (s.user.goal) s.user.goal = s.user.goal.toLowerCase();
@@ -221,15 +239,47 @@ export const useAuthStore = create<AuthStore>()(
             if (s.user.role) s.user.role = s.user.role.toLowerCase();
           }
         }
-        return persistedState as any;
+        if (version < 3) {
+          // v2 → v3: migrate tokens from unencrypted AsyncStorage into SecureStore (Keychain/Keystore).
+          // Tokens are removed from persisted state; SecureStore becomes the single source of truth.
+          if (s.token && s.refreshToken) {
+            try {
+              await tokenStorage.setTokens(s.token, s.refreshToken);
+            } catch { /* best effort — if SecureStore unavailable (e.g. emulator), tokens stay in memory */ }
+          }
+          delete s.token;
+          delete s.refreshToken;
+        }
+        return s;
       },
+      // Tokens are NOT persisted to AsyncStorage (unencrypted) — they live in SecureStore only.
+      // On startup they are loaded back into in-memory state via onRehydrateStorage.
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         isOnboarded: state.isOnboarded,
       }),
+      onRehydrateStorage: () => async (state) => {
+        if (!state) return;
+        if (state.isAuthenticated) {
+          // Restore tokens from SecureStore (Keychain/Keystore) back into in-memory Zustand state
+          try {
+            const [token, refreshToken] = await Promise.all([
+              tokenStorage.getAccessToken(),
+              tokenStorage.getRefreshToken(),
+            ]);
+            if (token && refreshToken) {
+              useAuthStore.setState({ token, refreshToken });
+            } else {
+              // SecureStore empty but store says authenticated — tokens were wiped (device restore,
+              // app reinstall, or OS security event). Force a clean logout so the user re-authenticates.
+              useAuthStore.setState({ isAuthenticated: false, user: null, token: null, refreshToken: null });
+            }
+          } catch {
+            // SecureStore unavailable — leave token null; API will get 401 and handle gracefully
+          }
+        }
+      },
     }
   )
 );

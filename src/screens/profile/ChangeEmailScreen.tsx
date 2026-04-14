@@ -80,7 +80,7 @@ export const ChangeEmailScreen: React.FC<{ navigation: any }> = ({ navigation })
       if (user) setUser({ ...user, email: email.trim().toLowerCase(), emailVerified: true });
       // Update stored tokens — server issued fresh tokens after revoking all other sessions
       if (data.token && data.refreshToken) {
-        useAuthStore.setState({ token: data.token, refreshToken: data.refreshToken });
+        await useAuthStore.getState().updateTokens(data.token, data.refreshToken);
       }
       Alert.alert('Готово', 'Email успешно изменён', [
         { text: 'OK', onPress: () => navigation.goBack() },
