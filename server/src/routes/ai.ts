@@ -80678,8 +80678,12 @@ router.get('/starters', authenticate, async (req: AuthRequest, res: Response) =>
 // Analyze food photo
 router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { imageBase64 } = req.body;
-    if (!imageBase64) return res.status(400).json({ error: 'Изображение обязательно' });
+    const parsed = z.object({
+      // ~7MB of base64 = ~5.25MB decoded, reasonable for a photo
+      imageBase64: z.string().min(100, 'Изображение слишком маленькое').max(9_000_000, 'Изображение слишком большое'),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+    const { imageBase64 } = parsed.data;
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
 

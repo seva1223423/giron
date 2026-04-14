@@ -515,12 +515,41 @@ router.post('/check-phone', async (req: Request, res: Response) => {
   }
 });
 
+// ── Social auth 2FA gate helper ───────────────────────────────────────────────
+
+/**
+ * If the user has TOTP enabled, check for a trusted device token.
+ * Returns { requiresTOTP: true, pendingToken } if TOTP is required, null otherwise.
+ */
+async function checkSocialAuthTotpGate(
+  user: any,
+  deviceToken: string | undefined,
+): Promise<{ requiresTOTP: true; pendingToken: string } | null> {
+  if (!user.totpEnabled || !user.totpSecret) return null;
+  if (deviceToken) {
+    const tokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
+    const trusted = await prisma.trustedDevice.findFirst({
+      where: { tokenHash, userId: user.id, expiresAt: { gte: new Date() } },
+    });
+    if (trusted) return null;
+  }
+  const pendingToken = jwt.sign(
+    { userId: user.id, phase: 'totp' },
+    process.env.JWT_SECRET!,
+    { expiresIn: '5m', issuer: JWT_ISS, audience: JWT_AUD },
+  );
+  return { requiresTOTP: true, pendingToken };
+}
+
 // ── Google Auth ───────────────────────────────────────────────────────────────
 
 /** POST /auth/google — verify Google ID token, find or create user */
 router.post('/google', async (req: Request, res: Response) => {
   try {
-    const { idToken } = z.object({ idToken: z.string().min(1) }).parse(req.body);
+    const { idToken, deviceToken } = z.object({
+      idToken: z.string().min(1),
+      deviceToken: z.string().optional(),
+    }).parse(req.body);
 
     if (GOOGLE_CLIENT_IDS.length === 0) {
       return res.status(503).json({ error: 'Google OAuth не настроен на сервере' });
@@ -582,6 +611,12 @@ router.post('/google', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
 
+    const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
+    if (totpGate) {
+      await logSecurityEvent('LOGIN_TOTP_REQUIRED', user!.id, req, 'method=google');
+      return res.json(totpGate);
+    }
+
     const { token, refreshToken } = await signTokens(user!.id, req);
     await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=google');
     checkSuspiciousLogin(user!.id, req, user!.email, user!.emailVerified).catch(() => {});
@@ -597,10 +632,11 @@ router.post('/google', async (req: Request, res: Response) => {
 
 router.post('/vk', async (req: Request, res: Response) => {
   try {
-    const { accessToken, userId: claimedVkUserId, email: vkEmail } = z.object({
+    const { accessToken, userId: claimedVkUserId, email: vkEmail, deviceToken } = z.object({
       accessToken: z.string().min(1),
       userId: z.number().int().positive(),
       email: z.string().email().optional(),
+      deviceToken: z.string().optional(),
     }).parse(req.body);
 
     if (!process.env.VK_APP_ID) {
@@ -636,29 +672,33 @@ router.post('/vk', async (req: Request, res: Response) => {
     const lastName = vkUser.last_name || undefined;
     const avatarUrl = vkUser.photo_200 || undefined;
 
+    // SECURITY: Only look up by vkId — never by email.
+    // VK does not return email via the users.get API; vkEmail comes from the client payload
+    // and cannot be trusted. Auto-linking by a client-supplied email would let any VK user
+    // claim an arbitrary email address and take over the matching Iron Gym account.
     let user = await prisma.user.findFirst({
-      where: { OR: [{ vkId }, ...(vkEmail ? [{ email: vkEmail }] : [])] },
+      where: { vkId },
       include: { healthRestrictions: true },
     });
 
-    if (user) {
-      if (!user.vkId) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { vkId, avatarUrl: avatarUrl || user.avatarUrl || undefined },
-          include: { healthRestrictions: true },
-        }) as any;
-      }
-    } else {
+    if (!user) {
+      // New VK user — create account. If vkEmail was provided by the client, store it
+      // but never mark it as verified (VK doesn't prove email ownership server-side).
       const email = vkEmail || `vk_${vkId}@irongym.internal`;
       user = await prisma.user.create({
-        data: { email, vkId, firstName, lastName, avatarUrl, emailVerified: !!vkEmail },
+        data: { email, vkId, firstName, lastName, avatarUrl, emailVerified: false },
         include: { healthRestrictions: true },
       }) as any;
     }
 
     if (user!.isBanned) {
       return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
+    }
+
+    const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
+    if (totpGate) {
+      await logSecurityEvent('LOGIN_TOTP_REQUIRED', user!.id, req, 'method=vk');
+      return res.json(totpGate);
     }
 
     const { token, refreshToken } = await signTokens(user!.id, req);
@@ -682,8 +722,9 @@ router.post('/vk', async (req: Request, res: Response) => {
  */
 router.post('/yandex', async (req: Request, res: Response) => {
   try {
-    const { accessToken } = z.object({
+    const { accessToken, deviceToken } = z.object({
       accessToken: z.string().min(1, 'Yandex access token обязателен'),
+      deviceToken: z.string().optional(),
     }).parse(req.body);
 
     if (!process.env.YANDEX_CLIENT_ID) {
@@ -741,6 +782,12 @@ router.post('/yandex', async (req: Request, res: Response) => {
 
     if ((user as any).isBanned) {
       return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
+    }
+
+    const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
+    if (totpGate) {
+      await logSecurityEvent('LOGIN_TOTP_REQUIRED', user!.id, req, 'method=yandex');
+      return res.json(totpGate);
     }
 
     const { passwordHash, googleId, vkId, yandexId: _ya, totpSecret, totpBackupCodes, ...safeYandexUser } = user as any;

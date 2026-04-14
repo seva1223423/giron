@@ -232,11 +232,16 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
 /** PATCH /support/tickets/:id/assign — assign to staff member */
 router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: AuthRequest, res: Response) => {
   try {
-    const { assignedToId } = req.body;
+    const parsed = z.object({
+      assignedToId: z.string().cuid().nullable().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректный assignedToId' });
+
+    const { assignedToId } = parsed.data;
     const ticket = await prisma.supportTicket.update({
       where: { id: req.params.id as string },
       data: {
-        assignedToId: assignedToId || null,
+        assignedToId: assignedToId ?? null,
         status: assignedToId ? 'in_progress' : 'open',
         updatedAt: new Date(),
       },

@@ -16,6 +16,14 @@ const createProgramSchema = z.object({
   durationWeeks: z.number().int().min(1).max(52).optional(),
 });
 
+const workoutSetUpdateSchema = z.object({
+  id: z.string().min(1).max(100),
+  reps: z.number().int().min(0).max(10000).optional().nullable(),
+  weight: z.number().min(0).max(10000).optional().nullable(),
+  completed: z.boolean().optional(),
+  rpe: z.number().min(1).max(10).optional().nullable(),
+});
+
 const startWorkoutSchema = z.object({
   name: z.string().min(1).max(200),
   exercises: z.array(z.object({
@@ -238,7 +246,11 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
 router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { sets } = req.body;
+    const setsParsed = z.object({
+      sets: z.array(workoutSetUpdateSchema).max(500).optional(),
+    }).safeParse(req.body);
+    if (!setsParsed.success) return res.status(400).json({ error: 'Некорректные данные сетов' });
+    const { sets } = setsParsed.data;
 
     // Verify ownership
     const workout = await prisma.workout.findUnique({
@@ -303,11 +315,11 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
 router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { sets } = req.body;
-
-    if (!sets || !Array.isArray(sets)) {
-      return res.status(400).json({ error: 'Массив sets обязателен' });
-    }
+    const setsParsed = z.object({
+      sets: z.array(workoutSetUpdateSchema).min(1).max(500),
+    }).safeParse(req.body);
+    if (!setsParsed.success) return res.status(400).json({ error: 'Некорректные данные сетов' });
+    const { sets } = setsParsed.data;
 
     // Verify ownership
     const workout = await prisma.workout.findUnique({
