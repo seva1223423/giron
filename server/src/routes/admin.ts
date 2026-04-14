@@ -374,7 +374,7 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
 });
 
 /** GET /admin/users/:id — user detail */
-router.get('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+router.get('/users/:id([a-z0-9]{10,30})', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const ninetyDaysAgo = new Date(Date.now() - 90 * 86400 * 1000);
     const [user, firstWorkout, recentWorkoutDates] = await Promise.all([
@@ -651,7 +651,7 @@ router.patch('/users/:id/note', requireAdmin, async (req: AuthRequest, res: Resp
 });
 
 /** DELETE /admin/users/:id — soft-delete: ban + clear personal data */
-router.delete('/users/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+router.delete('/users/:id([a-z0-9]{10,30})', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     if (req.params.id === req.userId) {
       return res.status(400).json({ error: 'Нельзя удалить свой аккаунт' });
