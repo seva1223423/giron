@@ -1024,7 +1024,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
-    if (!refreshToken) return res.status(400).json({ error: 'Refresh token обязателен' });
+    if (!refreshToken || typeof refreshToken !== 'string') return res.status(400).json({ error: 'Refresh token обязателен' });
 
     let payload: { userId: string };
     try {
@@ -1092,7 +1092,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 router.post('/logout', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
-    if (refreshToken) {
+    if (refreshToken && typeof refreshToken === 'string') {
       await prisma.refreshToken.updateMany({ where: { token: refreshToken, revoked: false }, data: { revoked: true } });
     }
     res.json({ message: 'Выход выполнен' });

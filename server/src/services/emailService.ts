@@ -1,6 +1,16 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
 
+/** Escape HTML special characters to prevent injection in email templates */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -75,6 +85,7 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
 
 export async function sendPasswordChangedAlert(email: string, ip: string, date: Date): Promise<void> {
   const dateStr = date.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'medium', timeStyle: 'short' });
+  const safeIp = esc(ip);
   await transporter.sendMail({
     from: FROM,
     to: email,
@@ -86,8 +97,8 @@ export async function sendPasswordChangedAlert(email: string, ip: string, date: 
         <h3 style="color: #333; margin-bottom: 16px;">Пароль изменён</h3>
         <p style="color: #555; line-height: 1.6;">Пароль вашего аккаунта был успешно изменён.</p>
         <div style="background: #f5f5f7; border-radius: 12px; padding: 20px; margin: 16px 0;">
-          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Дата:</strong> ${dateStr} (МСК)</p>
-          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${ip}</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Дата:</strong> ${esc(dateStr)} (МСК)</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${safeIp}</p>
         </div>
         <p style="color: #EF4444; font-weight: bold; font-size: 14px;">
           Если это были не вы — немедленно воспользуйтесь функцией <a href="irongym://forgot-password" style="color: #EF4444;">сброса пароля</a>.
@@ -118,9 +129,9 @@ export async function sendNewLoginAlert(email: string, ip: string, userAgent: st
         <h3 style="color: #333; margin-bottom: 16px;">Вход с нового устройства</h3>
         <p style="color: #555; line-height: 1.6;">В ваш аккаунт выполнен вход с нового IP-адреса или устройства.</p>
         <div style="background: #f5f5f7; border-radius: 12px; padding: 20px; margin: 16px 0;">
-          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Дата:</strong> ${dateStr} (МСК)</p>
-          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${ip}</p>
-          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Устройство:</strong> ${device}</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Дата:</strong> ${esc(dateStr)} (МСК)</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${esc(ip)}</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Устройство:</strong> ${esc(device)}</p>
         </div>
         <p style="color: #EF4444; font-weight: bold; font-size: 14px;">
           Если это были не вы — немедленно смените пароль и включите двухфакторную аутентификацию.
