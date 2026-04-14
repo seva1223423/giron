@@ -8,6 +8,10 @@ import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
+import { getSubStatus } from '../utils/subscriptionCheck';
+
+/** Free plan: max body measurement entries returned */
+const FREE_MEASUREMENTS_LIMIT = 5;
 import { normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
 import { sendPasswordChangedAlert } from '../services/emailService';
@@ -205,10 +209,13 @@ router.post('/measurements', authenticate, async (req: AuthRequest, res: Respons
 
 router.get('/measurements', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    // Free plan: cap at FREE_MEASUREMENTS_LIMIT — prevents paywall bypass via direct API call
+    const { isPaid } = await getSubStatus(req.userId!);
+    const take = isPaid ? 60 : FREE_MEASUREMENTS_LIMIT;
     const records = await prisma.bodyMeasurement.findMany({
       where: { userId: req.userId },
       orderBy: { date: 'desc' },
-      take: 60,
+      take,
     });
     res.json(records);
   } catch (e) {

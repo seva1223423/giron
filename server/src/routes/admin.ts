@@ -159,18 +159,29 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         take: 6,
         select: { id: true, firstName: true, lastName: true, email: true, createdAt: true, role: true },
       }),
-      // Hourly pulse: individual records for today to bucket by hour
-      prisma.workout.findMany({ where: { completedAt: { gte: todayStart } }, select: { completedAt: true } }),
-      prisma.chatMessage.findMany({ where: { role: 'user', createdAt: { gte: todayStart } }, select: { createdAt: true } }),
+      // Hourly pulse: aggregate in SQL to avoid loading N individual records into Node.js memory.
+      // Returns max 24 rows (one per hour) instead of potentially thousands of records.
+      prisma.$queryRaw<Array<{ hour: number; cnt: bigint }>>`
+        SELECT EXTRACT(HOUR FROM "completedAt" AT TIME ZONE 'UTC')::int AS hour, COUNT(*)::bigint AS cnt
+        FROM "Workout"
+        WHERE "completedAt" >= ${todayStart}
+        GROUP BY hour
+      `,
+      prisma.$queryRaw<Array<{ hour: number; cnt: bigint }>>`
+        SELECT EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'UTC')::int AS hour, COUNT(*)::bigint AS cnt
+        FROM "ChatMessage"
+        WHERE role = 'user' AND "createdAt" >= ${todayStart}
+        GROUP BY hour
+      `,
     ]);
 
     // Build 24-hour activity pulse for today
     const hourlyPulse = new Array(24).fill(0);
-    workoutsTodayRaw.forEach((w) => {
-      if (w.completedAt) hourlyPulse[new Date(w.completedAt).getHours()]++;
+    (workoutsTodayRaw as Array<{ hour: number; cnt: bigint }>).forEach(({ hour, cnt }) => {
+      hourlyPulse[hour] = (hourlyPulse[hour] || 0) + Number(cnt);
     });
-    aiTodayRaw.forEach((m) => {
-      hourlyPulse[new Date(m.createdAt).getHours()]++;
+    (aiTodayRaw as Array<{ hour: number; cnt: bigint }>).forEach(({ hour, cnt }) => {
+      hourlyPulse[hour] = (hourlyPulse[hour] || 0) + Number(cnt);
     });
 
     const allTopIds = [...new Set([...topUsers.map((t) => t.userId), ...topAiUsers.map((t) => t.userId)])];
@@ -953,11 +964,22 @@ router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response
 
 // ── ANALYTICS ────────────────────────────────────────────────────────────────
 
-/** GET /admin/analytics — growth, retention, activity trends */
+/** GET /admin/analytics — growth, retention, activity trends (cached 5 minutes) */
 router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { days = '30' } = req.query as Record<string, string>;
+    const { days = '30', refresh } = req.query as Record<string, string>;
     const numDays = Math.min(90, Math.max(7, parseInt(days) || 30));
+    const ANALYTICS_CACHE_KEY = `admin:analytics:${numDays}`;
+    const ANALYTICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    if (refresh !== '1') {
+      const cached = adminStatsCache.get(ANALYTICS_CACHE_KEY);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached);
+      }
+    }
+
     const todayUtcStr = new Date().toISOString().slice(0, 10);
     const since = new Date(`${todayUtcStr}T00:00:00.000Z`);
     since.setUTCDate(since.getUTCDate() - numDays);
@@ -965,33 +987,50 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
     // Previous period window for comparison
     const prevSince = new Date(since.getTime() - numDays * 86_400_000);
 
-    const [signupsRaw, workoutsRaw, aiRaw, cardioRaw, prevSignups, prevWorkouts, prevAi, prevCardio] = await Promise.all([
-      // Current period
-      prisma.user.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true }, orderBy: { createdAt: 'asc' } }),
-      prisma.workout.findMany({ where: { completedAt: { gte: since, not: null } }, select: { completedAt: true }, orderBy: { completedAt: 'asc' } }),
-      prisma.chatMessage.findMany({ where: { role: 'user', createdAt: { gte: since } }, select: { createdAt: true }, orderBy: { createdAt: 'asc' } }),
-      prisma.cardioSession.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true }, orderBy: { createdAt: 'asc' } }),
-      // Previous period counts
+    // Use SQL DATE aggregation instead of loading all individual records into Node.js.
+    // Returns at most numDays rows per table instead of potentially thousands of records.
+    type DayRow = { day: string; cnt: bigint };
+    const [signupsByDay, workoutsByDay, aiByDay, cardioByDay, prevSignups, prevWorkouts, prevAi, prevCardio] = await Promise.all([
+      prisma.$queryRaw<DayRow[]>`
+        SELECT TO_CHAR("createdAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS cnt
+        FROM "User" WHERE "createdAt" >= ${since}
+        GROUP BY day ORDER BY day ASC
+      `,
+      prisma.$queryRaw<DayRow[]>`
+        SELECT TO_CHAR("completedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS cnt
+        FROM "Workout" WHERE "completedAt" >= ${since}
+        GROUP BY day ORDER BY day ASC
+      `,
+      prisma.$queryRaw<DayRow[]>`
+        SELECT TO_CHAR("createdAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS cnt
+        FROM "ChatMessage" WHERE role = 'user' AND "createdAt" >= ${since}
+        GROUP BY day ORDER BY day ASC
+      `,
+      prisma.$queryRaw<DayRow[]>`
+        SELECT TO_CHAR("createdAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS cnt
+        FROM "CardioSession" WHERE "createdAt" >= ${since}
+        GROUP BY day ORDER BY day ASC
+      `,
+      // Previous period counts (scalar — unchanged)
       prisma.user.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
       prisma.workout.count({ where: { completedAt: { gte: prevSince, lt: since, not: null } } }),
       prisma.chatMessage.count({ where: { role: 'user', createdAt: { gte: prevSince, lt: since } } }),
       prisma.cardioSession.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
     ]);
 
-    // Build day-by-day buckets
+    // Build day-by-day buckets (pre-initialised so days with 0 activity still appear)
     const buckets: Record<string, { signups: number; workouts: number; ai: number; cardio: number }> = {};
     for (let i = 0; i < numDays; i++) {
       const d = new Date(since);
-      d.setDate(d.getDate() + i);
+      d.setUTCDate(d.getUTCDate() + i);
       const key = d.toISOString().split('T')[0];
       buckets[key] = { signups: 0, workouts: 0, ai: 0, cardio: 0 };
     }
 
-    const toKey = (d: Date | null) => d ? new Date(d).toISOString().split('T')[0] : null;
-    signupsRaw.forEach((u) => { const k = toKey(u.createdAt); if (k && buckets[k]) buckets[k].signups++; });
-    workoutsRaw.forEach((w) => { const k = toKey(w.completedAt); if (k && buckets[k]) buckets[k].workouts++; });
-    aiRaw.forEach((m) => { const k = toKey(m.createdAt); if (k && buckets[k]) buckets[k].ai++; });
-    cardioRaw.forEach((c) => { const k = toKey(c.createdAt); if (k && buckets[k]) buckets[k].cardio++; });
+    signupsByDay.forEach(({ day, cnt }) => { if (buckets[day]) buckets[day].signups = Number(cnt); });
+    workoutsByDay.forEach(({ day, cnt }) => { if (buckets[day]) buckets[day].workouts = Number(cnt); });
+    aiByDay.forEach(({ day, cnt }) => { if (buckets[day]) buckets[day].ai = Number(cnt); });
+    cardioByDay.forEach(({ day, cnt }) => { if (buckets[day]) buckets[day].cardio = Number(cnt); });
 
     const timeline = Object.entries(buckets).map(([date, v]) => ({ date, ...v }));
 
@@ -1048,7 +1087,7 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
       return { id: e.exerciseId, name: ex?.name ?? 'Unknown', type: ex?.type ?? '', count: e._count.id };
     });
 
-    res.json({
+    const analyticsPayload = {
       timeline,
       funnel: {
         totalUsers,
@@ -1067,7 +1106,10 @@ router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) =
         firstWorkout: firstWorkoutUsers30d,
         converted: convertedUsers30d,
       },
-    });
+    };
+    adminStatsCache.set(ANALYTICS_CACHE_KEY, analyticsPayload, ANALYTICS_CACHE_TTL);
+    res.setHeader('X-Cache', 'MISS');
+    res.json(analyticsPayload);
   } catch (e) {
     logger.error('GET /admin/analytics:', e);
     res.status(500).json({ error: 'Ошибка получения аналитики' });
@@ -1734,10 +1776,17 @@ router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response
       prisma.supportTicket.count({ where: { status: { in: ['open', 'in_progress'] } } }),
       prisma.supportTicket.count({ where: { status: 'resolved', updatedAt: { gte: dayStart, lte: dayEnd } } }),
       prisma.user.count(),
-      prisma.subscription.findMany({ where: { status: 'active', plan: { not: 'free' } }, select: { plan: true } }),
+      // MRR: aggregate plan counts in SQL rather than loading all rows into Node.js
+      prisma.$queryRaw<Array<{ plan: string; cnt: bigint }>>`
+        SELECT plan, COUNT(*)::bigint AS cnt FROM "Subscription"
+        WHERE status = 'active' AND plan != 'free'
+        GROUP BY plan
+      `,
     ]);
 
-    const mrr = activeSubs.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
+    const mrr = (activeSubs as Array<{ plan: string; cnt: bigint }>).reduce(
+      (sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0) * Number(s.cnt), 0
+    );
 
     function delta(now: number, prev: number): string {
       if (prev === 0) return now > 0 ? ` (+${now})` : '';
@@ -1867,21 +1916,25 @@ router.get('/subscriptions/forecast', requireAdmin, async (_req: AuthRequest, re
   try {
     const now = new Date();
     const weeks = 4;
-    const forecast: Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }> = [];
     const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
+    const rangeEnd = new Date(now.getTime() + weeks * 7 * 86400 * 1000);
 
+    // Single query: fetch all expiring subs in the next 4 weeks, then bucket in JS
+    const expiring = await prisma.subscription.findMany({
+      where: { status: 'active', plan: { not: 'free' }, endDate: { gte: now, lt: rangeEnd } },
+      select: { plan: true, endDate: true },
+    });
+
+    const forecast: Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }> = [];
     for (let i = 0; i < weeks; i++) {
       const start = new Date(now.getTime() + i * 7 * 86400 * 1000);
       const end = new Date(start.getTime() + 7 * 86400 * 1000);
-      const expiring = await prisma.subscription.findMany({
-        where: { status: 'active', plan: { not: 'free' }, endDate: { gte: start, lt: end } },
-        select: { plan: true },
-      });
-      const revenue = expiring.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
+      const bucket = expiring.filter((s) => s.endDate && s.endDate >= start && s.endDate < end);
+      const revenue = bucket.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
       forecast.push({
         weekStart: start.toISOString().split('T')[0],
         weekEnd: end.toISOString().split('T')[0],
-        count: expiring.length,
+        count: bucket.length,
         revenue: Math.round(revenue * 100) / 100,
       });
     }
