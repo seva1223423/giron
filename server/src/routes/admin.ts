@@ -311,11 +311,13 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
     const skip = (pageNum - 1) * limitNum;
+    const VALID_USER_ROLES = ['GUEST', 'VISITOR', 'CLIENT', 'TRAINER', 'SUPPORT', 'ADMIN'];
+    const VALID_PLANS = ['free', 'pro', 'trainer', 'club'];
     const where: any = {};
-    if (role) where.role = role.toUpperCase();
+    if (role && VALID_USER_ROLES.includes(role.toUpperCase())) where.role = role.toUpperCase();
     if (banned === 'true') where.isBanned = true;
     if (locked === 'true') where.lockedUntil = { gt: new Date() };
-    if (plan) {
+    if (plan && VALID_PLANS.includes(plan)) {
       where.subscription = { plan, status: 'active' };
     }
     if (dormant === 'true') {
@@ -872,10 +874,12 @@ router.post('/subscriptions/broadcast', requireAdmin, async (req: AuthRequest, r
 router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { role, plan, banned } = req.query as Record<string, string>;
+    const EXPORT_VALID_ROLES = ['GUEST', 'VISITOR', 'CLIENT', 'TRAINER', 'SUPPORT', 'ADMIN'];
+    const EXPORT_VALID_PLANS = ['free', 'pro', 'trainer', 'club'];
     const where: any = {};
-    if (role) where.role = role.toUpperCase();
+    if (role && EXPORT_VALID_ROLES.includes(role.toUpperCase())) where.role = role.toUpperCase();
     if (banned === 'true') where.isBanned = true;
-    if (plan) where.subscription = { plan, status: 'active' };
+    if (plan && EXPORT_VALID_PLANS.includes(plan)) where.subscription = { plan, status: 'active' };
 
     const users = await prisma.user.findMany({
       where,
@@ -1565,12 +1569,14 @@ router.get('/announcements/preview', requireAdmin, async (req: AuthRequest, res:
     const where: any = { isBanned: false };
     if (targetRole) {
       // Map subscription plans and roles to user filters
-      const planMap: Record<string, string> = { free: 'free', pro: 'pro', trainer: 'trainer', club: 'club' };
-      if (planMap[targetRole]) {
-        where.subscription = { plan: planMap[targetRole], status: 'active' };
-      } else {
+      const VALID_PLANS = ['free', 'pro', 'trainer', 'club'];
+      const VALID_ROLES = ['GUEST', 'VISITOR', 'CLIENT', 'TRAINER', 'SUPPORT', 'ADMIN'];
+      if (VALID_PLANS.includes(targetRole)) {
+        where.subscription = { plan: targetRole, status: 'active' };
+      } else if (VALID_ROLES.includes(targetRole.toUpperCase())) {
         where.role = targetRole.toUpperCase();
       }
+      // else: unrecognised filter — count all non-banned users (safe fallback)
     }
     const count = await prisma.user.count({ where });
     res.json({ count });
