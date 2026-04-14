@@ -16,6 +16,7 @@ import { supportRouter } from './routes/support';
 import { adminRouter } from './routes/admin';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
+import { adminStatsCache, newsCache } from './utils/memCache';
 
 dotenv.config();
 
@@ -210,6 +211,12 @@ setInterval(async () => {
     if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used password reset tokens`);
   } catch {}
 }, 6 * 60 * 60 * 1000);
+
+// Prune expired in-memory cache entries every 10 minutes to prevent memory growth
+setInterval(() => {
+  adminStatsCache.prune();
+  newsCache.prune();
+}, 10 * 60 * 1000);
 
 // Trim security events per user to last 200 entries (prevents unbounded DB growth) — runs daily
 setInterval(async () => {

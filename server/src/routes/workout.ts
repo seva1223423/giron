@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
+import { MemCache } from '../utils/memCache';
+
+/** Leaderboard cache — 15 minutes (expensive query, changes slowly) */
+const leaderboardCache = new MemCache<unknown>(5);
 
 const router = Router();
 
@@ -383,9 +387,15 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
   }
 });
 
-// Club leaderboard — top lifts per exercise across all users
+// Club leaderboard — top lifts per exercise across all users (cached 15 minutes)
 router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response) => {
   try {
+    const cached = leaderboardCache.get('leaderboard');
+    if (cached) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
     // Find users who have at least 10 completed workouts and were active in the last 90 days
@@ -490,7 +500,10 @@ router.get('/leaderboard', authenticate, async (_req: AuthRequest, res: Response
       .slice(0, 100)
       .map((entry, i) => ({ rank: i + 1, ...entry }));
 
-    res.json({ leaderboard });
+    const payload = { leaderboard };
+    leaderboardCache.set('leaderboard', payload, 15 * 60 * 1000);
+    res.setHeader('X-Cache', 'MISS');
+    res.json(payload);
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка получения лидерборда' });

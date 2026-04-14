@@ -6,6 +6,7 @@ import { authenticate, requireAdmin, requireStaff, AuthRequest } from '../middle
 import { getActiveUsersCount, getTotalSeenCount, getActiveUserIds } from '../utils/activityTracker';
 import { getAIMetrics } from '../utils/aiMetrics';
 import { logger } from '../utils/logger';
+import { adminStatsCache } from '../utils/memCache';
 
 const router = Router();
 
@@ -14,8 +15,21 @@ router.use(authenticate);
 
 // ── DASHBOARD STATS ─────────────────────────────────────────────────────────
 
-/** GET /admin/stats — main dashboard data */
+/** GET /admin/stats — main dashboard data (cached 90s to avoid 35+ DB queries per page load) */
 router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
+  // Allow cache bypass for forced refreshes: ?refresh=1
+  const bypassCache = req.query.refresh === '1';
+  const CACHE_KEY = 'admin:stats';
+  const CACHE_TTL_MS = 90 * 1000; // 90 seconds
+
+  if (!bypassCache) {
+    const cached = adminStatsCache.get(CACHE_KEY);
+    if (cached) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+  }
+
   try {
     const now = new Date();
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
@@ -180,7 +194,7 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       select: { id: true, firstName: true, lastName: true, role: true },
     }) : [];
 
-    res.json({
+    const statsPayload = {
       users: {
         total: totalUsers,
         newToday,
@@ -262,7 +276,12 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
         nodeVersion: process.version,
         dbPingMs,
       },
-    });
+    };
+
+    // Cache the payload (server metrics excluded — they're real-time by nature)
+    adminStatsCache.set(CACHE_KEY, statsPayload, CACHE_TTL_MS);
+    res.setHeader('X-Cache', 'MISS');
+    res.json(statsPayload);
 
     // Fire-and-forget: auto-escalate stale tickets
     setImmediate(async () => {
