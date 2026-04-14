@@ -55,12 +55,14 @@ const googleClient = new OAuth2Client();
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
-// Dummy hash for timing-safe login (prevents user enumeration via response time)
-const DUMMY_HASH = '$2b$12$invalidhashfortimingsafety.........................................';
+// Dummy hash for timing-safe login (prevents user enumeration via response time).
+// Pre-generated with bcrypt.hashSync('__dummy__', 12) — must be a valid bcrypt hash so
+// bcryptjs actually runs the full Blowfish key schedule instead of fast-failing on invalid chars.
+const DUMMY_HASH = '$2a$12$NsgJ3XkMf98y7VvWVpIChOMWoTvXNOWNpZA9Zp5TDQ0ZMfepGoPn2';
 
 async function timingSafeLogin(): Promise<void> {
-  // Consume roughly the same time as a real bcrypt.compare regardless of user existence
-  await bcrypt.compare('dummy', DUMMY_HASH).catch(() => {});
+  // Always perform a real bcrypt comparison to consume the same time as a valid password check
+  await bcrypt.compare('__dummy__', DUMMY_HASH).catch(() => {});
 }
 
 /** Check if login IP/device differs from last known — sends push + logs SUSPICIOUS_LOGIN if so */
