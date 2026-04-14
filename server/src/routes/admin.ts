@@ -1186,9 +1186,14 @@ router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
       ];
     }
     if (from || to) {
+      const fromDate = from ? new Date(from) : null;
+      const toDate = to ? new Date(to) : null;
+      if ((fromDate && isNaN(fromDate.getTime())) || (toDate && isNaN(toDate.getTime()))) {
+        return res.status(400).json({ error: 'Некорректный формат даты (from/to)' });
+      }
       where.createdAt = {};
-      if (from) where.createdAt.gte = new Date(from);
-      if (to) where.createdAt.lte = new Date(to);
+      if (fromDate) where.createdAt.gte = fromDate;
+      if (toDate) where.createdAt.lte = toDate;
     }
     const [logs, total] = await Promise.all([
       prisma.adminLog.findMany({
@@ -1215,9 +1220,14 @@ router.get('/logs/export', requireAdmin, async (req: AuthRequest, res: Response)
     if (action) where.action = action;
     if (adminId) where.adminId = adminId;
     if (from || to) {
+      const fromDate = from ? new Date(from) : null;
+      const toDate = to ? new Date(to) : null;
+      if ((fromDate && isNaN(fromDate.getTime())) || (toDate && isNaN(toDate.getTime()))) {
+        return res.status(400).json({ error: 'Некорректный формат даты (from/to)' });
+      }
       where.createdAt = {};
-      if (from) where.createdAt.gte = new Date(from);
-      if (to) where.createdAt.lte = new Date(to);
+      if (fromDate) where.createdAt.gte = fromDate;
+      if (toDate) where.createdAt.lte = toDate;
     }
     const logs = await prisma.adminLog.findMany({
       where,
