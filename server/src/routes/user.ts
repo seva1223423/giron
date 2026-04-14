@@ -66,10 +66,11 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const { passwordHash, googleId, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
+    const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
     res.json({
       ...safeProfile,
       hasGoogle: !!googleId,
+      hasVk: !!vkId,
       hasYandex: !!yandexId,
     });
   } catch (e) {
@@ -121,8 +122,8 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       include: { healthRestrictions: true },
     });
 
-    const { passwordHash, googleId, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
-    res.json({ ...safeProfile, hasGoogle: !!googleId, hasYandex: !!yandexId });
+    const { passwordHash, googleId, vkId: _vk, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
+    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!_vk, hasYandex: !!yandexId });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления профиля' });
