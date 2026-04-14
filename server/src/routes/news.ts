@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
 import { refreshNews } from '../services/newsRefreshService';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -81,8 +81,8 @@ router.get('/saved', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Manual news refresh (force fetch from RSS)
-router.post('/refresh', authenticate, async (_req: AuthRequest, res: Response) => {
+// Manual news refresh (force fetch from RSS) — admin only
+router.post('/refresh', authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
     const result = await refreshNews(true);
     res.json({ success: true, ...result });
