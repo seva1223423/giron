@@ -60,7 +60,11 @@ router.post('/:id/save', authenticate, async (req: AuthRequest, res: Response) =
       });
       res.json({ saved: true });
     }
-  } catch (e) {
+  } catch (e: any) {
+    // P2003 = FK constraint — article with this id does not exist
+    if (e?.code === 'P2003' || e?.code === 'P2025') {
+      return res.status(404).json({ error: 'Статья не найдена' });
+    }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка сохранения' });
   }

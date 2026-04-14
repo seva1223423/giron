@@ -34,7 +34,7 @@ const addClientSchema = z.object({
 
 const updateClientSchema = addClientSchema.partial().extend({
   totalWorkouts: z.number().int().min(0).optional(),
-  lastVisit: z.string().optional(),
+  lastVisit: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'lastVisit должен быть в формате YYYY-MM-DD').optional(),
 });
 
 // Get all clients for current trainer
