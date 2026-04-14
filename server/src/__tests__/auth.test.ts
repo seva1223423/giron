@@ -10,11 +10,33 @@ jest.mock('../db', () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
+    refreshToken: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({}),
+    },
+    securityEvent: {
+      create: jest.fn().mockResolvedValue({}),
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    otpCode: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+    },
     passwordResetToken: {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+    },
+    passwordHistory: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({}),
     },
     $transaction: jest.fn(),
   },
@@ -47,6 +69,19 @@ const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 describe('Auth Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Re-set default implementations that clearAllMocks resets to undefined
+    (mockPrisma.refreshToken.findMany as jest.Mock).mockResolvedValue([]);
+    (mockPrisma.refreshToken.findFirst as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.refreshToken.create as jest.Mock).mockResolvedValue({});
+    (mockPrisma.refreshToken.update as jest.Mock).mockResolvedValue({});
+    (mockPrisma.refreshToken.updateMany as jest.Mock).mockResolvedValue({});
+    (mockPrisma.refreshToken.deleteMany as jest.Mock).mockResolvedValue({});
+    (mockPrisma.securityEvent.create as jest.Mock).mockResolvedValue({});
+    (mockPrisma.securityEvent.findFirst as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.otpCode as any).findFirst.mockResolvedValue(null);
+    (mockPrisma.passwordHistory.findMany as jest.Mock).mockResolvedValue([]);
+    (mockPrisma.passwordHistory.create as jest.Mock).mockResolvedValue({});
   });
 
   // ─── Registration ──────────────────────────────────────────────────────────
@@ -54,7 +89,8 @@ describe('Auth Routes', () => {
   describe('POST /api/auth/register', () => {
     const validPayload = {
       email: 'test@example.com',
-      password: 'securepass123',
+      // Must satisfy strongPassword: min 8, uppercase, lowercase, digit
+      password: 'SecurePass123',
       firstName: 'Ivan',
       lastName: 'Petrov',
     };
@@ -105,10 +141,10 @@ describe('Auth Routes', () => {
     it('should reject registration with password too short', async () => {
       const res = await request(app)
         .post('/api/auth/register')
-        .send({ ...validPayload, password: '123' });
+        .send({ ...validPayload, password: 'Ab1' });
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toContain('6');
+      expect(res.body.error).toContain('8');
     });
 
     it('should reject registration with invalid email format', async () => {
@@ -138,7 +174,7 @@ describe('Auth Routes', () => {
   // ─── Login ─────────────────────────────────────────────────────────────────
 
   describe('POST /api/auth/login', () => {
-    const loginPayload = { email: 'test@example.com', password: 'securepass123' };
+    const loginPayload = { email: 'test@example.com', password: 'SecurePass123' };
 
     it('should login with correct credentials', async () => {
       const hash = await bcrypt.hash(loginPayload.password, 12);
@@ -150,6 +186,12 @@ describe('Auth Routes', () => {
         passwordHash: hash,
         role: 'USER',
         healthRestrictions: [],
+        isBanned: false,
+        isLocked: false,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        totpEnabled: false,
+        trustedDevices: [],
       });
 
       const res = await request(app)
@@ -165,12 +207,18 @@ describe('Auth Routes', () => {
     });
 
     it('should reject login with wrong password', async () => {
-      const hash = await bcrypt.hash('correctpassword', 12);
+      const hash = await bcrypt.hash('CorrectPass123', 12);
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
         email: loginPayload.email,
         passwordHash: hash,
         healthRestrictions: [],
+        isBanned: false,
+        isLocked: false,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        totpEnabled: false,
+        trustedDevices: [],
       });
 
       const res = await request(app)
@@ -205,15 +253,28 @@ describe('Auth Routes', () => {
 
   describe('POST /api/auth/refresh', () => {
     it('should issue new tokens with valid refresh token', async () => {
-      // Mock user existence check (refresh route verifies user still exists)
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1' });
-
       const secret = process.env.JWT_REFRESH_SECRET!;
+      // Must include issuer + audience to match JWT_ISS/JWT_AUD constants in auth.ts
       const refreshToken = jwt.sign(
         { userId: 'user-1' },
         secret,
-        { expiresIn: '30d' },
+        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
       );
+
+      // Mock DB: token exists, is not revoked, not expired
+      (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rt-1',
+        token: refreshToken,
+        userId: 'user-1',
+        revoked: false,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      // Mock user: active, not banned, not locked
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        isBanned: false,
+        lockedUntil: null,
+      });
 
       const res = await request(app)
         .post('/api/auth/refresh')

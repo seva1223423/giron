@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { authRouter } from './routes/auth';
 import { userRouter } from './routes/user';
@@ -83,7 +83,7 @@ const adminRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов к панели администратора. Попробуйте через 15 минут.' },
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
 /** Auth endpoints: 20 attempts per 15 minutes per IP to slow brute-force */
@@ -93,7 +93,7 @@ const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много попыток входа. Попробуйте через 15 минут.' },
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
 /** AI endpoints: 60 requests per minute per IP — prevents cost abuse */
@@ -103,7 +103,7 @@ const aiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов к ИИ. Подождите минуту.' },
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
 /** User endpoints: 200 requests per minute per IP — prevents enumeration/scraping */
@@ -113,7 +113,7 @@ const userRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов. Подождите минуту.' },
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
 /** TOTP verify: strict 5 attempts per 5 minutes per IP to mitigate brute-force */
@@ -123,7 +123,7 @@ const totpRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много попыток ввода кода 2FA. Подождите 5 минут.', code: 'TOTP_RATE_LIMIT' },
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
 // Routes
