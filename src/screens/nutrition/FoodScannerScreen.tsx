@@ -67,6 +67,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [error, setError] = useState('');
   const [showPaywall, setShowPaywall] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  // Prevent double barcode scan consumption: barcode camera can fire onBarcodeScanned
+  // multiple times for the same code before barcodeScanned state update propagates.
+  const barcodeProcessingRef = useRef(false);
 
   const { consumeFoodScan, foodScansLeft, isPremiumActive } = useSubscriptionStore();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -120,6 +123,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const cancelAnalysis = () => {
     abortRef.current?.abort();
+    barcodeProcessingRef.current = false;
   };
 
   const pickImage = async (useCamera: boolean) => {
@@ -160,6 +164,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const lookupBarcode = async (barcode: string) => {
+    // Acquire lock before any async work — prevents double-firing (camera emits
+    // onBarcodeScanned multiple frames in a row for the same code).
+    if (barcodeProcessingRef.current) return;
+    barcodeProcessingRef.current = true;
+
     setLastBarcode(barcode);
     setNotFound(false);
 
@@ -167,10 +176,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     const cached = await getCachedProduct(barcode);
     if (cached) {
       applyBarcodeProduct(cached);
+      barcodeProcessingRef.current = false;
       return;
     }
 
-    if (!consumeFoodScan()) { setShowBarcodeScanner(false); setShowPaywall(true); return; }
+    if (!consumeFoodScan()) { setShowBarcodeScanner(false); setShowPaywall(true); barcodeProcessingRef.current = false; return; }
     setBarcodeLoading(true);
     try {
       const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
@@ -194,6 +204,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       Alert.alert('Ошибка', 'Не удалось получить данные.', [{ text: 'ОК', onPress: () => setBarcodeScanned(false) }]);
     } finally {
       setBarcodeLoading(false);
+      barcodeProcessingRef.current = false;
     }
   };
 

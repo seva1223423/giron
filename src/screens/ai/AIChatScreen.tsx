@@ -99,11 +99,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
-    // Prevent concurrent sends: isSendingRef stays true for the full request lifecycle
-    // (streaming + fallback), whereas isTyping is set to false when streaming begins.
+    // Acquire lock FIRST — prevents a race where two rapid taps both pass the quota
+    // check before either sets the lock, allowing double-consumption of free credits.
     if (isSendingRef.current) return;
-    if (!consumeAiMessage()) { haptic.warning(); setShowPaywall(true); return; }
     isSendingRef.current = true;
+    if (!consumeAiMessage()) { isSendingRef.current = false; haptic.warning(); setShowPaywall(true); return; }
     haptic.light();
 
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: text.trim(), createdAt: new Date().toISOString() };
