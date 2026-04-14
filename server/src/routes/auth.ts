@@ -1020,8 +1020,21 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED' });
     }
 
-    // Rotate: revoke old token, issue new
-    await prisma.refreshToken.update({ where: { id: dbToken.id }, data: { revoked: true } });
+    // Rotate: atomically revoke old token — prevents TOCTOU race where two concurrent
+    // requests with the same token would both succeed
+    const { count: revokedCount } = await prisma.refreshToken.updateMany({
+      where: { id: dbToken.id, revoked: false },
+      data: { revoked: true },
+    });
+    if (revokedCount === 0) {
+      // Another request already consumed this token concurrently → reuse detection
+      await Promise.all([
+        prisma.refreshToken.updateMany({ where: { userId: dbToken.userId, revoked: false }, data: { revoked: true } }),
+        prisma.trustedDevice.deleteMany({ where: { userId: dbToken.userId } }),
+      ]);
+      logSecurityEvent('SUSPICIOUS_LOGIN', dbToken.userId, req, 'refresh_token_concurrent_reuse');
+      return res.status(401).json({ error: 'Обнаружено повторное использование токена. Войдите заново.', code: 'TOKEN_REUSE' });
+    }
     const { token, refreshToken: newRefreshToken } = await signTokens(payload.userId, req);
     res.json({ token, refreshToken: newRefreshToken });
   } catch {
