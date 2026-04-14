@@ -107,7 +107,8 @@ export async function refreshNews(force = false): Promise<{ added: number; skipp
 
       for (const item of items.slice(0, 10)) {
         const categories = detectCategories(item.title + ' ' + item.summary, source.categories);
-        const publishedAt = item.pubDate ? new Date(item.pubDate) : new Date();
+        const parsedDate = item.pubDate ? new Date(item.pubDate) : null;
+        const publishedAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
 
         // Use title as deduplication key
         const existing = await prisma.newsArticle.findFirst({
