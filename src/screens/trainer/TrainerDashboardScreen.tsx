@@ -3,17 +3,20 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert 
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useTrainerStore } from '../../store';
-import { Card } from '../../components';
+import { Card, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { AddClientModal, ClientCard } from './components';
+import { useSubscriptionStore, FREE_LIMITS } from '../../store/useSubscriptionStore';
 
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { clients, deleteClient, fetchClients } = useTrainerStore();
+  const { canAddTrainerClient } = useSubscriptionStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { fetchClients(); }, []);
@@ -37,7 +40,17 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
         <Text style={[typography.h3, { color: colors.text }]}>Мои клиенты</Text>
-        <TouchableOpacity onPress={() => { haptic.selection(); setShowAddModal(true); }} style={[styles.addBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40', borderWidth: 1 }]}>
+        <TouchableOpacity
+          onPress={() => {
+            haptic.selection();
+            if (canAddTrainerClient(clients.length)) {
+              setShowAddModal(true);
+            } else {
+              setShowPaywall(true);
+            }
+          }}
+          style={[styles.addBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40', borderWidth: 1 }]}
+        >
           <Text style={[typography.captionMedium, { color: colors.primary }]}>+ Клиент</Text>
         </TouchableOpacity>
       </View>
@@ -84,6 +97,14 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
       </ScrollView>
 
       <AddClientModal visible={showAddModal} onClose={() => setShowAddModal(false)} />
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        reason="feature"
+        featureName={`Максимум ${FREE_LIMITS.TRAINER_CLIENTS} клиента бесплатно`}
+        navigation={navigation}
+      />
     </View>
   );
 };

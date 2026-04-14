@@ -5,6 +5,9 @@ import { api } from '../services/api';
 
 const FREE_AI_MESSAGES_PER_DAY = 10;
 const FREE_FOOD_SCANS_PER_DAY = 5;
+const FREE_WORKOUT_HISTORY_LIMIT = 10;
+const FREE_MEASUREMENTS_LIMIT = 5;
+const FREE_TRAINER_CLIENTS_LIMIT = 3;
 
 function todayDateStr(): string {
   return new Date().toISOString().split('T')[0];
@@ -43,6 +46,12 @@ interface SubscriptionStore {
   aiMessagesLeft: () => number;
   foodScansLeft: () => number;
   isPremiumActive: () => boolean;
+
+  // Feature gates — return true if the user is allowed to access the feature
+  canViewFullWorkoutHistory: () => boolean;
+  canViewFullMeasurements: () => boolean;
+  canAddTrainerClient: (currentClientCount: number) => boolean;
+  canViewLeaderboard: () => boolean;
 }
 
 export const useSubscriptionStore = create<SubscriptionStore>()(
@@ -175,6 +184,12 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
         const used = foodScansDate === today ? foodScansUsedToday : 0;
         return Math.max(0, FREE_FOOD_SCANS_PER_DAY - used);
       },
+
+      canViewFullWorkoutHistory: () => get().isPremiumActive(),
+      canViewFullMeasurements: () => get().isPremiumActive(),
+      canAddTrainerClient: (currentClientCount) =>
+        get().isPremiumActive() || currentClientCount < FREE_TRAINER_CLIENTS_LIMIT,
+      canViewLeaderboard: () => get().isPremiumActive(),
     }),
     {
       name: 'iron-gym-subscription',
@@ -197,4 +212,7 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
 export const FREE_LIMITS = {
   AI_MESSAGES_PER_DAY: FREE_AI_MESSAGES_PER_DAY,
   FOOD_SCANS_PER_DAY: FREE_FOOD_SCANS_PER_DAY,
+  WORKOUT_HISTORY: FREE_WORKOUT_HISTORY_LIMIT,
+  MEASUREMENTS: FREE_MEASUREMENTS_LIMIT,
+  TRAINER_CLIENTS: FREE_TRAINER_CLIENTS_LIMIT,
 };
