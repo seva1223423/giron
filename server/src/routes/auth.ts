@@ -922,13 +922,11 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     }
 
     // Rate limit: max 3 active OTPs in last 10 minutes per phone/email
+    // Build filter only against the specific identifier — an empty {} condition would match all rows
     const since = new Date(Date.now() - 10 * 60 * 1000);
     const recentCount = await prisma.otpCode.count({
       where: {
-        OR: [
-          phone ? { phone } : {},
-          email ? { email } : {},
-        ],
+        ...(phone ? { phone } : { email }),
         createdAt: { gte: since },
         used: false,
       },

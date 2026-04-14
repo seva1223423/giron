@@ -19,6 +19,23 @@ import { logger } from './utils/logger';
 
 dotenv.config();
 
+// ── Startup env-var validation ────────────────────────────────────────────────
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL'] as const;
+const missingEnvVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
+if (missingEnvVars.length > 0) {
+  console.error(`[FATAL] Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
+
+if ((process.env.JWT_SECRET?.length ?? 0) < 32) {
+  console.error('[FATAL] JWT_SECRET must be at least 32 characters for security');
+  process.exit(1);
+}
+if ((process.env.JWT_REFRESH_SECRET?.length ?? 0) < 32) {
+  console.error('[FATAL] JWT_REFRESH_SECRET must be at least 32 characters for security');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

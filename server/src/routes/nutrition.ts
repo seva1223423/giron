@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 const router = Router();
 
 const mealItemSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   calories: z.number().min(0).max(10000),
   protein: z.number().min(0).max(1000),
   fats: z.number().min(0).max(1000),

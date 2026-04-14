@@ -884,6 +884,15 @@ router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response
       take: 5000,
     });
 
+    // Sanitize a CSV cell: quote, escape internal quotes, and strip leading formula chars
+    // to prevent formula injection attacks when opening in spreadsheet apps.
+    const csvCell = (v: unknown): string => {
+      let s = String(v ?? '');
+      // Strip leading chars that trigger formula execution in Excel/Google Sheets
+      if (['+', '-', '=', '@', '\t', '\r'].includes(s[0])) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
     const header = 'id,email,firstName,lastName,role,plan,subStatus,workouts,aiMessages,createdAt,isBanned\n';
     const rows = users.map((u) => [
       u.id,
@@ -897,7 +906,7 @@ router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response
       u._count.chatMessages,
       u.createdAt.toISOString().split('T')[0],
       u.isBanned ? '1' : '0',
-    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    ].map(csvCell).join(','));
 
     await prisma.adminLog.create({
       data: { adminId: req.userId!, action: 'EXPORT_USERS', details: `${users.length} users exported` },
