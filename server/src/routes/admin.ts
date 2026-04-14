@@ -1264,10 +1264,13 @@ router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => 
       sort === 'created_desc' ? [{ createdAt: 'desc' }] :
       [{ priority: 'desc' }, { status: 'asc' }, { updatedAt: 'desc' }]; // default: priority
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const pageNum2 = Math.max(1, parseInt(page) || 1);
+    const limitNum2 = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const skip = (pageNum2 - 1) * limitNum2;
     const [tickets, total] = await Promise.all([
       prisma.supportTicket.findMany({
         where,
+        take: limitNum2,
         include: {
           user: { select: { id: true, firstName: true, lastName: true, email: true } },
           assignedTo: { select: { id: true, firstName: true, lastName: true } },
@@ -1279,11 +1282,10 @@ router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => 
         },
         orderBy,
         skip,
-        take: parseInt(limit),
       }),
       prisma.supportTicket.count({ where }),
     ]);
-    res.json({ tickets, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+    res.json({ tickets, total, page: pageNum2, pages: Math.ceil(total / limitNum2) });
   } catch (e) {
     logger.error('GET /admin/support:', e);
     res.status(500).json({ error: 'Ошибка получения тикетов поддержки' });
