@@ -1488,11 +1488,14 @@ async function executeTool(
       fitnessLevel?: string;
     };
 
+    const VALID_GOALS = ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'];
+    const VALID_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
+
     const updateData: Record<string, unknown> = {};
-    if (weightKg !== undefined) updateData.weightKg = weightKg;
-    if (heightCm !== undefined) updateData.heightCm = heightCm;
-    if (goal !== undefined) updateData.goal = goal;
-    if (fitnessLevel !== undefined) updateData.fitnessLevel = fitnessLevel;
+    if (weightKg !== undefined && typeof weightKg === 'number' && weightKg >= 20 && weightKg <= 400) updateData.weightKg = weightKg;
+    if (heightCm !== undefined && typeof heightCm === 'number' && heightCm >= 50 && heightCm <= 300) updateData.heightCm = heightCm;
+    if (goal !== undefined && VALID_GOALS.includes(goal)) updateData.goal = goal;
+    if (fitnessLevel !== undefined && VALID_LEVELS.includes(fitnessLevel)) updateData.fitnessLevel = fitnessLevel;
 
     await prisma.user.update({ where: { id: userId }, data: updateData });
 
@@ -1510,7 +1513,8 @@ async function executeTool(
 
   if (toolName === 'log_body_weight') {
     const { weightKg, date } = toolInput as { weightKg: number; date?: string };
-    const logDate = date ? new Date(date) : new Date();
+    const parsedDate = date ? new Date(date) : new Date();
+    const logDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
     logDate.setHours(0, 0, 0, 0);
 
     await prisma.bodyWeight.upsert({
@@ -1678,9 +1682,12 @@ async function executeTool(
     const totalFats = items.reduce((s, i) => s + i.fats, 0);
     const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
 
+    const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+    const safeMealType = VALID_MEAL_TYPES.includes(mealType) ? mealType : 'snack';
+
     await prisma.meal.create({
       data: {
-        type: mealType,
+        type: safeMealType,
         userId,
         totalCalories,
         totalProtein,
@@ -1702,14 +1709,14 @@ async function executeTool(
     const MEAL_LABELS: Record<string, string> = {
       breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус',
     };
-    const label = MEAL_LABELS[mealType] || mealType;
+    const label = MEAL_LABELS[safeMealType] || safeMealType;
     const itemSummary = items.map((i) => `${i.name} ${i.weightGrams}г`).join(', ');
     const description = `${label} записан: ${itemSummary} — ${Math.round(totalCalories)} ккал`;
 
     return {
       resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${Math.round(totalCalories)} ккал, Б${Math.round(totalProtein)}г, Ж${Math.round(totalFats)}г, У${Math.round(totalCarbs)}г`,
       actionDescription: description,
-      actionData: { mealType, totalCalories: Math.round(totalCalories) },
+      actionData: { mealType: safeMealType, totalCalories: Math.round(totalCalories) },
     };
   }
 
@@ -1808,14 +1815,19 @@ async function executeTool(
       data: { isActive: false },
     });
 
+    const VALID_PROG_GOALS = ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'];
+    const VALID_PROG_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
+    const safeGoal = VALID_PROG_GOALS.includes(goal) ? goal : 'GENERAL_FITNESS';
+    const safeLevel = VALID_PROG_LEVELS.includes(level) ? level : 'BEGINNER';
+
     // Create the new program
     const program = await prisma.program.create({
       data: {
         name,
         description: description ?? '',
         type,
-        goal: goal as any,
-        level: level as any,
+        goal: safeGoal as any,
+        level: safeLevel as any,
         daysPerWeek,
         isActive: true,
         createdBy: 'ai',
@@ -2164,16 +2176,20 @@ async function executeTool(
     const { type, durationMinutes, distanceKm, caloriesBurned, date } = toolInput as {
       type: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; date?: string;
     };
-    const sessionDate = date || new Date().toISOString().split('T')[0];
+    // Validate date format; fall back to today if AI sends garbage
+    const VALID_CARDIO_TYPES = ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'];
+    const safeType = VALID_CARDIO_TYPES.includes(type) ? type : 'other';
+    const today = new Date().toISOString().split('T')[0];
+    const sessionDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T00:00:00Z').getTime())) ? date : today;
     const session = await prisma.cardioSession.create({
-      data: { userId, type, date: sessionDate, durationMinutes, distanceKm, caloriesBurned },
+      data: { userId, type: safeType, date: sessionDate, durationMinutes, distanceKm, caloriesBurned },
     });
     const distText = distanceKm ? `, ${distanceKm} км` : '';
     const calText = caloriesBurned ? `, ~${caloriesBurned} ккал` : '';
     return {
-      resultText: `Кардио записано: ${type} ${durationMinutes} мин${distText}${calText}`,
-      actionDescription: `Кардио: ${type} ${durationMinutes} мин`,
-      actionData: { sessionId: session.id, type, durationMinutes },
+      resultText: `Кардио записано: ${safeType} ${durationMinutes} мин${distText}${calText}`,
+      actionDescription: `Кардио: ${safeType} ${durationMinutes} мин`,
+      actionData: { sessionId: session.id, type: safeType, durationMinutes },
     };
   }
 
