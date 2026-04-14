@@ -331,21 +331,26 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
     }
     if (recentlyActive === 'true') {
       const h24ago = new Date(Date.now() - 24 * 3600 * 1000);
-      where.OR = [
+      // Use AND to avoid overwriting by the search OR below
+      where.AND = (where.AND ?? []);
+      where.AND.push({ OR: [
         { workouts: { some: { completedAt: { gte: h24ago } } } },
         { chatMessages: { some: { createdAt: { gte: h24ago } } } },
         { meals: { some: { createdAt: { gte: h24ago } } } },
-      ];
+      ] });
     }
     if (search) {
       if (search.length > 100) return res.status(400).json({ error: 'Запрос слишком длинный' });
-      where.OR = [
+      const searchOR = [
         { email: { contains: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search, mode: 'insensitive' } },
         { adminNote: { contains: search, mode: 'insensitive' } },
       ];
+      // Use AND so search can coexist with recentlyActive filter
+      where.AND = (where.AND ?? []);
+      where.AND.push({ OR: searchOR });
     }
 
     const [users, total] = await Promise.all([
@@ -486,7 +491,7 @@ router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Resp
 const changeSubSchema = z.object({
   plan: z.enum(['free', 'pro', 'trainer', 'club']),
   status: z.enum(['active', 'cancelled', 'expired']).optional(),
-  endDate: z.string().optional(),
+  endDate: z.string().refine((v) => !isNaN(new Date(v).getTime()), 'Некорректная дата endDate').optional(),
 });
 
 /** PATCH /admin/users/:id/subscription — override subscription */
@@ -1505,7 +1510,7 @@ const announcementSchema = z.object({
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(2000),
   type: z.enum(['info', 'warning', 'maintenance', 'promo']).default('info'),
-  endsAt: z.string().optional(),
+  endsAt: z.string().refine((v) => !isNaN(new Date(v).getTime()), 'Некорректная дата endsAt').optional(),
   isActive: z.boolean().optional(),
   targetRole: z.string().nullable().optional(),
 });

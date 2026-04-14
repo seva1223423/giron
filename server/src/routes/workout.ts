@@ -10,8 +10,8 @@ const createProgramSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   type: z.string().min(1),
-  goal: z.string().min(1).optional(),
-  level: z.string().min(1).optional(),
+  goal: z.enum(['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS']).optional(),
+  level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
   daysPerWeek: z.number().int().min(1).max(7),
   durationWeeks: z.number().int().min(1).max(52).optional(),
 });
@@ -109,8 +109,8 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
           name,
           description,
           type,
-          goal: (goal ?? 'GENERAL_FITNESS') as any,
-          level: (level ?? 'BEGINNER') as any,
+          goal: goal ?? 'GENERAL_FITNESS',
+          level: level ?? 'BEGINNER',
           daysPerWeek,
           durationWeeks,
           isActive: true,
@@ -164,7 +164,11 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
       },
     });
     res.status(201).json(workout);
-  } catch (e) {
+  } catch (e: any) {
+    // P2003 = foreign key constraint — one of the exerciseIds does not exist
+    if (e?.code === 'P2003') {
+      return res.status(400).json({ error: 'Одно или несколько упражнений не найдены' });
+    }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка старта тренировки' });
   }
@@ -238,6 +242,10 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
     // P2002 = unique constraint violation — clientId already taken globally (another user's workout)
     if (e?.code === 'P2002' && e?.meta?.target?.includes?.('clientId')) {
       return res.status(409).json({ error: 'Тренировка с данным clientId уже существует' });
+    }
+    // P2003 = foreign key constraint — one of the exerciseIds does not exist
+    if (e?.code === 'P2003') {
+      return res.status(400).json({ error: 'Одно или несколько упражнений не найдены' });
     }
     logger.error('Workout sync error:', e);
     res.status(500).json({ error: 'Ошибка синхронизации тренировки' });
