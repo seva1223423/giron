@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -83225,20 +83226,25 @@ OCR (Spartan Race, гонки с препятствиями) — командн�
 router.post('/workout-insights', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { workout } = req.body as {
-      workout: {
-        name: string;
-        durationMinutes: number;
-        exercises: Array<{
-          name: string;
-          sets: Array<{ weight?: number; reps?: number; completed?: boolean; rpe?: number }>;
-        }>;
-        totalVolume?: number;
-        notes?: string;
-      };
-    };
-
-    if (!workout) return res.status(400).json({ error: 'Данные тренировки обязательны' });
+    const bodyParsed = z.object({
+      workout: z.object({
+        name: z.string().min(1).max(200),
+        durationMinutes: z.number().int().min(0).max(1440),
+        exercises: z.array(z.object({
+          name: z.string().min(1).max(200),
+          sets: z.array(z.object({
+            weight: z.number().min(0).max(2000).optional(),
+            reps: z.number().int().min(0).max(999).optional(),
+            completed: z.boolean().optional(),
+            rpe: z.number().min(1).max(10).optional(),
+          })).max(30),
+        })).max(50),
+        totalVolume: z.number().min(0).max(1_000_000).optional(),
+        notes: z.string().max(2000).optional(),
+      }),
+    }).safeParse(req.body);
+    if (!bodyParsed.success) return res.status(400).json({ error: 'Некорректные данные тренировки' });
+    const { workout } = bodyParsed.data;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
