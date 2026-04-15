@@ -13,6 +13,9 @@ const router = Router();
 // All admin routes require authentication first
 router.use(authenticate);
 
+/** Returns true if the Prisma error is "record not found" (P2025) */
+const isNotFound = (e: any) => e?.code === 'P2025';
+
 // ── DASHBOARD STATS ─────────────────────────────────────────────────────────
 
 /** GET /admin/stats — main dashboard data (cached 90s to avoid 35+ DB queries per page load) */
@@ -517,6 +520,7 @@ router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Resp
     res.json(user);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('PATCH /admin/users/:id/role:', e);
     res.status(500).json({ error: 'Ошибка изменения роли' });
   }
@@ -596,6 +600,7 @@ router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Respon
     res.json(user);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('POST /admin/users/:id/ban:', e);
     res.status(500).json({ error: 'Ошибка блокировки пользователя' });
   }
@@ -619,6 +624,7 @@ router.post('/users/:id/unban', requireAdmin, async (req: AuthRequest, res: Resp
     });
     res.json(user);
   } catch (e) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('POST /admin/users/:id/unban:', e);
     res.status(500).json({ error: 'Ошибка разблокировки пользователя' });
   }
@@ -637,6 +643,7 @@ router.post('/users/:id/force-verify-email', requireAdmin, async (req: AuthReque
     });
     res.json(user);
   } catch (e) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('POST /admin/users/:id/force-verify-email:', e);
     res.status(500).json({ error: 'Ошибка верификации email' });
   }
@@ -655,6 +662,7 @@ router.post('/users/:id/unlock', requireAdmin, async (req: AuthRequest, res: Res
     });
     res.json(user);
   } catch (e) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('POST /admin/users/:id/unlock:', e);
     res.status(500).json({ error: 'Ошибка снятия блокировки' });
   }
@@ -684,6 +692,7 @@ router.patch('/users/:id/note', requireAdmin, async (req: AuthRequest, res: Resp
     res.json(user);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('PATCH /admin/users/:id/note:', e);
     res.status(500).json({ error: 'Ошибка сохранения заметки' });
   }
@@ -719,6 +728,7 @@ router.delete('/users/:id([a-z0-9]{10,30})', requireAdmin, async (req: AuthReque
     });
     res.json({ success: true });
   } catch (e) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('DELETE /admin/users/:id:', e);
     res.status(500).json({ error: 'Ошибка удаления пользователя' });
   }
@@ -1705,6 +1715,7 @@ router.patch('/announcements/:id', requireAdmin, async (req: AuthRequest, res: R
     res.json(ann);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    if (isNotFound(e)) return res.status(404).json({ error: 'Объявление не найдено' });
     logger.error('PATCH /admin/announcements/:id:', e);
     res.status(500).json({ error: 'Ошибка обновления' });
   }
@@ -1739,6 +1750,7 @@ router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: 
     await prisma.announcement.delete({ where: { id: req.params.id as string } });
     res.json({ ok: true });
   } catch (e) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Объявление не найдено' });
     logger.error('DELETE /admin/announcements/:id:', e);
     res.status(500).json({ error: 'Ошибка удаления' });
   }
