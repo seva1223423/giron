@@ -6,6 +6,10 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
+/** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
+const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
 const mealItemSchema = z.object({
   name: z.string().min(1).max(200),
   calories: z.number().min(0).max(10000),
@@ -99,6 +103,7 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
 
 // Update meal items (recalculate totals)
 router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const meal = await prisma.meal.findFirst({ where: { id: req.params.id as string, userId: req.userId! } });
     if (!meal) return res.status(404).json({ error: 'Приём пищи не найден' });
@@ -134,6 +139,7 @@ router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response)
 
 // Delete meal
 router.delete('/meals/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const deleted = await prisma.meal.deleteMany({
       where: { id: req.params.id as string, userId: req.userId },
