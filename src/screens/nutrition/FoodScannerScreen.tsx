@@ -112,7 +112,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setImageUri(null);
       } else {
         const apiError = getApiError(e);
-        setError(apiError.status === 0 ? 'Нет подключения к серверу. Проверь, что сервер запущен.' : apiError.message);
+        setError(apiError.message);
       }
     } finally {
       clearTimeout(timeoutId);

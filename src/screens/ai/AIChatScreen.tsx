@@ -212,7 +212,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     } catch (e) {
       const apiError = getApiError(e);
       haptic.error();
-      setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'assistant', createdAt: new Date().toISOString(), content: apiError.status === 0 ? 'Нет подключения к серверу. Проверь, что сервер запущен и доступен.' : `Ошибка: ${apiError.message}` }]);
+      setMessages((prev) => [...prev, { id: `error-${Date.now()}`, role: 'assistant', createdAt: new Date().toISOString(), content: apiError.message }]);
     } finally {
       setIsTyping(false);
       isSendingRef.current = false;
