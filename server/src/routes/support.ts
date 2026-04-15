@@ -46,6 +46,7 @@ router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response)
         messages: {
           include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
           orderBy: { createdAt: 'asc' },
+          take: 500,
         },
         assignedTo: { select: { firstName: true, lastName: true, role: true } },
         user: { select: { id: true, firstName: true, lastName: true, email: true } },
