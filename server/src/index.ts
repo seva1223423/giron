@@ -64,10 +64,13 @@ app.use(cors({
   },
   credentials: true,
 }));
-// Capture raw body for webhook signature verification via verify callback.
-// Limit is 512kb — sufficient for all API payloads. Webhook raw body is stored for HMAC verification.
+// Food image analysis needs up to 10MB for base64-encoded photos — apply before the global limit.
+app.use('/api/ai/analyze-food', express.json({ limit: '10mb' }));
+
+// Global 10kb limit for all other endpoints.
+// Webhook rawBody captured here for HMAC signature verification in subscription/webhook routes.
 app.use(express.json({
-  limit: '512kb',
+  limit: '10kb',
   verify: (req, _res, buf) => { (req as any).rawBody = buf.toString(); },
 }));
 
