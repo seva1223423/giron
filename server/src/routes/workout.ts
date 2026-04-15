@@ -16,6 +16,10 @@ const exercisesCache = new MemCache<unknown>(2);
 
 const router = Router();
 
+/** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
+const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
 const createProgramSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
@@ -139,6 +143,7 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
 
 // Update program (rename, change goal/level, toggle active)
 router.patch('/programs/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { id } = req.params as { id: string };
     const updateProgramSchema = z.object({
@@ -175,6 +180,7 @@ router.patch('/programs/:id', authenticate, async (req: AuthRequest, res: Respon
 
 // Delete program
 router.delete('/programs/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { id } = req.params as { id: string };
     const deleted = await prisma.program.deleteMany({ where: { id, userId: req.userId! } });
@@ -314,6 +320,7 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
 
 // Complete workout
 router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const id = req.params.id as string;
     const setsParsed = z.object({
@@ -386,6 +393,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
 
 // Autosave workout progress (mid-workout, fire-and-forget from client)
 router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const id = req.params.id as string;
     const setsParsed = z.object({
