@@ -855,6 +855,7 @@ router.post('/subscriptions/broadcast', requireAdmin, async (req: AuthRequest, r
     const users = await prisma.user.findMany({
       where: { isBanned: false, subscription: subWhere },
       select: { id: true },
+      take: 10000,
     });
 
     if (users.length === 0) return res.json({ sent: 0, failed: 0, total: 0 });
