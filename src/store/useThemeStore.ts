@@ -55,6 +55,8 @@ export const useThemeStore = create<ThemeStore>()(
           state.colors = isDark ? darkColors : lightColors;
         }
       },
+      version: 1,
+      migrate: (state: any) => state,
     }
   )
 );
