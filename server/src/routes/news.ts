@@ -7,6 +7,10 @@ import { newsCache } from '../utils/memCache';
 
 const router = Router();
 
+/** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
+const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
 // Get news feed (cached 5 minutes per category/page combination)
 router.get('/', async (req, res: Response) => {
   try {
@@ -49,6 +53,7 @@ router.get('/', async (req, res: Response) => {
 
 // Save/unsave article
 router.post('/:id/save', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const id = req.params.id as string;
 

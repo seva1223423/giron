@@ -2536,6 +2536,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       where: { userId, createdAt: { gte: todayStart, lte: todayEnd } },
       include: { items: true },
       orderBy: { createdAt: 'asc' },
+      take: 100,
     });
 
     // Build user context
@@ -2844,10 +2845,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const weekWorkouts = await prisma.workout.findMany({
       where: { userId, completedAt: { gte: oneWeekAgo } },
       include: { exercises: { include: { sets: true } } },
+      take: 50,
     });
     const prevWeekWorkouts = await prisma.workout.findMany({
       where: { userId, completedAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
       include: { exercises: { include: { sets: true } } },
+      take: 50,
     });
 
     const calcWeekVolume = (workouts: typeof weekWorkouts) =>
@@ -2904,6 +2907,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // Estimated TDEE from actual data (if we have weight trend + calorie data for 7+ days)
     const weekMeals = await prisma.meal.findMany({
       where: { userId, createdAt: { gte: oneWeekAgo } },
+      take: 200,
     });
     if (weekMeals.length >= 5 && bodyWeightHistory.length >= 2) {
       const avgDailyCal = weekMeals.reduce((s, m) => s + m.totalCalories, 0) / 7;
@@ -3071,6 +3075,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       ? (await prisma.workoutExercise.findMany({
           where: { workout: { programId: activeProgram.id } },
           select: { exercise: { select: { name: true } } },
+          take: 500,
         })).map((we) => we.exercise.name)
       : [];
     const exerciseAlternatives = getExerciseAlternatives([...new Set(programExerciseNames)], injuryZones);
@@ -3107,6 +3112,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       ? [...new Set((await prisma.workoutExercise.findMany({
           where: { workout: { programId: activeProgram.id } },
           select: { exercise: { select: { type: true } } },
+          take: 500,
         })).map((we) => we.exercise.type))]
       : [];
     const restTimerContext = buildRestTimerContext(user?.goal || null, exerciseTypesInProgram);
@@ -3115,6 +3121,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const allRecentForFatigue = await prisma.workout.findMany({
       where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) } },
       select: { completedAt: true, totalVolume: true, durationMinutes: true },
+      take: 100,
     });
     const fatigueData = calculateFatigueIndex(allRecentForFatigue);
     const fatigueContext = buildFatigueContext(fatigueData);
@@ -3130,6 +3137,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const recentMealsForGaps = await prisma.meal.findMany({
       where: { userId, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
       include: { items: true },
+      take: 100,
     });
     const nutritionGapsContext = detectNutritionGaps(
       recentMealsForGaps.map((m) => ({
@@ -3351,6 +3359,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const recentMealsAll = await prisma.meal.findMany({
       where: { userId, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
       select: { totalCalories: true },
+      take: 200,
     });
     const avgCalories = recentMealsAll.length > 0
       ? recentMealsAll.reduce((s, m) => s + m.totalCalories, 0) / Math.max(recentMealsAll.length / 3, 1) // per day estimate
@@ -3678,6 +3687,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 128: Nutrition-training sync ──────
     const todaysMeals = await prisma.meal.findMany({
       where: { userId, createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+      take: 100,
     });
     const todayCals = todaysMeals.reduce((s, m) => s + m.totalCalories, 0);
     const todayProt = todaysMeals.reduce((s, m) => s + m.totalProtein, 0);
