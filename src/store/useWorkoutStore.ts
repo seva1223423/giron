@@ -517,6 +517,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         pendingSync: state.pendingSync,
       }),
       version: 1,
+      migrate: (state: any) => state,
     }
   )
 );

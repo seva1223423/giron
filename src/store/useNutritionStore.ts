@@ -282,6 +282,7 @@ export const useNutritionStore = create<NutritionStore>()(
       name: 'iron-gym-nutrition',
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
+      migrate: (state: any) => state,
     }
   )
 );
