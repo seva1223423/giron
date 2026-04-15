@@ -30,10 +30,13 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       entries: [],
 
       addEntry: (data) => {
+        const snapshot = get().entries;
         const entry: BodyMeasurement = { ...data, id: `meas-${Date.now()}` };
         set((s) => ({ entries: [entry, ...s.entries] }));
-        // Fire-and-forget sync to server
-        userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, neck: data.neck }).catch(() => {});
+        // Sync to server with rollback on failure
+        userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, neck: data.neck }).catch(() => {
+          set({ entries: snapshot });
+        });
       },
 
       updateEntry: (id, data) => {
@@ -41,11 +44,14 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       },
 
       deleteEntry: (id) => {
+        const snapshot = get().entries;
         const entry = get().entries.find((e) => e.id === id);
         set((s) => ({ entries: s.entries.filter((e) => e.id !== id) }));
-        // Sync deletion to server (entry.date is the key for server-side records)
+        // Sync deletion to server; rollback if server rejects
         if (entry?.date) {
-          userService.deleteMeasurement(entry.date).catch(() => {});
+          userService.deleteMeasurement(entry.date).catch(() => {
+            set({ entries: snapshot });
+          });
         }
       },
 

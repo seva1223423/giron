@@ -142,21 +142,23 @@ export const useWorkoutStore = create<WorkoutStore>()(
       setPrograms: (programs) => set({ programs }),
       addProgram: (program) => set((s) => ({ programs: [...s.programs, program] })),
       updateProgram: async (id, data) => {
+        const snapshot = get().programs;
         // Optimistic local update
         set((s) => ({
           programs: s.programs.map((p) => p.id === id ? { ...p, ...data } : p),
         }));
-        // Persist to server; on failure re-fetch to restore truth
+        // Persist to server; rollback to snapshot on failure
         workoutService.updateProgram(id, data as any).catch(() => {
-          get().fetchPrograms();
+          set({ programs: snapshot });
         });
       },
       deleteProgram: async (id) => {
+        const snapshot = get().programs;
         // Optimistic local delete
         set((s) => ({ programs: s.programs.filter((p) => p.id !== id) }));
-        // Persist to server; on failure re-fetch to restore truth
+        // Persist to server; rollback to snapshot on failure
         workoutService.deleteProgram(id).catch(() => {
-          get().fetchPrograms();
+          set({ programs: snapshot });
         });
       },
 

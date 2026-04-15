@@ -137,13 +137,16 @@ export const useNutritionStore = create<NutritionStore>()(
       },
 
       updateMealItem: (date, mealId, itemId, data) => {
+        const snapshot = get().dailyLog[date]?.meals ?? [];
+
+        let updatedMeal: Meal | undefined;
         set((s) => {
           const dayLog = s.dailyLog[date];
           if (!dayLog) return s;
           const updatedMeals = dayLog.meals.map((meal) => {
             if (meal.id !== mealId) return meal;
             const updatedItems = meal.items.map((item) => item.id === itemId ? { ...item, ...data } : item);
-            return {
+            const updated: Meal = {
               ...meal,
               items: updatedItems,
               totalCalories: updatedItems.reduce((s, i) => s + i.calories, 0),
@@ -151,14 +154,22 @@ export const useNutritionStore = create<NutritionStore>()(
               totalFats: updatedItems.reduce((s, i) => s + i.fats, 0),
               totalCarbs: updatedItems.reduce((s, i) => s + i.carbs, 0),
             };
+            updatedMeal = updated;
+            return updated;
           });
-          // Sync to server (fire-and-forget)
-          const updatedMeal = updatedMeals.find((m) => m.id === mealId);
-          if (updatedMeal && !mealId.startsWith('meal-')) {
-            nutritionService.updateMeal(mealId, updatedMeal.items).catch(() => {});
-          }
           return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: updatedMeals } } };
         });
+
+        // Sync to server with rollback; skip local-only meals that were never persisted
+        if (updatedMeal && !mealId.startsWith('meal-')) {
+          nutritionService.updateMeal(mealId, updatedMeal.items).catch(() => {
+            set((s) => {
+              const dayLog = s.dailyLog[date];
+              if (!dayLog) return s;
+              return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: snapshot } } };
+            });
+          });
+        }
       },
 
       addWater: (date, ml) => set((s) => {

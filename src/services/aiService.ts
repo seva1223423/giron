@@ -162,9 +162,10 @@ export const aiService = {
     }
   },
 
-  async getChatHistory(): Promise<ChatMessage[]> {
-    const { data } = await api.get('/ai/history');
-    return data;
+  async getChatHistory(limit = 100, page = 1): Promise<ChatMessage[]> {
+    const { data } = await api.get('/ai/history', { params: { limit, page } });
+    // Server returns { messages, total, pages } — extract the array
+    return Array.isArray(data) ? data : (data.messages ?? []);
   },
 
   async getWorkoutInsights(workout: {

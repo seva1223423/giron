@@ -36,19 +36,25 @@ export const useSleepStore = create<SleepStore>()(
       entries: [],
 
       addEntry: (entry) => {
+        const snapshot = get().entries;
         const durationHours = computeDuration(entry.bedtime, entry.wakeTime);
         const newEntry: SleepEntry = { ...entry, durationHours };
         set((state) => ({
           entries: [newEntry, ...state.entries.filter((e) => e.date !== entry.date)]
             .sort((a, b) => b.date.localeCompare(a.date)),
         }));
-        // Sync to server (fire and forget)
-        userService.saveSleep({ ...newEntry }).catch(() => {});
+        // Sync to server with rollback on failure
+        userService.saveSleep({ ...newEntry }).catch(() => {
+          set({ entries: snapshot });
+        });
       },
 
       removeEntry: (date) => {
+        const snapshot = get().entries;
         set((state) => ({ entries: state.entries.filter((e) => e.date !== date) }));
-        userService.deleteSleep(date).catch(() => {});
+        userService.deleteSleep(date).catch(() => {
+          set({ entries: snapshot });
+        });
       },
 
       syncFromServer: async () => {
