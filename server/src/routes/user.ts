@@ -19,6 +19,10 @@ import { sendPasswordChangedAlert } from '../services/emailService';
 const JWT_ISS = 'irongym-api';
 const JWT_AUD = 'irongym-app';
 
+/** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
+const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
 /** Prevent TOTP replay attacks: check if code was recently used, then record it. Returns true if replay detected. */
 async function isTotpReplay(userId: string, code: string): Promise<boolean> {
   // TOTP window=1 means codes are valid for up to 90 seconds (prev + current + next period)
@@ -274,9 +278,10 @@ router.delete('/sleep/:date', authenticate, async (req: AuthRequest, res: Respon
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
       return res.status(400).json({ error: 'Некорректный формат даты. Используйте YYYY-MM-DD' });
     }
-    await prisma.sleepEntry.deleteMany({
+    const deleted = await prisma.sleepEntry.deleteMany({
       where: { userId: req.userId!, date: dateParam },
     });
+    if (deleted.count === 0) return res.status(404).json({ error: 'Запись сна не найдена' });
     res.json({ ok: true });
   } catch (e) {
     logger.error(e);
@@ -517,6 +522,7 @@ router.get('/sessions', authenticate, async (req: AuthRequest, res: Response) =>
 
 /** DELETE /user/sessions/:id — revoke a specific session */
 router.delete('/sessions/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { id } = req.params as { id: string };
     const session = await prisma.refreshToken.findUnique({ where: { id }, select: { userId: true } });
@@ -563,6 +569,7 @@ router.get('/trusted-devices', authenticate, async (req: AuthRequest, res: Respo
 
 /** DELETE /user/trusted-devices/:id — revoke a specific trusted device */
 router.delete('/trusted-devices/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { id } = req.params as { id: string };
     const device = await prisma.trustedDevice.findUnique({ where: { id }, select: { userId: true } });
