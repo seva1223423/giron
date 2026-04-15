@@ -68,7 +68,7 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
 
       {/* Portion presets — shown when base macros per 100g are available */}
       {base && (
-        <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
+        <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm, flexWrap: 'wrap' }}>
           {PORTION_PRESETS.map((g) => (
             <TouchableOpacity
               key={g}
