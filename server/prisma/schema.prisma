@@ -190,6 +190,9 @@ model Workout {
 
   @@index([userId])
   @@index([completedAt])
+  // Composite for leaderboard: groupBy filters completedAt IS NOT NULL, groups by userId;
+  // nested WorkoutSet filter joins Workout WHERE userId IN (...) AND completedAt IS NOT NULL
+  @@index([userId, completedAt])
 }
 
 model WorkoutExercise {
