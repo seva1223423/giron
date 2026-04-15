@@ -1113,6 +1113,21 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       return res.json({ message: 'Если такой email зарегистрирован, письмо отправлено' });
     }
 
+    // Per-email rate limit: don't send another reset email if one was sent < 5 min ago.
+    // Per-IP rate limit (passwordResetRateLimiter) handles the IP dimension; this closes
+    // the gap where an attacker uses multiple IPs to spam one email address.
+    const recentToken = await prisma.passwordResetToken.findFirst({
+      where: {
+        userId: user.id,
+        used: false,
+        createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+      },
+    });
+    if (recentToken) {
+      // Return the same message — don't reveal that we rate-limited
+      return res.json({ message: 'Если такой email зарегистрирован, письмо отправлено' });
+    }
+
     await prisma.passwordResetToken.updateMany({
       where: { userId: user.id, used: false },
       data: { used: true },
