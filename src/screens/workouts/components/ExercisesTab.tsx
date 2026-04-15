@@ -55,23 +55,26 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    let mounted = true;
     AsyncStorage.getItem(FAVORITES_KEY).then((raw) => {
-      if (raw) {
+      if (raw && mounted) {
         try { setFavoriteIds(new Set(JSON.parse(raw))); } catch {}
       }
     }).catch(() => {});
     const loadServerExercises = async () => {
+      if (!mounted) return;
       setLoadingExercises(true);
       try {
         const serverExercises = await workoutService.getExercises();
-        if (serverExercises.length > 0) setExerciseList(serverExercises);
+        if (mounted && serverExercises.length > 0) setExerciseList(serverExercises);
       } catch {
         // Keep local exercises
       } finally {
-        setLoadingExercises(false);
+        if (mounted) setLoadingExercises(false);
       }
     };
     loadServerExercises();
+    return () => { mounted = false; };
   }, []);
 
   const toggleFavorite = useCallback((exerciseId: string) => {
