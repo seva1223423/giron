@@ -3156,7 +3156,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const plateauContext = buildPlateauContext(plateauStrategies);
 
     // ─── Block 42: Sleep & recovery questionnaire ──────
-    const userMemories = await prisma.aIMemory.findMany({ where: { userId }, select: { key: true } });
+    const userMemories = await prisma.aIMemory.findMany({ where: { userId }, select: { key: true }, take: 200 });
     const hasAskedAboutSleep = userMemories.some((m) => m.key.includes('sleep') || m.key.includes('сон'));
     const recoveryQuestionnaireContext = buildRecoveryQuestionnaire(recovery.score, hasAskedAboutSleep, fatigueData.status);
 

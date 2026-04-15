@@ -87,6 +87,7 @@ router.get('/saved', authenticate, async (req: AuthRequest, res: Response) => {
       where: { userId: req.userId },
       include: { article: true },
       orderBy: { savedAt: 'desc' },
+      take: 500,
     });
     res.json(saved.map((s) => s.article));
   } catch (e) {
