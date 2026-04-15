@@ -55,6 +55,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -107,13 +108,32 @@ api.interceptors.response.use(
 export type ApiError = {
   message: string;
   status: number;
+  code?: string; // server-side error code (e.g. SUBSCRIPTION_REQUIRED)
+};
+
+/** Friendly fallback messages for HTTP status codes without a server-side message. */
+const STATUS_MESSAGES: Record<number, string> = {
+  0:   'Нет подключения к интернету. Проверь соединение и попробуй снова.',
+  401: 'Сессия истекла. Войди в приложение заново.',
+  402: 'Эта функция доступна только для платных подписчиков.',
+  403: 'Нет доступа к этому разделу.',
+  404: 'Данные не найдены.',
+  409: 'Конфликт: такая запись уже существует.',
+  422: 'Некорректные данные. Проверь введённые значения.',
+  429: 'Слишком много запросов. Подожди немного и попробуй снова.',
+  500: 'Ошибка сервера. Попробуй через несколько секунд.',
+  503: 'Сервис временно недоступен. Попробуй позже.',
 };
 
 export const getApiError = (error: unknown): ApiError => {
   if (axios.isAxiosError(error)) {
+    const status = error.response?.status ?? 0;
+    const serverMessage = error.response?.data?.error as string | undefined;
+    const serverCode = error.response?.data?.code as string | undefined;
     return {
-      message: error.response?.data?.error || error.message || 'Ошибка сети',
-      status: error.response?.status || 0,
+      message: serverMessage || STATUS_MESSAGES[status] || `Ошибка ${status || 'сети'}`,
+      status,
+      code: serverCode,
     };
   }
   return { message: 'Неизвестная ошибка', status: 0 };
