@@ -498,9 +498,17 @@ export const useWorkoutStore = create<WorkoutStore>()(
         try {
           const { workouts: history } = await workoutService.getHistory();
           if (history.length > 0) {
-            // Merge: keep local-only workouts that server doesn't know about
+            // Merge: keep local-only workouts that server doesn't know about.
+            // A local workout may have been synced and received a server cuid ID, while
+            // still living in local history under its original client-generated ID (e.g. 'workout-123').
+            // Exclude it from localOnly if the server already has it via clientId match.
             const serverIds = new Set(history.map((w) => w.id));
-            const localOnly = get().workoutHistory.filter((w) => !serverIds.has(w.id));
+            const serverClientIds = new Set(
+              history.map((w) => (w as any).clientId).filter(Boolean)
+            );
+            const localOnly = get().workoutHistory.filter(
+              (w) => !serverIds.has(w.id) && !serverClientIds.has(w.id)
+            );
             const merged = [...history, ...localOnly].sort((a, b) =>
               new Date(b.completedAt || b.startedAt || 0).getTime() - new Date(a.completedAt || a.startedAt || 0).getTime()
             );
