@@ -1,0 +1,53 @@
+name: Server Tests
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-tests.yml'
+
+jobs:
+  test:
+    name: Jest (Node 22)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          # Prisma generate only parses the schema — no real DB needed.
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy
+
+      - name: Run tests
+        # All tests mock Prisma and set JWT secrets via src/__tests__/setup.ts.
+        # No real database or external services needed.
+        run: npm test -- --no-coverage --forceExit
+        env:
+          NODE_ENV: test
