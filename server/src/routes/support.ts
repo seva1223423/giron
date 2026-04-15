@@ -6,6 +6,13 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
+/** Returns true if the Prisma error is "record not found" (P2025) */
+const isNotFound = (e: any) => e?.code === 'P2025';
+
+/** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
+const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
 const createTicketSchema = z.object({
   subject: z.string().min(5, 'Тема минимум 5 символов').max(120),
   category: z.enum(['billing', 'technical', 'feature_request', 'account', 'bug', 'other']),
@@ -39,6 +46,7 @@ router.get('/tickets', authenticate, async (req: AuthRequest, res: Response) => 
 
 /** GET /support/tickets/:id — ticket with all messages */
 router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const ticket = await prisma.supportTicket.findUnique({
       where: { id: req.params.id as string },
@@ -100,6 +108,7 @@ router.post('/tickets', authenticate, async (req: AuthRequest, res: Response) =>
 
 /** POST /support/tickets/:id/messages — send a message */
 router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const data = sendMessageSchema.parse(req.body);
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
@@ -151,6 +160,7 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
 
 /** PATCH /support/tickets/:id/close — user closes their own ticket */
 router.patch('/tickets/:id/close', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
@@ -211,6 +221,7 @@ const ticketStatusUpdateSchema = z.object({
 
 /** PATCH /support/tickets/:id/status — update status (staff) */
 router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const parsed = ticketStatusUpdateSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
@@ -221,6 +232,7 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
     const ticket = await prisma.supportTicket.update({ where: { id: req.params.id as string }, data });
     res.json(ticket);
   } catch (e) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Тикет не найден' });
     logger.error('PATCH /support/tickets/:id/status:', e);
     res.status(500).json({ error: 'Ошибка обновления тикета' });
   }
@@ -228,6 +240,7 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
 
 /** PATCH /support/tickets/:id/assign — assign to staff member */
 router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const parsed = z.object({
       assignedToId: z.string().cuid().nullable().optional(),
@@ -245,6 +258,7 @@ router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: Auth
     });
     res.json(ticket);
   } catch (e) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Тикет не найден' });
     logger.error('PATCH /support/tickets/:id/assign:', e);
     res.status(500).json({ error: 'Ошибка назначения тикета' });
   }

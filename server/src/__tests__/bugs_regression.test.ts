@@ -175,7 +175,7 @@ describe('GET /api/ai/history', () => {
 
 // ─── Bug: POST /support/tickets/:id/messages had two separate DB calls (race) ─
 describe('POST /api/support/tickets/:id/messages', () => {
-  const ticketId = 'ticket-abc';
+  const ticketId = 'cjld2cjxh0000qzrmn831i7rn'; // valid CUID format
 
   beforeEach(() => {
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValue({
