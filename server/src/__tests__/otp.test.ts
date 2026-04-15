@@ -37,6 +37,7 @@ jest.mock('../db', () => ({
       updateMany: jest.fn().mockResolvedValue({}),
     },
     passwordResetToken: {
+      findFirst: jest.fn().mockResolvedValue(null),  // per-email rate limit check
       findUnique: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue({}),
       update: jest.fn().mockResolvedValue({}),
