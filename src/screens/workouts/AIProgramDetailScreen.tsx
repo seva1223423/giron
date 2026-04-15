@@ -380,15 +380,15 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
       </FadeIn>
 
       {/* Quick start first workout */}
-      <FadeIn delay={320}>
+      {program.workouts.length > 0 && <FadeIn delay={320}>
         <Button
-          title={`Начать: ${program.workouts[0]?.name || 'День 1'}`}
+          title={`Начать: ${program.workouts[0].name || 'День 1'}`}
           onPress={() => startWorkoutDay(program.workouts[0])}
           fullWidth
           size="lg"
           style={{ marginBottom: spacing.huge }}
         />
-      </FadeIn>
+      </FadeIn>}
     </ScrollView>
   );
 };
