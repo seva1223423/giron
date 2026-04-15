@@ -22,7 +22,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const safeTop = useSafeTop();
   const program: BuiltInProgram = route.params?.program;
   const { colors } = useThemeStore();
-  const { startWorkout, setWeekPlanDay } = useWorkoutStore();
+  const { startWorkout, setWeekPlanDay, activeWorkout } = useWorkoutStore();
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
 
   useEffect(() => { if (!program) navigation.goBack(); }, [program, navigation]);
@@ -46,6 +46,13 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const startProgramDay = (day: typeof program.days[0]) => {
     haptic.medium();
+
+    // If another workout is already in progress, navigate to it instead of overwriting
+    if (activeWorkout) {
+      navigation.navigate('ActiveWorkout');
+      return;
+    }
+
     const workoutExercises: WorkoutExercise[] = day.exercises.map((item, index) => {
       const ex = localExercises.find((e) => e.id === item.exerciseId);
       if (!ex) return null;

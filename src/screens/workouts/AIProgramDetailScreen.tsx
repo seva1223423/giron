@@ -192,7 +192,7 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
   const haptic = useHaptic();
   const program: Program = route.params?.program;
   const { colors } = useThemeStore();
-  const { startWorkout, updateProgram, workoutHistory, setWeekPlanDay } = useWorkoutStore();
+  const { startWorkout, updateProgram, workoutHistory, setWeekPlanDay, activeWorkout } = useWorkoutStore();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
 
   if (!program) { navigation.goBack(); return null; }
@@ -249,6 +249,13 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
 
   const startWorkoutDay = useCallback((workout: Workout) => {
     haptic.medium();
+
+    // If another workout is already in progress, navigate to it instead of overwriting
+    if (activeWorkout) {
+      navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
+      return;
+    }
+
     // Build fresh workout from program template (reset completed/weights)
     const freshExercises = workout.exercises.map((ex, i) => ({
       ...ex,
@@ -266,7 +273,7 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
       exercises: freshExercises,
     });
     navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  }, [haptic, startWorkout, navigation]);
+  }, [haptic, startWorkout, navigation, activeWorkout]);
 
   return (
     <ScrollView
