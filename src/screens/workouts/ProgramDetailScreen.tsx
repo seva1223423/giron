@@ -136,9 +136,11 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
         ))}
       </FadeIn>
 
-      <FadeIn delay={400}>
-        <Button title={`Начать ${program.days[0].name}`} onPress={() => startProgramDay(program.days[0])} fullWidth size="lg" style={{ marginBottom: spacing.huge }} />
-      </FadeIn>
+      {program.days.length > 0 && (
+        <FadeIn delay={400}>
+          <Button title={`Начать ${program.days[0].name}`} onPress={() => startProgramDay(program.days[0])} fullWidth size="lg" style={{ marginBottom: spacing.huge }} />
+        </FadeIn>
+      )}
     </ScrollView>
   );
 };
