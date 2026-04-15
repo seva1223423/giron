@@ -2336,6 +2336,7 @@ async function executeTool(
     const workouts = await prisma.workout.findMany({
       where: { userId, completedAt: { gte: since } },
       include: { exercises: { include: { sets: true, exercise: true } } },
+      take: 365,
     });
 
     const totalWorkouts = workouts.length;
@@ -2523,6 +2524,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
           select: { weight: true, reps: true, type: true },
         },
       },
+      take: 10000,
     });
 
     // Get today's meals
@@ -9306,6 +9308,7 @@ async function getGamificationData(userId: string): Promise<GamificationData> {
     where: { userId, completedAt: { not: null } },
     orderBy: { completedAt: 'desc' },
     select: { completedAt: true },
+    take: 2000,
   });
 
   // Calculate current streak (consecutive days)
@@ -9359,6 +9362,7 @@ async function getGamificationData(userId: string): Promise<GamificationData> {
       workout: { select: { completedAt: true } },
       sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
     },
+    take: 10000,
   });
 
   const prMap = new Map<string, { weight: number; reps: number; date: Date }>();
