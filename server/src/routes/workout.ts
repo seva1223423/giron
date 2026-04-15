@@ -596,7 +596,7 @@ router.get('/exercises', authenticate, async (_req, res: Response) => {
       res.setHeader('X-Cache', 'HIT');
       return res.json(cached);
     }
-    const exercises = await prisma.exercise.findMany({ orderBy: { name: 'asc' } });
+    const exercises = await prisma.exercise.findMany({ orderBy: { name: 'asc' }, take: 500 });
     exercisesCache.set('exercises', exercises, 60 * 60 * 1000);
     res.setHeader('X-Cache', 'MISS');
     res.json(exercises);
