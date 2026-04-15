@@ -123,6 +123,7 @@ export const useTrainerStore = create<TrainerStore>()(
       },
 
       logWorkoutSession: async (data) => {
+        const prevSessions = get().sessions;
         const tempId = `session-${Date.now()}`;
         const tempSession: TrainerWorkoutSession = { ...data, id: tempId };
         set((s) => ({ sessions: [tempSession, ...s.sessions] }));
@@ -138,7 +139,7 @@ export const useTrainerStore = create<TrainerStore>()(
           const updatedClients = await trainerService.getClients();
           set({ clients: updatedClients });
         } catch {
-          // Keep optimistic session locally — will reconcile on next fetchSessions
+          set({ sessions: prevSessions });
         }
       },
 
