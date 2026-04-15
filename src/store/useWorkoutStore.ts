@@ -486,6 +486,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       fetchHistory: async () => {
+        if (get().isLoadingHistory) return; // prevent concurrent fetches
         set({ isLoadingHistory: true });
 
         // Retry any workouts that failed to sync previously
