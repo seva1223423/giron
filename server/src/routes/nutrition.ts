@@ -87,6 +87,7 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
       },
       include: { items: true },
       orderBy: { createdAt: 'asc' },
+      take: 100, // hard cap — no user logs more than 100 meals per day
     });
 
     res.json(meals);

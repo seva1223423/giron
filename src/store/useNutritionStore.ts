@@ -49,21 +49,22 @@ export const useNutritionStore = create<NutritionStore>()(
       },
 
       addMeal: (date, meal) => {
-        // Update local state immediately
+        // Use a temp ID so we can locate this entry after server confirms
+        const tempId = `meal-${Date.now()}`;
+        const tempMeal: Meal = { ...meal, id: tempId };
+
+        // Optimistic update
         set((s) => {
           const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
           return {
             dailyLog: {
               ...s.dailyLog,
-              [date]: {
-                ...dayLog,
-                meals: [...dayLog.meals, meal],
-              },
+              [date]: { ...dayLog, meals: [...dayLog.meals, tempMeal] },
             },
           };
         });
 
-        // Sync to server in background
+        // Sync to server — replace temp ID with server ID on success, rollback on failure
         nutritionService.addMeal({
           type: meal.type,
           photoUrl: meal.photoUrl,
@@ -75,26 +76,64 @@ export const useNutritionStore = create<NutritionStore>()(
             carbs: item.carbs,
             weightGrams: item.weightGrams,
           })),
-        }).catch(() => {});
+        }).then((serverMeal) => {
+          // Replace temp ID with real server ID so future deletes/updates use correct ID
+          set((s) => {
+            const dayLog = s.dailyLog[date];
+            if (!dayLog) return s;
+            return {
+              dailyLog: {
+                ...s.dailyLog,
+                [date]: {
+                  ...dayLog,
+                  meals: dayLog.meals.map((m) => m.id === tempId ? { ...m, id: serverMeal.id } : m),
+                },
+              },
+            };
+          });
+        }).catch(() => {
+          // Rollback: remove the optimistically added meal
+          set((s) => {
+            const dayLog = s.dailyLog[date];
+            if (!dayLog) return s;
+            return {
+              dailyLog: {
+                ...s.dailyLog,
+                [date]: { ...dayLog, meals: dayLog.meals.filter((m) => m.id !== tempId) },
+              },
+            };
+          });
+        });
       },
 
       removeMeal: (date, mealId) => {
+        // Snapshot for rollback — only attempt server delete for server-side meals
+        const snapshot = get().dailyLog[date]?.meals ?? [];
+
         set((s) => {
           const dayLog = s.dailyLog[date];
           if (!dayLog) return s;
           return {
             dailyLog: {
               ...s.dailyLog,
-              [date]: {
-                ...dayLog,
-                meals: dayLog.meals.filter((m) => m.id !== mealId),
-              },
+              [date]: { ...dayLog, meals: dayLog.meals.filter((m) => m.id !== mealId) },
             },
           };
         });
 
-        // Sync to server
-        nutritionService.deleteMeal(mealId).catch(() => {});
+        // Skip server call for locally-created meals that were never synced
+        if (mealId.startsWith('meal-')) return;
+
+        nutritionService.deleteMeal(mealId).catch(() => {
+          // Rollback: restore the meal list from snapshot
+          set((s) => {
+            const dayLog = s.dailyLog[date];
+            if (!dayLog) return s;
+            return {
+              dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: snapshot } },
+            };
+          });
+        });
       },
 
       updateMealItem: (date, mealId, itemId, data) => {

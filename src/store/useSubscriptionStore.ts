@@ -194,6 +194,8 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
     {
       name: 'iron-gym-subscription',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (state: any, _version: number) => state,
       partialize: (state) => ({
         isPremium: state.isPremium,
         premiumExpiresAt: state.premiumExpiresAt,

@@ -49,6 +49,17 @@ const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 const CACHE_MAX_SIZE = 200;
 const CACHEABLE_INTENTS = new Set(['technique_question', 'general']);
 
+// Proactive TTL sweep every hour — evicts stale entries even if never re-read.
+// Prevents up to 200 stale entries accumulating in memory between cache hits.
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of AI_RESPONSE_CACHE) {
+    if (now - val.timestamp > CACHE_TTL_MS) {
+      AI_RESPONSE_CACHE.delete(key);
+    }
+  }
+}, 60 * 60 * 1000).unref(); // unref: doesn't prevent process exit
+
 function normalizeForCache(text: string): string {
   return text
     .toLowerCase()
@@ -80861,15 +80872,23 @@ ${restrictionsBlock ? '\nЕсли на фото присутствуют про�
   }
 });
 
-// Get chat history
+// Get chat history — paginated
 router.get('/history', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const messages = await prisma.chatMessage.findMany({
-      where: { userId: req.userId },
-      orderBy: { createdAt: 'asc' },
-      take: 100,
-    });
-    res.json(messages);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 100));
+    const page  = Math.max(1, parseInt(req.query.page as string) || 1);
+
+    const [messages, total] = await prisma.$transaction([
+      prisma.chatMessage.findMany({
+        where: { userId: req.userId },
+        orderBy: { createdAt: 'asc' },
+        take: limit,
+        skip: (page - 1) * limit,
+      }),
+      prisma.chatMessage.count({ where: { userId: req.userId } }),
+    ]);
+
+    res.json({ messages, total, page, pages: Math.ceil(total / limit) });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка получения истории чата' });
