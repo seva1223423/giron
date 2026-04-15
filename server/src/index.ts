@@ -128,8 +128,21 @@ const totpRateLimiter = rateLimit({
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
+/** Password-reset flow: 5 requests per hour per IP — prevents email-spam abuse */
+const passwordResetRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов на сброс пароля. Попробуйте через час.', code: 'RESET_RATE_LIMIT' },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+});
+
 // Routes
 app.use('/api/auth/totp-verify', totpRateLimiter);
+app.use('/api/auth/forgot-password', passwordResetRateLimiter);
+app.use('/api/auth/reset-password', passwordResetRateLimiter);
+app.use('/api/auth/reset-password-by-phone', passwordResetRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
 // Apply strict TOTP rate limiter to 2FA code-accepting user endpoints
 app.use('/api/user/2fa', totpRateLimiter);
