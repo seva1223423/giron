@@ -40,7 +40,15 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       },
 
       updateEntry: (id, data) => {
+        const snapshot = get().entries;
+        const existing = snapshot.find((e) => e.id === id);
         set((s) => ({ entries: s.entries.map((e) => e.id === id ? { ...e, ...data } : e) }));
+        if (existing) {
+          const updated = { ...existing, ...data };
+          userService.saveMeasurement({ date: updated.date, chest: updated.chest, waist: updated.waist, hips: updated.hips, bicep: updated.bicep, thigh: updated.thigh, neck: updated.neck }).catch(() => {
+            set({ entries: snapshot });
+          });
+        }
       },
 
       deleteEntry: (id) => {
