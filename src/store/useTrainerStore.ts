@@ -93,7 +93,8 @@ export const useTrainerStore = create<TrainerStore>()(
       },
 
       deleteClient: async (id) => {
-        const prev = get().clients;
+        const prevClients = get().clients;
+        const prevSessions = get().sessions;
         set((s) => ({
           clients: s.clients.filter((c) => c.id !== id),
           sessions: s.sessions.filter((s) => s.clientId !== id),
@@ -102,7 +103,7 @@ export const useTrainerStore = create<TrainerStore>()(
         try {
           await trainerService.deleteClient(id);
         } catch {
-          set({ clients: prev });
+          set({ clients: prevClients, sessions: prevSessions });
         }
       },
 
