@@ -73,10 +73,9 @@ async function loadRecentScans(): Promise<RecentScan[]> {
 
 // ─── OpenFoodFacts helpers ────────────────────────────────────────────────────
 
-/** Extract kcal/100g from nutriments, handling kJ fallback. */
+/** Extract kcal/100g from nutriments (kcal only, no kJ conversion). */
 function extractKcal(n: Record<string, any>): number {
   if (n['energy-kcal_100g'] != null && n['energy-kcal_100g'] > 0) return Math.round(n['energy-kcal_100g']);
-  if (n['energy_100g'] != null && n['energy_100g'] > 0) return Math.round(n['energy_100g'] / 4.184);
   if (n['energy-kcal'] != null && n['energy-kcal'] > 0) return Math.round(n['energy-kcal']);
   return 0;
 }
