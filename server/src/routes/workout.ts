@@ -476,66 +476,12 @@ router.get('/leaderboard', authenticate, async (req: AuthRequest, res: Response)
 
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
-    // Find users who have at least 10 completed workouts and were active in the last 90 days
-    const activeUsers = await prisma.workout.groupBy({
-      by: ['userId'],
-      where: { completedAt: { not: null } },
-      _count: { id: true },
-      _max: { completedAt: true },
-      having: { id: { _count: { gte: 10 } } },
-    });
-
-    const verifiedUserIds = new Set(
-      activeUsers
-        .filter((u) => u._max.completedAt && u._max.completedAt >= ninetyDaysAgo)
-        .map((u) => u.userId)
-    );
-
-    if (verifiedUserIds.size === 0) {
-      return res.json({ leaderboard: [] });
-    }
-
-    // Fetch completed sets with user and exercise info, only for verified users
-    const sets = await prisma.workoutSet.findMany({
-      where: {
-        completed: true,
-        weight: { gt: 0 },
-        reps: { gt: 0 },
-        workoutExercise: { workout: { userId: { in: Array.from(verifiedUserIds) }, completedAt: { not: null } } },
-      },
-      select: {
-        weight: true,
-        reps: true,
-        workoutExercise: {
-          select: {
-            exercise: { select: { id: true, name: true } },
-            workout: {
-              select: {
-                id: true,
-                completedAt: true,
-                user: { select: { id: true, firstName: true } },
-              },
-            },
-          },
-        },
-      },
-      take: 5000,
-    });
-
-    // Count how many distinct workouts each user has done per exercise
-    const exerciseWorkoutCount: Map<string, Set<string>> = new Map();
-    sets.forEach((s) => {
-      const ex = s.workoutExercise?.exercise;
-      const workout = s.workoutExercise?.workout;
-      const user = workout?.user;
-      if (!ex || !user || !workout) return;
-      const key = `${user.id}::${ex.id}`;
-      if (!exerciseWorkoutCount.has(key)) exerciseWorkoutCount.set(key, new Set());
-      exerciseWorkoutCount.get(key)!.add(workout.id);
-    });
-
-    // Aggregate: best estimated 1RM per (userId, exerciseId)
-    const bestMap: Map<string, {
+    // Single SQL query replaces 2 Prisma round-trips + JS aggregation over up to 5000 rows.
+    // active_users CTE: users with ≥10 completed workouts active within 90 days.
+    // session_counts CTE: distinct workout sessions per (userId, exerciseId) for verified flag.
+    // ROW_NUMBER() picks the best 1RM set per (userId, exerciseId) without fetching all sets.
+    // The @@index([userId, completedAt]) on Workout covers the JOIN filter in all three CTEs.
+    type LeaderboardRow = {
       exerciseName: string;
       userName: string;
       weightKg: number;
@@ -543,40 +489,69 @@ router.get('/leaderboard', authenticate, async (req: AuthRequest, res: Response)
       estimated1RM: number;
       date: string | null;
       verified: boolean;
-    }> = new Map();
+    };
 
-    sets.forEach((s) => {
-      const ex = s.workoutExercise?.exercise;
-      const workout = s.workoutExercise?.workout;
-      const user = workout?.user;
-      if (!ex || !user || !s.weight || !s.reps) return;
+    const rows = await prisma.$queryRaw<LeaderboardRow[]>`
+      WITH active_users AS (
+        SELECT "userId"
+        FROM   "Workout"
+        WHERE  "completedAt" IS NOT NULL
+        GROUP  BY "userId"
+        HAVING COUNT(*) >= 10
+           AND MAX("completedAt") >= ${ninetyDaysAgo}
+      ),
+      session_counts AS (
+        SELECT w."userId", we."exerciseId", COUNT(DISTINCT w.id) AS sessions
+        FROM   "WorkoutExercise" we
+        JOIN   "Workout" w ON w.id = we."workoutId"
+        WHERE  w."completedAt" IS NOT NULL
+          AND  w."userId" IN (SELECT "userId" FROM active_users)
+        GROUP  BY w."userId", we."exerciseId"
+      ),
+      ranked_sets AS (
+        SELECT
+          e.name                                          AS "exerciseName",
+          u."firstName"                                   AS "userName",
+          ws.weight                                       AS "weightKg",
+          ws.reps,
+          ROUND(ws.weight * (1 + ws.reps / 30.0))::int   AS "estimated1RM",
+          w."completedAt"::text                           AS date,
+          (sc.sessions >= 3)                              AS verified,
+          ROW_NUMBER() OVER (
+            PARTITION BY w."userId", we."exerciseId"
+            ORDER BY ws.weight * (1 + ws.reps / 30.0) DESC
+          ) AS rn
+        FROM  "WorkoutSet"      ws
+        JOIN  "WorkoutExercise" we ON we.id  = ws."workoutExerciseId"
+        JOIN  "Workout"          w ON w.id   = we."workoutId"
+        JOIN  "Exercise"         e ON e.id   = we."exerciseId"
+        JOIN  "User"             u ON u.id   = w."userId"
+        JOIN  session_counts    sc ON sc."userId" = w."userId"
+                                  AND sc."exerciseId" = we."exerciseId"
+        WHERE ws.completed = true
+          AND ws.weight > 0
+          AND ws.reps   > 0
+          AND w."completedAt" IS NOT NULL
+          AND w."userId" IN (SELECT "userId" FROM active_users)
+      )
+      SELECT "exerciseName", "userName", "weightKg", reps,
+             "estimated1RM", date, verified
+      FROM   ranked_sets
+      WHERE  rn = 1
+      ORDER  BY "estimated1RM" DESC
+      LIMIT  100
+    `;
 
-      const est1rm = Math.round(s.weight * (1 + s.reps / 30));
-      const key = `${user.id}::${ex.id}`;
-      const existing = bestMap.get(key);
-
-      // Entry is verified if the user did this exercise in 3+ separate workouts
-      const exerciseSessions = exerciseWorkoutCount.get(key)?.size ?? 0;
-      const verified = exerciseSessions >= 3;
-
-      if (!existing || est1rm > existing.estimated1RM) {
-        bestMap.set(key, {
-          exerciseName: ex.name,
-          userName: user.firstName,
-          weightKg: s.weight,
-          reps: s.reps,
-          estimated1RM: est1rm,
-          date: workout?.completedAt?.toISOString() ?? null,
-          verified,
-        });
-      }
-    });
-
-    // Sort by 1RM desc, take top 100
-    const leaderboard = Array.from(bestMap.values())
-      .sort((a, b) => b.estimated1RM - a.estimated1RM)
-      .slice(0, 100)
-      .map((entry, i) => ({ rank: i + 1, ...entry }));
+    const leaderboard = rows.map((row, i) => ({
+      rank: i + 1,
+      exerciseName: row.exerciseName,
+      userName: row.userName,
+      weightKg: Number(row.weightKg),
+      reps: Number(row.reps),
+      estimated1RM: Number(row.estimated1RM),
+      date: row.date,
+      verified: Boolean(row.verified),
+    }));
 
     const payload = { leaderboard };
     leaderboardCache.set('leaderboard', payload, 15 * 60 * 1000);
