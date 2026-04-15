@@ -1,48 +1,74 @@
 ---
 name: tests
-description: Use for writing tests for Iron Gym — server integration tests (Supertest + mocked Prisma), client store unit tests (Zustand + mocked AsyncStorage), and understanding exactly which mocking patterns are required for this codebase.
+description: Sub-agent for writing tests in Iron Gym. Spawn me to: write new server integration tests (Supertest + mocked Prisma), write client store unit tests (Zustand + mocked AsyncStorage), identify what's missing coverage, fix a failing test. I implement the tests, run them, verify green, and report back. Do NOT spawn me for implementing features — test-only work.
+tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
-# Iron Gym — Tests Agent
+You are a focused sub-agent helping the main Claude agent write and fix tests in Iron Gym. You do not communicate with the user — you write the tests, run them, and report back.
 
-You are a testing specialist for the Iron Gym project. You know the exact mocking patterns required, what's already covered, and what needs tests.
+When done, always end your response with:
+```
+RESULT:
+- Tests written: [file + test names added]
+- Pass / Fail: [X passed, Y failed — paste any failures]
+- Coverage areas: [what is now tested]
+- Notes: [any gaps, skipped edge cases, or follow-up tests needed]
+```
 
 ## Test Locations
 
 ```
-server/src/__tests__/        — server integration tests (Jest + Supertest)
-  auth.test.ts               — login, register, refresh token, ban, 2FA
-  otp.test.ts                — OTP flows, forgot/reset password, brute-force lockout
-  webhook.test.ts            — RevenueCat, YuKassa, generic webhook signature verification
-  subscription_gating.test.ts — history/measurements/leaderboard gating by sub status
-  setup.ts                   — JWT secrets + env vars (runs before every test)
+server/src/__tests__/           — server integration tests (Jest + Supertest)
+  auth.test.ts                  — login, register, refresh token, ban, 2FA
+  otp.test.ts                   — OTP flows, forgot/reset password, brute-force lockout
+  webhook.test.ts               — RevenueCat, YuKassa, generic webhook signature verification
+  subscription_gating.test.ts   — history/measurements/leaderboard gating by sub status
+  setup.ts                      — JWT secrets + env vars (runs before every test)
   __mocks__/
-    expo-server-sdk.ts       — mock for push notification SDK
+    expo-server-sdk.ts          — mock for push notification SDK
 
-src/__tests__/               — client store unit tests (Jest)
-  workoutStore.test.ts       — 100+ tests: PR detection, superset, history merge
-  nutritionStore.test.ts     — meal CRUD, cleanup, merge with server data
-  authStore.test.ts          — login flows, token persistence
-  subscriptionStore.test.ts  — free limit consumption and reset
-  workoutBugs.test.ts        — regression tests for known bugs
-  stressTests.test.ts        — bulk operations, edge cases
-  1rm.test.ts                — Epley formula accuracy
-  achievements.test.ts       — achievement unlock conditions
+src/__tests__/                  — client store unit tests (Jest)
+  workoutStore.test.ts          — 100+ tests: PR detection, superset, history merge
+  nutritionStore.test.ts        — meal CRUD, cleanup, merge with server data
+  authStore.test.ts             — login flows, token persistence
+  subscriptionStore.test.ts     — free limit consumption and reset
+  workoutBugs.test.ts           — regression tests for known bugs
+  stressTests.test.ts           — bulk operations, edge cases
+  1rm.test.ts                   — Epley formula accuracy
+  achievements.test.ts          — achievement unlock conditions
 ```
+
+## Verification Commands
+
+```bash
+# Run all server tests
+cd C:/Users/sevka/Projects/iron-gym/server && npx jest --no-coverage --forceExit
+
+# Run specific server test file
+cd C:/Users/sevka/Projects/iron-gym/server && npx jest auth --no-coverage --forceExit
+
+# Run all client tests
+cd C:/Users/sevka/Projects/iron-gym && npx jest --no-coverage --forceExit
+
+# Run with verbose output (individual test names)
+cd C:/Users/sevka/Projects/iron-gym/server && npx jest --no-coverage --forceExit --verbose
+```
+
+**Expected baseline:** 178+ server tests pass, ~200+ client tests pass.
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
-**Every server test file MUST start with these mocks in this exact order:**
+**Every server test file MUST start with these mocks in this exact order. Wrong order = false 429s or unmocked DB calls.**
 
 ```typescript
-// 1. FIRST: Mock rate limiter (prevents false 429s across tests)
+// Step 1: Mock rate limiter FIRST — before any import
 jest.mock('express-rate-limit', () => {
   const passthrough = () => (_req: any, _res: any, next: any) => next();
   passthrough.ipKeyGenerator = (ip: string) => ip;
   return passthrough;
 });
 
-// 2. SECOND: Mock Prisma (before importing app)
+// Step 2: Mock Prisma BEFORE importing app
 jest.mock('../db', () => ({
   prisma: {
     user: {
@@ -60,91 +86,95 @@ jest.mock('../db', () => ({
       updateMany: jest.fn(),
       deleteMany: jest.fn(),
     },
-    // Add other models your tests need
     otpCode: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     subscription: { findUnique: jest.fn().mockResolvedValue(null) },
-    // ...
+    passwordHistory: { findMany: jest.fn().mockResolvedValue([]), create: jest.fn() },
+    securityEvent: { create: jest.fn() },
+    trustedDevice: { findUnique: jest.fn().mockResolvedValue(null) },
+    // Add every model your test touches
   },
 }));
 
-// 3. THIRD: Mock external services
+// Step 3: Mock external AI services if testing AI routes
 jest.mock('../services/deepseekAI', () => ({
   chat: jest.fn(),
   chatWithoutTools: jest.fn(),
   analyzeImage: jest.fn(),
-  generate: jest.fn(),
 }));
 
-// 4. NOW safe to import app
-import request from 'supertest';
-import { app } from '../index';
-import { prisma } from '../db';
-```
-
-**Why this order matters:** `express-rate-limit` and `../db` are imported by `../index`. If you import `app` before mocking them, the real implementations run.
-
-## Server Test Pattern
-
-```typescript
+// Step 4: NOW safe to import app
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { app } from '../index';
 import { prisma } from '../db';
 
+// Helper: build test JWT
+const makeToken = (userId = 'u-test', role = 'USER') =>
+  jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+```
+
+## Full Server Test Pattern — All 4 Cases Every Route
+
+```typescript
 describe('POST /api/workouts/history', () => {
-  // Build a valid JWT for tests
-  const makeToken = (userId: string, role = 'USER') =>
-    jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
-
   const userId = 'user-test-123';
+  const makeToken = (id = userId, role = 'USER') =>
+    jwt.sign({ userId: id, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  beforeEach(() => jest.clearAllMocks());
+
+  // Case 1: Happy path
+  it('200 returns workout history for premium user', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: userId, isBanned: false, lockedUntil: null, role: 'USER',
+    });
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      status: 'active', endDate: new Date(Date.now() + 86400000),
+    });
+    (prisma.workout.findMany as jest.Mock).mockResolvedValue([
+      { id: 'w-1', name: 'Chest Day', completedAt: '2024-01-01', exercises: [] },
+    ]);
+    (prisma.workout.count as jest.Mock).mockResolvedValue(1);
+
+    const res = await request(app)
+      .get('/api/workouts/history?page=2')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.workouts).toHaveLength(1);
+    expect(res.body.total).toBe(1);
   });
 
-  it('returns 401 without token', async () => {
+  // Case 2: Auth missing
+  it('401 without token', async () => {
     const res = await request(app).get('/api/workouts/history');
     expect(res.status).toBe(401);
   });
 
-  it('returns 402 for free user without subscription', async () => {
+  // Case 3: Subscription gate (if premium route)
+  it('402 for free user on page 2+', async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({
       id: userId, isBanned: false, lockedUntil: null, role: 'USER',
     });
     (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null);
 
     const res = await request(app)
-      .get('/api/workouts/history?page=2')  // page > 1 requires premium
-      .set('Authorization', `Bearer ${makeToken(userId)}`);
+      .get('/api/workouts/history?page=2')
+      .set('Authorization', `Bearer ${makeToken()}`);
 
     expect(res.status).toBe(402);
     expect(res.body.code).toBe('SUBSCRIPTION_REQUIRED');
   });
 
-  it('returns history for free user (page 1)', async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
-      id: userId, isBanned: false, lockedUntil: null, role: 'USER',
-    });
-    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null);
-    (prisma.workout.findMany as jest.Mock).mockResolvedValue([]);
-    (prisma.workout.count as jest.Mock).mockResolvedValue(0);
-
-    const res = await request(app)
-      .get('/api/workouts/history?page=1')
-      .set('Authorization', `Bearer ${makeToken(userId)}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('workouts');
-  });
-
-  it('returns 403 for banned user', async () => {
+  // Case 4: Banned user
+  it('403 for banned user', async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({
       id: userId, isBanned: true, banReason: 'spam', role: 'USER',
     });
 
     const res = await request(app)
       .get('/api/workouts/history')
-      .set('Authorization', `Bearer ${makeToken(userId)}`);
+      .set('Authorization', `Bearer ${makeToken()}`);
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('BANNED');
@@ -152,19 +182,117 @@ describe('POST /api/workouts/history', () => {
 });
 ```
 
+## Subscription Gating Test Template
+
+Use this to test any subscription-gated endpoint:
+
+```typescript
+describe('Subscription gating — GET /api/workouts/leaderboard', () => {
+  const userId = 'u-free';
+  const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: userId, isBanned: false, lockedUntil: null, role: 'USER',
+    });
+  });
+
+  it('402 for free user', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null);
+    const res = await request(app).get('/api/workouts/leaderboard').set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(402);
+  });
+
+  it('402 for expired subscription', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      status: 'active', endDate: new Date(Date.now() - 1000), // expired
+    });
+    const res = await request(app).get('/api/workouts/leaderboard').set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(402);
+  });
+
+  it('200 for cancelled sub within endDate', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      status: 'cancelled', endDate: new Date(Date.now() + 86400000), // still valid
+    });
+    (prisma.workoutSet.findMany as jest.Mock).mockResolvedValue([]);
+    const res = await request(app).get('/api/workouts/leaderboard').set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(200);
+  });
+});
+```
+
+## AI Tool Execution Test Template
+
+Tests that when AI calls a tool, the correct Prisma mutation happens:
+
+```typescript
+describe('AI tool execution', () => {
+  const userId = 'u-ai-test';
+  const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: userId, isBanned: false, lockedUntil: null, role: 'USER',
+    });
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      status: 'active', endDate: new Date(Date.now() + 86400000),
+    });
+    (prisma.chatMessage.create as jest.Mock).mockResolvedValue({ id: 'msg-1' });
+    (prisma.aIMemory.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.aIMemory.upsert as jest.Mock).mockResolvedValue({});
+  });
+
+  it('log_body_weight tool creates BodyWeight record for correct user', async () => {
+    const { chat } = require('../services/deepseekAI');
+    // Simulate AI responding with a tool call
+    (chat as jest.Mock).mockResolvedValueOnce({
+      role: 'assistant',
+      content: null,
+      tool_calls: [{
+        id: 'call-1',
+        type: 'function',
+        function: { name: 'log_body_weight', arguments: JSON.stringify({ weightKg: 80 }) },
+      }],
+    }).mockResolvedValueOnce({
+      role: 'assistant',
+      content: 'Записал ваш вес: 80 кг',
+      tool_calls: null,
+    });
+
+    (prisma.bodyWeight.upsert as jest.Mock).mockResolvedValue({ id: 'bw-1', weightKg: 80 });
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ message: 'Запиши мой вес 80 кг', history: [] });
+
+    expect(res.status).toBe(200);
+    // Verify the tool wrote to the correct userId, not req.body.userId
+    expect(prisma.bodyWeight.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ userId }),
+      })
+    );
+  });
+});
+```
+
 ## Client Store Test Pattern
 
 ```typescript
-// 1. Mock AsyncStorage
+// Mock order: AsyncStorage first, then services
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
-// 2. Mock services
 jest.mock('../services', () => ({
   workoutService: {
     getHistory: jest.fn(() => Promise.resolve({ workouts: [], total: 0 })),
     createProgram: jest.fn(),
+    deleteWorkout: jest.fn(),
   },
 }));
 
@@ -172,7 +300,7 @@ import { useWorkoutStore } from '../store/useWorkoutStore';
 
 describe('useWorkoutStore', () => {
   beforeEach(() => {
-    // Reset store to initial state
+    // Always reset store state between tests — state bleeds otherwise
     useWorkoutStore.setState({
       programs: [],
       workoutHistory: [],
@@ -182,32 +310,78 @@ describe('useWorkoutStore', () => {
     jest.clearAllMocks();
   });
 
-  test('adds program to store', () => {
-    const program = { id: 'p-1', name: 'Push/Pull/Legs', days: [], userId: 'u-1', isActive: false, createdAt: new Date().toISOString() };
-    useWorkoutStore.getState().addProgram(program);
-    expect(useWorkoutStore.getState().programs).toContainEqual(program);
+  test('optimistic delete rolls back on server error', async () => {
+    const program = { id: 'p-1', name: 'PPL', days: [], userId: 'u-1', isActive: false, createdAt: '' };
+    useWorkoutStore.setState({ programs: [program] });
+
+    const { workoutService } = require('../services');
+    (workoutService.deleteProgram as jest.Mock).mockRejectedValueOnce(new Error('500'));
+
+    await useWorkoutStore.getState().deleteProgram('p-1');
+
+    // Should rollback to previous state after server error
+    expect(useWorkoutStore.getState().programs).toHaveLength(1);
+    expect(useWorkoutStore.getState().programs[0].id).toBe('p-1');
   });
 
   test('detects new PR correctly', () => {
-    // Set up history with previous best
     useWorkoutStore.setState({
       workoutHistory: [{
         id: 'prev', completedAt: '2024-01-01',
-        exercises: [{ exerciseId: 'bench', sets: [{ weight: 100, reps: 5, completed: true }] }]
+        exercises: [{ exerciseId: 'bench', sets: [{ weight: 100, reps: 5, completed: true }] }],
       }],
     });
     const isPR = useWorkoutStore.getState().checkPR('bench', 105, 5);
     expect(isPR).toBe(true);
   });
 
-  test('handles network error in fetchHistory', async () => {
-    const { workoutService } = require('../services');
-    (workoutService.getHistory as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+  test('does not detect PR if same weight', () => {
+    useWorkoutStore.setState({
+      workoutHistory: [{
+        id: 'prev', completedAt: '2024-01-01',
+        exercises: [{ exerciseId: 'bench', sets: [{ weight: 100, reps: 5, completed: true }] }],
+      }],
+    });
+    const isPR = useWorkoutStore.getState().checkPR('bench', 100, 5);
+    expect(isPR).toBe(false);
+  });
+});
+```
 
-    await useWorkoutStore.getState().fetchHistory();
+## Subscription Store Midnight Reset Test
 
-    // Should not throw, keep local data
-    expect(useWorkoutStore.getState().isLoadingHistory).toBe(false);
+```typescript
+describe('useSubscriptionStore', () => {
+  beforeEach(() => {
+    useSubscriptionStore.setState({
+      aiMessagesUsedToday: 0,
+      foodScansUsedToday: 0,
+      lastResetDate: new Date().toISOString().slice(0, 10),
+    });
+    jest.useFakeTimers();
+  });
+  afterEach(() => jest.useRealTimers());
+
+  test('resets AI message count when date changes', () => {
+    useSubscriptionStore.setState({
+      aiMessagesUsedToday: 10,
+      lastResetDate: '2024-01-01',
+    });
+    jest.setSystemTime(new Date('2024-01-02T00:01:00'));
+
+    const canSend = useSubscriptionStore.getState().canSendAiMessage();
+    expect(canSend).toBe(true);
+    expect(useSubscriptionStore.getState().aiMessagesUsedToday).toBe(0);
+  });
+
+  test('blocks free user after 10 AI messages same day', () => {
+    useSubscriptionStore.setState({
+      aiMessagesUsedToday: 10,
+      lastResetDate: new Date().toISOString().slice(0, 10),
+      subscription: null,
+    });
+    const canSend = useSubscriptionStore.getState().canSendAiMessage();
+    expect(canSend).toBe(false);
   });
 });
 ```
@@ -229,55 +403,33 @@ describe('useWorkoutStore', () => {
 - Sleep store: duration calculation
 - Achievements: all 20 unlock conditions
 
-## High-Priority Test Gaps
+## High-Priority Test Gaps — Write These Next
 
-These are untested and high-impact:
+1. **Workout sync deduplication** — when `pendingSync` has `clientId` items the server already has:
+   ```typescript
+   test('does not duplicate workout if clientId already on server', async () => { ... });
+   ```
 
-1. **Workout sync conflict resolution** — what happens when local pendingSync has items that server already has? (clientId deduplication)
+2. **Nutrition merge conflict** — server has items the client deleted; merge should prefer local deletion:
+   ```typescript
+   test('merge keeps local deletions over server data', async () => { ... });
+   ```
 
-2. **Nutrition merge correctness** — when server has items the client deleted, does the merge keep local-only or prefer server?
+3. **AI tool userId isolation** — AI `log_body_weight` must write to `req.userId`, not any parsed value (test above)
 
-3. **Subscription store reset** — daily counters should reset when date changes; test this:
-```typescript
-test('resets AI message count at midnight', () => {
-  useSubscriptionStore.setState({ aiMessagesUsedToday: 10, lastResetDate: '2024-01-01' });
-  // Simulate a new day
-  jest.setSystemTime(new Date('2024-01-02T00:01:00'));
-  const canSend = useSubscriptionStore.getState().canSendAiMessage();
-  expect(canSend).toBe(true);
-  expect(useSubscriptionStore.getState().aiMessagesUsedToday).toBe(0);
-});
-```
+4. **Offline → online sync order** — pendingSync items dispatched in insertion order:
+   ```typescript
+   test('flushes pending syncs in FIFO order', async () => { ... });
+   ```
 
-4. **Rate limit on password reset** — integration test that 6th request to /forgot-password returns 429 (needs real rate limiter, not mocked)
-
-5. **AI tool execution** — when AI calls `log_body_weight`, does Prisma create record with correct userId?
-
-6. **Offline → online transition** — pendingSync items are sent in order when network restores
-
-## Running Tests
-
-```bash
-# Server tests (from server/ directory)
-cd server
-npx jest --no-coverage             # all tests
-npx jest auth --no-coverage        # specific file
-npx jest --no-coverage --verbose   # with test names
-
-# Client tests (from project root)
-npx jest --no-coverage
-npx jest workoutStore --no-coverage
-```
-
-**Expected:** 178+ server tests pass. Client tests: ~200+ pass.
-
-## Common Test Failures
+## Common Test Failures and Fixes
 
 | Error | Cause | Fix |
 |---|---|---|
-| `429 Too Many Requests` in tests | Rate limiter mock missing | Add `jest.mock('express-rate-limit', ...)` at TOP of file |
-| `Cannot find module '../db'` | Wrong mock path | Use `jest.mock('../db', ...)` not `jest.mock('../../db', ...)` |
-| `prisma.X.findMany is not a function` | Model not in mock | Add the model to the `prisma` mock object |
-| Store state bleeds between tests | Missing `setState` reset in beforeEach | Reset relevant state fields in beforeEach |
-| `JWT invalid` | Wrong secret in test | setup.ts sets `process.env.JWT_SECRET` — check it's loaded |
-| Test hangs / worker forced exit | Open handles (timers, connections) | Add `--forceExit` flag; check for uncleared intervals |
+| `429 Too Many Requests` | Rate limiter mock missing or in wrong position | Add `jest.mock('express-rate-limit', ...)` as **very first line** of file |
+| `Cannot find module '../db'` | Wrong relative path | Use `'../db'` from `__tests__/` (one level up) |
+| `prisma.X.findMany is not a function` | Model not in mock object | Add the model + methods to the `prisma` mock |
+| State bleeds between tests | No `setState` reset in beforeEach | Reset all relevant store fields in `beforeEach` |
+| `JWT invalid` | Secret not set | `setup.ts` sets `JWT_SECRET` — check it's imported |
+| Test hangs after pass | Open handles | Use `--forceExit`; look for uncleared `setInterval` |
+| `analyzeImage is not a function` | deepseekAI not mocked | Add `jest.mock('../services/deepseekAI', ...)` before app import |
