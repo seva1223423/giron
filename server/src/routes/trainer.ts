@@ -21,6 +21,9 @@ async function requireTrainerRole(req: AuthRequest, res: Response, next: Functio
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isValidId = (id: string | string[]) => UUID_RE.test(String(id));
+
 const addClientSchema = z.object({
   name: z.string().min(1).max(200),
   phone: z.string().max(50).optional(),
@@ -72,6 +75,7 @@ router.post('/clients', authenticate, requireTrainerRole as any, async (req: Aut
 
 // Update client
 router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const parsed = updateClientSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
@@ -95,6 +99,7 @@ router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req
 
 // Delete client
 router.delete('/clients/:id', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const deleted = await prisma.trainerClient.deleteMany({
       where: { id: req.params.id as string, trainerId: req.userId! } as any,
@@ -119,6 +124,7 @@ const sessionSchema = z.object({
 
 /** GET /trainer/sessions/:clientId — list sessions for a client */
 router.get('/sessions/:clientId', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.clientId)) return res.status(400).json({ error: 'Некорректный ID клиента' });
   try {
     // Verify trainer owns this client
     const client = await prisma.trainerClient.findFirst({
@@ -139,6 +145,7 @@ router.get('/sessions/:clientId', authenticate, requireTrainerRole as any, async
 
 /** POST /trainer/sessions/:clientId — log a session */
 router.post('/sessions/:clientId', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.clientId)) return res.status(400).json({ error: 'Некорректный ID клиента' });
   try {
     const client = await prisma.trainerClient.findFirst({
       where: { id: req.params.clientId as string, trainerId: req.userId! },
@@ -170,6 +177,7 @@ router.post('/sessions/:clientId', authenticate, requireTrainerRole as any, asyn
 
 /** DELETE /trainer/sessions/:id — remove a session */
 router.delete('/sessions/:id', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     // Find session and verify ownership via client
     const session = await prisma.trainerSession.findUnique({

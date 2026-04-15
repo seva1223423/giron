@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
 import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
@@ -52,6 +52,9 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [serverStarters, setServerStarters] = useState<AIStarter[]>([]);
   const [celebration, setCelebration] = useState<{ milestones: string[]; prs: string[] } | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guard against concurrent sends: true while any request (streaming or fallback) is in flight.
@@ -82,7 +85,8 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   useEffect(() => {
-    aiService.getChatHistory().then((history) => {
+    aiService.getChatHistory(100, 1).then(({ messages: history, pages }) => {
+      setHistoryTotalPages(pages);
       if (history.length > 0) {
         setMessages([
           { id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(), content: `С возвращением${user?.firstName ? `, ${user.firstName}` : ''}! Продолжим работу. Спрашивай что угодно.` },
@@ -91,6 +95,26 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     }).catch(() => {});
   }, []);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlderMessages || historyPage >= historyTotalPages) return;
+    setLoadingOlderMessages(true);
+    try {
+      const nextPage = historyPage + 1;
+      const { messages: older, pages } = await aiService.getChatHistory(100, nextPage);
+      setHistoryPage(nextPage);
+      setHistoryTotalPages(pages);
+      setMessages((prev) => {
+        // Insert older messages after the welcome message (index 0)
+        const [welcome, ...rest] = prev;
+        return [welcome, ...older, ...rest];
+      });
+    } catch {
+      // Silently ignore — user can tap again
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  }, [loadingOlderMessages, historyPage, historyTotalPages]);
 
   useEffect(() => {
     aiService.getStarters().then((starters) => { if (starters.length > 0) setServerStarters(starters); }).catch(() => {});
@@ -229,6 +253,15 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="ai_limit" navigation={navigation} />
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
+        {historyPage < historyTotalPages && (
+          <View style={styles.loadOlderContainer}>
+            <TouchableOpacity style={styles.loadOlderButton} onPress={loadOlderMessages} disabled={loadingOlderMessages}>
+              {loadingOlderMessages
+                ? <ActivityIndicator size="small" color="#8B5CF6" />
+                : <Text style={styles.loadOlderText}>Загрузить старые сообщения</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
         {messages.map((msg, i) => <MessageBubble key={msg.id} message={msg} isLast={i === messages.length - 1} speakingId={speakingId} onSpeak={handleSpeak} />)}
         {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
         {isTyping && <TypingIndicator />}
@@ -244,4 +277,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   messages: { padding: 16, paddingBottom: 8 },
+  loadOlderContainer: { alignItems: 'center', marginBottom: 12 },
+  loadOlderButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#8B5CF6', minWidth: 48, alignItems: 'center' },
+  loadOlderText: { color: '#8B5CF6', fontSize: 13 },
 });
