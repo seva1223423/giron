@@ -40,14 +40,12 @@ export const useCardioStore = create<CardioStore>()(
       },
 
       removeSession: async (id) => {
-        // Optimistic update
+        const snapshot = get().sessions;
         set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
-        try {
-          if (!id.startsWith('local-')) {
-            await cardioService.deleteSession(id);
-          }
-        } catch {
-          // Already removed locally — acceptable
+        if (!id.startsWith('local-')) {
+          cardioService.deleteSession(id).catch(() => {
+            set({ sessions: snapshot });
+          });
         }
       },
 
