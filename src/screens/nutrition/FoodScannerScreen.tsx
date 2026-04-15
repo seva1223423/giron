@@ -14,7 +14,6 @@ import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../..
 import { BarcodeScannerModal, RecognizedItemCard } from './scanner';
 
 const todayDate = () => new Date().toISOString().split('T')[0];
-const todayDateStr = () => new Date().toISOString().split('T')[0];
 
 // Barcode cache helpers
 const BARCODE_CACHE_KEY = 'iron_gym_barcode_cache';
@@ -67,6 +66,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [error, setError] = useState('');
   const [showPaywall, setShowPaywall] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const lastBase64Ref = useRef<string>('');
   // Prevent double barcode scan consumption: barcode camera can fire onBarcodeScanned
   // multiple times for the same code before barcodeScanned state update propagates.
   const barcodeProcessingRef = useRef(false);
@@ -88,6 +88,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const analyzeFood = async (base64: string) => {
     const controller = new AbortController();
     abortRef.current = controller;
+    lastBase64Ref.current = base64;
     const timeoutId = setTimeout(() => controller.abort(), 45_000);
 
     setLoading(true);
@@ -110,6 +111,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {
         setError('Анализ отменён.');
         setImageUri(null);
+        lastBase64Ref.current = '';
+      } else if (e?.suggestion) {
+        // 422: vision model failed, server suggests describing food in text
+        setError(e.suggestion);
       } else {
         const apiError = getApiError(e);
         setError(apiError.message);
@@ -180,12 +185,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       return;
     }
 
-    if (!consumeFoodScan()) { setShowBarcodeScanner(false); setShowPaywall(true); barcodeProcessingRef.current = false; return; }
     setBarcodeLoading(true);
     try {
       const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
       const data = await response.json();
       if (data.status === 1 && data.product) {
+        // Consume scan credit only when the product is actually found
+        if (!consumeFoodScan()) {
+          setShowBarcodeScanner(false);
+          setBarcodeLoading(false);
+          setShowPaywall(true);
+          barcodeProcessingRef.current = false;
+          return;
+        }
         const p = data.product;
         const n = p.nutriments || {};
         const cal = Math.round(n['energy-kcal_100g'] || n['energy-kcal'] || 0);
@@ -199,6 +211,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       } else {
         setShowBarcodeScanner(false);
         setNotFound(true);
+        // No credit consumed — product not in database
       }
     } catch {
       Alert.alert('Ошибка', 'Не удалось получить данные.', [{ text: 'ОК', onPress: () => setBarcodeScanned(false) }]);
@@ -240,7 +253,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       totalCarbs: recognizedItems.reduce((s, i) => s + i.carbs, 0),
       createdAt: new Date().toISOString(),
     };
-    addMeal(today, meal);
+    addMeal(new Date().toISOString().split('T')[0], meal);
     const calTarget = dayLog.targetCalories || 2000;
     const protTarget = dayLog.targetProtein || 150;
     const totalProteinSoFar = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0) + totalProt;
@@ -301,8 +314,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 maxLength={13}
               />
               <TouchableOpacity
-                onPress={() => { if (manualBarcode.length >= 8) handleBarcodeScan(manualBarcode); }}
-                disabled={manualBarcode.length < 8}
+                onPress={() => { const digits = manualBarcode.replace(/\D/g, ''); if (digits.length >= 8) handleBarcodeScan(digits); }}
+                disabled={manualBarcode.replace(/\D/g, '').length < 8}
                 style={{ paddingHorizontal: spacing.lg, justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: manualBarcode.length >= 8 ? colors.primary : colors.border }}
               >
                 <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>
@@ -325,7 +338,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {error ? (
           <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.error }}>
             <Text style={[typography.body, { color: colors.error }]}>{error}</Text>
-            <Button title="Попробовать снова" variant="outline" onPress={() => { setImageUri(null); setError(''); }} style={{ marginTop: spacing.md }} />
+            <Button title="Попробовать снова" variant="outline" onPress={() => {
+              if (lastBase64Ref.current) {
+                setError('');
+                analyzeFood(lastBase64Ref.current);
+              } else {
+                setImageUri(null);
+                setError('');
+              }
+            }} style={{ marginTop: spacing.md }} />
           </Card>
         ) : null}
 
@@ -335,7 +356,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md }]}>
               Штрих-код {lastBarcode} не найден в базе данных.
             </Text>
-            <Button title="Добавить вручную" onPress={() => navigation.navigate('ManualFoodAdd', { mealType: 'snack', date: todayDateStr() })} fullWidth />
+            <Button title="Добавить вручную" onPress={() => navigation.navigate('ManualFoodAdd', { mealType: 'snack', date: todayDate() })} fullWidth />
             <TouchableOpacity style={{ marginTop: spacing.md, alignItems: 'center' }} onPress={() => { setNotFound(false); setShowBarcodeScanner(true); }}>
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Сканировать другой код</Text>
             </TouchableOpacity>

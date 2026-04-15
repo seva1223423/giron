@@ -9263,9 +9263,16 @@ function validateFoodItems(items: FoodItem[]): FoodItem[] {
       carbs: Math.round(Math.max(0, item.carbs || 0) * 10) / 10,
     }))
     .map((item) => {
-      // Sanity check: если КБЖУ = 0 но вес > 0 — пересчитаем приблизительно
+      const macroCal = Math.round(item.protein * 4 + item.fats * 9 + item.carbs * 4);
+      // Sanity check: если КБЖУ = 0 но вес > 0 — пересчитаем из макросов
       if (item.calories === 0 && item.weightGrams > 0) {
-        item.calories = Math.round((item.protein * 4 + item.fats * 9 + item.carbs * 4));
+        item.calories = macroCal;
+      } else if (macroCal > 0 && item.calories > 0) {
+        // Если AI указал калории с расхождением >40% от расчётных по макросам — исправляем
+        const deviation = Math.abs(item.calories - macroCal) / macroCal;
+        if (deviation > 0.4) {
+          item.calories = macroCal;
+        }
       }
       return item;
     });
@@ -80748,14 +80755,29 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
 
+    const userMemories = await prisma.aIMemory.findMany({
+      where: { userId: req.userId, category: { in: ['allergy', 'preference'] } },
+      take: 10,
+    });
+
+    const allergyLines = userMemories
+      .filter((m) => m.category === 'allergy')
+      .map((m) => `- Аллергия/непереносимость: ${m.value}`)
+      .join('\n');
+    const prefLines = userMemories
+      .filter((m) => m.category === 'preference')
+      .map((m) => `- Пищевое предпочтение: ${m.value}`)
+      .join('\n');
+    const restrictionsBlock = [allergyLines, prefLines].filter(Boolean).join('\n');
+
     const userInfo = user
-      ? `Пользователь: ${user.gender === 'MALE' ? 'мужчина' : user.gender === 'FEMALE' ? 'женщина' : ''}, ${user.weightKg ? `вес ${user.weightKg} кг` : ''}, цель: ${user.goal || 'не указана'}.`
+      ? `Пользователь: ${user.gender === 'MALE' ? 'мужчина' : user.gender === 'FEMALE' ? 'женщина' : ''}, ${user.weightKg ? `вес ${user.weightKg} кг` : ''}, цель: ${user.goal || 'не указана'}.${restrictionsBlock ? `\n\nОграничения и предпочтения пользователя:\n${restrictionsBlock}` : ''}`
       : '';
 
     const prompt = `Ты — эксперт-нутрициолог. Проанализируй фото еды максимально точно.
 
 ${userInfo}
-
+${restrictionsBlock ? '\nЕсли на фото присутствуют продукты, на которые у пользователя аллергия, добавь предупреждение "⚠️ аллерген" к названию этого продукта.\n' : ''}
 Для КАЖДОГО продукта на фото определи:
 1. Название продукта (на русском)
 2. Примерный вес в граммах (оценивай по размеру тарелки/порции)

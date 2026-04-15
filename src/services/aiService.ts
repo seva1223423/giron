@@ -145,8 +145,21 @@ export const aiService = {
   },
 
   async analyzeFood(imageBase64: string, signal?: AbortSignal): Promise<FoodAnalysisResult> {
-    const { data } = await api.post('/ai/analyze-food', { imageBase64 }, { signal });
-    return data;
+    try {
+      const { data } = await api.post('/ai/analyze-food', { imageBase64 }, { signal });
+      return data;
+    } catch (e: any) {
+      // 422: vision failed, server provides a suggestion text for the user
+      if (e?.response?.status === 422) {
+        const payload = e.response.data ?? {};
+        const err: any = new Error(payload.error || 'Не удалось распознать еду на фото');
+        err.suggestion = payload.suggestion ?? null;
+        err.retryable = payload.retryable ?? true;
+        err.status = 422;
+        throw err;
+      }
+      throw e;
+    }
   },
 
   async getChatHistory(): Promise<ChatMessage[]> {
