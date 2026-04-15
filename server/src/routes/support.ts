@@ -113,36 +113,31 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
       return res.status(400).json({ error: 'Тикет закрыт. Создайте новый.' });
     }
 
-    const message = await prisma.supportMessage.create({
-      data: {
-        content: data.content,
-        ticketId: req.params.id as string,
-        authorId: req.userId!,
-        isStaff,
-      },
-      include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
-    });
-
-    // If user replies to resolved ticket — reopen it
+    // Build ticket update payload before the transaction
+    const ticketUpdate: Record<string, unknown> = { updatedAt: new Date() };
     if (!isStaff && ticket.status === 'resolved') {
-      await prisma.supportTicket.update({
-        where: { id: req.params.id as string },
-        data: { status: 'open', updatedAt: new Date() },
-      });
-    } else {
-      // Auto-assign to staff member on first reply; upgrade status to in_progress
-      const updateData: any = { updatedAt: new Date() };
-      if (isStaff && !ticket.assignedToId) {
-        updateData.assignedToId = req.userId!;
-      }
-      if (isStaff && ticket.status === 'open') {
-        updateData.status = 'in_progress';
-      }
-      await prisma.supportTicket.update({
-        where: { id: req.params.id as string },
-        data: updateData,
-      });
+      ticketUpdate.status = 'open';
+    } else if (isStaff) {
+      if (!ticket.assignedToId) ticketUpdate.assignedToId = req.userId!;
+      if (ticket.status === 'open') ticketUpdate.status = 'in_progress';
     }
+
+    // Atomic: message creation + ticket status update in one transaction
+    const [message] = await prisma.$transaction([
+      prisma.supportMessage.create({
+        data: {
+          content: data.content,
+          ticketId: req.params.id as string,
+          authorId: req.userId!,
+          isStaff,
+        },
+        include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
+      }),
+      prisma.supportTicket.update({
+        where: { id: req.params.id as string },
+        data: ticketUpdate,
+      }),
+    ]);
 
     res.status(201).json(message);
   } catch (e: any) {
