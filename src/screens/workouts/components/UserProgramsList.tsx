@@ -78,12 +78,14 @@ export const UserProgramsList: React.FC<Props> = ({ programs, navigation, onStar
                   {/* Arrow + quick start */}
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
                     <Text style={[typography.body, { color: colors.textTertiary }]}>›</Text>
-                    <TouchableOpacity
-                      onPress={(e) => { e.stopPropagation(); haptic.medium(); onStartWorkout(program.workouts[0]); }}
-                      style={{ backgroundColor: goalColor, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}
-                    >
-                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>Начать</Text>
-                    </TouchableOpacity>
+                    {program.workouts.length > 0 && (
+                      <TouchableOpacity
+                        onPress={(e) => { e.stopPropagation(); haptic.medium(); onStartWorkout(program.workouts[0]); }}
+                        style={{ backgroundColor: goalColor, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}
+                      >
+                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>Начать</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               </Card>
