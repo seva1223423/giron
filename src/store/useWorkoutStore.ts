@@ -461,9 +461,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
         workoutHistory: [workout, ...s.workoutHistory],
       })),
 
-      updateWorkoutInHistory: (id, data) => set((s) => ({
-        workoutHistory: s.workoutHistory.map((w) => w.id === id ? { ...w, ...data } : w),
-      })),
+      updateWorkoutInHistory: (id, data) => {
+        const snapshot = get().workoutHistory;
+        set((s) => ({
+          workoutHistory: s.workoutHistory.map((w) => w.id === id ? { ...w, ...data } : w),
+        }));
+        // Sync notes to server (workout.id is used as clientId on the server)
+        if ('notes' in data) {
+          workoutService.patchWorkoutNotes(id, data.notes ?? null).catch(() => {
+            set({ workoutHistory: snapshot });
+          });
+        }
+      },
 
       getExerciseHistory: (exerciseId) => {
         return get().workoutHistory.filter((w) =>

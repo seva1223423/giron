@@ -87,6 +87,10 @@ export const workoutService = {
     return data;
   },
 
+  async patchWorkoutNotes(clientId: string, notes: string | null): Promise<void> {
+    await api.patch(`/workouts/client/${clientId}/notes`, { notes });
+  },
+
   async completeWorkout(id: string, sets?: Array<{
     id: string;
     reps?: number;
