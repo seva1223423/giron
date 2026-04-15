@@ -88,6 +88,7 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       name: 'iron-gym-measurements',
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
+      migrate: (state: any) => state,
     }
   )
 );

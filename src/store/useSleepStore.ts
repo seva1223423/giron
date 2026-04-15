@@ -105,6 +105,7 @@ export const useSleepStore = create<SleepStore>()(
       name: 'iron-gym-sleep',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (state: any) => state,
     },
   ),
 );
