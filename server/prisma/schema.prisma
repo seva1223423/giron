@@ -247,7 +247,7 @@ model Meal {
   createdAt      DateTime @default(now())
 
   @@index([userId])
-  @@index([createdAt])
+  @@index([userId, createdAt])  // composite: date-filtered meal queries
 }
 
 model MealItem {
@@ -306,6 +306,7 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([userId, createdAt])  // composite: paginated history + admin stats date-range scans
 }
 
 // ==================== AI MEMORY ====================
@@ -419,6 +420,7 @@ model CardioSession {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, date])  // composite: date-range cardio history queries
 }
 
 // ==================== PUSH TOKENS ====================
