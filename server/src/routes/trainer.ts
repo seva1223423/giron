@@ -6,12 +6,17 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
-// Middleware: check that user has trainer role or active trainer subscription
+// Middleware: check that user has trainer role or active trainer subscription.
+// authenticate already re-fetches the user row for ban/lock checks and sets req.userRole,
+// so we reuse it here to avoid a redundant DB round-trip.
 async function requireTrainerRole(req: AuthRequest, res: Response, next: Function) {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
+    // Fast-path: role already set by authenticate middleware
+    if (req.userRole === 'TRAINER') { next(); return; }
+
+    // Check if an active trainer subscription grants access
     const sub = await prisma.subscription.findUnique({ where: { userId: req.userId! } });
-    const isTrainer = user?.role === 'TRAINER' || (sub?.plan === 'trainer' && sub?.status === 'active');
+    const isTrainer = sub?.plan === 'trainer' && sub?.status === 'active';
     if (!isTrainer) {
       return res.status(403).json({ error: 'Доступ только для тренеров' });
     }
