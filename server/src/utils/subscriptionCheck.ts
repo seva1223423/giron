@@ -12,7 +12,11 @@ export interface SubStatus {
 
 /**
  * Returns whether the user has an active paid subscription (any plan except 'free').
- * Checks: status=active, plan!=free, and endDate not expired.
+ * Checks: status=active OR cancelled (cancelled = auto-renewal off, access until endDate),
+ * plan!=free, and endDate not expired.
+ *
+ * NOTE: 'cancelled' grants access until endDate — consistent with the /subscription/cancel
+ * endpoint which returns isPremium:true and "доступ сохранится до окончания оплаченного периода".
  */
 export async function getSubStatus(userId: string): Promise<SubStatus> {
   const sub = await prisma.subscription.findUnique({
@@ -21,7 +25,7 @@ export async function getSubStatus(userId: string): Promise<SubStatus> {
   });
   const isPaid =
     !!sub &&
-    sub.status === 'active' &&
+    (sub.status === 'active' || sub.status === 'cancelled') &&
     sub.plan !== 'free' &&
     (!sub.endDate || sub.endDate >= new Date());
   return { isPaid, plan: sub?.plan ?? 'free' };
