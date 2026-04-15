@@ -167,6 +167,8 @@ export const useTrainerStore = create<TrainerStore>()(
       name: 'iron-gym-trainer',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ clients: state.clients, sessions: state.sessions }),
+      version: 1,
+      migrate: (state: any) => state,
     }
   )
 );

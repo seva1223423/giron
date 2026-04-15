@@ -157,18 +157,18 @@ router.post('/sessions/:clientId', authenticate, requireTrainerRole as any, asyn
     const parsed = sessionSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
 
-    const session = await prisma.trainerSession.create({
-      data: { clientId: req.params.clientId as string, ...parsed.data },
-    });
-
-    // Update totalWorkouts counter and lastVisit on client
-    await prisma.trainerClient.update({
-      where: { id: req.params.clientId as string },
-      data: {
-        totalWorkouts: { increment: 1 },
-        lastVisit: new Date(parsed.data.date),
-      },
-    });
+    const [session] = await prisma.$transaction([
+      prisma.trainerSession.create({
+        data: { clientId: req.params.clientId as string, ...parsed.data },
+      }),
+      prisma.trainerClient.update({
+        where: { id: req.params.clientId as string },
+        data: {
+          totalWorkouts: { increment: 1 },
+          lastVisit: new Date(parsed.data.date),
+        },
+      }),
+    ]);
 
     res.status(201).json(session);
   } catch (e) {
@@ -190,13 +190,14 @@ router.delete('/sessions/:id', authenticate, requireTrainerRole as any, async (r
       return res.status(404).json({ error: 'Тренировка не найдена' });
     }
 
-    await prisma.trainerSession.delete({ where: { id: req.params.id as string } });
-
-    // Recount sessions from DB to keep totalWorkouts accurate (avoid going negative)
-    const sessionCount = await prisma.trainerSession.count({ where: { clientId: session.clientId } });
-    await prisma.trainerClient.update({
-      where: { id: session.clientId },
-      data: { totalWorkouts: sessionCount },
+    // Atomic: delete session + recount to keep totalWorkouts accurate
+    await prisma.$transaction(async (tx) => {
+      await tx.trainerSession.delete({ where: { id: req.params.id as string } });
+      const sessionCount = await tx.trainerSession.count({ where: { clientId: session.clientId } });
+      await tx.trainerClient.update({
+        where: { id: session.clientId },
+        data: { totalWorkouts: sessionCount },
+      });
     });
 
     res.json({ success: true });

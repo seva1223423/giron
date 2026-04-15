@@ -69,6 +69,8 @@ export const useCardioStore = create<CardioStore>()(
     {
       name: 'cardio-store',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (state: any) => state,
     }
   )
 );
