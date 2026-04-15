@@ -77,7 +77,7 @@ export const useNutritionStore = create<NutritionStore>()(
             weightGrams: item.weightGrams,
           })),
         }).then((serverMeal) => {
-          // Replace temp ID with real server ID so future deletes/updates use correct ID
+          // Replace temp meal with server-authoritative data (ID + recalculated macros)
           set((s) => {
             const dayLog = s.dailyLog[date];
             if (!dayLog) return s;
@@ -86,7 +86,7 @@ export const useNutritionStore = create<NutritionStore>()(
                 ...s.dailyLog,
                 [date]: {
                   ...dayLog,
-                  meals: dayLog.meals.map((m) => m.id === tempId ? { ...m, id: serverMeal.id } : m),
+                  meals: dayLog.meals.map((m) => m.id === tempId ? serverMeal : m),
                 },
               },
             };
