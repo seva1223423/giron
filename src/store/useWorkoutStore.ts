@@ -172,15 +172,20 @@ export const useWorkoutStore = create<WorkoutStore>()(
         }
       },
 
-      startWorkout: (workout) => set({
-        activeWorkout: {
-          workout: { ...workout, startedAt: new Date().toISOString() },
-          startTime: Date.now(),
-          currentExerciseIndex: 0,
-          isRestTimerActive: false,
-          restTimeRemaining: 0,
-        },
-      }),
+      startWorkout: (workout) => {
+        // Safety guard: don't silently overwrite an in-progress workout.
+        // Callers should check activeWorkout first and navigate to it instead.
+        if (get().activeWorkout) return;
+        set({
+          activeWorkout: {
+            workout: { ...workout, startedAt: new Date().toISOString() },
+            startTime: Date.now(),
+            currentExerciseIndex: 0,
+            isRestTimerActive: false,
+            restTimeRemaining: 0,
+          },
+        });
+      },
 
       completeSet: (exerciseIndex, setIndex, data) => set((s) => {
         if (!s.activeWorkout) return s;
