@@ -46,6 +46,8 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'iron-gym-settings',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (state: any) => state,
     }
   )
 );
