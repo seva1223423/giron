@@ -2,6 +2,7 @@ import { prisma } from '../db';
 import { logger } from '../utils/logger';
 
 let lastRefreshAt = 0;
+let isRefreshing = false; // mutex: prevent concurrent refreshes
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 // RSS sources: Russian fitness/sport news
@@ -92,54 +93,60 @@ async function fetchRssFeed(url: string): Promise<string> {
 }
 
 export async function refreshNews(force = false): Promise<{ added: number; skipped: number }> {
+  if (isRefreshing) return { added: 0, skipped: -1 }; // already running
   const now = Date.now();
   if (!force && now - lastRefreshAt < REFRESH_INTERVAL_MS) {
     return { added: 0, skipped: -1 }; // too soon
   }
 
+  isRefreshing = true;
   let added = 0;
   let skipped = 0;
 
-  for (const source of RSS_SOURCES) {
-    try {
-      const xml = await fetchRssFeed(source.url);
-      const items = parseRssItems(xml);
+  try {
+    for (const source of RSS_SOURCES) {
+      try {
+        const xml = await fetchRssFeed(source.url);
+        const items = parseRssItems(xml);
 
-      for (const item of items.slice(0, 10)) {
-        const categories = detectCategories(item.title + ' ' + item.summary, source.categories);
-        const parsedDate = item.pubDate ? new Date(item.pubDate) : null;
-        const publishedAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
+        for (const item of items.slice(0, 10)) {
+          const categories = detectCategories(item.title + ' ' + item.summary, source.categories);
+          const parsedDate = item.pubDate ? new Date(item.pubDate) : null;
+          const publishedAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
 
-        // Use title as deduplication key
-        const existing = await prisma.newsArticle.findFirst({
-          where: { title: item.title },
-          select: { id: true },
-        });
+          // Use title as deduplication key
+          const existing = await prisma.newsArticle.findFirst({
+            where: { title: item.title },
+            select: { id: true },
+          });
 
-        if (existing) {
-          skipped++;
-          continue;
+          if (existing) {
+            skipped++;
+            continue;
+          }
+
+          await prisma.newsArticle.create({
+            data: {
+              title: item.title,
+              summary: item.summary || item.title,
+              content: item.link ? `Источник: ${item.link}` : item.summary,
+              categories,
+              publishedAt,
+            },
+          });
+          added++;
         }
-
-        await prisma.newsArticle.create({
-          data: {
-            title: item.title,
-            summary: item.summary || item.title,
-            content: item.link ? `Источник: ${item.link}` : item.summary,
-            categories,
-            publishedAt,
-          },
-        });
-        added++;
+      } catch (err) {
+        logger.warn(`[NewsRefresh] Failed to fetch ${source.url}:`, (err as Error).message);
       }
-    } catch (err) {
-      logger.warn(`[NewsRefresh] Failed to fetch ${source.url}:`, (err as Error).message);
     }
-  }
 
-  lastRefreshAt = Date.now();
-  logger.info(`[NewsRefresh] Done: +${added} new, ${skipped} existing`);
-  return { added, skipped };
+    lastRefreshAt = Date.now();
+    logger.info(`[NewsRefresh] Done: +${added} new, ${skipped} existing`);
+    return { added, skipped };
+  } finally {
+    isRefreshing = false;
+  }
 }
 
 // Run every 6 hours
