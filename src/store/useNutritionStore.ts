@@ -190,6 +190,10 @@ export const useNutritionStore = create<NutritionStore>()(
       }),
 
       removeMealItem: (date, mealId, itemId) => {
+        const snapshot = get().dailyLog[date]?.meals ?? [];
+        let remainingItems: Meal['items'] = [];
+        let mealIsEmpty = false;
+
         set((s) => {
           const dayLog = s.dailyLog[date];
           if (!dayLog) return s;
@@ -197,7 +201,8 @@ export const useNutritionStore = create<NutritionStore>()(
           for (const meal of dayLog.meals) {
             if (meal.id !== mealId) { updatedMeals.push(meal); continue; }
             const updatedItems = meal.items.filter((item) => item.id !== itemId);
-            if (updatedItems.length === 0) continue; // remove meal entirely if no items left
+            if (updatedItems.length === 0) { mealIsEmpty = true; continue; } // remove meal entirely
+            remainingItems = updatedItems;
             const updated: Meal = {
               ...meal,
               items: updatedItems,
@@ -210,6 +215,25 @@ export const useNutritionStore = create<NutritionStore>()(
           }
           return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: updatedMeals } } };
         });
+
+        // Skip server sync for locally-created meals
+        if (mealId.startsWith('meal-')) return;
+
+        const rollback = () => {
+          set((s) => {
+            const dayLog = s.dailyLog[date];
+            if (!dayLog) return s;
+            return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: snapshot } } };
+          });
+        };
+
+        if (mealIsEmpty) {
+          nutritionService.deleteMeal(mealId).catch(rollback);
+        } else {
+          nutritionService.updateMeal(mealId, remainingItems.map((i) => ({
+            name: i.name, calories: i.calories, protein: i.protein, fats: i.fats, carbs: i.carbs, weightGrams: i.weightGrams,
+          }))).catch(rollback);
+        }
       },
 
       setTargets: (date, targets) => set((s) => {
