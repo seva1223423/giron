@@ -13,7 +13,7 @@ interface Props {
   onRemove: (id: string) => void;
 }
 
-const PORTION_PRESETS = [50, 100, 150, 200];
+const PORTION_PRESETS = [30, 50, 100, 150, 200, 300];
 
 export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove }) => {
   const { colors } = useThemeStore();
@@ -59,6 +59,12 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
           </View>
         </View>
       </View>
+
+      {base && (
+        <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
+          На 100г: {Math.round(base.cal)} ккал · Б {Math.round(base.prot * 10) / 10}г · Ж {Math.round(base.fats * 10) / 10}г · У {Math.round(base.carbs * 10) / 10}г
+        </Text>
+      )}
 
       {/* Portion presets — shown when base macros per 100g are available */}
       {base && (
