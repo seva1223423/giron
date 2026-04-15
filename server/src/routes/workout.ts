@@ -424,6 +424,30 @@ router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Respons
   }
 });
 
+// Patch workout notes/rating (post-session fields the client may update after sync)
+router.patch('/client/:clientId/notes', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { clientId } = req.params;
+    const parsed = z.object({
+      notes: z.string().max(2000).nullable().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные' });
+
+    const workout = await prisma.workout.findFirst({ where: { clientId: String(clientId), userId: req.userId! } });
+    if (!workout) return res.status(404).json({ error: 'Тренировка не найдена' });
+
+    const updated = await prisma.workout.update({
+      where: { id: workout.id },
+      data: { notes: parsed.data.notes ?? null },
+      select: { id: true, notes: true },
+    });
+    res.json(updated);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка обновления заметки' });
+  }
+});
+
 // Get workout history
 router.get('/history', authenticate, async (req: AuthRequest, res: Response) => {
   try {
