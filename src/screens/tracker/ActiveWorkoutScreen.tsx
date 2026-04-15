@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, Alert, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { View, Text, Alert, KeyboardAvoidingView, Platform, Animated, AppState } from 'react-native';
 import ReanimatedAnimated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useHaptic } from '../../hooks/useHaptic';
@@ -84,15 +84,27 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   useEffect(() => {
     if (!activeWorkout) return;
     const workoutId = activeWorkout.workout.id;
-    const interval = setInterval(() => {
+
+    const doAutosave = () => {
       const current = useWorkoutStore.getState().activeWorkout;
       if (!current || current.workout.id !== workoutId) return;
       const allSets = current.workout.exercises.flatMap((ex) =>
         ex.sets.map((s) => ({ id: s.id, reps: s.reps, weight: s.weight, completed: s.completed, rpe: s.rpe }))
       );
       if (allSets.length > 0) workoutService.autosaveWorkout(workoutId, allSets);
-    }, 30000);
-    return () => clearInterval(interval);
+    };
+
+    const interval = setInterval(doAutosave, 30000);
+
+    // Emergency autosave when app moves to background — don't lose the last 0–30s of sets
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background') doAutosave();
+    });
+
+    return () => {
+      clearInterval(interval);
+      appStateSub.remove();
+    };
   }, [activeWorkout?.workout?.id]);
 
   const showPrToast = useCallback((name: string, rm: number, prevRm?: number) => {
