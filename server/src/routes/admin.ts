@@ -1419,6 +1419,7 @@ router.get('/support/metrics', requireStaff, async (_req: AuthRequest, res: Resp
       // Get first staff message time for tickets created this week to compute avg response time
       prisma.supportTicket.findMany({
         where: { createdAt: { gte: weekStart } },
+        take: 500,
         select: {
           createdAt: true,
           messages: {
@@ -1479,6 +1480,7 @@ router.get('/support/export', requireAdmin, async (_req: AuthRequest, res: Respo
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
+      take: 5000,
     });
     const ticketCsvCell = (v: unknown): string => {
       let s = String(v ?? '');
@@ -2219,6 +2221,7 @@ router.get('/users/:id/sessions', requireAdmin, async (req: AuthRequest, res: Re
       where: { userId: req.params.id as string, revoked: false, expiresAt: { gte: new Date() } },
       select: { id: true, createdAt: true, expiresAt: true, userAgent: true, ip: true },
       orderBy: { createdAt: 'desc' },
+      take: 20,
     });
     res.json(sessions);
   } catch (e) {
