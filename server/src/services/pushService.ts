@@ -16,6 +16,7 @@ export async function sendPushToUser(
     const tokenRecords = await prisma.pushToken.findMany({
       where: { userId },
       select: { id: true, token: true },
+      take: 20,
     });
 
     if (tokenRecords.length === 0) return;

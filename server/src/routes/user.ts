@@ -352,6 +352,7 @@ async function recordPasswordHistory(userId: string, hash: string): Promise<void
     where: { userId },
     orderBy: { createdAt: 'desc' },
     select: { id: true },
+    take: PASSWORD_HISTORY_DEPTH + 10,
   });
   const toDelete = all.slice(PASSWORD_HISTORY_DEPTH + 2);
   if (toDelete.length > 0) {
