@@ -114,6 +114,8 @@ model HealthRestriction {
   severity    String // mild, moderate, severe
   userId      String
   user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ==================== GYM ====================
@@ -340,6 +342,8 @@ model TrainerClient {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([trainerId])
 }
 
 model TrainerSession {
@@ -353,6 +357,8 @@ model TrainerSession {
   notes           String?
 
   createdAt       DateTime @default(now())
+
+  @@index([clientId])
 }
 
 // ==================== NEWS ====================
@@ -446,6 +452,9 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // userId index: used in updateMany to invalidate old tokens on forgot-password
+  @@index([userId])
 }
 
 // ==================== SUPPORT ====================
@@ -550,7 +559,8 @@ model UsedTotpCode {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, usedAt])
+  // Composite on (userId, code, usedAt): replay check queries all three columns
+  @@index([userId, code, usedAt])
 }
 
 // ==================== OTP CODES ====================
@@ -565,8 +575,11 @@ model OtpCode {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  @@index([phone])
-  @@index([email])
+  // Composite indexes: every query filters on (phone|email) + purpose + time/state
+  @@index([phone, purpose, createdAt])   // cooldown & rate-limit checks
+  @@index([email, purpose, createdAt])   // cooldown & rate-limit checks (email path)
+  @@index([phone, purpose, used, expiresAt])  // active OTP lookup
+  @@index([email, purpose, used, expiresAt])  // active OTP lookup (email path)
 }
 
 // ==================== SECURITY EVENTS ====================
@@ -596,8 +609,9 @@ model RefreshToken {
   ip        String?
   createdAt DateTime @default(now())
 
-  @@index([userId])
-  @@index([token])
+  @@index([token]) // token lookup on refresh — already @unique but explicit for clarity
+  // Composite for active-session count in signTokens: WHERE userId AND revoked=false AND expiresAt>=now
+  @@index([userId, revoked, expiresAt])
 }
 
 model TrustedDevice {
