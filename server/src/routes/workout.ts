@@ -91,6 +91,7 @@ router.get('/programs', authenticate, async (req: AuthRequest, res: Response) =>
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
     res.json(programs);
   } catch (e) {

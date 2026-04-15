@@ -1171,6 +1171,7 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
       where: { plan: { not: 'free' }, createdAt: { gte: since } },
       select: { plan: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+      take: 50000,
     });
 
     // Build daily buckets per plan
@@ -1598,6 +1599,7 @@ router.get('/announcements', requireAdmin, async (_req: AuthRequest, res: Respon
     const list = await prisma.announcement.findMany({
       orderBy: { createdAt: 'desc' },
       include: { author: { select: { firstName: true, lastName: true } } },
+      take: 200,
     });
     res.json(list);
   } catch (e) {
@@ -1623,6 +1625,7 @@ router.get('/announcements/active', authenticate, async (req: AuthRequest, res: 
       },
       orderBy: { createdAt: 'desc' },
       select: { id: true, title: true, body: true, type: true, createdAt: true },
+      take: 20,
     });
     // Increment view count for all returned announcements (fire-and-forget)
     if (list.length > 0) {
@@ -1923,6 +1926,7 @@ router.get('/subscriptions/forecast', requireAdmin, async (_req: AuthRequest, re
     const expiring = await prisma.subscription.findMany({
       where: { status: 'active', plan: { not: 'free' }, endDate: { gte: now, lt: rangeEnd } },
       select: { plan: true, endDate: true },
+      take: 50000,
     });
 
     const forecast: Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }> = [];

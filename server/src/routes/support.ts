@@ -28,6 +28,7 @@ router.get('/tickets', authenticate, async (req: AuthRequest, res: Response) => 
         assignedTo: { select: { firstName: true, lastName: true } },
       },
       orderBy: { updatedAt: 'desc' },
+      take: 100,
     });
     res.json(tickets);
   } catch (e) {

@@ -46,6 +46,7 @@ router.get('/clients', authenticate, requireTrainerRole as any, async (req: Auth
     const clients = await prisma.trainerClient.findMany({
       where: { trainerId: req.userId! },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
     res.json(clients);
   } catch (e) {
@@ -135,6 +136,7 @@ router.get('/sessions/:clientId', authenticate, requireTrainerRole as any, async
     const sessions = await prisma.trainerSession.findMany({
       where: { clientId: req.params.clientId as string },
       orderBy: { date: 'desc' },
+      take: 365,
     });
     res.json(sessions);
   } catch (e) {

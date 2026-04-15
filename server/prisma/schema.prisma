@@ -484,6 +484,7 @@ model SupportTicket {
   @@index([userId])
   @@index([status])
   @@index([assignedToId])
+  @@index([userId, updatedAt])  // composite: user ticket list sorted by last activity
 }
 
 model SupportMessage {

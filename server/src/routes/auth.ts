@@ -114,6 +114,7 @@ async function signTokens(userId: string, req?: Request) {
     where: { userId, revoked: false, expiresAt: { gte: new Date() } },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
+    take: MAX_SESSIONS_PER_USER + 5,
   });
   if (activeSessions.length >= MAX_SESSIONS_PER_USER) {
     const toRevoke = activeSessions.slice(0, activeSessions.length - MAX_SESSIONS_PER_USER + 1);
