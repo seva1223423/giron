@@ -17,6 +17,7 @@ const FIELDS: { key: keyof Omit<BodyMeasurement, 'id' | 'date' | 'notes'>; label
   { key: 'hips', label: 'Бёдра' },
   { key: 'bicep', label: 'Руки (бицепс)' },
   { key: 'thigh', label: 'Бедро' },
+  { key: 'calf', label: 'Икра' },
   { key: 'neck', label: 'Шея' },
 ];
 

@@ -11,6 +11,7 @@ export interface BodyMeasurement {
   hips?: number;    // cm
   bicep?: number;   // cm (bicep, flexed)
   thigh?: number;   // cm
+  calf?: number;    // cm
   neck?: number;    // cm
   notes?: string;   // local-only field
 }
@@ -35,7 +36,7 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         const entry: BodyMeasurement = { ...data, id: `meas-${Date.now()}` };
         set((s) => ({ entries: [entry, ...s.entries] }));
         // Sync to server with rollback on failure
-        userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, neck: data.neck }).catch(() => {
+        userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, calf: data.calf, neck: data.neck }).catch(() => {
           set({ entries: snapshot });
         });
       },
@@ -46,7 +47,7 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         set((s) => ({ entries: s.entries.map((e) => e.id === id ? { ...e, ...data } : e) }));
         if (existing) {
           const updated = { ...existing, ...data };
-          userService.saveMeasurement({ date: updated.date, chest: updated.chest, waist: updated.waist, hips: updated.hips, bicep: updated.bicep, thigh: updated.thigh, neck: updated.neck }).catch(() => {
+          userService.saveMeasurement({ date: updated.date, chest: updated.chest, waist: updated.waist, hips: updated.hips, bicep: updated.bicep, thigh: updated.thigh, calf: updated.calf, neck: updated.neck }).catch(() => {
             set({ entries: snapshot });
           });
         }
@@ -83,6 +84,7 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
                 hips: e.hips,
                 bicep: e.bicep,
                 thigh: e.thigh,
+                calf: e.calf,
                 neck: e.neck,
               };
             });
