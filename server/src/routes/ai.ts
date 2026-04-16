@@ -2316,7 +2316,7 @@ async function executeTool(
     for (const workout of active.workouts) {
       if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
       for (const we of workout.exercises) {
-        if (we.exercise.name.toLowerCase().includes(oldExerciseName.toLowerCase())) {
+        if (we.exercise?.name.toLowerCase().includes(oldExerciseName.toLowerCase())) {
           await prisma.workoutExercise.update({ where: { id: we.id }, data: { exerciseId: newEx.id } });
           swapped++;
         }
@@ -2338,8 +2338,8 @@ async function executeTool(
     let found = false;
     for (const workout of active.workouts) {
       if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
-      const ex1 = workout.exercises.find((e) => e.exercise.name.toLowerCase().includes(exercise1Name.toLowerCase()));
-      const ex2 = workout.exercises.find((e) => e.exercise.name.toLowerCase().includes(exercise2Name.toLowerCase()));
+      const ex1 = workout.exercises.find((e) => e.exercise?.name.toLowerCase().includes(exercise1Name.toLowerCase()));
+      const ex2 = workout.exercises.find((e) => e.exercise?.name.toLowerCase().includes(exercise2Name.toLowerCase()));
       if (ex1 && ex2) {
         await prisma.workoutExercise.update({ where: { id: ex1.id }, data: { supersetGroupId: groupId } });
         await prisma.workoutExercise.update({ where: { id: ex2.id }, data: { supersetGroupId: groupId } });
@@ -2383,7 +2383,8 @@ async function executeTool(
       w.exercises.forEach((ex) => {
         ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((s) => {
           const rm = (s.weight!) * (1 + (s.reps!) / 30);
-          const key = ex.exercise.name;
+          const key = ex.exercise?.name;
+          if (!key) return;
           if (!bestByExercise[key] || rm > bestByExercise[key].rm) {
             bestByExercise[key] = { name: key, rm: Math.round(rm), weight: s.weight!, reps: s.reps! };
           }
@@ -2662,7 +2663,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       if (activeProgram.workouts.length > 0) {
         programContext += 'Тренировки в программе:\n';
         activeProgram.workouts.forEach((w) => {
-          programContext += `- ${w.name}: ${w.exercises.map((e) => `${e.exercise.name} ${e.sets.length}×${e.sets[0]?.reps || '?'}`).join(', ')}\n`;
+          programContext += `- ${w.name}: ${w.exercises.filter((e) => e.exercise).map((e) => `${e.exercise.name} ${e.sets.length}×${e.sets[0]?.reps || '?'}`).join(', ')}\n`;
         });
       }
     } else {
@@ -2692,7 +2693,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           const maxWeight = Math.max(...completedSets.map((s) => s.weight || 0));
           const totalReps = completedSets.reduce((sum, s) => sum + (s.reps || 0), 0);
           if (!exerciseHistory[id]) {
-            exerciseHistory[id] = { name: ex.exercise.name, sessions: [] };
+            exerciseHistory[id] = { name: ex.exercise?.name ?? 'Упражнение', sessions: [] };
           }
           exerciseHistory[id].sessions.push({ date, maxWeight, totalReps, sets: completedSets.length });
         }
@@ -2724,7 +2725,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         const current = lifetimePRs[ex.exerciseId];
         if (!current || rm > current.est1RM) {
           lifetimePRs[ex.exerciseId] = {
-            name: ex.exercise.name,
+            name: ex.exercise?.name ?? 'Упражнение',
             bestWeight: s.weight,
             bestReps: s.reps,
             est1RM: Math.round(rm),
@@ -3109,7 +3110,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           where: { workout: { programId: activeProgram.id } },
           select: { exercise: { select: { name: true } } },
           take: 500,
-        })).map((we) => we.exercise.name)
+        })).filter((we) => we.exercise).map((we) => we.exercise.name)
       : [];
     const exerciseAlternatives = getExerciseAlternatives([...new Set(programExerciseNames)], injuryZones);
     const alternativesContext = buildExerciseAlternativesContext(exerciseAlternatives);
@@ -3146,7 +3147,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           where: { workout: { programId: activeProgram.id } },
           select: { exercise: { select: { type: true } } },
           take: 500,
-        })).map((we) => we.exercise.type))]
+        })).filter((we) => we.exercise).map((we) => we.exercise.type))]
       : [];
     const restTimerContext = buildRestTimerContext(user?.goal || null, exerciseTypesInProgram);
 
@@ -3222,7 +3223,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
     });
     const todayMuscles = scheduledWorkoutToday
-      ? scheduledWorkoutToday.exercises.flatMap((e) => e.exercise.primaryMuscles)
+      ? scheduledWorkoutToday.exercises.flatMap((e) => e.exercise?.primaryMuscles ?? [])
       : [];
     const warmupContext = generateWarmup(todayMuscles);
 
@@ -3259,7 +3260,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         rating: (w as any).rating || null, // rating may not be in DB yet
         totalVolume: w.totalVolume,
         durationMinutes: w.durationMinutes,
-        exercises: w.exercises.map((e) => ({ exercise: { name: e.exercise.name, primaryMuscles: e.exercise.primaryMuscles } })),
+        exercises: w.exercises.filter((e) => e.exercise).map((e) => ({ exercise: { name: e.exercise.name, primaryMuscles: e.exercise.primaryMuscles } })),
       })),
     );
 
@@ -3269,7 +3270,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         ? {
             totalVolume: lastCompletedWorkout.totalVolume,
             durationMinutes: lastCompletedWorkout.durationMinutes,
-            exercises: lastCompletedWorkout.exercises.map((e) => ({
+            exercises: lastCompletedWorkout.exercises.filter((e) => e.exercise).map((e) => ({
               exercise: { category: e.exercise.category, type: e.exercise.type },
             })),
           }
@@ -3280,7 +3281,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 58: Exercise variety scorer ──────
     const exerciseVarietyContext = scoreExerciseVariety(
       recentWorkouts.map((w) => ({
-        exercises: w.exercises.map((e) => ({ exercise: { name: e.exercise.name, type: e.exercise.type } })),
+        exercises: w.exercises.filter((e) => e.exercise).map((e) => ({ exercise: { name: e.exercise.name, type: e.exercise.type } })),
       })),
     );
 
