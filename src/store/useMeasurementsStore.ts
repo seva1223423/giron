@@ -73,16 +73,19 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         try {
           const serverEntries = await userService.getMeasurements();
           if (serverEntries.length > 0) {
-            const mapped: BodyMeasurement[] = serverEntries.map((e) => ({
-              id: `server-${e.date}`,
-              date: e.date,
-              chest: e.chest,
-              waist: e.waist,
-              hips: e.hips,
-              bicep: e.bicep,
-              thigh: e.thigh,
-              neck: e.neck,
-            }));
+            const mapped: BodyMeasurement[] = serverEntries.map((e) => {
+              const dateStr = typeof e.date === 'string' ? e.date.split('T')[0] : e.date;
+              return {
+                id: `server-${dateStr}`,
+                date: dateStr,
+                chest: e.chest,
+                waist: e.waist,
+                hips: e.hips,
+                bicep: e.bicep,
+                thigh: e.thigh,
+                neck: e.neck,
+              };
+            });
             // Merge: keep local-only entries (by date) that server doesn't have
             const serverDates = new Set(mapped.map((e) => e.date));
             const localOnly = get().entries.filter((e) => !serverDates.has(e.date) && !e.id.startsWith('server-'));
