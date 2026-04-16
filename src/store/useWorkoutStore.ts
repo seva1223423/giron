@@ -69,6 +69,9 @@ interface WorkoutStore {
   updateWorkoutInHistory: (id: string, data: Partial<Workout>) => void;
   getExerciseHistory: (exerciseId: string) => Workout[];
   fetchHistory: () => Promise<void>;
+
+  // Lifecycle
+  clearUserData: () => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -484,6 +487,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
           w.exercises.some((e) => e.exerciseId === exerciseId)
         );
       },
+
+      clearUserData: () => set({
+        programs: [],
+        workoutHistory: [],
+        activeWorkout: null,
+        weekPlan: {},
+        savedTemplates: [],
+        customExercises: [],
+        pendingSync: [],
+        isLoadingPrograms: false,
+        isLoadingHistory: false,
+      }),
 
       fetchHistory: async () => {
         if (get().isLoadingHistory) return; // prevent concurrent fetches

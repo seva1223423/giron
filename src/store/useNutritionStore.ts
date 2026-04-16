@@ -21,6 +21,7 @@ interface NutritionStore {
   saveFoodItem: (item: NutritionItem) => void;
   removeSavedFood: (id: string) => void;
   cleanupOldLogs: (keepDays?: number) => void;
+  clearUserData: () => void;
 }
 
 const getDefaultDayLog = (date: string, defaults?: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number }): DailyNutrition => ({
@@ -264,6 +265,13 @@ export const useNutritionStore = create<NutritionStore>()(
       removeSavedFood: (id) => set((s) => ({
         savedFoods: s.savedFoods.filter((f) => f.id !== id),
       })),
+
+      clearUserData: () => set({
+        dailyLog: {},
+        waterMl: 0,
+        defaultTargets: { calories: 2500, protein: 150, fats: 80, carbs: 300, waterTargetMl: 2500 },
+        savedFoods: [],
+      }),
 
       cleanupOldLogs: (keepDays: number = 90) => {
         set((s) => {
