@@ -12070,7 +12070,7 @@ function trackMuscleRecovery(
     if (!workout.completedAt) continue;
     const completedDate = new Date(workout.completedAt);
     for (const ex of workout.exercises) {
-      for (const muscle of ex.exercise?.primaryMuscles) {
+      for (const muscle of ex.exercise?.primaryMuscles ?? []) {
         const m = muscle.toLowerCase();
         if (!muscleLastTrained[m] || completedDate > muscleLastTrained[m]) {
           muscleLastTrained[m] = completedDate;
@@ -12991,7 +12991,7 @@ function identifyWeakPoints(
   for (const w of recentWorkouts) {
     const musclesThisWorkout = new Set<string>();
     for (const ex of w.exercises) {
-      for (const muscle of ex.exercise?.primaryMuscles) {
+      for (const muscle of ex.exercise?.primaryMuscles ?? []) {
         const vol = ex.sets
           .filter((s) => s.completed)
           .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
@@ -14147,7 +14147,7 @@ function optimizeTrainingFrequency(
   for (const w of recentOnly) {
     const musclesThisWorkout = new Set<string>();
     for (const ex of w.exercises) {
-      for (const m of ex.exercise?.primaryMuscles) musclesThisWorkout.add(m);
+      for (const m of ex.exercise?.primaryMuscles ?? []) musclesThisWorkout.add(m);
     }
     for (const m of musclesThisWorkout) {
       muscleFreq[m] = (muscleFreq[m] || 0) + 1;
@@ -15168,7 +15168,7 @@ function trackSplitAdherence(
   const sessions = recentWorkouts.slice(0, 8).map(w => {
     const muscles = new Set<string>();
     for (const ex of w.exercises) {
-      for (const m of ex.exercise?.primaryMuscles) muscles.add(m);
+      for (const m of ex.exercise?.primaryMuscles ?? []) muscles.add(m);
     }
     return { name: w.name, muscles: Array.from(muscles), date: w.completedAt };
   });
@@ -15222,7 +15222,7 @@ function analyzeVolumeDosing(
     if (!w.completedAt || now - w.completedAt.getTime() > weekMs) continue;
     for (const ex of w.exercises) {
       const workingSets = ex.sets.filter(s => s.completed && s.type !== 'warmup').length;
-      for (const m of ex.exercise?.primaryMuscles) {
+      for (const m of ex.exercise?.primaryMuscles ?? []) {
         muscleSets[m] = (muscleSets[m] || 0) + workingSets;
       }
     }
