@@ -1197,9 +1197,14 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Atomically consume the reset token — prevents concurrent requests with the same token from both succeeding
+    const { count: tokenConsumed } = await prisma.passwordResetToken.updateMany({ where: { id: resetToken.id, used: false }, data: { used: true } });
+    if (tokenConsumed === 0) {
+      return res.status(400).json({ error: 'Ссылка уже использована или истекла' });
+    }
+
     await prisma.$transaction([
       prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
-      prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { used: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: resetToken.userId } }),
       prisma.refreshToken.updateMany({ where: { userId: resetToken.userId, revoked: false }, data: { revoked: true } }),
     ]);
@@ -1260,10 +1265,12 @@ router.post('/verify-email', async (req: Request, res: Response) => {
       });
     }
 
-    await prisma.$transaction([
-      prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } }),
-      prisma.user.updateMany({ where: { email, emailVerified: false }, data: { emailVerified: true } }),
-    ]);
+    // Atomically consume the OTP to prevent concurrent replay
+    const { count: otpConsumed } = await prisma.otpCode.updateMany({ where: { id: activeOtp.id, used: false }, data: { used: true } });
+    if (otpConsumed === 0) {
+      return res.status(400).json({ error: 'Код уже использован. Запросите новый.', valid: false });
+    }
+    await prisma.user.updateMany({ where: { email, emailVerified: false }, data: { emailVerified: true } });
 
     // Look up userId for security log
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
