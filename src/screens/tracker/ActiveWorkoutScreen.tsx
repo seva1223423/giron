@@ -279,7 +279,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       const newRM = weight * (1 + reps / 30);
       const prevBest = bestRMs[currentExercise.exerciseId] ?? 0;
       if (newRM > prevBest) {
-        showPrToast(currentExercise.exercise.name, Math.round(newRM), prevBest > 0 ? Math.round(prevBest) : undefined);
+        showPrToast(currentExercise.exercise?.name ?? 'Упражнение', Math.round(newRM), prevBest > 0 ? Math.round(prevBest) : undefined);
         setSessionPRs((prev) => new Set(prev).add(currentExercise.exerciseId));
       }
     }
@@ -341,7 +341,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   };
 
   const handleSubstitute = () => {
-    const primaryMuscle = currentExercise.exercise.primaryMuscles?.[0];
+    const primaryMuscle = currentExercise.exercise?.primaryMuscles?.[0];
     const alternatives = localExercises
       .filter((ex) => ex.id !== currentExercise.exerciseId && ex.primaryMuscles?.includes(primaryMuscle as any))
       .slice(0, 3);
