@@ -12481,12 +12481,14 @@ function generateDeloadProgram(
   }
 
   const deloadExercises = lastWorkoutExercises.slice(0, 4).map((e) => {
-    const maxWeight = Math.max(...e.sets.map((s) => s.weight || 0));
+    const weights = e.sets.map((s) => s.weight || 0).filter((w) => w > 0);
+    const reps = e.sets.map((s) => s.reps || 0).filter((r) => r > 0);
+    const maxWeight = weights.length > 0 ? Math.max(...weights) : 0;
     const deloadWeight = Math.round((maxWeight * (1 - intensityReduction)) / 2.5) * 2.5; // round to 2.5kg
-    const maxReps = Math.max(...e.sets.map((s) => s.reps || 0));
+    const maxReps = reps.length > 0 ? Math.max(...reps) : 0;
     const deloadSets = Math.max(2, Math.round(e.sets.length * (1 - volumeReduction)));
 
-    return `- ${e.exercise?.name}: ${deloadSets}×${maxReps} @ ${deloadWeight} кг`;
+    return `- ${e.exercise?.name ?? 'Упражнение'}: ${deloadSets}×${maxReps} @ ${deloadWeight} кг`;
   });
 
   return `\n\n## 🧘 ПРОГРАММА DELOAD НЕДЕЛИ
