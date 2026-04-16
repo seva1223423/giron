@@ -235,6 +235,17 @@ setInterval(() => {
   newsCache.prune();
 }, 10 * 60 * 1000);
 
+// Delete expired/used OTP codes every hour to prevent unbounded table growth
+setInterval(async () => {
+  try {
+    const db = (await import('./db')).prisma;
+    const { count } = await db.otpCode.deleteMany({
+      where: { OR: [{ expiresAt: { lt: new Date() } }, { used: true }] },
+    });
+    if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used OTP codes`);
+  } catch {}
+}, 60 * 60 * 1000);
+
 // Trim security events per user to last 200 entries (prevents unbounded DB growth) — runs daily
 setInterval(async () => {
   try {
