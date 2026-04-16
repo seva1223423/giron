@@ -37,7 +37,7 @@ export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 })
       w.exercises.forEach((we) => {
         const id = we.exerciseId || we.exercise?.id;
         if (!id || !we.exercise) return;
-        if (!exCount[id]) exCount[id] = { name: we.exercise?.name, count: 0 };
+        if (!exCount[id]) exCount[id] = { name: we.exercise?.name ?? '', count: 0 };
         exCount[id].count++;
       });
     });
