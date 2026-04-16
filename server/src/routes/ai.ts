@@ -2184,6 +2184,8 @@ async function executeTool(
 
   if (toolName === 'adjust_all_weights') {
     const { multiplier, deltaKg } = toolInput as { multiplier?: number; deltaKg?: number };
+    const safeMultiplier = multiplier != null ? Math.min(3, Math.max(0.1, Number(multiplier) || 1)) : undefined;
+    const safeDeltaKg = deltaKg != null ? Math.min(100, Math.max(-100, Number(deltaKg) || 0)) : undefined;
     const active = await prisma.program.findFirst({
       where: { userId, isActive: true },
       include: { workouts: { include: { exercises: { include: { sets: true } } } } },
@@ -2196,11 +2198,11 @@ async function executeTool(
         for (const set of exercise.sets) {
           if (set.weight && set.weight > 0) {
             let newWeight = set.weight;
-            if (multiplier) newWeight = Math.round(newWeight * multiplier * 4) / 4;
-            if (deltaKg) newWeight = Math.round((newWeight + deltaKg) * 4) / 4;
+            if (safeMultiplier) newWeight = Math.round(newWeight * safeMultiplier * 4) / 4;
+            if (safeDeltaKg) newWeight = Math.round((newWeight + safeDeltaKg) * 4) / 4;
             newWeight = Math.max(0, newWeight);
             if (newWeight !== set.weight) {
-              await prisma.workoutSet.update({ where: { id: set.id }, data: { weight: newWeight } });
+              await prisma.workoutSet.updateMany({ where: { id: set.id }, data: { weight: newWeight } });
               updatedCount++;
             }
           }
@@ -2208,7 +2210,7 @@ async function executeTool(
       }
     }
 
-    const desc = multiplier ? `×${multiplier}` : `${deltaKg! > 0 ? '+' : ''}${deltaKg} кг`;
+    const desc = safeMultiplier ? `×${safeMultiplier}` : `${(safeDeltaKg ?? 0) > 0 ? '+' : ''}${safeDeltaKg} кг`;
     return {
       resultText: `Веса обновлены (${desc}) в ${updatedCount} подходах программы "${active.name}"`,
       actionDescription: `Веса скорректированы ${desc} в программе "${active.name}"`,
