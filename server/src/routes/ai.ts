@@ -2531,72 +2531,75 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Get user profile
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { healthRestrictions: true },
-    });
-
-    // Get recent chat history
-    const history = await prisma.chatMessage.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-
-    // Get active program
-    const activeProgram = await prisma.program.findFirst({
-      where: { userId, isActive: true },
-      include: {
-        workouts: {
-          include: { exercises: { include: { exercise: true, sets: true } } },
-        },
-      },
-    });
-
-    // Get recent workout stats
-    const recentWorkouts = await prisma.workout.findMany({
-      where: { userId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
-      take: 5,
-      include: { exercises: { include: { exercise: true, sets: true } } },
-    });
-
-    // Get body weight history
-    const bodyWeightHistory = await prisma.bodyWeight.findMany({
-      where: { userId },
-      orderBy: { date: 'desc' },
-      take: 10,
-    });
-
-    // Get lifetime personal records (all completed workouts, optimized select)
-    const allCompletedExerciseSets = await prisma.workoutExercise.findMany({
-      where: {
-        workout: { userId, completedAt: { not: null } },
-      },
-      select: {
-        exerciseId: true,
-        exercise: { select: { name: true } },
-        workout: { select: { completedAt: true } },
-        sets: {
-          where: { completed: true },
-          select: { weight: true, reps: true, type: true },
-        },
-      },
-      take: 10000,
-    });
-
-    // Get today's meals
+    // Fetch all user context data in parallel — 8 independent queries
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    const todayMeals = await prisma.meal.findMany({
-      where: { userId, createdAt: { gte: todayStart, lte: todayEnd } },
-      include: { items: true },
-      orderBy: { createdAt: 'asc' },
-      take: 100,
-    });
+
+    const [
+      user,
+      history,
+      activeProgram,
+      recentWorkouts,
+      bodyWeightHistory,
+      allCompletedExerciseSets,
+      todayMeals,
+      recentMeasurements,
+    ] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        include: { healthRestrictions: true },
+      }),
+      prisma.chatMessage.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.program.findFirst({
+        where: { userId, isActive: true },
+        include: {
+          workouts: {
+            include: { exercises: { include: { exercise: true, sets: true } } },
+          },
+        },
+      }),
+      prisma.workout.findMany({
+        where: { userId, completedAt: { not: null } },
+        orderBy: { completedAt: 'desc' },
+        take: 5,
+        include: { exercises: { include: { exercise: true, sets: true } } },
+      }),
+      prisma.bodyWeight.findMany({
+        where: { userId },
+        orderBy: { date: 'desc' },
+        take: 10,
+      }),
+      prisma.workoutExercise.findMany({
+        where: { workout: { userId, completedAt: { not: null } } },
+        select: {
+          exerciseId: true,
+          exercise: { select: { name: true } },
+          workout: { select: { completedAt: true } },
+          sets: {
+            where: { completed: true },
+            select: { weight: true, reps: true, type: true },
+          },
+        },
+        take: 10000,
+      }),
+      prisma.meal.findMany({
+        where: { userId, createdAt: { gte: todayStart, lte: todayEnd } },
+        include: { items: true },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+      }),
+      prisma.bodyMeasurement.findMany({
+        where: { userId },
+        orderBy: { date: 'desc' },
+        take: 3,
+      }),
+    ]);
 
     // Build user context
     let userContext = '';
@@ -2782,6 +2785,23 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       const trend = Math.abs(delta) < 0.3 ? 'стабильный' : delta > 0 ? `+${delta.toFixed(1)} кг (рост)` : `${delta.toFixed(1)} кг (снижение)`;
       statsContext += `Последние записи: ${entries.map((e) => `${new Date(e.date).toLocaleDateString('ru-RU')}: ${e.weightKg} кг`).join(', ')}\n`;
       statsContext += `Тренд: ${trend}\n`;
+    }
+
+    // Build body measurements context
+    if (recentMeasurements.length > 0) {
+      statsContext += '\n## АНТРОПОМЕТРИЯ (последние замеры)\n';
+      recentMeasurements.forEach((m) => {
+        const dateStr = new Date(m.date).toLocaleDateString('ru-RU');
+        const parts: string[] = [];
+        if (m.chest) parts.push(`грудь ${m.chest} см`);
+        if (m.waist) parts.push(`талия ${m.waist} см`);
+        if (m.hips) parts.push(`бёдра ${m.hips} см`);
+        if (m.bicep) parts.push(`бицепс ${m.bicep} см`);
+        if (m.thigh) parts.push(`бедро ${m.thigh} см`);
+        if (m.neck) parts.push(`шея ${m.neck} см`);
+        if (m.calf) parts.push(`икра ${m.calf} см`);
+        if (parts.length > 0) statsContext += `- ${dateStr}: ${parts.join(', ')}\n`;
+      });
     }
 
     // Build today's nutrition context
