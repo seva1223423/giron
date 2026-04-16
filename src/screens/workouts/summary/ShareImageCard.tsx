@@ -91,7 +91,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 5 }}>
                     {isExPR && <Text style={{ fontSize: 9, fontWeight: '700', color: '#8B5CF6' }}>PR</Text>}
                     <Text style={[styles.exName, isExPR && { color: '#FFD700' }]} numberOfLines={1}>
-                      {ex.exercise?.name}
+                      {ex.exercise?.name ?? ''}
                     </Text>
                   </View>
                   {topSet && topSet.weight > 0 ? (
