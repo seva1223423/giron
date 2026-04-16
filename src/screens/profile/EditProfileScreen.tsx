@@ -8,6 +8,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { userService } from '../../services';
 import { GoalSelectorCard, LevelSelectorCard } from './components';
+import { localDateStr } from '../../utils/date';
 
 export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -53,7 +54,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
         const targetFats = Math.round((targetCalories * 0.25) / 9);
         const targetCarbs = Math.max(Math.round((targetCalories - targetProtein * 4 - targetFats * 9) / 4), 50);
         const waterTargetMl = Math.round(wKg * 35);
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateStr(new Date());
         setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: targetCarbs, waterTargetMl });
       }
 

@@ -8,6 +8,7 @@ import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { CalorieBarChart, WeeklyInsightsCard, NutritionDayCard, MacroTrendsChart } from './history';
 import type { WeeklyInsights } from './history';
+import { localDateStr } from '../../utils/date';
 
 const PERIODS = [
   { label: '7 дн', days: 7 },
@@ -20,7 +21,7 @@ function getPastDates(days: number): string[] {
   return Array.from({ length: days }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toISOString().split('T')[0];
+    return localDateStr(d);
   });
 }
 
@@ -70,8 +71,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
   );
 
   const macroTargets = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const log = getDayLog(today);
+    const log = getDayLog(localDateStr(new Date()));
     return { protein: log.targetProtein, fats: log.targetFats, carbs: log.targetCarbs };
   }, [getDayLog]);
 

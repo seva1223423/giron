@@ -8,6 +8,7 @@ import { Card, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { ProgramPickerModal, EditClientModal, ClientNotesCard } from './components';
+import { localDateStr } from '../../utils/date';
 
 const GOAL_LABELS: Record<string, string> = {
   weight_loss: 'Похудение', muscle_gain: 'Набор массы', strength: 'Сила',
@@ -41,7 +42,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
 
   if (!client) { navigation.goBack(); return null; }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr(new Date());
   const trainedToday = client.lastVisit === today;
 
   const sessions = getClientSessions(client.id);

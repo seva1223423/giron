@@ -8,6 +8,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { AddClientModal, ClientCard } from './components';
 import { useSubscriptionStore, FREE_LIMITS } from '../../store/useSubscriptionStore';
+import { localDateStr } from '../../utils/date';
 
 export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
@@ -21,7 +22,7 @@ export const TrainerDashboardScreen: React.FC<{ navigation: any }> = ({ navigati
 
   useEffect(() => { fetchClients(); }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr(new Date());
   const todayClients = clients.filter((c) => c.lastVisit === today).length;
   const totalWorkoutsAll = clients.reduce((s, c) => s + (c.totalWorkouts || 0), 0);
   const filteredClients = clients.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()));

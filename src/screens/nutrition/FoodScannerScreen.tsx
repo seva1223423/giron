@@ -382,7 +382,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       createdAt: new Date().toISOString(),
     };
     // Compute date at save time — handles midnight-boundary edge case
-    addMeal(new Date().toISOString().split('T')[0], meal);
+    addMeal(localDateStr(new Date()), meal);
     const calTarget = dayLog.targetCalories || 2000;
     const protTarget = dayLog.targetProtein || 150;
     const totalProteinSoFar = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0) + totalProt;

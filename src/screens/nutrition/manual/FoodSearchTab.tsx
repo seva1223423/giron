@@ -6,6 +6,7 @@ import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { FOOD_DB, FoodItem } from './foodData';
+import { localDateStr } from '../../../utils/date';
 
 interface Props {
   selectedFood: FoodItem | null;
@@ -32,7 +33,7 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
     for (let i = 0; i < 7; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const log = dailyLog[d.toISOString().split('T')[0]];
+      const log = dailyLog[localDateStr(d)];
       if (!log) continue;
       for (const meal of log.meals) {
         for (const item of meal.items) {

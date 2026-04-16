@@ -7,6 +7,7 @@ import { spacing } from '../../../theme/spacing';
 import { Workout } from '../../../types';
 import { PersonalRecordCard, StrengthStandardsCard, ClubLeaderboard } from './records';
 import { ACHIEVEMENT_DEFINITIONS, Achievement } from '../../../utils/achievements';
+import { localDateStr } from '../../../utils/date';
 
 interface RecordsTabProps {
   colors: any;
@@ -43,7 +44,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
     [...workoutHistory].filter((w) => w.completedAt).sort((a, b) => new Date(a.completedAt!).getTime() - new Date(b.completedAt!).getTime()).forEach((workout) => {
       workout.exercises.filter((ex) => ex.exerciseId === selectedExerciseId).forEach((ex) => {
         ex.sets.filter((s) => s.completed && s.weight && s.reps).forEach((set) => {
-          const date = workout.completedAt!.split('T')[0];
+          const date = localDateStr(new Date(workout.completedAt!));
           const est1rm = Math.round((set.weight || 0) * (1 + (set.reps || 0) / 30));
           if (!byDate.has(date) || est1rm > byDate.get(date)!) byDate.set(date, est1rm);
         });
