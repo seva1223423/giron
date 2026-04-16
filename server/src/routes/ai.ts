@@ -4468,7 +4468,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 231: Energy system advice ──────
     const avgRepsForEnergy = (() => {
-      const allReps = allCompletedExerciseSets.flatMap((s: any) => s.reps ?? []).filter((r: any) => typeof r === 'number');
+      const allReps = allCompletedExerciseSets.flatMap((s: any) => (s.sets ?? []).map((st: any) => st.reps)).filter((r: any) => typeof r === 'number' && r > 0);
       return allReps.length ? Math.round(allReps.reduce((a: number, b: number) => a + b, 0) / allReps.length) : 8;
     })();
     const energySystemContext = getEnergySystemAdvice(recentWorkouts[0]?.durationMinutes ?? 0, avgRepsForEnergy, userGoalStr);
