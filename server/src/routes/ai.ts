@@ -2018,7 +2018,7 @@ async function executeTool(
       if (!we) {
         return { resultText: `Упражнение "${exerciseRecord.name}" не найдено в тренировке "${workout.name}".`, actionDescription: '' };
       }
-      await prisma.workoutExercise.delete({ where: { id: we.id } });
+      await prisma.workoutExercise.deleteMany({ where: { id: we.id } });
       return {
         resultText: `Упражнение "${exerciseRecord.name}" убрано из тренировки "${workout.name}".`,
         actionDescription: `Убрано упражнение "${exerciseRecord.name}" из "${workout.name}"`,
@@ -2063,7 +2063,7 @@ async function executeTool(
           newWeight: s.weight ? Math.round((s.weight * weightMultiplier) / 2.5) * 2.5 : null,
         }));
         await Promise.all(
-          updatedSets.map((s) => prisma.workoutSet.update({ where: { id: s.id }, data: { weight: s.newWeight } }))
+          updatedSets.map((s) => prisma.workoutSet.updateMany({ where: { id: s.id }, data: { weight: s.newWeight } }))
         );
         const pct = Math.round((weightMultiplier - 1) * 100);
         const sign = pct >= 0 ? `+${pct}%` : `${pct}%`;
@@ -2342,8 +2342,8 @@ async function executeTool(
       const ex1 = workout.exercises.find((e) => e.exercise?.name.toLowerCase().includes(exercise1Name.toLowerCase()));
       const ex2 = workout.exercises.find((e) => e.exercise?.name.toLowerCase().includes(exercise2Name.toLowerCase()));
       if (ex1 && ex2) {
-        await prisma.workoutExercise.update({ where: { id: ex1.id }, data: { supersetGroupId: groupId } });
-        await prisma.workoutExercise.update({ where: { id: ex2.id }, data: { supersetGroupId: groupId } });
+        await prisma.workoutExercise.updateMany({ where: { id: ex1.id }, data: { supersetGroupId: groupId } });
+        await prisma.workoutExercise.updateMany({ where: { id: ex2.id }, data: { supersetGroupId: groupId } });
         found = true;
         break;
       }
