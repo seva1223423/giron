@@ -3891,7 +3891,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 151: Accessory exercise recommender ──────
     const mainLiftNames = recentWorkouts.slice(0, 3).flatMap((w: any) =>
       w.exercises.filter((e: any) => ['barbell'].includes(e.exercise?.type)).map((e: any) => e.exercise?.name)
-    );
+    ).filter((n: any): n is string => typeof n === 'string' && n.length > 0);
     const uniqueMainLifts = [...new Set(mainLiftNames)];
     const accessoryContext = recommendAccessories(uniqueMainLifts, [], user?.fitnessLevel ?? null);
 
