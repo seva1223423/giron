@@ -1360,9 +1360,14 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Atomically consume the OTP to prevent concurrent reuse
+    const { count: otpConsumed } = await prisma.otpCode.updateMany({ where: { id: otp.id, used: false }, data: { used: true } });
+    if (otpConsumed === 0) {
+      return res.status(400).json({ error: 'Код уже использован. Запросите новый.', code: 'OTP_USED' });
+    }
+
     await prisma.$transaction([
       prisma.user.update({ where: { id: user.id }, data: { passwordHash, loginAttempts: 0, lockedUntil: null } }),
-      prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } }),
       prisma.refreshToken.updateMany({ where: { userId: user.id, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: user.id } }),
     ]);
