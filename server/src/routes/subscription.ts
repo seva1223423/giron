@@ -243,7 +243,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
     // Validate plan and duration — prevent attacker-controlled values from slipping through
     const VALID_PLANS = ['free', 'pro', 'trainer', 'club'] as const;
     const resolvedPlan = VALID_PLANS.includes(plan) ? plan : 'pro';
-    const resolvedDays = Math.min(Math.max(parseInt(durationDays) || 30, 1), 3650); // 1 day – 10 years
+    const resolvedDays = Math.min(Math.max(parseInt(durationDays, 10) || 30, 1), 3650); // 1 day – 10 years
 
     if (event === 'subscription_activated' || event === 'subscription_renewed') {
       const startDate = new Date();

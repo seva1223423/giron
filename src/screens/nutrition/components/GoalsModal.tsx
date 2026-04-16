@@ -92,10 +92,10 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
 
   const handleSave = () => {
     setTargets(selectedDate, {
-      calories: parseInt(goalCalories) || 2000,
-      protein: parseInt(goalProtein) || 150,
-      fats: parseInt(goalFats) || 70,
-      carbs: parseInt(goalCarbs) || 250,
+      calories: parseInt(goalCalories, 10) || 2000,
+      protein: parseInt(goalProtein, 10) || 150,
+      fats: parseInt(goalFats, 10) || 70,
+      carbs: parseInt(goalCarbs, 10) || 250,
     });
     haptic.success();
     onClose();

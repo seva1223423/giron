@@ -55,7 +55,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   };
 
   const handleSave = () => {
-    const min = parseInt(duration);
+    const min = parseInt(duration, 10);
     if (!min || min <= 0) {
       Alert.alert('Ошибка', 'Укажи продолжительность');
       return;
@@ -65,8 +65,8 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
       date,
       durationMinutes: min,
       distanceKm: distance ? parseFloat(distance) : undefined,
-      caloriesBurned: calories ? parseInt(calories) : undefined,
-      avgHeartRate: heartRate ? parseInt(heartRate) : undefined,
+      caloriesBurned: calories ? parseInt(calories, 10) : undefined,
+      avgHeartRate: heartRate ? parseInt(heartRate, 10) : undefined,
       notes: notes.trim() || undefined,
     });
     haptic.success();

@@ -89,7 +89,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
 
   const handleComplete = useCallback(() => {
     let finalWeight = Math.max(0, parseFloat(weight.replace(',', '.')) || 0);
-    let finalReps = Math.max(0, parseInt(reps) || 0);
+    let finalReps = Math.max(0, parseInt(reps, 10) || 0);
     if (finalWeight === 0 && prevSet?.weight) {
       finalWeight = prevSet.weight;
       setWeight(String(prevSet.weight));
@@ -177,7 +177,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
         {/* Reps stepper */}
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
           <AnimatedPressable
-            onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(Math.max(1, v - 1))); }}
+            onPress={() => { haptic.selection(); const v = parseInt(reps, 10) || 0; setReps(String(Math.max(1, v - 1))); }}
             haptic={false}
             scaleDown={0.85}
             style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
@@ -193,7 +193,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             placeholderTextColor={colors.inputPlaceholder}
           />
           <AnimatedPressable
-            onPress={() => { haptic.selection(); const v = parseInt(reps) || 0; setReps(String(v + 1)); }}
+            onPress={() => { haptic.selection(); const v = parseInt(reps, 10) || 0; setReps(String(v + 1)); }}
             haptic={false}
             scaleDown={0.85}
             style={[styles.stepBtn, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }] as any}
