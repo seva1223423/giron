@@ -2264,7 +2264,7 @@ async function executeTool(
   }
 
   if (toolName === 'log_body_measurement') {
-    const measurements = toolInput as Record<string, number>;
+    const measurements = (toolInput && typeof toolInput === 'object' ? toolInput : {}) as Record<string, number>;
     const fields = Object.entries(measurements).filter(([_, v]) => typeof v === 'number' && v > 0);
     if (fields.length === 0) return { resultText: 'Нет данных для записи', actionDescription: '' };
     const labels: Record<string, string> = { chest: 'грудь', waist: 'талия', hips: 'бёдра', bicepLeft: 'бицепс Л', bicepRight: 'бицепс П', thighLeft: 'бедро Л', thighRight: 'бедро П', neck: 'шея', calfLeft: 'икра Л', calfRight: 'икра П' };
