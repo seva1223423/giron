@@ -69,6 +69,7 @@ export const useNutritionStore = create<NutritionStore>()(
         // Sync to server — replace temp ID with server ID on success, rollback on failure
         nutritionService.addMeal({
           type: meal.type,
+          date,
           photoUrl: meal.photoUrl,
           items: meal.items.map((item) => ({
             name: item.name,

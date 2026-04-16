@@ -1718,6 +1718,7 @@ async function executeTool(
     await prisma.meal.create({
       data: {
         type: safeMealType,
+        date: new Date().toISOString().split('T')[0],
         userId,
         totalCalories,
         totalProtein,

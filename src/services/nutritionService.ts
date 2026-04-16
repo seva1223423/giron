@@ -5,6 +5,7 @@ export const nutritionService = {
   async addMeal(params: {
     type: string;
     photoUrl?: string;
+    date?: string; // YYYY-MM-DD local date for timezone-safe day filtering
     items: Array<{
       name: string;
       calories: number;
