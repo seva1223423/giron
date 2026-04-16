@@ -6,6 +6,10 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
+/** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
+const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
 // ─── Get all cardio sessions ──────────────────────────────────────────────────
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -70,6 +74,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 // ─── Delete cardio session ────────────────────────────────────────────────────
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const userId = req.userId!;
     const { id } = req.params;

@@ -10,6 +10,7 @@ interface CardioStore {
   removeSession: (id: string) => Promise<void>;
   getWeekSessions: () => CardioSession[];
   syncFromServer: () => Promise<void>;
+  clearUserData: () => void;
 }
 
 const weekStart = () => {
@@ -53,6 +54,8 @@ export const useCardioStore = create<CardioStore>()(
         const start = weekStart();
         return get().sessions.filter((s) => new Date(s.date) >= start);
       },
+
+      clearUserData: () => set({ sessions: [] }),
 
       syncFromServer: async () => {
         try {
