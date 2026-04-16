@@ -246,7 +246,7 @@ export default function AdminDashboardScreen() {
       setSearching(true);
       try {
         const res = await adminService.moderationSearch(q.trim());
-        setSearchResults({ ai: res.ai, tickets: res.tickets });
+        setSearchResults({ ai: res.ai ?? [], tickets: res.tickets ?? [] });
       } catch { /* ignore */ }
       finally { setSearching(false); }
     }, 500);
