@@ -496,12 +496,12 @@ model SupportMessage {
   ticketId  String
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
-  authorId  String
-  author    User     @relation("MessageAuthor", fields: [authorId], references: [id])
+  authorId  String?
+  author    User?    @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
-  @@index([ticketId])
+  @@index([ticketId, createdAt])
 }
 
 // ==================== ADMIN LOG ====================
@@ -511,8 +511,8 @@ model AdminLog {
   targetId  String?  // affected userId or ticketId
   details   String?
 
-  adminId   String
-  admin     User     @relation("AdminLogs", fields: [adminId], references: [id])
+  adminId   String?
+  admin     User?    @relation("AdminLogs", fields: [adminId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -547,8 +547,8 @@ model Announcement {
   targetRole String?   // null = all users, "pro", "free", etc.
   viewCount  Int       @default(0)
 
-  authorId  String
-  author    User      @relation("Announcements", fields: [authorId], references: [id])
+  authorId  String?
+  author    User?     @relation("Announcements", fields: [authorId], references: [id], onDelete: SetNull)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -601,6 +601,7 @@ model SecurityEvent {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 // ==================== REFRESH TOKENS ====================
