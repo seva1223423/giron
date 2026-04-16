@@ -51,7 +51,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
       });
     });
     return Array.from(byDate.entries()).map(([date, value]) => ({
-      label: new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+      label: new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
       value,
     }));
   }, [selectedExerciseId, workoutHistory]);
