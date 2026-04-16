@@ -11347,7 +11347,7 @@ function findSimilarWorkouts(
   // Group workouts by primary muscle focus
   const workoutsByFocus = new Map<string, typeof historyWorkouts>();
   for (const w of historyWorkouts) {
-    const muscles = w.exercises.flatMap((e) => e.exercise?.primaryMuscles);
+    const muscles = w.exercises.flatMap((e) => e.exercise?.primaryMuscles ?? []);
     const primary = muscles.sort((a, b) =>
       muscles.filter((m) => m === b).length - muscles.filter((m) => m === a).length
     )[0];
@@ -12238,7 +12238,7 @@ function analyzeWorkoutRatings(
   lines.push(`Средняя оценка тренировок: ${avgRating.toFixed(1)}/5`);
 
   if (best && best.rating && best.rating >= 4) {
-    const muscles = best.exercises.flatMap((e) => e.exercise?.primaryMuscles);
+    const muscles = best.exercises.flatMap((e) => e.exercise?.primaryMuscles ?? []);
     const uniqueMuscles = [...new Set(muscles)].slice(0, 3);
     lines.push(`👍 Лучшая: "${best.name}" (${best.rating}/5) — ${uniqueMuscles.join(', ')}`);
   }
@@ -13143,7 +13143,7 @@ function suggestWorkoutName(
 ): string {
   if (exercises.length === 0) return '';
 
-  const allMuscles = exercises.flatMap((e) => e.exercise?.primaryMuscles);
+  const allMuscles = exercises.flatMap((e) => e.exercise?.primaryMuscles ?? []);
   const muscleCount: Record<string, number> = {};
   for (const m of allMuscles) muscleCount[m] = (muscleCount[m] || 0) + 1;
 
@@ -14640,7 +14640,7 @@ function scoreWorkoutComplexity(
   complexityScore += advancedSets.length * 8;
 
   // Muscle group count
-  const muscleGroups = new Set(exercises.flatMap((e) => e.exercise?.primaryMuscles));
+  const muscleGroups = new Set(exercises.flatMap((e) => e.exercise?.primaryMuscles ?? []));
   complexityScore += muscleGroups.size * 3;
 
   // Difficulty of exercises
