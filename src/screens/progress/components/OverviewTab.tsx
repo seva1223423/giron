@@ -38,7 +38,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = localDateStr(date);
-      if (workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr))) s++;
+      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr)) s++;
       else if (i > 0) break;
     }
     return s;
@@ -66,7 +66,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
   }, [workoutHistory]);
 
   const durationTrend = useMemo(() => workoutHistory.slice(0, 10).reverse().map((w, i) => ({ label: `${i + 1}`, value: w.durationMinutes || 0 })), [workoutHistory]);
-  const workoutDates = useMemo(() => workoutHistory.filter((w) => w.completedAt).map((w) => w.completedAt!), [workoutHistory]);
+  const workoutDates = useMemo(() => workoutHistory.filter((w) => w.completedAt).map((w) => localDateStr(new Date(w.completedAt!))), [workoutHistory]);
   const muscleDistribution = useMemo(() => computeMuscleDistribution(workoutHistory), [workoutHistory]);
 
   const muscleImbalances = useMemo(() => {

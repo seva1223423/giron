@@ -5,6 +5,7 @@ import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { Workout } from '../../../types';
+import { localDateStr } from '../../../utils/date';
 
 interface Props {
   workoutHistory: Workout[];
@@ -50,8 +51,8 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
       if (i > currentDow) continue;
       const dayDate = new Date(mondayDate);
       dayDate.setDate(mondayDate.getDate() + i);
-      const dayStr = dayDate.toISOString().split('T')[0];
-      if (workoutHistory.some((w) => w.completedAt?.startsWith(dayStr))) done++;
+      const dayStr = localDateStr(dayDate);
+      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dayStr)) done++;
     }
     return { planned, done, pastPlanned: Math.min(planned, currentDow + 1) };
   }, [weekPlan, workoutHistory]);
@@ -73,8 +74,8 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
         {DAY_LABELS.map((day, i) => {
           const dayDate = new Date(now);
           dayDate.setDate(now.getDate() - currentDow + i);
-          const dateStr = dayDate.toISOString().split('T')[0];
-          const hadWorkout = workoutHistory.some((w) => w.completedAt?.startsWith(dateStr));
+          const dateStr = localDateStr(dayDate);
+          const hadWorkout = workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr);
           const isToday = i === currentDow;
           const hasPlan = !!weekPlan[i];
           const isPast = i < currentDow;

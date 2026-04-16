@@ -43,7 +43,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = localDateStr(date);
-      if (workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr))) {
+      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr)) {
         s++;
       } else if (i > 0) break;
     }
