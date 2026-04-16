@@ -829,13 +829,8 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       }
     }
 
-    // Check email isn't already taken by another user
-    const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
-    if (existing && existing.id !== req.userId) {
-      return res.status(409).json({ error: 'Этот email уже используется', code: 'EMAIL_TAKEN' });
-    }
-
-    // Find active OTP for new email (purpose: email-change)
+    // Find active OTP for new email (purpose: email-change) — validate BEFORE checking availability
+    // to prevent email enumeration (attacker can't distinguish 409 from 400 without a valid OTP)
     const activeOtp = await prisma.otpCode.findFirst({
       where: { email: newEmail, purpose: 'email-change', used: false, expiresAt: { gte: new Date() } },
       orderBy: { createdAt: 'desc' },
@@ -853,6 +848,12 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
     await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+
+    // Check email isn't already taken by another user (after OTP validation)
+    const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
+    if (existing && existing.id !== req.userId) {
+      return res.status(409).json({ error: 'Этот email уже используется', code: 'EMAIL_TAKEN' });
+    }
 
     // Update email, revoke all sessions + trusted devices, issue new tokens for the current device
     await prisma.user.update({
@@ -918,13 +919,8 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       }
     }
 
-    // Check phone isn't already used by another user
-    const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
-    if (existing && existing.id !== req.userId) {
-      return res.status(409).json({ error: 'Этот номер телефона уже используется', code: 'PHONE_TAKEN' });
-    }
-
-    // Find active OTP for this phone
+    // Find active OTP for this phone — validate BEFORE checking availability
+    // to prevent phone enumeration (attacker can't distinguish 409 from 400 without a valid OTP)
     const activeOtp = await prisma.otpCode.findFirst({
       where: { phone, purpose: 'phone-change', used: false, expiresAt: { gte: new Date() } },
       orderBy: { createdAt: 'desc' },
@@ -942,6 +938,12 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
     await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+
+    // Check phone isn't already used by another user (after OTP validation)
+    const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
+    if (existing && existing.id !== req.userId) {
+      return res.status(409).json({ error: 'Этот номер телефона уже используется', code: 'PHONE_TAKEN' });
+    }
 
     // Update phone number, revoke all sessions + trusted devices, issue new tokens for the current device
     await prisma.user.update({
