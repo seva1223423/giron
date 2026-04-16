@@ -197,6 +197,12 @@ export const useAuthStore = create<AuthStore>()(
         // Clear tokens from SecureStore (hardware-backed Keychain/Keystore)
         await tokenStorage.clearTokens();
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, error: null });
+        // Clear all per-user data from other persisted stores to prevent data leak to next user
+        try {
+          const { useWorkoutStore, useNutritionStore } = require('./index');
+          useWorkoutStore.getState().clearUserData();
+          useNutritionStore.getState().clearUserData();
+        } catch { /* best effort */ }
       },
 
       completeOnboarding: () => set({ isOnboarded: true }),
