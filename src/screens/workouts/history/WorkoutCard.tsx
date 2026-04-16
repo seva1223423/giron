@@ -14,7 +14,10 @@ const MUSCLE_LABELS: Record<string, string> = {
 };
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function formatDuration(minutes: number) {

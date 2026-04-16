@@ -18,7 +18,10 @@ const MUSCLE_FILTERS = [
 function groupByMonth(workouts: any[]) {
   const map = new Map<string, any[]>();
   workouts.forEach((w) => {
-    const d = new Date(w.completedAt || w.startedAt || '');
+    const raw = w.completedAt || w.startedAt;
+    if (!raw) return;
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return;
     const key = `${d.getFullYear()}-${d.getMonth()}`;
     const label = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
     const arr = map.get(key) ?? [];
@@ -48,10 +51,10 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
   const filtered = useMemo(() => visibleHistory.filter((w) => {
     const q = searchQuery.toLowerCase();
-    const matchSearch = !searchQuery || w.name.toLowerCase().includes(q) || (w.exercises ?? []).some((ex: any) => ex.exercise?.name?.toLowerCase().includes(q));
+    const matchSearch = !searchQuery || (w.name ?? '').toLowerCase().includes(q) || (w.exercises ?? []).some((ex: any) => ex.exercise?.name?.toLowerCase().includes(q));
     const matchMuscle = muscleFilter === 'all' || (w.exercises ?? []).some((ex: any) => ex.exercise?.primaryMuscles?.includes(muscleFilter));
     return matchSearch && matchMuscle;
-  }), [workoutHistory, searchQuery, muscleFilter]);
+  }), [visibleHistory, searchQuery, muscleFilter]);
 
   const groups = useMemo(() => groupByMonth(filtered), [filtered]);
 

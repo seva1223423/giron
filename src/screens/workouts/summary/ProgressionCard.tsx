@@ -18,7 +18,7 @@ export const ProgressionCard: React.FC<Props> = ({ workout }) => {
     const maxWeight = Math.max(...completedSets.map((s) => s.weight || 0));
     if (avgReps < 10) return [];
     const increment = maxWeight >= 100 ? 5 : 2.5;
-    return [{ name: ex.exercise?.name, currentWeight: maxWeight, nextWeight: maxWeight + increment }];
+    return [{ name: ex.exercise?.name ?? 'Упражнение', currentWeight: maxWeight, nextWeight: maxWeight + increment }];
   });
 
   if (suggestions.length === 0) return null;
