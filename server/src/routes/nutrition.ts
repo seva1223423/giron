@@ -131,7 +131,8 @@ router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response)
     });
 
     res.json(updated);
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Приём пищи не найден' });
     logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления приёма пищи' });
   }

@@ -194,8 +194,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!s.activeWorkout) return s;
         const workout = { ...s.activeWorkout.workout };
         const exercises = [...workout.exercises];
+        if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return s;
         const exercise = { ...exercises[exerciseIndex] };
         const sets = [...exercise.sets];
+        if (setIndex < 0 || setIndex >= sets.length) return s;
         const completedSet = { ...sets[setIndex], ...data, completed: true };
 
         // Detect PR: compute Epley 1RM and compare against history
