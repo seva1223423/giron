@@ -1523,7 +1523,8 @@ async function executeTool(
   }
 
   if (toolName === 'log_body_weight') {
-    const { weightKg, date } = toolInput as { weightKg: number; date?: string };
+    const { weightKg: rawWeight, date } = toolInput as { weightKg: number; date?: string };
+    const weightKg = Math.round(Math.max(1, Math.min(500, Number(rawWeight) || 70)) * 10) / 10;
     const parsedDate = date ? new Date(date) : new Date();
     const logDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
     logDate.setHours(0, 0, 0, 0);
@@ -1687,6 +1688,10 @@ async function executeTool(
         carbs: number;
       }>;
     };
+
+    if (!items || items.length === 0) {
+      return { resultText: 'Приём пищи должен содержать хотя бы один продукт', actionDescription: '' };
+    }
 
     const safeItems = items.slice(0, 50).map((i) => ({
       ...i,
@@ -1873,6 +1878,10 @@ async function executeTool(
         }),
       );
       const valid = exerciseRecords.filter((e) => e.record !== null);
+      if (valid.length === 0) {
+        logger.warn(`create_program: skipping workout "${workoutDef.name}" — no valid exercises resolved`);
+        continue;
+      }
 
       await prisma.workout.create({
         data: {
@@ -2123,9 +2132,17 @@ async function executeTool(
 
     const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
+    const validSchedule = (schedule ?? []).filter(
+      (d) => Number.isInteger(d.dayIndex) && d.dayIndex >= 0 && d.dayIndex <= 6,
+    );
+
+    if (validSchedule.length === 0) {
+      return { resultText: 'Расписание не содержит корректных дней (dayIndex должен быть 0–6)', actionDescription: '' };
+    }
+
     // Resolve exercise IDs from DB for each day
     const resolvedSchedule = await Promise.all(
-      schedule.map(async (day) => {
+      validSchedule.map(async (day) => {
         const exerciseIds: string[] = [];
         for (const name of day.exerciseNames) {
           const ex = await prisma.exercise.findFirst({
