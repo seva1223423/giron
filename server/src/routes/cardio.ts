@@ -36,7 +36,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате YYYY-MM-DD').refine((d) => {
         const parsed = new Date(d + 'T00:00:00Z');
         const minDate = new Date('2000-01-01T00:00:00Z');
-        return !isNaN(parsed.getTime()) && parsed >= minDate && parsed <= new Date();
+        // Allow up to 24h ahead of server UTC to accommodate UTC+ users logging their local "today"
+        const maxDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        return !isNaN(parsed.getTime()) && parsed >= minDate && parsed <= maxDate;
       }, 'Некорректная дата (должна быть между 01.01.2000 и сегодня)'),
       durationMinutes: z.number().int().min(1, 'Минимум 1 минута').max(1440, 'Максимум 24 часа'),
       distanceKm: z.number().min(0).max(500).optional().nullable(),
