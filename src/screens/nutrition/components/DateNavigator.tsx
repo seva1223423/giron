@@ -15,7 +15,7 @@ function formatDisplayDate(dateStr: string): string {
   const yesterday = localDateStr(d);
   if (dateStr === today) return 'Сегодня';
   if (dateStr === yesterday) return 'Вчера';
-  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
 function shiftDate(dateStr: string, days: number): string {
