@@ -531,7 +531,8 @@ router.delete('/sessions/:id', authenticate, async (req: AuthRequest, res: Respo
     }
     await prisma.refreshToken.update({ where: { id }, data: { revoked: true } });
     res.json({ ok: true });
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Сессия не найдена' });
     logger.error(e);
     res.status(500).json({ error: 'Ошибка отзыва сессии' });
   }
@@ -578,7 +579,8 @@ router.delete('/trusted-devices/:id', authenticate, async (req: AuthRequest, res
     }
     await prisma.trustedDevice.delete({ where: { id } });
     res.json({ ok: true });
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Устройство не найдено' });
     logger.error(e);
     res.status(500).json({ error: 'Ошибка удаления устройства' });
   }

@@ -201,7 +201,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
         if (types.includes('update_nutrition_targets')) {
           const nutrAction = actions.find((act) => act.type === 'update_nutrition_targets');
-          if (nutrAction?.data) setTargets(new Date().toISOString().split('T')[0], { calories: nutrAction.data.calories as number, protein: nutrAction.data.protein as number, fats: nutrAction.data.fats as number, carbs: nutrAction.data.carbs as number });
+          if (nutrAction?.data) {
+            const { calories, protein, fats, carbs } = nutrAction.data as any;
+            if (typeof calories === 'number' && typeof protein === 'number' && typeof fats === 'number' && typeof carbs === 'number') {
+              setTargets(new Date().toISOString().split('T')[0], { calories, protein, fats, carbs });
+            }
+          }
         }
         if (types.includes('set_water_target')) {
           const wtAction = actions.find((act) => act.type === 'set_water_target');
