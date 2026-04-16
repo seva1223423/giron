@@ -21,8 +21,13 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     payload = jwt.verify(token, process.env.JWT_SECRET!, {
       issuer: 'irongym-api',
       audience: 'irongym-app',
+      algorithms: ['HS256'],
     }) as { userId: string };
-  } catch {
+  } catch (e) {
+    // Distinguish expired tokens from invalid ones so the client can trigger refresh vs. logout
+    if (e instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ error: 'Токен истёк', code: 'TOKEN_EXPIRED' });
+    }
     return res.status(401).json({ error: 'Недействительный токен' });
   }
 
