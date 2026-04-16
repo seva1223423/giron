@@ -1526,10 +1526,9 @@ async function executeTool(
   if (toolName === 'log_body_weight') {
     const { weightKg: rawWeight, date } = toolInput as { weightKg: number; date?: string };
     const weightKg = Math.round(Math.max(1, Math.min(500, Number(rawWeight) || 70)) * 10) / 10;
-    const effectiveDate = date || clientDate || new Date().toISOString().split('T')[0];
-    const parsedDate = new Date(effectiveDate);
-    const logDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-    logDate.setHours(0, 0, 0, 0);
+    const effectiveDateStr = date || clientDate || new Date().toISOString().split('T')[0];
+    const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(effectiveDateStr) && !isNaN(Date.parse(effectiveDateStr));
+    const logDate = new Date(isValidDate ? `${effectiveDateStr}T00:00:00.000Z` : new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
 
     await prisma.bodyWeight.upsert({
       where: { userId_date: { userId, date: logDate } },
@@ -2537,11 +2536,6 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     // Fetch all user context data in parallel — 8 independent queries
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
     const [
       user,
       history,
@@ -7260,11 +7254,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         ? Math.floor((Date.now() - new Date(lastWo.completedAt).getTime()) / (1000 * 60 * 60 * 24))
         : null;
 
-      // Check for scheduled workout today
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      // Check for scheduled workout today using client-supplied local date
+      const greetingTodayStart = new Date(`${todayDate}T00:00:00.000Z`);
+      const greetingTodayEnd = new Date(`${todayDate}T23:59:59.999Z`);
       const scheduledToday = await prisma.workout.findFirst({
-        where: { userId, scheduledDate: { gte: todayStart, lte: todayEnd }, completedAt: null },
+        where: { userId, scheduledDate: { gte: greetingTodayStart, lte: greetingTodayEnd }, completedAt: null },
       });
 
       // Body weight trend
@@ -80797,13 +80791,7 @@ router.get('/starters', authenticate, async (req: AuthRequest, res: Response) =>
         orderBy: { completedAt: 'desc' },
       }),
       prisma.meal.findMany({
-        where: {
-          userId,
-          createdAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-            lte: new Date(new Date().setHours(23, 59, 59, 999)),
-          },
-        },
+        where: { userId, date: new Date().toISOString().split('T')[0] },
       }),
       prisma.bodyWeight.findFirst({ where: { userId }, orderBy: { date: 'desc' } }),
       prisma.program.findFirst({ where: { userId, isActive: true } }),
