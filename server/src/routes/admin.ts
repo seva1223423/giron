@@ -1637,8 +1637,9 @@ router.get('/announcements/active', authenticate, async (req: AuthRequest, res: 
   try {
     const now = new Date();
     // Get user's subscription plan if needed for targeting
-    const userSub = await prisma.subscription.findFirst({ where: { userId: req.userId! }, select: { plan: true, status: true } });
-    const userPlan = userSub?.status === 'active' ? userSub.plan : 'free';
+    const userSub = await prisma.subscription.findFirst({ where: { userId: req.userId! }, select: { plan: true, status: true, endDate: true } });
+    const subActive = (userSub?.status === 'active' || userSub?.status === 'cancelled') && (!userSub.endDate || userSub.endDate >= now);
+    const userPlan = subActive ? userSub!.plan : 'free';
     const list = await prisma.announcement.findMany({
       where: {
         isActive: true,

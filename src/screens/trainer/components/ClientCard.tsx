@@ -17,10 +17,13 @@ const LEVEL_LABELS: Record<string, string> = {
 
 function daysSince(dateStr?: string): string | null {
   if (!dateStr) return null;
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-  if (diff === 0) return 'сегодня';
+  const today = localDateStr(new Date());
+  if (dateStr === today) return 'сегодня';
+  // Parse as local midnight to avoid UTC offset skewing the day count
+  const diff = Math.round((new Date(`${today}T00:00:00`).getTime() - new Date(`${dateStr}T00:00:00`).getTime()) / 86400000);
   if (diff === 1) return 'вчера';
-  return `${diff} дн. назад`;
+  if (diff > 1) return `${diff} дн. назад`;
+  return null;
 }
 
 interface Props {
