@@ -2241,6 +2241,7 @@ async function executeTool(
     const { mealId, items } = toolInput as { mealId: string; items: Array<{ name: string; weightGrams: number; calories: number; protein: number; fats: number; carbs: number }> };
     const meal = await prisma.meal.findFirst({ where: { id: mealId, userId } });
     if (!meal) return { resultText: 'Приём пищи не найден', actionDescription: '' };
+    if (!items || items.length === 0) return { resultText: 'Список продуктов не может быть пустым', actionDescription: '' };
 
     const totalCalories = items.reduce((s, i) => s + i.calories, 0);
     const totalProtein = items.reduce((s, i) => s + i.protein, 0);
@@ -2317,7 +2318,7 @@ async function executeTool(
       if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
       for (const we of workout.exercises) {
         if (we.exercise?.name.toLowerCase().includes(oldExerciseName.toLowerCase())) {
-          await prisma.workoutExercise.update({ where: { id: we.id }, data: { exerciseId: newEx.id } });
+          await prisma.workoutExercise.updateMany({ where: { id: we.id }, data: { exerciseId: newEx.id } });
           swapped++;
         }
       }
