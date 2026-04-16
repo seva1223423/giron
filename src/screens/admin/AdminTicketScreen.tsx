@@ -75,7 +75,7 @@ function MessageBubble({ msg, myId }: { msg: SupportMessage; myId?: string }) {
 export default function AdminTicketScreen() {
   const route = useRoute<RouteProp<{ AdminTicketScreen: RouteParams }, 'AdminTicketScreen'>>();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { ticketId } = route.params;
+  const { ticketId } = route.params ?? {};
   const userId = useAuthStore((s) => s.user?.id);
   const flatRef = useRef<FlatList>(null);
 
