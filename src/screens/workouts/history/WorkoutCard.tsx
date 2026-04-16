@@ -39,7 +39,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
   const completedSets = workout.exercises.reduce((s: number, e: any) => s + e.sets.filter((set: any) => set.completed).length, 0);
   const prCount = workout.exercises.reduce((s: number, e: any) => s + e.sets.filter((set: any) => set.isPR).length, 0);
   const muscleSet = new Set<string>();
-  workout.exercises.forEach((ex: any) => ex.exercise.primaryMuscles.slice(0, 1).forEach((m: string) => muscleSet.add(m)));
+  workout.exercises.forEach((ex: any) => (ex.exercise?.primaryMuscles ?? []).slice(0, 1).forEach((m: string) => muscleSet.add(m)));
   const muscles = Array.from(muscleSet).slice(0, 3);
 
   const handleRepeat = () => {
