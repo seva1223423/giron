@@ -52,10 +52,9 @@ export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600, nav
     return matchesSearch && matchesMuscle;
   });
 
-  const displayed = showAll ? filtered.slice(0, PAGE_SIZE) : filtered.slice(0, PAGE_SIZE);
-  const visibleCount = showAll ? Math.min(filtered.length, PAGE_SIZE) : Math.min(filtered.length, 10);
+  const visibleCount = showAll ? filtered.length : Math.min(filtered.length, 10);
   const visible = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount && visibleCount < PAGE_SIZE;
+  const hasMore = filtered.length > visibleCount;
 
   return (
     <FadeIn delay={delay}>
