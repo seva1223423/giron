@@ -113,7 +113,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
       name: tc.function.name,
       arguments:
         typeof tc.function.arguments === 'string'
-          ? JSON.parse(tc.function.arguments)
+          ? (() => { try { return JSON.parse(tc.function.arguments); } catch { return {}; } })()
           : tc.function.arguments,
     })),
     hasToolCalls: rawToolCalls.length > 0,

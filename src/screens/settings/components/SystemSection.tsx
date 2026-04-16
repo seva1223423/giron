@@ -47,7 +47,7 @@ export const SystemSection: React.FC = () => {
   const handleImport = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
-      if (result.canceled) return;
+      if (result.canceled || !result.assets?.length) return;
       const uri = result.assets[0].uri;
       const content = await FileSystem.readAsStringAsync(uri);
       const data = JSON.parse(content);

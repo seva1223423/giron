@@ -421,7 +421,8 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     // Verify TOTP code or backup code
     if (backupCode) {
       // Backup code flow
-      const rawBackupCodes: Array<{ hash: string; used: boolean }> = JSON.parse((user as any).totpBackupCodes || '[]');
+      let rawBackupCodes: Array<{ hash: string; used: boolean }>;
+      try { rawBackupCodes = JSON.parse((user as any).totpBackupCodes || '[]'); } catch { rawBackupCodes = []; }
       const codeHash = crypto.createHash('sha256').update(backupCode.toUpperCase()).digest('hex');
       const matchIdx = rawBackupCodes.findIndex((c) => c.hash === codeHash && !c.used);
       if (matchIdx === -1) {
