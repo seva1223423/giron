@@ -169,7 +169,7 @@ export default function AdminAnalyticsScreen() {
   // Peak day
   const peakWorkoutIdx = workouts.indexOf(Math.max(...workouts));
   if (Math.max(...workouts) > 0 && data.timeline[peakWorkoutIdx]) {
-    const peakDate = new Date(data.timeline[peakWorkoutIdx].date).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
+    const peakDate = new Date(String(data.timeline[peakWorkoutIdx].date).split('T')[0] + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
     insights.push({ icon: '🏆', text: `Пик тренировок: ${Math.max(...workouts)} за ${peakDate}`, color: '#F59E0B' });
   }
   // Zero workout days
@@ -571,7 +571,7 @@ export default function AdminAnalyticsScreen() {
           {cohorts.map((c, i) => {
             const color = c.retentionPct >= 30 ? '#10B981' : c.retentionPct >= 10 ? '#F59E0B' : '#EF4444';
             const barW = Math.max(2, c.retentionPct);
-            const weekLabel = new Date(c.week).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+            const weekLabel = new Date(String(c.week).split('T')[0] + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
             const isCurrentWeek = i === cohorts.length - 1;
             return (
               <View key={c.week} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
