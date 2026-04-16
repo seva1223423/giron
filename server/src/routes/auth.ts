@@ -314,16 +314,21 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const valid = await bcrypt.compare(data.password, user.passwordHash);
     if (!valid) {
-      const attempts = user.loginAttempts + 1;
-      const shouldLock = attempts >= MAX_LOGIN_ATTEMPTS;
-      // Use { increment: 1 } for atomic counter update — prevents counter corruption under concurrent requests
-      await prisma.user.update({
+      // Increment first, then decide based on the actual post-increment value to avoid TOCTOU
+      // under concurrent requests (two threads reading the same stale count could both skip lock)
+      const updated = await prisma.user.update({
         where: { id: user.id },
-        data: {
-          loginAttempts: { increment: 1 },
-          ...(shouldLock ? { lockedUntil: new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) } : {}),
-        },
+        data: { loginAttempts: { increment: 1 } },
+        select: { loginAttempts: true },
       });
+      const attempts = updated.loginAttempts;
+      const shouldLock = attempts >= MAX_LOGIN_ATTEMPTS;
+      if (shouldLock) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lockedUntil: new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) },
+        });
+      }
       await logSecurityEvent(shouldLock ? 'ACCOUNT_LOCKED' : 'LOGIN_FAIL', user.id, req, `email=${data.email} attempts=${attempts}`);
       const attemptsLeft = Math.max(0, MAX_LOGIN_ATTEMPTS - attempts);
       return res.status(401).json({
