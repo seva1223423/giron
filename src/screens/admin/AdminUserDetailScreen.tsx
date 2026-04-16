@@ -799,8 +799,8 @@ export default function AdminUserDetailScreen() {
               })}
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={styles.listMeta}>{new Date(sorted[0].date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {first.toFixed(1)} кг</Text>
-              <Text style={styles.listMeta}>{new Date(sorted[sorted.length - 1].date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {last.toFixed(1)} кг</Text>
+              <Text style={styles.listMeta}>{new Date(String(sorted[0].date).split('T')[0] + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {first.toFixed(1)} кг</Text>
+              <Text style={styles.listMeta}>{new Date(String(sorted[sorted.length - 1].date).split('T')[0] + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {last.toFixed(1)} кг</Text>
             </View>
           </View>
         );
