@@ -7,6 +7,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { NutritionItem, Meal } from '../../../types';
 import { scheduleNutritionSummaryReminder } from '../../../services/notificationService';
+import { localDateStr } from '../../../utils/date';
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Завтрак', emoji: 'З' },
@@ -15,7 +16,7 @@ const MEAL_TYPES = [
   { key: 'snack', label: 'Перекус', emoji: 'П' },
 ] as const;
 
-const todayDate = () => new Date().toISOString().split('T')[0];
+const todayDate = () => localDateStr(new Date());
 
 interface Props {
   visible: boolean;

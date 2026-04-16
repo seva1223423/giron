@@ -194,25 +194,25 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           fetchHistory().catch(() => {});
         }
         if (types.includes('update_user_profile') || types.includes('log_body_weight')) fetchProfile().catch(() => {});
-        if (types.includes('log_meal') || types.includes('delete_meal') || types.includes('modify_meal')) syncMealsFromServer(new Date().toISOString().split('T')[0]).catch(() => {});
+        if (types.includes('log_meal') || types.includes('delete_meal') || types.includes('modify_meal')) syncMealsFromServer(localDateStr(new Date())).catch(() => {});
         if (types.includes('log_cardio')) syncCardio().catch(() => {});
         if (types.includes('log_water')) {
           const waterAction = actions.find((act) => act.type === 'log_water');
-          if (waterAction?.data?.ml) addWater(new Date().toISOString().split('T')[0], waterAction.data.ml as number);
+          if (waterAction?.data?.ml) addWater(localDateStr(new Date()), waterAction.data.ml as number);
         }
         if (types.includes('update_nutrition_targets')) {
           const nutrAction = actions.find((act) => act.type === 'update_nutrition_targets');
           if (nutrAction?.data) {
             const { calories, protein, fats, carbs } = nutrAction.data as any;
             if (typeof calories === 'number' && typeof protein === 'number' && typeof fats === 'number' && typeof carbs === 'number') {
-              setTargets(new Date().toISOString().split('T')[0], { calories, protein, fats, carbs });
+              setTargets(localDateStr(new Date()), { calories, protein, fats, carbs });
             }
           }
         }
         if (types.includes('set_water_target')) {
           const wtAction = actions.find((act) => act.type === 'set_water_target');
           if (wtAction?.data?.waterTargetMl) {
-            const today = new Date().toISOString().split('T')[0];
+            const today = localDateStr(new Date());
             const currentTargets = defaultTargets;
             setTargets(today, { calories: currentTargets.calories, protein: currentTargets.protein, fats: currentTargets.fats, carbs: currentTargets.carbs, waterTargetMl: wtAction.data.waterTargetMl as number });
           }

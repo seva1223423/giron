@@ -12,8 +12,9 @@ import type { NutritionItem, Meal } from '../../types';
 import { aiService, getApiError } from '../../services';
 import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../../services/notificationService';
 import { BarcodeScannerModal, RecognizedItemCard } from './scanner';
+import { localDateStr } from '../../utils/date';
 
-const todayDate = () => new Date().toISOString().split('T')[0];
+const todayDate = () => localDateStr(new Date());
 
 // ─── Barcode cache ────────────────────────────────────────────────────────────
 

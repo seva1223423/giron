@@ -5,13 +5,15 @@ import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import type { DailyNutrition } from '../../../types';
+import { localDateStr } from '../../../utils/date';
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const today = localDateStr(new Date());
+  const yest = new Date(); yest.setDate(yest.getDate() - 1);
+  const yesterday = localDateStr(yest);
   if (dateStr === today) return 'Сегодня';
   if (dateStr === yesterday) return 'Вчера';
   return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
