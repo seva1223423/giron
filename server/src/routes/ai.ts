@@ -15126,10 +15126,12 @@ function generateDeloadPrescription(
   const exerciseWeights: Record<string, number[]> = {};
   for (const w of recentWorkouts.slice(0, 3)) {
     for (const ex of w.exercises) {
+      const exName15131 = ex.exercise?.name;
+      if (!exName15131) continue;
       const weights = ex.sets.filter(s => s.weight && s.completed).map(s => s.weight!);
       if (weights.length > 0) {
-        if (!exerciseWeights[ex.exercise?.name]) exerciseWeights[ex.exercise?.name] = [];
-        exerciseWeights[ex.exercise?.name].push(...weights);
+        if (!exerciseWeights[exName15131]) exerciseWeights[exName15131] = [];
+        exerciseWeights[exName15131].push(...weights);
       }
     }
   }
@@ -15600,9 +15602,11 @@ function detectTrainingMonotony(
   for (const w of recentWorkouts.slice(0, totalWorkouts)) {
     const seen = new Set<string>();
     for (const ex of w.exercises) {
-      if (!seen.has(ex.exercise?.name)) {
-        exerciseCount[ex.exercise?.name] = (exerciseCount[ex.exercise?.name] || 0) + 1;
-        seen.add(ex.exercise?.name);
+      const exName = ex.exercise?.name;
+      if (!exName) continue;
+      if (!seen.has(exName)) {
+        exerciseCount[exName] = (exerciseCount[exName] || 0) + 1;
+        seen.add(exName);
       }
     }
   }
@@ -15617,11 +15621,13 @@ function detectTrainingMonotony(
   const stagnant: string[] = [];
   for (const w of recentWorkouts.slice(0, 4)) {
     for (const ex of w.exercises) {
+      const stagnantExName = ex.exercise?.name;
+      if (!stagnantExName) continue;
       const weights = ex.sets.filter(s => s.weight).map(s => s.weight!);
       if (weights.length >= 3) {
         const allSame = weights.every(w => w === weights[0]);
-        if (allSame && !stagnant.includes(ex.exercise?.name)) {
-          stagnant.push(ex.exercise?.name);
+        if (allSame && !stagnant.includes(stagnantExName)) {
+          stagnant.push(stagnantExName);
         }
       }
     }
@@ -15663,6 +15669,7 @@ function analyzeGripStrength(
   for (const w of recentWorkouts.slice(0, 5)) {
     for (const ex of w.exercises) {
       const nameL = ex.exercise?.name?.toLowerCase();
+      if (!nameL) continue;
       const isGripExercise = gripExercises.some(g => nameL.includes(g));
       if (!isGripExercise) continue;
 
@@ -15710,17 +15717,19 @@ function detectBilateralImbalance(
   for (const w of recentWorkouts.slice(0, 5)) {
     for (const ex of w.exercises) {
       if (ex.exercise?.type === 'dumbbell') {
+        const dbExName = ex.exercise?.name;
+        if (!dbExName) continue;
         // Check for incomplete sets pattern (alternating complete/incomplete could indicate imbalance)
         const completedCount = ex.sets.filter(s => s.completed).length;
         const totalCount = ex.sets.length;
         if (totalCount >= 3 && completedCount / totalCount < 0.7) {
-          dbExercises.push(ex.exercise?.name);
+          dbExercises.push(dbExName);
         }
         // Check notes for imbalance mentions
         for (const s of ex.sets) {
           if (s.notes && /лев|прав|слаб|left|right|weak/i.test(s.notes)) {
-            if (!dbExercises.includes(ex.exercise?.name)) {
-              dbExercises.push(ex.exercise?.name);
+            if (!dbExercises.includes(dbExName)) {
+              dbExercises.push(dbExName);
             }
           }
         }
@@ -16456,8 +16465,10 @@ function trackProgressiveOverload(
       const maxW = Math.max(...workingSets.map(s => s.weight!));
       const bestSet = workingSets.find(s => s.weight === maxW);
 
-      if (!exerciseProgress[ex.exercise?.name]) exerciseProgress[ex.exercise?.name] = [];
-      exerciseProgress[ex.exercise?.name].push({
+      const progExName = ex.exercise?.name;
+      if (!progExName) continue;
+      if (!exerciseProgress[progExName]) exerciseProgress[progExName] = [];
+      exerciseProgress[progExName].push({
         date: w.completedAt.getTime(),
         maxWeight: maxW,
         bestSet: bestSet ? `${bestSet.weight}кг × ${bestSet.reps}` : '',
