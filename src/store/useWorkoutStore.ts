@@ -103,11 +103,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
         try {
           const serverPlan = await userService.getWeekPlan();
           if (serverPlan && Object.keys(serverPlan).length > 0) {
-            // Only overwrite local if server has data and local is empty
-            const localHasData = Object.keys(get().weekPlan).some((k) => get().weekPlan[Number(k)] != null);
-            if (!localHasData) {
-              set({ weekPlan: serverPlan as Record<number, WeekPlanEntry | null> });
-            }
+            // Server is source of truth — always apply server plan
+            set({ weekPlan: serverPlan as Record<number, WeekPlanEntry | null> });
           }
         } catch {
           // Keep local plan if server unreachable
@@ -124,8 +121,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
       })),
 
       saveAsTemplate: (workout) => set((s) => {
-        // Avoid duplicates by id
-        const exists = s.savedTemplates.some((t) => t.id === workout.id);
+        // Avoid duplicates: check by originalId (stored on template) or by source workout id
+        const exists = s.savedTemplates.some(
+          (t) => (t as any).originalId === workout.id || t.id === workout.id
+        );
         if (exists) return s;
         const template: Workout = {
           ...workout,
@@ -135,6 +134,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
           durationMinutes: undefined,
           totalVolume: undefined,
         };
+        (template as any).originalId = workout.id;
         return { savedTemplates: [template, ...s.savedTemplates] };
       }),
 
