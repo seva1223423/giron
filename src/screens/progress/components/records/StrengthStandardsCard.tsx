@@ -31,15 +31,17 @@ export const StrengthStandardsCard: React.FC<Props> = ({ personalRecords, bodyWe
   const standardData = STRENGTH_STANDARDS.map((std) => {
     const pr = personalRecords.find((r) => r.exerciseId === std.exerciseId);
     if (!pr) return null;
+    if (!bodyWeightKg || bodyWeightKg <= 0) return null;
     const ratio = pr.estimated1RM / bodyWeightKg;
     let levelIdx = 0;
     for (let li = 0; li < std.multipliers.length; li++) {
       if (ratio >= std.multipliers[li]) levelIdx = li;
     }
     const nextMult = std.multipliers[Math.min(levelIdx + 1, std.multipliers.length - 1)];
+    const denominator = nextMult - std.multipliers[levelIdx];
     const progress = levelIdx >= std.multipliers.length - 1
       ? 1
-      : Math.max(0, Math.min(1, (ratio - std.multipliers[levelIdx]) / (nextMult - std.multipliers[levelIdx])));
+      : denominator === 0 ? 1 : Math.max(0, Math.min(1, (ratio - std.multipliers[levelIdx]) / denominator));
     return { ...std, pr: pr.estimated1RM, ratio: Math.round(ratio * 100) / 100, levelIdx, progress };
   }).filter(Boolean) as { exerciseId: string; name: string; multipliers: number[]; pr: number; ratio: number; levelIdx: number; progress: number }[];
 
