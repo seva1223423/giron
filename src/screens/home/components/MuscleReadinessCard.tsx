@@ -29,7 +29,7 @@ export const MuscleReadinessCard: React.FC<Props> = ({ workoutHistory }) => {
       if (!w.completedAt) return;
       const completedMs = new Date(w.completedAt).getTime();
       w.exercises.forEach((ex) => {
-        ex.exercise.primaryMuscles.forEach((m) => {
+        (ex.exercise?.primaryMuscles ?? []).forEach((m) => {
           if (!lastTrained[m] || completedMs > lastTrained[m]) lastTrained[m] = completedMs;
         });
       });

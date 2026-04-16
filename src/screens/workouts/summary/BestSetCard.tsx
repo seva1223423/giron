@@ -18,7 +18,7 @@ export const BestSetCard: React.FC<Props> = ({ workout }) => {
     ex.sets.filter((s) => s.completed).forEach((s) => {
       const v = (s.weight || 0) * (s.reps || 0);
       if (v > bestWeight * bestReps) {
-        bestName = ex.exercise.name;
+        bestName = ex.exercise?.name;
         bestWeight = s.weight || 0;
         bestReps = s.reps || 0;
       }

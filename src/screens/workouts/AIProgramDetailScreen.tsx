@@ -110,7 +110,7 @@ function WorkoutCard({ workout, dayIndex, goalColor, isExpanded, onToggle, onSta
                   </Text>
                   {ex.exercise?.primaryMuscles?.length > 0 && (
                     <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                      {ex.exercise.primaryMuscles.slice(0, 2).map((m) => MUSCLE_LABELS[m] || m).join(' · ')}
+                      {(ex.exercise?.primaryMuscles ?? []).slice(0, 2).map((m) => MUSCLE_LABELS[m] || m).join(' · ')}
                     </Text>
                   )}
                 </View>

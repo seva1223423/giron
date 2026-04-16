@@ -111,7 +111,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
                 <View key={ex.id} style={[styles.exRow, ei < workout.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex.exercise.name}</Text>
+                      <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex.exercise?.name}</Text>
                       {hasPR && (
                         <View style={[styles.prBadge, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '60' }]}>
                           <Text style={{ fontSize: 9, color: colors.warning, fontWeight: '700' }}>PR</Text>

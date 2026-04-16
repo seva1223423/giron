@@ -74,7 +74,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         </View>
 
         <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>
-          {currentExercise.exercise.name}
+          {currentExercise.exercise?.name}
         </Text>
 
         {/* Muscle group chips */}
@@ -94,9 +94,9 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         )}
 
         {/* Equipment type indicator */}
-        {currentExercise.exercise.type && (
+        {currentExercise.exercise?.type && (
           <Text style={{ fontSize: 9, fontWeight: '500', color: colors.textTertiary, marginTop: 2, letterSpacing: 0.3 }}>
-            {EQUIPMENT_LABELS[currentExercise.exercise.type] || currentExercise.exercise.type}
+            {EQUIPMENT_LABELS[currentExercise.exercise?.type] || currentExercise.exercise?.type}
           </Text>
         )}
 

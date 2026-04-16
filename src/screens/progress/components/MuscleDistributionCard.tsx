@@ -50,7 +50,7 @@ export function computeMuscleDistribution(workoutHistory: { exercises: { sets: {
   workoutHistory.forEach((w) => {
     w.exercises.forEach((ex) => {
       const completedSets = ex.sets.filter((s) => s.completed).length;
-      ex.exercise.primaryMuscles.forEach((m) => {
+      (ex.exercise?.primaryMuscles ?? []).forEach((m) => {
         muscles[m] = (muscles[m] || 0) + completedSets;
       });
     });

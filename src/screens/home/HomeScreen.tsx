@@ -184,7 +184,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       workoutHistory.forEach((w) => {
         if (!w.completedAt) return;
         const hasThisSplit = w.exercises.some((ex) =>
-          ex.exercise.primaryMuscles.some((m) => split.muscles.includes(m))
+          (ex.exercise?.primaryMuscles ?? []).some((m) => split.muscles.includes(m))
         );
         if (hasThisSplit) {
           const daysAgo = Math.floor((Date.now() - new Date(w.completedAt).getTime()) / 86400000);
