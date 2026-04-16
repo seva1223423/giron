@@ -10,7 +10,7 @@ const ONE_RM_PERCENTAGES = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50];
 
 function calcEpley(w: number, r: number) { return r === 1 ? w : w * (1 + r / 30); }
 function calcBrzycki(w: number, r: number) { return r === 1 ? w : r >= 37 ? w : w * (36 / (37 - r)); }
-function calcLander(w: number, r: number) { return r === 1 ? w : (100 * w) / (101.3 - 2.67123 * r); }
+function calcLander(w: number, r: number) { return r === 1 ? w : r >= 38 ? w : (100 * w) / (101.3 - 2.67123 * r); }
 
 export const OneRMCalculatorTab: React.FC = () => {
   const haptic = useHaptic();

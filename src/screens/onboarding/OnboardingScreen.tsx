@@ -40,9 +40,9 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
         setWeekPlanDay(dayIndex, { name: 'Тренировка', emoji: '◎', exercises: [] });
       }
     });
-    const heightVal = parseInt(height) || 175;
-    const weightVal = parseFloat(weight) || 75;
-    const ageVal = parseInt(age) || 25;
+    const heightVal = Math.max(100, Math.min(300, parseInt(height, 10) || 175));
+    const weightVal = Math.max(20, Math.min(500, parseFloat(weight) || 75));
+    const ageVal = Math.max(10, Math.min(120, parseInt(age, 10) || 25));
     // Use July 1 as estimated birth date (midpoint of year) to minimise ±1 year error
     const dateOfBirth = ageVal > 0 ? new Date(new Date().getFullYear() - ageVal, 6, 1).toISOString() : undefined;
 
