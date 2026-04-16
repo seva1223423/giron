@@ -65,7 +65,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
           totalVolume: completedSets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0),
         };
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      .sort((a, b) => (b.date ? new Date(b.date).getTime() : 0) - (a.date ? new Date(a.date).getTime() : 0)),
   [workoutHistory, exerciseId]);
 
   const maxWeight = Math.max(0, ...exerciseHistory.map((h) => h.bestWeight));
@@ -85,12 +85,16 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
 
   const oneRMTrend = useMemo(() => {
     const sessions = [...exerciseHistory].reverse().slice(-30);
-    return sessions.map((h, i) => ({
-      label: sessions.length <= 10 || i % Math.ceil(sessions.length / 10) === 0
-        ? new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', '')
-        : '',
-      value: Math.round(h.bestWeight * (1 + h.bestReps / 30)),
-    }));
+    return sessions.map((h, i) => {
+      const d = h.date ? new Date(h.date) : null;
+      const validDate = d && !isNaN(d.getTime());
+      return {
+        label: sessions.length <= 10 || i % Math.ceil(sessions.length / 10) === 0
+          ? validDate ? d!.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace(' ', '') : ''
+          : '',
+        value: Math.round(h.bestWeight * (1 + h.bestReps / 30)),
+      };
+    });
   }, [exerciseHistory]);
 
   // Similar exercises: same primary muscle, different exercise, same category
