@@ -32,7 +32,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
         heightCm: heightCm ? parseFloat(heightCm) : undefined,
         goal: goal || undefined,
         fitnessLevel: fitnessLevel || undefined,
-        trainingExperienceYears: experienceYears ? parseInt(experienceYears) : undefined,
+        trainingExperienceYears: experienceYears ? parseInt(experienceYears, 10) : undefined,
       } as any);
       setUser({ ...user!, ...updated });
 

@@ -64,6 +64,9 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const [restTotal, setRestTotal] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [restingAfterLastSet, setRestingAfterLastSet] = useState(false);
+  // Mirror in a ref so handleRestEnd/skipRest always read the up-to-date value even when
+  // called from a stale setInterval closure (setState is async — the closure would capture false)
+  const restingAfterLastSetRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Captures exercise index at the moment rest started — guards against advancing the wrong exercise
   // if the user manually swiped to another exercise while resting
@@ -122,18 +125,22 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     // Guard: only auto-advance if the user hasn't manually navigated to a different exercise
     // while resting (restingExerciseIndexRef captures the index at timer start)
     const stillOnSameExercise = aw && aw.currentExerciseIndex === restingExerciseIndexRef.current;
-    if (restingAfterLastSet && stillOnSameExercise && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
+    // Read from ref (not state) — the setInterval closure captures this callback at startRest
+    // time, before setState(isLastSet) has flushed; the ref is set synchronously in startRest.
+    if (restingAfterLastSetRef.current && stillOnSameExercise && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
       nextExercise();
       haptic.light();
     }
+    restingAfterLastSetRef.current = false;
     setRestingAfterLastSet(false);
     restingExerciseIndexRef.current = -1;
-  }, [restingAfterLastSet]);
+  }, []);
 
   const startRest = (seconds: number, isLastSet: boolean = false) => {
     setRestTime(seconds);
     setRestTotal(seconds);
     setIsResting(true);
+    restingAfterLastSetRef.current = isLastSet; // sync — must be set before interval fires
     setRestingAfterLastSet(isLastSet);
     // Snapshot the exercise index at timer start — used in handleRestEnd to prevent wrong advance
     restingExerciseIndexRef.current = useWorkoutStore.getState().activeWorkout?.currentExerciseIndex ?? -1;
@@ -157,12 +164,13 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     cancelRestEndNotification();
     const aw = useWorkoutStore.getState().activeWorkout;
     const stillOnSameExercise = aw && aw.currentExerciseIndex === restingExerciseIndexRef.current;
-    if (restingAfterLastSet && stillOnSameExercise && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
+    if (restingAfterLastSetRef.current && stillOnSameExercise && aw.currentExerciseIndex < aw.workout.exercises.length - 1) {
       nextExercise();
       haptic.light();
     }
     setIsResting(false);
     setRestTime(0);
+    restingAfterLastSetRef.current = false;
     setRestingAfterLastSet(false);
     restingExerciseIndexRef.current = -1;
   };
