@@ -9440,8 +9440,9 @@ async function getGamificationData(userId: string): Promise<GamificationData> {
 
   const prMap = new Map<string, { weight: number; reps: number; date: Date }>();
   for (const we of exerciseSets) {
+    const name = we.exercise?.name;
+    if (!name) continue;
     for (const s of we.sets) {
-      const name = we.exercise?.name;
       const existing = prMap.get(name);
       if (!existing || (s.weight || 0) > existing.weight) {
         prMap.set(name, { weight: s.weight || 0, reps: s.reps || 0, date: we.workout.completedAt! });
