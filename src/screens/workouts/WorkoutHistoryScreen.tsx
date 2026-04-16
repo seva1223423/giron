@@ -48,8 +48,8 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
   const filtered = useMemo(() => visibleHistory.filter((w) => {
     const q = searchQuery.toLowerCase();
-    const matchSearch = !searchQuery || w.name.toLowerCase().includes(q) || w.exercises.some((ex: any) => ex.exercise?.name?.toLowerCase().includes(q));
-    const matchMuscle = muscleFilter === 'all' || w.exercises.some((ex: any) => ex.exercise?.primaryMuscles?.includes(muscleFilter));
+    const matchSearch = !searchQuery || w.name.toLowerCase().includes(q) || (w.exercises ?? []).some((ex: any) => ex.exercise?.name?.toLowerCase().includes(q));
+    const matchMuscle = muscleFilter === 'all' || (w.exercises ?? []).some((ex: any) => ex.exercise?.primaryMuscles?.includes(muscleFilter));
     return matchSearch && matchMuscle;
   }), [workoutHistory, searchQuery, muscleFilter]);
 

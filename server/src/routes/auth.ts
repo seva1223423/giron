@@ -316,10 +316,11 @@ router.post('/login', async (req: Request, res: Response) => {
     if (!valid) {
       const attempts = user.loginAttempts + 1;
       const shouldLock = attempts >= MAX_LOGIN_ATTEMPTS;
+      // Use { increment: 1 } for atomic counter update — prevents counter corruption under concurrent requests
       await prisma.user.update({
         where: { id: user.id },
         data: {
-          loginAttempts: attempts,
+          loginAttempts: { increment: 1 },
           ...(shouldLock ? { lockedUntil: new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) } : {}),
         },
       });
