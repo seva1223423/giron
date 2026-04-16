@@ -2529,7 +2529,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
     const isPaidSub = userSub && userSub.status === 'active' && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub) {
-      const todayFloor = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+      const todayFloor = new Date(`${todayDate}T00:00:00.000Z`);
       const todayCount = await prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
       if (todayCount >= AI_FREE_DAILY_LIMIT) {
         return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
@@ -3267,8 +3267,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 46: Warm-up generator ──────
     // Get scheduled workout today for warm-up and supplement advice
-    const todayStartDate = new Date(); todayStartDate.setHours(0, 0, 0, 0);
-    const todayEndDate = new Date(); todayEndDate.setHours(23, 59, 59, 999);
+    const todayStartDate = new Date(`${todayDate}T00:00:00.000Z`);
+    const todayEndDate = new Date(`${todayDate}T23:59:59.999Z`);
     const scheduledWorkoutToday = await prisma.workout.findFirst({
       where: { userId, scheduledDate: { gte: todayStartDate, lte: todayEndDate }, completedAt: null },
       include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
@@ -3770,17 +3770,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const formRiskContext = scoreFormRisk(recentWorkouts as any);
 
     // ─── Block 128: Nutrition-training sync ──────
-    const todaysMeals = await prisma.meal.findMany({
-      where: { userId, createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
-      take: 100,
-    });
-    const todayCals = todaysMeals.reduce((s, m) => s + m.totalCalories, 0);
-    const todayProt = todaysMeals.reduce((s, m) => s + m.totalProtein, 0);
+    const todayCals = todayMeals.reduce((s, m) => s + m.totalCalories, 0);
+    const todayProt = todayMeals.reduce((s, m) => s + m.totalProtein, 0);
+    const utcTodayStr = new Date().toISOString().split('T')[0];
     const hadWorkoutToday = recentWorkouts.some((w: any) => {
       if (!w.completedAt) return false;
-      const d = new Date(w.completedAt);
-      const today = new Date();
-      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+      const wDateStr = w.completedAt.toISOString().split('T')[0];
+      return wDateStr === todayDate || wDateStr === utcTodayStr;
     });
     const nutritionSyncContext = analyzeNutritionTrainingSync(
       todayCals, todayProt,
@@ -4105,8 +4101,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const biomechanicsContext = buildBiomechanicsContext(exerciseNamesForBreathing);
 
     // ─── Block 178: Pre-workout checklist ──────
-    const lastMealTime = todaysMeals.length > 0
-      ? todaysMeals[todaysMeals.length - 1].createdAt
+    const lastMealTime = todayMeals.length > 0
+      ? todayMeals[todayMeals.length - 1].createdAt
       : null;
     const lastMealHoursAgo178 = lastMealTime
       ? (Date.now() - new Date(lastMealTime).getTime()) / (1000 * 60 * 60)
