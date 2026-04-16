@@ -603,6 +603,7 @@ model SecurityEvent {
   @@index([userId])
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([userId, action, createdAt])  // checkSuspiciousLogin: filters (userId, action) ordered by createdAt
 }
 
 // ==================== REFRESH TOKENS ====================
