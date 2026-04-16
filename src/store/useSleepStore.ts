@@ -69,10 +69,10 @@ export const useSleepStore = create<SleepStore>()(
               durationHours: e.durationHours,
               quality: e.quality ?? undefined,
             })).sort((a, b) => b.date.localeCompare(a.date));
-            // Merge: server is authoritative, keep any local-only entries newer than last server entry
-            const lastServerDate = mapped[0]?.date ?? '';
-            const localOnly = get().entries.filter((e) => e.date > lastServerDate);
-            set({ entries: [...localOnly, ...mapped] });
+            // Merge: server is authoritative; keep local-only entries (any date) not known to server
+            const serverDates = new Set(mapped.map((e) => e.date));
+            const localOnly = get().entries.filter((e) => !serverDates.has(e.date));
+            set({ entries: [...localOnly, ...mapped].sort((a, b) => b.date.localeCompare(a.date)) });
           }
         } catch {
           // Keep local entries if server unreachable
