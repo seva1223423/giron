@@ -475,7 +475,7 @@ model SupportTicket {
   user         User     @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
 
   assignedToId String?
-  assignedTo   User?    @relation("StaffTickets", fields: [assignedToId], references: [id])
+  assignedTo   User?    @relation("StaffTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   messages     SupportMessage[]
 
