@@ -1337,8 +1337,8 @@ router.get('/logs/export', requireAdmin, async (req: AuthRequest, res: Response)
       rows.push([
         l.id,
         l.action,
-        l.admin.email,
-        `${l.admin.firstName} ${l.admin.lastName ?? ''}`.trim(),
+        l.admin?.email ?? '',
+        `${l.admin?.firstName ?? ''} ${l.admin?.lastName ?? ''}`.trim(),
         l.targetId ?? '',
         l.details ?? '',
         l.createdAt.toISOString(),
