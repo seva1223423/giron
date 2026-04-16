@@ -339,7 +339,7 @@ model TrainerClient {
   notes           String?
   emoji           String?  @default("🧑")
   totalWorkouts   Int      @default(0)
-  lastVisit       DateTime?
+  lastVisit       String?   // YYYY-MM-DD
 
   trainerId       String
   trainer         User              @relation(fields: [trainerId], references: [id], onDelete: Cascade)

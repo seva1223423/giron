@@ -87,7 +87,6 @@ router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
 
     const data: Record<string, any> = { ...parsed.data };
-    if (data.lastVisit) data.lastVisit = new Date(data.lastVisit);
 
     const client = await prisma.trainerClient.updateMany({
       where: { id: req.params.id as string, trainerId: req.userId! } as any,
@@ -170,7 +169,7 @@ router.post('/sessions/:clientId', authenticate, requireTrainerRole as any, asyn
         where: { id: req.params.clientId as string, trainerId: req.userId! },
         data: {
           totalWorkouts: { increment: 1 },
-          lastVisit: new Date(parsed.data.date),
+          lastVisit: parsed.data.date,
         },
       }),
     ]);
