@@ -2182,7 +2182,7 @@ async function executeTool(
   if (toolName === 'delete_program') {
     const active = await prisma.program.findFirst({ where: { userId, isActive: true } });
     if (!active) return { resultText: 'Нет активной программы для удаления', actionDescription: '' };
-    await prisma.program.update({ where: { id: active.id }, data: { isActive: false } });
+    await prisma.program.updateMany({ where: { id: active.id, userId }, data: { isActive: false } });
     return {
       resultText: `Программа "${active.name}" деактивирована`,
       actionDescription: `Программа "${active.name}" удалена`,
