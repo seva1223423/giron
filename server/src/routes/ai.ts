@@ -2340,7 +2340,7 @@ async function executeTool(
     for (const workout of active.workouts) {
       if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
       for (const we of workout.exercises) {
-        if (we.exercise?.name.toLowerCase().includes(oldExerciseName.toLowerCase())) {
+        if (we.exercise?.name?.toLowerCase().includes(oldExerciseName.toLowerCase())) {
           await prisma.workoutExercise.updateMany({ where: { id: we.id }, data: { exerciseId: newEx.id } });
           swapped++;
         }
@@ -2362,8 +2362,8 @@ async function executeTool(
     let found = false;
     for (const workout of active.workouts) {
       if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
-      const ex1 = workout.exercises.find((e) => e.exercise?.name.toLowerCase().includes(exercise1Name.toLowerCase()));
-      const ex2 = workout.exercises.find((e) => e.exercise?.name.toLowerCase().includes(exercise2Name.toLowerCase()));
+      const ex1 = workout.exercises.find((e) => e.exercise?.name?.toLowerCase().includes(exercise1Name.toLowerCase()));
+      const ex2 = workout.exercises.find((e) => e.exercise?.name?.toLowerCase().includes(exercise2Name.toLowerCase()));
       if (ex1 && ex2) {
         await prisma.workoutExercise.updateMany({ where: { id: ex1.id }, data: { supersetGroupId: groupId } });
         await prisma.workoutExercise.updateMany({ where: { id: ex2.id }, data: { supersetGroupId: groupId } });
@@ -4043,8 +4043,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     for (const wo of recentWorkouts) {
       for (const ex of (wo.exercises as any[])) {
         const best = Math.max(0, ...(ex.sets ?? []).filter((s: any) => s.completed && s.weight).map((s: any) => s.weight as number));
-        if (best > 0 && !strengthBestLifts[ex.exercise?.name]) {
-          strengthBestLifts[ex.exercise?.name] = best;
+        const exName = ex.exercise?.name;
+        if (best > 0 && exName && !strengthBestLifts[exName]) {
+          strengthBestLifts[exName] = best;
         }
       }
     }
@@ -9882,6 +9883,7 @@ function analyzeProgressiveOverload(
   for (const we of exerciseSets) {
     if (!we.workout.completedAt || we.sets.length === 0) continue;
     const name = we.exercise?.name;
+    if (!name) continue;
     const maxSet = we.sets.reduce((best, s) =>
       (s.weight || 0) > (best.weight || 0) ? s : best, we.sets[0]);
 
