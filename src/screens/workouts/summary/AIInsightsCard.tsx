@@ -25,10 +25,12 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
           durationMinutes: workout.durationMinutes || 0,
           totalVolume: workout.totalVolume,
           notes: workout.notes,
-          exercises: workout.exercises.map((ex) => ({
-            name: ex.exercise?.name,
-            sets: ex.sets.map((s) => ({ weight: s.weight, reps: s.reps, completed: s.completed, rpe: s.rpe })),
-          })),
+          exercises: workout.exercises
+            .filter((ex) => ex.exercise?.name)
+            .map((ex) => ({
+              name: ex.exercise!.name,
+              sets: ex.sets.map((s) => ({ weight: s.weight, reps: s.reps, completed: s.completed, rpe: s.rpe })),
+            })),
         });
         setInsights(result);
       } catch {
