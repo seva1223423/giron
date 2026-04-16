@@ -1035,9 +1035,14 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Недействительный refresh token' });
     }
 
-    // Check DB: token must exist
+    // Check DB: token must exist and belong to the same user as the JWT payload
     const dbToken = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
     if (!dbToken) return res.status(401).json({ error: 'Refresh token не найден' });
+    if (dbToken.userId !== payload.userId) {
+      // JWT payload userId doesn't match DB record — possible token swap attempt
+      logSecurityEvent('SUSPICIOUS_LOGIN', payload.userId, req, 'refresh_token_userId_mismatch');
+      return res.status(401).json({ error: 'Недействительный refresh token' });
+    }
 
     // Reuse detection: if the token was already revoked, someone may have stolen it.
     // Revoke ALL tokens for this user to protect the account.
