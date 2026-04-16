@@ -3382,7 +3382,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // Determine training focus from recent exercises (use recentWorkouts which has exercise data)
     let trainingFocus: 'strength' | 'hypertrophy' | 'cardio' | 'mixed' | null = null;
     if (recentWorkouts.length > 0) {
-      const allCategories = recentWorkouts.flatMap((w) => w.exercises.map((e) => e.exercise?.category));
+      const allCategories = recentWorkouts.flatMap((w) => (w.exercises ?? []).map((e) => e.exercise?.category));
       const strengthCount = allCategories.filter((c) => c === 'strength').length;
       const cardioCount = allCategories.filter((c) => c === 'cardio').length;
       if (cardioCount > strengthCount) trainingFocus = 'cardio';
@@ -83413,7 +83413,7 @@ router.post('/workout-insights', authenticate, async (req: AuthRequest, res: Res
       const avgRpe = done.filter((s) => s.rpe).length > 0
         ? (done.reduce((sum, s) => sum + (s.rpe ?? 0), 0) / done.filter((s) => s.rpe).length).toFixed(1)
         : null;
-      const best = done.reduce((b, s) => (!b || (s.weight || 0) > (b.weight || 0) ? s : b), done[0]);
+      const best = done.length > 0 ? done.reduce((b, s) => (!b || (s.weight || 0) > (b.weight || 0) ? s : b), done[0]) : null;
       return `${ex.name}: ${done.length} подходов${best ? `, лучший ${best.weight} кг × ${best.reps} повт.` : ''}${avgRpe ? `, RPE ${avgRpe}` : ''}`;
     }).join('\n');
 

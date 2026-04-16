@@ -843,15 +843,15 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
     if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
     if (activeOtp.code !== code) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
-    await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+    await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
 
     // Update email, revoke all sessions + trusted devices, issue new tokens for the current device
     await prisma.user.update({
@@ -932,15 +932,15 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
     if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
     if (activeOtp.code !== code) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
-    await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+    await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
 
     // Update phone number, revoke all sessions + trusted devices, issue new tokens for the current device
     await prisma.user.update({
