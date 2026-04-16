@@ -2048,16 +2048,17 @@ async function executeTool(
       }
 
       if (sets && sets.length > 0) {
-        // Replace all sets with provided ones (clamp values to sensible ranges)
-        await prisma.workoutSet.deleteMany({ where: { workoutExerciseId: we.id } });
-        await prisma.workoutSet.createMany({
-          data: sets.slice(0, 20).map((s, i) => ({
-            workoutExerciseId: we.id,
-            setNumber: i + 1,
-            reps: Math.min(100, Math.max(1, Math.round(Number(s.reps) || 10))),
-            weight: s.weight != null ? Math.min(500, Math.max(0, Number(s.weight) || 0)) : null,
-          })),
-        });
+        // Replace all sets atomically — delete+create in a transaction to avoid leaving exercise with no sets
+        const newSets = sets.slice(0, 20).map((s, i) => ({
+          workoutExerciseId: we.id,
+          setNumber: i + 1,
+          reps: Math.min(100, Math.max(1, Math.round(Number(s.reps) || 10))),
+          weight: s.weight != null ? Math.min(500, Math.max(0, Number(s.weight) || 0)) : null,
+        }));
+        await prisma.$transaction([
+          prisma.workoutSet.deleteMany({ where: { workoutExerciseId: we.id } }),
+          prisma.workoutSet.createMany({ data: newSets }),
+        ]);
         const summary = sets.map((s) => `${s.weight ?? '—'}кг×${s.reps}`).join(', ');
         return {
           resultText: `Подходы для "${exerciseRecord.name}" в "${workout.name}" обновлены: ${summary}`,
