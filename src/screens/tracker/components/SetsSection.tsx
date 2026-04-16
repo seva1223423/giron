@@ -314,8 +314,8 @@ export const SetsSection: React.FC<Props> = ({
           <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent + '20', borderWidth: 1, borderColor: colors.accent + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs }}><Text style={{ fontSize: 10, fontWeight: '800', color: colors.accent }}>SS</Text></View>
           <Text style={[typography.small, { color: currentExercise.supersetGroupId ? colors.accent : colors.textSecondary }]}>
             {currentExercise.supersetGroupId
-              ? `\u0421\u0443\u043F\u0435\u0440\u0441\u0435\u0442 \u0441\u043E \u00AB${workout.exercises[currentExerciseIndex + 1]?.exercise.name}\u00BB \u2014 \u043E\u0442\u043C\u0435\u043D\u0438\u0442\u044C`
-              : `\u0421\u0443\u043F\u0435\u0440\u0441\u0435\u0442 \u0441\u043E \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u043C: ${workout.exercises[currentExerciseIndex + 1]?.exercise.name}`}
+              ? `\u0421\u0443\u043F\u0435\u0440\u0441\u0435\u0442 \u0441\u043E \u00AB${workout.exercises[currentExerciseIndex + 1]?.exercise?.name}\u00BB \u2014 \u043E\u0442\u043C\u0435\u043D\u0438\u0442\u044C`
+              : `\u0421\u0443\u043F\u0435\u0440\u0441\u0435\u0442 \u0441\u043E \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u043C: ${workout.exercises[currentExerciseIndex + 1]?.exercise?.name}`}
           </Text>
         </TouchableOpacity>
       )}

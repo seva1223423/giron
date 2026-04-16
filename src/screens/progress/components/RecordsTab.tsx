@@ -29,7 +29,7 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
           const key = ex.exerciseId;
           const estimated1RM = (set.weight || 0) * (1 + (set.reps || 0) / 30);
           if (!records[key] || estimated1RM > records[key].estimated1RM) {
-            records[key] = { exerciseId: ex.exerciseId, name: ex.exercise.name, maxWeight: set.weight || 0, maxReps: set.reps || 0, estimated1RM: Math.round(estimated1RM) };
+            records[key] = { exerciseId: ex.exerciseId, name: ex.exercise?.name ?? '', maxWeight: set.weight || 0, maxReps: set.reps || 0, estimated1RM: Math.round(estimated1RM) };
           }
         });
       });

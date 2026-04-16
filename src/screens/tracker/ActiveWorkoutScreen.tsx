@@ -246,7 +246,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
   // Next exercise name for rest overlay
   const nextExerciseName = currentExerciseIndex < workout.exercises.length - 1
-    ? workout.exercises[currentExerciseIndex + 1]?.exercise.name
+    ? workout.exercises[currentExerciseIndex + 1]?.exercise?.name
     : null;
 
   // Check if current exercise has a PR from this session
