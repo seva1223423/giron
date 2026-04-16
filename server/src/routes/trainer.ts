@@ -26,8 +26,8 @@ async function requireTrainerRole(req: AuthRequest, res: Response, next: Functio
   }
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isValidId = (id: string | string[]) => UUID_RE.test(String(id));
+const CUID_RE = /^c[a-z0-9]{20,30}$/;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 
 const addClientSchema = z.object({
   name: z.string().min(1).max(200),
