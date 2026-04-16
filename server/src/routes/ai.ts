@@ -3884,9 +3884,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       for (const ex of w.exercises) {
         allRestSecsForGoal.push(ex.restSeconds || 90);
         if (ex.exercise?.category === 'cardio') {
-          totalCardioMin += ex.sets.reduce((s: number, set: any) => s + ((set.duration || 0) / 60), 0);
+          totalCardioMin += (ex.sets ?? []).reduce((s: number, set: any) => s + ((set.duration || 0) / 60), 0);
         }
-        for (const s of ex.sets) {
+        for (const s of (ex.sets ?? [])) {
           if (s.completed && s.reps) allRepsForGoal.push(s.reps);
         }
       }
@@ -4017,7 +4017,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const strengthBestLifts: Record<string, number> = {};
     for (const wo of recentWorkouts) {
       for (const ex of (wo.exercises as any[])) {
-        const best = Math.max(0, ...ex.sets.filter((s: any) => s.completed && s.weight).map((s: any) => s.weight as number));
+        const best = Math.max(0, ...(ex.sets ?? []).filter((s: any) => s.completed && s.weight).map((s: any) => s.weight as number));
         if (best > 0 && !strengthBestLifts[ex.exercise?.name]) {
           strengthBestLifts[ex.exercise?.name] = best;
         }
@@ -4411,12 +4411,15 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const gymSafetyContext = getGymSafetyTip(exerciseNamesForBreathing[0] ?? null, totalWorkoutsEver);
 
     // ─── Block 225: Micro-goals ──────
-    const lastWoExercisesForMicro = ((recentWorkouts[0]?.exercises as any[]) || []).map((ex: any) => ({
-      name: ex.exercise?.name,
-      weight: Math.max(0, ...ex.sets.filter((s: any) => s.completed && s.weight).map((s: any) => s.weight)),
-      reps: Math.max(0, ...ex.sets.filter((s: any) => s.completed && s.reps).map((s: any) => s.reps)),
-      sets: ex.sets.filter((s: any) => s.completed).length,
-    })).filter((ex: any) => ex.weight > 0);
+    const lastWoExercisesForMicro = ((recentWorkouts[0]?.exercises as any[]) || []).map((ex: any) => {
+      const sets: any[] = ex.sets ?? [];
+      return {
+        name: ex.exercise?.name,
+        weight: Math.max(0, ...sets.filter((s: any) => s.completed && s.weight).map((s: any) => s.weight)),
+        reps: Math.max(0, ...sets.filter((s: any) => s.completed && s.reps).map((s: any) => s.reps)),
+        sets: sets.filter((s: any) => s.completed).length,
+      };
+    }).filter((ex: any) => ex.weight > 0);
     const microGoalsContext = setMicroGoals(lastWoExercisesForMicro, user?.goal ?? null);
 
     // ─── Block 226: RPE educator ──────
