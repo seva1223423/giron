@@ -59,7 +59,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
         if (est1rm > best1rm) { best1rm = est1rm; bestWeight = s.weight || 0; bestReps = s.reps || 0; }
       });
       if (best1rm > 0 && (!prevBests[ex.exerciseId] || best1rm > prevBests[ex.exerciseId])) {
-        prs.push({ name: ex.exercise.name, weight: bestWeight, reps: bestReps, est1rm: Math.round(best1rm) });
+        prs.push({ name: ex.exercise?.name ?? 'Упражнение', weight: bestWeight, reps: bestReps, est1rm: Math.round(best1rm) });
       }
     });
     return prs;

@@ -1198,6 +1198,9 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     if (e instanceof z.ZodError) {
       return res.status(400).json({ error: e.errors[0].message });
     }
+    if (e?.code === 'P2025') {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка сброса пароля' });
   }
