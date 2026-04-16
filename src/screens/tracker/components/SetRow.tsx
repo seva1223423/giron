@@ -88,8 +88,8 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
   const currentType = set.type || 'normal';
 
   const handleComplete = useCallback(() => {
-    let finalWeight = parseFloat(weight.replace(',', '.')) || 0;
-    let finalReps = parseInt(reps) || 0;
+    let finalWeight = Math.max(0, parseFloat(weight.replace(',', '.')) || 0);
+    let finalReps = Math.max(0, parseInt(reps) || 0);
     if (finalWeight === 0 && prevSet?.weight) {
       finalWeight = prevSet.weight;
       setWeight(String(prevSet.weight));
