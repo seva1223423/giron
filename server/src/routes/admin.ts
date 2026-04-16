@@ -343,8 +343,8 @@ router.get('/users', requireAdmin, async (req: AuthRequest, res: Response) => {
     const ALLOWED_SORT = ['createdAt', 'email', 'firstName', 'lastName'] as const;
     const safeSort = ALLOWED_SORT.includes(sort as any) ? sort : 'createdAt';
     const safeOrder = order === 'asc' ? 'asc' : 'desc';
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
     const VALID_USER_ROLES = ['GUEST', 'VISITOR', 'CLIENT', 'TRAINER', 'SUPPORT', 'ADMIN'];
     const VALID_PLANS = ['free', 'pro', 'trainer', 'club'];
@@ -979,7 +979,7 @@ router.get('/users/export', requireAdmin, async (req: AuthRequest, res: Response
 router.get('/analytics', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { days = '30', refresh } = req.query as Record<string, string>;
-    const numDays = Math.min(90, Math.max(7, parseInt(days) || 30));
+    const numDays = Math.min(90, Math.max(7, parseInt(days, 10) || 30));
     const ANALYTICS_CACHE_KEY = `admin:analytics:${numDays}`;
     const ANALYTICS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -1173,7 +1173,7 @@ router.get('/analytics/cohorts', requireAdmin, async (_req: AuthRequest, res: Re
 router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { days = '30' } = req.query as Record<string, string>;
-    const numDays = Math.min(90, Math.max(7, parseInt(days) || 30));
+    const numDays = Math.min(90, Math.max(7, parseInt(days, 10) || 30));
     const todayUtcStr2 = new Date().toISOString().slice(0, 10);
     const since = new Date(`${todayUtcStr2}T00:00:00.000Z`);
     since.setUTCDate(since.getUTCDate() - numDays);
@@ -1215,7 +1215,7 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
 router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { days = '30' } = req.query as Record<string, string>;
-    const numDays = Math.min(365, Math.max(1, parseInt(days) || 30));
+    const numDays = Math.min(365, Math.max(1, parseInt(days, 10) || 30));
     const now = new Date();
     const start = new Date(now.getTime() - numDays * 86400 * 1000);
 
@@ -1253,8 +1253,8 @@ router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Resp
 router.get('/logs', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { page = '1', limit = '50', action, adminId, search, from, to } = req.query as Record<string, string>;
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
     const skip = (pageNum - 1) * limitNum;
     const where: any = {};
     if (action) where.action = action;
@@ -1373,8 +1373,8 @@ router.get('/support', requireStaff, async (req: AuthRequest, res: Response) => 
       sort === 'created_desc' ? [{ createdAt: 'desc' }] :
       [{ priority: 'desc' }, { status: 'asc' }, { updatedAt: 'desc' }]; // default: priority
 
-    const pageNum2 = Math.max(1, parseInt(page) || 1);
-    const limitNum2 = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const pageNum2 = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum2 = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum2 - 1) * limitNum2;
     const [tickets, total] = await Promise.all([
       prisma.supportTicket.findMany({
@@ -2152,8 +2152,8 @@ router.get('/moderation/search', requireAdmin, async (req: AuthRequest, res: Res
 router.get('/subscriptions', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { plan, status, expiringSoon, page = '1', limit = '30', sort = 'endDate', order = 'asc' } = req.query as Record<string, string>;
-    const take = Math.min(100, Math.max(1, parseInt(limit) || 30));
-    const skip = (Math.max(1, parseInt(page) || 1) - 1) * take;
+    const take = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
+    const skip = (Math.max(1, parseInt(page, 10) || 1) - 1) * take;
     const now = new Date();
 
     const where: Record<string, unknown> = { plan: { not: 'free' } };
@@ -2183,7 +2183,7 @@ router.get('/subscriptions', requireAdmin, async (req: AuthRequest, res: Respons
       prisma.subscription.count({ where }),
     ]);
 
-    res.json({ subscriptions: subs, total, page: parseInt(page) || 1, pages: Math.ceil(total / take) });
+    res.json({ subscriptions: subs, total, page: parseInt(page, 10) || 1, pages: Math.ceil(total / take) });
   } catch (e) {
     logger.error('GET /admin/subscriptions:', e);
     res.status(500).json({ error: 'Ошибка получения подписок' });
