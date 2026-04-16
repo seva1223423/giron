@@ -7,6 +7,7 @@ import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { CalendarGrid, WorkoutDayModal, WEEKDAY_LABELS, MONTH_NAMES, toDateStr, getDaysInMonth, mondayWeekday, formatDuration } from './calendar';
+import { localDateStr } from '../../utils/date';
 
 export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
@@ -26,7 +27,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
     workoutHistory.forEach((w) => {
       const date = w.completedAt || w.startedAt;
       if (!date) return;
-      const key = date.split('T')[0];
+      const key = localDateStr(new Date(date));
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(w);
     });
