@@ -87,7 +87,7 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
     [...sessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-20)
       .map((s, i) => ({
-        label: new Date(s.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+        label: new Date(s.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
         value: s.durationMinutes,
       })),
   [sessions]);
@@ -227,7 +227,7 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
               <View style={{ flex: 1 }}>
                 <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>{TYPE_LABELS[s.type] || s.type}</Text>
                 <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
-                  {new Date(s.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                  {new Date(s.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>

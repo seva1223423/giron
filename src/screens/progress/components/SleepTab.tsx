@@ -128,14 +128,14 @@ export const SleepTab: React.FC<Props> = ({ colors }) => {
 
   const durationChart = useMemo(() =>
     [...sorted].reverse().slice(-30).map((e) => ({
-      label: new Date(e.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+      label: new Date(e.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
       value: e.durationHours,
     })),
   [sorted]);
 
   const qualityChart = useMemo(() =>
     [...sorted].reverse().slice(-30).filter((e) => e.quality != null).map((e) => ({
-      label: new Date(e.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+      label: new Date(e.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
       value: e.quality as number,
     })),
   [sorted]);
@@ -271,7 +271,7 @@ export const SleepTab: React.FC<Props> = ({ colors }) => {
                     <Text style={{ fontSize: 20 }}>🌙</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={[typography.small, { color: colors.text }]} numberOfLines={1}>
-                        {new Date(entry.date).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        {new Date(entry.date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })}
                       </Text>
                       <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
                         {entry.bedtime} → {entry.wakeTime}

@@ -60,7 +60,7 @@ export const WeekStats: React.FC = () => {
           const maxCal = Math.max(...weekStats.days.map((dd) => dd.calories), weekStats.days[0]?.target || 2000);
           const barH = Math.max(4, (d.calories / maxCal) * 44);
           const isGoalMet = d.calories <= d.target * 1.05 && d.calories >= d.target * 0.85;
-          const dayLabel = new Date(d.date).toLocaleDateString('ru-RU', { weekday: 'short' }).slice(0, 2);
+          const dayLabel = new Date(d.date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'short' }).slice(0, 2);
           return (
             <View key={d.date} style={{ flex: 1, alignItems: 'center' }}>
               <View style={{ width: '80%', height: barH, backgroundColor: isGoalMet ? colors.success : colors.primary, borderRadius: 3 }} />

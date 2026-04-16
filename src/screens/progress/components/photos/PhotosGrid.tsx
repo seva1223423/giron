@@ -46,7 +46,7 @@ export const PhotosGrid: React.FC<Props> = ({ photos, selectedId, onSelect, onDe
                 )}
               </TouchableOpacity>
               <Text style={[typography.small, { color: colors.textSecondary, marginTop: 4, textAlign: 'center', fontSize: 10 }]}>
-                {new Date(photo.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                {new Date(photo.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
               </Text>
               {photo.note ? (
                 <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', fontSize: 9 }]} numberOfLines={1}>
