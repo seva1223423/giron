@@ -3064,7 +3064,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
 
     // ─── Block 11: Gamification & streaks ──────
-    const gamification = await getGamificationData(userId);
+    const gamification = await getGamificationData(userId, todayDate);
     const gamificationContext = buildGamificationContext(gamification);
 
     // ─── Block 12: Exercise substitution for injuries ──────
@@ -3090,6 +3090,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       weekPlan,
       recentWorkouts.map((w) => ({ name: w.name, completedAt: w.completedAt })),
       new Date().getDay(),
+      todayDate,
     );
 
     // ─── Block 17: Nutrition timing intelligence ──────
@@ -9401,7 +9402,7 @@ interface GamificationData {
   milestones: string[];        // human-readable milestone messages
 }
 
-async function getGamificationData(userId: string): Promise<GamificationData> {
+async function getGamificationData(userId: string, clientDate?: string): Promise<GamificationData> {
   // Get all completed workouts ordered by date
   const workouts = await prisma.workout.findMany({
     where: { userId, completedAt: { not: null } },
@@ -9414,8 +9415,8 @@ async function getGamificationData(userId: string): Promise<GamificationData> {
   let currentStreak = 0;
   let longestStreak = 0;
   if (workouts.length > 0) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = clientDate ? new Date(clientDate + 'T00:00:00.000Z') : new Date();
+    if (!clientDate) today.setHours(0, 0, 0, 0);
 
     // Build set of training dates (YYYY-MM-DD)
     const trainingDays = new Set<string>();
@@ -9784,6 +9785,7 @@ function getWorkoutRecommendation(
   weekPlan: Record<string, any> | undefined,
   recentWorkouts: Array<{ name: string; completedAt: Date | null }>,
   dayOfWeek: number, // 0=Sun ... 6=Sat
+  clientDate?: string,
 ): string {
   // dayOfWeek from JS: 0=Sun, but weekPlan uses 0=Mon...6=Sun
   const planDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -9791,11 +9793,15 @@ function getWorkoutRecommendation(
 
   if (!today) return '';
 
-  // Check if user already trained today
-  const todayStr = new Date().toISOString().split('T')[0];
-  const trainedToday = recentWorkouts.some(
-    (w) => w.completedAt && w.completedAt.toISOString().split('T')[0] === todayStr
-  );
+  // Check if user already trained today — compare against both UTC date and clientDate to handle UTC offsets
+  const todayUtcStr = new Date().toISOString().split('T')[0];
+  const todayStr = clientDate ?? todayUtcStr;
+  const trainedToday = recentWorkouts.some((w) => {
+    if (!w.completedAt) return false;
+    const wDateStr = w.completedAt.toISOString().split('T')[0];
+    // Match if UTC date matches either server UTC date or client local date
+    return wDateStr === todayStr || wDateStr === todayUtcStr;
+  });
 
   if (trainedToday) {
     return `\n\n## 📅 ТРЕНИРОВКА ДНЯ\nПо плану сегодня: ${today.emoji || '💪'} ${today.name} — уже выполнена ✅. Отдыхай или сделай лёгкую заминку/кардио.`;
