@@ -307,28 +307,26 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       try {
         const h8ago = new Date(now.getTime() - 8 * 3600 * 1000);
         const h24ago = new Date(now.getTime() - 24 * 3600 * 1000);
-        await Promise.all([
-          // Normal tickets open > 8h with no staff reply → high
-          prisma.supportTicket.updateMany({
-            where: {
-              status: { in: ['open', 'in_progress'] },
-              priority: { in: ['low', 'normal'] },
-              updatedAt: { lt: h8ago },
-              messages: { none: { isStaff: true, isInternal: false } },
-            },
-            data: { priority: 'high' },
-          }),
-          // High tickets open > 24h with no staff reply → urgent
-          prisma.supportTicket.updateMany({
-            where: {
-              status: { in: ['open', 'in_progress'] },
-              priority: 'high',
-              updatedAt: { lt: h24ago },
-              messages: { none: { isStaff: true, isInternal: false } },
-            },
-            data: { priority: 'urgent' },
-          }),
-        ]);
+        // Sequential: first escalate low/normal → high, then high → urgent
+        // (parallel would miss tickets just escalated in the same batch)
+        await prisma.supportTicket.updateMany({
+          where: {
+            status: { in: ['open', 'in_progress'] },
+            priority: { in: ['low', 'normal'] },
+            updatedAt: { lt: h8ago },
+            messages: { none: { isStaff: true, isInternal: false } },
+          },
+          data: { priority: 'high' },
+        });
+        await prisma.supportTicket.updateMany({
+          where: {
+            status: { in: ['open', 'in_progress'] },
+            priority: 'high',
+            updatedAt: { lt: h24ago },
+            messages: { none: { isStaff: true, isInternal: false } },
+          },
+          data: { priority: 'urgent' },
+        });
       } catch { /* ignore, non-critical */ }
     });
   } catch (e) {
@@ -500,6 +498,7 @@ const changeRoleSchema = z.object({
 
 /** PATCH /admin/users/:id/role — change user role */
 router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { role } = changeRoleSchema.parse(req.body);
     // Prevent admin from removing their own admin role
@@ -537,6 +536,7 @@ const changeSubSchema = z.object({
 
 /** PATCH /admin/users/:id/subscription — override subscription */
 router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const data = changeSubSchema.parse(req.body);
     const sub = await prisma.subscription.upsert({
@@ -577,6 +577,7 @@ const banSchema = z.object({
 
 /** POST /admin/users/:id/ban — ban user */
 router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { reason } = banSchema.parse(req.body);
     if (req.params.id === req.userId) {
@@ -611,6 +612,7 @@ router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Respon
 
 /** POST /admin/users/:id/unban — unban user */
 router.post('/users/:id/unban', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const user = await prisma.user.update({
       where: { id: req.params.id as string },
@@ -635,6 +637,7 @@ router.post('/users/:id/unban', requireAdmin, async (req: AuthRequest, res: Resp
 
 /** POST /admin/users/:id/force-verify-email — mark user email as verified */
 router.post('/users/:id/force-verify-email', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const user = await prisma.user.update({
       where: { id: req.params.id as string },
@@ -654,6 +657,7 @@ router.post('/users/:id/force-verify-email', requireAdmin, async (req: AuthReque
 
 /** POST /admin/users/:id/unlock — clear login lockout */
 router.post('/users/:id/unlock', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const user = await prisma.user.update({
       where: { id: req.params.id as string },
@@ -677,6 +681,7 @@ const noteSchema = z.object({
 
 /** PATCH /admin/users/:id/note — set admin note */
 router.patch('/users/:id/note', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { note } = noteSchema.parse(req.body);
     const user = await prisma.user.update({
@@ -739,6 +744,7 @@ router.delete('/users/:id([a-z0-9]{10,30})', requireAdmin, async (req: AuthReque
 
 /** POST /admin/users/:id/message — create a support ticket and send message to user from admin */
 router.post('/users/:id/message', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { subject, message } = z.object({
       subject: z.string().min(1).max(200),
@@ -1520,6 +1526,7 @@ router.get('/support/export', requireAdmin, async (_req: AuthRequest, res: Respo
 
 /** POST /admin/support/:id/note — add internal staff note (not visible to user) */
 router.post('/support/:id/note', requireStaff, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { content } = z.object({ content: z.string().min(1).max(2000) }).parse(req.body);
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
@@ -1559,6 +1566,7 @@ router.get('/staff', requireStaff, async (_req: AuthRequest, res: Response) => {
 
 /** PATCH /admin/support/:id/assign — assign ticket to a staff member (or unassign with null) */
 router.patch('/support/:id/assign', requireStaff, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const { assignedToId } = z.object({ assignedToId: z.string().nullable() }).parse(req.body);
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
@@ -1706,6 +1714,7 @@ router.post('/announcements', requireAdmin, async (req: AuthRequest, res: Respon
 
 /** PATCH /admin/announcements/:id — update (e.g., deactivate) */
 router.patch('/announcements/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const data = announcementSchema.partial().parse(req.body);
     const ann = await prisma.announcement.update({
@@ -1726,6 +1735,7 @@ router.patch('/announcements/:id', requireAdmin, async (req: AuthRequest, res: R
 
 /** POST /admin/announcements/:id/duplicate — create a copy with "(копия)" suffix */
 router.post('/announcements/:id/duplicate', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const original = await prisma.announcement.findUnique({ where: { id: req.params.id as string } });
     if (!original) return res.status(404).json({ error: 'Объявление не найдено' });
@@ -1749,6 +1759,7 @@ router.post('/announcements/:id/duplicate', requireAdmin, async (req: AuthReques
 
 /** DELETE /admin/announcements/:id */
 router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     await prisma.announcement.delete({ where: { id: req.params.id as string } });
     res.json({ ok: true });
@@ -2195,6 +2206,7 @@ router.get('/subscriptions', requireAdmin, async (req: AuthRequest, res: Respons
 
 /** GET /admin/users/:id/security-events — user's security event log */
 router.get('/users/:id/security-events', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const events = await prisma.securityEvent.findMany({
       where: { userId: req.params.id as string },
@@ -2233,6 +2245,7 @@ router.post('/users/:id/force-disable-2fa', requireAdmin, async (req: AuthReques
 
 /** GET /admin/users/:id/sessions — list active sessions for a user */
 router.get('/users/:id/sessions', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const sessions = await prisma.refreshToken.findMany({
       where: { userId: req.params.id as string, revoked: false, expiresAt: { gte: new Date() } },
@@ -2249,7 +2262,10 @@ router.get('/users/:id/sessions', requireAdmin, async (req: AuthRequest, res: Re
 
 /** POST /admin/users/:id/force-logout — revoke all refresh tokens for a user */
 router.post('/users/:id/force-logout', requireAdmin, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
+    const target = await prisma.user.findUnique({ where: { id: req.params.id as string }, select: { id: true } });
+    if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
     const [{ count }, { count: deviceCount }] = await Promise.all([
       prisma.refreshToken.updateMany({
         where: { userId: req.params.id as string, revoked: false },
