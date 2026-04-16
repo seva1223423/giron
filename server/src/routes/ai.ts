@@ -4446,7 +4446,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         reps: Math.max(0, ...sets.filter((s: any) => s.completed && s.reps).map((s: any) => s.reps)),
         sets: sets.filter((s: any) => s.completed).length,
       };
-    }).filter((ex: any) => ex.weight > 0);
+    }).filter((ex: any) => ex.weight > 0 && typeof ex.name === 'string' && ex.name.length > 0);
     const microGoalsContext = setMicroGoals(lastWoExercisesForMicro, user?.goal ?? null);
 
     // ─── Block 226: RPE educator ──────
