@@ -1847,12 +1847,6 @@ async function executeTool(
       return found;
     };
 
-    // Deactivate all existing programs for this user
-    await prisma.program.updateMany({
-      where: { userId, isActive: true },
-      data: { isActive: false },
-    });
-
     const VALID_PROG_GOALS = ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'];
     const VALID_PROG_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
     const safeGoal = VALID_PROG_GOALS.includes(goal) ? goal : 'GENERAL_FITNESS';
@@ -1861,7 +1855,7 @@ async function executeTool(
     // Cap number of workouts to prevent runaway DB inserts from misbehaving AI responses
     const safeWorkouts = workouts.slice(0, 14);
 
-    // Create the new program
+    // Create the new program FIRST — deactivate old ones after to avoid leaving user with no program on failure
     const program = await prisma.program.create({
       data: {
         name: String(name).slice(0, 200),
@@ -1917,6 +1911,12 @@ async function executeTool(
       totalExercises += valid.length;
       workoutNames.push(workoutDef.name);
     }
+
+    // Deactivate all OTHER programs now that the new one was created successfully
+    await prisma.program.updateMany({
+      where: { userId, isActive: true, id: { not: program.id } },
+      data: { isActive: false },
+    });
 
     return {
       resultText: `Программа "${name}" создана с ${workouts.length} тренировками: ${workoutNames.join(', ')}. Всего упражнений: ${totalExercises}.`,
