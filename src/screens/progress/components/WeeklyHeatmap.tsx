@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { spacing } from '../../../theme/spacing';
+import { localDateStr } from '../../../utils/date';
 
 
 interface WeeklyHeatmapProps {
@@ -18,7 +19,7 @@ export const WeeklyHeatmap: React.FC<WeeklyHeatmapProps> = ({ workoutDates, week
   for (let i = weeks * 7 - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = localDateStr(d);
     const count = workoutDates.filter((wd) => wd.startsWith(dateStr)).length;
     cells.push({ date: dateStr, count, dayOfWeek: d.getDay() });
   }

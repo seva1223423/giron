@@ -6,6 +6,7 @@ import { LineChart } from './LineChart';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { useCardioStore } from '../../../store';
+import { getMonday } from '../../../utils/date';
 import type { CardioSession } from '../../../types';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -55,7 +56,7 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
     const buckets: { label: string; value: number }[] = [];
     const now = new Date();
     for (let w = 7; w >= 0; w--) {
-      const start = new Date(now); start.setDate(now.getDate() - w * 7 - now.getDay()); start.setHours(0, 0, 0, 0);
+      const monday = getMonday(now); const start = new Date(monday); start.setDate(monday.getDate() - w * 7); start.setHours(0, 0, 0, 0);
       const end = new Date(start); end.setDate(start.getDate() + 7);
       const weekMin = sessions.filter((s) => {
         const d = new Date(s.date);

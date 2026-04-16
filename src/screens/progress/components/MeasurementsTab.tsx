@@ -9,6 +9,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { useMeasurementsStore, BodyMeasurement } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSubscriptionStore, FREE_LIMITS } from '../../../store/useSubscriptionStore';
+import { localDateStr } from '../../../utils/date';
 
 const FIELDS: { key: keyof Omit<BodyMeasurement, 'id' | 'date' | 'notes'>; label: string }[] = [
   { key: 'chest', label: 'Грудь' },
@@ -44,7 +45,7 @@ export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
   const [showPaywall, setShowPaywall] = useState(false);
 
   // Form state
-  const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+  const [formDate, setFormDate] = useState(localDateStr(new Date()));
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [formNotes, setFormNotes] = useState('');
 
@@ -62,7 +63,7 @@ export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
   const prev = sorted[1] ?? null;
 
   const openModal = () => {
-    setFormDate(new Date().toISOString().split('T')[0]);
+    setFormDate(localDateStr(new Date()));
     setFormValues({});
     setFormNotes('');
     setShowModal(true);
