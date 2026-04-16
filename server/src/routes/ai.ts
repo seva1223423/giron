@@ -1526,7 +1526,8 @@ async function executeTool(
   if (toolName === 'log_body_weight') {
     const { weightKg: rawWeight, date } = toolInput as { weightKg: number; date?: string };
     const weightKg = Math.round(Math.max(1, Math.min(500, Number(rawWeight) || 70)) * 10) / 10;
-    const parsedDate = date ? new Date(date) : new Date();
+    const effectiveDate = date || clientDate || new Date().toISOString().split('T')[0];
+    const parsedDate = new Date(effectiveDate);
     const logDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
     logDate.setHours(0, 0, 0, 0);
 
@@ -2238,7 +2239,7 @@ async function executeTool(
     const safeDuration = Math.min(1440, Math.max(1, Math.round(Number(durationMinutes) || 30)));
     const safeDistance = distanceKm != null ? Math.min(500, Math.max(0, Number(distanceKm) || 0)) || undefined : undefined;
     const safeCalories = caloriesBurned != null ? Math.min(5000, Math.max(0, Math.round(Number(caloriesBurned) || 0))) || undefined : undefined;
-    const today = new Date().toISOString().split('T')[0];
+    const today = clientDate ?? new Date().toISOString().split('T')[0];
     const sessionDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T00:00:00Z').getTime())) ? date : today;
     const session = await prisma.cardioSession.create({
       data: { userId, type: safeType, date: sessionDate, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories },
