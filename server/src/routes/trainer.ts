@@ -14,9 +14,9 @@ async function requireTrainerRole(req: AuthRequest, res: Response, next: Functio
     // Fast-path: role already set by authenticate middleware
     if (req.userRole === 'TRAINER') { next(); return; }
 
-    // Check if an active trainer subscription grants access
+    // Check if an active trainer subscription grants access (must not be expired)
     const sub = await prisma.subscription.findUnique({ where: { userId: req.userId! } });
-    const isTrainer = sub?.plan === 'trainer' && sub?.status === 'active';
+    const isTrainer = sub?.plan === 'trainer' && (sub?.status === 'active' || sub?.status === 'cancelled') && (!sub.endDate || sub.endDate >= new Date());
     if (!isTrainer) {
       return res.status(403).json({ error: 'Доступ только для тренеров' });
     }
