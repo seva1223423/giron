@@ -20,7 +20,7 @@ export const OneRMCalculatorTab: React.FC = () => {
 
   const results = useMemo(() => {
     const w = parseFloat(rmWeight.replace(',', '.')) || 0;
-    const r = parseInt(rmReps) || 1;
+    const r = parseInt(rmReps, 10) || 1;
     if (w <= 0 || r <= 0) return null;
     const epley = calcEpley(w, r);
     const brzycki = calcBrzycki(w, r);
@@ -30,7 +30,7 @@ export const OneRMCalculatorTab: React.FC = () => {
 
   const adjustReps = (delta: number) => {
     haptic.selection();
-    const next = Math.max(1, Math.min(30, (parseInt(rmReps) || 1) + delta));
+    const next = Math.max(1, Math.min(30, (parseInt(rmReps, 10) || 1) + delta));
     setRmReps(String(next));
   };
 

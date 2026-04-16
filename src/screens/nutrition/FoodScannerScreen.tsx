@@ -329,7 +329,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   // ─── Items management ───────────────────────────────────────────────────────
 
   const updateItemWeight = useCallback((id: string, newWeight: string) => {
-    const w = parseInt(newWeight) || 0;
+    const w = parseInt(newWeight, 10) || 0;
     if (w <= 0) return;
     const base = itemBases[id];
     if (!base) return;

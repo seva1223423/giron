@@ -46,7 +46,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
       item = { id: `item-${Date.now()}`, name: `${selectedFood.name} (${weightGrams}г)`, ...computedNutrition, weightGrams: Math.max(1, parseFloat(weightGrams) || 100) };
     } else if (tab === 'custom') {
       if (!custom.name.trim()) { Alert.alert('Укажи название продукта'); return; }
-      item = { id: `item-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, parseInt(custom.calories) || 0), protein: Math.max(0, parseFloat(custom.protein) || 0), fats: Math.max(0, parseFloat(custom.fats) || 0), carbs: Math.max(0, parseFloat(custom.carbs) || 0), weightGrams: 100 };
+      item = { id: `item-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, parseInt(custom.calories, 10) || 0), protein: Math.max(0, parseFloat(custom.protein) || 0), fats: Math.max(0, parseFloat(custom.fats) || 0), carbs: Math.max(0, parseFloat(custom.carbs) || 0), weightGrams: 100 };
     } else {
       Alert.alert('Выбери продукт из списка или введи данные вручную');
       return;
@@ -109,7 +109,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
             <TouchableOpacity
               onPress={() => {
                 haptic.success();
-                saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, parseInt(custom.calories) || 0), protein: Math.max(0, parseFloat(custom.protein) || 0), fats: Math.max(0, parseFloat(custom.fats) || 0), carbs: Math.max(0, parseFloat(custom.carbs) || 0), weightGrams: 100 });
+                saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, parseInt(custom.calories, 10) || 0), protein: Math.max(0, parseFloat(custom.protein) || 0), fats: Math.max(0, parseFloat(custom.fats) || 0), carbs: Math.max(0, parseFloat(custom.carbs) || 0), weightGrams: 100 });
                 Alert.alert('Сохранено', `${custom.name.trim()} добавлен в быстрые продукты`);
               }}
               style={[styles.saveBtnLg, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}

@@ -20835,7 +20835,7 @@ function buildTimeCrunchedWorkout(message: string, goal: string | null): string 
   if (!isRelevant) return '';
 
   const matchTime = lowerMsg.match(/(\d+)\s*минут/);
-  const minutes = matchTime ? parseInt(matchTime[1]) : 20;
+  const minutes = matchTime ? parseInt(matchTime[1], 10) : 20;
 
   if (minutes <= 15) {
     return `\n\n⏱ Тренировка за ${minutes} минут (без оборудования):
@@ -21705,7 +21705,7 @@ function getWarmupWeightScheme(message: string): string {
 
   // Extract working weight if mentioned
   const weightMatch = lower.match(/(\d+)\s*(?:кг|kg)/);
-  const workingWeight = weightMatch ? parseInt(weightMatch[1]) : null;
+  const workingWeight = weightMatch ? parseInt(weightMatch[1], 10) : null;
 
   const lines: string[] = ['🏋️ **Схема разминочных подходов:**', ''];
 
@@ -80922,8 +80922,8 @@ ${restrictionsBlock ? '\nЕсли на фото присутствуют про�
 // Get chat history — paginated
 router.get('/history', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 100));
-    const page  = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string, 10) || 100));
+    const page  = Math.max(1, parseInt(req.query.page as string, 10) || 1);
 
     const [messages, total] = await prisma.$transaction([
       prisma.chatMessage.findMany({
