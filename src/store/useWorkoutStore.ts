@@ -146,9 +146,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
       addProgram: (program) => set((s) => ({ programs: [...s.programs, program] })),
       updateProgram: async (id, data) => {
         const snapshot = get().programs;
-        // Optimistic local update
+        // Optimistic local update — mirror server behaviour: activating one deactivates all others
         set((s) => ({
-          programs: s.programs.map((p) => p.id === id ? { ...p, ...data } : p),
+          programs: s.programs.map((p) => {
+            if (p.id === id) return { ...p, ...data };
+            if (data.isActive === true) return { ...p, isActive: false };
+            return p;
+          }),
         }));
         // Persist to server; rollback to snapshot on failure
         workoutService.updateProgram(id, data as any).catch(() => {
