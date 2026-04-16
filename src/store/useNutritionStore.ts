@@ -51,7 +51,7 @@ export const useNutritionStore = create<NutritionStore>()(
 
       addMeal: (date, meal) => {
         // Use a temp ID so we can locate this entry after server confirms
-        const tempId = `meal-${Date.now()}`;
+        const tempId = meal.id || `meal-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const tempMeal: Meal = { ...meal, id: tempId };
 
         // Optimistic update
