@@ -1578,7 +1578,7 @@ async function executeTool(
 
     // Find exercises in DB (case-insensitive partial match, with EN→RU fallback)
     const exerciseRecords = await Promise.all(
-      exercises.map(async (ex) => {
+      exercises.slice(0, 20).map(async (ex) => {
         const searchName = ex.exerciseName;
         let found = await prisma.exercise.findFirst({
           where: { name: { contains: searchName, mode: 'insensitive' } },
@@ -1880,10 +1880,10 @@ async function executeTool(
               restSeconds: ex.input.restSeconds ?? 90,
               exerciseId: ex.record!.id,
               sets: {
-                create: Array.from({ length: ex.input.sets }, (_, i) => ({
+                create: Array.from({ length: Math.min(20, Math.max(1, ex.input.sets)) }, (_, i) => ({
                   setNumber: i + 1,
-                  reps: ex.input.reps,
-                  weight: ex.input.weight ?? null,
+                  reps: Math.min(1000, Math.max(1, ex.input.reps)),
+                  weight: ex.input.weight != null ? Math.max(0, ex.input.weight) : null,
                 })),
               },
             })),
