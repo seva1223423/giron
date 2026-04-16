@@ -166,8 +166,8 @@ router.post('/sessions/:clientId', authenticate, requireTrainerRole as any, asyn
       prisma.trainerSession.create({
         data: { clientId: req.params.clientId as string, ...parsed.data },
       }),
-      prisma.trainerClient.update({
-        where: { id: req.params.clientId as string },
+      prisma.trainerClient.updateMany({
+        where: { id: req.params.clientId as string, trainerId: req.userId! },
         data: {
           totalWorkouts: { increment: 1 },
           lastVisit: new Date(parsed.data.date),

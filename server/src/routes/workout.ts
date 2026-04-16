@@ -346,7 +346,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       if (validSets.length > 0) {
         await prisma.$transaction(
           validSets.map((set: any) =>
-            prisma.workoutSet.update({
+            prisma.workoutSet.updateMany({
               where: { id: set.id },
               data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
             })
@@ -424,7 +424,7 @@ router.post('/:id/autosave', authenticate, async (req: AuthRequest, res: Respons
     if (validSets.length > 0) {
       await prisma.$transaction(
         validSets.map((set: any) =>
-          prisma.workoutSet.update({
+          prisma.workoutSet.updateMany({
             where: { id: set.id },
             data: { reps: set.reps, weight: set.weight, completed: set.completed, rpe: set.rpe },
           })
@@ -451,12 +451,12 @@ router.patch('/client/:clientId/notes', authenticate, async (req: AuthRequest, r
     const workout = await prisma.workout.findFirst({ where: { clientId: String(clientId), userId: req.userId! } });
     if (!workout) return res.status(404).json({ error: 'Тренировка не найдена' });
 
-    const updated = await prisma.workout.update({
-      where: { id: workout.id },
+    const updated = await prisma.workout.updateMany({
+      where: { id: workout.id, userId: req.userId! },
       data: { notes: parsed.data.notes ?? null },
-      select: { id: true, notes: true },
     });
-    res.json(updated);
+    if (updated.count === 0) return res.status(404).json({ error: 'Тренировка не найдена' });
+    res.json({ id: workout.id, notes: parsed.data.notes ?? null });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления заметки' });
