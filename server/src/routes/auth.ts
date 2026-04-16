@@ -231,7 +231,7 @@ router.post('/register', async (req: Request, res: Response) => {
         where: { phone, code: data.otpToken, purpose: 'register', used: false, expiresAt: { gte: new Date() } },
       });
       if (otp) {
-        await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+        await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
         phoneVerified = true;
       }
     }
@@ -827,18 +827,18 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     }
 
     if (otp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
       await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-login phone=${phone}`);
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
 
     if (otp.code !== code) {
-      await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - otp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
 
-    await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+    await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
 
     const user = await prisma.user.findUnique({ where: { phone }, include: { healthRestrictions: true } });
 
@@ -995,13 +995,13 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     }
 
     if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
       await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=${purpose} phone=${phone ?? ''} email=${email ?? ''}`);
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
     }
 
     if (activeOtp.code !== code) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({
         error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.',
@@ -1013,7 +1013,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     // For 'register', 'phone-reset', 'phone-change', 'email-change': leave OTP intact — dedicated endpoints will consume it
     // For all other purposes: mark used now
     if (!['register', 'phone-reset', 'phone-change', 'email-change'].includes(purpose)) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
     }
 
     res.json({ valid: true, message: 'Код подтверждён' });
@@ -1234,13 +1234,13 @@ router.post('/verify-email', async (req: Request, res: Response) => {
     }
 
     if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
       await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=email-verify email=${email}`);
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
     }
 
     if (activeOtp.code !== code) {
-      await prisma.otpCode.update({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({
         error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.',
@@ -1249,7 +1249,7 @@ router.post('/verify-email', async (req: Request, res: Response) => {
     }
 
     await prisma.$transaction([
-      prisma.otpCode.update({ where: { id: activeOtp.id }, data: { used: true } }),
+      prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } }),
       prisma.user.updateMany({ where: { email, emailVerified: false }, data: { emailVerified: true } }),
     ]);
 
@@ -1319,13 +1319,13 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     }
 
     if (otp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
       await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-reset phone=${phone}`);
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
 
     if (otp.code !== code) {
-      await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - otp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
@@ -1343,7 +1343,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
 
     await prisma.$transaction([
       prisma.user.update({ where: { id: user.id }, data: { passwordHash, loginAttempts: 0, lockedUntil: null } }),
-      prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } }),
+      prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } }),
       prisma.refreshToken.updateMany({ where: { userId: user.id, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: user.id } }),
     ]);

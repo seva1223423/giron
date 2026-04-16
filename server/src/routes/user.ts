@@ -132,7 +132,8 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
 
     const { passwordHash, googleId, vkId: _vk, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
     res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!_vk, hasYandex: !!yandexId });
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления профиля' });
   }
