@@ -2418,7 +2418,7 @@ async function executeTool(
     const muscleCount: Record<string, number> = {};
     recent.forEach((w) => {
       w.exercises.forEach((ex) => {
-        ex.exercise.primaryMuscles.forEach((m: string) => {
+        ex.exercise?.primaryMuscles?.forEach((m: string) => {
           muscleCount[m] = (muscleCount[m] || 0) + 1;
         });
       });
@@ -2663,7 +2663,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       if (activeProgram.workouts.length > 0) {
         programContext += 'Тренировки в программе:\n';
         activeProgram.workouts.forEach((w) => {
-          programContext += `- ${w.name}: ${w.exercises.filter((e) => e.exercise).map((e) => `${e.exercise.name} ${e.sets.length}×${e.sets[0]?.reps || '?'}`).join(', ')}\n`;
+          programContext += `- ${w.name}: ${w.exercises.filter((e) => e.exercise).map((e) => `${e.exercise?.name} ${e.sets.length}×${e.sets[0]?.reps || '?'}`).join(', ')}\n`;
         });
       }
     } else {
@@ -3110,7 +3110,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           where: { workout: { programId: activeProgram.id } },
           select: { exercise: { select: { name: true } } },
           take: 500,
-        })).filter((we) => we.exercise).map((we) => we.exercise.name)
+        })).filter((we) => we.exercise).map((we) => we.exercise?.name)
       : [];
     const exerciseAlternatives = getExerciseAlternatives([...new Set(programExerciseNames)], injuryZones);
     const alternativesContext = buildExerciseAlternativesContext(exerciseAlternatives);
@@ -3147,7 +3147,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           where: { workout: { programId: activeProgram.id } },
           select: { exercise: { select: { type: true } } },
           take: 500,
-        })).filter((we) => we.exercise).map((we) => we.exercise.type))]
+        })).filter((we) => we.exercise).map((we) => we.exercise?.type))]
       : [];
     const restTimerContext = buildRestTimerContext(user?.goal || null, exerciseTypesInProgram);
 
@@ -3260,7 +3260,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         rating: (w as any).rating || null, // rating may not be in DB yet
         totalVolume: w.totalVolume,
         durationMinutes: w.durationMinutes,
-        exercises: w.exercises.filter((e) => e.exercise).map((e) => ({ exercise: { name: e.exercise.name, primaryMuscles: e.exercise.primaryMuscles } })),
+        exercises: w.exercises.filter((e) => e.exercise).map((e) => ({ exercise: { name: e.exercise?.name, primaryMuscles: e.exercise?.primaryMuscles } })),
       })),
     );
 
@@ -3271,7 +3271,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             totalVolume: lastCompletedWorkout.totalVolume,
             durationMinutes: lastCompletedWorkout.durationMinutes,
             exercises: lastCompletedWorkout.exercises.filter((e) => e.exercise).map((e) => ({
-              exercise: { category: e.exercise.category, type: e.exercise.type },
+              exercise: { category: e.exercise?.category, type: e.exercise?.type },
             })),
           }
         : null,
@@ -3281,7 +3281,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 58: Exercise variety scorer ──────
     const exerciseVarietyContext = scoreExerciseVariety(
       recentWorkouts.map((w) => ({
-        exercises: w.exercises.filter((e) => e.exercise).map((e) => ({ exercise: { name: e.exercise.name, type: e.exercise.type } })),
+        exercises: w.exercises.filter((e) => e.exercise).map((e) => ({ exercise: { name: e.exercise?.name, type: e.exercise?.type } })),
       })),
     );
 
@@ -3300,7 +3300,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       lastCompletedWorkout?.totalVolume || 0,
       lastCompletedWorkout
         ? lastCompletedWorkout.exercises.map((e) => ({
-            exercise: { name: e.exercise.name },
+            exercise: { name: e.exercise?.name },
             sets: e.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
           }))
         : [],
@@ -3309,7 +3309,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 51: Exercise technique cues ──────
     const lastWorkoutExerciseNames = lastCompletedWorkout
-      ? lastCompletedWorkout.exercises.map((e) => e.exercise.name)
+      ? lastCompletedWorkout.exercises.map((e) => e.exercise?.name)
       : [];
     const techniqueCuesContext = getTechniqueCues(lastWorkoutExerciseNames);
 
@@ -3326,7 +3326,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const muscleRecoveryStatuses = trackMuscleRecovery(
       recentWorkouts.map((w) => ({
         completedAt: w.completedAt,
-        exercises: w.exercises.map((e) => ({ exercise: { primaryMuscles: e.exercise.primaryMuscles } })),
+        exercises: w.exercises.map((e) => ({ exercise: { primaryMuscles: e.exercise?.primaryMuscles } })),
       })),
     );
     const muscleRecoveryContext = buildMuscleRecoveryContext(muscleRecoveryStatuses);
@@ -3382,7 +3382,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // Determine training focus from recent exercises (use recentWorkouts which has exercise data)
     let trainingFocus: 'strength' | 'hypertrophy' | 'cardio' | 'mixed' | null = null;
     if (recentWorkouts.length > 0) {
-      const allCategories = recentWorkouts.flatMap((w) => w.exercises.map((e) => e.exercise.category));
+      const allCategories = recentWorkouts.flatMap((w) => w.exercises.map((e) => e.exercise?.category));
       const strengthCount = allCategories.filter((c) => c === 'strength').length;
       const cardioCount = allCategories.filter((c) => c === 'cardio').length;
       if (cardioCount > strengthCount) trainingFocus = 'cardio';
@@ -3689,7 +3689,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const sleepImpactContext = analyzeSleepImpact(recentWorkouts as any);
 
     // ─── Block 120: Smart warm-up recommendations ──────
-    const lastWorkoutMusclesForWarmup = recentWorkouts[0]?.exercises?.map((e: any) => e.exercise.primaryMuscles[0]).filter(Boolean) || [];
+    const lastWorkoutMusclesForWarmup = recentWorkouts[0]?.exercises?.map((e: any) => e.exercise?.primaryMuscles?.[0]).filter(Boolean) || [];
     const userAgeForWarmup = user?.dateOfBirth
       ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       : null;
@@ -3752,7 +3752,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 130: Injury prevention tips ──────
     const heavyCompounds = recentWorkouts.slice(0, 5).reduce((count: number, w: any) =>
-      count + w.exercises.filter((e: any) => ['barbell', 'dumbbell'].includes(e.exercise.type) && e.sets.some((s: any) => s.weight && s.weight > 60)).length, 0);
+      count + w.exercises.filter((e: any) => ['barbell', 'dumbbell'].includes(e.exercise?.type) && e.sets.some((s: any) => s.weight && s.weight > 60)).length, 0);
     const injuryPreventionContext = buildInjuryPreventionTips(
       heavyCompounds,
       reportThisWeek.length,
@@ -3762,7 +3762,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 131: Mind-muscle connection advisor ──────
     const lastExercisesForCues = recentWorkouts[0]?.exercises?.map((e: any) => ({
-      name: e.exercise.name, primaryMuscles: e.exercise.primaryMuscles,
+      name: e.exercise?.name, primaryMuscles: e.exercise?.primaryMuscles,
     })) || [];
     const mindMuscleContext = buildMindMuscleAdvice(lastExercisesForCues);
 
@@ -3823,7 +3823,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const overloadTrackerContext = trackProgressiveOverload(recentWorkouts as any);
 
     // ─── Block 142: Breathing pattern advisor ──────
-    const exerciseNamesForBreathing = recentWorkouts[0]?.exercises?.map((e: any) => e.exercise.name) || [];
+    const exerciseNamesForBreathing = recentWorkouts[0]?.exercises?.map((e: any) => e.exercise?.name) || [];
     const breathingContext = buildBreathingAdvice(exerciseNamesForBreathing);
 
     // ─── Block 143: Workout environment tips ──────
@@ -3865,7 +3865,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 151: Accessory exercise recommender ──────
     const mainLiftNames = recentWorkouts.slice(0, 3).flatMap((w: any) =>
-      w.exercises.filter((e: any) => ['barbell'].includes(e.exercise.type)).map((e: any) => e.exercise.name)
+      w.exercises.filter((e: any) => ['barbell'].includes(e.exercise?.type)).map((e: any) => e.exercise?.name)
     );
     const uniqueMainLifts = [...new Set(mainLiftNames)];
     const accessoryContext = recommendAccessories(uniqueMainLifts, [], user?.fitnessLevel ?? null);
@@ -3883,7 +3883,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     for (const w of recentWorkouts.slice(0, 5) as any[]) {
       for (const ex of w.exercises) {
         allRestSecsForGoal.push(ex.restSeconds || 90);
-        if (ex.exercise.category === 'cardio') {
+        if (ex.exercise?.category === 'cardio') {
           totalCardioMin += ex.sets.reduce((s: number, set: any) => s + ((set.duration || 0) / 60), 0);
         }
         for (const s of ex.sets) {
@@ -3906,7 +3906,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 159: Workout variation suggestions ──────
     const frequentExNames = Object.entries(
-      recentWorkouts.slice(0, 8).flatMap((w: any) => w.exercises.map((e: any) => e.exercise.name))
+      recentWorkouts.slice(0, 8).flatMap((w: any) => w.exercises.map((e: any) => e.exercise?.name))
         .reduce((acc: Record<string, number>, name: string) => { acc[name] = (acc[name] || 0) + 1; return acc; }, {})
     ).filter(([, count]) => (count as number) >= 3).map(([name]) => name);
     const variationContext = suggestVariations(frequentExNames);
@@ -3951,8 +3951,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const avgVolume = recentWorkouts.length > 0
       ? recentWorkouts.reduce((s: number, w: any) => s + (w.totalVolume || 0), 0) / recentWorkouts.length : 0;
     const strongestLiftData = recentWorkouts.slice(0, 5).flatMap((w: any) =>
-      w.exercises.filter((e: any) => e.exercise.type === 'barbell').map((e: any) => ({
-        name: e.exercise.name,
+      w.exercises.filter((e: any) => e.exercise?.type === 'barbell').map((e: any) => ({
+        name: e.exercise?.name,
         weight: Math.max(0, ...e.sets.filter((s: any) => s.weight && s.completed).map((s: any) => s.weight as number)),
       }))
     ).sort((a: any, b: any) => b.weight - a.weight)[0] || null;
@@ -4018,8 +4018,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     for (const wo of recentWorkouts) {
       for (const ex of (wo.exercises as any[])) {
         const best = Math.max(0, ...ex.sets.filter((s: any) => s.completed && s.weight).map((s: any) => s.weight as number));
-        if (best > 0 && !strengthBestLifts[ex.exercise.name]) {
-          strengthBestLifts[ex.exercise.name] = best;
+        if (best > 0 && !strengthBestLifts[ex.exercise?.name]) {
+          strengthBestLifts[ex.exercise?.name] = best;
         }
       }
     }
@@ -4365,7 +4365,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         ex.sets
           .filter((s: any) => s.completed && s.weight && s.reps)
           .map((s: any) => ({
-            exercise: ex.exercise.name,
+            exercise: ex.exercise?.name,
             weight: s.weight as number,
             reps: s.reps as number,
             date: new Date(wo.completedAt),
@@ -4412,7 +4412,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 225: Micro-goals ──────
     const lastWoExercisesForMicro = ((recentWorkouts[0]?.exercises as any[]) || []).map((ex: any) => ({
-      name: ex.exercise.name,
+      name: ex.exercise?.name,
       weight: Math.max(0, ...ex.sets.filter((s: any) => s.completed && s.weight).map((s: any) => s.weight)),
       reps: Math.max(0, ...ex.sets.filter((s: any) => s.completed && s.reps).map((s: any) => s.reps)),
       sets: ex.sets.filter((s: any) => s.completed).length,
@@ -9412,7 +9412,7 @@ async function getGamificationData(userId: string): Promise<GamificationData> {
   const prMap = new Map<string, { weight: number; reps: number; date: Date }>();
   for (const we of exerciseSets) {
     for (const s of we.sets) {
-      const name = we.exercise.name;
+      const name = we.exercise?.name;
       const existing = prMap.get(name);
       if (!existing || (s.weight || 0) > existing.weight) {
         prMap.set(name, { weight: s.weight || 0, reps: s.reps || 0, date: we.workout.completedAt! });
@@ -9853,7 +9853,7 @@ function analyzeProgressiveOverload(
 
   for (const we of exerciseSets) {
     if (!we.workout.completedAt || we.sets.length === 0) continue;
-    const name = we.exercise.name;
+    const name = we.exercise?.name;
     const maxSet = we.sets.reduce((best, s) =>
       (s.weight || 0) > (best.weight || 0) ? s : best, we.sets[0]);
 
@@ -10705,7 +10705,7 @@ function analyzeDifficultyAdjustments(
     if (completionRate === 1 && avgRpe > 0 && avgRpe < 7) {
       const increase = avgRpe < 5 ? 0.1 : 0.05; // +10% or +5%
       adjustments.push({
-        exerciseName: we.exercise.name,
+        exerciseName: we.exercise?.name,
         currentWeight: Math.round(avgWeight),
         suggestedWeight: Math.round(avgWeight * (1 + increase) / 2.5) * 2.5, // round to 2.5kg
         currentReps: Math.round(avgReps),
@@ -10718,7 +10718,7 @@ function analyzeDifficultyAdjustments(
     if (completionRate < 0.7 || (avgRpe >= 9.5)) {
       const decrease = completionRate < 0.5 ? 0.15 : 0.1;
       adjustments.push({
-        exerciseName: we.exercise.name,
+        exerciseName: we.exercise?.name,
         currentWeight: Math.round(avgWeight),
         suggestedWeight: Math.round(avgWeight * (1 - decrease) / 2.5) * 2.5,
         currentReps: Math.round(avgReps),
@@ -10861,7 +10861,7 @@ function buildWeeklySummary(
   const muscleSet = new Set<string>();
   for (const w of completed) {
     for (const ex of w.exercises) {
-      ex.exercise.primaryMuscles.forEach((m) => muscleSet.add(m));
+      ex.exercise?.primaryMuscles?.forEach((m) => muscleSet.add(m));
     }
   }
 
@@ -11317,7 +11317,7 @@ function findSimilarWorkouts(
   // Group workouts by primary muscle focus
   const workoutsByFocus = new Map<string, typeof historyWorkouts>();
   for (const w of historyWorkouts) {
-    const muscles = w.exercises.flatMap((e) => e.exercise.primaryMuscles);
+    const muscles = w.exercises.flatMap((e) => e.exercise?.primaryMuscles);
     const primary = muscles.sort((a, b) =>
       muscles.filter((m) => m === b).length - muscles.filter((m) => m === a).length
     )[0];
@@ -11334,7 +11334,7 @@ function findSimilarWorkouts(
       .filter((w) => w.totalVolume && w.totalVolume > 0)
       .sort((a, b) => (b.totalVolume || 0) - (a.totalVolume || 0))[0];
     if (best) {
-      const exercises = best.exercises.slice(0, 4).map((e) => e.exercise.name).join(', ');
+      const exercises = best.exercises.slice(0, 4).map((e) => e.exercise?.name).join(', ');
       templates.push(`${muscle}: "${best.name}" (${exercises}) — ${best.totalVolume} кг объём`);
     }
   }
@@ -12040,7 +12040,7 @@ function trackMuscleRecovery(
     if (!workout.completedAt) continue;
     const completedDate = new Date(workout.completedAt);
     for (const ex of workout.exercises) {
-      for (const muscle of ex.exercise.primaryMuscles) {
+      for (const muscle of ex.exercise?.primaryMuscles) {
         const m = muscle.toLowerCase();
         if (!muscleLastTrained[m] || completedDate > muscleLastTrained[m]) {
           muscleLastTrained[m] = completedDate;
@@ -12208,7 +12208,7 @@ function analyzeWorkoutRatings(
   lines.push(`Средняя оценка тренировок: ${avgRating.toFixed(1)}/5`);
 
   if (best && best.rating && best.rating >= 4) {
-    const muscles = best.exercises.flatMap((e) => e.exercise.primaryMuscles);
+    const muscles = best.exercises.flatMap((e) => e.exercise?.primaryMuscles);
     const uniqueMuscles = [...new Set(muscles)].slice(0, 3);
     lines.push(`👍 Лучшая: "${best.name}" (${best.rating}/5) — ${uniqueMuscles.join(', ')}`);
   }
@@ -12250,7 +12250,7 @@ function estimateCaloriesBurned(
   const weight = userWeightKg;
 
   // Determine workout intensity from exercise types
-  const categories = workout.exercises.map((e) => e.exercise.category);
+  const categories = workout.exercises.map((e) => e.exercise?.category);
   const hasCardio = categories.includes('cardio');
   const hasStrength = categories.includes('strength');
 
@@ -12297,8 +12297,8 @@ function scoreExerciseVariety(
 
   for (const w of recentWorkouts) {
     for (const e of w.exercises) {
-      exerciseCounts[e.exercise.name] = (exerciseCounts[e.exercise.name] || 0) + 1;
-      typeCounts[e.exercise.type] = (typeCounts[e.exercise.type] || 0) + 1;
+      exerciseCounts[e.exercise?.name ?? ""] = (exerciseCounts[e.exercise?.name ?? ""] || 0) + 1;
+      typeCounts[e.exercise?.type ?? "other"] = (typeCounts[e.exercise?.type ?? "other"] || 0) + 1;
       totalExercises++;
     }
   }
@@ -12452,7 +12452,7 @@ function generateDeloadProgram(
     const maxReps = Math.max(...e.sets.map((s) => s.reps || 0));
     const deloadSets = Math.max(2, Math.round(e.sets.length * (1 - volumeReduction)));
 
-    return `- ${e.exercise.name}: ${deloadSets}×${maxReps} @ ${deloadWeight} кг`;
+    return `- ${e.exercise?.name}: ${deloadSets}×${maxReps} @ ${deloadWeight} кг`;
   });
 
   return `\n\n## 🧘 ПРОГРАММА DELOAD НЕДЕЛИ
@@ -12959,7 +12959,7 @@ function identifyWeakPoints(
   for (const w of recentWorkouts) {
     const musclesThisWorkout = new Set<string>();
     for (const ex of w.exercises) {
-      for (const muscle of ex.exercise.primaryMuscles) {
+      for (const muscle of ex.exercise?.primaryMuscles) {
         const vol = ex.sets
           .filter((s) => s.completed)
           .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
@@ -13111,7 +13111,7 @@ function suggestWorkoutName(
 ): string {
   if (exercises.length === 0) return '';
 
-  const allMuscles = exercises.flatMap((e) => e.exercise.primaryMuscles);
+  const allMuscles = exercises.flatMap((e) => e.exercise?.primaryMuscles);
   const muscleCount: Record<string, number> = {};
   for (const m of allMuscles) muscleCount[m] = (muscleCount[m] || 0) + 1;
 
@@ -13131,7 +13131,7 @@ function suggestWorkoutName(
   const hasBack = topMuscles.includes('back') || topMuscles.includes('lats');
   const hasLegs = topMuscles.includes('quadriceps') || topMuscles.includes('hamstrings') || topMuscles.includes('glutes');
   const hasShoulders = topMuscles.includes('shoulders');
-  const categories = exercises.map((e) => e.exercise.category);
+  const categories = exercises.map((e) => e.exercise?.category);
   const hasCardio = categories.includes('cardio');
 
   let suggestion = '';
@@ -13326,8 +13326,8 @@ function buildTempoAdvice(
   }
 
   // Exercise-specific tips
-  const hasCompound = currentExercises.some((e) => ['barbell', 'dumbbell'].includes(e.exercise.type));
-  const hasIsolation = currentExercises.some((e) => e.exercise.type === 'machine' || e.exercise.type === 'cable');
+  const hasCompound = currentExercises.some((e) => ['barbell', 'dumbbell'].includes(e.exercise?.type));
+  const hasIsolation = currentExercises.some((e) => e.exercise?.type === 'machine' || e.exercise?.type === 'cable');
 
   if (hasCompound) {
     lines.push('🏋️ Базовые: контролируй негатив, не бросай штангу');
@@ -13364,7 +13364,7 @@ function calculateMuscleBalance(
   for (const w of recentWorkouts) {
     for (const ex of w.exercises) {
       const completedSets = ex.sets.filter((s) => s.completed).length;
-      const primary = ex.exercise.primaryMuscles[0];
+      const primary = ex.exercise?.primaryMuscles?.[0];
       if (!primary) continue;
       if (pushMuscles.has(primary)) pushSets += completedSets;
       else if (pullMuscles.has(primary)) pullSets += completedSets;
@@ -13567,7 +13567,7 @@ function monitorJointHealth(
     if (riskyExercises.length > 0) {
       const severity = restriction.severity === 'severe' ? '🔴' : restriction.severity === 'moderate' ? '🟡' : '🟢';
       warnings.push(
-        `${severity} ${restriction.bodyPart}: ${restriction.description} (${restriction.severity}) — потенциально задействованы: ${riskyExercises.map((e) => e.exercise.name).join(', ')}`,
+        `${severity} ${restriction.bodyPart}: ${restriction.description} (${restriction.severity}) — потенциально задействованы: ${riskyExercises.map((e) => e.exercise?.name).join(', ')}`,
       );
     }
   }
@@ -13606,15 +13606,15 @@ function suggestProgressiveOverload(
       const workingSets = ex.sets.filter((s) => s.completed && s.type !== 'warmup' && (s.weight || 0) > 0);
       if (workingSets.length === 0) continue;
 
-      if (!exerciseData[ex.exercise.id]) {
-        exerciseData[ex.exercise.id] = { name: ex.exercise.name, type: ex.exercise.type, sessions: [] };
+      if (!exerciseData[ex.exercise?.id ?? ""]) {
+        exerciseData[ex.exercise?.id ?? ""] = { name: ex.exercise?.name, type: ex.exercise?.type, sessions: [] };
       }
 
       const maxWeight = Math.max(...workingSets.map((s) => s.weight || 0));
       const maxReps = Math.max(...workingSets.map((s) => s.reps || 0));
       const allCompleted = workingSets.every((s) => s.completed);
 
-      exerciseData[ex.exercise.id].sessions.push({ maxWeight, maxReps, allCompleted });
+      exerciseData[ex.exercise?.id ?? ""].sessions.push({ maxWeight, maxReps, allCompleted });
     }
   }
 
@@ -13754,7 +13754,7 @@ function calculateWarmupSets(
       sets.push(`${Math.round(workingWeight * 0.75)} кг × 5`);
     }
 
-    warmups.push(`${ex.exercise.name} (рабочий: ${workingWeight} кг): ${sets.join(' → ')}`);
+    warmups.push(`${ex.exercise?.name} (рабочий: ${workingWeight} кг): ${sets.join(' → ')}`);
   }
 
   if (warmups.length === 0) return '';
@@ -14114,7 +14114,7 @@ function optimizeTrainingFrequency(
   for (const w of recentOnly) {
     const musclesThisWorkout = new Set<string>();
     for (const ex of w.exercises) {
-      for (const m of ex.exercise.primaryMuscles) musclesThisWorkout.add(m);
+      for (const m of ex.exercise?.primaryMuscles) musclesThisWorkout.add(m);
     }
     for (const m of musclesThisWorkout) {
       muscleFreq[m] = (muscleFreq[m] || 0) + 1;
@@ -14355,7 +14355,7 @@ function analyzeCompoundPriority(
   for (const w of recentWorkouts) {
     for (const ex of w.exercises) {
       const isCompound = ['barbell', 'dumbbell'].includes(ex.exercise.type) &&
-        ex.exercise.primaryMuscles.length >= 1;
+        ex.exercise?.primaryMuscles?.length >= 1;
       const isIsolation = ['machine', 'cable'].includes(ex.exercise.type);
 
       if (isCompound) {
@@ -14364,7 +14364,7 @@ function analyzeCompoundPriority(
       }
       if (isIsolation) {
         totalIsolation += ex.sets.filter((s) => s.completed).length;
-        if (ex.order <= 2 && w.exercises.some((e) => ['barbell', 'dumbbell'].includes(e.exercise.type) && e.order > ex.order)) {
+        if (ex.order <= 2 && w.exercises.some((e) => ['barbell', 'dumbbell'].includes(e.exercise?.type) && e.order > ex.order)) {
           isolationFirst++;
         }
       }
@@ -14598,7 +14598,7 @@ function scoreWorkoutComplexity(
   complexityScore += Math.min(exercises.length * 5, 30);
 
   // Equipment variety
-  const equipmentTypes = new Set(exercises.map((e) => e.exercise.type));
+  const equipmentTypes = new Set(exercises.map((e) => e.exercise?.type));
   complexityScore += equipmentTypes.size * 5;
 
   // Advanced set types (dropsets, supersets, etc)
@@ -14606,12 +14606,12 @@ function scoreWorkoutComplexity(
   complexityScore += advancedSets.length * 8;
 
   // Muscle group count
-  const muscleGroups = new Set(exercises.flatMap((e) => e.exercise.primaryMuscles));
+  const muscleGroups = new Set(exercises.flatMap((e) => e.exercise?.primaryMuscles));
   complexityScore += muscleGroups.size * 3;
 
   // Difficulty of exercises
   const difficultyScores: Record<string, number> = { beginner: 1, intermediate: 3, advanced: 5, expert: 8 };
-  const avgDifficulty = exercises.reduce((sum, e) => sum + (difficultyScores[e.exercise.difficulty?.toLowerCase()] || 2), 0) / exercises.length;
+  const avgDifficulty = exercises.reduce((sum, e) => sum + (difficultyScores[e.exercise?.difficulty?.toLowerCase()] || 2), 0) / exercises.length;
   complexityScore += Math.round(avgDifficulty * 5);
 
   // Normalize to 1-10
@@ -14707,7 +14707,7 @@ function analyzeRPEPatterns(
     for (const ex of w.exercises) {
       for (const s of ex.sets) {
         if (s.rpe && s.completed && s.weight) {
-          rpeSets.push({ exercise: ex.exercise.name, rpe: s.rpe, weight: s.weight });
+          rpeSets.push({ exercise: ex.exercise?.name, rpe: s.rpe, weight: s.weight });
         }
       }
     }
@@ -14917,14 +14917,14 @@ function estimateExecutionQuality(
 
       // Big rep drops across sets = possible too heavy
       if (repsDiff > 5 && reps[reps.length - 1] < reps[0] * 0.5) {
-        issues.push(`${ex.exercise.name}: повторы падают с ${reps[0]} до ${reps[reps.length - 1]} — вес может быть слишком большим`);
+        issues.push(`${ex.exercise?.name}: повторы падают с ${reps[0]} до ${reps[reps.length - 1]} — вес может быть слишком большим`);
       }
 
       // Weight jumps within exercise = inconsistent
       const weights = workingSets.map((s) => s.weight || 0);
       const weightVariance = weights.some((w, i) => i > 0 && Math.abs(w - weights[i - 1]) > weights[0] * 0.2);
       if (weightVariance && weights.length >= 3) {
-        issues.push(`${ex.exercise.name}: вес скачет между подходами — работай с фиксированным весом для стабильности`);
+        issues.push(`${ex.exercise?.name}: вес скачет между подходами — работай с фиксированным весом для стабильности`);
       }
     }
   }
@@ -14995,7 +14995,7 @@ function estimateFiberType(
 
   for (const w of recentWorkouts) {
     for (const ex of w.exercises) {
-      const primaryMuscle = ex.exercise.primaryMuscles[0];
+      const primaryMuscle = ex.exercise?.primaryMuscles?.[0];
       if (!primaryMuscle) continue;
 
       if (!musclePerformance[primaryMuscle]) {
@@ -15093,8 +15093,8 @@ function generateDeloadPrescription(
     for (const ex of w.exercises) {
       const weights = ex.sets.filter(s => s.weight && s.completed).map(s => s.weight!);
       if (weights.length > 0) {
-        if (!exerciseWeights[ex.exercise.name]) exerciseWeights[ex.exercise.name] = [];
-        exerciseWeights[ex.exercise.name].push(...weights);
+        if (!exerciseWeights[ex.exercise?.name]) exerciseWeights[ex.exercise?.name] = [];
+        exerciseWeights[ex.exercise?.name].push(...weights);
       }
     }
   }
@@ -15134,7 +15134,7 @@ function trackSplitAdherence(
   const sessions = recentWorkouts.slice(0, 8).map(w => {
     const muscles = new Set<string>();
     for (const ex of w.exercises) {
-      for (const m of ex.exercise.primaryMuscles) muscles.add(m);
+      for (const m of ex.exercise?.primaryMuscles) muscles.add(m);
     }
     return { name: w.name, muscles: Array.from(muscles), date: w.completedAt };
   });
@@ -15188,7 +15188,7 @@ function analyzeVolumeDosing(
     if (!w.completedAt || now - w.completedAt.getTime() > weekMs) continue;
     for (const ex of w.exercises) {
       const workingSets = ex.sets.filter(s => s.completed && s.type !== 'warmup').length;
-      for (const m of ex.exercise.primaryMuscles) {
+      for (const m of ex.exercise?.primaryMuscles) {
         muscleSets[m] = (muscleSets[m] || 0) + workingSets;
       }
     }
@@ -15565,9 +15565,9 @@ function detectTrainingMonotony(
   for (const w of recentWorkouts.slice(0, totalWorkouts)) {
     const seen = new Set<string>();
     for (const ex of w.exercises) {
-      if (!seen.has(ex.exercise.name)) {
-        exerciseCount[ex.exercise.name] = (exerciseCount[ex.exercise.name] || 0) + 1;
-        seen.add(ex.exercise.name);
+      if (!seen.has(ex.exercise?.name)) {
+        exerciseCount[ex.exercise?.name] = (exerciseCount[ex.exercise?.name] || 0) + 1;
+        seen.add(ex.exercise?.name);
       }
     }
   }
@@ -15585,8 +15585,8 @@ function detectTrainingMonotony(
       const weights = ex.sets.filter(s => s.weight).map(s => s.weight!);
       if (weights.length >= 3) {
         const allSame = weights.every(w => w === weights[0]);
-        if (allSame && !stagnant.includes(ex.exercise.name)) {
-          stagnant.push(ex.exercise.name);
+        if (allSame && !stagnant.includes(ex.exercise?.name)) {
+          stagnant.push(ex.exercise?.name);
         }
       }
     }
@@ -15627,7 +15627,7 @@ function analyzeGripStrength(
 
   for (const w of recentWorkouts.slice(0, 5)) {
     for (const ex of w.exercises) {
-      const nameL = ex.exercise.name.toLowerCase();
+      const nameL = ex.exercise?.name?.toLowerCase();
       const isGripExercise = gripExercises.some(g => nameL.includes(g));
       if (!isGripExercise) continue;
 
@@ -15641,7 +15641,7 @@ function analyzeGripStrength(
 
       if (firstHalfAvg > 0 && secondHalfAvg / firstHalfAvg < 0.7) {
         gripData.push({
-          name: ex.exercise.name,
+          name: ex.exercise?.name,
           avgReps: Math.round((firstHalfAvg + secondHalfAvg) / 2),
           maxWeight: Math.max(...completedSets.map(s => s.weight!)),
         });
@@ -15674,18 +15674,18 @@ function detectBilateralImbalance(
   const dbExercises: string[] = [];
   for (const w of recentWorkouts.slice(0, 5)) {
     for (const ex of w.exercises) {
-      if (ex.exercise.type === 'dumbbell') {
+      if (ex.exercise?.type === 'dumbbell') {
         // Check for incomplete sets pattern (alternating complete/incomplete could indicate imbalance)
         const completedCount = ex.sets.filter(s => s.completed).length;
         const totalCount = ex.sets.length;
         if (totalCount >= 3 && completedCount / totalCount < 0.7) {
-          dbExercises.push(ex.exercise.name);
+          dbExercises.push(ex.exercise?.name);
         }
         // Check notes for imbalance mentions
         for (const s of ex.sets) {
           if (s.notes && /лев|прав|слаб|left|right|weak/i.test(s.notes)) {
-            if (!dbExercises.includes(ex.exercise.name)) {
-              dbExercises.push(ex.exercise.name);
+            if (!dbExercises.includes(ex.exercise?.name)) {
+              dbExercises.push(ex.exercise?.name);
             }
           }
         }
@@ -15757,7 +15757,7 @@ function estimateCardioFitness(
   const cardioSets: Array<{ duration: number; distance: number }> = [];
   for (const w of recentWorkouts.slice(0, 10)) {
     for (const ex of w.exercises) {
-      if (ex.exercise.category === 'cardio') {
+      if (ex.exercise?.category === 'cardio') {
         for (const s of ex.sets) {
           if (s.completed && s.duration && s.distance) {
             cardioSets.push({ duration: s.duration, distance: s.distance });
@@ -15870,7 +15870,7 @@ function scoreFormRisk(
       const highRpeSets = completedSets.filter(s => s.rpe && s.rpe >= 9);
       if (highRpeSets.length >= 2 && ex.order >= 3) {
         risks.push({
-          exercise: ex.exercise.name,
+          exercise: ex.exercise?.name,
           reason: 'высокий RPE (9-10) на утомлённые мышцы (поздно в тренировке)',
         });
       }
@@ -15881,7 +15881,7 @@ function scoreFormRisk(
         const drop = (reps[0] - reps[reps.length - 1]) / reps[0];
         if (drop > 0.5) {
           risks.push({
-            exercise: ex.exercise.name,
+            exercise: ex.exercise?.name,
             reason: `повторения упали на ${Math.round(drop * 100)}% (${reps[0]} → ${reps[reps.length - 1]})`,
           });
         }
@@ -16421,8 +16421,8 @@ function trackProgressiveOverload(
       const maxW = Math.max(...workingSets.map(s => s.weight!));
       const bestSet = workingSets.find(s => s.weight === maxW);
 
-      if (!exerciseProgress[ex.exercise.name]) exerciseProgress[ex.exercise.name] = [];
-      exerciseProgress[ex.exercise.name].push({
+      if (!exerciseProgress[ex.exercise?.name]) exerciseProgress[ex.exercise?.name] = [];
+      exerciseProgress[ex.exercise?.name].push({
         date: w.completedAt.getTime(),
         maxWeight: maxW,
         bestSet: bestSet ? `${bestSet.weight}кг × ${bestSet.reps}` : '',
@@ -16541,11 +16541,11 @@ function estimateDetailedCalorieBurn(
     const completedSets = ex.sets.filter(s => s.completed);
     if (completedSets.length === 0) continue;
 
-    if (ex.exercise.category === 'strength') {
+    if (ex.exercise?.category === 'strength') {
       // MET ~6 for weight training
       const setTime = completedSets.length * 1.5; // ~1.5 min per set including rest
       totalCal += 6 * userWeightKg * (setTime / 60);
-    } else if (ex.exercise.category === 'cardio') {
+    } else if (ex.exercise?.category === 'cardio') {
       const totalDuration = completedSets.reduce((s, set) => s + (set.duration || 0), 0);
       // MET ~8 for moderate cardio
       totalCal += 8 * userWeightKg * (totalDuration / 3600);
@@ -16809,8 +16809,8 @@ function estimateMobilityScore(
   for (const w of recentWorkouts.slice(0, 5)) {
     for (const ex of w.exercises) {
       totalExercises++;
-      if (ex.exercise.category === 'flexibility') mobilityExCount++;
-      else if (ex.exercise.category === 'strength') strengthExCount++;
+      if (ex.exercise?.category === 'flexibility') mobilityExCount++;
+      else if (ex.exercise?.category === 'strength') strengthExCount++;
     }
   }
 
@@ -18296,7 +18296,7 @@ function trackMuscleGroupRecovery(
     const daysAgo = Math.floor((Date.now() - new Date(wo.completedAt).getTime()) / (1000 * 60 * 60 * 24));
 
     for (const ex of wo.exercises) {
-      const mg = ex.exercise.muscleGroup;
+      const mg = ex.exercise?.muscleGroup;
       if (!mg) continue;
       if (muscleLastTrained[mg] === undefined || muscleLastTrained[mg] > daysAgo) {
         muscleLastTrained[mg] = daysAgo;
