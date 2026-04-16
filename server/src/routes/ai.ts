@@ -1830,16 +1830,19 @@ async function executeTool(
     const VALID_PROG_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
     const safeGoal = VALID_PROG_GOALS.includes(goal) ? goal : 'GENERAL_FITNESS';
     const safeLevel = VALID_PROG_LEVELS.includes(level) ? level : 'BEGINNER';
+    const safeDaysPerWeek = Math.min(7, Math.max(1, Math.round(daysPerWeek) || 3));
+    // Cap number of workouts to prevent runaway DB inserts from misbehaving AI responses
+    const safeWorkouts = workouts.slice(0, 14);
 
     // Create the new program
     const program = await prisma.program.create({
       data: {
-        name,
-        description: description ?? '',
+        name: String(name).slice(0, 200),
+        description: description ? String(description).slice(0, 2000) : '',
         type,
         goal: safeGoal as any,
         level: safeLevel as any,
-        daysPerWeek,
+        daysPerWeek: safeDaysPerWeek,
         isActive: true,
         createdBy: 'ai',
         userId,
@@ -1849,7 +1852,7 @@ async function executeTool(
     // Create all workouts for this program
     let totalExercises = 0;
     const workoutNames: string[] = [];
-    for (const workoutDef of workouts) {
+    for (const workoutDef of safeWorkouts) {
       const exerciseRecords = await Promise.all(
         workoutDef.exercises.map(async (ex) => {
           const record = await resolveExercise(ex.exerciseName);
