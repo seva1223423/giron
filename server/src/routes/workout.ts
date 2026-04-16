@@ -32,8 +32,8 @@ const createProgramSchema = z.object({
 
 const workoutSetUpdateSchema = z.object({
   id: z.string().min(1).max(100),
-  reps: z.number().int().min(0).max(10000).optional().nullable(),
-  weight: z.number().min(0).max(10000).optional().nullable(),
+  reps: z.number().int().min(0).max(999).optional().nullable(),
+  weight: z.number().min(0).max(2000).optional().nullable(),
   completed: z.boolean().optional(),
   rpe: z.number().min(1).max(10).optional().nullable(),
 });
