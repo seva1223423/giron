@@ -482,9 +482,12 @@ export async function analyzeImage(
     throw new Error(`AI vision error ${response.status}: ${errorText}`);
   }
 
-  const data = await response.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
+  let data: { choices?: Array<{ message?: { content?: string } }> };
+  try {
+    data = await response.json();
+  } catch (e) {
+    throw new Error(`AI vision parse error: ${(e as Error).message}`);
+  }
   return data.choices?.[0]?.message?.content || '';
 }
 

@@ -172,7 +172,8 @@ router.patch('/programs/:id', authenticate, async (req: AuthRequest, res: Respon
     });
 
     res.json(program);
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Программа не найдена' });
     logger.error(e);
     res.status(500).json({ error: 'Ошибка обновления программы' });
   }
@@ -369,6 +370,11 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     const startedAt = refreshed?.startedAt;
     const durationMinutes = startedAt ? Math.round((Date.now() - startedAt.getTime()) / 60000) : 0;
 
+    // Guard: prevent double-completion (concurrent requests)
+    if (refreshed?.completedAt) {
+      return res.status(409).json({ error: 'Тренировка уже завершена' });
+    }
+
     const updated = await prisma.workout.update({
       where: { id },
       data: {
@@ -385,7 +391,8 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     });
 
     res.json(updated);
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Тренировка не найдена' });
     logger.error(e);
     res.status(500).json({ error: 'Ошибка завершения тренировки' });
   }
