@@ -10,7 +10,7 @@ const router = Router();
 const isNotFound = (e: any) => e?.code === 'P2025';
 
 /** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
-const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const CUID_RE = /^c[a-z0-9]{20,30}$/;
 const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 
 const createTicketSchema = z.object({

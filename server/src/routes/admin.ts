@@ -16,7 +16,7 @@ router.use(authenticate);
 /** Returns true if the Prisma error is "record not found" (P2025) */
 const isNotFound = (e: any) => e?.code === 'P2025';
 
-const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const CUID_RE = /^c[a-z0-9]{20,30}$/;
 const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 
 // ── DASHBOARD STATS ─────────────────────────────────────────────────────────
