@@ -45,7 +45,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
     getPastDates(chartDays).reverse().map((date) => {
       const log = getDayLog(date);
       const calories = log.meals.reduce((s, m) => s + m.totalCalories, 0);
-      return { label: new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }), calories, target: log.targetCalories };
+      return { label: new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }), calories, target: log.targetCalories };
     }),
     [getDayLog, chartDays]
   );
@@ -61,7 +61,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
     getPastDates(chartDays).reverse().map((date) => {
       const log = getDayLog(date);
       return {
-        label: new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }),
+        label: new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }),
         protein: Math.round(log.meals.reduce((s, m) => s + m.totalProtein, 0)),
         fats: Math.round(log.meals.reduce((s, m) => s + m.totalFats, 0)),
         carbs: Math.round(log.meals.reduce((s, m) => s + m.totalCarbs, 0)),

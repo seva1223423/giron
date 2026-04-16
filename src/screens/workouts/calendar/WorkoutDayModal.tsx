@@ -6,7 +6,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { formatDuration } from './CalendarGrid';
 
 function formatShortDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
 interface Props {
