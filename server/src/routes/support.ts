@@ -66,7 +66,7 @@ router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response)
       (await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } }))?.role ?? ''
     );
     if (!isStaff && ticket.userId !== req.userId) {
-      return res.status(403).json({ error: 'Нет доступа' });
+      return res.status(404).json({ error: 'Тикет не найден' });
     }
     res.json(ticket);
   } catch (e) {
@@ -118,7 +118,7 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
     const isStaff = ['ADMIN', 'SUPPORT'].includes(userRecord?.role ?? '');
 
     if (!isStaff && ticket.userId !== req.userId) {
-      return res.status(403).json({ error: 'Нет доступа' });
+      return res.status(404).json({ error: 'Тикет не найден' });
     }
     if (ticket.status === 'closed') {
       return res.status(400).json({ error: 'Тикет закрыт. Создайте новый.' });
