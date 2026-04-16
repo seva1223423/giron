@@ -1701,11 +1701,11 @@ async function executeTool(
 
     const safeItems = items.slice(0, 50).map((i) => ({
       ...i,
-      calories: Math.max(0, i.calories),
-      protein: Math.max(0, i.protein),
-      fats: Math.max(0, i.fats),
-      carbs: Math.max(0, i.carbs),
-      weightGrams: Math.max(0, i.weightGrams),
+      calories: Math.min(10000, Math.max(0, Number(i.calories) || 0)),
+      protein: Math.min(1000, Math.max(0, Number(i.protein) || 0)),
+      fats: Math.min(1000, Math.max(0, Number(i.fats) || 0)),
+      carbs: Math.min(1000, Math.max(0, Number(i.carbs) || 0)),
+      weightGrams: Math.min(10000, Math.max(0, Number(i.weightGrams) || 0)),
     }));
     const totalCalories = safeItems.reduce((s, i) => s + i.calories, 0);
     const totalProtein = safeItems.reduce((s, i) => s + i.protein, 0);
@@ -2256,17 +2256,26 @@ async function executeTool(
     if (!meal) return { resultText: 'Приём пищи не найден', actionDescription: '' };
     if (!items || items.length === 0) return { resultText: 'Список продуктов не может быть пустым', actionDescription: '' };
 
-    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
-    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
-    const totalFats = items.reduce((s, i) => s + i.fats, 0);
-    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+    const safeModifyItems = items.slice(0, 50).map((i) => ({
+      name: i.name,
+      calories: Math.min(10000, Math.max(0, Number(i.calories) || 0)),
+      protein: Math.min(1000, Math.max(0, Number(i.protein) || 0)),
+      fats: Math.min(1000, Math.max(0, Number(i.fats) || 0)),
+      carbs: Math.min(1000, Math.max(0, Number(i.carbs) || 0)),
+      weightGrams: Math.min(10000, Math.max(0, Number(i.weightGrams) || 0)),
+    }));
+    const totalCalories = safeModifyItems.reduce((s, i) => s + i.calories, 0);
+    const totalProtein = safeModifyItems.reduce((s, i) => s + i.protein, 0);
+    const totalFats = safeModifyItems.reduce((s, i) => s + i.fats, 0);
+    const totalCarbs = safeModifyItems.reduce((s, i) => s + i.carbs, 0);
 
     await prisma.$transaction(async (tx) => {
       await tx.mealItem.deleteMany({ where: { mealId: meal.id } });
-      await tx.meal.update({
-        where: { id: meal.id },
-        data: { totalCalories, totalProtein, totalFats, totalCarbs, items: { create: items.map((i) => ({ name: i.name, calories: i.calories, protein: i.protein, fats: i.fats, carbs: i.carbs, weightGrams: i.weightGrams })) } },
+      await tx.meal.updateMany({
+        where: { id: meal.id, userId },
+        data: { totalCalories, totalProtein, totalFats, totalCarbs },
       });
+      await tx.mealItem.createMany({ data: safeModifyItems.map((i) => ({ ...i, mealId: meal.id })) });
     });
 
     return {
