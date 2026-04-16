@@ -57,7 +57,7 @@ export const PersonalRecordCard: React.FC<Props> = ({ record, topRM, isSelected,
           </View>
           <View style={{ marginTop: spacing.sm }}>
             <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.surface }}>
-              <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.primary, width: `${(record.estimated1RM / topRM) * 100}%` }} />
+              <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.primary, width: `${topRM > 0 ? (record.estimated1RM / topRM) * 100 : 100}%` }} />
             </View>
           </View>
           {isSelected && (

@@ -16,6 +16,9 @@ router.use(authenticate);
 /** Returns true if the Prisma error is "record not found" (P2025) */
 const isNotFound = (e: any) => e?.code === 'P2025';
 
+const CUID_RE = /^c[a-z0-9]{20,30}$/i;
+const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
 // ── DASHBOARD STATS ─────────────────────────────────────────────────────────
 
 /** GET /admin/stats — main dashboard data (cached 90s to avoid 35+ DB queries per page load) */
@@ -2209,6 +2212,7 @@ router.get('/users/:id/security-events', requireAdmin, async (req: AuthRequest, 
 /** POST /admin/users/:id/force-disable-2fa — disable 2FA for a user (for recovery purposes) */
 router.post('/users/:id/force-disable-2fa', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
     await prisma.user.update({
       where: { id: req.params.id as string },
       data: { totpEnabled: false, totpSecret: null, totpBackupCodes: null },
@@ -2221,6 +2225,8 @@ router.post('/users/:id/force-disable-2fa', requireAdmin, async (req: AuthReques
     });
     res.json({ ok: true });
   } catch (e) {
+    logger.error('POST /admin/users/:id/force-disable-2fa:', e);
+    if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('POST /admin/users/:id/force-disable-2fa:', e);
     res.status(500).json({ error: 'Ошибка отключения 2FA' });
   }
