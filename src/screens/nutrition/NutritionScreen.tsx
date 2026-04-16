@@ -13,8 +13,9 @@ import {
   GoalsModal, QuickAddModal, DailyOverview, WaterTracker, WeekStats,
   SavedFoodsQuickAdd, MealSection, DateNavigator, MEAL_TYPES, QuickMeals,
 } from './components';
+import { localDateStr } from '../../utils/date';
 
-const todayDate = () => new Date().toISOString().split('T')[0];
+const todayDate = () => localDateStr(new Date());
 
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();

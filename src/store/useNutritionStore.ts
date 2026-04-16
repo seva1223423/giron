@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DailyNutrition, Meal, NutritionItem, WaterLogEntry } from '../types';
 import { nutritionService } from '../services';
+import { localDateStr } from '../utils/date';
 
 interface NutritionStore {
   dailyLog: Record<string, DailyNutrition>;
@@ -277,7 +278,7 @@ export const useNutritionStore = create<NutritionStore>()(
         set((s) => {
           const cutoff = new Date();
           cutoff.setDate(cutoff.getDate() - keepDays);
-          const cutoffStr = cutoff.toISOString().split('T')[0];
+          const cutoffStr = localDateStr(cutoff);
 
           const cleaned: typeof s.dailyLog = {};
           for (const [date, log] of Object.entries(s.dailyLog)) {

@@ -128,6 +128,6 @@ export const workoutService = {
   // Club leaderboard
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     const { data } = await api.get('/workouts/leaderboard');
-    return data.leaderboard;
+    return data.leaderboard ?? [];
   },
 };
