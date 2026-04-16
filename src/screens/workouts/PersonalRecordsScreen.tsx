@@ -8,6 +8,7 @@ import { spacing } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
 import { PRRecordCard, PRFilters, MUSCLE_ORDER, epley1RM } from './records';
 import type { PREntry } from './records';
+import { localDateStr } from '../../utils/date';
 
 export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -23,7 +24,8 @@ export const PersonalRecordsScreen: React.FC<{ navigation: any }> = ({ navigatio
     const map = new Map<string, { bestWeight: number; bestReps: number; best1RM: number; date: string; byDate: Map<string, number> }>();
 
     workoutHistory.forEach((workout) => {
-      const workoutDate = (workout.completedAt || workout.startedAt || '').split('T')[0];
+      const ts = workout.completedAt || workout.startedAt;
+      const workoutDate = ts ? localDateStr(new Date(ts)) : '';
       if (!workoutDate) return;
       workout.exercises.forEach((we) => {
         we.sets.forEach((set) => {
