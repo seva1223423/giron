@@ -203,11 +203,12 @@ setInterval(async () => {
   } catch {}
 }, 5 * 60 * 1000);
 
-// Cleanup expired/used OTP codes every hour
+// Cleanup expired/used OTP codes and stale TOTP replay records every hour
 setInterval(async () => {
   try {
     const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const { count } = await (await import('./db')).prisma.otpCode.deleteMany({
+    const db = (await import('./db')).prisma;
+    const { count } = await db.otpCode.deleteMany({
       where: {
         OR: [
           { expiresAt: { lt: new Date() } }, // expired (regardless of used status)
@@ -216,6 +217,10 @@ setInterval(async () => {
       },
     });
     if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used OTP codes`);
+    // UsedTotpCode only needs 90s replay window; purge anything older than 5 minutes
+    const totpCutoff = new Date(Date.now() - 5 * 60 * 1000);
+    const { count: totpCount } = await db.usedTotpCode.deleteMany({ where: { usedAt: { lt: totpCutoff } } });
+    if (totpCount > 0) logger.info(`[Cleanup] Deleted ${totpCount} stale TOTP replay records`);
   } catch {}
 }, 60 * 60 * 1000);
 
