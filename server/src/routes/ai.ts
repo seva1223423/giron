@@ -3932,6 +3932,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 159: Workout variation suggestions ──────
     const frequentExNames = Object.entries(
       recentWorkouts.slice(0, 8).flatMap((w: any) => w.exercises.map((e: any) => e.exercise?.name))
+        .filter((name: any) => typeof name === 'string' && name.length > 0)
         .reduce((acc: Record<string, number>, name: string) => { acc[name] = (acc[name] || 0) + 1; return acc; }, {})
     ).filter(([, count]) => (count as number) >= 3).map(([name]) => name);
     const variationContext = suggestVariations(frequentExNames);
