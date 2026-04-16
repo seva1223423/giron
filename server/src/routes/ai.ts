@@ -3089,7 +3089,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const workoutRecommendation = getWorkoutRecommendation(
       weekPlan,
       recentWorkouts.map((w) => ({ name: w.name, completedAt: w.completedAt })),
-      new Date().getDay(),
+      todayDate ? new Date(todayDate + 'T12:00:00Z').getUTCDay() : new Date().getDay(),
       todayDate,
     );
 
@@ -3867,7 +3867,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       .map((w: any) => new Date(w.completedAt).getDay());
     const typicalDays = [...new Set(trainingDaysOfWeek)];
     const completionPredictorContext = predictWorkoutCompletion(
-      completionRate, gamification.currentStreak, new Date().getDay(), typicalDays,
+      completionRate, gamification.currentStreak, todayDate ? new Date(todayDate + 'T12:00:00Z').getUTCDay() : new Date().getDay(), typicalDays,
     );
 
     // ─── Block 141: Progressive overload tracker ──────
