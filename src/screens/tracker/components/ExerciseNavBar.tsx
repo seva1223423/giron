@@ -74,7 +74,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         </View>
 
         <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>
-          {currentExercise.exercise?.name}
+          {currentExercise.exercise?.name ?? ''}
         </Text>
 
         {/* Muscle group chips */}
