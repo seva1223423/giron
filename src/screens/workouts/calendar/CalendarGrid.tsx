@@ -4,6 +4,7 @@ import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { localDateStr } from '../../../utils/date';
 
 export const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 export const MONTH_NAMES = [
@@ -12,7 +13,7 @@ export const MONTH_NAMES = [
 ];
 
 export function toDateStr(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return localDateStr(date);
 }
 
 export function getDaysInMonth(year: number, month: number): Date[] {
