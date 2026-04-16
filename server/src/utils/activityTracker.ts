@@ -4,6 +4,15 @@
 const lastSeen = new Map<string, number>(); // userId → timestamp ms
 
 export function recordActivity(userId: string): void {
+  // Cap at 50k entries: if full, evict the 5k oldest to prevent unbounded memory growth
+  if (lastSeen.size >= 50_000 && !lastSeen.has(userId)) {
+    const evictCount = 5_000;
+    let i = 0;
+    for (const key of lastSeen.keys()) {
+      if (i++ >= evictCount) break;
+      lastSeen.delete(key);
+    }
+  }
   lastSeen.set(userId, Date.now());
 }
 

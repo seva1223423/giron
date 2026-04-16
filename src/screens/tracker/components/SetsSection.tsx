@@ -58,8 +58,8 @@ export const SetsSection: React.FC<Props> = ({
     });
   }, [previousSets, overloadSuggestion, currentExercise.sets]);
 
+  const workoutHistory = useWorkoutStore((s) => s.workoutHistory);
   const suggestedRpe = useMemo(() => {
-    const { workoutHistory } = useWorkoutStore.getState();
     const exId = currentExercise.exerciseId;
     const rpes: number[] = [];
     const relevantWorkouts = workoutHistory
@@ -75,7 +75,7 @@ export const SetsSection: React.FC<Props> = ({
     if (rpes.length === 0) return undefined;
     const avg = rpes.reduce((a, b) => a + b, 0) / rpes.length;
     return Math.round(avg * 2) / 2; // round to nearest 0.5
-  }, [currentExercise.exerciseId]);
+  }, [currentExercise.exerciseId, workoutHistory]);
 
   const {
     addSet, removeSet, updateSetData, setExerciseNotes, setWorkoutNotes,

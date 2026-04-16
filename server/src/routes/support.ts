@@ -170,7 +170,8 @@ router.patch('/tickets/:id/close', authenticate, async (req: AuthRequest, res: R
       data: { status: 'closed', updatedAt: new Date() },
     });
     res.json(updated);
-  } catch (e) {
+  } catch (e: any) {
+    if (isNotFound(e)) return res.status(404).json({ error: 'Тикет не найден' });
     logger.error('PATCH /support/tickets/:id/close:', e);
     res.status(500).json({ error: 'Ошибка закрытия тикета' });
   }
