@@ -22,6 +22,7 @@ interface MeasurementsStore {
   deleteEntry: (id: string) => void;
   getLatest: () => BodyMeasurement | null;
   syncFromServer: () => Promise<void>;
+  clearUserData: () => void;
 }
 
 export const useMeasurementsStore = create<MeasurementsStore>()(
@@ -91,6 +92,8 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
           // Keep local data if server unreachable
         }
       },
+
+      clearUserData: () => set({ entries: [] }),
     }),
     {
       name: 'iron-gym-measurements',

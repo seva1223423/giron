@@ -19,6 +19,7 @@ interface SleepStore {
   getLastEntries: (count: number) => SleepEntry[];
   getAverageDuration: (days: number) => number;
   getAverageQuality: (days: number) => number;
+  clearUserData: () => void;
 }
 
 const computeDuration = (bedtime: string, wakeTime: string): number => {
@@ -100,6 +101,8 @@ export const useSleepStore = create<SleepStore>()(
         if (last.length === 0) return 0;
         return parseFloat((last.reduce((sum, e) => sum + (e.quality ?? 0), 0) / last.length).toFixed(1));
       },
+
+      clearUserData: () => set({ entries: [] }),
     }),
     {
       name: 'iron-gym-sleep',
