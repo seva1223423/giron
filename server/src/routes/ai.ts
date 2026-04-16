@@ -2972,7 +2972,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       const targetProt = nutritionTargets.protein;
       const hourNow = new Date().getHours();
       // If past 14:00 and protein eaten < 40% of target — flag
-      if (hourNow >= 14 && totalProt < targetProt * 0.4) {
+      if (hourNow >= 14 && targetProt > 0 && totalProt < targetProt * 0.4) {
         proactiveInsights.push(`⚠️ ВНИМАНИЕ: пользователь съел всего ${Math.round(totalProt)}г белка из ${targetProt}г (${Math.round(totalProt / targetProt * 100)}%) — а уже вторая половина дня. ОБЯЗАТЕЛЬНО упомяни это.`);
       }
       // Calorie check
@@ -15907,7 +15907,7 @@ function analyzeNutritionTrainingSync(
   hadWorkoutToday: boolean,
   userGoal: string | null,
 ): string {
-  if (targetCalories <= 0 || todayCalories <= 0) return '';
+  if (targetCalories <= 0 || todayCalories <= 0 || targetProtein <= 0) return '';
 
   const caloriePct = Math.round((todayCalories / targetCalories) * 100);
   const proteinPct = Math.round((todayProtein / targetProtein) * 100);
