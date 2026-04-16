@@ -248,20 +248,19 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             const bicepRight = typeof d.bicepRight === 'number' ? d.bicepRight : undefined;
             const thighLeft = typeof d.thighLeft === 'number' ? d.thighLeft : undefined;
             const thighRight = typeof d.thighRight === 'number' ? d.thighRight : undefined;
-            const bicep = bicepLeft !== undefined && bicepRight !== undefined
-              ? Math.round((bicepLeft + bicepRight) / 2 * 10) / 10
-              : (bicepRight ?? bicepLeft);
-            const thigh = thighLeft !== undefined && thighRight !== undefined
-              ? Math.round((thighLeft + thighRight) / 2 * 10) / 10
-              : (thighRight ?? thighLeft);
+            const calfLeft = typeof d.calfLeft === 'number' ? d.calfLeft : undefined;
+            const calfRight = typeof d.calfRight === 'number' ? d.calfRight : undefined;
+            const avg = (a?: number, b?: number) =>
+              a !== undefined && b !== undefined ? Math.round((a + b) / 2 * 10) / 10 : (b ?? a);
             addMeasurementEntry({
               date: typeof d.date === 'string' ? d.date : localDateStr(new Date()),
               chest: typeof d.chest === 'number' ? d.chest : undefined,
               waist: typeof d.waist === 'number' ? d.waist : undefined,
               hips: typeof d.hips === 'number' ? d.hips : undefined,
               neck: typeof d.neck === 'number' ? d.neck : undefined,
-              bicep,
-              thigh,
+              bicep: avg(bicepLeft, bicepRight),
+              thigh: avg(thighLeft, thighRight),
+              calf: avg(calfLeft, calfRight),
             });
           }
         }
