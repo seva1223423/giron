@@ -370,18 +370,17 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     const startedAt = refreshed?.startedAt;
     const durationMinutes = startedAt ? Math.round((Date.now() - startedAt.getTime()) / 60000) : 0;
 
-    // Guard: prevent double-completion (concurrent requests)
-    if (refreshed?.completedAt) {
+    // Atomic guard: only update if not yet completed (prevents double-completion race)
+    const completionResult = await prisma.workout.updateMany({
+      where: { id, completedAt: null },
+      data: { completedAt: new Date(), durationMinutes, totalVolume },
+    });
+    if (completionResult.count === 0) {
       return res.status(409).json({ error: 'Тренировка уже завершена' });
     }
 
-    const updated = await prisma.workout.update({
+    const updated = await prisma.workout.findUnique({
       where: { id },
-      data: {
-        completedAt: new Date(),
-        durationMinutes,
-        totalVolume,
-      },
       include: {
         exercises: {
           include: { exercise: true, sets: true },
