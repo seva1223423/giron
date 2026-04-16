@@ -35,7 +35,7 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { exerciseId } = route.params;
+  const { exerciseId } = route.params ?? {};
   const { colors } = useThemeStore();
   const { workoutHistory, activeWorkout, addExerciseToWorkout, customExercises } = useWorkoutStore();
   const allExercises = useMemo(() => [...customExercises, ...localExercises], [customExercises]);
