@@ -67,19 +67,27 @@ router.post('/:id/save', authenticate, async (req: AuthRequest, res: Response) =
     });
 
     if (existing) {
-      await prisma.savedNews.delete({ where: { id: existing.id } });
+      try {
+        await prisma.savedNews.delete({ where: { id: existing.id } });
+      } catch (e: any) {
+        // P2025: concurrent delete already removed it — treat as success
+        if (e?.code !== 'P2025') throw e;
+      }
       res.json({ saved: false });
     } else {
-      await prisma.savedNews.create({
-        data: { userId: req.userId!, articleId: id },
-      });
+      try {
+        await prisma.savedNews.create({
+          data: { userId: req.userId!, articleId: id },
+        });
+      } catch (e: any) {
+        // P2002: concurrent save already created it — treat as success
+        // P2003: FK constraint — article does not exist
+        if (e?.code === 'P2003') return res.status(404).json({ error: 'Статья не найдена' });
+        if (e?.code !== 'P2002') throw e;
+      }
       res.json({ saved: true });
     }
   } catch (e: any) {
-    // P2003 = FK constraint — article with this id does not exist
-    if (e?.code === 'P2003' || e?.code === 'P2025') {
-      return res.status(404).json({ error: 'Статья не найдена' });
-    }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка сохранения' });
   }
