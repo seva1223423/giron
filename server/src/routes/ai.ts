@@ -3334,7 +3334,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 51: Exercise technique cues ──────
     const lastWorkoutExerciseNames = lastCompletedWorkout
-      ? lastCompletedWorkout.exercises.map((e) => e.exercise?.name)
+      ? lastCompletedWorkout.exercises.map((e) => e.exercise?.name).filter((n): n is string => typeof n === 'string' && n.length > 0)
       : [];
     const techniqueCuesContext = getTechniqueCues(lastWorkoutExerciseNames);
 
@@ -3848,7 +3848,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const overloadTrackerContext = trackProgressiveOverload(recentWorkouts as any);
 
     // ─── Block 142: Breathing pattern advisor ──────
-    const exerciseNamesForBreathing = recentWorkouts[0]?.exercises?.map((e: any) => e.exercise?.name) || [];
+    const exerciseNamesForBreathing = (recentWorkouts[0]?.exercises?.map((e: any) => e.exercise?.name) || []).filter((n: any) => typeof n === 'string' && n.length > 0) as string[];
     const breathingContext = buildBreathingAdvice(exerciseNamesForBreathing);
 
     // ─── Block 143: Workout environment tips ──────
@@ -11366,7 +11366,7 @@ function findSimilarWorkouts(
       .filter((w) => w.totalVolume && w.totalVolume > 0)
       .sort((a, b) => (b.totalVolume || 0) - (a.totalVolume || 0))[0];
     if (best) {
-      const exercises = best.exercises.slice(0, 4).map((e) => e.exercise?.name).join(', ');
+      const exercises = best.exercises.slice(0, 4).map((e) => e.exercise?.name).filter(Boolean).join(', ');
       templates.push(`${muscle}: "${best.name}" (${exercises}) — ${best.totalVolume} кг объём`);
     }
   }
