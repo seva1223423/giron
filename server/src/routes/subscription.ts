@@ -25,12 +25,12 @@ router.get('/status', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Auto-expire if endDate has passed (atomic: add status check to WHERE to avoid double-update race)
+    // Auto-expire if endDate has passed. Handle both 'active' and 'cancelled' (cancelled = access until endDate).
     const isExpired = subscription.endDate && new Date(subscription.endDate) < new Date();
-    if (isExpired && subscription.status === 'active') {
+    if (isExpired && (subscription.status === 'active' || subscription.status === 'cancelled')) {
       try {
         await prisma.subscription.update({
-          where: { id: subscription.id, status: 'active' },
+          where: { id: subscription.id, status: subscription.status },
           data: { status: 'expired' },
         });
       } catch (e: any) {
@@ -44,7 +44,10 @@ router.get('/status', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const isPremium = subscription.status === 'active' && subscription.plan !== 'free';
+    // isPremium: active OR cancelled-but-not-yet-expired (access until endDate)
+    const isPremium = (subscription.status === 'active' || subscription.status === 'cancelled') &&
+      subscription.plan !== 'free' &&
+      (!subscription.endDate || subscription.endDate >= new Date());
 
     res.json({
       plan: subscription.plan,
