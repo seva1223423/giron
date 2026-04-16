@@ -1509,13 +1509,14 @@ async function executeTool(
     if (goal !== undefined && VALID_GOALS.includes(goal)) updateData.goal = goal;
     if (fitnessLevel !== undefined && VALID_LEVELS.includes(fitnessLevel)) updateData.fitnessLevel = fitnessLevel;
 
+    if (Object.keys(updateData).length === 0) return { resultText: 'Нет корректных данных для обновления профиля', actionDescription: '' };
     await prisma.user.update({ where: { id: userId }, data: updateData });
 
     const parts: string[] = [];
-    if (weightKg !== undefined) parts.push(`вес ${weightKg} кг`);
-    if (heightCm !== undefined) parts.push(`рост ${heightCm} см`);
-    if (goal !== undefined) parts.push(`цель обновлена`);
-    if (fitnessLevel !== undefined) parts.push(`уровень обновлён`);
+    if (updateData.weightKg !== undefined) parts.push(`вес ${updateData.weightKg} кг`);
+    if (updateData.heightCm !== undefined) parts.push(`рост ${updateData.heightCm} см`);
+    if (updateData.goal !== undefined) parts.push(`цель обновлена`);
+    if (updateData.fitnessLevel !== undefined) parts.push(`уровень обновлён`);
 
     return {
       resultText: `Профиль обновлён: ${parts.join(', ')}`,
