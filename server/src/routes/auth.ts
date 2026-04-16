@@ -843,7 +843,11 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
 
-    await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
+    // Atomic: only proceed if this request is the first to consume the OTP
+    const { count: consumed } = await prisma.otpCode.updateMany({ where: { id: otp.id, used: false }, data: { used: true } });
+    if (consumed === 0) {
+      return res.status(400).json({ error: 'Код уже использован. Запросите новый.', code: 'OTP_USED' });
+    }
 
     const user = await prisma.user.findUnique({ where: { phone }, include: { healthRestrictions: true } });
 
@@ -1018,7 +1022,10 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     // For 'register', 'phone-reset', 'phone-change', 'email-change': leave OTP intact — dedicated endpoints will consume it
     // For all other purposes: mark used now
     if (!['register', 'phone-reset', 'phone-change', 'email-change'].includes(purpose)) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+      const { count: consumed } = await prisma.otpCode.updateMany({ where: { id: activeOtp.id, used: false }, data: { used: true } });
+      if (consumed === 0) {
+        return res.status(400).json({ error: 'Код уже использован. Запросите новый.', valid: false });
+      }
     }
 
     res.json({ valid: true, message: 'Код подтверждён' });
