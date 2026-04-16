@@ -3786,9 +3786,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
 
     // ─── Block 131: Mind-muscle connection advisor ──────
-    const lastExercisesForCues = recentWorkouts[0]?.exercises?.map((e: any) => ({
-      name: e.exercise?.name, primaryMuscles: e.exercise?.primaryMuscles,
-    })) || [];
+    const lastExercisesForCues = (recentWorkouts[0]?.exercises ?? []).filter((e: any) => e.exercise).map((e: any) => ({
+      name: e.exercise.name, primaryMuscles: e.exercise.primaryMuscles ?? [],
+    }));
     const mindMuscleContext = buildMindMuscleAdvice(lastExercisesForCues);
 
     // ─── Block 132: Supplement timing ──────
