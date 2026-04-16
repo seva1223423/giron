@@ -54,8 +54,9 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
     const avgVolume = sessionsWithVolume.length > 0
       ? sessionsWithVolume.reduce((s, w) => s + (w.volumeKg || 0), 0) / sessionsWithVolume.length
       : null;
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
-    const weekCount = sessions.filter((w) => new Date(w.date) >= weekAgo).length;
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+    const weekAgoStr = localDateStr(weekAgo);
+    const weekCount = sessions.filter((w) => w.date >= weekAgoStr).length;
     return { avgDuration, avgVolume, weekCount };
   }, [sessions]);
 
