@@ -15290,11 +15290,11 @@ function suggestExercisePairings(
   for (let i = 0; i < exercises.length - 1; i++) {
     const curr = exercises[i];
     const next = exercises[i + 1];
-    const currMuscle = curr.exercise.primaryMuscles[0];
-    const nextMuscle = next.exercise.primaryMuscles[0];
+    const currMuscle = curr.exercise?.primaryMuscles?.[0];
+    const nextMuscle = next.exercise?.primaryMuscles?.[0];
 
     if (currMuscle && nextMuscle && antagonists[currMuscle] === nextMuscle) {
-      suggestions.push(`${curr.exercise.name} + ${next.exercise.name} → отличный суперсет (антагонисты)`);
+      suggestions.push(`${curr.exercise?.name} + ${next.exercise?.name} → отличный суперсет (антагонисты)`);
     }
   }
 
