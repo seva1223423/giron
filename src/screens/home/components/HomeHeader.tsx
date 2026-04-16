@@ -35,7 +35,7 @@ export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const ds = localDateStr(d);
-      if (workoutHistory.some((w) => w.completedAt?.startsWith(ds))) s++;
+      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === ds)) s++;
       else if (i > 0) break;
     }
     return s;

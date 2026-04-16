@@ -7,6 +7,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { SelectedDayCard } from './SelectedDayCard';
 import { MonthStatsCard } from './MonthStatsCard';
 import type { Workout } from '../../../types';
+import { localDateStr } from '../../../utils/date';
 
 
 const MONTH_NAMES = [
@@ -35,7 +36,7 @@ function getCalendarData(monthDate: Date, workoutHistory: Workout[]) {
 
   for (let d = 1; d <= lastDay.getDate(); d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const hasWorkout = workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr));
+    const hasWorkout = workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr);
     const isToday = d === now.getDate() && month === now.getMonth() && year === now.getFullYear();
     days.push({ date: d, dateStr, hasWorkout, isToday });
   }
@@ -57,9 +58,9 @@ export const CalendarTab: React.FC<CalendarTabProps> = ({ colors, workoutHistory
 
   const calDays = getCalendarData(calendarMonth, workoutHistory);
   const monthStr = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`;
-  const monthWorkouts = workoutHistory.filter((w) => w.completedAt && w.completedAt.startsWith(monthStr));
+  const monthWorkouts = workoutHistory.filter((w) => w.completedAt && localDateStr(new Date(w.completedAt)).startsWith(monthStr));
   const selectedDayWorkouts = selectedDay
-    ? workoutHistory.filter((w) => w.completedAt && w.completedAt.startsWith(selectedDay))
+    ? workoutHistory.filter((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === selectedDay)
     : [];
 
   const isCurrentMonth =
