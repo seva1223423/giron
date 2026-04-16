@@ -2528,7 +2528,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     // Free-tier users: max 10 AI messages/day. Paid plans: unlimited.
     const AI_FREE_DAILY_LIMIT = 10;
     const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
-    const isPaidSub = userSub && userSub.status === 'active' && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub) {
       const todayFloor = new Date(`${todayDate}T00:00:00.000Z`);
       const todayCount = await prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
@@ -9407,8 +9407,7 @@ async function getGamificationData(userId: string, clientDate?: string): Promise
   let currentStreak = 0;
   let longestStreak = 0;
   if (workouts.length > 0) {
-    const today = clientDate ? new Date(clientDate + 'T00:00:00.000Z') : new Date();
-    if (!clientDate) today.setHours(0, 0, 0, 0);
+    const today = clientDate ? new Date(clientDate + 'T00:00:00.000Z') : new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
 
     // Build set of training dates (YYYY-MM-DD)
     const trainingDays = new Set<string>();
@@ -10017,8 +10016,7 @@ function estimateRecoveryScore(
 
   // Factor 3: Consecutive training days
   let consecutiveDays = 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(today);
     checkDate.setDate(checkDate.getDate() - i);
