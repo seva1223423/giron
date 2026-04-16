@@ -109,7 +109,7 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Динамика веса</Text>
             <LineChart
               data={weightHistory.slice(-12).map((w) => ({
-                label: new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+                label: new Date(w.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
                 value: w.weightKg,
               }))}
               color={colors.primary}
@@ -176,7 +176,7 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>История замеров</Text>
             {[...weightHistory].reverse().slice(0, 20).map((entry, i) => (
               <View key={i} style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm }, i < Math.min(weightHistory.length, 20) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-                <Text style={[typography.body, { color: colors.text }]}>{new Date(entry.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</Text>
+                <Text style={[typography.body, { color: colors.text }]}>{new Date(entry.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</Text>
                 <Text style={[typography.bodySemibold, { color: colors.primary }]}>{entry.weightKg} кг</Text>
               </View>
             ))}

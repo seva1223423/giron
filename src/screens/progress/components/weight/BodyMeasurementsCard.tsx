@@ -75,7 +75,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
           ) : (
             <>
               <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
-                {new Date(latest.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(latest.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
                 {MEASUREMENT_FIELDS.filter(({ key }) => latest[key] != null).map(({ key, label, emoji }) => {
@@ -104,7 +104,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                 const chartData = measurementHistory
                   .filter((m) => m[selectedMeasure] != null)
                   .map((m) => ({
-                    label: new Date(m.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
+                    label: new Date(m.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
                     value: m[selectedMeasure] as number,
                   }));
                 return (

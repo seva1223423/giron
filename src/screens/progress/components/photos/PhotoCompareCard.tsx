@@ -33,7 +33,7 @@ export const PhotoCompareCard: React.FC<Props> = ({ photos, delay = 80 }) => {
                 {idx === 0 ? 'Начало' : 'Сейчас'}
               </Text>
               <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center' }]}>
-                {new Date(photo.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                {new Date(photo.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
               </Text>
             </View>
           ))}

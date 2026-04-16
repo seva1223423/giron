@@ -62,7 +62,7 @@ const strongPassword = z
 
 const weightSchema = z.object({
   weightKg: z.number().min(20, 'Вес не может быть менее 20 кг').max(400, 'Вес не может быть более 400 кг'),
-  date: z.string().refine((d) => !isNaN(Date.parse(d)), 'Некорректная дата'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате YYYY-MM-DD').refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата'),
 });
 
 // Get profile

@@ -216,7 +216,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {new Date(w.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                    {new Date(w.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                     {'  •  '}{w.durationMinutes} мин
                     {w.notes ? `  •  ${w.notes}` : ''}
                   </Text>
