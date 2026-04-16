@@ -1189,7 +1189,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
     // Security alert to the user's email
     const resetIp = (req as any).ip ?? 'unknown';
-    if (resetToken.user.email && resetToken.user.emailVerified) {
+    if (resetToken.user?.email && resetToken.user?.emailVerified) {
       sendPasswordChangedAlert(resetToken.user.email, resetIp, new Date()).catch(() => {});
     }
 
@@ -1297,6 +1297,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     }).parse(req.body);
 
     const phone = normalizePhone(rawPhone);
+    if (!phone) return res.status(400).json({ error: 'Неверный формат номера телефона' });
 
     const otp = await prisma.otpCode.findFirst({
       where: { phone, purpose: 'phone-reset', used: false, expiresAt: { gte: new Date() } },
