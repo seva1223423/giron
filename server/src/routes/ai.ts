@@ -1688,10 +1688,18 @@ async function executeTool(
       }>;
     };
 
-    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
-    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
-    const totalFats = items.reduce((s, i) => s + i.fats, 0);
-    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+    const safeItems = items.slice(0, 50).map((i) => ({
+      ...i,
+      calories: Math.max(0, i.calories),
+      protein: Math.max(0, i.protein),
+      fats: Math.max(0, i.fats),
+      carbs: Math.max(0, i.carbs),
+      weightGrams: Math.max(0, i.weightGrams),
+    }));
+    const totalCalories = safeItems.reduce((s, i) => s + i.calories, 0);
+    const totalProtein = safeItems.reduce((s, i) => s + i.protein, 0);
+    const totalFats = safeItems.reduce((s, i) => s + i.fats, 0);
+    const totalCarbs = safeItems.reduce((s, i) => s + i.carbs, 0);
 
     const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
     const safeMealType = VALID_MEAL_TYPES.includes(mealType) ? mealType : 'snack';
@@ -1705,7 +1713,7 @@ async function executeTool(
         totalFats,
         totalCarbs,
         items: {
-          create: items.map((i) => ({
+          create: safeItems.map((i) => ({
             name: i.name,
             calories: i.calories,
             protein: i.protein,
@@ -1721,7 +1729,7 @@ async function executeTool(
       breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус',
     };
     const label = MEAL_LABELS[safeMealType] || safeMealType;
-    const itemSummary = items.map((i) => `${i.name} ${i.weightGrams}г`).join(', ');
+    const itemSummary = safeItems.map((i) => `${i.name} ${i.weightGrams}г`).join(', ');
     const description = `${label} записан: ${itemSummary} — ${Math.round(totalCalories)} ккал`;
 
     return {
