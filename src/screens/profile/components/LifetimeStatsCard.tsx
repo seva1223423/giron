@@ -35,13 +35,15 @@ export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 })
     const exCount: Record<string, { name: string; count: number }> = {};
     workoutHistory.forEach((w) => {
       w.exercises.forEach((we) => {
-        const id = we.exerciseId || we.exercise.id;
+        const id = we.exerciseId || we.exercise?.id;
+        if (!id || !we.exercise) return;
         if (!exCount[id]) exCount[id] = { name: we.exercise.name, count: 0 };
         exCount[id].count++;
       });
     });
     const topExercise = Object.values(exCount).sort((a, b) => b.count - a.count)[0] || null;
 
+    if (sortedDates.length === 0) return { totalTonnage, totalMinutes, bestStreak, topExercise, avgPerWeek: 0 };
     const first = new Date(sortedDates[0]);
     const last = new Date(sortedDates[sortedDates.length - 1]);
     const weeks = Math.max(1, Math.round((last.getTime() - first.getTime()) / (7 * 86400000)));

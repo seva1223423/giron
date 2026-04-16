@@ -32,6 +32,7 @@ export const StrengthStandardsCard: React.FC<Props> = ({ oneRM, userWeight, user
     if (!selectedKey) return null;
     const std = STRENGTH_STANDARDS[selectedKey];
     if (!std) return null;
+    if (!userWeight || userWeight <= 0) return null;
     const refWeight = userGender === 'female' ? 60 : 80;
     const scaleFactor = userWeight / refWeight;
     return std[userGender].map((v, i) => ({
@@ -66,7 +67,8 @@ export const StrengthStandardsCard: React.FC<Props> = ({ oneRM, userWeight, user
         {standardsForSelected && (
           <View style={{ gap: spacing.sm }}>
             {standardsForSelected.map((s) => {
-              const stdBarWidth = Math.min(100, (s.value / standardsForSelected[standardsForSelected.length - 1].value) * 100);
+              const maxValue = standardsForSelected[standardsForSelected.length - 1].value;
+              const stdBarWidth = maxValue > 0 ? Math.min(100, (s.value / maxValue) * 100) : 0;
               return (
                 <View key={s.label}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>

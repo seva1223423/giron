@@ -317,12 +317,14 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       {weightTrend && (
         <View style={[styles.trendRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 28 }}>
-            {weightTrend.entries.map((e, i) => {
+            {(() => {
               const vals = weightTrend.entries.map((x) => x.weightKg);
               const min = Math.min(...vals); const max = Math.max(...vals);
-              const h = Math.max(4, Math.round(((e.weightKg - min) / (max - min || 1)) * 24) + 4);
-              return <View key={i} style={{ width: 8, height: h, borderRadius: 2, backgroundColor: i === weightTrend.entries.length - 1 ? colors.primary : colors.border }} />;
-            })}
+              return weightTrend.entries.map((e, i) => {
+                const h = Math.max(4, Math.round(((e.weightKg - min) / (max - min || 1)) * 24) + 4);
+                return <View key={i} style={{ width: 8, height: h, borderRadius: 2, backgroundColor: i === weightTrend.entries.length - 1 ? colors.primary : colors.border }} />;
+              });
+            })()}
           </View>
           <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренд веса</Text>
           <Text style={[typography.bodyMedium, { color: weightTrend.diff > 0 ? colors.warning : weightTrend.diff < 0 ? colors.success : colors.text }]}>
