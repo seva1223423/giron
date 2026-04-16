@@ -240,6 +240,15 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const totalCompletedSets = workout.exercises.reduce((s, ex) => s + ex.sets.filter((set) => set.completed).length, 0);
   const totalSets = workout.exercises.reduce((s, ex) => s + ex.sets.length, 0);
 
+  if (!currentExercise) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={[typography.h3, { color: colors.text }]}>Нет упражнений в тренировке</Text>
+        <Button title="Завершить" onPress={finishWorkout} style={{ marginTop: spacing.xl }} />
+      </View>
+    );
+  }
+
   // Check if current exercise is on its last set
   const completedSetsInCurrent = currentExercise.sets.filter((s) => s.completed).length;
   const isLastSetOfExercise = completedSetsInCurrent >= currentExercise.sets.length - 1;
