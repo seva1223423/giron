@@ -3,6 +3,7 @@ import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacit
 import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
+import { useMeasurementsStore } from '../../store/useMeasurementsStore';
 import { useSleepStore } from '../../store/useSleepStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { PaywallModal } from '../../components';
@@ -38,6 +39,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { getLastEntries: getSleepEntries, syncFromServer: syncSleep } = useSleepStore();
   const { consumeAiMessage } = useSubscriptionStore();
   const { setRestTimerDefault, setNotificationsEnabled, setReminderHour, setWaterRemindersEnabled, setWorkoutDurationGoal } = useSettingsStore();
+  const { addEntry: addMeasurementEntry } = useMeasurementsStore();
   const scrollRef = useRef<ScrollView>(null);
   const dynamicPrompts = useDynamicPrompts();
 
@@ -237,6 +239,31 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           const planAction = actions.find((act) => act.type === 'set_weekly_plan');
           const schedule = planAction?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[] }> | undefined;
           if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '◎', exercises: day.exerciseIds }));
+        }
+        if (types.includes('log_body_measurement')) {
+          const measAction = actions.find((act) => act.type === 'log_body_measurement');
+          if (measAction?.data) {
+            const d = measAction.data as Record<string, any>;
+            const bicepLeft = typeof d.bicepLeft === 'number' ? d.bicepLeft : undefined;
+            const bicepRight = typeof d.bicepRight === 'number' ? d.bicepRight : undefined;
+            const thighLeft = typeof d.thighLeft === 'number' ? d.thighLeft : undefined;
+            const thighRight = typeof d.thighRight === 'number' ? d.thighRight : undefined;
+            const bicep = bicepLeft !== undefined && bicepRight !== undefined
+              ? Math.round((bicepLeft + bicepRight) / 2 * 10) / 10
+              : (bicepRight ?? bicepLeft);
+            const thigh = thighLeft !== undefined && thighRight !== undefined
+              ? Math.round((thighLeft + thighRight) / 2 * 10) / 10
+              : (thighRight ?? thighLeft);
+            addMeasurementEntry({
+              date: typeof d.date === 'string' ? d.date : localDateStr(new Date()),
+              chest: typeof d.chest === 'number' ? d.chest : undefined,
+              waist: typeof d.waist === 'number' ? d.waist : undefined,
+              hips: typeof d.hips === 'number' ? d.hips : undefined,
+              neck: typeof d.neck === 'number' ? d.neck : undefined,
+              bicep,
+              thigh,
+            });
+          }
         }
       }
     } catch (e) {
