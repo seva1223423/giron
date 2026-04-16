@@ -23,6 +23,7 @@ const addMealSchema = z.object({
   type: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   items: z.array(mealItemSchema).min(1).max(50),
   photoUrl: z.string().url('Некорректный URL').max(2048).refine((u) => u.startsWith('https://'), 'URL должен использовать HTTPS').optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // YYYY-MM-DD local date from client
 });
 
 // Add meal
@@ -31,17 +32,21 @@ router.post('/meals', authenticate, async (req: AuthRequest, res: Response) => {
     const parsed = addMealSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
 
-    const { type, items, photoUrl } = parsed.data;
+    const { type, items, photoUrl, date } = parsed.data;
 
     const totalCalories = items.reduce((s, i) => s + i.calories, 0);
     const totalProtein = items.reduce((s, i) => s + i.protein, 0);
     const totalFats = items.reduce((s, i) => s + i.fats, 0);
     const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
 
+    // Use client-supplied local date; fall back to server UTC date (acceptable for UTC users)
+    const mealDate = date ?? new Date().toISOString().split('T')[0];
+
     const meal = await prisma.meal.create({
       data: {
         type,
         photoUrl,
+        date: mealDate,
         totalCalories,
         totalProtein,
         totalFats,
@@ -80,14 +85,10 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Некорректная дата. Формат: YYYY-MM-DD' });
     }
 
-    // Use explicit UTC boundaries to avoid server-local-timezone day drift
-    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
-
     const meals = await prisma.meal.findMany({
       where: {
         userId: req.userId,
-        createdAt: { gte: startOfDay, lte: endOfDay },
+        date: dateStr,
       },
       include: { items: true },
       orderBy: { createdAt: 'asc' },

@@ -239,6 +239,7 @@ model Meal {
   totalProtein   Float
   totalFats      Float
   totalCarbs     Float
+  date           String   @default("")  // YYYY-MM-DD local date — timezone-safe filtering
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -247,7 +248,7 @@ model Meal {
   createdAt      DateTime @default(now())
 
   @@index([userId])
-  @@index([userId, createdAt])  // composite: date-filtered meal queries
+  @@index([userId, date])  // composite: date-filtered meal queries (replaces createdAt-based range)
 }
 
 model MealItem {
