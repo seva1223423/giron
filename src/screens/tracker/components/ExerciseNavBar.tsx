@@ -36,7 +36,7 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
   const haptic = useHaptic();
   const [videoVisible, setVideoVisible] = useState(false);
 
-  const muscles = currentExercise.exercise.primaryMuscles || [];
+  const muscles = currentExercise.exercise?.primaryMuscles ?? [];
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.xl, backgroundColor: colors.surface }}>
@@ -118,11 +118,11 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
               flexDirection: 'row', alignItems: 'center', gap: 3,
               paddingHorizontal: 6, paddingVertical: 2,
               borderRadius: borderRadius.sm,
-              backgroundColor: currentExercise.exercise.youtubeId ? '#FF000015' : colors.border,
+              backgroundColor: currentExercise.exercise?.youtubeId ? '#FF000015' : colors.border,
             }}
           >
-            <Text style={{ fontSize: 10, color: currentExercise.exercise.youtubeId ? '#FF0000' : colors.textTertiary }}>{'\u25B6'}</Text>
-            <Text style={{ fontSize: 10, fontWeight: '600', color: currentExercise.exercise.youtubeId ? '#FF0000' : colors.textTertiary }}>{'video'}</Text>
+            <Text style={{ fontSize: 10, color: currentExercise.exercise?.youtubeId ? '#FF0000' : colors.textTertiary }}>{'\u25B6'}</Text>
+            <Text style={{ fontSize: 10, fontWeight: '600', color: currentExercise.exercise?.youtubeId ? '#FF0000' : colors.textTertiary }}>{'video'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -139,12 +139,12 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
       <ExerciseVideoModal
         visible={videoVisible}
         onClose={() => setVideoVisible(false)}
-        exerciseName={currentExercise.exercise.name}
-        youtubeId={currentExercise.exercise.youtubeId}
-        primaryMuscles={currentExercise.exercise.primaryMuscles || []}
+        exerciseName={currentExercise.exercise?.name ?? ''}
+        youtubeId={currentExercise.exercise?.youtubeId}
+        primaryMuscles={currentExercise.exercise?.primaryMuscles ?? []}
         muscleLabels={MUSCLE_LABELS}
-        description={currentExercise.exercise.description}
-        instructions={currentExercise.exercise.instructions}
+        description={currentExercise.exercise?.description}
+        instructions={currentExercise.exercise?.instructions}
       />
     </View>
   );

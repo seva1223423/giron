@@ -355,7 +355,7 @@ export const SetsSection: React.FC<Props> = ({
       {/* Exercise instructions */}
       <Card style={{ marginTop: spacing.md }}>
         <Text style={[typography.smallMedium, { color: colors.text, marginBottom: spacing.sm }]}>{'\u0422\u0435\u0445\u043D\u0438\u043A\u0430:'}</Text>
-        {currentExercise.exercise.instructions.map((inst, i) => (
+        {(currentExercise.exercise?.instructions ?? []).map((inst, i) => (
           <Text key={i} style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
             {i + 1}. {inst}
           </Text>
