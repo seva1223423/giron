@@ -154,7 +154,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       try {
         const stream = aiService.chatStream(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, (result) => {
           response = { message: '', actions: result.actions, meta: result.meta };
-        }, sleepEntries);
+        }, sleepEntries, todayDate);
 
         for await (const chunk of stream) {
           setMessages((prev) => prev.map((m) =>
@@ -164,7 +164,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
       } catch {
         // Streaming failed — fall back to regular request
-        const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries);
+        const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries, todayDate);
         response = fallback;
         setMessages((prev) => prev.map((m) =>
           m.id === streamMsgId ? { ...m, content: fallback.message } : m
