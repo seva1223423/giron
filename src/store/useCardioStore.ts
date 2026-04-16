@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CardioSession } from '../types';
 import { cardioService } from '../services/cardioService';
+import { localDateStr } from '../utils/date';
 
 interface CardioStore {
   sessions: CardioSession[];
@@ -13,11 +14,10 @@ interface CardioStore {
   clearUserData: () => void;
 }
 
-const weekStart = () => {
+const weekStartStr = () => {
   const d = new Date();
   d.setDate(d.getDate() - 6);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return localDateStr(d);
 };
 
 export const useCardioStore = create<CardioStore>()(
@@ -51,8 +51,8 @@ export const useCardioStore = create<CardioStore>()(
       },
 
       getWeekSessions: () => {
-        const start = weekStart();
-        return get().sessions.filter((s) => new Date(s.date) >= start);
+        const start = weekStartStr();
+        return get().sessions.filter((s) => s.date >= start);
       },
 
       clearUserData: () => set({ sessions: [] }),
