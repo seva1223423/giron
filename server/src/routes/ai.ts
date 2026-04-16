@@ -13594,7 +13594,7 @@ function monitorJointHealth(
     if (riskyMuscles.length === 0) continue;
 
     const riskyExercises = scheduledExercises.filter((ex) =>
-      ex.exercise.primaryMuscles.some((m) => riskyMuscles.includes(m)),
+      (ex.exercise.primaryMuscles ?? []).some((m) => riskyMuscles.includes(m)),
     );
 
     if (riskyExercises.length > 0) {
