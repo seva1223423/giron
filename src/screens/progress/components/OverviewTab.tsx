@@ -78,7 +78,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
     recent.forEach((w) => {
       w.exercises.forEach((ex) => {
         const done = ex.sets.filter((s) => s.completed).length;
-        ex.exercise.primaryMuscles.forEach((m) => { sets[m] = (sets[m] || 0) + done; });
+        (ex.exercise?.primaryMuscles ?? []).forEach((m) => { sets[m] = (sets[m] || 0) + done; });
       });
     });
 
@@ -116,7 +116,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
             .filter((s) => s.completed && s.weight && s.reps)
             .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
           if (vol === 0) return;
-          ex.exercise.primaryMuscles.forEach((m) => {
+          (ex.exercise?.primaryMuscles ?? []).forEach((m) => {
             volumeMap[m] = (volumeMap[m] || 0) + vol;
           });
         });
