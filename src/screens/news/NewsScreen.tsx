@@ -78,7 +78,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       result = result.filter(
-        (n) => n.title.toLowerCase().includes(q) || n.summary.toLowerCase().includes(q)
+        (n) => (n.title ?? '').toLowerCase().includes(q) || (n.summary ?? '').toLowerCase().includes(q)
       );
     }
     return result;
