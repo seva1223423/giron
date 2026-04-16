@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useWorkoutStore, useNutritionStore } from '../store';
 import { computeAchievements, getNewlyUnlocked, Achievement } from '../utils/achievements';
+import { localDateStr } from '../utils/date';
 
 /**
  * Checks for newly unlocked achievements whenever meals or workoutHistory change.
@@ -25,8 +26,8 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
     for (let i = 0; i < 365; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const ds = d.toISOString().split('T')[0];
-      if (workoutHistory.some((w) => w.completedAt?.startsWith(ds))) s++;
+      const ds = localDateStr(d);
+      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === ds)) s++;
       else if (i > 0) break;
     }
     return s;
