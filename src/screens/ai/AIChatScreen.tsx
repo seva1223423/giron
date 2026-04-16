@@ -12,6 +12,7 @@ import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, useDynamicPrompts,
 } from './components';
+import { localDateStr } from '../../utils/date';
 
 const FALLBACK_PROMPTS = [
   { emoji: '◎', text: 'Составь программу тренировок под мои цели' },
@@ -137,7 +138,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const todayDate = new Date().toISOString().split('T')[0];
+      const todayDate = localDateStr(new Date());
       const todayLog = getDayLog(todayDate);
       const cardioSessions = getWeekSessions().map(({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }) => ({ type, date, durationMinutes, distanceKm, caloriesBurned, avgHeartRate }));
       const sleepEntries = getSleepEntries(14).map(({ date, durationHours, quality }) => ({ date, durationHours, quality }));
