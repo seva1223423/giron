@@ -280,7 +280,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
               ]}>
                 <View>
                   <Text style={[typography.small, { color: colors.textSecondary }]}>
-                    {new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {h.date && !isNaN(new Date(h.date).getTime()) ? new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                   </Text>
                   <Text style={[typography.captionMedium, { color: colors.textTertiary }]}>
                     {h.sets.length} подходов · {Math.round(h.totalVolume)} кг объём

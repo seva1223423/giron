@@ -98,7 +98,7 @@ export const ExerciseStatsCard: React.FC<Props> = ({ exerciseHistory, maxWeight,
               style={[styles.historyRow, i < Math.min(exerciseHistory.length, 5) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}
             >
               <Text style={[typography.small, { color: colors.textSecondary, width: 80 }]}>
-                {new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                {h.date && !isNaN(new Date(h.date).getTime()) ? new Date(h.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : ''}
               </Text>
               <Text style={[typography.bodyMedium, { color: colors.text, flex: 1 }]}>{h.bestWeight} кг x {h.bestReps}</Text>
               <Text style={[typography.small, { color: colors.textTertiary }]}>{Math.round(h.totalVolume)} кг</Text>
