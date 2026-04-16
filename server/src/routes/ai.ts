@@ -12297,8 +12297,10 @@ function scoreExerciseVariety(
 
   for (const w of recentWorkouts) {
     for (const e of w.exercises) {
-      exerciseCounts[e.exercise?.name ?? ""] = (exerciseCounts[e.exercise?.name ?? ""] || 0) + 1;
-      typeCounts[e.exercise?.type ?? "other"] = (typeCounts[e.exercise?.type ?? "other"] || 0) + 1;
+      if (e.exercise) {
+        exerciseCounts[e.exercise.name] = (exerciseCounts[e.exercise.name] || 0) + 1;
+        typeCounts[e.exercise.type ?? 'other'] = (typeCounts[e.exercise.type ?? 'other'] || 0) + 1;
+      }
       totalExercises++;
     }
   }
