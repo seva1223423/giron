@@ -39,7 +39,7 @@ export const SelectedDayCard: React.FC<Props> = ({ selectedDay, workouts, colors
             </Text>
             {w.exercises.length > 0 && (
               <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
-                {w.exercises.map((ex) => ex.exercise.name).join(', ')}
+                {w.exercises.map((ex) => ex.exercise?.name).join(', ')}
               </Text>
             )}
           </View>

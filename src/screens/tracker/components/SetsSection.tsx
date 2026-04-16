@@ -327,7 +327,7 @@ export const SetsSection: React.FC<Props> = ({
             haptic.medium();
             Alert.alert(
               '\u0423\u0431\u0440\u0430\u0442\u044C \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0435?',
-              `\u00AB${currentExercise.exercise.name}\u00BB \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043B\u0435\u043D\u043E \u0438\u0437 \u0442\u0440\u0435\u043D\u0438\u0440\u043E\u0432\u043A\u0438.`,
+              `\u00AB${currentExercise.exercise?.name}\u00BB \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043B\u0435\u043D\u043E \u0438\u0437 \u0442\u0440\u0435\u043D\u0438\u0440\u043E\u0432\u043A\u0438.`,
               [
                 { text: '\u041E\u0442\u043C\u0435\u043D\u0430', style: 'cancel' },
                 { text: '\u0423\u0431\u0440\u0430\u0442\u044C', style: 'destructive', onPress: () => { haptic.warning(); removeExerciseFromWorkout(currentExerciseIndex); } },

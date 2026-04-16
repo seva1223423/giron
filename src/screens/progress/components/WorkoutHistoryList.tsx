@@ -36,7 +36,7 @@ const PAGE_SIZE = 50;
 function workoutMatchesMuscle(workout: Workout, muscleKey: string): boolean {
   const muscles = MUSCLE_FILTER_MAP[muscleKey] ?? [];
   return workout.exercises.some((ex) =>
-    ex.exercise.primaryMuscles.some((m) => muscles.includes(m))
+    (ex.exercise?.primaryMuscles ?? []).some((m) => muscles.includes(m))
   );
 }
 

@@ -89,7 +89,7 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
     const seen = new Set<MuscleGroup>();
     const result: Array<{ muscle: MuscleGroup; abbr: string; color: string }> = [];
     for (const ex of workout.exercises) {
-      for (const m of ex.exercise.primaryMuscles) {
+      for (const m of (ex.exercise?.primaryMuscles ?? [])) {
         if (!seen.has(m) && MUSCLE_META[m]) {
           seen.add(m);
           result.push({ muscle: m, ...MUSCLE_META[m]! });
@@ -107,7 +107,7 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
     // Average MET across exercises (weighted by set count)
     let totalMet = 0; let setCount = 0;
     for (const ex of workout.exercises) {
-      const met = MET_BY_TYPE[ex.exercise.type] ?? 5;
+      const met = MET_BY_TYPE[ex.exercise?.type] ?? 5;
       const count = ex.sets.length;
       totalMet += met * count;
       setCount += count;

@@ -85,13 +85,13 @@ export const ShareImageCard = React.forwardRef<View, Props>(
                 const v = (s.weight || 0) * (s.reps || 0);
                 return !best || v > best.weight * best.reps ? { weight: s.weight || 0, reps: s.reps || 0 } : best;
               }, null);
-              const isExPR = newPRs.some((pr) => pr.name === ex.exercise.name);
+              const isExPR = newPRs.some((pr) => pr.name === ex.exercise?.name);
               return (
                 <View key={i} style={styles.exRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 5 }}>
                     {isExPR && <Text style={{ fontSize: 9, fontWeight: '700', color: '#8B5CF6' }}>PR</Text>}
                     <Text style={[styles.exName, isExPR && { color: '#FFD700' }]} numberOfLines={1}>
-                      {ex.exercise.name}
+                      {ex.exercise?.name}
                     </Text>
                   </View>
                   {topSet && topSet.weight > 0 ? (

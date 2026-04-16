@@ -26,7 +26,7 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
           totalVolume: workout.totalVolume,
           notes: workout.notes,
           exercises: workout.exercises.map((ex) => ({
-            name: ex.exercise.name,
+            name: ex.exercise?.name,
             sets: ex.sets.map((s) => ({ weight: s.weight, reps: s.reps, completed: s.completed, rpe: s.rpe })),
           })),
         });
