@@ -21,8 +21,8 @@ router.get('/', async (req, res: Response) => {
       return res.status(400).json({ error: 'Некорректная категория' });
     }
 
-    const take = Math.min(Math.max(parseInt(limit as string) || 20, 1), 100);
-    const skip = Math.min(Math.max(parseInt(offset as string) || 0, 0), 10000);
+    const take = Math.min(Math.max(parseInt(limit as string, 10) || 20, 1), 100);
+    const skip = Math.min(Math.max(parseInt(offset as string, 10) || 0, 0), 10000);
 
     const cacheKey = `news:${category ?? 'all'}:${take}:${skip}`;
     const cached = newsCache.get(cacheKey);
