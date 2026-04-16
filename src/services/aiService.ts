@@ -60,8 +60,9 @@ export const aiService = {
     weekPlan?: Record<number, { name: string; emoji: string; exercises: string[] } | null>,
     cardioSessions?: Array<{ type: string; date: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; avgHeartRate?: number }>,
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,
+    clientDate?: string,
   ): Promise<{ message: string; actions: AIActionResult[]; meta?: AIMeta }> {
-    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries });
+    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, clientDate });
     return { message: data.message, actions: data.actions ?? [], meta: data.meta };
   },
 
@@ -73,6 +74,7 @@ export const aiService = {
     cardioSessions?: Array<{ type: string; date: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; avgHeartRate?: number }>,
     onDone?: (result: { actions: AIActionResult[]; meta?: AIMeta }) => void,
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,
+    clientDate?: string,
   ): AsyncGenerator<string> {
     const token = await getAuthToken();
     const response = await fetch(`${BASE_URL}/ai/chat`, {
@@ -81,7 +83,7 @@ export const aiService = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: true }),
+      body: JSON.stringify({ message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: true, clientDate }),
     });
 
     if (!response.ok) throw new Error(`AI stream error ${response.status}`);

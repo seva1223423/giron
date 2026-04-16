@@ -1490,6 +1490,7 @@ async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   userId: string,
+  clientDate?: string,
 ): Promise<{ resultText: string; actionDescription: string; actionData?: Record<string, unknown> }> {
   if (toolName === 'update_user_profile') {
     const { weightKg, heightCm, goal, fitnessLevel } = toolInput as {
@@ -1718,7 +1719,7 @@ async function executeTool(
     await prisma.meal.create({
       data: {
         type: safeMealType,
-        date: new Date().toISOString().split('T')[0],
+        date: clientDate ?? new Date().toISOString().split('T')[0],
         userId,
         totalCalories,
         totalProtein,
@@ -2471,6 +2472,7 @@ async function executeTool(
 const chatRequestSchema = z.object({
   message: z.string().min(1, 'Сообщение обязательно').max(4000, 'Сообщение слишком длинное (макс. 4000 символов)'),
   stream: z.boolean().optional(),
+  clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // client's local YYYY-MM-DD date
   nutritionTargets: z.object({
     calories: z.number().min(0).max(100000),
     protein: z.number().min(0).max(10000),
@@ -2507,7 +2509,8 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const chatParsed = chatRequestSchema.safeParse(req.body);
     if (!chatParsed.success) return res.status(400).json({ error: chatParsed.error.errors[0].message });
-    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode } = chatParsed.data;
+    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode, clientDate } = chatParsed.data;
+    const todayDate = clientDate ?? new Date().toISOString().split('T')[0];
 
     // Set SSE headers early if streaming requested
     if (streamMode) {
@@ -2590,7 +2593,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         take: 10000,
       }),
       prisma.meal.findMany({
-        where: { userId, date: new Date().toISOString().split('T')[0] },
+        where: { userId, date: todayDate },
         include: { items: true },
         orderBy: { createdAt: 'asc' },
         take: 100,
@@ -9117,7 +9120,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             let actionData: Record<string, unknown> | undefined;
 
             try {
-              const toolResult = await executeTool(tc.name, tc.arguments, userId);
+              const toolResult = await executeTool(tc.name, tc.arguments, userId, todayDate);
               resultText = toolResult.resultText;
               actionDescription = toolResult.actionDescription;
               actionData = toolResult.actionData;
