@@ -47,7 +47,7 @@ export const WorkoutHistoryList: React.FC<Props> = ({ workouts, delay = 600, nav
   const [showAll, setShowAll] = useState(false);
 
   const filtered = workouts.filter((w) => {
-    const matchesSearch = search.trim() === '' || w.name.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesSearch = search.trim() === '' || (w.name ?? '').toLowerCase().includes(search.trim().toLowerCase());
     const matchesMuscle = muscleFilter === null || workoutMatchesMuscle(w, muscleFilter);
     return matchesSearch && matchesMuscle;
   });
