@@ -134,10 +134,10 @@ export default function AdminAnalyticsScreen() {
   if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
   if (!data) return null;
 
-  const signups = data.timeline.map((t) => t.signups);
-  const workouts = data.timeline.map((t) => t.workouts);
-  const ai = data.timeline.map((t) => t.ai);
-  const cardio = data.timeline.map((t) => t.cardio);
+  const signups = (data.timeline ?? []).map((t) => t.signups);
+  const workouts = (data.timeline ?? []).map((t) => t.workouts);
+  const ai = (data.timeline ?? []).map((t) => t.ai);
+  const cardio = (data.timeline ?? []).map((t) => t.cardio);
 
   const totalSignups = signups.reduce((a, b) => a + b, 0);
   const totalWorkoutsInPeriod = workouts.reduce((a, b) => a + b, 0);
