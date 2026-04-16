@@ -1910,10 +1910,10 @@ async function executeTool(
       carbs: number;
     };
 
-    const cal = Math.round(calories);
-    const prot = Math.round(protein);
-    const fat = Math.round(fats);
-    const carb = Math.round(carbs);
+    const cal = Math.min(10000, Math.max(500, Math.round(calories)));
+    const prot = Math.min(500, Math.max(0, Math.round(protein)));
+    const fat = Math.min(500, Math.max(0, Math.round(fats)));
+    const carb = Math.min(1000, Math.max(0, Math.round(carbs)));
 
     const description = `Нормы КБЖУ: ${cal} ккал / Б${prot}г / Ж${fat}г / У${carb}г`;
 
