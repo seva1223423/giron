@@ -2590,7 +2590,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         take: 10000,
       }),
       prisma.meal.findMany({
-        where: { userId, createdAt: { gte: todayStart, lte: todayEnd } },
+        where: { userId, date: new Date().toISOString().split('T')[0] },
         include: { items: true },
         orderBy: { createdAt: 'asc' },
         take: 100,
