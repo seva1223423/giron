@@ -3096,8 +3096,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 27: Muscle balance analysis ──────
     const muscleBalance = analyzeMuscleBalance(
-      allCompletedExerciseSets.map((we) => ({
-        exercise: we.exercise,
+      allCompletedExerciseSets.filter((we) => we.exercise).map((we) => ({
+        exercise: we.exercise!,
         sets: we.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
       }))
     );
@@ -3530,7 +3530,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 82: Joint health monitor ──────
     const jointHealthContext = monitorJointHealth(
       user?.healthRestrictions || [],
-      scheduledWorkoutToday ? (scheduledWorkoutToday as any).exercises || [] : [],
+      scheduledWorkoutToday ? ((scheduledWorkoutToday as any).exercises || []).filter((e: any) => e.exercise) : [],
     );
 
     // ─── Block 83: Progressive overload suggestions ──────
@@ -3541,7 +3541,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 85: Warm-up set calculator ──────
     const warmupSetsContext = calculateWarmupSets(
-      scheduledWorkoutToday ? (scheduledWorkoutToday as any).exercises || [] : [],
+      scheduledWorkoutToday ? ((scheduledWorkoutToday as any).exercises || []).filter((e: any) => e.exercise) : [],
     );
 
     // ─── Block 86: Workout pacing advisor ──────
@@ -13635,18 +13635,19 @@ function suggestProgressiveOverload(
 
   for (const w of recentWorkouts) {
     for (const ex of w.exercises) {
+      if (!ex.exercise?.id) continue;
       const workingSets = ex.sets.filter((s) => s.completed && s.type !== 'warmup' && (s.weight || 0) > 0);
       if (workingSets.length === 0) continue;
 
-      if (!exerciseData[ex.exercise?.id ?? ""]) {
-        exerciseData[ex.exercise?.id ?? ""] = { name: ex.exercise?.name, type: ex.exercise?.type, sessions: [] };
+      if (!exerciseData[ex.exercise.id]) {
+        exerciseData[ex.exercise.id] = { name: ex.exercise.name, type: ex.exercise.type, sessions: [] };
       }
 
       const maxWeight = Math.max(...workingSets.map((s) => s.weight || 0));
       const maxReps = Math.max(...workingSets.map((s) => s.reps || 0));
       const allCompleted = workingSets.every((s) => s.completed);
 
-      exerciseData[ex.exercise?.id ?? ""].sessions.push({ maxWeight, maxReps, allCompleted });
+      exerciseData[ex.exercise.id].sessions.push({ maxWeight, maxReps, allCompleted });
     }
   }
 
@@ -14386,6 +14387,7 @@ function analyzeCompoundPriority(
 
   for (const w of recentWorkouts) {
     for (const ex of w.exercises) {
+      if (!ex.exercise) continue;
       const isCompound = ['barbell', 'dumbbell'].includes(ex.exercise.type) &&
         ex.exercise?.primaryMuscles?.length >= 1;
       const isIsolation = ['machine', 'cable'].includes(ex.exercise.type);
