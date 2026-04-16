@@ -7,7 +7,9 @@ import { spacing } from '../../../theme/spacing';
 import type { DailyNutrition } from '../../../types';
 
 function formatDate(dateStr: string): string {
+  if (!dateStr) return '';
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
   const today = new Date().toISOString().split('T')[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   if (dateStr === today) return 'Сегодня';
