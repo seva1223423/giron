@@ -64,43 +64,47 @@ export async function getNotificationPermissionStatus(): Promise<string> {
 // Schedule a daily workout reminder at the given hour/minute (local time)
 // Fires every day at that time
 export async function scheduleDailyWorkoutReminder(hour: number, minute: number): Promise<void> {
-  // Cancel existing reminder first
-  await cancelWorkoutReminders();
+  try {
+    // Cancel existing reminder first
+    await cancelWorkoutReminders();
 
-  const messages = [
-    { title: 'Время тренироваться!', body: 'Открой Iron Gym и сделай тренировку — ты уже почти там.' },
-    { title: 'Сегодня день тренировки', body: 'Маленький шаг каждый день = большой результат через год.' },
-    { title: 'Iron Coach ждёт', body: 'Не пропускай — дисциплина строит тело, мотивация только запускает.' },
-    { title: 'Пора в зал', body: 'Твоё будущее тело скажет спасибо. Открой приложение!' },
-    { title: 'День тренировки', body: 'Тренировки сегодня нет в планах? Iron Coach поможет составить.' },
-  ];
+    const messages = [
+      { title: 'Время тренироваться!', body: 'Открой Iron Gym и сделай тренировку — ты уже почти там.' },
+      { title: 'Сегодня день тренировки', body: 'Маленький шаг каждый день = большой результат через год.' },
+      { title: 'Iron Coach ждёт', body: 'Не пропускай — дисциплина строит тело, мотивация только запускает.' },
+      { title: 'Пора в зал', body: 'Твоё будущее тело скажет спасибо. Открой приложение!' },
+      { title: 'День тренировки', body: 'Тренировки сегодня нет в планах? Iron Coach поможет составить.' },
+    ];
 
-  // Rotate through messages by day of week
-  const today = new Date().getDay(); // 0-6
-  const msg = messages[today % messages.length];
+    // Rotate through messages by day of week
+    const today = new Date().getDay(); // 0-6
+    const msg = messages[today % messages.length];
 
-  await Notifications.scheduleNotificationAsync({
-    identifier: NOTIFICATION_IDS.WORKOUT_REMINDER,
-    content: {
-      title: msg.title,
-      body: msg.body,
-      sound: 'default',
-      ...(Platform.OS === 'android' && { channelId: 'reminders' }),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-  });
+    await Notifications.scheduleNotificationAsync({
+      identifier: NOTIFICATION_IDS.WORKOUT_REMINDER,
+      content: {
+        title: msg.title,
+        body: msg.body,
+        sound: 'default',
+        ...(Platform.OS === 'android' && { channelId: 'reminders' }),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    });
+  } catch { /* permissions not granted or device unsupported */ }
 }
 
 // Schedule a one-time notification right away (e.g., for testing or instant reminders)
 export async function sendImmediateNotification(title: string, body: string): Promise<void> {
-  await Notifications.scheduleNotificationAsync({
-    content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
-    trigger: null, // fires immediately
-  });
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
+      trigger: null, // fires immediately
+    });
+  } catch { /* permissions not granted or device unsupported */ }
 }
 
 // Schedule a rest timer end notification (fires after `seconds` seconds)

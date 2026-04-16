@@ -150,7 +150,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       tip: 'Мышцы растут во время отдыха. Дайте телу восстановиться сегодня.',
     };
     if (lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 1) {
-      const completedSets = lastWorkout.exercises.flatMap((ex) => ex.sets).filter((s) => s.completed && s.rpe != null);
+      const completedSets = (lastWorkout.exercises ?? []).flatMap((ex) => ex.sets ?? []).filter((s) => s.completed && s.rpe != null);
       if (completedSets.length >= 3) {
         const avgRpe = completedSets.reduce((sum, s) => sum + (s.rpe ?? 0), 0) / completedSets.length;
         if (avgRpe >= 8.5) return {
@@ -222,7 +222,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const handleRepeatWorkout = useCallback(() => {
     if (!lastWorkout || activeWorkout) return;
     haptic.medium();
-    const workoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((we, index) => {
+    const workoutExercises: WorkoutExercise[] = (lastWorkout.exercises ?? []).map((we, index) => {
       const sets: WorkoutSet[] = we.sets.map((s, i) => ({
         id: `set-${Date.now()}-${index}-${i}`,
         setNumber: i + 1, type: s.type, reps: s.reps, weight: s.weight, completed: false,
