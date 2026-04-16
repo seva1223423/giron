@@ -43,7 +43,7 @@ function MessageBubble({ msg, isMe }: { msg: SupportMessage; isMe: boolean }) {
 export default function SupportTicketScreen() {
   const route = useRoute<RouteProp<{ SupportTicketScreen: RouteParams }, 'SupportTicketScreen'>>();
   const navigation = useNavigation();
-  const { ticketId } = route.params;
+  const { ticketId } = route.params ?? {};
 
   const { activeTicket, loading, sending, fetchTicket, sendMessage, closeTicket } = useSupportStore();
   const userId = useAuthStore((s) => s.user?.id);

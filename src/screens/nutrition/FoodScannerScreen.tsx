@@ -143,7 +143,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   useEffect(() => {
     loadRecentScans().then(setRecentScans);
-    return () => { abortRef.current?.abort(); };
+    return () => { abortRef.current?.abort(); lastBase64Ref.current = ''; };
   }, []);
 
   // ─── AI photo analysis ──────────────────────────────────────────────────────

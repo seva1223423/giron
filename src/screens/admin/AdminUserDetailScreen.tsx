@@ -46,7 +46,7 @@ function Row({ label, value }: { label: string; value: string }) {
 export default function AdminUserDetailScreen() {
   const route = useRoute<RouteProp<{ AdminUserDetailScreen: RouteParams }, 'AdminUserDetailScreen'>>();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { userId } = route.params;
+  const { userId } = route.params ?? {};
 
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(true);

@@ -38,7 +38,7 @@ type RouteParams = { userId: string };
 
 export default function AdminSecurityEventsScreen() {
   const route = useRoute<RouteProp<{ AdminSecurityEventsScreen: RouteParams }, 'AdminSecurityEventsScreen'>>();
-  const { userId } = route.params;
+  const { userId } = route.params ?? {};
 
   const [events, setEvents] = useState<Array<{ id: string; action: string; ip: string | null; userAgent: string | null; details: string | null; createdAt: string }>>([]);
   const [loading, setLoading] = useState(true);
