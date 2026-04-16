@@ -41,6 +41,7 @@ interface TrainerStore {
   logWorkoutSession: (session: Omit<TrainerWorkoutSession, 'id'>) => Promise<void>;
   removeWorkoutSession: (id: string) => Promise<void>;
   getClientSessions: (clientId: string) => TrainerWorkoutSession[];
+  clearUserData: () => void;
 }
 
 export const useTrainerStore = create<TrainerStore>()(
@@ -162,6 +163,8 @@ export const useTrainerStore = create<TrainerStore>()(
           .filter((s) => s.clientId === clientId)
           .sort((a, b) => b.date.localeCompare(a.date));
       },
+
+      clearUserData: () => set({ clients: [], sessions: [], isLoading: false }),
     }),
     {
       name: 'iron-gym-trainer',

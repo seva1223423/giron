@@ -199,10 +199,14 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, error: null });
         // Clear all per-user data from other persisted stores to prevent data leak to next user
         try {
-          const { useWorkoutStore, useNutritionStore, useCardioStore } = require('./index');
-          useWorkoutStore.getState().clearUserData();
-          useNutritionStore.getState().clearUserData();
-          useCardioStore.getState().clearUserData();
+          const stores = require('./index');
+          stores.useWorkoutStore?.getState().clearUserData();
+          stores.useNutritionStore?.getState().clearUserData();
+          stores.useCardioStore?.getState().clearUserData();
+          stores.useTrainerStore?.getState().clearUserData();
+          stores.useMeasurementsStore?.getState().clearUserData();
+          stores.useSleepStore?.getState().clearUserData();
+          stores.useSubscriptionStore?.getState().clearUserData();
         } catch { /* best effort */ }
       },
 

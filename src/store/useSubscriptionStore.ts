@@ -52,6 +52,7 @@ interface SubscriptionStore {
   canViewFullMeasurements: () => boolean;
   canAddTrainerClient: (currentClientCount: number) => boolean;
   canViewLeaderboard: () => boolean;
+  clearUserData: () => void;
 }
 
 export const useSubscriptionStore = create<SubscriptionStore>()(
@@ -190,6 +191,17 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
       canAddTrainerClient: (currentClientCount) =>
         get().isPremiumActive() || currentClientCount < FREE_TRAINER_CLIENTS_LIMIT,
       canViewLeaderboard: () => get().isPremiumActive(),
+
+      clearUserData: () => set({
+        isPremium: false,
+        premiumExpiresAt: null,
+        plan: null,
+        status: null,
+        aiMessagesUsedToday: 0,
+        aiMessagesDate: null,
+        foodScansUsedToday: 0,
+        foodScansDate: null,
+      }),
     }),
     {
       name: 'iron-gym-subscription',
