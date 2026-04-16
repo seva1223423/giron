@@ -10,6 +10,7 @@ import { computeAchievements } from '../../utils/achievements';
 import { LifetimeStatsCard } from './components';
 import { userService } from '../../services';
 import { authService } from '../../services/authService';
+import { localDateStr } from '../../utils/date';
 import type { BodyWeight } from '../../types';
 
 const GOAL_LABELS: Record<string, string> = {
@@ -125,7 +126,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     const nutritionDaysLogged = Object.values(dailyLog).filter((d) => d.meals.length > 0).length;
     const sortedDates = workoutHistory
       .filter((w) => w.completedAt)
-      .map((w) => w.completedAt!.split('T')[0])
+      .map((w) => localDateStr(new Date(w.completedAt!)))
       .filter((v, i, a) => a.indexOf(v) === i)
       .sort((a, b) => b.localeCompare(a));
     let currentStreak = 0;
@@ -133,7 +134,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     for (let i = 0; i < sortedDates.length; i++) {
       const expected = new Date(today);
       expected.setDate(today.getDate() - i);
-      if (sortedDates[i] === expected.toISOString().split('T')[0]) currentStreak++;
+      if (sortedDates[i] === localDateStr(expected)) currentStreak++;
       else break;
     }
     return computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak });

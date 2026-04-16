@@ -4,6 +4,7 @@ import { useThemeStore, useWorkoutStore } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
+import { localDateStr } from '../../../utils/date';
 
 export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 }) => {
   const { colors } = useThemeStore();
@@ -16,7 +17,7 @@ export const LifetimeStatsCard: React.FC<{ delay?: number }> = ({ delay = 100 })
 
     const sortedDates = workoutHistory
       .filter((w) => w.completedAt)
-      .map((w) => w.completedAt!.split('T')[0])
+      .map((w) => localDateStr(new Date(w.completedAt!)))
       .filter((v, i, a) => a.indexOf(v) === i)
       .sort();
 

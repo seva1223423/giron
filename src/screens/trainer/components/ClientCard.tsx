@@ -5,6 +5,7 @@ import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { TrainerClient } from '../../../store';
+import { localDateStr } from '../../../utils/date';
 
 const GOAL_LABELS: Record<string, string> = {
   weight_loss: 'Похудение', muscle_gain: 'Набор массы', strength: 'Сила',
@@ -30,7 +31,7 @@ interface Props {
 
 export const ClientCard: React.FC<Props> = ({ client, onPress, onLongPress }) => {
   const { colors } = useThemeStore();
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr(new Date());
   const isToday = client.lastVisit === today;
   const lastVisitLabel = daysSince(client.lastVisit);
 

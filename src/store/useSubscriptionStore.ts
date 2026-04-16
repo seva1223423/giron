@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../services/api';
+import { localDateStr } from '../utils/date';
 
 const FREE_AI_MESSAGES_PER_DAY = 10;
 const FREE_FOOD_SCANS_PER_DAY = 5;
@@ -10,7 +11,7 @@ const FREE_MEASUREMENTS_LIMIT = 5;
 const FREE_TRAINER_CLIENTS_LIMIT = 3;
 
 function todayDateStr(): string {
-  return new Date().toISOString().split('T')[0];
+  return localDateStr(new Date());
 }
 
 interface SubscriptionStore {

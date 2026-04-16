@@ -7,6 +7,7 @@ import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { TrainingGoal, FitnessLevel, Gender } from '../../types';
 import { GenderStep, BodyStep, GoalStep, LevelStep, DaysStep } from './steps';
+import { localDateStr } from '../../utils/date';
 
 const TOTAL_STEPS = 5;
 
@@ -58,7 +59,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
     const targetFats = Math.round((targetCalories * 0.25) / 9);
     const targetCarbs = Math.round((targetCalories - targetProtein * 4 - targetFats * 9) / 4);
     const waterTargetMl = Math.round(weightVal * 35);
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr(new Date());
     setTargets(today, { calories: targetCalories, protein: targetProtein, fats: targetFats, carbs: Math.max(targetCarbs, 50), waterTargetMl });
 
     completeOnboarding();

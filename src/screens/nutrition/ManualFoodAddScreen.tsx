@@ -11,6 +11,7 @@ import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../..
 import { FoodSearchTab, CustomFoodTab } from './manual';
 import type { CustomFoodState } from './manual';
 import type { FoodItem } from './manual/foodData';
+import { localDateStr } from '../../utils/date';
 
 const MEAL_NAMES: Record<string, string> = { breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус' };
 
@@ -22,7 +23,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
   const { colors } = useThemeStore();
   const { addMeal, dailyLog, saveFoodItem } = useNutritionStore();
 
-  const today = routeDate ?? new Date().toISOString().split('T')[0];
+  const today = routeDate ?? localDateStr(new Date());
   const [tab, setTab] = useState<'search' | 'custom'>('search');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [weightGrams, setWeightGrams] = useState('100');
@@ -54,7 +55,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
     const meal: Meal = { id: `meal-${Date.now()}`, type: mealType, items: [item], totalCalories: item.calories, totalProtein: item.protein, totalFats: item.fats, totalCarbs: item.carbs, createdAt: new Date().toISOString() };
     addMeal(today, meal);
     haptic.success();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateStr(new Date());
     if (today === todayStr) {
       const dayLog = dailyLog[today];
       const alreadyEaten = dayLog?.meals.reduce((s, m) => s + m.totalCalories, 0) ?? 0;
