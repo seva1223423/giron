@@ -9,7 +9,7 @@ import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { CardioSession, CardioType } from '../../types';
-import { formatNum } from '../../utils/date';
+import { formatNum, localDateStr } from '../../utils/date';
 
 const TYPE_META: Record<CardioType, { abbr: string; label: string }> = {
   running:    { abbr: 'Б', label: 'Бег' },
@@ -30,10 +30,9 @@ function formatDuration(min: number) {
 }
 
 function formatDate(dateStr: string) {
-  const today = new Date().toISOString().split('T')[0];
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const yesterday = d.toISOString().split('T')[0];
+  const today = localDateStr(new Date());
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  const yesterday = localDateStr(d);
   if (dateStr === today) return 'Сегодня';
   if (dateStr === yesterday) return 'Вчера';
   return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });

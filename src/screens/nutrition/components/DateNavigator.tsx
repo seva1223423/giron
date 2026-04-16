@@ -4,23 +4,24 @@ import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { localDateStr } from '../../../utils/date';
 
-const todayDate = () => new Date().toISOString().split('T')[0];
+const todayDate = () => localDateStr(new Date());
 
 function formatDisplayDate(dateStr: string): string {
   const today = todayDate();
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  const yesterday = d.toISOString().split('T')[0];
+  const yesterday = localDateStr(d);
   if (dateStr === today) return 'Сегодня';
   if (dateStr === yesterday) return 'Вчера';
   return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
 function shiftDate(dateStr: string, days: number): string {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + 'T12:00:00'); // noon to avoid DST edge cases
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 
 interface Props {

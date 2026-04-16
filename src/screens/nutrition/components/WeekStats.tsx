@@ -4,8 +4,9 @@ import { useThemeStore, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { localDateStr } from '../../../utils/date';
 
-const todayDate = () => new Date().toISOString().split('T')[0];
+const todayDate = () => localDateStr(new Date());
 
 export const WeekStats: React.FC = () => {
   const { colors } = useThemeStore();
@@ -16,7 +17,7 @@ export const WeekStats: React.FC = () => {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = localDateStr(d);
       const log = dailyLog[dateStr];
       if (!log || log.meals.length === 0) continue;
       days.push({

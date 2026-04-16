@@ -6,6 +6,7 @@ import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { MacroResultCard } from './macro';
+import { localDateStr } from '../../utils/date';
 
 const ACTIVITY_LEVELS = [
   { key: 'sedentary', label: 'Малоподвижный', desc: 'Офис, нет спорта', multiplier: 1.2 },
@@ -65,7 +66,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
 
   const handleApply = () => {
     haptic.success();
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr(new Date());
     setTargets(today, { calories: result.targetCal, protein: result.protein, fats: result.fats, carbs: result.carbs });
     Alert.alert(
       'КБЖУ применены',

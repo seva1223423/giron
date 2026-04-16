@@ -9,6 +9,7 @@ import { Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { CardioType } from '../../types';
+import { localDateStr } from '../../utils/date';
 
 const CARDIO_TYPES: { type: CardioType; abbr: string; label: string; hasDistance: boolean }[] = [
   { type: 'running',    abbr: 'Б', label: 'Бег',        hasDistance: true  },
@@ -27,7 +28,7 @@ const MET: Record<CardioType, number> = {
   hiit: 10.0, elliptical: 5.0, rowing: 7.0, other: 5.0,
 };
 
-const todayDate = () => new Date().toISOString().split('T')[0];
+const todayDate = () => localDateStr(new Date());
 
 export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
