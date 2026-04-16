@@ -1746,7 +1746,7 @@ async function executeTool(
 
   if (toolName === 'log_water') {
     const { ml } = toolInput as { ml: number };
-    const amount = Math.round(ml);
+    const amount = Math.min(5000, Math.max(50, Math.round(Number(ml) || 250)));
     return {
       resultText: `Записано ${amount} мл воды`,
       actionDescription: `+${amount} мл воды`,
@@ -2223,10 +2223,13 @@ async function executeTool(
     // Validate date format; fall back to today if AI sends garbage
     const VALID_CARDIO_TYPES = ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'];
     const safeType = VALID_CARDIO_TYPES.includes(type) ? type : 'other';
+    const safeDuration = Math.min(1440, Math.max(1, Math.round(Number(durationMinutes) || 30)));
+    const safeDistance = distanceKm != null ? Math.min(500, Math.max(0, Number(distanceKm) || 0)) || undefined : undefined;
+    const safeCalories = caloriesBurned != null ? Math.min(5000, Math.max(0, Math.round(Number(caloriesBurned) || 0))) || undefined : undefined;
     const today = new Date().toISOString().split('T')[0];
     const sessionDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T00:00:00Z').getTime())) ? date : today;
     const session = await prisma.cardioSession.create({
-      data: { userId, type: safeType, date: sessionDate, durationMinutes, distanceKm, caloriesBurned },
+      data: { userId, type: safeType, date: sessionDate, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories },
     });
     const distText = distanceKm ? `, ${distanceKm} км` : '';
     const calText = caloriesBurned ? `, ~${caloriesBurned} ккал` : '';
@@ -2278,10 +2281,11 @@ async function executeTool(
 
   if (toolName === 'set_water_target') {
     const { targetMl } = toolInput as { targetMl: number };
+    const safeTargetMl = Math.min(10000, Math.max(500, Math.round(Number(targetMl) || 2000)));
     return {
-      resultText: `Дневная норма воды установлена: ${targetMl} мл`,
-      actionDescription: `Норма воды: ${targetMl} мл`,
-      actionData: { waterTargetMl: targetMl },
+      resultText: `Дневная норма воды установлена: ${safeTargetMl} мл`,
+      actionDescription: `Норма воды: ${safeTargetMl} мл`,
+      actionData: { waterTargetMl: safeTargetMl },
     };
   }
 
@@ -2359,7 +2363,8 @@ async function executeTool(
 
   if (toolName === 'set_workout_duration_goal') {
     const { minutes } = toolInput as { minutes: number };
-    return { resultText: minutes > 0 ? `Цель тренировки: ${minutes} минут` : 'Цель по длительности убрана', actionDescription: minutes > 0 ? `Цель: ${minutes} мин` : 'Цель длительности снята', actionData: { durationGoalMinutes: minutes } };
+    const safeMinutes = Math.min(480, Math.max(0, Math.round(Number(minutes) || 0)));
+    return { resultText: safeMinutes > 0 ? `Цель тренировки: ${safeMinutes} минут` : 'Цель по длительности убрана', actionDescription: safeMinutes > 0 ? `Цель: ${safeMinutes} мин` : 'Цель длительности снята', actionData: { durationGoalMinutes: safeMinutes } };
   }
 
   if (toolName === 'analyze_progress') {
