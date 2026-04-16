@@ -1637,7 +1637,7 @@ async function executeTool(
         });
       } else {
         // Activate the existing Iron Coach program
-        await prisma.program.update({ where: { id: ironCoachProgram.id }, data: { isActive: true } });
+        await prisma.program.updateMany({ where: { id: ironCoachProgram.id, userId }, data: { isActive: true } });
       }
 
       activeProgram = ironCoachProgram;
