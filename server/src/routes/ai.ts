@@ -1650,18 +1650,24 @@ async function executeTool(
         programId: activeProgram.id,
         createdAt: new Date(),
         exercises: {
-          create: validExercises.map((ex, idx) => ({
-            order: idx + 1,
-            restSeconds: ex.input.restSeconds ?? 90,
-            exerciseId: ex.record!.id,
-            sets: {
-              create: Array.from({ length: ex.input.sets }, (_, i) => ({
-                setNumber: i + 1,
-                reps: ex.input.reps,
-                weight: ex.input.weight ?? null,
-              })),
-            },
-          })),
+          create: validExercises.map((ex, idx) => {
+            const safeSets = Math.min(20, Math.max(1, Math.round(Number(ex.input.sets) || 3)));
+            const safeReps = Math.min(100, Math.max(1, Math.round(Number(ex.input.reps) || 10)));
+            const safeWeight = ex.input.weight != null ? Math.min(500, Math.max(0, Number(ex.input.weight) || 0)) : null;
+            const safeRest = Math.min(600, Math.max(0, Math.round(Number(ex.input.restSeconds) || 90)));
+            return {
+              order: idx + 1,
+              restSeconds: safeRest,
+              exerciseId: ex.record!.id,
+              sets: {
+                create: Array.from({ length: safeSets }, (_, i) => ({
+                  setNumber: i + 1,
+                  reps: safeReps,
+                  weight: safeWeight,
+                })),
+              },
+            };
+          }),
         },
       },
     });
@@ -1891,13 +1897,13 @@ async function executeTool(
           exercises: {
             create: valid.map((ex, idx) => ({
               order: idx + 1,
-              restSeconds: ex.input.restSeconds ?? 90,
+              restSeconds: Math.min(600, Math.max(0, Math.round(Number(ex.input.restSeconds) || 90))),
               exerciseId: ex.record!.id,
               sets: {
-                create: Array.from({ length: Math.min(20, Math.max(1, ex.input.sets)) }, (_, i) => ({
+                create: Array.from({ length: Math.min(20, Math.max(1, Math.round(Number(ex.input.sets) || 3))) }, (_, i) => ({
                   setNumber: i + 1,
-                  reps: Math.min(1000, Math.max(1, ex.input.reps)),
-                  weight: ex.input.weight != null ? Math.max(0, ex.input.weight) : null,
+                  reps: Math.min(100, Math.max(1, Math.round(Number(ex.input.reps) || 10))),
+                  weight: ex.input.weight != null ? Math.min(500, Math.max(0, Number(ex.input.weight) || 0)) : null,
                 })),
               },
             })),
@@ -2040,14 +2046,14 @@ async function executeTool(
       }
 
       if (sets && sets.length > 0) {
-        // Replace all sets with provided ones
+        // Replace all sets with provided ones (clamp values to sensible ranges)
         await prisma.workoutSet.deleteMany({ where: { workoutExerciseId: we.id } });
         await prisma.workoutSet.createMany({
-          data: sets.map((s, i) => ({
+          data: sets.slice(0, 20).map((s, i) => ({
             workoutExerciseId: we.id,
             setNumber: i + 1,
-            reps: s.reps,
-            weight: s.weight ?? null,
+            reps: Math.min(100, Math.max(1, Math.round(Number(s.reps) || 10))),
+            weight: s.weight != null ? Math.min(500, Math.max(0, Number(s.weight) || 0)) : null,
           })),
         });
         const summary = sets.map((s) => `${s.weight ?? '—'}кг×${s.reps}`).join(', ');
@@ -2057,15 +2063,16 @@ async function executeTool(
           actionData: { workoutId: workout.id },
         };
       } else if (weightMultiplier !== undefined) {
+        const safeMultiplier = Math.min(3, Math.max(0.1, Number(weightMultiplier) || 1));
         // Scale all existing weights by the multiplier
         const updatedSets = we.sets.map((s) => ({
           id: s.id,
-          newWeight: s.weight ? Math.round((s.weight * weightMultiplier) / 2.5) * 2.5 : null,
+          newWeight: s.weight ? Math.round((s.weight * safeMultiplier) / 2.5) * 2.5 : null,
         }));
         await Promise.all(
           updatedSets.map((s) => prisma.workoutSet.updateMany({ where: { id: s.id }, data: { weight: s.newWeight } }))
         );
-        const pct = Math.round((weightMultiplier - 1) * 100);
+        const pct = Math.round((safeMultiplier - 1) * 100);
         const sign = pct >= 0 ? `+${pct}%` : `${pct}%`;
         return {
           resultText: `Веса в "${exerciseRecord.name}" изменены на ${sign} в тренировке "${workout.name}".`,
@@ -2093,18 +2100,19 @@ async function executeTool(
         _max: { order: true },
       });
       const newOrder = (maxOrder._max.order ?? 0) + 1;
-      const setsData = sets && sets.length > 0 ? sets : [{ reps: 10 }, { reps: 10 }, { reps: 10 }];
+      const setsData = sets && sets.length > 0 ? sets.slice(0, 20) : [{ reps: 10 }, { reps: 10 }, { reps: 10 }];
+      const safeRest = Math.min(600, Math.max(0, Math.round(Number(restSeconds) || 90)));
       await prisma.workoutExercise.create({
         data: {
           workoutId: workout.id,
           exerciseId: exerciseRecord.id,
           order: newOrder,
-          restSeconds: restSeconds ?? 90,
+          restSeconds: safeRest,
           sets: {
             create: setsData.map((s, i) => ({
               setNumber: i + 1,
-              reps: s.reps,
-              weight: s.weight ?? null,
+              reps: Math.min(100, Math.max(1, Math.round(Number(s.reps) || 10))),
+              weight: s.weight != null ? Math.min(500, Math.max(0, Number(s.weight) || 0)) : null,
             })),
           },
         },

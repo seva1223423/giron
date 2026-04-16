@@ -2225,7 +2225,6 @@ router.post('/users/:id/force-disable-2fa', requireAdmin, async (req: AuthReques
     });
     res.json({ ok: true });
   } catch (e) {
-    logger.error('POST /admin/users/:id/force-disable-2fa:', e);
     if (isNotFound(e)) return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error('POST /admin/users/:id/force-disable-2fa:', e);
     res.status(500).json({ error: 'Ошибка отключения 2FA' });
