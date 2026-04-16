@@ -2296,7 +2296,7 @@ async function executeTool(
     return {
       resultText: `Замеры записаны: ${summary}`,
       actionDescription: `Замеры тела: ${summary}`,
-      actionData: { date: new Date().toISOString().split('T')[0], ...measurements },
+      actionData: { date: clientDate ?? new Date().toISOString().split('T')[0], ...measurements },
     };
   }
 
