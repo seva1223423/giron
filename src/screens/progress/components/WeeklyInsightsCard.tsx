@@ -7,6 +7,7 @@ import { aiService } from '../../../services';
 import { useNutritionStore, useCardioStore } from '../../../store';
 import { useSleepStore } from '../../../store/useSleepStore';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { localDateStr } from '../../../utils/date';
 import type { Workout } from '../../../types';
 
 interface Props {
@@ -65,7 +66,7 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
       const sleep = getLastEntries(7);
       const avgSleep = sleep.length > 0 ? (sleep.reduce((s, e) => s + e.durationHours, 0) / sleep.length).toFixed(1) : null;
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr(new Date());
       const todayLog = getDayLog(today);
       const protTarget = todayLog.targetProtein || defaultTargets.protein;
 

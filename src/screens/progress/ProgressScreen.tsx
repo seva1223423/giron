@@ -7,6 +7,7 @@ import { useSleepStore } from '../../store/useSleepStore';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
+import { localDateStr } from '../../utils/date';
 import {
   OverviewTab,
   RecordsTab,
@@ -41,7 +42,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     for (let i = 0; i < 365; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = localDateStr(date);
       if (workoutHistory.some((w) => w.completedAt && w.completedAt.startsWith(dateStr))) {
         s++;
       } else if (i > 0) break;

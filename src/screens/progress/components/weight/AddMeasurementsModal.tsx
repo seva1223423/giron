@@ -7,6 +7,7 @@ import { spacing, borderRadius } from '../../../../theme/spacing';
 import { useHaptic } from '../../../../hooks/useHaptic';
 import { userService } from '../../../../services';
 import type { BodyMeasurement } from '../../../../types';
+import { localDateStr } from '../../../../utils/date';
 
 export const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
 
@@ -34,7 +35,7 @@ export const AddMeasurementsModal: React.FC<Props> = ({ visible, measurementHist
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr(new Date());
     const entry: BodyMeasurement = { date: today };
     let hasAny = false;
     MEASUREMENT_FIELDS.forEach(({ key }) => {

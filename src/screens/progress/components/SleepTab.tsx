@@ -8,6 +8,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { useSleepStore } from '../../../store/useSleepStore';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { localDateStr } from '../../../utils/date';
 
 const QUALITY_LABELS: Record<number, string> = {
   1: 'Ужасно', 2: 'Плохо', 3: 'Нормально', 4: 'Хорошо', 5: 'Отлично',
@@ -144,7 +145,7 @@ export const SleepTab: React.FC<Props> = ({ colors }) => {
 
   const handleSave = (bedtime: string, wakeTime: string, quality: number | null) => {
     haptic.success();
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr(new Date());
     addEntry({ date: today, bedtime, wakeTime, quality: quality ?? undefined });
   };
 
