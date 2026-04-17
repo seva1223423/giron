@@ -363,7 +363,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
     const totalVolume = refreshed?.exercises
       .reduce(
         (total: number, ex: any) =>
-          total + ex.sets.filter((s: any) => s.completed).reduce((sum: number, s: any) => sum + (s.weight || 0) * (s.reps || 0), 0),
+          total + ex.sets.filter((s: any) => s.completed && s.type !== 'warmup').reduce((sum: number, s: any) => sum + (s.weight || 0) * (s.reps || 0), 0),
         0
       ) || 0;
 
