@@ -70,6 +70,7 @@ export const ChangeEmailScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const submitChange = async (emailOtp: string, totp?: string) => {
+    if (loading) return;
     setLoading(true);
     try {
       const { data } = await api.post<{ ok: boolean; email: string; emailVerified: boolean; token?: string; refreshToken?: string }>('/user/change-email', {

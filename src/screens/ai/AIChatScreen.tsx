@@ -91,10 +91,14 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     aiService.getChatHistory(100, 1).then(({ messages: history, pages }) => {
       setHistoryTotalPages(pages);
       if (history.length > 0) {
-        setMessages([
-          { id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(), content: `С возвращением${user?.firstName ? `, ${user.firstName}` : ''}! Продолжим работу. Спрашивай что угодно.` },
-          ...history,
-        ]);
+        setMessages((prev) => {
+          // Don't overwrite if user already sent messages while history was loading
+          if (prev.length > 1) return prev;
+          return [
+            { id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(), content: `С возвращением${user?.firstName ? `, ${user.firstName}` : ''}! Продолжим работу. Спрашивай что угодно.` },
+            ...history,
+          ];
+        });
       }
     }).catch(() => {});
   }, []);
