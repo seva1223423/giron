@@ -4,13 +4,13 @@ import { useSettingsStore } from '../store/useSettingsStore';
 export const useHaptic = () => {
   const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
 
-  const light = () => hapticFeedback && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  const medium = () => hapticFeedback && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  const heavy = () => hapticFeedback && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-  const success = () => hapticFeedback && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  const warning = () => hapticFeedback && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-  const error = () => hapticFeedback && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-  const selection = () => hapticFeedback && Haptics.selectionAsync();
+  const light = () => { if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
+  const medium = () => { if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); };
+  const heavy = () => { if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}); };
+  const success = () => { if (hapticFeedback) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); };
+  const warning = () => { if (hapticFeedback) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}); };
+  const error = () => { if (hapticFeedback) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}); };
+  const selection = () => { if (hapticFeedback) Haptics.selectionAsync().catch(() => {}); };
 
   return { light, medium, heavy, success, warning, error, selection };
 };
