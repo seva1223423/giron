@@ -23,10 +23,15 @@ export async function getSubStatus(userId: string): Promise<SubStatus> {
     where: { userId },
     select: { plan: true, status: true, endDate: true },
   });
+  const now = new Date();
   const isPaid =
     !!sub &&
-    (sub.status === 'active' || sub.status === 'cancelled') &&
     sub.plan !== 'free' &&
-    (!sub.endDate || sub.endDate >= new Date());
+    (
+      // Active (auto-renewing): no endDate means no expiry; with endDate check it hasn't elapsed
+      (sub.status === 'active' && (!sub.endDate || sub.endDate >= now)) ||
+      // Cancelled: access granted only until the explicit endDate
+      (sub.status === 'cancelled' && !!sub.endDate && sub.endDate >= now)
+    );
   return { isPaid, plan: sub?.plan ?? 'free' };
 }

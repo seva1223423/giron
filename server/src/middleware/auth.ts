@@ -18,11 +18,16 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   const token = authHeader.split(' ')[1];
   let payload: { userId: string };
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET!, {
+    const raw = jwt.verify(token, process.env.JWT_SECRET!, {
       issuer: 'irongym-api',
       audience: 'irongym-app',
       algorithms: ['HS256'],
-    }) as { userId: string };
+    }) as { userId: string; phase?: string };
+    // Reject intermediate tokens (e.g. TOTP-pending) — they must not grant full API access
+    if (raw.phase) {
+      return res.status(401).json({ error: 'Недействительный токен' });
+    }
+    payload = raw;
   } catch (e) {
     // Distinguish expired tokens from invalid ones so the client can trigger refresh vs. logout
     if (e instanceof jwt.TokenExpiredError) {
