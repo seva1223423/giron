@@ -25,20 +25,36 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    const wKgParsed = weightKg ? parseFloat(weightKg) : undefined;
+    const hCmParsed = heightCm ? parseFloat(heightCm) : undefined;
+    const expParsed = experienceYears ? parseInt(experienceYears, 10) : undefined;
+    if (wKgParsed !== undefined && (!Number.isFinite(wKgParsed) || wKgParsed < 20 || wKgParsed > 400)) {
+      Alert.alert('Ошибка', 'Вес должен быть от 20 до 400 кг');
+      return;
+    }
+    if (hCmParsed !== undefined && (!Number.isFinite(hCmParsed) || hCmParsed < 100 || hCmParsed > 300)) {
+      Alert.alert('Ошибка', 'Рост должен быть от 100 до 300 см');
+      return;
+    }
+    if (expParsed !== undefined && (!Number.isFinite(expParsed) || expParsed < 0 || expParsed > 80)) {
+      Alert.alert('Ошибка', 'Опыт тренировок должен быть от 0 до 80 лет');
+      return;
+    }
     setSaving(true);
     haptic.medium();
     try {
       const updated = await userService.updateProfile({
-        weightKg: weightKg ? parseFloat(weightKg) : undefined,
-        heightCm: heightCm ? parseFloat(heightCm) : undefined,
+        weightKg: wKgParsed,
+        heightCm: hCmParsed,
         goal: goal || undefined,
         fitnessLevel: fitnessLevel || undefined,
-        trainingExperienceYears: experienceYears ? parseInt(experienceYears, 10) : undefined,
+        trainingExperienceYears: expParsed,
       } as any);
-      setUser({ ...user!, ...updated });
+      if (!user) return;
+      setUser({ ...user, ...updated });
 
-      const wKg = weightKg ? parseFloat(weightKg) : user?.weightKg;
-      const hCm = heightCm ? parseFloat(heightCm) : user?.heightCm;
+      const wKg = wKgParsed ?? user?.weightKg;
+      const hCm = hCmParsed ?? user?.heightCm;
       const currentGoal = goal || user?.goal;
       if (wKg && hCm && currentGoal) {
         const gender = user?.gender?.toLowerCase();
