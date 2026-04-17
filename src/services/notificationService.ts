@@ -100,6 +100,8 @@ export async function scheduleDailyWorkoutReminder(hour: number, minute: number)
 // Schedule a one-time notification right away (e.g., for testing or instant reminders)
 export async function sendImmediateNotification(title: string, body: string): Promise<void> {
   try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
     await Notifications.scheduleNotificationAsync({
       content: { title, body, sound: 'default', ...(Platform.OS === 'android' && { channelId: 'reminders' }) },
       trigger: null, // fires immediately
