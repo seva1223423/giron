@@ -39,16 +39,17 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
   const { colors } = useThemeStore();
   const { activeWorkout, startWorkout } = useWorkoutStore();
 
-  const completedSets = workout.exercises.reduce((s: number, e: any) => s + e.sets.filter((set: any) => set.completed).length, 0);
-  const prCount = workout.exercises.reduce((s: number, e: any) => s + e.sets.filter((set: any) => set.isPR).length, 0);
+  const exercises = workout.exercises ?? [];
+  const completedSets = exercises.reduce((s: number, e: any) => s + (e.sets ?? []).filter((set: any) => set.completed).length, 0);
+  const prCount = exercises.reduce((s: number, e: any) => s + (e.sets ?? []).filter((set: any) => set.isPR).length, 0);
   const muscleSet = new Set<string>();
-  workout.exercises.forEach((ex: any) => (ex.exercise?.primaryMuscles ?? []).slice(0, 1).forEach((m: string) => muscleSet.add(m)));
+  exercises.forEach((ex: any) => (ex.exercise?.primaryMuscles ?? []).slice(0, 1).forEach((m: string) => muscleSet.add(m)));
   const muscles = Array.from(muscleSet).slice(0, 3);
 
   const handleRepeat = () => {
     if (activeWorkout) return;
     haptic.medium();
-    const exercises: WorkoutExercise[] = workout.exercises.map((we: any, index: number) => {
+    const exercises: WorkoutExercise[] = (workout.exercises ?? []).map((we: any, index: number) => {
       const sets: WorkoutSet[] = we.sets.map((s: any, i: number) => ({
         id: `set-${Date.now()}-${index}-${i}`, setNumber: i + 1, type: s.type, reps: s.reps, weight: s.weight, completed: false,
       }));
