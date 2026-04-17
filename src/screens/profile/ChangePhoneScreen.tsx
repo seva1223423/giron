@@ -73,6 +73,7 @@ export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const submitChange = async (smsOtp: string, totp?: string) => {
+    if (loading) return;
     setLoading(true);
     try {
       const result = await userService.changePhone(phone.trim(), smsOtp, totp);

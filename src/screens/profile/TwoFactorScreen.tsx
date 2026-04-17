@@ -64,7 +64,7 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   };
 
   const enableTotp = async (codeValue: string) => {
-    if (codeValue.length !== 6) return;
+    if (codeValue.length !== 6 || submitting) return;
     setSubmitting(true);
     try {
       const { data } = await api.post<{ ok: boolean; backupCodes: string[] }>('/user/2fa/enable', { code: codeValue });
@@ -91,7 +91,7 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   };
 
   const regenerateBackupCodes = async (codeValue: string) => {
-    if (codeValue.length !== 6) return;
+    if (codeValue.length !== 6 || regenerating) return;
     setRegenerating(true);
     try {
       const { data } = await api.post<{ ok: boolean; backupCodes: string[] }>('/user/2fa/backup-codes', { code: codeValue });
