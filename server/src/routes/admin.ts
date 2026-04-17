@@ -1198,7 +1198,7 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
     const buckets: Record<string, { pro: number; trainer: number; club: number; total: number }> = {};
     for (let i = 0; i < numDays; i++) {
       const d = new Date(since);
-      d.setDate(d.getDate() + i);
+      d.setUTCDate(d.getUTCDate() + i);
       buckets[d.toISOString().split('T')[0]] = { pro: 0, trainer: 0, club: 0, total: 0 };
     }
     for (const s of subs) {
