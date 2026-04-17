@@ -2488,13 +2488,13 @@ const chatRequestSchema = z.object({
   stream: z.boolean().optional(),
   clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // client's local YYYY-MM-DD date
   nutritionTargets: z.object({
-    calories: z.number().min(0).max(100000),
-    protein: z.number().min(0).max(10000),
-    fats: z.number().min(0).max(10000),
-    carbs: z.number().min(0).max(10000),
-    waterTargetMl: z.number().min(0).max(20000),
+    calories: z.number().finite().min(0).max(100000),
+    protein: z.number().finite().min(0).max(10000),
+    fats: z.number().finite().min(0).max(10000),
+    carbs: z.number().finite().min(0).max(10000),
+    waterTargetMl: z.number().finite().min(0).max(20000),
   }).optional(),
-  waterMl: z.number().min(0).max(20000).optional(),
+  waterMl: z.number().finite().min(0).max(20000).optional(),
   weekPlan: z.record(z.union([
     z.object({
       name: z.string().max(200),
@@ -2506,15 +2506,15 @@ const chatRequestSchema = z.object({
   cardioSessions: z.array(z.object({
     type: z.string().max(50),
     date: z.string().max(30),
-    durationMinutes: z.number().min(0).max(1440),
-    distanceKm: z.number().min(0).max(1000).optional(),
-    caloriesBurned: z.number().min(0).max(10000).optional(),
-    avgHeartRate: z.number().min(0).max(300).optional(),
+    durationMinutes: z.number().finite().min(0).max(1440),
+    distanceKm: z.number().finite().min(0).max(1000).optional(),
+    caloriesBurned: z.number().finite().min(0).max(10000).optional(),
+    avgHeartRate: z.number().finite().min(0).max(300).optional(),
   })).max(30).optional(),
   sleepEntries: z.array(z.object({
     date: z.string().max(30),
-    durationHours: z.number().min(0).max(24),
-    quality: z.number().min(1).max(10).nullable().optional(),
+    durationHours: z.number().finite().min(0).max(24),
+    quality: z.number().finite().min(1).max(10).nullable().optional(),
   })).max(30).optional(),
 });
 
