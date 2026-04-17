@@ -435,7 +435,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
           durationMinutes: Math.round((Date.now() - active.startTime) / 60000),
           totalVolume: active.workout.exercises.reduce((total, ex) =>
             total + ex.sets
-              .filter((s) => s.completed)
+              .filter((s) => s.completed && s.type !== 'warmup')
               .reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0),
             0
           ),
