@@ -359,17 +359,21 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
 
 export function computeAchievements(data: AchievementData): Achievement[] {
   return ACHIEVEMENT_DEFINITIONS.map((def) => {
-    const result = def.check(data);
-    return {
-      id: def.id,
-      emoji: def.emoji,
-      title: def.title,
-      description: def.description,
-      category: def.category,
-      unlocked: result.unlocked,
-      progress: result.progress,
-      progressLabel: result.progressLabel,
-    };
+    try {
+      const result = def.check(data);
+      return {
+        id: def.id,
+        emoji: def.emoji,
+        title: def.title,
+        description: def.description,
+        category: def.category,
+        unlocked: result.unlocked,
+        progress: result.progress,
+        progressLabel: result.progressLabel,
+      };
+    } catch {
+      return { id: def.id, emoji: def.emoji, title: def.title, description: def.description, category: def.category, unlocked: false };
+    }
   });
 }
 
