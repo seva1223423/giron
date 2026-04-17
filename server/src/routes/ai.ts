@@ -2204,7 +2204,7 @@ async function executeTool(
     });
     if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
 
-    let updatedCount = 0;
+    const weightUpdates: Promise<unknown>[] = [];
     for (const workout of active.workouts) {
       for (const exercise of workout.exercises) {
         for (const set of exercise.sets) {
@@ -2214,13 +2214,14 @@ async function executeTool(
             if (safeDeltaKg) newWeight = Math.round((newWeight + safeDeltaKg) * 4) / 4;
             newWeight = Math.max(0, newWeight);
             if (newWeight !== set.weight) {
-              await prisma.workoutSet.updateMany({ where: { id: set.id }, data: { weight: newWeight } });
-              updatedCount++;
+              weightUpdates.push(prisma.workoutSet.updateMany({ where: { id: set.id }, data: { weight: newWeight } }));
             }
           }
         }
       }
     }
+    await Promise.all(weightUpdates);
+    const updatedCount = weightUpdates.length;
 
     const desc = safeMultiplier ? `×${safeMultiplier}` : `${(safeDeltaKg ?? 0) > 0 ? '+' : ''}${safeDeltaKg} кг`;
     return {
@@ -2369,8 +2370,10 @@ async function executeTool(
       const ex1 = workout.exercises.find((e) => e.exercise?.name?.toLowerCase().includes(exercise1Name.toLowerCase()));
       const ex2 = workout.exercises.find((e) => e.exercise?.name?.toLowerCase().includes(exercise2Name.toLowerCase()));
       if (ex1 && ex2) {
-        await prisma.workoutExercise.updateMany({ where: { id: ex1.id }, data: { supersetGroupId: groupId } });
-        await prisma.workoutExercise.updateMany({ where: { id: ex2.id }, data: { supersetGroupId: groupId } });
+        await Promise.all([
+          prisma.workoutExercise.updateMany({ where: { id: ex1.id }, data: { supersetGroupId: groupId } }),
+          prisma.workoutExercise.updateMany({ where: { id: ex2.id }, data: { supersetGroupId: groupId } }),
+        ]);
         found = true;
         break;
       }
