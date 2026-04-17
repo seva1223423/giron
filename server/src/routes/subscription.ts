@@ -84,32 +84,21 @@ router.post('/activate', authenticate, async (req: AuthRequest, res: Response) =
       return res.status(403).json({ error: 'Активация платных подписок доступна только через webhook после подтверждения оплаты' });
     }
 
-    // Prevent duplicate trials — block if user ever had any subscription
-    const existing = await prisma.subscription.findUnique({ where: { userId } });
-    if (existing) {
-      return res.status(400).json({ error: 'Пробный период уже использован' });
-    }
-
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + durationDays);
 
-    const subscription = await prisma.subscription.upsert({
-      where: { userId },
-      create: {
-        userId,
-        plan,
-        status: 'active',
-        startDate,
-        endDate,
-      },
-      update: {
-        plan,
-        status: 'active',
-        startDate,
-        endDate,
-      },
-    });
+    let subscription;
+    try {
+      subscription = await prisma.subscription.create({
+        data: { userId, plan, status: 'active', startDate, endDate },
+      });
+    } catch (createErr: any) {
+      if (createErr?.code === 'P2002') {
+        return res.status(400).json({ error: 'Пробный период уже использован' });
+      }
+      throw createErr;
+    }
 
     logger.info(`Subscription activated: user=${userId} plan=${plan} days=${durationDays} txn=${transactionId || 'none'}`);
 
