@@ -2161,14 +2161,12 @@ async function executeTool(
     // Resolve exercise IDs from DB for each day
     const resolvedSchedule = await Promise.all(
       validSchedule.map(async (day) => {
-        const exerciseIds: string[] = [];
-        for (const name of day.exerciseNames) {
-          const ex = await prisma.exercise.findFirst({
-            where: { name: { contains: name, mode: 'insensitive' } },
-            select: { id: true },
-          });
-          if (ex) exerciseIds.push(ex.id);
-        }
+        const exResults = await Promise.all(
+          day.exerciseNames.map((name) =>
+            prisma.exercise.findFirst({ where: { name: { contains: name, mode: 'insensitive' } }, select: { id: true } }),
+          ),
+        );
+        const exerciseIds = exResults.filter((ex): ex is { id: string } => ex !== null).map((ex) => ex.id);
         return {
           dayIndex: day.dayIndex,
           workoutName: day.workoutName,
@@ -2347,15 +2345,20 @@ async function executeTool(
     });
     if (!newEx) return { resultText: `Упражнение "${newExerciseName}" не найдено в базе`, actionDescription: '' };
 
-    let swapped = 0;
+    const matchingIds: string[] = [];
     for (const workout of active.workouts) {
       if (workoutName && !workout.name.toLowerCase().includes(workoutName.toLowerCase())) continue;
       for (const we of workout.exercises) {
         if (we.exercise?.name?.toLowerCase().includes(oldExerciseName.toLowerCase())) {
-          await prisma.workoutExercise.updateMany({ where: { id: we.id }, data: { exerciseId: newEx.id } });
-          swapped++;
+          matchingIds.push(we.id);
         }
       }
+    }
+    const swapped = matchingIds.length;
+    if (swapped > 0) {
+      await Promise.all(
+        matchingIds.map((id) => prisma.workoutExercise.updateMany({ where: { id }, data: { exerciseId: newEx.id } })),
+      );
     }
     if (swapped === 0) return { resultText: `Упражнение "${oldExerciseName}" не найдено в программе`, actionDescription: '' };
     return { resultText: `Заменено: "${oldExerciseName}" → "${newEx.name}" (${swapped} шт.)`, actionDescription: `Замена: ${oldExerciseName} → ${newEx.name}`, actionData: { oldName: oldExerciseName, newName: newEx.name, count: swapped } };
