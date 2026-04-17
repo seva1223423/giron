@@ -32,7 +32,7 @@ const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 const addClientSchema = z.object({
   name: z.string().min(1).max(200),
   phone: z.string().max(50).optional(),
-  age: z.number().int().min(5).max(120).optional(),
+  age: z.number().int().finite().min(5).max(120).optional(),
   goal: z.string().max(50).optional(),
   level: z.string().max(50).optional(),
   assignedProgram: z.string().max(200).optional(),
@@ -41,7 +41,7 @@ const addClientSchema = z.object({
 });
 
 const updateClientSchema = addClientSchema.partial().extend({
-  totalWorkouts: z.number().int().min(0).optional(),
+  totalWorkouts: z.number().int().finite().min(0).optional(),
   lastVisit: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'lastVisit должен быть в формате YYYY-MM-DD').optional(),
 });
 
@@ -123,8 +123,8 @@ router.delete('/clients/:id', authenticate, requireTrainerRole as any, async (re
 const sessionSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   name: z.string().min(1).max(200),
-  durationMinutes: z.number().int().min(1).max(600),
-  volumeKg: z.number().min(0).optional(),
+  durationMinutes: z.number().int().finite().min(1).max(600),
+  volumeKg: z.number().finite().min(0).optional(),
   notes: z.string().max(1000).optional(),
 });
 

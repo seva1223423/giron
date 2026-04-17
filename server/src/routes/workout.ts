@@ -152,7 +152,7 @@ router.patch('/programs/:id', authenticate, async (req: AuthRequest, res: Respon
       isActive: z.boolean().optional(),
       goal: z.enum(['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS']).optional(),
       level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
-      daysPerWeek: z.number().int().min(1).max(7).optional(),
+      daysPerWeek: z.number().int().finite().min(1).max(7).optional(),
     });
     const parsed = updateProgramSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
