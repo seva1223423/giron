@@ -838,12 +838,15 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     if (!activeOtp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
-    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+    // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
+    const incResult = await prisma.otpCode.updateMany({
+      where: { id: activeOtp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },
+      data: { attempts: { increment: 1 } },
+    });
+    if (incResult.count === 0) {
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
     if (activeOtp.code !== code) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
@@ -929,12 +932,15 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     if (!activeOtp) {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
-    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+    // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
+    const incResult = await prisma.otpCode.updateMany({
+      where: { id: activeOtp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },
+      data: { attempts: { increment: 1 } },
+    });
+    if (incResult.count === 0) {
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
     if (activeOtp.code !== code) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
