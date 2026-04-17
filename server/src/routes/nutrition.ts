@@ -23,7 +23,7 @@ const addMealSchema = z.object({
   type: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   items: z.array(mealItemSchema).min(1).max(50),
   photoUrl: z.string().url('Некорректный URL').max(2048).refine((u) => u.startsWith('https://'), 'URL должен использовать HTTPS').optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // YYYY-MM-DD local date from client
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата').optional(),
 });
 
 // Add meal
