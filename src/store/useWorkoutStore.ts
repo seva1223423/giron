@@ -88,6 +88,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       pendingSync: [],
 
       setWeekPlanDay: (dow, entry) => {
+        if (!Number.isInteger(dow) || dow < 0 || dow > 6) return;
         set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: entry } }));
         // Sync to server (fire and forget)
         const updated = { ...get().weekPlan, [dow]: entry };
