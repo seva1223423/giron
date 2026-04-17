@@ -33,7 +33,7 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
 
       addEntry: (data) => {
         const snapshot = get().entries;
-        const entry: BodyMeasurement = { ...data, id: `meas-${Date.now()}` };
+        const entry: BodyMeasurement = { ...data, id: `meas-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
         set((s) => ({ entries: [entry, ...s.entries] }));
         // Sync to server with rollback on failure
         userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, calf: data.calf, neck: data.neck }).catch(() => {
