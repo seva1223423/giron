@@ -2590,7 +2590,8 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
             select: { weight: true, reps: true, type: true },
           },
         },
-        take: 10000,
+        orderBy: { workout: { completedAt: 'desc' } },
+        take: 1000,
       }),
       prisma.meal.findMany({
         where: { userId, date: todayDate },
@@ -9123,7 +9124,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
               actionData = toolResult.actionData;
             } catch (toolError) {
               logger.error(`Tool ${tc.name} failed:`, toolError);
-              resultText = `Ошибка выполнения инструмента ${tc.name}: ${(toolError as Error).message}`;
+              resultText = `Не удалось выполнить действие. Попробуй ещё раз.`;
             }
 
             if (actionDescription) {
@@ -9456,7 +9457,8 @@ async function getGamificationData(userId: string, clientDate?: string): Promise
       workout: { select: { completedAt: true } },
       sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
     },
-    take: 10000,
+    orderBy: { workout: { completedAt: 'desc' } },
+    take: 5000,
   });
 
   const prMap = new Map<string, { weight: number; reps: number; date: Date }>();
