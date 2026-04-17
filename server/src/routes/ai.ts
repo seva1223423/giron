@@ -83476,17 +83476,17 @@ router.post('/workout-insights', authenticate, async (req: AuthRequest, res: Res
     const bodyParsed = z.object({
       workout: z.object({
         name: z.string().min(1).max(200),
-        durationMinutes: z.number().int().min(0).max(1440),
+        durationMinutes: z.number().int().finite().min(0).max(1440),
         exercises: z.array(z.object({
           name: z.string().min(1).max(200),
           sets: z.array(z.object({
-            weight: z.number().min(0).max(2000).optional(),
-            reps: z.number().int().min(0).max(999).optional(),
+            weight: z.number().finite().min(0).max(2000).optional(),
+            reps: z.number().int().finite().min(0).max(999).optional(),
             completed: z.boolean().optional(),
-            rpe: z.number().min(1).max(10).optional(),
+            rpe: z.number().finite().min(1).max(10).optional(),
           })).max(30),
         })).max(50),
-        totalVolume: z.number().min(0).max(1_000_000).optional(),
+        totalVolume: z.number().finite().min(0).max(1_000_000).optional(),
         notes: z.string().max(2000).optional(),
       }),
     }).safeParse(req.body);
