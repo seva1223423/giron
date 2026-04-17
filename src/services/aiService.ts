@@ -1,19 +1,12 @@
 import { api } from './api';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatMessage } from '../types';
+import { useAuthStore } from '../store/useAuthStore';
 
 const BASE_URL = 'https://iron-gym-swoe.onrender.com/api';
 
-async function getAuthToken(): Promise<string | null> {
-  try {
-    const stored = await AsyncStorage.getItem('iron-gym-auth');
-    if (!stored) return null;
-    const parsed = JSON.parse(stored);
-    return parsed?.state?.token ?? null;
-  } catch {
-    return null;
-  }
+function getAuthToken(): string | null {
+  return useAuthStore.getState().token ?? null;
 }
 
 export interface FoodAnalysisItem {
@@ -76,7 +69,7 @@ export const aiService = {
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,
     clientDate?: string,
   ): AsyncGenerator<string> {
-    const token = await getAuthToken();
+    const token = getAuthToken();
     const response = await fetch(`${BASE_URL}/ai/chat`, {
       method: 'POST',
       headers: {
