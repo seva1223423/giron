@@ -105,6 +105,14 @@ export const aiService = {
     const decoder = new TextDecoder();
     let buffer = '';
 
+    const processLine = (line: string) => {
+      if (!line.startsWith('data: ')) return undefined;
+      const data = line.slice(6).trim();
+      try {
+        return JSON.parse(data) as { type: string; content?: string; actions?: AIActionResult[]; meta?: AIMeta };
+      } catch { return undefined; }
+    };
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -113,17 +121,16 @@ export const aiService = {
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          try {
-            const parsed = JSON.parse(data) as { type: string; content?: string; actions?: AIActionResult[]; meta?: AIMeta };
-            if (parsed.type === 'chunk' && parsed.content) {
-              yield parsed.content;
-            } else if (parsed.type === 'done') {
-              onDone?.({ actions: parsed.actions ?? [], meta: parsed.meta });
-            }
-          } catch { /* skip malformed */ }
+          const parsed = processLine(line);
+          if (!parsed) continue;
+          if (parsed.type === 'chunk' && parsed.content) yield parsed.content;
+          else if (parsed.type === 'done') onDone?.({ actions: parsed.actions ?? [], meta: parsed.meta });
         }
+      }
+      // Flush any remaining buffer content after stream ends
+      if (buffer.trim()) {
+        const parsed = processLine(buffer);
+        if (parsed?.type === 'done') onDone?.({ actions: parsed.actions ?? [], meta: parsed.meta });
       }
     } finally {
       reader.releaseLock();
