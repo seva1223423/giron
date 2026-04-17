@@ -269,6 +269,9 @@ router.post('/register', async (req: Request, res: Response) => {
     if (e instanceof z.ZodError) {
       return res.status(400).json({ error: e.errors[0].message });
     }
+    if (e?.code === 'P2002') {
+      return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+    }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка регистрации' });
   }
@@ -619,6 +622,10 @@ router.post('/google', async (req: Request, res: Response) => {
     if (user!.isBanned) {
       return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
+    if (user!.lockedUntil && user!.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user!.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: user!.lockedUntil });
+    }
 
     const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
     if (totpGate) {
@@ -702,6 +709,10 @@ router.post('/vk', async (req: Request, res: Response) => {
 
     if (user!.isBanned) {
       return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
+    }
+    if (user!.lockedUntil && user!.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user!.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: user!.lockedUntil });
     }
 
     const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
@@ -792,6 +803,10 @@ router.post('/yandex', async (req: Request, res: Response) => {
     if ((user as any).isBanned) {
       return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
     }
+    if ((user as any).lockedUntil && (user as any).lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil(((user as any).lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: (user as any).lockedUntil });
+    }
 
     const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
     if (totpGate) {
@@ -857,6 +872,10 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
 
     if (user.isBanned) {
       return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: user.lockedUntil });
     }
 
     await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true, loginAttempts: 0, lockedUntil: null } });
