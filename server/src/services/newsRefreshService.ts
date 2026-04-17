@@ -54,7 +54,7 @@ function parseRssItems(xml: string): Array<{ title: string; summary: string; lin
   const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = itemRegex.exec(xml)) !== null) {
+  while ((match = itemRegex.exec(xml)) !== null && items.length < 50) {
     const itemXml = match[1];
     const title = extractTagContent(itemXml, 'title');
     const description = extractTagContent(itemXml, 'description');
