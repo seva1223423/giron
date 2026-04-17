@@ -226,7 +226,7 @@ export const useAuthStore = create<AuthStore>()(
           // Only fallback to local update on network errors, not validation errors
           const isNetworkError = !e?.response || e?.code === 'ECONNABORTED' || e?.code === 'ERR_NETWORK';
           if (isNetworkError) {
-            set({ user: { ...user, ...data } });
+            set({ user: normalizeUser({ ...user, ...data }) });
           }
           // Server validation errors (4xx) are silently ignored — data stays unchanged
         }
