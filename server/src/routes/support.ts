@@ -227,11 +227,25 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
     const parsed = ticketStatusUpdateSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
 
+    const actor = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
+    const isAdmin = actor?.role === 'ADMIN';
+
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: req.params.id as string },
+      select: { assignedToId: true },
+    });
+    if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
+
+    // Only admins or the assigned staff member can update status
+    if (!isAdmin && ticket.assignedToId !== req.userId) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+
     const data: any = { updatedAt: new Date() };
     if (parsed.data.status) data.status = parsed.data.status;
     if (parsed.data.priority) data.priority = parsed.data.priority;
-    const ticket = await prisma.supportTicket.update({ where: { id: req.params.id as string }, data });
-    res.json(ticket);
+    const updated = await prisma.supportTicket.update({ where: { id: req.params.id as string }, data });
+    res.json(updated);
   } catch (e) {
     if (isNotFound(e)) return res.status(404).json({ error: 'Тикет не найден' });
     logger.error('PATCH /support/tickets/:id/status:', e);
@@ -239,10 +253,13 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
   }
 });
 
-/** PATCH /support/tickets/:id/assign — assign to staff member */
+/** PATCH /support/tickets/:id/assign — assign to staff member (admin only) */
 router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
+    const actor = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
+    if (actor?.role !== 'ADMIN') return res.status(403).json({ error: 'Только администратор может назначать тикеты' });
+
     const parsed = z.object({
       assignedToId: z.string().cuid().nullable().optional(),
     }).safeParse(req.body);
