@@ -326,6 +326,13 @@ export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isOnboarded } = useAuthStore();
   const { colors, applyAutoTheme } = useThemeStore();
   const { isOnline } = useConnectionStore();
+  const [hydrated, setHydrated] = React.useState(() => useAuthStore.persist.hasHydrated());
+
+  React.useEffect(() => {
+    if (!hydrated) {
+      return useAuthStore.persist.onFinishHydration(() => setHydrated(true));
+    }
+  }, [hydrated]);
 
   // Request notification permissions and register push token once on first authenticated launch
   useEffect(() => {
@@ -356,6 +363,10 @@ export const AppNavigator: React.FC = () => {
     });
     return () => sub.remove();
   }, [applyAutoTheme]);
+
+  if (!hydrated) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
 
   return (
     <NavigationContainer linking={linking}>
