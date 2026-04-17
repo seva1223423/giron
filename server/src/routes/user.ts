@@ -880,6 +880,7 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     res.json({ ok: true, email: newEmail, emailVerified: true, token: newToken, refreshToken: newRefreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    if (e?.code === 'P2002') return res.status(409).json({ error: 'Этот email уже используется', code: 'EMAIL_TAKEN' });
     logger.error('POST /user/change-email:', e);
     res.status(500).json({ error: 'Ошибка смены email' });
   }
@@ -970,6 +971,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     res.json({ ok: true, phone, phoneVerified: true, token: newToken, refreshToken: newRefreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    if (e?.code === 'P2002') return res.status(409).json({ error: 'Этот номер уже используется', code: 'PHONE_TAKEN' });
     logger.error('POST /user/change-phone:', e);
     res.status(500).json({ error: 'Ошибка смены номера телефона' });
   }

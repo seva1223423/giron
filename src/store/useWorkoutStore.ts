@@ -220,6 +220,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
               return rm > best ? rm : best;
             }, 0);
           completedSet.isPR = newRM > historyBest;
+        } else {
+          completedSet.isPR = false;
         }
 
         sets[setIndex] = completedSet;
