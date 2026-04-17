@@ -40,10 +40,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         const maxDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
         return !isNaN(parsed.getTime()) && parsed >= minDate && parsed <= maxDate;
       }, 'Некорректная дата (должна быть между 01.01.2000 и сегодня)'),
-      durationMinutes: z.number().int().min(1, 'Минимум 1 минута').max(1440, 'Максимум 24 часа'),
-      distanceKm: z.number().min(0).max(500).optional().nullable(),
-      caloriesBurned: z.number().int().min(0).max(50000).optional().nullable(),
-      avgHeartRate: z.number().int().min(30).max(250).optional().nullable(),
+      durationMinutes: z.number().int().finite().min(1, 'Минимум 1 минута').max(1440, 'Максимум 24 часа'),
+      distanceKm: z.number().finite().min(0).max(500).optional().nullable(),
+      caloriesBurned: z.number().int().finite().min(0).max(50000).optional().nullable(),
+      avgHeartRate: z.number().int().finite().min(30).max(250).optional().nullable(),
       notes: z.string().max(2000).optional().nullable(),
     });
 

@@ -61,13 +61,17 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
       Alert.alert('Ошибка', 'Укажи продолжительность');
       return;
     }
+    const toFinite = (s: string, parser: (v: string) => number) => {
+      const n = parser(s);
+      return Number.isFinite(n) ? n : undefined;
+    };
     addSession({
       type: selectedType,
       date,
       durationMinutes: min,
-      distanceKm: distance ? parseFloat(distance) : undefined,
-      caloriesBurned: calories ? parseInt(calories, 10) : undefined,
-      avgHeartRate: heartRate ? parseInt(heartRate, 10) : undefined,
+      distanceKm: distance ? toFinite(distance, parseFloat) : undefined,
+      caloriesBurned: calories ? toFinite(calories, (v) => parseInt(v, 10)) : undefined,
+      avgHeartRate: heartRate ? toFinite(heartRate, (v) => parseInt(v, 10)) : undefined,
       notes: notes.trim() || undefined,
     });
     haptic.success();
