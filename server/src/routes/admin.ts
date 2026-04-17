@@ -544,7 +544,7 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
       update: {
         plan: data.plan,
         status: data.status ?? 'active',
-        endDate: data.endDate ? new Date(data.endDate) : null,
+        ...(data.endDate !== undefined ? { endDate: new Date(data.endDate) } : {}),
         updatedAt: new Date(),
       },
       create: {
@@ -802,7 +802,7 @@ router.post('/users/:id/message', requireAdmin, async (req: AuthRequest, res: Re
 router.post('/mass-message', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { userIds, subject, message } = z.object({
-      userIds: z.array(z.string()).min(1).max(100),
+      userIds: z.array(z.string().cuid()).min(1).max(100),
       subject: z.string().min(1).max(200),
       message: z.string().min(1).max(2000),
     }).parse(req.body);
@@ -866,7 +866,14 @@ router.post('/subscriptions/broadcast', requireAdmin, async (req: AuthRequest, r
     }).parse(req.body);
 
     const now = new Date();
-    const subWhere: Record<string, unknown> = { plan, status: 'active' };
+    // Include both active subs and cancelled-but-not-yet-expired (they still have access)
+    const subWhere: Record<string, unknown> = {
+      plan,
+      OR: [
+        { status: 'active' },
+        { status: 'cancelled', endDate: { gte: now } },
+      ],
+    };
     if (expiringSoonOnly) {
       subWhere.endDate = { gte: now, lte: new Date(now.getTime() + 14 * 86400 * 1000) };
     }
