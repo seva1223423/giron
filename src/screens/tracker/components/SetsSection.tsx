@@ -108,7 +108,7 @@ export const SetsSection: React.FC<Props> = ({
         }}>
           <Text style={[typography.captionMedium, { color: colors.textTertiary, marginRight: spacing.sm }]}>
             {'\u21A9 '}
-            {previousSets.date ? new Date(previousSets.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : ''}:
+            {previousSets.date ? new Date(previousSets.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : ''}:
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
