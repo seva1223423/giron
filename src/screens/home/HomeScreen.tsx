@@ -64,12 +64,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const startResendCountdown = (seconds = 60) => {
     setResendCountdown(seconds);
     if (countdownRef.current) clearInterval(countdownRef.current);
-    countdownRef.current = setInterval(() => {
+    const id = setInterval(() => {
       setResendCountdown((s) => {
-        if (s <= 1) { clearInterval(countdownRef.current!); countdownRef.current = null; return 0; }
+        if (s <= 1) { clearInterval(id); countdownRef.current = null; return 0; }
         return s - 1;
       });
     }, 1000);
+    countdownRef.current = id;
   };
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);

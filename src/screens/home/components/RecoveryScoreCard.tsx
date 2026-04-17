@@ -33,7 +33,7 @@ export const RecoveryScoreCard: React.FC = () => {
 
     // Factor 3: Average RPE last workout
     if (lastWorkout && daysSince <= 2) {
-      const rpes = lastWorkout.exercises.flatMap(e => e.sets.filter(s => s.rpe).map(s => s.rpe!));
+      const rpes = (lastWorkout.exercises ?? []).flatMap(e => (e.sets ?? []).filter(s => s.rpe).map(s => s.rpe!));
       if (rpes.length > 0) {
         const avgRpe = rpes.reduce((a, b) => a + b, 0) / rpes.length;
         if (avgRpe >= 9) { score -= 20; reasons.push(`Высокий RPE: ${avgRpe.toFixed(1)}`); }
@@ -84,7 +84,7 @@ export const RecoveryScoreCard: React.FC = () => {
         const t = new Date(wk.completedAt!).getTime();
         return t >= start && t < end;
       });
-      const rpes = weekW.flatMap((wk) => wk.exercises.flatMap((e) => e.sets.filter((s) => s.rpe).map((s) => s.rpe!)));
+      const rpes = weekW.flatMap((wk) => (wk.exercises ?? []).flatMap((e) => (e.sets ?? []).filter((s) => s.rpe).map((s) => s.rpe!)));
       if (rpes.length >= 4) {
         weekRpes.push(rpes.reduce((a, b) => a + b, 0) / rpes.length);
       }
