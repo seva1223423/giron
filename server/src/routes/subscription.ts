@@ -141,7 +141,7 @@ router.post('/cancel', authenticate, async (req: AuthRequest, res: Response) => 
 
     // Don't delete — keep until endDate, just mark as cancelled
     await prisma.subscription.update({
-      where: { id: subscription.id },
+      where: { id: subscription.id, userId },
       data: { status: 'cancelled' },
     });
 
