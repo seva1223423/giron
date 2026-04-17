@@ -15,6 +15,7 @@ interface ThemeStore {
   setMode: (mode: 'light' | 'dark' | 'auto') => void;
   toggleTheme: () => void;
   applyAutoTheme: () => void;
+  resetToDefaults: () => void;
 }
 
 export const useThemeStore = create<ThemeStore>()(
@@ -43,6 +44,7 @@ export const useThemeStore = create<ThemeStore>()(
           set({ isDark, colors: isDark ? darkColors : lightColors });
         }
       },
+      resetToDefaults: () => set({ mode: 'light', isDark: false, colors: lightColors }),
     }),
     {
       name: 'iron-gym-theme',

@@ -20,6 +20,7 @@ interface SettingsStore {
   setWaterRemindersEnabled: (enabled: boolean) => void;
   setWaterReminderInterval: (hours: number) => void;
   setWorkoutDurationGoal: (minutes: number) => void;
+  resetToDefaults: () => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -42,6 +43,16 @@ export const useSettingsStore = create<SettingsStore>()(
       setWaterRemindersEnabled: (waterRemindersEnabled) => set({ waterRemindersEnabled }),
       setWaterReminderInterval: (waterReminderInterval) => set({ waterReminderInterval }),
       setWorkoutDurationGoal: (workoutDurationGoal) => set({ workoutDurationGoal }),
+      resetToDefaults: () => set({
+        units: 'metric',
+        restTimerDefault: 90,
+        hapticFeedback: true,
+        notificationsEnabled: false,
+        reminderHour: 18,
+        waterRemindersEnabled: false,
+        waterReminderInterval: 2,
+        workoutDurationGoal: 0,
+      }),
     }),
     {
       name: 'iron-gym-settings',
