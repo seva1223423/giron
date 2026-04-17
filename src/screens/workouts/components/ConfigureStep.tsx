@@ -231,7 +231,7 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
       })}
 
       <Button title="Сохранить как шаблон" variant="outline" onPress={onSaveTemplate} fullWidth style={{ marginTop: spacing.xl }} />
-      <Button title="Начать тренировку" onPress={() => onStart(navigation)} fullWidth size="lg" style={{ marginTop: spacing.md }} />
+      <Button title="Начать тренировку" onPress={() => onStart(navigation)} disabled={selectedExercises.length === 0} fullWidth size="lg" style={{ marginTop: spacing.md }} />
     </ScrollView>
   );
 };
