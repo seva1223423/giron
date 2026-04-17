@@ -61,7 +61,7 @@ const strongPassword = z
   .refine((p) => /[0-9]/.test(p), { message: 'Пароль должен содержать хотя бы одну цифру' });
 
 const weightSchema = z.object({
-  weightKg: z.number().min(20, 'Вес не может быть менее 20 кг').max(400, 'Вес не может быть более 400 кг'),
+  weightKg: z.number().finite().min(20, 'Вес не может быть менее 20 кг').max(400, 'Вес не может быть более 400 кг'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата должна быть в формате YYYY-MM-DD').refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата'),
 });
 
@@ -101,15 +101,15 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       lastName: z.string().max(100).optional(),
       dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), 'Некорректная дата').optional(),
       gender: z.string().transform(v => v.toUpperCase()).pipe(z.enum(['MALE', 'FEMALE'])).optional(),
-      heightCm: z.number().min(50).max(300).optional(),
-      weightKg: z.number().min(20).max(400).optional(),
+      heightCm: z.number().finite().min(50).max(300).optional(),
+      weightKg: z.number().finite().min(20).max(400).optional(),
       goal: z.string().transform(v => v.toUpperCase()).pipe(
         z.enum(['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'])
       ).optional(),
       fitnessLevel: z.string().transform(v => v.toUpperCase()).pipe(
         z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'])
       ).optional(),
-      trainingExperienceYears: z.number().min(0).max(80).optional(),
+      trainingExperienceYears: z.number().finite().min(0).max(80).optional(),
       avatarUrl: z.string().url('Некорректный URL').max(2048).refine((u) => u.startsWith('https://'), 'URL должен использовать HTTPS').optional(),
     });
 
@@ -186,13 +186,13 @@ router.get('/weight', authenticate, async (req: AuthRequest, res: Response) => {
 
 const measurementSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата'),
-  chest: z.number().min(0).max(300).optional().nullable(),
-  waist: z.number().min(0).max(300).optional().nullable(),
-  hips: z.number().min(0).max(300).optional().nullable(),
-  bicep: z.number().min(0).max(100).optional().nullable(),
-  thigh: z.number().min(0).max(200).optional().nullable(),
-  calf: z.number().min(0).max(100).optional().nullable(),
-  neck: z.number().min(0).max(100).optional().nullable(),
+  chest: z.number().finite().min(0).max(300).optional().nullable(),
+  waist: z.number().finite().min(0).max(300).optional().nullable(),
+  hips: z.number().finite().min(0).max(300).optional().nullable(),
+  bicep: z.number().finite().min(0).max(100).optional().nullable(),
+  thigh: z.number().finite().min(0).max(200).optional().nullable(),
+  calf: z.number().finite().min(0).max(100).optional().nullable(),
+  neck: z.number().finite().min(0).max(100).optional().nullable(),
 });
 
 router.post('/measurements', authenticate, async (req: AuthRequest, res: Response) => {
@@ -252,8 +252,8 @@ const sleepSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата'),
   bedtime: z.string().regex(/^\d{2}:\d{2}$/),
   wakeTime: z.string().regex(/^\d{2}:\d{2}$/),
-  durationHours: z.number().min(0).max(24),
-  quality: z.number().int().min(1).max(5).optional().nullable(),
+  durationHours: z.number().finite().min(0).max(24),
+  quality: z.number().int().finite().min(1).max(5).optional().nullable(),
 });
 
 router.post('/sleep', authenticate, async (req: AuthRequest, res: Response) => {
