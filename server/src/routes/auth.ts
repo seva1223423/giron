@@ -192,6 +192,7 @@ async function sendEmailVerificationOtp(email: string): Promise<void> {
 const strongPassword = z
   .string()
   .min(8, 'Пароль минимум 8 символов')
+  .max(128, 'Пароль не может быть длиннее 128 символов')
   .refine((p) => /[A-Z]/.test(p), { message: 'Пароль должен содержать хотя бы одну заглавную букву' })
   .refine((p) => /[a-z]/.test(p), { message: 'Пароль должен содержать хотя бы одну строчную букву' })
   .refine((p) => /[0-9]/.test(p), { message: 'Пароль должен содержать хотя бы одну цифру' });
@@ -846,14 +847,16 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
 
-    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
-      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-login phone=${phone}`);
-      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
-    }
-
     if (otp.code !== code) {
-      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+      // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
+      const incResult = await prisma.otpCode.updateMany({
+        where: { id: otp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },
+        data: { attempts: { increment: 1 } },
+      });
+      if (incResult.count === 0) {
+        await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-login phone=${phone}`);
+        return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
+      }
       const attemptsLeft = MAX_OTP_ATTEMPTS - otp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
@@ -1277,14 +1280,16 @@ router.post('/verify-email', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
-    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
-      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=email-verify email=${email}`);
-      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
-    }
-
     if (activeOtp.code !== code) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
+      const incResult = await prisma.otpCode.updateMany({
+        where: { id: activeOtp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },
+        data: { attempts: { increment: 1 } },
+      });
+      if (incResult.count === 0) {
+        await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=email-verify email=${email}`);
+        return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
+      }
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({
         error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.',
@@ -1364,14 +1369,16 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
 
-    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
-      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-reset phone=${phone}`);
-      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
-    }
-
     if (otp.code !== code) {
-      await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
+      // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
+      const incResult = await prisma.otpCode.updateMany({
+        where: { id: otp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },
+        data: { attempts: { increment: 1 } },
+      });
+      if (incResult.count === 0) {
+        await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=phone-reset phone=${phone}`);
+        return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
+      }
       const attemptsLeft = MAX_OTP_ATTEMPTS - otp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
