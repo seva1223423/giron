@@ -42,7 +42,7 @@ export async function sendPushToUser(
         receipts.forEach((receipt, i) => {
           if (receipt.status === 'error') {
             if (receipt.details?.error === 'DeviceNotRegistered') {
-              const badToken = messages[i]?.to as string;
+              const badToken = (chunk[i] as ExpoPushMessage | undefined)?.to as string;
               const record = tokenRecords.find((r) => r.token === badToken);
               if (record) invalidTokenIds.push(record.id);
             }

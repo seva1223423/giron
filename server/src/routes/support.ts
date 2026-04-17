@@ -253,7 +253,7 @@ router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: Auth
       where: { id: req.params.id as string },
       data: {
         assignedToId: assignedToId ?? null,
-        status: assignedToId ? 'in_progress' : 'open',
+        ...(assignedToId ? { status: 'in_progress' } : {}),
         updatedAt: new Date(),
       },
     });
