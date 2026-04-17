@@ -2530,7 +2530,10 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub) {
-      const todayFloor = new Date(`${todayDate}T00:00:00.000Z`);
+      // Always use server UTC date for rate limiting — ignoring client-provided date
+      // prevents UTC+ users from exploiting the timezone gap to exceed the daily cap.
+      const rateLimitDate = new Date().toISOString().split('T')[0];
+      const todayFloor = new Date(`${rateLimitDate}T00:00:00.000Z`);
       const todayCount = await prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
       if (todayCount >= AI_FREE_DAILY_LIMIT) {
         return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
