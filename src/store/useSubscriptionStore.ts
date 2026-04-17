@@ -198,6 +198,7 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
         premiumExpiresAt: null,
         plan: null,
         status: null,
+        trialUsed: false,
         aiMessagesUsedToday: 0,
         aiMessagesDate: null,
         foodScansUsedToday: 0,
