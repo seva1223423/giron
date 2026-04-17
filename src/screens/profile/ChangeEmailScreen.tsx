@@ -31,6 +31,7 @@ export const ChangeEmailScreen: React.FC<{ navigation: any }> = ({ navigation })
     api.get<{ enabled: boolean }>('/user/2fa/status')
       .then(({ data }) => setHasTwoFactor(data.enabled))
       .catch(() => {});
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
   }, []);
 
   const startCountdown = (seconds: number) => {
