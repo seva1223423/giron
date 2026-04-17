@@ -4549,9 +4549,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 24: AI Memory — learn from user and personalize ──────
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
-      saveMemories(userId, extractedMemories).catch(() => {}); // fire-and-forget
+      saveMemories(userId, extractedMemories).catch((e) => logger.error('saveMemories failed:', e)); // fire-and-forget
       // Periodically cleanup stale memories (roughly every 10 requests)
-      if (Math.random() < 0.1) cleanupStaleMemories(userId).catch(() => {});
+      if (Math.random() < 0.1) cleanupStaleMemories(userId).catch((e) => logger.error('cleanupStaleMemories failed:', e));
     }
     const memoryContext = await getMemoryContext(userId, user?.goal ?? null);
 
