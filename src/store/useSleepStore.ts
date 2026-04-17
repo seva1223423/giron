@@ -25,6 +25,7 @@ interface SleepStore {
 const computeDuration = (bedtime: string, wakeTime: string): number => {
   const [bH, bM] = bedtime.split(':').map(Number);
   const [wH, wM] = wakeTime.split(':').map(Number);
+  if (!Number.isFinite(bH) || !Number.isFinite(bM) || !Number.isFinite(wH) || !Number.isFinite(wM)) return 0;
   let bedMinutes = bH * 60 + bM;
   let wakeMinutes = wH * 60 + wM;
   if (wakeMinutes <= bedMinutes) wakeMinutes += 24 * 60;

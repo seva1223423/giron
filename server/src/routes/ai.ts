@@ -9236,10 +9236,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           result = { content: fallback2Content, toolCalls: [], hasToolCalls: false };
         } catch (fallback2Error) {
           logger.error('All AI fallbacks failed:', fallback2Error);
-          return res.status(503).json({
-            error: 'AI-сервис временно недоступен. Попробуй через минуту.',
-            retryAfter: 60,
-          });
+          if (res.headersSent) {
+            res.write(`data: ${JSON.stringify({ type: 'error', error: 'AI-сервис временно недоступен. Попробуй через минуту.' })}\n\n`);
+            res.end();
+          } else {
+            res.status(503).json({ error: 'AI-сервис временно недоступен. Попробуй через минуту.', retryAfter: 60 });
+          }
+          return;
         }
       }
     }
@@ -9325,7 +9328,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
   } catch (e) {
     logger.error('AI Chat error:', e);
-    res.status(500).json({ error: 'Ошибка ИИ-ассистента' });
+    if (res.headersSent) {
+      res.write(`data: ${JSON.stringify({ type: 'error', error: 'Ошибка ИИ-ассистента' })}\n\n`);
+      res.end();
+    } else {
+      res.status(500).json({ error: 'Ошибка ИИ-ассистента' });
+    }
   }
 });
 
