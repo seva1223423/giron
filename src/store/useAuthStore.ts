@@ -207,6 +207,7 @@ export const useAuthStore = create<AuthStore>()(
           stores.useMeasurementsStore?.getState().clearUserData();
           stores.useSleepStore?.getState().clearUserData();
           stores.useSubscriptionStore?.getState().clearUserData();
+          stores.useSupportStore?.getState().clearUserData();
         } catch { /* best effort */ }
       },
 
