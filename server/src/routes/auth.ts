@@ -231,8 +231,8 @@ router.post('/register', async (req: Request, res: Response) => {
         where: { phone, code: data.otpToken, purpose: 'register', used: false, expiresAt: { gte: new Date() } },
       });
       if (otp) {
-        await prisma.otpCode.updateMany({ where: { id: otp.id }, data: { used: true } });
-        phoneVerified = true;
+        const { count: consumed } = await prisma.otpCode.updateMany({ where: { id: otp.id, used: false }, data: { used: true } });
+        if (consumed > 0) phoneVerified = true;
       }
     }
 
