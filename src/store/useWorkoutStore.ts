@@ -275,8 +275,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!s.activeWorkout) return s;
         const workout = { ...s.activeWorkout.workout };
         const exercises = [...workout.exercises];
+        if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return s;
         const exercise = { ...exercises[exerciseIndex] };
         const sets = [...exercise.sets];
+        if (setIndex < 0 || setIndex >= sets.length) return s;
         sets[setIndex] = { ...sets[setIndex], ...data };
         exercise.sets = sets;
         exercises[exerciseIndex] = exercise;
@@ -368,6 +370,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       toggleSuperset: (exerciseIndex) => set((s) => {
         if (!s.activeWorkout) return s;
         const exercises = [...s.activeWorkout.workout.exercises];
+        if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return s;
         const exercise = exercises[exerciseIndex];
         const nextExercise = exercises[exerciseIndex + 1];
         if (!nextExercise) return s;
@@ -395,6 +398,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!s.activeWorkout) return s;
         const workout = { ...s.activeWorkout.workout };
         const exercises = [...workout.exercises];
+        if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return s;
         exercises[exerciseIndex] = { ...exercises[exerciseIndex], notes };
         workout.exercises = exercises;
         return { activeWorkout: { ...s.activeWorkout, workout } };
@@ -521,9 +525,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
           const results = await Promise.allSettled(
             pending.map((w) => workoutService.syncWorkout(w))
           );
-          const synced = pending.filter((_, i) => results[i].status === 'fulfilled');
-          if (synced.length > 0) {
-            set((s) => ({ pendingSync: s.pendingSync.filter((w) => !synced.some((s2) => s2.id === w.id)) }));
+          const syncedIds = new Set(
+            pending.filter((_, i) => results[i].status === 'fulfilled').map((w) => w.id)
+          );
+          if (syncedIds.size > 0) {
+            set((s) => ({ pendingSync: s.pendingSync.filter((w) => !syncedIds.has(w.id)) }));
           }
         }
 
