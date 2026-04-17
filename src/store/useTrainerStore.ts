@@ -136,8 +136,7 @@ export const useTrainerStore = create<TrainerStore>()(
           set((s) => ({
             sessions: s.sessions.map((sess) => sess.id === tempId ? serverSession : sess),
           }));
-          // Sync updated client (totalWorkouts incremented server-side) — fire-and-forget, not critical
-          trainerService.getClients().then((updatedClients) => set({ clients: updatedClients })).catch(() => {});
+          // Client totalWorkouts will resync on next fetchClients call
         } catch {
           set({ sessions: prevSessions });
         }
