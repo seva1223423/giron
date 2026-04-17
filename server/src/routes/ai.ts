@@ -1855,6 +1855,12 @@ async function executeTool(
     // Cap number of workouts to prevent runaway DB inserts from misbehaving AI responses
     const safeWorkouts = workouts.slice(0, 14);
 
+    // Limit per-user programs to prevent DB bloat
+    const programCount = await prisma.program.count({ where: { userId } });
+    if (programCount >= 50) {
+      return { resultText: 'У тебя уже 50 программ. Удали старые через раздел "Программы", чтобы создать новую.', actionDescription: '' };
+    }
+
     // Create the new program FIRST — deactivate old ones after to avoid leaving user with no program on failure
     const program = await prisma.program.create({
       data: {
