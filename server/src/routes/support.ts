@@ -14,9 +14,9 @@ const CUID_RE = /^c[a-z0-9]{20,30}$/;
 const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 
 const createTicketSchema = z.object({
-  subject: z.string().min(5, 'Тема минимум 5 символов').max(120),
+  subject: z.string().trim().min(5, 'Тема минимум 5 символов').max(120),
   category: z.enum(['billing', 'technical', 'feature_request', 'account', 'bug', 'other']),
-  message: z.string().min(10, 'Сообщение минимум 10 символов').max(2000),
+  message: z.string().trim().min(10, 'Сообщение минимум 10 символов').max(2000),
 });
 
 const sendMessageSchema = z.object({

@@ -2278,14 +2278,19 @@ async function executeTool(
     const totalFats = safeModifyItems.reduce((s, i) => s + i.fats, 0);
     const totalCarbs = safeModifyItems.reduce((s, i) => s + i.carbs, 0);
 
-    await prisma.$transaction(async (tx) => {
-      await tx.mealItem.deleteMany({ where: { mealId: meal.id } });
-      await tx.meal.updateMany({
-        where: { id: meal.id, userId },
-        data: { totalCalories, totalProtein, totalFats, totalCarbs },
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.mealItem.deleteMany({ where: { mealId: meal.id } });
+        await tx.meal.updateMany({
+          where: { id: meal.id, userId },
+          data: { totalCalories, totalProtein, totalFats, totalCarbs },
+        });
+        await tx.mealItem.createMany({ data: safeModifyItems.map((i) => ({ ...i, mealId: meal.id })) });
       });
-      await tx.mealItem.createMany({ data: safeModifyItems.map((i) => ({ ...i, mealId: meal.id })) });
-    });
+    } catch (txErr: any) {
+      logger.error('modify_meal transaction failed:', txErr);
+      throw new Error('Не удалось обновить приём пищи');
+    }
 
     return {
       resultText: `Приём пищи обновлён: ${items.map(i => i.name).join(', ')} (${Math.round(totalCalories)} ккал)`,
