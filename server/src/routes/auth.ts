@@ -1195,6 +1195,10 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Ссылка недействительна или истекла' });
     }
 
+    if (resetToken.user && await bcrypt.compare(password, resetToken.user.passwordHash)) {
+      return res.status(400).json({ error: 'Новый пароль совпадает с текущим', code: 'PASSWORD_UNCHANGED' });
+    }
+
     if (await checkPasswordHistory(resetToken.userId, password)) {
       return res.status(400).json({ error: `Нельзя использовать один из последних ${PASSWORD_HISTORY_DEPTH} паролей`, code: 'PASSWORD_REUSED' });
     }
@@ -1356,6 +1360,10 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { phone } });
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден', code: 'USER_NOT_FOUND' });
+    }
+
+    if (await bcrypt.compare(password, user.passwordHash)) {
+      return res.status(400).json({ error: 'Новый пароль совпадает с текущим', code: 'PASSWORD_UNCHANGED' });
     }
 
     if (await checkPasswordHistory(user.id, password)) {
