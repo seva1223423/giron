@@ -197,18 +197,20 @@ router.delete('/sessions/:id', authenticate, requireTrainerRole as any, async (r
 
     // Atomic: delete session + recount to keep totalWorkouts accurate
     // Re-verify ownership inside transaction to guard against TOCTOU if client is reassigned concurrently
-    await prisma.$transaction(async (tx) => {
+    const deleted = await prisma.$transaction(async (tx) => {
       const { count } = await tx.trainerSession.deleteMany({
         where: { id: req.params.id as string, client: { trainerId: req.userId! } },
       });
-      if (count === 0) return; // already deleted or ownership changed — outer response is fine
+      if (count === 0) return false;
       const sessionCount = await tx.trainerSession.count({ where: { clientId: session.clientId } });
       await tx.trainerClient.update({
         where: { id: session.clientId },
         data: { totalWorkouts: sessionCount },
       });
+      return true;
     });
 
+    if (!deleted) return res.status(404).json({ error: 'Тренировка не найдена' });
     res.json({ success: true });
   } catch (e) {
     logger.error(e);
