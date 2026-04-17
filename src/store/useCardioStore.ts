@@ -29,8 +29,10 @@ export const useCardioStore = create<CardioStore>()(
         try {
           const session = await cardioService.createSession(data);
           set((s) => ({ sessions: [session, ...s.sessions] }));
-        } catch {
-          // Offline fallback: save locally with temp id
+        } catch (e: any) {
+          // Only fall back to local storage for network errors (offline); not for 4xx validation errors
+          const status = e?.response?.status;
+          if (status && status >= 400 && status < 500) throw e;
           const session: CardioSession = {
             ...data,
             id: `local-${Date.now()}`,
