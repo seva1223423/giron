@@ -73,16 +73,14 @@ export const SystemSection: React.FC = () => {
 
   const handleExport = async () => {
     try {
-      const [workouts, auth, nutrition, settings] = await Promise.all([
+      const [workouts, nutrition, settings] = await Promise.all([
         AsyncStorage.getItem('iron-gym-workouts'),
-        AsyncStorage.getItem('iron-gym-auth'),
         AsyncStorage.getItem('iron-gym-nutrition'),
         AsyncStorage.getItem('iron-gym-settings'),
       ]);
       const data = {
         exportedAt: new Date().toISOString(),
         workouts: workouts ? JSON.parse(workouts) : null,
-        auth: auth ? JSON.parse(auth) : null,
         nutrition: nutrition ? JSON.parse(nutrition) : null,
         settings: settings ? JSON.parse(settings) : null,
       };
