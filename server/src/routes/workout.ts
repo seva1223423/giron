@@ -581,16 +581,22 @@ router.get('/leaderboard', authenticate, async (req: AuthRequest, res: Response)
       LIMIT  100
     `;
 
-    const leaderboard = rows.map((row, i) => ({
-      rank: i + 1,
-      exerciseName: row.exerciseName,
-      userName: row.userName,
-      weightKg: Number(row.weightKg),
-      reps: Number(row.reps),
-      estimated1RM: Number(row.estimated1RM),
-      date: row.date,
-      verified: Boolean(row.verified),
-    }));
+    const leaderboard = rows
+      .map((row, i) => {
+        const est1RM = Number(row.estimated1RM);
+        if (!Number.isFinite(est1RM) || est1RM <= 0) return null;
+        return {
+          rank: i + 1,
+          exerciseName: row.exerciseName,
+          userName: row.userName,
+          weightKg: Number(row.weightKg),
+          reps: Number(row.reps),
+          estimated1RM: est1RM,
+          date: row.date,
+          verified: Boolean(row.verified),
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
 
     const payload = { leaderboard };
     leaderboardCache.set('leaderboard', payload, 15 * 60 * 1000);
