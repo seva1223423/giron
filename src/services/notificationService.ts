@@ -173,6 +173,7 @@ export async function scheduleWaterReminders(
   startHour: number = 8,
   endHour: number = 22,
 ): Promise<void> {
+  if (!Number.isFinite(intervalHours) || intervalHours <= 0) return;
   try {
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') return;
