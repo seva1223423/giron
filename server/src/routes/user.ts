@@ -74,7 +74,7 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
+    const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, adminNote, banReason, loginAttempts, lockedUntil, ...safeProfile } = user as any;
     res.json({
       ...safeProfile,
       hasGoogle: !!googleId,
@@ -130,7 +130,7 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       include: { healthRestrictions: true },
     });
 
-    const { passwordHash, googleId, vkId: _vk, yandexId, totpSecret, totpBackupCodes, ...safeProfile } = user as any;
+    const { passwordHash, googleId, vkId: _vk, yandexId, totpSecret, totpBackupCodes, adminNote: _an, banReason: _br, loginAttempts: _la, lockedUntil: _lu, ...safeProfile } = user as any;
     res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!_vk, hasYandex: !!yandexId });
   } catch (e: any) {
     if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
