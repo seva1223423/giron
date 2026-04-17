@@ -210,9 +210,14 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, base64: true });
     if (!result.canceled && result.assets[0]) {
       if (!consumeFoodScan()) { setShowPaywall(true); return; }
+      const base64 = result.assets[0].base64 || '';
+      if (base64.length > 5_000_000) {
+        setError('Изображение слишком большое. Выбери изображение поменьше.');
+        return;
+      }
       setImageUri(result.assets[0].uri);
       setError('');
-      analyzeFood(result.assets[0].base64 || '');
+      analyzeFood(base64);
     }
   };
 
