@@ -168,7 +168,7 @@ router.patch('/programs/:id', authenticate, async (req: AuthRequest, res: Respon
       if (parsed.data.isActive === true) {
         await tx.program.updateMany({ where: { userId: req.userId, isActive: true }, data: { isActive: false } });
       }
-      return tx.program.update({ where: { id }, data: parsed.data });
+      return tx.program.update({ where: { id, userId: req.userId! }, data: parsed.data });
     });
 
     res.json(program);
@@ -372,7 +372,7 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
 
     // Atomic guard: only update if not yet completed (prevents double-completion race)
     const completionResult = await prisma.workout.updateMany({
-      where: { id, completedAt: null },
+      where: { id, userId: req.userId!, completedAt: null },
       data: { completedAt: new Date(), durationMinutes, totalVolume },
     });
     if (completionResult.count === 0) {

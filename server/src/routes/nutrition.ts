@@ -122,7 +122,7 @@ router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response)
     const updated = await prisma.$transaction(async (tx) => {
       await tx.mealItem.deleteMany({ where: { mealId: meal.id } });
       return tx.meal.update({
-        where: { id: meal.id },
+        where: { id: meal.id, userId: req.userId! },
         data: {
           totalCalories, totalProtein, totalFats, totalCarbs,
           items: { create: items.map((item) => ({ name: item.name, calories: item.calories, protein: item.protein, fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams ?? 0 })) },
