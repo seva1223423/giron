@@ -2541,9 +2541,8 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     const AI_FREE_DAILY_LIMIT = 10;
     const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    // Fast early exit (non-atomic) — the atomic check+save happens below at message persist time
     if (!isPaidSub) {
-      // Always use server UTC date for rate limiting — ignoring client-provided date
-      // prevents UTC+ users from exploiting the timezone gap to exceed the daily cap.
       const rateLimitDate = new Date().toISOString().split('T')[0];
       const todayFloor = new Date(`${rateLimitDate}T00:00:00.000Z`);
       const todayCount = await prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
@@ -2869,10 +2868,23 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       statsContext += planLines.join('\n') + '\n';
     }
 
-    // Save user message
-    await prisma.chatMessage.create({
-      data: { role: 'user', content: message, userId },
-    });
+    // Save user message — atomically re-check the daily limit inside a transaction to prevent
+    // concurrent requests from racing past the early count check above.
+    if (!isPaidSub) {
+      const rateLimitDate = new Date().toISOString().split('T')[0];
+      const todayFloor = new Date(`${rateLimitDate}T00:00:00.000Z`);
+      const limitResult = await prisma.$transaction(async (tx) => {
+        const count = await tx.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
+        if (count >= AI_FREE_DAILY_LIMIT) return { limited: true };
+        await tx.chatMessage.create({ data: { role: 'user', content: message, userId } });
+        return { limited: false };
+      });
+      if (limitResult.limited) {
+        return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
+      }
+    } else {
+      await prisma.chatMessage.create({ data: { role: 'user', content: message, userId } });
+    }
 
     // ─── Intent classification: tune AI parameters per message type ──────
     const intent = classifyIntent(message);
