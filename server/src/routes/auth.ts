@@ -181,7 +181,7 @@ async function sendEmailVerificationOtp(email: string): Promise<void> {
   if (email.endsWith('@irongym.internal')) return;
   // Invalidate old unused codes
   await prisma.otpCode.updateMany({ where: { email, purpose: 'email-verify', used: false }, data: { used: true } });
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = String(crypto.randomInt(100000, 1000000));
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   await prisma.otpCode.create({ data: { email, code, purpose: 'email-verify', expiresAt } });
   await sendOtpEmail(email, code);
@@ -955,7 +955,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
       await prisma.otpCode.updateMany({ where: { email, purpose, used: false }, data: { used: true } });
     }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
+    const code = String(crypto.randomInt(100000, 1000000)); // 6 digits, CSPRNG
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await prisma.otpCode.create({
