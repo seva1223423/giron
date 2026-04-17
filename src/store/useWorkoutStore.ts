@@ -288,6 +288,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       addExerciseToWorkout: (exercise) => set((s) => {
         if (!s.activeWorkout) return s;
+        if (s.activeWorkout.workout.exercises.some((e) => e.exerciseId === exercise.id)) return s;
         const workout = { ...s.activeWorkout.workout };
         const newExercise: WorkoutExercise = {
           id: `we-${Date.now()}`,
