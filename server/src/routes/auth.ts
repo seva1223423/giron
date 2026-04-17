@@ -1003,14 +1003,18 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
-    if (activeOtp.attempts >= MAX_OTP_ATTEMPTS) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
-      await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=${purpose} phone=${phone ?? ''} email=${email ?? ''}`);
-      return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
-    }
-
     if (activeOtp.code !== code) {
-      await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { attempts: { increment: 1 } } });
+      // Atomically increment only if below limit — prevents concurrent bypass via TOCTOU
+      const updated = await prisma.otpCode.updateMany({
+        where: { id: activeOtp.id, attempts: { lt: MAX_OTP_ATTEMPTS } },
+        data: { attempts: { increment: 1 } },
+      });
+      if (updated.count === 0) {
+        // Already at max attempts (either pre-existing or concurrent request hit it first)
+        await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+        await logSecurityEvent('OTP_BRUTEFORCE', null, req, `purpose=${purpose} phone=${phone ?? ''} email=${email ?? ''}`);
+        return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', valid: false });
+      }
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({
         error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.',
