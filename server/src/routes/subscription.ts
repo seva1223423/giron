@@ -70,7 +70,7 @@ router.post('/activate', authenticate, async (req: AuthRequest, res: Response) =
     const userId = req.userId!;
     const parsed = z.object({
       plan: z.enum(['pro', 'trainer', 'club']),
-      durationDays: z.number().int().min(1).max(7),
+      durationDays: z.number().int().finite().min(1).max(7),
       transactionId: z.string().optional(),
     }).safeParse(req.body);
     if (!parsed.success) {
