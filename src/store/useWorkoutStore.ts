@@ -238,6 +238,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!s.activeWorkout) return s;
         const workout = { ...s.activeWorkout.workout };
         const exercises = [...workout.exercises];
+        if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return s;
         const exercise = { ...exercises[exerciseIndex] };
         const lastSet = exercise.sets[exercise.sets.length - 1];
         const newSet: WorkoutSet = {
@@ -260,6 +261,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!s.activeWorkout) return s;
         const workout = { ...s.activeWorkout.workout };
         const exercises = [...workout.exercises];
+        if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return s;
         const exercise = { ...exercises[exerciseIndex] };
         exercise.sets = exercise.sets.filter((_, i) => i !== setIndex);
         exercises[exerciseIndex] = exercise;

@@ -26,43 +26,43 @@ const createProgramSchema = z.object({
   type: z.string().min(1),
   goal: z.enum(['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS']).optional(),
   level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
-  daysPerWeek: z.number().int().min(1).max(7),
-  durationWeeks: z.number().int().min(1).max(52).optional(),
+  daysPerWeek: z.number().int().finite().min(1).max(7),
+  durationWeeks: z.number().int().finite().min(1).max(52).optional(),
 });
 
 const workoutSetUpdateSchema = z.object({
   id: z.string().min(1).max(100),
-  reps: z.number().int().min(0).max(999).optional().nullable(),
-  weight: z.number().min(0).max(2000).optional().nullable(),
+  reps: z.number().int().finite().min(0).max(999).optional().nullable(),
+  weight: z.number().finite().min(0).max(2000).optional().nullable(),
   completed: z.boolean().optional(),
-  rpe: z.number().min(1).max(10).optional().nullable(),
+  rpe: z.number().finite().min(1).max(10).optional().nullable(),
 });
 
 const startWorkoutSchema = z.object({
   name: z.string().min(1).max(200),
   exercises: z.array(z.object({
     exerciseId: z.string().min(1),
-    restSeconds: z.number().int().min(0).max(600).optional(),
+    restSeconds: z.number().int().finite().min(0).max(600).optional(),
     sets: z.array(z.object({
       type: z.string().optional(),
-      reps: z.number().int().min(0).max(999).optional(),
-      weight: z.number().min(0).max(2000).optional(),
+      reps: z.number().int().finite().min(0).max(999).optional(),
+      weight: z.number().finite().min(0).max(2000).optional(),
     })).min(1).max(100),
   })).min(1).max(50),
 });
 
 const syncWorkoutSetSchema = z.object({
   type: z.string().max(50).optional(),
-  reps: z.number().int().min(0).max(999).optional().nullable(),
-  weight: z.number().min(0).max(2000).optional().nullable(),
-  rpe: z.number().min(1).max(10).optional().nullable(),
+  reps: z.number().int().finite().min(0).max(999).optional().nullable(),
+  weight: z.number().finite().min(0).max(2000).optional().nullable(),
+  rpe: z.number().finite().min(1).max(10).optional().nullable(),
   completed: z.boolean().optional(),
   notes: z.string().max(500).optional().nullable(),
 });
 
 const syncWorkoutExerciseSchema = z.object({
   exerciseId: z.string().min(1).max(100),
-  restSeconds: z.number().int().min(0).max(600).optional(),
+  restSeconds: z.number().int().finite().min(0).max(600).optional(),
   supersetGroupId: z.string().max(100).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
   sets: z.array(syncWorkoutSetSchema).max(30).optional(),
@@ -74,8 +74,8 @@ const syncWorkoutSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
   completedAt: z.string().datetime().optional().nullable(),
   startedAt: z.string().datetime().optional().nullable(),
-  durationMinutes: z.number().int().min(0).max(1440).optional(),
-  totalVolume: z.number().min(0).max(1_000_000).optional(),
+  durationMinutes: z.number().int().finite().min(0).max(1440).optional(),
+  totalVolume: z.number().finite().min(0).max(1_000_000).optional(),
   exercises: z.array(syncWorkoutExerciseSchema).min(1).max(50),
 });
 
