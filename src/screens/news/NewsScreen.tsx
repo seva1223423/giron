@@ -30,6 +30,7 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [stale, setStale] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -37,9 +38,9 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     try {
       const category = activeCategory === 'all' ? undefined : activeCategory;
       const articles = await newsService.getNews({ category });
-      if (articles.length > 0) setNews(articles);
+      if (articles.length > 0) { setNews(articles); setStale(false); }
       try { const saved = await newsService.getSaved(); setSavedIds(new Set(saved.map((a) => a.id))); } catch {}
-    } catch {} finally {
+    } catch { setStale(true); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -145,6 +146,11 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
+        {stale && tab === 'feed' && (
+          <View style={{ backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, marginBottom: spacing.sm, borderRadius: 8 }}>
+            <Text style={[typography.caption, { color: colors.textSecondary, textAlign: 'center' }]}>Нет подключения — показаны сохранённые новости</Text>
+          </View>
+        )}
         {loading && news.length === 0 ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.huge }} />
         ) : (
