@@ -185,7 +185,7 @@ router.get('/weight', authenticate, async (req: AuthRequest, res: Response) => {
 // ── Body measurements ──────────────────────────────────────────────────��──────
 
 const measurementSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата'),
   chest: z.number().min(0).max(300).optional().nullable(),
   waist: z.number().min(0).max(300).optional().nullable(),
   hips: z.number().min(0).max(300).optional().nullable(),
@@ -249,7 +249,7 @@ router.delete('/measurements/:date', authenticate, async (req: AuthRequest, res:
 // ── Sleep entries ─────────────────────────────────────────────────────────────
 
 const sleepSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата'),
   bedtime: z.string().regex(/^\d{2}:\d{2}$/),
   wakeTime: z.string().regex(/^\d{2}:\d{2}$/),
   durationHours: z.number().min(0).max(24),
