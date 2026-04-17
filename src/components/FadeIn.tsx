@@ -38,7 +38,7 @@ export const FadeIn: React.FC<FadeInProps> = ({
     opacity.value = withDelay(delay, withTiming(1, timingConfig));
     translateX.value = withDelay(delay, withTiming(0, timingConfig));
     translateY.value = withDelay(delay, withTiming(0, timingConfig));
-  }, []);
+  }, [delay, duration]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
