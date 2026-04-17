@@ -16,6 +16,7 @@ interface SupportState {
   closeTicket: (ticketId: string) => Promise<void>;
   clearActive: () => void;
   clearError: () => void;
+  clearUserData: () => void;
 }
 
 export const useSupportStore = create<SupportState>((set, get) => ({
@@ -90,4 +91,5 @@ export const useSupportStore = create<SupportState>((set, get) => ({
 
   clearActive: () => set({ activeTicket: null }),
   clearError: () => set({ error: null }),
+  clearUserData: () => set({ tickets: [], activeTicket: null, error: null }),
 }));

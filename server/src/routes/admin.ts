@@ -1725,6 +1725,9 @@ router.patch('/announcements/:id', requireAdmin, async (req: AuthRequest, res: R
         endsAt: data.endsAt ? new Date(data.endsAt) : undefined,
       },
     });
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'UPDATE_ANNOUNCEMENT', details: ann.title },
+    });
     res.json(ann);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -1762,7 +1765,10 @@ router.post('/announcements/:id/duplicate', requireAdmin, async (req: AuthReques
 router.delete('/announcements/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
-    await prisma.announcement.delete({ where: { id: req.params.id as string } });
+    const ann = await prisma.announcement.delete({ where: { id: req.params.id as string } });
+    await prisma.adminLog.create({
+      data: { adminId: req.userId!, action: 'DELETE_ANNOUNCEMENT', details: ann.title },
+    });
     res.json({ ok: true });
   } catch (e) {
     if (isNotFound(e)) return res.status(404).json({ error: 'Объявление не найдено' });
