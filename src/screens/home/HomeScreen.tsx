@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
-import { ScrollView, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { ScrollView, View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { AnimatedPressable } from '../../components';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
@@ -216,6 +216,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
       })
       .filter(Boolean) as WorkoutExercise[];
+    if (workoutExercises.length === 0) {
+      Alert.alert('Ошибка', 'Упражнения из плана не найдены');
+      return;
+    }
     startWorkout({ id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises });
     navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
   }, [todayPlan, customExercises, startWorkout, navigation, haptic]);
