@@ -59,6 +59,15 @@ const OLLAMA_BASE_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const DEFAULT_CHAT_MODEL = process.env.AI_MODEL || 'qwen2.5:14b';
 const DEFAULT_VISION_MODEL = process.env.AI_VISION_MODEL || 'llama3.2-vision';
 
+const CHAT_TIMEOUT_MS = 120_000;
+const HEALTH_TIMEOUT_MS = 5_000;
+
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 // ─── Chat (text + tool calling) ──────────────────────────────────────────────
 
 export async function chat(options: ChatOptions): Promise<ChatResult> {
@@ -84,11 +93,11 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
     body.tools = options.tools;
   }
 
-  const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const response = await fetchWithTimeout(
+    `${OLLAMA_BASE_URL}/api/chat`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    CHAT_TIMEOUT_MS,
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -99,22 +108,22 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
     message?: {
       content?: string;
       tool_calls?: Array<{
-        function: { name: string; arguments: Record<string, unknown> | string };
+        function?: { name: string; arguments: Record<string, unknown> | string };
       }>;
     };
   };
 
   const msg = data.message || {};
-  const rawToolCalls = msg.tool_calls || [];
+  const rawToolCalls = (msg.tool_calls || []).filter((tc) => tc.function?.name);
 
   return {
     content: msg.content || '',
     toolCalls: rawToolCalls.map((tc) => ({
-      name: tc.function.name,
+      name: tc.function!.name,
       arguments:
-        typeof tc.function.arguments === 'string'
-          ? (() => { try { return JSON.parse(tc.function.arguments); } catch { return {}; } })()
-          : tc.function.arguments,
+        typeof tc.function!.arguments === 'string'
+          ? (() => { try { return JSON.parse(tc.function!.arguments as string); } catch { return {}; } })()
+          : (tc.function!.arguments ?? {}),
     })),
     hasToolCalls: rawToolCalls.length > 0,
   };
@@ -129,25 +138,20 @@ export async function analyzeImage(
 ): Promise<string> {
   const visionModel = model || DEFAULT_VISION_MODEL;
 
-  const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: visionModel,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-          images: [imageBase64],
-        },
-      ],
-      stream: false,
-      options: {
-        num_predict: 1024,
-        temperature: 0.3,
-      },
-    }),
-  });
+  const response = await fetchWithTimeout(
+    `${OLLAMA_BASE_URL}/api/chat`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [{ role: 'user', content: prompt, images: [imageBase64] }],
+        stream: false,
+        options: { num_predict: 1024, temperature: 0.3 },
+      }),
+    },
+    CHAT_TIMEOUT_MS,
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -178,7 +182,7 @@ export async function generate(
 
 export async function healthCheck(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
   try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
+    const response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/tags`, {}, HEALTH_TIMEOUT_MS);
     if (!response.ok) {
       return { ok: false, error: `Ollama responded with ${response.status}` };
     }

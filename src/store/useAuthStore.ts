@@ -209,6 +209,8 @@ export const useAuthStore = create<AuthStore>()(
           stores.useSubscriptionStore?.getState().clearUserData();
           stores.useSupportStore?.getState().clearUserData();
           stores.useOnboardingTipsStore?.getState().resetAll();
+          stores.useThemeStore?.getState().resetToDefaults();
+          stores.useSettingsStore?.getState().resetToDefaults();
         } catch { /* best effort */ }
       },
 
