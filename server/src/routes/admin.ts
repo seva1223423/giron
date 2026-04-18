@@ -1756,6 +1756,7 @@ router.post('/announcements/:id/duplicate', requireAdmin, async (req: AuthReques
         body: original.body,
         type: original.type,
         isActive: false, // start inactive
+        endsAt: original.endsAt,
         targetRole: original.targetRole,
         authorId: req.userId!,
       },
