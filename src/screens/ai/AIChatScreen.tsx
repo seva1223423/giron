@@ -213,6 +213,8 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (types.includes('update_user_profile') || types.includes('log_body_weight')) fetchProfile().catch(() => {});
         if (types.includes('log_meal') || types.includes('delete_meal') || types.includes('modify_meal')) syncMealsFromServer(localDateStr(new Date())).catch(() => {});
         if (types.includes('log_cardio')) syncCardio().catch(() => {});
+        if (types.includes('log_sleep')) syncSleep().catch(() => {});
+        if (types.includes('activate_program')) { fetchPrograms().catch(() => {}); fetchHistory().catch(() => {}); }
         if (types.includes('log_water')) {
           const waterAction = actions.find((act) => act.type === 'log_water');
           if (waterAction?.data?.ml) addWater(localDateStr(new Date()), waterAction.data.ml as number);
