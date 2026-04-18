@@ -51,6 +51,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
   const startCountdown = (seconds = 60) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
     setOtpCountdown(seconds);
     countdownRef.current = setInterval(() => {
       setOtpCountdown((v) => {
@@ -151,6 +152,8 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
   };
 
   const switchTab = (t: Tab) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setOtpCountdown(0);
     setTab(t);
     setError('');
     setPhoneStep('input');
