@@ -210,6 +210,7 @@ model WorkoutExercise {
   sets            WorkoutSet[]
 
   @@index([workoutId])
+  @@index([exerciseId])
 }
 
 model WorkoutSet {
@@ -364,6 +365,7 @@ model TrainerSession {
   createdAt       DateTime @default(now())
 
   @@index([clientId])
+  @@index([date])
 }
 
 // ==================== NEWS ====================
