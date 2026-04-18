@@ -444,10 +444,10 @@ function buildRecoveryBlock(data: ChatContextData): string {
   }
 
   let consecutive = 0;
-  const todayStr = data.todayDate;
+  const todayUTC = data.todayDate + 'T00:00:00.000Z';
   for (let i = 0; i < 7; i++) {
-    const d = new Date(todayStr);
-    d.setDate(d.getDate() - i);
+    const d = new Date(todayUTC);
+    d.setUTCDate(d.getUTCDate() - i);
     const ds = d.toISOString().split('T')[0];
     if (recentWorkouts.some((w) => w.completedAt && w.completedAt.toISOString().split('T')[0] === ds)) consecutive++;
     else break;
@@ -840,11 +840,11 @@ async function buildGamificationBlock(data: ChatContextData): Promise<string> {
     let streak = 0;
     const check = new Date(todayDate + 'T00:00:00.000Z');
     if (!trainingDays.has(check.toISOString().split('T')[0])) {
-      check.setDate(check.getDate() - 1);
+      check.setUTCDate(check.getUTCDate() - 1);
     }
     while (trainingDays.has(check.toISOString().split('T')[0])) {
       streak++;
-      check.setDate(check.getDate() - 1);
+      check.setUTCDate(check.getUTCDate() - 1);
     }
 
     const total = workouts.length;
