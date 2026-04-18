@@ -3106,7 +3106,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
       statsContext += '\n## ПИТАНИЕ СЕГОДНЯ\n';
       statsContext += `Итого: ${Math.round(totalCal)} ккал | Б ${Math.round(totalProt)}г | Ж ${Math.round(totalFats)}г | У ${Math.round(totalCarbs)}г\n`;
-      statsContext += 'Приёмы пищи (id используй для удаления через delete_meal):\n';
+      statsContext += 'Приёмы пищи (используй id для delete_meal / modify_meal):\n';
       for (const meal of todayMeals) {
         const label = MEAL_TYPE_LABELS[meal.type] || meal.type;
         const itemList = meal.items.map((i) => `${i.name} (${Math.round(i.calories)} ккал, ${i.weightGrams}г)`).join(', ');
@@ -3121,7 +3121,10 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       for (let i = 0; i <= 6; i++) {
         const entry = weekPlan[i];
         if (entry) {
-          planLines.push(`- ${DAY_NAMES[i]}: ${entry.emoji} ${entry.name}`);
+          const exStr = entry.exercises && entry.exercises.length > 0
+            ? ` (${entry.exercises.slice(0, 5).join(', ')}${entry.exercises.length > 5 ? ` +${entry.exercises.length - 5}` : ''})`
+            : '';
+          planLines.push(`- ${DAY_NAMES[i]}: ${entry.emoji} ${entry.name}${exStr}`);
         } else {
           planLines.push(`- ${DAY_NAMES[i]}: отдых`);
         }
