@@ -109,7 +109,7 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       fitnessLevel: z.string().transform(v => v.toUpperCase()).pipe(
         z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'])
       ).optional(),
-      trainingExperienceYears: z.number().finite().min(0).max(80).optional(),
+      trainingExperienceYears: z.number().int().finite().min(0).max(80).optional(),
       avatarUrl: z.string().url('Некорректный URL').max(2048).refine((u) => u.startsWith('https://'), 'URL должен использовать HTTPS').optional(),
     });
 

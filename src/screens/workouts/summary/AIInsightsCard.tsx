@@ -16,7 +16,7 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
 
   useEffect(() => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
     (async () => {
       try {
