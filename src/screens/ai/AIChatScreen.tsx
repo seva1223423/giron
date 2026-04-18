@@ -126,7 +126,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, [loadingOlderMessages, historyPage, historyTotalPages]);
 
   useEffect(() => {
-    aiService.getStarters().then((starters) => { if (starters.length > 0) setServerStarters(starters); }).catch(() => {});
+    aiService.getStarters(localDateStr(new Date()), new Date().getHours()).then((starters) => { if (starters.length > 0) setServerStarters(starters); }).catch(() => {});
     syncSleep().catch(() => {});
   }, []);
 
