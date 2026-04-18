@@ -9779,11 +9779,11 @@ async function getGamificationData(userId: string, clientDate?: string): Promise
     const checkDate = new Date(today);
     // If no workout today, start from yesterday
     if (!trainingDays.has(checkDate.toISOString().split('T')[0])) {
-      checkDate.setDate(checkDate.getDate() - 1);
+      checkDate.setUTCDate(checkDate.getUTCDate() - 1);
     }
     while (trainingDays.has(checkDate.toISOString().split('T')[0])) {
       currentStreak++;
-      checkDate.setDate(checkDate.getDate() - 1);
+      checkDate.setUTCDate(checkDate.getUTCDate() - 1);
     }
 
     // Longest streak: scan all dates
@@ -10378,7 +10378,7 @@ function estimateRecoveryScore(
   const today = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(today);
-    checkDate.setDate(checkDate.getDate() - i);
+    checkDate.setUTCDate(checkDate.getUTCDate() - i);
     const dateStr = checkDate.toISOString().split('T')[0];
     const trained = recentWorkouts.some(
       (w) => w.completedAt && w.completedAt.toISOString().split('T')[0] === dateStr
