@@ -78,6 +78,13 @@ router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response)
 /** POST /support/tickets — create new ticket */
 router.post('/tickets', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentCount = await prisma.supportTicket.count({
+      where: { userId: req.userId!, createdAt: { gte: oneHourAgo } },
+    });
+    if (recentCount >= 3) {
+      return res.status(429).json({ error: 'Максимум 3 тикета в час. Попробуйте позже.', code: 'TICKET_RATE_LIMIT' });
+    }
     const data = createTicketSchema.parse(req.body);
     const ticket = await prisma.supportTicket.create({
       data: {
