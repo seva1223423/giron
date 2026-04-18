@@ -33,8 +33,8 @@ export const SystemSection: React.FC = () => {
     const headers = 'Дата,Тренировка,Длительность (мин),Объём (кг),Упражнений,Подходов';
     const rows = workoutHistory.map((w) => {
       const date = w.completedAt ? new Date(w.completedAt).toLocaleDateString('ru-RU') : '';
-      const sets = w.exercises.reduce((s, ex) => s + ex.sets.filter((set) => set.completed).length, 0);
-      return `${date},"${w.name}",${w.durationMinutes || 0},${Math.round(w.totalVolume || 0)},${w.exercises.length},${sets}`;
+      const sets = (w.exercises ?? []).reduce((s, ex) => s + (ex.sets ?? []).filter((set) => set.completed).length, 0);
+      return `${date},"${w.name}",${w.durationMinutes || 0},${Math.round(w.totalVolume || 0)},${(w.exercises ?? []).length},${sets}`;
     });
 
     const csv = [headers, ...rows].join('\n');
