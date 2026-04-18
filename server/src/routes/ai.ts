@@ -80918,6 +80918,8 @@ router.get('/starters', authenticate, async (req: AuthRequest, res: Response) =>
 });
 
 // Analyze food photo
+const FOOD_SCAN_FREE_DAILY_LIMIT = 5;
+
 router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const parsed = z.object({
@@ -80927,10 +80929,23 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
     const { imageBase64 } = parsed.data;
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    const userId = req.userId!;
+
+    // Server-side food scan quota — free users: 5 scans/day
+    const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
+    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    if (!isPaidSub) {
+      const todayFloor = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+      const todayCount = await prisma.foodScanLog.count({ where: { userId, createdAt: { gte: todayFloor } } });
+      if (todayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
+        return res.status(402).json({ error: 'Достигнут дневной лимит сканирования еды (5/день) для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'SCAN_DAILY_LIMIT_EXCEEDED' });
+      }
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
 
     const userMemories = await prisma.aIMemory.findMany({
-      where: { userId: req.userId, category: { in: ['allergy', 'preference'] } },
+      where: { userId, category: { in: ['allergy', 'preference'] } },
       take: 10,
     });
 
@@ -81000,6 +81015,7 @@ ${restrictionsBlock ? '\nЕсли на фото присутствуют про�
           continue;
         }
 
+        prisma.foodScanLog.create({ data: { userId } }).catch(() => {});
         return res.json({ items: validated });
       } catch (analyzeError) {
         lastError = (analyzeError as Error).message;
