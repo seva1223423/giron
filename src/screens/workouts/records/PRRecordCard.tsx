@@ -124,7 +124,7 @@ export const PRRecordCard: React.FC<Props> = ({ record, idx, isExpanded, onToggl
             <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>ИСТОРИЯ ~1ПМ</Text>
             {[...record.history].reverse().slice(0, 10).map((h, i) => {
               const isFirst = i === 0;
-              const barPct = Math.round((h.estimated1RM / record.estimated1RM) * 100);
+              const barPct = record.estimated1RM > 0 ? Math.round((h.estimated1RM / record.estimated1RM) * 100) : 0;
               return (
                 <View key={h.date} style={{ marginBottom: spacing.xs }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
