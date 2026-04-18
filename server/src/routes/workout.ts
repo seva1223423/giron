@@ -467,7 +467,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
   try {
     const { limit: rawLimit = '50', offset: rawOffset = '0' } = req.query;
     const requestedLimit = Math.min(Math.max(parseInt(rawLimit as string, 10) || 50, 1), 200);
-    const offset = Math.max(parseInt(rawOffset as string, 10) || 0, 0);
+    const offset = Math.min(Math.max(parseInt(rawOffset as string, 10) || 0, 0), 10000);
 
     // Free plan: cap at FREE_WORKOUT_HISTORY_LIMIT regardless of requested limit/offset.
     // This prevents paywall bypass via direct API calls.
