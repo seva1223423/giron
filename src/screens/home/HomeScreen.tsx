@@ -228,7 +228,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (!lastWorkout || activeWorkout) return;
     haptic.medium();
     const workoutExercises: WorkoutExercise[] = (lastWorkout.exercises ?? []).map((we, index) => {
-      const sets: WorkoutSet[] = we.sets.map((s, i) => ({
+      const sets: WorkoutSet[] = (we.sets ?? []).map((s, i) => ({
         id: `set-${Date.now()}-${index}-${i}`,
         setNumber: i + 1, type: s.type, reps: s.reps, weight: s.weight, completed: false,
       }));
