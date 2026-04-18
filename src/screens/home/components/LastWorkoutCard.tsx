@@ -17,8 +17,8 @@ export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWor
   const { colors } = useThemeStore();
 
   const handleShare = useCallback(async () => {
-    const totalSets = lastWorkout.exercises.reduce(
-      (sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0
+    const totalSets = (lastWorkout.exercises ?? []).reduce(
+      (sum, ex) => sum + (ex.sets ?? []).filter((s) => s.completed).length, 0
     );
     const message = [
       `Моя тренировка: ${lastWorkout.name}`,
