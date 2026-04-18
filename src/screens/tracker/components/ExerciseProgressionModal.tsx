@@ -41,7 +41,7 @@ export const ExerciseProgressionModal: React.FC<Props> = ({ visible, onClose, ex
         const maxWeight = Math.max(...workingSets.map((s) => s.weight!));
         const totalVol = workingSets.reduce((s, set) => s + set.weight! * set.reps!, 0);
         return {
-          date: w.completedAt ?? w.createdAt,
+          date: w.completedAt ?? w.startedAt ?? '',
           rm: Math.round(best.rm),
           weight: best.weight,
           reps: best.reps,
@@ -50,19 +50,11 @@ export const ExerciseProgressionModal: React.FC<Props> = ({ visible, onClose, ex
           sets: workingSets.length,
         };
       })
-      .filter(Boolean)
-      .slice(-15) as NonNullable<ReturnType<typeof getExerciseHistory>[0]>[];
+      .filter((s): s is { date: string; rm: number; weight: number; reps: number; maxWeight: number; totalVol: number; sets: number } => s !== null)
+      .slice(-15);
   }, [exerciseId, getExerciseHistory]);
 
-  const chartData = sessions as {
-    date: string;
-    rm: number;
-    weight: number;
-    reps: number;
-    maxWeight: number;
-    totalVol: number;
-    sets: number;
-  }[];
+  const chartData = sessions;
 
   const W = screenW - spacing.xl * 2 - 32;
   const H = 130;
