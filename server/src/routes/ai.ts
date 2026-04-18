@@ -3285,6 +3285,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       bodyWeightHistory: bodyWeightHistory as any,
       nutritionTargets: nutritionTargets ?? null,
       sleepEntries: recentSleepEntries,
+      clientHour: clientHour ?? undefined,
       activeProgram: activeProgram ? {
         name: activeProgram.name,
         type: activeProgram.type,
