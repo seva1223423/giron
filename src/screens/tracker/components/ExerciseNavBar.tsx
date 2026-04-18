@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { ExerciseVideoModal } from '../../workouts/exercise/ExerciseVideoModal';
+import { ExerciseProgressionModal } from './ExerciseProgressionModal';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
@@ -35,6 +36,11 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
   const { colors } = useThemeStore();
   const haptic = useHaptic();
   const [videoVisible, setVideoVisible] = useState(false);
+  const [progressVisible, setProgressVisible] = useState(false);
+  const workoutHistory = useWorkoutStore((s) => s.workoutHistory);
+  const hasHistory = workoutHistory.some((w) =>
+    w.exercises.some((e) => e.exerciseId === currentExercise.exerciseId),
+  );
 
   const muscles = currentExercise.exercise?.primaryMuscles ?? [];
 
@@ -124,6 +130,20 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
             <Text style={{ fontSize: 10, color: currentExercise.exercise?.youtubeId ? '#FF0000' : colors.textTertiary }}>{'\u25B6'}</Text>
             <Text style={{ fontSize: 10, fontWeight: '600', color: currentExercise.exercise?.youtubeId ? '#FF0000' : colors.textTertiary }}>{'video'}</Text>
           </TouchableOpacity>
+          {hasHistory && (
+            <TouchableOpacity
+              onPress={() => { haptic.light(); setProgressVisible(true); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 3,
+                paddingHorizontal: 6, paddingVertical: 2,
+                borderRadius: borderRadius.sm,
+                backgroundColor: colors.primary + '15',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary }}>{'↗ прогресс'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -145,6 +165,12 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         muscleLabels={MUSCLE_LABELS}
         description={currentExercise.exercise?.description}
         instructions={currentExercise.exercise?.instructions}
+      />
+      <ExerciseProgressionModal
+        visible={progressVisible}
+        onClose={() => setProgressVisible(false)}
+        exerciseId={currentExercise.exerciseId}
+        exerciseName={currentExercise.exercise?.name ?? ''}
       />
     </View>
   );
