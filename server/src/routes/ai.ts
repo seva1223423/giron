@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { buildDynamicContext } from '../ai/contextEngine';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
@@ -3107,6 +3108,35 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         }
       }
     }
+
+    // ─── Context Engine: intent-aware selective context (replaces brute-force 1800-block pre-compute) ──────
+    const engineContext = await buildDynamicContext({
+      userId,
+      intent,
+      message,
+      todayDate,
+      user: user ? {
+        goal: user.goal,
+        fitnessLevel: user.fitnessLevel,
+        weightKg: user.weightKg,
+        heightCm: user.heightCm,
+        trainingExperienceYears: user.trainingExperienceYears,
+        gender: (user as any).gender ?? null,
+        healthRestrictions: user.healthRestrictions,
+      } : null,
+      recentWorkouts: recentWorkouts as any,
+      allCompletedExerciseSets: allCompletedExerciseSets as any,
+      todayMeals: todayMeals as any,
+      bodyWeightHistory: bodyWeightHistory as any,
+      nutritionTargets: nutritionTargets ?? null,
+      sleepEntries: recentSleepEntries,
+      activeProgram: activeProgram ? {
+        name: activeProgram.name,
+        type: activeProgram.type,
+        daysPerWeek: activeProgram.daysPerWeek,
+        level: activeProgram.level,
+      } : null,
+    });
 
     // ─── Block 11: Gamification & streaks ──────
     const gamification = await getGamificationData(userId, todayDate);
@@ -9109,6 +9139,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         { name: 'languageEnforcer', content: languageEnforcerContext, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'insights', content: insightsBlock, relevantIntents: new Set(['*']), priority: 1 },
         { name: 'profileGaps', content: profileGapsBlock, relevantIntents: new Set(['greeting', 'general']), priority: 3 },
+        // ─── Context Engine: focused intent-aware context (highest priority, always included) ──────
+        { name: 'engineContext', content: engineContext, relevantIntents: new Set(['*']), priority: 2 },
       ];
 
       const optimizedSections = optimizeContext(contextSections, intent, MAX_SYSTEM_TOKENS);
