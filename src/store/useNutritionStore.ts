@@ -125,8 +125,9 @@ export const useNutritionStore = create<NutritionStore>()(
         // Skip server call for locally-created meals that were never synced
         if (mealId.startsWith('meal-')) return;
 
-        nutritionService.deleteMeal(mealId).catch(() => {
-          // Rollback: restore the meal list from snapshot
+        nutritionService.deleteMeal(mealId).catch((err) => {
+          // 404 = already deleted on server — treat as success
+          if (err?.response?.status === 404) return;
           set((s) => {
             const dayLog = s.dailyLog[date];
             if (!dayLog) return s;
@@ -220,7 +221,8 @@ export const useNutritionStore = create<NutritionStore>()(
         // Skip server sync for locally-created meals
         if (mealId.startsWith('meal-')) return;
 
-        const rollback = () => {
+        const rollback = (err?: any) => {
+          if (err?.response?.status === 404) return; // already gone — treat as success
           set((s) => {
             const dayLog = s.dailyLog[date];
             if (!dayLog) return s;
