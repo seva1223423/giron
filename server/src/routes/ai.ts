@@ -2302,10 +2302,11 @@ async function executeTool(
     if (fields.length === 0) return { resultText: 'Нет данных для записи', actionDescription: '' };
     const labels: Record<string, string> = { chest: 'грудь', waist: 'талия', hips: 'бёдра', bicepLeft: 'бицепс Л', bicepRight: 'бицепс П', thighLeft: 'бедро Л', thighRight: 'бедро П', neck: 'шея', calfLeft: 'икра Л', calfRight: 'икра П' };
     const summary = fields.map(([k, v]) => `${labels[k] || k}: ${v} см`).join(', ');
+    const safeMeasurements = Object.fromEntries(fields);
     return {
       resultText: `Замеры записаны: ${summary}`,
       actionDescription: `Замеры тела: ${summary}`,
-      actionData: { date: clientDate ?? new Date().toISOString().split('T')[0], ...measurements },
+      actionData: { date: clientDate ?? new Date().toISOString().split('T')[0], ...safeMeasurements },
     };
   }
 
