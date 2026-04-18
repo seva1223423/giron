@@ -1876,8 +1876,9 @@ async function executeTool(
     let totalExercises = 0;
     const workoutNames: string[] = [];
     for (const workoutDef of safeWorkouts) {
+      const safeExercises = (workoutDef.exercises ?? []).slice(0, 20);
       const exerciseRecords = await Promise.all(
-        workoutDef.exercises.map(async (ex) => {
+        safeExercises.map(async (ex) => {
           const record = await resolveExercise(ex.exerciseName);
           return { input: ex, record };
         }),
@@ -1890,7 +1891,7 @@ async function executeTool(
 
       await prisma.workout.create({
         data: {
-          name: workoutDef.name,
+          name: String(workoutDef.name ?? '').slice(0, 200) || 'Тренировка',
           userId,
           programId: program.id,
           exercises: {
