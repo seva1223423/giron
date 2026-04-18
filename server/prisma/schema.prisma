@@ -29,6 +29,13 @@ model User {
   gymId                   String?
   weekPlan                Json?
 
+  // Nutrition targets — set by user or AI coach, persisted server-side
+  targetCalories          Float?
+  targetProtein           Float?
+  targetFats              Float?
+  targetCarbs             Float?
+  targetWaterMl           Float?
+
   vkId                    String?   @unique
   yandexId                String?   @unique
   phoneVerified           Boolean   @default(false)

@@ -2064,6 +2064,12 @@ async function executeTool(
 
     const description = `Нормы КБЖУ: ${cal} ккал / Б${prot}г / Ж${fat}г / У${carb}г`;
 
+    // Persist to server so targets survive app reinstall / multi-device
+    await prisma.user.update({
+      where: { id: userId },
+      data: { targetCalories: cal, targetProtein: prot, targetFats: fat, targetCarbs: carb },
+    });
+
     return {
       resultText: `Нормы КБЖУ установлены: ${cal} ккал, белок ${prot}г, жиры ${fat}г, углеводы ${carb}г`,
       actionDescription: description,
