@@ -63,9 +63,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   // Guard against concurrent sends: true while any request (streaming or fallback) is in flight.
   // isTyping becomes false when streaming starts, so isSendingRef is the reliable lock.
   const isSendingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   // Stop speech and clear timers on unmount
   useEffect(() => () => {
+    isMountedRef.current = false;
     Speech.stop();
     if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
     if (actionsTimerRef.current) clearTimeout(actionsTimerRef.current);
@@ -163,6 +165,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }, sleepEntries, todayDate);
 
         for await (const chunk of stream) {
+          if (!isMountedRef.current) break;
           setMessages((prev) => prev.map((m) =>
             m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
           ));
@@ -171,6 +174,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       } catch {
         // Streaming failed — fall back to regular request
         const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries, todayDate);
+        if (!isMountedRef.current) return;
         response = fallback;
         setMessages((prev) => prev.map((m) =>
           m.id === streamMsgId ? { ...m, content: fallback.message } : m
