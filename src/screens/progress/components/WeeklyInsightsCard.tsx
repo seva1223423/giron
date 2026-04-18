@@ -29,22 +29,28 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
   const [dotCount, setDotCount] = useState(1);
   const dotTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const dotOpacity = useRef(new Animated.Value(1)).current;
+  const dotAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     if (loading) {
       setDotCount(1);
       dotTimer.current = setInterval(() => setDotCount((n) => (n % 3) + 1), 500);
-      Animated.loop(
+      dotAnim.current = Animated.loop(
         Animated.sequence([
           Animated.timing(dotOpacity, { toValue: 0.3, duration: 600, useNativeDriver: true }),
           Animated.timing(dotOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
         ])
-      ).start();
+      );
+      dotAnim.current.start();
     } else {
       if (dotTimer.current) clearInterval(dotTimer.current);
+      dotAnim.current?.stop();
       dotOpacity.setValue(1);
     }
-    return () => { if (dotTimer.current) clearInterval(dotTimer.current); };
+    return () => {
+      if (dotTimer.current) clearInterval(dotTimer.current);
+      dotAnim.current?.stop();
+    };
   }, [loading]);
 
   const generate = async () => {
