@@ -1942,9 +1942,18 @@ async function executeTool(
     };
 
     const cal = Math.min(10000, Math.max(500, Math.round(calories)));
-    const prot = Math.min(500, Math.max(0, Math.round(protein)));
-    const fat = Math.min(500, Math.max(0, Math.round(fats)));
-    const carb = Math.min(1000, Math.max(0, Math.round(carbs)));
+    let prot = Math.min(500, Math.max(0, Math.round(protein)));
+    let fat = Math.min(500, Math.max(0, Math.round(fats)));
+    let carb = Math.min(1000, Math.max(0, Math.round(carbs)));
+
+    // Scale macros down if their caloric sum exceeds the target calories
+    const macroCal = prot * 4 + fat * 9 + carb * 4;
+    if (macroCal > cal * 1.1) {
+      const scale = (cal * 0.95) / macroCal;
+      prot = Math.round(prot * scale);
+      fat = Math.round(fat * scale);
+      carb = Math.round(carb * scale);
+    }
 
     const description = `Нормы КБЖУ: ${cal} ккал / Б${prot}г / Ж${fat}г / У${carb}г`;
 
