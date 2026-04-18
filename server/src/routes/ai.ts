@@ -12026,21 +12026,23 @@ function validateAIResponse(response: string, intent: string): { cleaned: string
     }
   }
 
-  // Remove repeated sentences
-  const sentences = cleaned.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
-  const seen = new Set<string>();
-  const unique: string[] = [];
-  for (const s of sentences) {
-    const normalized = s.toLowerCase().replace(/\s+/g, ' ');
-    if (!seen.has(normalized)) {
-      seen.add(normalized);
-      unique.push(s);
+  // Remove repeated paragraphs/lines (line-level to preserve markdown structure)
+  const hasMarkdown = /^#{1,3}\s|^\s*[-*+]\s|^\s*\d+\.\s|\*\*|__|```/m.test(cleaned);
+  if (!hasMarkdown) {
+    const sentences = cleaned.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const s of sentences) {
+      const normalized = s.toLowerCase().replace(/\s+/g, ' ');
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        unique.push(s);
+      }
     }
-  }
-  if (unique.length < sentences.length) {
-    warnings.push('duplicates_removed');
-    // Reconstruct — find original sentence endings
-    cleaned = unique.join('. ') + '.';
+    if (unique.length < sentences.length) {
+      warnings.push('duplicates_removed');
+      cleaned = unique.join('. ') + '.';
+    }
   }
 
   return { cleaned, warnings };
@@ -81188,9 +81190,6 @@ router.get('/starters', authenticate, async (req: AuthRequest, res: Response) =>
     ]);
 
     const hour = clientHour;
-    const DAY_NAMES_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
-    const refDay = clientDate ? new Date(clientDate + 'T12:00:00.000Z') : new Date();
-    const dayShort = DAY_NAMES_SHORT[refDay.getUTCDay()];
 
     // 1. Time-based meal suggestion
     if (todayMeals.length === 0 && hour >= 7 && hour < 11) {
