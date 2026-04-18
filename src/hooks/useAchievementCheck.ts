@@ -15,7 +15,7 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
   const onUnlockedRef = useRef(onUnlocked);
   onUnlockedRef.current = onUnlocked;
 
-  const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => d.meals.length > 0).length;
+  const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => (d.meals?.length ?? 0) > 0).length;
 
   // Approximate streak from workoutHistory
   const streak = (() => {
