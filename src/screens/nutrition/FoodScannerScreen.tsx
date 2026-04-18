@@ -176,6 +176,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       });
       setItemBases(bases);
       setRecognizedItems(items);
+      if (items.length === 0) {
+        setError('Продукты не распознаны. Попробуй сделать чёткое фото тарелки с едой.');
+        setImageUri(null);
+      }
     } catch (e: any) {
       if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {
         setError('Анализ отменён.');
