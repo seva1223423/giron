@@ -2737,7 +2737,7 @@ const chatRequestSchema = z.object({
   sleepEntries: z.array(z.object({
     date: z.string().max(30),
     durationHours: z.number().finite().min(0).max(24),
-    quality: z.number().finite().min(1).max(10).nullable().optional(),
+    quality: z.number().finite().min(1).max(5).nullable().optional(),
   })).max(30).optional(),
 });
 
