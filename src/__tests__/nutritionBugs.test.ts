@@ -22,7 +22,6 @@ import { useNutritionStore } from '../store/useNutritionStore';
 beforeEach(() => {
   useNutritionStore.setState({
     dailyLog: {},
-    waterMl: 0,
     defaultTargets: { calories: 2000, protein: 150, fats: 70, carbs: 250, waterTargetMl: 2500 },
     savedFoods: [],
   });

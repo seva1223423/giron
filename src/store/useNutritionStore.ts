@@ -7,7 +7,6 @@ import { localDateStr } from '../utils/date';
 
 interface NutritionStore {
   dailyLog: Record<string, DailyNutrition>;
-  waterMl: number;
   defaultTargets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl: number };
   savedFoods: NutritionItem[];
 
@@ -40,7 +39,6 @@ export const useNutritionStore = create<NutritionStore>()(
   persist(
     (set, get) => ({
       dailyLog: {},
-      waterMl: 0,
       defaultTargets: { calories: 2500, protein: 150, fats: 80, carbs: 300, waterTargetMl: 2500 },
       savedFoods: [],
 
@@ -270,7 +268,6 @@ export const useNutritionStore = create<NutritionStore>()(
 
       clearUserData: () => set({
         dailyLog: {},
-        waterMl: 0,
         defaultTargets: { calories: 2500, protein: 150, fats: 80, carbs: 300, waterTargetMl: 2500 },
         savedFoods: [],
       }),
