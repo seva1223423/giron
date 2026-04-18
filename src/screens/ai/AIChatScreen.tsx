@@ -254,8 +254,9 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
         if (types.includes('set_weekly_plan')) {
           const planAction = actions.find((act) => act.type === 'set_weekly_plan');
-          const schedule = planAction?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[] }> | undefined;
-          if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '◎', exercises: day.exerciseIds }));
+          const schedule = planAction?.data?.schedule as Array<{ dayIndex: number; workoutName: string; emoji: string; exerciseIds: string[]; exerciseNames?: string[] }> | undefined;
+          // Store exerciseNames (human-readable) so AI context shows names, not DB UUIDs
+          if (schedule) schedule.forEach((day) => setWeekPlanDay(day.dayIndex, { name: day.workoutName, emoji: day.emoji || '◎', exercises: day.exerciseNames ?? day.exerciseIds }));
         }
         if (types.includes('log_body_measurement')) {
           const measAction = actions.find((act) => act.type === 'log_body_measurement');
