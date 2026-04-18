@@ -2234,8 +2234,9 @@ async function executeTool(
       include: { workouts: { include: { exercises: { include: { sets: true } } } } },
     });
     if (!active) return { resultText: 'Нет активной программы', actionDescription: '' };
+    if (safeMultiplier == null && safeDeltaKg == null) return { resultText: 'Укажи multiplier или deltaKg', actionDescription: '' };
 
-    const weightUpdates: Promise<unknown>[] = [];
+    const setEdits: Array<{ id: string; newWeight: number }> = [];
     for (const workout of active.workouts) {
       for (const exercise of workout.exercises) {
         for (const set of exercise.sets) {
@@ -2244,15 +2245,15 @@ async function executeTool(
             if (safeMultiplier) newWeight = Math.round(newWeight * safeMultiplier * 4) / 4;
             if (safeDeltaKg) newWeight = Math.round((newWeight + safeDeltaKg) * 4) / 4;
             newWeight = Math.max(2.5, newWeight);
-            if (newWeight !== set.weight) {
-              weightUpdates.push(prisma.workoutSet.updateMany({ where: { id: set.id }, data: { weight: newWeight } }));
-            }
+            if (newWeight !== set.weight) setEdits.push({ id: set.id, newWeight });
           }
         }
       }
     }
-    await Promise.all(weightUpdates);
-    const updatedCount = weightUpdates.length;
+    await prisma.$transaction(setEdits.map(({ id, newWeight }) =>
+      prisma.workoutSet.update({ where: { id }, data: { weight: newWeight } }),
+    ));
+    const updatedCount = setEdits.length;
 
     const desc = safeMultiplier ? `×${safeMultiplier}` : `${(safeDeltaKg ?? 0) > 0 ? '+' : ''}${safeDeltaKg} кг`;
     return {
