@@ -46,8 +46,9 @@ export const useCardioStore = create<CardioStore>()(
         const snapshot = get().sessions;
         set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
         if (!id.startsWith('local-')) {
-          cardioService.deleteSession(id).catch(() => {
-            set({ sessions: snapshot });
+          cardioService.deleteSession(id).catch((err) => {
+            // 404 = already deleted on server — treat as success, don't rollback
+            if (err?.response?.status !== 404) set({ sessions: snapshot });
           });
         }
       },
