@@ -56,7 +56,15 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       setElapsed(Math.round((Date.now() - startTime) / 60000));
     }, 30000);
 
-    return () => clearInterval(interval);
+    // Refresh elapsed immediately when app comes back to foreground (interval may have been paused)
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setElapsed(Math.round((Date.now() - startTime) / 60000));
+    });
+
+    return () => {
+      clearInterval(interval);
+      appStateSub.remove();
+    };
   }, [activeWorkout?.startTime]);
 
   // Rest timer state
