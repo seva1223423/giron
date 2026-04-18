@@ -1526,7 +1526,11 @@ async function executeTool(
 
   if (toolName === 'log_body_weight') {
     const { weightKg: rawWeight, date } = toolInput as { weightKg: number; date?: string };
-    const weightKg = Math.round(Math.max(1, Math.min(500, Number(rawWeight) || 70)) * 10) / 10;
+    const parsedWeight = Number(rawWeight);
+    if (!isFinite(parsedWeight) || parsedWeight < 1 || parsedWeight > 500) {
+      return { resultText: 'Укажи корректный вес (1–500 кг)', actionDescription: '' };
+    }
+    const weightKg = Math.round(parsedWeight * 10) / 10;
     const effectiveDateStr = date || clientDate || new Date().toISOString().split('T')[0];
     const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(effectiveDateStr) && !isNaN(Date.parse(effectiveDateStr));
     const logDate = new Date(isValidDate ? `${effectiveDateStr}T00:00:00.000Z` : new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
@@ -1703,6 +1707,7 @@ async function executeTool(
 
     const safeItems = items.slice(0, 50).map((i) => ({
       ...i,
+      name: String(i.name ?? '').trim().slice(0, 200) || 'Продукт',
       calories: Math.min(10000, Math.max(0, Number(i.calories) || 0)),
       protein: Math.min(1000, Math.max(0, Number(i.protein) || 0)),
       fats: Math.min(1000, Math.max(0, Number(i.fats) || 0)),
