@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore, useSubscriptionStore } from '../../../store';
 import { Card, FadeIn, PaywallModal } from '../../../components';
@@ -55,6 +55,11 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
     // If another workout is already in progress, navigate to it instead of overwriting
     if (activeWorkout) {
       navigation.navigate('ActiveWorkout');
+      return;
+    }
+
+    if (!workout.exercises || workout.exercises.length === 0) {
+      Alert.alert('Ошибка', 'В этой тренировке нет упражнений');
       return;
     }
 
