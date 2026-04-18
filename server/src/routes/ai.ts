@@ -1198,8 +1198,9 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /(?:съел[аи]?|поел[аи]?|кушал[аи]?)\b/i,
     /(?:удали|убери)\s*(?:приём|завтрак|обед|ужин|перекус|еду)/i,
     /(?:рост|мне)\s*\d{2,3}\s*(?:см|кг)/i,
-    // Body measurements and simple weight entries
-    /(?:талия|обхват\s*талии|грудь|бёдра|бицепс\s*\d|шея\s*\d|икры?\s*\d|бедро\s*\d)\s*\d+/i,
+    // Body measurements — use stem matches to handle Russian case inflections (талию, груди, бёдер...)
+    /(?:замерил[аи]?|измерил[аи]?)\s*(?:тали|груд|бёдр|бицепс|шею?|икр|бедр|плечи?|пояс|предплечь)/i,
+    /(?:тали[яюи]|обхват\s*(?:тали|груд|плеч)|груд[ьи]|бёдр[ао]?|бицепс|шею?|икр[ыа]?|бедр[оа]?|поясниц[аы]?|предплечь[еяи]?)\s*[\d.,]/i,
     /^\d{2,3}(?:[.,]\d)?\s*(?:кг|kg)\s*$/i,
     /(?:сегодня|утром|вчера)\s*(?:вес|вешу|взвесил[ся]?)\s*\d/i,
     /(?:записать?\s*(?:замер|измерен|сон|кардио|пробежк|плавание))/i,
@@ -2683,13 +2684,13 @@ async function executeTool(
     const safeQuality = quality != null ? Math.max(1, Math.min(5, Math.round(Number(quality)))) : undefined;
     const today = clientDate ?? new Date().toISOString().split('T')[0];
     const sleepDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T00:00:00Z').getTime())) ? date : today;
-    const safeBedtime = (bedtime && /^\d{2}:\d{2}$/.test(bedtime)) ? bedtime : '23:00';
-    const safeWakeTime = (wakeTime && /^\d{2}:\d{2}$/.test(wakeTime)) ? wakeTime : '07:00';
+    const safeBedtime = (bedtime && /^\d{2}:\d{2}$/.test(bedtime)) ? bedtime : undefined;
+    const safeWakeTime = (wakeTime && /^\d{2}:\d{2}$/.test(wakeTime)) ? wakeTime : undefined;
 
     await prisma.sleepEntry.upsert({
       where: { userId_date: { userId, date: sleepDate } },
-      create: { userId, date: sleepDate, bedtime: safeBedtime, wakeTime: safeWakeTime, durationHours: safeDuration, quality: safeQuality },
-      update: { bedtime: safeBedtime, wakeTime: safeWakeTime, durationHours: safeDuration, quality: safeQuality },
+      create: { userId, date: sleepDate, bedtime: safeBedtime ?? '23:00', wakeTime: safeWakeTime ?? '07:00', durationHours: safeDuration, quality: safeQuality },
+      update: { durationHours: safeDuration, quality: safeQuality, ...(safeBedtime && { bedtime: safeBedtime }), ...(safeWakeTime && { wakeTime: safeWakeTime }) },
     });
 
     const qualityLabels: Record<number, string> = { 1: 'очень плохой', 2: 'плохой', 3: 'нормальный', 4: 'хороший', 5: 'отличный' };
