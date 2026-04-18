@@ -317,10 +317,16 @@ router.get('/week-plan', authenticate, async (req: AuthRequest, res: Response) =
 
 router.put('/week-plan', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    // Validate: week plan is a map of day (0-6) to array of workout name strings (max 10 chars each)
+    // WeekPlanEntry: { name, emoji, exercises: string[], type?: string }
+    const weekPlanEntrySchema = z.object({
+      name: z.string().max(200),
+      emoji: z.string().max(10),
+      exercises: z.array(z.string().max(200)).max(50),
+      type: z.enum(['workout', 'cardio']).optional(),
+    });
     const weekPlanSchema = z.record(
       z.string().regex(/^[0-6]$/, 'Ключ должен быть числом 0-6'),
-      z.array(z.string().max(100)).max(20),
+      z.union([weekPlanEntrySchema, z.null()]),
     ).refine((v) => Object.keys(v).length <= 7, 'Не более 7 дней');
 
     const parsed = weekPlanSchema.safeParse(req.body);
