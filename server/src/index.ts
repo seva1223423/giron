@@ -131,6 +131,16 @@ const totpRateLimiter = rateLimit({
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
+/** Food vision analysis: 20 per hour per IP — vision API is expensive; client enforces 5/day for free users */
+const foodAnalysisRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов на анализ фото. Попробуйте через час.', code: 'VISION_RATE_LIMIT' },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+});
+
 /** Password-reset flow: 5 requests per hour per IP — prevents email-spam abuse */
 const passwordResetRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -152,6 +162,7 @@ app.use('/api/user/2fa', totpRateLimiter);
 app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', userRateLimiter, workoutRouter);
 app.use('/api/nutrition', userRateLimiter, nutritionRouter);
+app.use('/api/ai/analyze-food', foodAnalysisRateLimiter);
 app.use('/api/ai', aiRateLimiter, aiRouter);
 app.use('/api/news', userRateLimiter, newsRouter);
 app.use('/api/subscription', userRateLimiter, subscriptionRouter);
