@@ -14,7 +14,7 @@ interface ProgressRingProps {
 }
 
 export const ProgressRing: React.FC<ProgressRingProps> = ({
-  progress,
+  progress = 0,
   size = 80,
   strokeWidth = 6,
   color,
