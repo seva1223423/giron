@@ -51,7 +51,7 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   }, [workoutHistory]);
 
   const nutritionDaysLogged = useMemo(() =>
-    Object.values(dailyLog).filter((d) => d.meals.length > 0).length,
+    Object.values(dailyLog).filter((d) => (d.meals?.length ?? 0) > 0).length,
   [dailyLog]);
 
   const achievements = useMemo(() =>

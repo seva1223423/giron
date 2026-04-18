@@ -67,7 +67,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
   const newAchievements = useMemo(() => {
     if (!workout) return [];
-    const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => d.meals.length > 0).length;
+    const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => (d.meals?.length ?? 0) > 0).length;
     const sortedDates = workoutHistory
       .filter((w) => w.completedAt)
       .map((w) => ({ str: new Date(w.completedAt!).toDateString(), ts: new Date(w.completedAt!).getTime() }))
