@@ -218,11 +218,6 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const data = registerSchema.parse(req.body);
 
-    const existing = await prisma.user.findUnique({ where: { email: data.email } });
-    if (existing) {
-      return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
-    }
-
     const phone = data.phone ? normalizePhone(data.phone) : undefined;
 
     // Validate OTP if phone provided
@@ -271,7 +266,8 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: e.errors[0].message });
     }
     if (e?.code === 'P2002') {
-      return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+      const field = e?.meta?.target?.includes('phone') ? 'номером телефона' : 'email';
+      return res.status(400).json({ error: `Пользователь с таким ${field} уже существует` });
     }
     logger.error(e);
     res.status(500).json({ error: 'Ошибка регистрации' });
