@@ -230,8 +230,8 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           const wtAction = actions.find((act) => act.type === 'set_water_target');
           if (wtAction?.data?.waterTargetMl) {
             const today = localDateStr(new Date());
-            const currentTargets = defaultTargets;
-            setTargets(today, { calories: currentTargets.calories, protein: currentTargets.protein, fats: currentTargets.fats, carbs: currentTargets.carbs, waterTargetMl: wtAction.data.waterTargetMl as number });
+            const todayTargets = getDayLog(today);
+            setTargets(today, { calories: todayTargets.targetCalories, protein: todayTargets.targetProtein, fats: todayTargets.targetFats ?? defaultTargets.fats, carbs: todayTargets.targetCarbs ?? defaultTargets.carbs, waterTargetMl: wtAction.data.waterTargetMl as number });
           }
         }
         if (types.includes('set_rest_timer')) {
