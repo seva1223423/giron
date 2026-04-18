@@ -78,6 +78,7 @@ export const useSupportStore = create<SupportState>((set, get) => ({
   },
 
   closeTicket: async (ticketId) => {
+    set({ error: null });
     try {
       const updated = await supportService.closeTicket(ticketId);
       set((s) => ({
