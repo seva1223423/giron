@@ -442,7 +442,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const completed: Workout = {
           ...active.workout,
           completedAt: new Date().toISOString(),
-          durationMinutes: Math.round((Date.now() - active.startTime) / 60000),
+          durationMinutes: Math.max(0, Math.round((Date.now() - active.startTime) / 60000)),
           totalVolume: active.workout.exercises.reduce((total, ex) =>
             total + ex.sets
               .filter((s) => s.completed && s.type !== 'warmup')
