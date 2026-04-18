@@ -20,6 +20,13 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
   const { colors } = useThemeStore();
   const [selectedMeasure, setSelectedMeasure] = useState<keyof BodyMeasurement>('waist');
 
+  const fieldsWithData = useMemo(
+    () => MEASUREMENT_FIELDS.filter(({ key }) => measurementHistory.filter((m) => m[key] != null).length >= 2),
+    [measurementHistory],
+  );
+  const effectiveMeasure: keyof BodyMeasurement =
+    fieldsWithData.some((f) => f.key === selectedMeasure) ? selectedMeasure : (fieldsWithData[0]?.key ?? 'waist');
+
   const bodyFatEstimate = useMemo((): { pct: number; category: string; color: string } | null => {
     if (measurementHistory.length === 0) return null;
     const latest = measurementHistory[measurementHistory.length - 1];
@@ -97,15 +104,12 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                 })}
               </View>
               {measurementHistory.length >= 2 && (() => {
-                const fieldsWithData = MEASUREMENT_FIELDS.filter(({ key }) =>
-                  measurementHistory.filter((m) => m[key] != null).length >= 2
-                );
                 if (fieldsWithData.length === 0) return null;
                 const chartData = measurementHistory
-                  .filter((m) => m[selectedMeasure] != null)
+                  .filter((m) => m[effectiveMeasure] != null)
                   .map((m) => ({
                     label: new Date(m.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
-                    value: m[selectedMeasure] as number,
+                    value: m[effectiveMeasure] as number,
                   }));
                 return (
                   <View style={{ marginTop: spacing.lg }}>
@@ -115,11 +119,11 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
                           key={key}
                           onPress={() => setSelectedMeasure(key)}
                           style={[styles.measureChip, {
-                            backgroundColor: selectedMeasure === key ? colors.accent : colors.surface,
-                            borderColor: selectedMeasure === key ? colors.accent : colors.border,
+                            backgroundColor: effectiveMeasure === key ? colors.accent : colors.surface,
+                            borderColor: effectiveMeasure === key ? colors.accent : colors.border,
                           }]}
                         >
-                          <Text style={[typography.captionMedium, { color: selectedMeasure === key ? '#fff' : colors.textSecondary }]}>
+                          <Text style={[typography.captionMedium, { color: effectiveMeasure === key ? '#fff' : colors.textSecondary }]}>
                             {label}
                           </Text>
                         </TouchableOpacity>
