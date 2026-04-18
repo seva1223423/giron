@@ -210,17 +210,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (weight && reps && weight > 0 && reps > 0 && completedSet.type !== 'warmup') {
           const newRM = weight * (1 + reps / 30);
           const exerciseId = exercise.exerciseId;
-          const historyBest = s.workoutHistory
-            .filter((w) => w.id !== workout.id)
+          const historySets = s.workoutHistory
+            .filter((w) => w.id !== workout.id && w.completedAt)
             .flatMap((w) => w.exercises)
             .filter((e) => e.exerciseId === exerciseId)
             .flatMap((e) => e.sets)
-            .filter((st) => st.completed && st.weight && st.reps && st.type !== 'warmup')
-            .reduce((best, st) => {
-              const rm = (st.weight!) * (1 + (st.reps!) / 30);
-              return rm > best ? rm : best;
-            }, 0);
-          completedSet.isPR = newRM > historyBest;
+            .filter((st) => st.completed && st.weight && st.reps && st.type !== 'warmup');
+          const historyBest = historySets.length > 0
+            ? historySets.reduce((best, st) => {
+                const rm = st.weight! * (1 + st.reps! / 30);
+                return rm > best ? rm : best;
+              }, 0)
+            : null;
+          completedSet.isPR = historyBest !== null && newRM > historyBest;
         } else {
           completedSet.isPR = false;
         }
