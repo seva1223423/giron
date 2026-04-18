@@ -88,6 +88,8 @@ export interface ChatContextData {
     quality?: number | null;
   }>;
 
+  clientHour?: number;
+
   activeProgram?: {
     name: string;
     type?: string | null;
@@ -163,12 +165,16 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
     }
 
     case 'data_logging': {
-      // Only add nutrition context for food logs, not weight/water logs
       const msgLower = data.message.toLowerCase();
       const isFoodLog = /съел|поел|завтрак|обед|ужин|перекус|гречк|курица|творог|ккал|калори|белк|протеин|углевод|жир|порц|грамм|блюдо|продукт/i.test(msgLower);
+      const isSleepLog = /спал|поспал|лёг|лег\s*в|встал|проснул|сон|ночь|часов сна/i.test(msgLower);
       if (isFoodLog) {
         const macros = buildMacroBalanceBlock(data);
         if (macros) blocks.push(macros);
+      }
+      if (isSleepLog) {
+        const sleep = buildSleepBlock(data);
+        if (sleep) blocks.push(sleep);
       }
       break;
     }
@@ -493,7 +499,7 @@ function buildMacroBalanceBlock(data: ChatContextData): string {
     const protPct = Math.round((prot / nutritionTargets.protein) * 100);
     lines.push(`Выполнено: ${calPct}% ккал, ${protPct}% белок`);
 
-    const hour = new Date().getHours();
+    const hour = data.clientHour ?? new Date().getHours();
     if (hour >= 14 && prot < nutritionTargets.protein * 0.4) {
       lines.push(`⚠️ КРИТИЧНО: белок ${Math.round(prot)}г из ${nutritionTargets.protein}г — уже ${hour}:00, а норма не закрыта на 40%. ОБЯЗАТЕЛЬНО упомяни!`);
     } else if (hour >= 18 && cal < nutritionTargets.calories * 0.5) {
@@ -764,6 +770,38 @@ function buildInjuryZoneBlock(data: ChatContextData): string {
 
   if (lines.length === 0) return '';
   return `\n## 🩺 ЗАМЕНЫ УПРАЖНЕНИЙ\n${lines.join('\n')}`;
+}
+
+function buildSleepBlock(data: ChatContextData): string {
+  const { sleepEntries } = data;
+  if (!sleepEntries || sleepEntries.length === 0) return '';
+
+  const recent = sleepEntries.slice(0, 7);
+  const avgDuration = recent.reduce((s, e) => s + e.durationHours, 0) / recent.length;
+  const withQuality = recent.filter((e) => e.quality != null);
+  const avgQuality = withQuality.length > 0 ? withQuality.reduce((s, e) => s + (e.quality ?? 0), 0) / withQuality.length : null;
+
+  const lines = [`\n## 😴 СОН (последние ${recent.length} дн)\nСредняя длительность: ${avgDuration.toFixed(1)}ч`];
+
+  if (avgQuality !== null) {
+    const qLabel = avgQuality >= 4.5 ? 'отличное' : avgQuality >= 3.5 ? 'хорошее' : avgQuality >= 2.5 ? 'среднее' : 'плохое';
+    lines.push(`Среднее качество: ${avgQuality.toFixed(1)}/5 (${qLabel})`);
+  }
+
+  if (avgDuration < 6) {
+    lines.push('⚠️ КРИТИЧНО: хроническое недосыпание <6ч — снижает тестостерон, рост мышц и когнитивные функции.');
+  } else if (avgDuration < 7) {
+    lines.push('→ Сон чуть ниже нормы (7-9ч для спортсменов). Упомяни связь со восстановлением.');
+  } else if (avgDuration >= 7 && avgDuration <= 9) {
+    lines.push('✅ Сон в норме.');
+  }
+
+  const last = recent[0];
+  if (last) {
+    lines.push(`Последний: ${last.durationHours}ч${last.quality != null ? `, качество ${last.quality}/5` : ''} (${last.date})`);
+  }
+
+  return lines.join('\n');
 }
 
 async function buildGamificationBlock(data: ChatContextData): Promise<string> {
