@@ -88,13 +88,13 @@ router.patch('/clients/:id', authenticate, requireTrainerRole as any, async (req
 
     const data: Record<string, any> = { ...parsed.data };
 
-    const client = await prisma.trainerClient.updateMany({
-      where: { id: req.params.id as string, trainerId: req.userId! } as any,
-      data,
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.trainerClient.findFirst({
+        where: { id: req.params.id as string, trainerId: req.userId! },
+      });
+      if (!existing) return null;
+      return tx.trainerClient.update({ where: { id: req.params.id as string }, data });
     });
-    if (client.count === 0) return res.status(404).json({ error: 'Клиент не найден' });
-
-    const updated = await prisma.trainerClient.findFirst({ where: { id: String(req.params.id), trainerId: req.userId! } });
     if (!updated) return res.status(404).json({ error: 'Клиент не найден' });
     res.json(updated);
   } catch (e) {
