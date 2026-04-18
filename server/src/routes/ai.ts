@@ -2227,7 +2227,7 @@ async function executeTool(
             let newWeight = set.weight;
             if (safeMultiplier) newWeight = Math.round(newWeight * safeMultiplier * 4) / 4;
             if (safeDeltaKg) newWeight = Math.round((newWeight + safeDeltaKg) * 4) / 4;
-            newWeight = Math.max(0, newWeight);
+            newWeight = Math.max(2.5, newWeight);
             if (newWeight !== set.weight) {
               weightUpdates.push(prisma.workoutSet.updateMany({ where: { id: set.id }, data: { weight: newWeight } }));
             }
