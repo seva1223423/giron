@@ -389,19 +389,22 @@ async function getNutritionAnalysis(userId: string, preload: ContextToolPreload,
 
   // Week trend (DB query)
   if (period === 'week') {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    // Use local `date` field (YYYY-MM-DD) for timezone-safe weekly range — createdAt is UTC and would
+    // misattribute late-night meals to the next day for users in positive UTC offset timezones.
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
     const weekMeals = await prisma.meal.findMany({
-      where: { userId, createdAt: { gte: weekAgo } },
-      select: { totalCalories: true, totalProtein: true, totalFats: true, totalCarbs: true, createdAt: true },
-      orderBy: { createdAt: 'asc' },
+      where: { userId, date: { gte: sevenDaysAgoStr } },
+      select: { totalCalories: true, totalProtein: true, totalFats: true, totalCarbs: true, date: true },
+      orderBy: { date: 'asc' },
       take: 200,
     });
 
     if (weekMeals.length >= 3) {
       const byDay: Record<string, { cal: number; prot: number }> = {};
       for (const m of weekMeals) {
-        const day = new Date(m.createdAt).toISOString().split('T')[0];
+        const day = m.date || new Date().toISOString().split('T')[0];
         if (!byDay[day]) byDay[day] = { cal: 0, prot: 0 };
         byDay[day].cal += m.totalCalories;
         byDay[day].prot += m.totalProtein;
