@@ -425,17 +425,28 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
 
     // Verify TOTP code or backup code
     if (backupCode) {
-      // Backup code flow
-      let rawBackupCodes: Array<{ hash: string; used: boolean }>;
-      try { rawBackupCodes = JSON.parse((user as any).totpBackupCodes || '[]'); } catch { rawBackupCodes = []; }
+      // Backup code flow — SELECT FOR UPDATE prevents two concurrent requests from
+      // both consuming the same backup code (TOCTOU race condition)
       const codeHash = crypto.createHash('sha256').update(backupCode.toUpperCase()).digest('hex');
-      const matchIdx = rawBackupCodes.findIndex((c) => c.hash === codeHash && !c.used);
-      if (matchIdx === -1) {
+      let backupCodeValid = false;
+      try {
+        await prisma.$transaction(async (tx) => {
+          const [locked] = await tx.$queryRaw<Array<{ totpBackupCodes: string | null }>>`
+            SELECT "totpBackupCodes" FROM "User" WHERE id = ${user.id} FOR UPDATE
+          `;
+          const codes: Array<{ hash: string; used: boolean }> = [];
+          try { codes.push(...JSON.parse(locked?.totpBackupCodes || '[]')); } catch {}
+          const idx = codes.findIndex((c) => c.hash === codeHash && !c.used);
+          if (idx === -1) return;
+          codes[idx].used = true;
+          await tx.user.update({ where: { id: user.id }, data: { totpBackupCodes: JSON.stringify(codes) } });
+          backupCodeValid = true;
+        });
+      } catch { /* db error — treat as invalid */ }
+      if (!backupCodeValid) {
         await logSecurityEvent('LOGIN_FAIL', user.id, req, 'backup_code_invalid');
         return res.status(401).json({ error: 'Резервный код недействителен или уже использован', code: 'INVALID_BACKUP_CODE' });
       }
-      rawBackupCodes[matchIdx].used = true;
-      await prisma.user.update({ where: { id: user.id }, data: { totpBackupCodes: JSON.stringify(rawBackupCodes) } });
       await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=backup_code');
     } else {
       // TOTP code flow

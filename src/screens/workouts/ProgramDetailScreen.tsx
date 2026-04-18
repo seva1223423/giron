@@ -31,7 +31,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const goalColor = GOAL_COLORS[program.goal] || colors.primary;
 
   const addProgramToWeeklyPlan = () => {
-    const slots = WEEK_SLOTS[program.daysPerWeek] || WEEK_SLOTS[Math.min(program.daysPerWeek, 6)];
+    const slots = WEEK_SLOTS[program.daysPerWeek] || WEEK_SLOTS[Math.min(Math.max(program.daysPerWeek, 2), 6)] || WEEK_SLOTS[3];
     const daysToAssign = program.days.slice(0, slots.length);
     const dayNames = slots.map((d) => DAY_LABELS_FULL[d]).join(', ');
     Alert.alert('Добавить в план недели', `Программа «${program.name}» будет назначена на: ${dayNames}. Текущие тренировки на этих днях будут заменены.`, [
