@@ -518,7 +518,8 @@ export async function* chatStream(
     throw new Error(`AI stream error ${response.status}: ${errorText}`);
   }
 
-  const reader = response.body!.getReader();
+  if (!response.body) throw new Error('AI stream response has no body');
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
 
