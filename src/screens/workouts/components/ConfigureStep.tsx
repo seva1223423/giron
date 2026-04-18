@@ -288,7 +288,7 @@ export const ConfigureStepContainer: React.FC<{
       supersetPairs={supersetPairs}
       onToggleSuperset={toggleSuperset}
       onStart={() => { startWorkout(buildWorkout()); navigation.navigate('ActiveWorkout'); }}
-      onSaveTemplate={() => { saveAsTemplate(buildWorkout()); Alert.alert('Сохранено', 'Шаблон добавлен в «Мои шаблоны»'); }}
+      onSaveTemplate={() => { if (selectedExercises.length === 0) { Alert.alert('Ошибка', 'Добавьте хотя бы одно упражнение'); return; } saveAsTemplate(buildWorkout()); Alert.alert('Сохранено', 'Шаблон добавлен в «Мои шаблоны»'); }}
       getConfig={getConfig}
       navigation={navigation}
     />
