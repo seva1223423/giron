@@ -368,7 +368,8 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       );
 
     const startedAt = refreshed?.startedAt;
-    const durationMinutes = startedAt ? Math.round((Date.now() - startedAt.getTime()) / 60000) : 0;
+    const rawDuration = startedAt ? Math.round((Date.now() - startedAt.getTime()) / 60000) : 0;
+    const durationMinutes = Math.min(Math.max(rawDuration, 0), 1440);
 
     // Atomic guard: only update if not yet completed (prevents double-completion race)
     const completionResult = await prisma.workout.updateMany({
