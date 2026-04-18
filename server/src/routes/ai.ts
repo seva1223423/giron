@@ -2727,7 +2727,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
-    // Fetch all user context data in parallel — 8 independent queries
+    // Fetch all user context data in parallel — 9 independent queries
     const [
       user,
       history,
@@ -2737,6 +2737,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       allCompletedExerciseSets,
       todayMeals,
       recentMeasurements,
+      userPrograms,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -2790,6 +2791,12 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         where: { userId },
         orderBy: { date: 'desc' },
         take: 3,
+      }),
+      prisma.program.findMany({
+        where: { userId },
+        select: { id: true, name: true, isActive: true, type: true, daysPerWeek: true, createdBy: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
       }),
     ]);
 
@@ -2888,6 +2895,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }
     } else {
       programContext += 'Активной программы нет.\n';
+    }
+    const inactivePrograms = userPrograms.filter((p) => !p.isActive);
+    if (inactivePrograms.length > 0) {
+      programContext += `Другие программы (неактивные): ${inactivePrograms.map((p) => `"${p.name}" (${p.type}, ${p.daysPerWeek} дн/нед)`).join(', ')}\n`;
+      programContext += `→ Чтобы переключиться на другую программу — используй activate_program.\n`;
     }
 
     // Build recent workout stats
