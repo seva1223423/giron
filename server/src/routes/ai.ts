@@ -1551,14 +1551,14 @@ async function executeTool(
     const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(effectiveDateStr) && !isNaN(Date.parse(effectiveDateStr));
     const logDate = new Date(isValidDate ? `${effectiveDateStr}T00:00:00.000Z` : new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
 
-    await prisma.bodyWeight.upsert({
-      where: { userId_date: { userId, date: logDate } },
-      create: { userId, weightKg, date: logDate },
-      update: { weightKg },
-    });
-
-    // Also update profile weight
-    await prisma.user.update({ where: { id: userId }, data: { weightKg } });
+    await prisma.$transaction([
+      prisma.bodyWeight.upsert({
+        where: { userId_date: { userId, date: logDate } },
+        create: { userId, weightKg, date: logDate },
+        update: { weightKg },
+      }),
+      prisma.user.update({ where: { id: userId }, data: { weightKg } }),
+    ]);
 
     return {
       resultText: `Вес записан: ${weightKg} кг`,
