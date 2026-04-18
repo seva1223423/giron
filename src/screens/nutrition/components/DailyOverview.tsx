@@ -63,13 +63,13 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
   const ringData = useMemo(() => {
     switch (ringMode) {
       case 'protein':
-        return { progress: dayLog.targetProtein > 0 ? totalProtein / dayLog.targetProtein : 0, value: `${totalProtein}`, label: 'белки, г', colorKey: colors.protein, current: totalProtein, target: dayLog.targetProtein };
+        return { progress: dayLog.targetProtein > 0 ? totalProtein / dayLog.targetProtein : 0, value: `${Math.round(totalProtein)}`, label: 'белки, г', colorKey: colors.protein, current: totalProtein, target: dayLog.targetProtein };
       case 'fats':
         return { progress: (dayLog.targetFats || 70) > 0 ? totalFats / (dayLog.targetFats || 70) : 0, value: `${Math.round(totalFats)}`, label: 'жиры, г', colorKey: colors.fats, current: totalFats, target: dayLog.targetFats || 70 };
       case 'carbs':
-        return { progress: (dayLog.targetCarbs || 250) > 0 ? totalCarbs / (dayLog.targetCarbs || 250) : 0, value: `${totalCarbs}`, label: 'углев., г', colorKey: colors.carbs, current: totalCarbs, target: dayLog.targetCarbs || 250 };
+        return { progress: (dayLog.targetCarbs || 250) > 0 ? totalCarbs / (dayLog.targetCarbs || 250) : 0, value: `${Math.round(totalCarbs)}`, label: 'углев., г', colorKey: colors.carbs, current: totalCarbs, target: dayLog.targetCarbs || 250 };
       default:
-        return { progress: dayLog.targetCalories > 0 ? totalCalories / dayLog.targetCalories : 0, value: `${totalCalories}`, label: 'ккал', colorKey: colors.calories, current: totalCalories, target: dayLog.targetCalories };
+        return { progress: dayLog.targetCalories > 0 ? totalCalories / dayLog.targetCalories : 0, value: `${Math.round(totalCalories)}`, label: 'ккал', colorKey: colors.calories, current: totalCalories, target: dayLog.targetCalories };
     }
   }, [ringMode, totalCalories, totalProtein, totalFats, totalCarbs, dayLog, colors]);
 
