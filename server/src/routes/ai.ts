@@ -2506,6 +2506,7 @@ async function executeTool(
   if (toolName === 'set_water_target') {
     const { targetMl } = toolInput as { targetMl: number };
     const safeTargetMl = Math.min(10000, Math.max(500, Math.round(Number(targetMl) || 2000)));
+    await prisma.user.update({ where: { id: userId }, data: { targetWaterMl: safeTargetMl } });
     return {
       resultText: `Дневная норма воды установлена: ${safeTargetMl} мл`,
       actionDescription: `Норма воды: ${safeTargetMl} мл`,
@@ -3423,6 +3424,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       todayMeals.map((m) => ({ type: m.type, totalCalories: m.totalCalories, totalProtein: m.totalProtein, createdAt: m.createdAt })),
       recentWorkouts.map((w) => ({ completedAt: w.completedAt })),
       nutritionTargets,
+      todayDate,
     );
 
     // ─── Block 18: Progressive overload analysis ──────
@@ -10180,11 +10182,12 @@ function getNutritionTimingAdvice(
   todayMeals: Array<{ type: string; totalCalories: number; totalProtein: number; createdAt: Date }>,
   recentWorkouts: Array<{ completedAt: Date | null }>,
   nutritionTargets?: { calories: number; protein: number } | null,
+  clientDate?: string,
 ): string {
   const lines: string[] = [];
 
   // Check if workout is coming (planned for today) or just finished
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = clientDate ?? new Date().toISOString().split('T')[0];
   const trainedToday = recentWorkouts.some(
     (w) => w.completedAt && w.completedAt.toISOString().split('T')[0] === todayStr
   );
