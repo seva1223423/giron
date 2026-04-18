@@ -1943,9 +1943,9 @@ async function executeTool(
     });
 
     return {
-      resultText: `Программа "${name}" создана с ${workouts.length} тренировками: ${workoutNames.join(', ')}. Всего упражнений: ${totalExercises}.`,
-      actionDescription: `Программа "${name}" (${workouts.length} дней) создана и активирована`,
-      actionData: { programId: program.id, programName: name, workoutCount: workouts.length },
+      resultText: `Программа "${name}" создана с ${workoutNames.length} тренировками: ${workoutNames.join(', ')}. Всего упражнений: ${totalExercises}.`,
+      actionDescription: `Программа "${name}" (${workoutNames.length} дней) создана и активирована`,
+      actionData: { programId: program.id, programName: name, workoutCount: workoutNames.length },
     };
   }
 
@@ -2413,8 +2413,8 @@ async function executeTool(
     }
     const swapped = matchingIds.length;
     if (swapped > 0) {
-      await Promise.all(
-        matchingIds.map((id) => prisma.workoutExercise.updateMany({ where: { id }, data: { exerciseId: newEx.id } })),
+      await prisma.$transaction(
+        matchingIds.map((id) => prisma.workoutExercise.update({ where: { id }, data: { exerciseId: newEx.id } })),
       );
     }
     if (swapped === 0) return { resultText: `Упражнение "${oldExerciseName}" не найдено в программе`, actionDescription: '' };
@@ -2436,9 +2436,9 @@ async function executeTool(
       const ex1 = workout.exercises.find((e) => e.exercise?.name?.toLowerCase().includes(exercise1Name.toLowerCase()));
       const ex2 = workout.exercises.find((e) => e.exercise?.name?.toLowerCase().includes(exercise2Name.toLowerCase()));
       if (ex1 && ex2) {
-        await Promise.all([
-          prisma.workoutExercise.updateMany({ where: { id: ex1.id }, data: { supersetGroupId: groupId } }),
-          prisma.workoutExercise.updateMany({ where: { id: ex2.id }, data: { supersetGroupId: groupId } }),
+        await prisma.$transaction([
+          prisma.workoutExercise.update({ where: { id: ex1.id }, data: { supersetGroupId: groupId } }),
+          prisma.workoutExercise.update({ where: { id: ex2.id }, data: { supersetGroupId: groupId } }),
         ]);
         found = true;
         break;
