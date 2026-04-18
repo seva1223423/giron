@@ -17,6 +17,8 @@ interface NutritionStore {
   addWater: (date: string, ml: number) => void;
   removeMealItem: (date: string, mealId: string, itemId: string) => void;
   setTargets: (date: string, targets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl?: number }) => void;
+  /** Apply server-persisted nutrition targets — only overwrites if server has non-default values */
+  applyServerTargets: (serverTargets: { calories?: number | null; protein?: number | null; fats?: number | null; carbs?: number | null; waterMl?: number | null }) => void;
   syncMealsFromServer: (date: string) => Promise<void>;
   saveFoodItem: (item: NutritionItem) => void;
   removeSavedFood: (id: string) => void;
@@ -256,6 +258,18 @@ export const useNutritionStore = create<NutritionStore>()(
             },
           },
         };
+      }),
+
+      applyServerTargets: ({ calories, protein, fats, carbs, waterMl }) => set((s) => {
+        // Only apply when server has non-null values; don't overwrite user's local customizations
+        // with nulls (treat null as "not set on server yet").
+        const merged = { ...s.defaultTargets };
+        if (calories != null) merged.calories = calories;
+        if (protein != null) merged.protein = protein;
+        if (fats != null) merged.fats = fats;
+        if (carbs != null) merged.carbs = carbs;
+        if (waterMl != null) merged.waterTargetMl = waterMl;
+        return { defaultTargets: merged };
       }),
 
       saveFoodItem: (item) => set((s) => {

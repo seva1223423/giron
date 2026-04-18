@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
 import { tokenStorage } from '../utils/secureStorage';
+import { useNutritionStore } from './useNutritionStore';
 
 // Backend returns Prisma enum values (MALE/FEMALE, MUSCLE_GAIN, BEGINNER, ADMIN); normalize to frontend types
 const normalizeUser = (user: User): User => ({
@@ -236,6 +237,17 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const user = await userService.getProfile();
           set({ user: normalizeUser(user) });
+          // Sync server-persisted nutrition targets (set by AI coach) to local store
+          const u = user as any;
+          if (u.targetCalories || u.targetProtein || u.targetFats || u.targetCarbs) {
+            useNutritionStore.getState().applyServerTargets({
+              calories: u.targetCalories ?? null,
+              protein: u.targetProtein ?? null,
+              fats: u.targetFats ?? null,
+              carbs: u.targetCarbs ?? null,
+              waterMl: u.targetWaterMl ?? null,
+            });
+          }
         } catch {}
       },
     }),
