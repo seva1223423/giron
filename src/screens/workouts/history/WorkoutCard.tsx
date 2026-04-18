@@ -106,13 +106,13 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
                 <Text style={[typography.captionMedium, { color: colors.primary }]}>Повторить тренировку</Text>
               </TouchableOpacity>
             )}
-            {workout.exercises.map((ex: any, ei: number) => {
-              const doneSets = ex.sets.filter((s: any) => s.completed);
+            {exercises.map((ex: any, ei: number) => {
+              const doneSets = (ex.sets ?? []).filter((s: any) => s.completed);
               const vol = doneSets.reduce((s: number, set: any) => s + (set.weight || 0) * (set.reps || 0), 0);
               const bestSet = [...doneSets].sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0))[0];
               const hasPR = doneSets.some((s: any) => s.isPR);
               return (
-                <View key={ex.id} style={[styles.exRow, ei < workout.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
+                <View key={ex.id} style={[styles.exRow, ei < exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                       <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex.exercise?.name ?? ''}</Text>
