@@ -250,8 +250,8 @@ router.delete('/measurements/:date', authenticate, async (req: AuthRequest, res:
 
 const sleepSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z')), 'Некорректная дата'),
-  bedtime: z.string().regex(/^\d{2}:\d{2}$/),
-  wakeTime: z.string().regex(/^\d{2}:\d{2}$/),
+  bedtime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  wakeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   durationHours: z.number().finite().min(0).max(24),
   quality: z.number().int().finite().min(1).max(5).optional().nullable(),
 });
