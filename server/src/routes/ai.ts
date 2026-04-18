@@ -10212,17 +10212,19 @@ async function cleanupStaleMemories(userId: string): Promise<void> {
 async function saveMemories(userId: string, memories: MemoryExtraction[]): Promise<void> {
   for (const mem of memories) {
     try {
+      const safeKey = String(mem.key).slice(0, 100);
+      const safeValue = String(mem.value).slice(0, 500);
       const existing = await prisma.aIMemory.findUnique({
-        where: { userId_key: { userId, key: mem.key } },
+        where: { userId_key: { userId, key: safeKey } },
       });
 
       if (existing) {
         // If same value, boost confidence; if different, update with reset confidence
-        const sameValue = existing.value === mem.value;
+        const sameValue = existing.value === safeValue;
         await prisma.aIMemory.update({
-          where: { userId_key: { userId, key: mem.key } },
+          where: { userId_key: { userId, key: safeKey } },
           data: {
-            value: mem.value,
+            value: safeValue,
             confidence: sameValue
               ? Math.min(1.0, existing.confidence + 0.15)
               : mem.confidence,
@@ -10234,8 +10236,8 @@ async function saveMemories(userId: string, memories: MemoryExtraction[]): Promi
           data: {
             userId,
             category: mem.category,
-            key: mem.key,
-            value: mem.value,
+            key: safeKey,
+            value: safeValue,
             confidence: mem.confidence,
             source: mem.source,
           },
