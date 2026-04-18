@@ -10214,37 +10214,23 @@ async function saveMemories(userId: string, memories: MemoryExtraction[]): Promi
     try {
       const safeKey = String(mem.key).slice(0, 100);
       const safeValue = String(mem.value).slice(0, 500);
-      const existing = await prisma.aIMemory.findUnique({
+      await prisma.aIMemory.upsert({
         where: { userId_key: { userId, key: safeKey } },
+        create: {
+          userId,
+          category: mem.category,
+          key: safeKey,
+          value: safeValue,
+          confidence: mem.confidence,
+          source: mem.source,
+        },
+        update: {
+          value: safeValue,
+          confidence: mem.confidence,
+          source: mem.source,
+        },
       });
-
-      if (existing) {
-        // If same value, boost confidence; if different, update with reset confidence
-        const sameValue = existing.value === safeValue;
-        await prisma.aIMemory.update({
-          where: { userId_key: { userId, key: safeKey } },
-          data: {
-            value: safeValue,
-            confidence: sameValue
-              ? Math.min(1.0, existing.confidence + 0.15)
-              : mem.confidence,
-            source: mem.source,
-          },
-        });
-      } else {
-        await prisma.aIMemory.create({
-          data: {
-            userId,
-            category: mem.category,
-            key: safeKey,
-            value: safeValue,
-            confidence: mem.confidence,
-            source: mem.source,
-          },
-        });
-      }
     } catch (e) {
-      // Silently skip if DB issue (table may not exist yet)
       logger.error('AIMemory save error:', e);
     }
   }
