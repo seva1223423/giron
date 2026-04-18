@@ -103,8 +103,9 @@ export const useTrainerStore = create<TrainerStore>()(
 
         try {
           await trainerService.deleteClient(id);
-        } catch {
-          set({ clients: prevClients, sessions: prevSessions });
+        } catch (err: any) {
+          // 404 = already deleted on server — treat as success, don't rollback
+          if (err?.response?.status !== 404) set({ clients: prevClients, sessions: prevSessions });
         }
       },
 
@@ -151,8 +152,9 @@ export const useTrainerStore = create<TrainerStore>()(
           // Re-fetch clients to get updated totalWorkouts
           const updatedClients = await trainerService.getClients();
           set({ clients: updatedClients });
-        } catch {
-          set({ sessions: prev });
+        } catch (err: any) {
+          // 404 = already deleted on server — treat as success, don't rollback
+          if (err?.response?.status !== 404) set({ sessions: prev });
         }
       },
 
