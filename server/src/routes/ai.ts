@@ -2106,8 +2106,8 @@ async function executeTool(
           id: s.id,
           newWeight: s.weight ? Math.round((s.weight * safeMultiplier) / 2.5) * 2.5 : null,
         }));
-        await Promise.all(
-          updatedSets.map((s) => prisma.workoutSet.updateMany({ where: { id: s.id }, data: { weight: s.newWeight } }))
+        await prisma.$transaction(
+          updatedSets.map((s) => prisma.workoutSet.update({ where: { id: s.id }, data: { weight: s.newWeight } }))
         );
         const pct = Math.round((safeMultiplier - 1) * 100);
         const sign = pct >= 0 ? `+${pct}%` : `${pct}%`;
