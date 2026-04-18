@@ -2741,7 +2741,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
-    // Fetch all user context data in parallel — 9 independent queries
+    // Fetch all user context data in parallel — 10 independent queries
     const [
       user,
       history,
@@ -2752,6 +2752,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       todayMeals,
       recentMeasurements,
       userPrograms,
+      sleepFromDb,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -2812,6 +2813,15 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         orderBy: { createdAt: 'desc' },
         take: 20,
       }),
+      // Sleep: skip DB query if client already sent entries (avoids redundant fetch)
+      (sleepEntries && sleepEntries.length > 0)
+        ? Promise.resolve([] as Array<{ date: string; durationHours: number; quality: number | null }>)
+        : prisma.sleepEntry.findMany({
+            where: { userId },
+            orderBy: { date: 'desc' },
+            take: 14,
+            select: { date: true, durationHours: true, quality: true },
+          }),
     ]);
 
     // Build user context
@@ -2845,8 +2855,11 @@ ${age ? `- Возраст: ${age} лет` : ''}
 ${user.healthRestrictions.length > 0 ? `- Ограничения здоровья: ${user.healthRestrictions.map((h) => `${h.bodyPart}: ${h.description} (${h.severity})`).join('; ')}` : '- Ограничений здоровья: нет'}`;
     }
 
-    // ─── Sleep data from client ──────
-    const recentSleepEntries = (sleepEntries ?? []).sort((a, b) => b.date.localeCompare(a.date));
+    // ─── Sleep data: client-provided or DB fallback ──────
+    // Client sends local store entries; if store is empty (fresh install / cleared cache),
+    // fall back to DB so the AI always has sleep context when data exists.
+    const rawSleepEntries = (sleepEntries && sleepEntries.length > 0) ? sleepEntries : sleepFromDb;
+    const recentSleepEntries = rawSleepEntries.sort((a, b) => b.date.localeCompare(a.date));
     const lastSleepEntry = recentSleepEntries[0] ?? null;
     const avgSleepHours = recentSleepEntries.length > 0
       ? recentSleepEntries.slice(0, 7).reduce((sum, e) => sum + e.durationHours, 0) / Math.min(recentSleepEntries.length, 7)
