@@ -852,17 +852,18 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     }
     await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
 
-    // Check email isn't already taken by another user (after OTP validation)
-    const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
-    if (existing && existing.id !== req.userId) {
-      return res.status(409).json({ error: 'Этот email уже используется', code: 'EMAIL_TAKEN' });
+    // Atomically update email — unique constraint violation (P2002) means already taken
+    try {
+      await prisma.user.update({
+        where: { id: req.userId! },
+        data: { email: newEmail, emailVerified: true },
+      });
+    } catch (updateErr: any) {
+      if (updateErr?.code === 'P2002') {
+        return res.status(409).json({ error: 'Этот email уже используется', code: 'EMAIL_TAKEN' });
+      }
+      throw updateErr;
     }
-
-    // Update email, revoke all sessions + trusted devices, issue new tokens for the current device
-    await prisma.user.update({
-      where: { id: req.userId! },
-      data: { email: newEmail, emailVerified: true },
-    });
     await Promise.all([
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
@@ -946,17 +947,18 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     }
     await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
 
-    // Check phone isn't already used by another user (after OTP validation)
-    const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
-    if (existing && existing.id !== req.userId) {
-      return res.status(409).json({ error: 'Этот номер телефона уже используется', code: 'PHONE_TAKEN' });
+    // Atomically update phone — unique constraint violation (P2002) means already taken
+    try {
+      await prisma.user.update({
+        where: { id: req.userId! },
+        data: { phone, phoneVerified: true },
+      });
+    } catch (updateErr: any) {
+      if (updateErr?.code === 'P2002') {
+        return res.status(409).json({ error: 'Этот номер телефона уже используется', code: 'PHONE_TAKEN' });
+      }
+      throw updateErr;
     }
-
-    // Update phone number, revoke all sessions + trusted devices, issue new tokens for the current device
-    await prisma.user.update({
-      where: { id: req.userId! },
-      data: { phone, phoneVerified: true },
-    });
     await Promise.all([
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
