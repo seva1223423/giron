@@ -1226,7 +1226,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Ссылка недействительна или истекла' });
     }
 
-    if (resetToken.user && await bcrypt.compare(password, resetToken.user.passwordHash)) {
+    if (resetToken.user?.passwordHash && await bcrypt.compare(password, resetToken.user.passwordHash)) {
       return res.status(400).json({ error: 'Новый пароль совпадает с текущим', code: 'PASSWORD_UNCHANGED' });
     }
 
