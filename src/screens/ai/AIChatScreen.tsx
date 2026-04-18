@@ -173,12 +173,19 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
       } catch {
         // Streaming failed — fall back to regular request
-        const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries, todayDate);
-        if (!isMountedRef.current) return;
-        response = fallback;
-        setMessages((prev) => prev.map((m) =>
-          m.id === streamMsgId ? { ...m, content: fallback.message } : m
-        ));
+        try {
+          const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries, todayDate);
+          if (!isMountedRef.current) return;
+          response = fallback;
+          setMessages((prev) => prev.map((m) =>
+            m.id === streamMsgId ? { ...m, content: fallback.message } : m
+          ));
+        } catch (fallbackErr) {
+          // Remove the empty stream placeholder so the outer catch's error message
+          // is the only thing added to the chat.
+          setMessages((prev) => prev.filter((m) => m.id !== streamMsgId));
+          throw fallbackErr;
+        }
       }
 
       haptic.success();
