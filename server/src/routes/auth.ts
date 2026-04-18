@@ -1386,7 +1386,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Пользователь не найден', code: 'USER_NOT_FOUND' });
     }
 
-    if (await bcrypt.compare(password, user.passwordHash)) {
+    if (user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
       return res.status(400).json({ error: 'Новый пароль совпадает с текущим', code: 'PASSWORD_UNCHANGED' });
     }
 
