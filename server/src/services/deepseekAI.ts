@@ -447,49 +447,51 @@ export async function analyzeImage(
   prompt: string,
 ): Promise<string> {
   const model = process.env.AI_VISION_MODEL || process.env.AI_MODEL || DEFAULT_MODEL;
-
-  const response = await fetchWithTimeout(
-    `${AI_BASE_URL}/chat/completions`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getApiKey()}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
-              },
-              { type: 'text', text: prompt },
-            ],
-          },
-        ],
-        stream: false,
-        max_tokens: 1024,
-        temperature: 0.3,
-      }),
+  const fetchOptions = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getApiKey()}`,
     },
-    REQUEST_TIMEOUT_MS,
-  );
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+            { type: 'text', text: prompt },
+          ],
+        },
+      ],
+      stream: false,
+      max_tokens: 1024,
+      temperature: 0.3,
+    }),
+  };
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`AI vision error ${response.status}: ${errorText}`);
-  }
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetchWithTimeout(`${AI_BASE_URL}/chat/completions`, fetchOptions, REQUEST_TIMEOUT_MS);
 
-  let data: { choices?: Array<{ message?: { content?: string } }> };
-  try {
-    data = await response.json();
-  } catch (e) {
-    throw new Error(`AI vision parse error: ${(e as Error).message}`);
+    if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
+      const retryAfter = response.headers.get('retry-after');
+      const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : NaN;
+      const delay = Math.max(RETRY_DELAY_MS, Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : RETRY_DELAY_MS * (attempt + 1));
+      logger.warn(`AI vision ${response.status}, retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
+      await sleep(delay);
+      continue;
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AI vision error ${response.status}: ${errorText}`);
+    }
+
+    let data: { choices?: Array<{ message?: { content?: string } }> };
+    try { data = await response.json(); } catch (e) { throw new Error(`AI vision parse error: ${(e as Error).message}`); }
+    return data.choices?.[0]?.message?.content || '';
   }
-  return data.choices?.[0]?.message?.content || '';
+  throw new Error('AI vision: max retries exceeded');
 }
 
 // ─── Streaming chat (no tools) ───────────────────────────────────────────────
