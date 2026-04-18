@@ -81243,7 +81243,6 @@ router.get('/starters', authenticate, async (req: AuthRequest, res: Response) =>
     // 5. Profile gaps → natural questions
     const gaps = getProfileGaps(user);
     if (gaps.length > 0) {
-      const top = gaps[0];
       starters.push({ emoji: '⚙️', text: `Рассчитай мои нормы КБЖУ` });
     }
 
