@@ -188,6 +188,10 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
       if (bodyComp) blocks.push(bodyComp);
       const macros = buildMacroBalanceBlock(data);
       if (macros) blocks.push(macros);
+      const frequency = buildFrequencyBlock(data);
+      if (frequency) blocks.push(frequency);
+      const recovery = buildRecoveryBlock(data);
+      if (recovery) blocks.push(recovery);
       break;
     }
 
