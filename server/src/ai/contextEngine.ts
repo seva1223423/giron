@@ -542,8 +542,12 @@ function buildNutritionGapsBlock(data: ChatContextData): string {
   }
 
   if (user?.goal === 'MUSCLE_GAIN') {
-    const avgProt = todayMeals.reduce((s, m) => s + m.totalProtein, 0) / todayMeals.length;
-    if (avgProt < 25) gaps.push(`Мало белка на приём (~${Math.round(avgProt)}г, нужно 30+г)`);
+    // Only count substantial meals (>50 kcal) to avoid skewing average with snacks/drinks
+    const substantialMeals = todayMeals.filter((m) => m.totalCalories > 50);
+    if (substantialMeals.length > 0) {
+      const avgProt = substantialMeals.reduce((s, m) => s + m.totalProtein, 0) / substantialMeals.length;
+      if (avgProt < 25) gaps.push(`Мало белка на приём (~${Math.round(avgProt)}г, нужно 30+г)`);
+    }
   }
 
   if (gaps.length === 0) return '';
@@ -559,8 +563,8 @@ function buildMealTimingBlock(data: ChatContextData): string {
   const workoutEnd = new Date(lastWorkout.completedAt).getTime();
   const hoursSince = (Date.now() - workoutEnd) / 3_600_000;
 
-  // Check within 36h window (could be yesterday's workout)
-  if (hoursSince < 1.5 || hoursSince > 36) return '';
+  // Check within 36h window; skip first 30min (workout may still be in cool-down)
+  if (hoursSince < 0.5 || hoursSince > 36) return '';
 
   const mealAfter = todayMeals
     .filter((m) => new Date(m.createdAt).getTime() > workoutEnd)
