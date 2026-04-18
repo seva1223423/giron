@@ -180,7 +180,7 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
       if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
         const retryAfter = response.headers.get('retry-after');
         const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : NaN;
-        const delay = Number.isFinite(retryAfterMs) ? retryAfterMs : RETRY_DELAY_MS * (attempt + 1);
+        const delay = Math.max(RETRY_DELAY_MS, Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : RETRY_DELAY_MS * (attempt + 1));
         logger.warn(`AI API ${response.status}, retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
         await sleep(delay);
         continue;
