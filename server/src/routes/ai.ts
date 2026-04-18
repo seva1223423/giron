@@ -2296,20 +2296,25 @@ async function executeTool(
       return { resultText: 'Расписание не содержит корректных дней (dayIndex должен быть 0–6)', actionDescription: '' };
     }
 
-    // Resolve exercise IDs from DB for each day
+    // Resolve exercise names (keep originals; DB lookup validates they exist)
     const resolvedSchedule = await Promise.all(
       validSchedule.map(async (day) => {
         const exResults = await Promise.all(
-          day.exerciseNames.map((name) =>
-            prisma.exercise.findFirst({ where: { name: { contains: name, mode: 'insensitive' } }, select: { id: true } }),
-          ),
+          day.exerciseNames.map(async (name) => {
+            const found = await prisma.exercise.findFirst({ where: { name: { contains: name, mode: 'insensitive' } }, select: { id: true, name: true } });
+            return found;
+          }),
         );
-        const exerciseIds = exResults.filter((ex): ex is { id: string } => ex !== null).map((ex) => ex.id);
+        // Store resolved names for human-readable AI context; fall back to original name if not found in DB
+        const exerciseNames = exResults.map((ex, i) => ex?.name ?? day.exerciseNames[i]);
+        const exerciseIds = exResults.filter((ex): ex is { id: string; name: string } => ex !== null).map((ex) => ex.id);
         return {
           dayIndex: day.dayIndex,
           workoutName: day.workoutName,
           emoji: day.emoji || '🏋️',
           exerciseIds,
+          // Names are sent to client so weekPlan context shows readable exercise names to AI
+          exerciseNames,
         };
       }),
     );
