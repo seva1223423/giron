@@ -14,6 +14,7 @@
  */
 
 import { prisma } from '../db';
+import { logger } from '../utils/logger';
 import type { DeepSeekTool } from '../services/deepseekAI';
 
 // ─── Pre-loaded data passed from the /chat handler ───────────────────────────
@@ -31,6 +32,7 @@ export interface ContextToolPreload {
     createdAt: Date;
   }>;
   todayDate?: string;
+  clientHour?: number; // client's local hour (0-23) — avoids server-timezone bias in time-aware hints
 }
 
 // ─── Tool Schemas ─────────────────────────────────────────────────────────────
@@ -169,6 +171,7 @@ export async function executeContextTool(
         return null;
     }
   } catch (err) {
+    logger.error(`[ContextTool] ${toolName} failed for user ${userId}:`, err);
     const readable = toolName.replace(/^get_/, '').replace(/_/g, ' ');
     return `[Данные недоступны: ${readable}. Отвечай на основе имеющегося контекста.]`;
   }
@@ -361,7 +364,8 @@ async function getNutritionAnalysis(userId: string, preload: ContextToolPreload,
       const protPct = Math.round((prot / nutritionTargets.protein) * 100);
       sections.push(`Норма: ${calPct}% ккал, ${protPct}% белок (цель: ${nutritionTargets.calories} ккал, ${nutritionTargets.protein}г)`);
 
-      const hour = new Date().getHours();
+      // Use client's local hour so meal-timing hints are correct for their timezone
+      const hour = preload.clientHour ?? new Date().getHours();
       if (hour >= 14 && prot < nutritionTargets.protein * 0.4) {
         sections.push(`🚨 КРИТИЧНО: белок только ${Math.round(prot)}/${nutritionTargets.protein}г — уже ${hour}:00. Обязательно упомяни!`);
       }
