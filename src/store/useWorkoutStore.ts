@@ -155,18 +155,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
             return p;
           }),
         }));
-        // Persist to server; rollback to snapshot on failure
-        workoutService.updateProgram(id, data as any).catch(() => {
-          set({ programs: snapshot });
+        // Persist to server; rollback to snapshot on failure (404 = already gone, treat as success)
+        workoutService.updateProgram(id, data as any).catch((err) => {
+          if (err?.response?.status !== 404) set({ programs: snapshot });
         });
       },
       deleteProgram: async (id) => {
         const snapshot = get().programs;
         // Optimistic local delete
         set((s) => ({ programs: s.programs.filter((p) => p.id !== id) }));
-        // Persist to server; rollback to snapshot on failure
-        workoutService.deleteProgram(id).catch(() => {
-          set({ programs: snapshot });
+        // Persist to server; rollback to snapshot on failure (404 = already deleted)
+        workoutService.deleteProgram(id).catch((err) => {
+          if (err?.response?.status !== 404) set({ programs: snapshot });
         });
       },
 
@@ -494,8 +494,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
         }));
         // Sync notes to server (workout.id is used as clientId on the server)
         if ('notes' in data) {
-          workoutService.patchWorkoutNotes(id, data.notes ?? null).catch(() => {
-            set({ workoutHistory: snapshot });
+          workoutService.patchWorkoutNotes(id, data.notes ?? null).catch((err) => {
+            if (err?.response?.status !== 404) set({ workoutHistory: snapshot });
           });
         }
       },
