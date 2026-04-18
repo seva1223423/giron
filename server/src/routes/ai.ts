@@ -1771,12 +1771,8 @@ async function executeTool(
       return { resultText: 'Приём пищи не найден или уже удалён', actionDescription: '' };
     }
 
-    try {
-      await prisma.meal.delete({ where: { id: mealId } });
-    } catch (e: any) {
-      // P2025: meal was deleted by another request between findFirst and delete — treat as success
-      if (e?.code !== 'P2025') throw e;
-    }
+    const { count: deleted } = await prisma.meal.deleteMany({ where: { id: mealId, userId } });
+    if (deleted === 0) return { resultText: 'Приём пищи не найден или уже удалён', actionDescription: '' };
 
     const MEAL_LABELS: Record<string, string> = {
       breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус',
