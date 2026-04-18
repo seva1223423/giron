@@ -90,7 +90,7 @@ export const SystemSection: React.FC = () => {
       };
       await Share.share({ message: JSON.stringify(data, null, 2), title: 'Iron Gym Backup' });
     } catch {
-      // Silently fail
+      Alert.alert('Ошибка', 'Не удалось экспортировать данные.');
     }
   };
 
