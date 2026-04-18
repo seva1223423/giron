@@ -262,23 +262,17 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           const measAction = actions.find((act) => act.type === 'log_body_measurement');
           if (measAction?.data) {
             const d = measAction.data as Record<string, any>;
-            const bicepLeft = typeof d.bicepLeft === 'number' ? d.bicepLeft : undefined;
-            const bicepRight = typeof d.bicepRight === 'number' ? d.bicepRight : undefined;
-            const thighLeft = typeof d.thighLeft === 'number' ? d.thighLeft : undefined;
-            const thighRight = typeof d.thighRight === 'number' ? d.thighRight : undefined;
-            const calfLeft = typeof d.calfLeft === 'number' ? d.calfLeft : undefined;
-            const calfRight = typeof d.calfRight === 'number' ? d.calfRight : undefined;
-            const avg = (a?: number, b?: number) =>
-              a !== undefined && b !== undefined ? Math.round((a + b) / 2 * 10) / 10 : (b ?? a);
+            // Server already averages left/right into single fields (bicep, thigh, calf)
+            const toNum = (v: unknown) => typeof v === 'number' ? v : undefined;
             addMeasurementEntry({
               date: typeof d.date === 'string' ? d.date : localDateStr(new Date()),
-              chest: typeof d.chest === 'number' ? d.chest : undefined,
-              waist: typeof d.waist === 'number' ? d.waist : undefined,
-              hips: typeof d.hips === 'number' ? d.hips : undefined,
-              neck: typeof d.neck === 'number' ? d.neck : undefined,
-              bicep: avg(bicepLeft, bicepRight),
-              thigh: avg(thighLeft, thighRight),
-              calf: avg(calfLeft, calfRight),
+              chest: toNum(d.chest),
+              waist: toNum(d.waist),
+              hips: toNum(d.hips),
+              neck: toNum(d.neck),
+              bicep: toNum(d.bicep),
+              thigh: toNum(d.thigh),
+              calf: toNum(d.calf),
             });
           }
         }
