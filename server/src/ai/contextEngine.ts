@@ -166,7 +166,7 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
 
     case 'data_logging': {
       const msgLower = data.message.toLowerCase();
-      const isFoodLog = /съел|поел|завтрак|обед|ужин|перекус|гречк|курица|творог|ккал|калори|белк|протеин|углевод|жир|порц|грамм|блюдо|продукт/i.test(msgLower);
+      const isFoodLog = /съел|поел|кушал|\bел[аи]?\s|завтрак|обед|ужин|перекус|гречк|курица|творог|ккал|калори|белк|протеин|углевод|жир|порц|грамм|блюдо|продукт/i.test(msgLower);
       const isSleepLog = /спал|поспал|лёг|лег\s*в|встал|проснул|сон|ночь|часов сна/i.test(msgLower);
       const isWeightLog = /вешу|мой\s*вес|\d{2,3}[\s.,]\d?\s*кг|взвесил[ся]?/.test(msgLower);
       if (isFoodLog) {
