@@ -50,7 +50,7 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
     if (activeWorkout) return;
     haptic.medium();
     const exercises: WorkoutExercise[] = (workout.exercises ?? []).map((we: any, index: number) => {
-      const sets: WorkoutSet[] = we.sets.map((s: any, i: number) => ({
+      const sets: WorkoutSet[] = (we.sets ?? []).map((s: any, i: number) => ({
         id: `set-${Date.now()}-${index}-${i}`, setNumber: i + 1, type: s.type, reps: s.reps, weight: s.weight, completed: false,
       }));
       return { ...we, id: `we-${Date.now()}-${index}`, sets };

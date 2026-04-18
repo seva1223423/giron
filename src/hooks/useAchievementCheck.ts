@@ -40,5 +40,5 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
       onUnlockedRef.current(newlyUnlocked);
     }
     prevUnlockedRef.current = current.filter((a) => a.unlocked).map((a) => a.id);
-  }, [nutritionDaysLogged, workoutHistory.length, streak]);
+  }, [nutritionDaysLogged, workoutHistory, streak]);
 }
