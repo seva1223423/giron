@@ -267,6 +267,10 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
         weight: s.weight || 0,
       })),
     }));
+    if (freshExercises.length === 0) {
+      Alert.alert('Ошибка', 'В этой тренировке нет упражнений');
+      return;
+    }
     startWorkout({
       id: `workout-${Date.now()}`,
       name: workout.name,
