@@ -81098,7 +81098,7 @@ ${restrictionsBlock ? '\nЕсли на фото присутствуют про�
           continue;
         }
 
-        prisma.foodScanLog.create({ data: { userId } }).catch(() => {});
+        prisma.foodScanLog.create({ data: { userId } }).catch((e) => logger.error('[FoodScan] Failed to log scan quota:', e));
         return res.json({ items: validated });
       } catch (analyzeError) {
         lastError = (analyzeError as Error).message;
