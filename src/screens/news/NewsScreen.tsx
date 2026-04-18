@@ -33,14 +33,18 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [stale, setStale] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const fetchGenRef = useRef(0);
 
   const fetchNews = useCallback(async () => {
+    const gen = ++fetchGenRef.current;
     try {
       const category = activeCategory === 'all' ? undefined : activeCategory;
       const articles = await newsService.getNews({ category });
+      if (gen !== fetchGenRef.current) return;
       if (articles.length > 0) { setNews(articles); setStale(false); }
       try { const saved = await newsService.getSaved(); setSavedIds(new Set(saved.map((a) => a.id))); } catch {}
-    } catch { setStale(true); } finally {
+    } catch { if (gen !== fetchGenRef.current) return; setStale(true); } finally {
+      if (gen !== fetchGenRef.current) return;
       setLoading(false);
       setRefreshing(false);
     }

@@ -123,7 +123,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   }, [weightHistory]);
 
   const achievements = useMemo(() => {
-    const nutritionDaysLogged = Object.values(dailyLog).filter((d) => d.meals.length > 0).length;
+    const nutritionDaysLogged = Object.values(dailyLog).filter((d) => (d.meals?.length ?? 0) > 0).length;
     const sortedDates = workoutHistory
       .filter((w) => w.completedAt)
       .map((w) => localDateStr(new Date(w.completedAt!)))
