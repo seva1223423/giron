@@ -2915,6 +2915,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       await prisma.chatMessage.create({
         data: { role: 'assistant', content: cachedResponse, userId },
       });
+      prisma.chatMessage.deleteMany({
+        where: { userId, createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
+      }).catch(() => {});
       return res.json({
         message: cachedResponse,
         actions: [],
@@ -9310,6 +9313,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         actions: performedActions.length > 0 ? JSON.parse(JSON.stringify(performedActions)) : undefined,
       },
     });
+
+    // Prune messages older than 90 days (fire-and-forget to keep on hot path)
+    prisma.chatMessage.deleteMany({
+      where: { userId, createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
+    }).catch(() => {});
 
     // ─── Block 20: Response metadata ──────
     const contextTokens = estimateTokens(finalSystemPrompt);
