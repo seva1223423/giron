@@ -188,6 +188,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **set_workout_duration_goal** — установить цель по длительности тренировки
 - **analyze_progress** — подробный анализ прогресса за период
 - **suggest_next_workout** — предложить следующую тренировку
+- **activate_program** — активировать существующую программу по имени
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
@@ -207,6 +208,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - "отдых 2 минуты" → set_rest_timer(120)
 - "напоминай в 7 утра" → set_notifications(reminderHour: 7, enabled: true)
 - "замени жим штанги на гантели" → swap_exercise("Жим штанги лёжа", "Жим гантелей лёжа")
+- "хочу начать Iron Coach" / "активируй программу верх/низ" → activate_program(programName: "Iron Coach")
 - "суперсет жим + разведение" → add_superset("Жим лёжа", "Разведение гантелей")
 - "тренируюсь максимум час" → set_workout_duration_goal(60)
 - "как мой прогресс за месяц?" → analyze_progress(month)
@@ -852,6 +854,20 @@ const AI_TOOLS: DeepSeekTool[] = [
           date: { type: 'string', description: 'Дата YYYY-MM-DD (сегодня по умолчанию, вчера если контекст подходит)' },
         },
         required: ['durationHours'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'activate_program',
+      description: 'Активировать существующую программу тренировок пользователя. Используй когда пользователь хочет переключиться на другую программу: "хочу начать Iron Coach", "активируй программу Верх/Низ", "переключись на силовую", "вернись к старой программе".',
+      parameters: {
+        type: 'object',
+        properties: {
+          programName: { type: 'string', description: 'Название программы или его часть (например "Iron Coach", "Верх/Низ"). Ищется по частичному совпадению.' },
+        },
+        required: ['programName'],
       },
     },
   },
@@ -2272,6 +2288,28 @@ async function executeTool(
       resultText: `Программа "${active.name}" деактивирована`,
       actionDescription: `Программа "${active.name}" удалена`,
       actionData: { programId: active.id },
+    };
+  }
+
+  if (toolName === 'activate_program') {
+    const { programName } = toolInput as { programName: string };
+    const programs = await prisma.program.findMany({
+      where: { userId },
+      select: { id: true, name: true, isActive: true },
+    });
+    if (programs.length === 0) return { resultText: 'У тебя нет сохранённых программ', actionDescription: '' };
+    const query = (programName ?? '').toLowerCase();
+    const match = programs.find((p) => p.name.toLowerCase().includes(query)) ?? programs.find((p) => query.includes(p.name.toLowerCase().slice(0, 5)));
+    if (!match) return { resultText: `Программа "${programName}" не найдена. Доступные: ${programs.map((p) => p.name).join(', ')}`, actionDescription: '' };
+    if (match.isActive) return { resultText: `Программа "${match.name}" уже активна`, actionDescription: '' };
+    await prisma.$transaction([
+      prisma.program.updateMany({ where: { userId, isActive: true }, data: { isActive: false } }),
+      prisma.program.update({ where: { id: match.id }, data: { isActive: true } }),
+    ]);
+    return {
+      resultText: `Программа "${match.name}" активирована`,
+      actionDescription: `Активирована программа "${match.name}"`,
+      actionData: { programId: match.id },
     };
   }
 
