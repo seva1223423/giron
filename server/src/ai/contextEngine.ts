@@ -814,7 +814,7 @@ async function buildMemoryBlock(data: ChatContextData): Promise<string> {
 
   try {
     const memories = await prisma.aIMemory.findMany({
-      where: { userId, confidence: { gte: 0.4 } },
+      where: { userId, confidence: { gte: 0.5 } },
       orderBy: [{ confidence: 'desc' }, { updatedAt: 'desc' }],
       take: 15,
       select: { category: true, key: true, value: true },
