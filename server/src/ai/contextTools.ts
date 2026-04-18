@@ -125,35 +125,43 @@ export async function executeContextTool(
   userId: string,
   preload: ContextToolPreload,
 ): Promise<string | null> {
-  switch (toolName) {
-    case 'get_workout_analysis':
-      return getWorkoutAnalysis(userId, (args.focus as string) ?? 'all');
-    case 'get_nutrition_analysis':
-      return getNutritionAnalysis(userId, preload, (args.period as string) ?? 'today');
-    case 'get_recovery_status':
-      return getRecoveryStatus(userId, preload);
-    case 'get_progress_data':
-      return getProgressData(userId, preload.todayDate ?? new Date().toISOString().split('T')[0], (args.include as string) ?? 'all');
-    case 'search_fitness_knowledge':
-      return searchFitnessKnowledge((args.query as string) ?? '');
-    default:
-      return null;
+  try {
+    switch (toolName) {
+      case 'get_workout_analysis':
+        return await getWorkoutAnalysis(userId, (args.focus as string) ?? 'all');
+      case 'get_nutrition_analysis':
+        return await getNutritionAnalysis(userId, preload, (args.period as string) ?? 'today');
+      case 'get_recovery_status':
+        return await getRecoveryStatus(userId, preload);
+      case 'get_progress_data':
+        return await getProgressData(userId, preload.todayDate ?? new Date().toISOString().split('T')[0], (args.include as string) ?? 'all');
+      case 'search_fitness_knowledge':
+        return await searchFitnessKnowledge((args.query as string) ?? '');
+      default:
+        return null;
+    }
+  } catch (err) {
+    const name = toolName.replace('get_', '').replace('_', ' ');
+    return `[Не удалось загрузить данные: ${name}. Отвечай на основе имеющегося контекста.]`;
   }
 }
 
 // ─── Tool Implementations ─────────────────────────────────────────────────────
 
 async function getWorkoutAnalysis(userId: string, focus: string): Promise<string> {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
   const [exerciseSets, recentWorkouts] = await Promise.all([
     prisma.workoutExercise.findMany({
-      where: { workout: { userId, completedAt: { not: null } } },
+      where: { workout: { userId, completedAt: { gte: sixMonthsAgo } } },
       select: {
         exercise: { select: { name: true, primaryMuscles: true } },
         workout: { select: { completedAt: true } },
         sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
       },
       orderBy: { workout: { completedAt: 'desc' } },
-      take: 500,
+      take: 400,
     }),
     prisma.workout.findMany({
       where: { userId, completedAt: { not: null } },
@@ -436,7 +444,8 @@ async function getProgressData(userId: string, todayDate: string, include: strin
         exercise: { select: { name: true } },
         sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
       },
-      take: 2000,
+      orderBy: { workout: { completedAt: 'desc' } },
+      take: 1000,
     });
 
     const prMap = new Map<string, { weight: number; reps: number }>();
@@ -525,22 +534,118 @@ async function loadKnowledge(): Promise<void> {
     const k = await import('../knowledge');
 
     KNOWLEDGE_TOPICS.push(
-      { name: 'Принципы тренировок', keywords: ['тренировка', 'прогрессия', 'объём', 'интенсивность', 'периодизация', 'hypertrophy', 'сила', 'гипертрофия', 'частота', 'deload', 'деload'], content: () => k.TRAINING_PRINCIPLES.slice(0, 3000) },
-      { name: 'Питание', keywords: ['питание', 'белок', 'протеин', 'калории', 'углеводы', 'жиры', 'макросы', 'кбжу', 'tdee', 'дефицит', 'профицит'], content: () => k.NUTRITION_KNOWLEDGE.slice(0, 3000) },
-      { name: 'Техника упражнений', keywords: ['техника', 'жим', 'приседания', 'тяга', 'форма', 'биомеханика', 'ошибки'], content: () => k.EXERCISE_TECHNIQUE.slice(0, 3000) },
-      { name: 'Восстановление', keywords: ['восстановление', 'сон', 'отдых', 'перетренированность', 'fatigue', 'крепатура', 'мышечная боль'], content: () => k.RECOVERY_KNOWLEDGE.slice(0, 3000) },
-      { name: 'Добавки', keywords: ['добавки', 'протеин', 'креатин', 'bcaa', 'pre-workout', 'предтрен', 'омега', 'витамин'], content: () => k.SUPPLEMENTS_DETAILED.slice(0, 3000) },
-      { name: 'Кардио', keywords: ['кардио', 'бег', 'выносливость', 'hiit', 'аэробика', 'liss', 'интервальный'], content: () => k.CARDIO_KNOWLEDGE.slice(0, 2000) },
-      { name: 'Физиология', keywords: ['физиология', 'мышечные волокна', 'гормоны', 'метаболизм', 'адаптация'], content: () => k.SPORTS_PHYSIOLOGY.slice(0, 2000) },
-      { name: 'Психология', keywords: ['мотивация', 'психология', 'привычки', 'plateau', 'плато', 'ментальный'], content: () => k.PSYCHOLOGY_HABITS.slice(0, 2000) },
-      { name: 'Реабилитация', keywords: ['травма', 'реабилитация', 'боль', 'плечо', 'колено', 'поясница', 'растяжение', 'воспаление'], content: () => k.INJURY_AND_REHAB.slice(0, 2000) },
-      { name: 'Похудение и набор', keywords: ['похудение', 'набор массы', 'жиросжигание', 'bulking', 'cutting', 'рекомпозиция'], content: () => k.CUTTING_BULKING.slice(0, 2000) },
-      { name: 'Пауэрлифтинг', keywords: ['пауэрлифтинг', 'powerlifting', 'соревнования', '1rm', '1пм', 'максимум'], content: () => k.POWERLIFTING.slice(0, 2000) },
-      { name: 'Женский тренинг', keywords: ['женский', 'женщины', 'менструальный', 'беременность', 'пмс'], content: () => k.WOMENS_PROGRAMMING.slice(0, 2000) },
+      {
+        name: 'Принципы тренировок',
+        keywords: ['тренировк', 'прогресс', 'объём', 'интенсивн', 'периодизац', 'hypertrophy', 'сила', 'гипертроф', 'частота', 'deload', 'деload', 'перегрузк', 'прогрессивн', 'суперкомпенс', 'rep range'],
+        content: () => k.TRAINING_PRINCIPLES.slice(0, 3000),
+      },
+      {
+        name: 'Питание',
+        keywords: ['питан', 'белок', 'протеин', 'калор', 'углевод', 'жир', 'макро', 'кбжу', 'tdee', 'дефицит', 'профицит', 'рацион', 'диет', 'еда', 'кушать'],
+        content: () => k.NUTRITION_KNOWLEDGE.slice(0, 3000),
+      },
+      {
+        name: 'Техника упражнений',
+        keywords: ['техник', 'жим', 'присед', 'тяг', 'форм', 'биомеханик', 'ошибк', 'выполнен', 'стойк', 'хват', 'амплитуд', 'движени', 'угол'],
+        content: () => k.EXERCISE_TECHNIQUE.slice(0, 3000),
+      },
+      {
+        name: 'Восстановление',
+        keywords: ['восстановл', 'сон', 'отдых', 'перетренир', 'fatigue', 'крепатур', 'мышечн боль', 'усталост', 'doms', 'актив отдых'],
+        content: () => k.RECOVERY_KNOWLEDGE.slice(0, 3000),
+      },
+      {
+        name: 'Добавки',
+        keywords: ['добавк', 'протеин', 'креатин', 'bcaa', 'pre-workout', 'предтрен', 'омега', 'витамин', 'спортпит', 'supplement', 'л-карнитин', 'кофеин'],
+        content: () => k.SUPPLEMENTS_DETAILED.slice(0, 3000),
+      },
+      {
+        name: 'Кардио',
+        keywords: ['кардио', 'бег', 'выносливост', 'hiit', 'аэробик', 'liss', 'интервальн', 'вело', 'плавани', 'пульс', 'зоны', 'дыхани'],
+        content: () => k.CARDIO_KNOWLEDGE.slice(0, 2500),
+      },
+      {
+        name: 'Физиология',
+        keywords: ['физиолог', 'мышечн волокн', 'гормон', 'метаболизм', 'адаптац', 'тестостерон', 'кортизол', 'миофибрилл', 'саркоплазм'],
+        content: () => k.SPORTS_PHYSIOLOGY.slice(0, 2500),
+      },
+      {
+        name: 'Психология и привычки',
+        keywords: ['мотивац', 'психолог', 'привычк', 'plateau', 'плато', 'ментальн', 'выгорани', 'дисциплин', 'постановк цел'],
+        content: () => k.PSYCHOLOGY_HABITS.slice(0, 2000),
+      },
+      {
+        name: 'Реабилитация и травмы',
+        keywords: ['травм', 'реабилитац', 'боль', 'плеч', 'колен', 'поясниц', 'растяжен', 'воспален', 'prehab', 'прехаб', 'грыж', 'тендинит', 'импинджмент'],
+        content: () => k.INJURY_AND_REHAB.slice(0, 2500),
+      },
+      {
+        name: 'Похудение и набор массы',
+        keywords: ['похуден', 'набор масс', 'жиросжиган', 'bulking', 'cutting', 'рекомпозиц', 'дефицит калор', 'сушк', 'масснабор'],
+        content: () => k.CUTTING_BULKING.slice(0, 2500),
+      },
+      {
+        name: 'Пауэрлифтинг',
+        keywords: ['пауэрлифт', 'powerlifting', 'соревнован', '1rm', '1пм', 'максимум', 'экипировк', 'шейко', 'westside'],
+        content: () => k.POWERLIFTING.slice(0, 2000),
+      },
+      {
+        name: 'Женский тренинг',
+        keywords: ['женск', 'женщин', 'менструальн', 'беременн', 'пмс', 'гормональн цикл', 'эстроген'],
+        content: () => k.WOMENS_PROGRAMMING.slice(0, 2000),
+      },
+      {
+        name: 'Гормоны и здоровье',
+        keywords: ['гормон', 'тестостерон', 'кортизол', 'инсулин', 'щитовидн', 'ттг', 'холестерин', 'давлени', 'биохими', 'анализ'],
+        content: () => k.HORMONES_AND_HEALTH.slice(0, 2000),
+      },
+      {
+        name: 'Гибкость и мобильность',
+        keywords: ['растяжк', 'гибкост', 'мобильност', 'стрейч', 'stretch', 'шпагат', 'пенн ролл', 'foam roll', 'миофасциальн', 'ротац'],
+        content: () => k.FLEXIBILITY_MOBILITY.slice(0, 2000),
+      },
+      {
+        name: 'Домашние и тренировки с весом тела',
+        keywords: ['дом', 'без железа', 'bodyweight', 'вес тела', 'отжиман', 'подтягиван', 'планк', 'без зала', 'минимум инвентар'],
+        content: () => k.HOME_BODYWEIGHT.slice(0, 2000),
+      },
+      {
+        name: 'Продвинутые техники',
+        keywords: ['дроп-сет', 'суперсет', 'форсированн', 'rest-pause', 'мионевральн', 'advanced', 'plateau busting', 'интенсификац'],
+        content: () => k.ADVANCED_TECHNIQUES.slice(0, 2000),
+      },
     );
   } catch {
-    // knowledge modules unavailable
+    // knowledge modules unavailable — AI will rely on parametric knowledge
   }
+}
+
+/** Stem: first N chars, where N depends on word length (short words need shorter stems). */
+function stem(word: string): string {
+  if (word.length <= 4) return word;
+  if (word.length <= 6) return word.slice(0, 4);
+  return word.slice(0, 5);
+}
+
+/**
+ * Score a topic against a query using stem-based matching.
+ * Splits both query and each keyword into stems, matches any stem pair.
+ */
+function scoreTopicMatch(keywords: string[], query: string): number {
+  const qWords = query.split(/\s+/).map(stem);
+  let score = 0;
+  for (const kw of keywords) {
+    const kwStems = kw.split(/\s+/).map(stem);
+    for (const qs of qWords) {
+      for (const ks of kwStems) {
+        if (qs === ks || qs.startsWith(ks) || ks.startsWith(qs)) {
+          score++;
+          break; // count each keyword at most once per match
+        }
+      }
+    }
+  }
+  return score;
 }
 
 async function searchFitnessKnowledge(query: string): Promise<string> {
@@ -551,13 +656,13 @@ async function searchFitnessKnowledge(query: string): Promise<string> {
   }
 
   const q = query.toLowerCase();
-  const scored = KNOWLEDGE_TOPICS.map((topic) => ({
-    topic,
-    score: topic.keywords.filter((kw) => q.includes(kw) || kw.includes(q.split(' ')[0])).length,
-  })).filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+  const scored = KNOWLEDGE_TOPICS
+    .map((topic) => ({ topic, score: scoreTopicMatch(topic.keywords, q) }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score);
 
   if (scored.length === 0) {
-    return `По запросу "${query}" ничего не найдено в базе знаний. Отвечай на основе своих знаний.`;
+    return `По запросу "${query}" — отвечай на основе своих знаний.`;
   }
 
   const top = scored.slice(0, 2);
