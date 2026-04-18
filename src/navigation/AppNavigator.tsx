@@ -370,22 +370,24 @@ export const AppNavigator: React.FC = () => {
 
   return (
     <NavigationContainer linking={linking}>
-      <View style={{ flex: 1 }}>
-        {!isOnline && (
-          <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }} numberOfLines={2}>Нет соединения — данные сохраняются локально</Text>
-          </View>
-        )}
-        <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-          {!isAuthenticated ? (
-            <Stack.Screen name="Auth" component={AuthStack} />
-          ) : !isOnboarded ? (
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          ) : (
-            <Stack.Screen name="Main" component={MainTabs} />
+      <ErrorBoundary>
+        <View style={{ flex: 1 }}>
+          {!isOnline && (
+            <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }} numberOfLines={2}>Нет соединения — данные сохраняются локально</Text>
+            </View>
           )}
-        </Stack.Navigator>
-      </View>
+          <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+            {!isAuthenticated ? (
+              <Stack.Screen name="Auth" component={AuthStack} />
+            ) : !isOnboarded ? (
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            ) : (
+              <Stack.Screen name="Main" component={MainTabs} />
+            )}
+          </Stack.Navigator>
+        </View>
+      </ErrorBoundary>
     </NavigationContainer>
   );
 };

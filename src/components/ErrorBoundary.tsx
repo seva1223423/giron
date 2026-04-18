@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <View style={styles.container}>
           <Text style={styles.emoji}>!</Text>
           <Text style={styles.title}>Что-то пошло не так</Text>
-          <Text style={styles.message}>{this.state.error?.message || 'Неизвестная ошибка'}</Text>
+          <Text style={styles.message}>Попробуйте перезапустить приложение.</Text>
           <TouchableOpacity
             style={styles.button}
             onPress={() => this.setState({ hasError: false, error: null })}
