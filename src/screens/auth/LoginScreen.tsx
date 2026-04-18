@@ -225,7 +225,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   const handlePhoneOtpLogin = async () => {
-    if (otpCode.length !== 6) { setLocalError('Введите 6-значный код'); return; }
+    if (anyLoading || otpCode.length !== 6) { if (otpCode.length !== 6) setLocalError('Введите 6-значный код'); return; }
     clearErrors();
     try {
       await loginByPhone(phoneRaw, otpCode);
