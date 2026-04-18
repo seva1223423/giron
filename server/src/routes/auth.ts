@@ -1096,7 +1096,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     // Reuse detection: if the token was already revoked, someone may have stolen it.
     // Revoke ALL tokens for this user to protect the account.
     if (dbToken.revoked) {
-      await Promise.all([
+      await prisma.$transaction([
         prisma.refreshToken.updateMany({ where: { userId: dbToken.userId, revoked: false }, data: { revoked: true } }),
         prisma.trustedDevice.deleteMany({ where: { userId: dbToken.userId } }),
       ]);
@@ -1129,7 +1129,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     });
     if (revokedCount === 0) {
       // Another request already consumed this token concurrently → reuse detection
-      await Promise.all([
+      await prisma.$transaction([
         prisma.refreshToken.updateMany({ where: { userId: dbToken.userId, revoked: false }, data: { revoked: true } }),
         prisma.trustedDevice.deleteMany({ where: { userId: dbToken.userId } }),
       ]);
