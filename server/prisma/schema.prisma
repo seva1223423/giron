@@ -75,6 +75,7 @@ model User {
   pushTokens              PushToken[]
   trustedDevices          TrustedDevice[]
   usedTotpCodes           UsedTotpCode[]
+  foodScanLogs            FoodScanLog[]
 }
 
 enum Gender {
@@ -637,4 +638,13 @@ model TrustedDevice {
 
   @@index([userId])
   @@index([tokenHash])
+}
+
+model FoodScanLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
