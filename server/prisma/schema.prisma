@@ -68,7 +68,7 @@ model User {
   sleepEntries            SleepEntry[]
   announcements           Announcement[]   @relation("Announcements")
 
-  gym                     Gym?      @relation(fields: [gymId], references: [id])
+  gym                     Gym?      @relation(fields: [gymId], references: [id], onDelete: SetNull)
   passwordResetTokens     PasswordResetToken[]
   passwordHistory         PasswordHistory[]
   refreshTokens           RefreshToken[]
