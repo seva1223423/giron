@@ -69,6 +69,9 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('NutritionHistory'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>История</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MealPlan'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+            <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>ИИ-план</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>Калькулятор</Text>
           </TouchableOpacity>

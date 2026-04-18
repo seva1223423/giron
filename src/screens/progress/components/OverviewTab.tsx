@@ -7,6 +7,7 @@ import { BarChart } from './BarChart';
 import { LineChart } from './LineChart';
 import { WeeklyHeatmap } from './WeeklyHeatmap';
 import { MuscleDistributionCard, computeMuscleDistribution } from './MuscleDistributionCard';
+import { MuscleHeatmapCard } from './MuscleHeatmapCard';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { WeeklyInsightsCard } from './WeeklyInsightsCard';
 import { useCardioStore } from '../../../store';
@@ -270,6 +271,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
           </Card>
         </FadeIn>
       )}
+
+      <FadeIn delay={390}>
+        <MuscleHeatmapCard colors={colors} workoutHistory={workoutHistory} />
+      </FadeIn>
 
       <MuscleDistributionCard distribution={muscleDistribution} delay={400} />
 
