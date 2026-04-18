@@ -11926,12 +11926,13 @@ function validateAIResponse(response: string, intent: string): { cleaned: string
     warnings.push('too_short');
   }
 
-  // Ensure response isn't absurdly long
-  if (cleaned.length > 3000) {
+  // Ensure response isn't absurdly long — limit varies by intent
+  // program_creation: 8000 (full program table), general: 5000, others: 3000
+  const maxLen = intent === 'program_creation' ? 8000 : intent === 'general' ? 5000 : 3000;
+  if (cleaned.length > maxLen) {
     warnings.push('too_long');
-    // Trim at last sentence break before 3000 chars
-    const trimPoint = cleaned.lastIndexOf('.', 2800);
-    if (trimPoint > 1500) {
+    const trimPoint = cleaned.lastIndexOf('.', maxLen - 200);
+    if (trimPoint > maxLen * 0.5) {
       cleaned = cleaned.substring(0, trimPoint + 1);
     }
   }
