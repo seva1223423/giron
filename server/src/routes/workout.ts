@@ -360,12 +360,12 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       where: { id },
       include: { exercises: { include: { sets: true } } },
     });
-    const totalVolume = refreshed?.exercises
+    const totalVolume = (refreshed?.exercises ?? [])
       .reduce(
         (total: number, ex: any) =>
           total + ex.sets.filter((s: any) => s.completed && s.type !== 'warmup').reduce((sum: number, s: any) => sum + (s.weight || 0) * (s.reps || 0), 0),
         0
-      ) || 0;
+      );
 
     const startedAt = refreshed?.startedAt;
     const durationMinutes = startedAt ? Math.round((Date.now() - startedAt.getTime()) / 60000) : 0;
