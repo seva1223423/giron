@@ -24,7 +24,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       algorithms: ['HS256'],
     }) as { userId: string; phase?: string };
     // Reject intermediate tokens (e.g. TOTP-pending) — they must not grant full API access
-    if (raw.phase) {
+    if (raw.phase || !raw.userId) {
       return res.status(401).json({ error: 'Недействительный токен' });
     }
     payload = raw;
