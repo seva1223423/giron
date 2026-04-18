@@ -78,10 +78,10 @@ function simpleHash(str: string): string {
   return hash.toString(36);
 }
 
-function getCachedResponse(message: string, intent: string): string | null {
+function getCachedResponse(message: string, intent: string, userId: string): string | null {
   if (!CACHEABLE_INTENTS.has(intent)) return null;
 
-  const key = simpleHash(normalizeForCache(message));
+  const key = simpleHash(normalizeForCache(message) + ':' + userId);
   const cached = AI_RESPONSE_CACHE.get(key);
   if (!cached) return null;
 
@@ -93,7 +93,7 @@ function getCachedResponse(message: string, intent: string): string | null {
   return cached.response;
 }
 
-function setCachedResponse(message: string, intent: string, response: string): void {
+function setCachedResponse(message: string, intent: string, response: string, userId: string): void {
   if (!CACHEABLE_INTENTS.has(intent)) return;
   if (response.length < 50) return; // don't cache very short responses
 
@@ -110,7 +110,7 @@ function setCachedResponse(message: string, intent: string, response: string): v
     if (oldestKey) AI_RESPONSE_CACHE.delete(oldestKey);
   }
 
-  const key = simpleHash(normalizeForCache(message));
+  const key = simpleHash(normalizeForCache(message) + ':' + userId);
   AI_RESPONSE_CACHE.set(key, { response, timestamp: Date.now(), intent });
 }
 
@@ -2893,7 +2893,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const intentConfig = INTENT_CONFIGS[intent];
 
     // ─── Block 28: Check cache for technique/general questions ──────
-    const cachedResponse = getCachedResponse(message, intent);
+    const cachedResponse = getCachedResponse(message, intent, userId);
     if (cachedResponse) {
       logger.debug(`[AI] Cache hit for intent=${intent}`);
       recordAIRequest({ cacheHit: true });
@@ -9283,7 +9283,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // Cache response for technique/general questions (no personal data in response)
     if (performedActions.length === 0) {
-      setCachedResponse(message, intent, aiContent);
+      setCachedResponse(message, intent, aiContent, userId);
     }
 
     // Save AI response with actions
