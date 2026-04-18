@@ -414,7 +414,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
     await recordPasswordHistory(req.userId!, newHash);
 
     // Revoke all refresh tokens and trusted devices (security reset after password change)
-    await Promise.all([
+    await prisma.$transaction([
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
     ]);
@@ -864,7 +864,7 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       }
       throw updateErr;
     }
-    await Promise.all([
+    await prisma.$transaction([
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
     ]);
@@ -959,7 +959,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
       }
       throw updateErr;
     }
-    await Promise.all([
+    await prisma.$transaction([
       prisma.refreshToken.updateMany({ where: { userId: req.userId!, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.userId! } }),
     ]);
