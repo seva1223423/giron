@@ -10413,27 +10413,40 @@ interface MemoryExtraction {
 }
 
 // Patterns to extract user preferences/facts from messages
-const MEMORY_PATTERNS: Array<{ regex: RegExp; category: string; key: string; extract: (match: RegExpMatchArray) => string }> = [
+const MEMORY_PATTERNS: Array<{
+  regex: RegExp;
+  category: string;
+  key: string;
+  // When true, all matches in the message are captured (use with patterns that may appear multiple times)
+  multiMatch?: boolean;
+  // When provided, generates a unique key per match (enables storing multiple values for the same concept)
+  keyFn?: (match: RegExpMatchArray) => string;
+  extract: (match: RegExpMatchArray) => string;
+}> = [
   // Training schedule
   { regex: /тренируюсь?\s*(\d)\s*(раз|дн)/i, category: 'schedule', key: 'training_frequency', extract: (m) => `${m[1]} раз в неделю` },
-  { regex: /по\s*(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)/i, category: 'schedule', key: 'training_days', extract: (m) => m[0] },
+  { regex: /по\s*(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)/gi, category: 'schedule', key: 'training_days', multiMatch: true, keyFn: (m) => `training_day_${m[1].toLowerCase().slice(0, 6)}`, extract: (m) => m[0] },
   // Equipment
   { regex: /(?:занимаюсь|тренируюсь)\s*(дома|в зале|на улице)/i, category: 'preference', key: 'training_location', extract: (m) => m[1] },
-  { regex: /(?:у меня|есть|имеется)\s*(гантел|штанг|турник|брусья|гир|тренажёр|тренажер|резинк)/i, category: 'preference', key: 'available_equipment', extract: (m) => m[1] },
+  { regex: /(?:у меня|есть|имеется)\s*(гантел|штанг|турник|брусья|гир|тренажёр|тренажер|резинк)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
   // Diet preferences
   { regex: /(?:я\s+)?(вегетарианец|веган|не ем мясо|не ем рыб|не пью молок|без глютен|безлактозн)/i, category: 'allergy', key: 'diet_restriction', extract: (m) => m[1] },
-  { regex: /(?:аллерги[яю]|непереносимость)\s+(?:на\s+)?([\wа-яА-Я]+)/i, category: 'allergy', key: 'food_allergy', extract: (m) => m[1] },
-  // Injuries and limitations
-  { regex: /(?:у меня|имеется|была?)\s*(грыж|протрузи|сколиоз|артрит|артроз)/i, category: 'injury', key: 'chronic_condition', extract: (m) => m[1] },
-  { regex: /(?:болит|травмирова|проблемы с)\s*(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп)/i, category: 'injury', key: 'pain_area', extract: (m) => m[1] },
+  { regex: /(?:аллерги[яю]|непереносимость)\s+(?:на\s+)?([\wа-яА-Я]+)/gi, category: 'allergy', key: 'food_allergy', multiMatch: true, keyFn: (m) => `allergy_${m[1].toLowerCase().slice(0, 12)}`, extract: (m) => m[1] },
+  // Injuries and limitations — multi-match so both "болит плечо и колено" get stored separately
+  { regex: /(?:у меня|имеется|была?)\s*(грыж|протрузи|сколиоз|артрит|артроз)/gi, category: 'injury', key: 'chronic_condition', multiMatch: true, keyFn: (m) => `condition_${m[1].toLowerCase().slice(0, 10)}`, extract: (m) => m[1] },
+  { regex: /(?:болит|травмирова|проблемы с)\s*(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп)/gi, category: 'injury', key: 'pain_area', multiMatch: true, keyFn: (m) => `pain_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
   // Preferences
   { regex: /(?:люблю|нравится|предпочитаю)\s*(присед|жим|тяг|кардио|йог|бег|плаван)/i, category: 'preference', key: 'favorite_exercise', extract: (m) => m[1] },
   { regex: /(?:не люблю|ненавижу|не хочу делать)\s*(кардио|присед|бег|планк)/i, category: 'preference', key: 'disliked_exercise', extract: (m) => m[1] },
+  // Workout timing preference
+  { regex: /(?:тренируюсь|хожу в зал|занимаюсь)\s*(утром|вечером|днём|ночью|после работы|до работы)/i, category: 'habit', key: 'workout_time_pref', extract: (m) => m[1] },
   // Sleep pattern
   { regex: /(?:сплю|ложусь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?\s*(?:час|ночи)?/i, category: 'habit', key: 'sleep_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
   { regex: /(?:встаю|просыпаюсь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?/i, category: 'habit', key: 'wake_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
   // Experience
   { regex: /(?:занимаюсь|тренируюсь)\s*(?:уже)?\s*(\d+)\s*(лет|год|месяц)/i, category: 'preference', key: 'experience_stated', extract: (m) => `${m[1]} ${m[2]}` },
+  // Personality / motivation style
+  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+\w+)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1] },
   // Goals — detect when user states a fitness goal in conversation
   { regex: /хочу?\s*(похудеть|сбросить вес|сжечь жир|снизить вес)/i, category: 'preference', key: 'user_goal', extract: () => 'похудение' },
   { regex: /хочу?\s*(набрать|накачаться|нарастить мышц|набрать массу)/i, category: 'preference', key: 'user_goal', extract: () => 'набор массы' },
@@ -10449,15 +10462,30 @@ function extractMemories(message: string): MemoryExtraction[] {
   const memories: MemoryExtraction[] = [];
 
   for (const pattern of MEMORY_PATTERNS) {
-    const match = message.match(pattern.regex);
-    if (match) {
-      memories.push({
-        category: pattern.category,
-        key: pattern.key,
-        value: pattern.extract(match),
-        confidence: 0.7, // stated explicitly
-        source: 'stated',
-      });
+    if (pattern.multiMatch) {
+      // Re-create regex with global flag to capture all occurrences (regex may already have /g)
+      const globalRegex = new RegExp(pattern.regex.source, 'gi');
+      for (const match of message.matchAll(globalRegex)) {
+        const key = pattern.keyFn ? pattern.keyFn(match as RegExpMatchArray) : pattern.key;
+        memories.push({
+          category: pattern.category,
+          key,
+          value: pattern.extract(match as RegExpMatchArray),
+          confidence: 0.7,
+          source: 'stated',
+        });
+      }
+    } else {
+      const match = message.match(pattern.regex);
+      if (match) {
+        memories.push({
+          category: pattern.category,
+          key: pattern.key,
+          value: pattern.extract(match),
+          confidence: 0.7,
+          source: 'stated',
+        });
+      }
     }
   }
 
@@ -10466,12 +10494,14 @@ function extractMemories(message: string): MemoryExtraction[] {
 
 /**
  * Save or update extracted memories in the database.
- * Upsert: if key exists, increase confidence; if new, create.
+ * Upsert: if key exists, increment confidence by 0.05 (reward repeated mentions, capped at 1.0 during cleanup); if new, create with 0.7.
  */
 async function cleanupStaleMemories(userId: string): Promise<void> {
   try {
     // Remove memories with very low confidence
     await prisma.aIMemory.deleteMany({ where: { userId, confidence: { lt: 0.1 } } });
+    // Clamp confidence to 1.0 (can exceed 1.0 from increments)
+    await prisma.aIMemory.updateMany({ where: { userId, confidence: { gt: 1.0 } }, data: { confidence: 1.0 } });
     // Cap total memories per user at 100 — remove oldest lowest-confidence ones
     const count = await prisma.aIMemory.count({ where: { userId } });
     if (count > 100) {
@@ -10503,7 +10533,8 @@ async function saveMemories(userId: string, memories: MemoryExtraction[]): Promi
         },
         update: {
           value: safeValue,
-          confidence: mem.confidence,
+          // Increment confidence each time user re-states the same fact (capped to 1.0 in cleanup)
+          confidence: { increment: 0.05 },
           source: mem.source,
         },
       });
