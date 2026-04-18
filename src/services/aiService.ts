@@ -55,7 +55,8 @@ export const aiService = {
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,
     clientDate?: string,
   ): Promise<{ message: string; actions: AIActionResult[]; meta?: AIMeta }> {
-    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, clientDate });
+    const clientHour = new Date().getHours();
+    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, clientDate, clientHour });
     return { message: data.message, actions: data.actions ?? [], meta: data.meta };
   },
 
@@ -69,6 +70,7 @@ export const aiService = {
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,
     clientDate?: string,
   ): AsyncGenerator<string> {
+    const clientHour = new Date().getHours();
     const token = getAuthToken();
     const response = await fetch(`${BASE_URL}/ai/chat`, {
       method: 'POST',
@@ -76,7 +78,7 @@ export const aiService = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: true, clientDate }),
+      body: JSON.stringify({ message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: true, clientDate, clientHour }),
     });
 
     if (!response.ok) throw new Error(`AI stream error ${response.status}`);

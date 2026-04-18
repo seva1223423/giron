@@ -2543,6 +2543,7 @@ const chatRequestSchema = z.object({
   message: z.string().min(1, 'Сообщение обязательно').max(4000, 'Сообщение слишком длинное (макс. 4000 символов)'),
   stream: z.boolean().optional(),
   clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // client's local YYYY-MM-DD date
+  clientHour: z.number().int().min(0).max(23).optional(), // client's local hour (0-23) for time-aware hints
   nutritionTargets: z.object({
     calories: z.number().finite().min(0).max(100000),
     protein: z.number().finite().min(0).max(10000),
@@ -2579,7 +2580,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const chatParsed = chatRequestSchema.safeParse(req.body);
     if (!chatParsed.success) return res.status(400).json({ error: chatParsed.error.errors[0].message });
-    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode, clientDate } = chatParsed.data;
+    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode, clientDate, clientHour } = chatParsed.data;
     const todayDate = clientDate ?? new Date().toISOString().split('T')[0];
 
     const userId = req.userId!;
@@ -9233,6 +9234,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             sleepEntries: recentSleepEntries as any,
             todayMeals: todayMeals as any,
             todayDate,
+            clientHour,
           };
 
           for (const tc of result.toolCalls) {
