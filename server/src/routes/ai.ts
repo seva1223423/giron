@@ -2250,12 +2250,12 @@ async function executeTool(
     const session = await prisma.cardioSession.create({
       data: { userId, type: safeType, date: sessionDate, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories },
     });
-    const distText = distanceKm ? `, ${distanceKm} км` : '';
-    const calText = caloriesBurned ? `, ~${caloriesBurned} ккал` : '';
+    const distText = safeDistance ? `, ${safeDistance} км` : '';
+    const calText = safeCalories ? `, ~${safeCalories} ккал` : '';
     return {
-      resultText: `Кардио записано: ${safeType} ${durationMinutes} мин${distText}${calText}`,
-      actionDescription: `Кардио: ${safeType} ${durationMinutes} мин`,
-      actionData: { sessionId: session.id, type: safeType, durationMinutes },
+      resultText: `Кардио записано: ${safeType} ${safeDuration} мин${distText}${calText}`,
+      actionDescription: `Кардио: ${safeType} ${safeDuration} мин`,
+      actionData: { sessionId: session.id, type: safeType, durationMinutes: safeDuration },
     };
   }
 
