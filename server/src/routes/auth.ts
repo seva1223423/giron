@@ -669,7 +669,8 @@ router.post('/vk', async (req: Request, res: Response) => {
       if (data.error) throw new Error(data.error.error_msg);
       vkUser = data.response?.[0];
     } catch (e: any) {
-      return res.status(401).json({ error: 'Не удалось получить данные из VK: ' + e.message });
+      logger.warn('VK users.get failed:', e.message);
+      return res.status(401).json({ error: 'Не удалось получить данные из VK' });
     }
 
     if (!vkUser) return res.status(401).json({ error: 'Пользователь VK не найден' });
@@ -757,7 +758,8 @@ router.post('/yandex', async (req: Request, res: Response) => {
       if (!resp.ok) throw new Error(`Yandex API error: ${resp.status}`);
       yandexUser = await resp.json();
     } catch (e: any) {
-      return res.status(401).json({ error: 'Не удалось проверить Yandex токен: ' + e.message });
+      logger.warn('Yandex token validation failed:', e.message);
+      return res.status(401).json({ error: 'Не удалось проверить Yandex токен' });
     }
 
     if (!yandexUser?.id) return res.status(401).json({ error: 'Пользователь Яндекса не найден' });

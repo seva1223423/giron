@@ -15,7 +15,7 @@ function fmt(n: number): string {
 interface Props { colors: any }
 
 export const StepsSection: React.FC<Props> = ({ colors }) => {
-  const { todaySteps, weekSteps, weekDayLabels, weekAvg, isAvailable, isLoading } = usePedometer() as any;
+  const { todaySteps, weekSteps, weekDayLabels, isAvailable, isLoading } = usePedometer();
 
   if (isLoading) return null;
   if (!isAvailable) {
