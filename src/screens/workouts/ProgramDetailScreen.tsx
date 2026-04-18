@@ -53,12 +53,12 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
       return;
     }
 
-    const workoutExercises: WorkoutExercise[] = day.exercises.map((item, index) => {
+    const workoutExercises: WorkoutExercise[] = (day.exercises.map((item, index) => {
       const ex = localExercises.find((e) => e.id === item.exerciseId);
       if (!ex) return null;
       const sets: WorkoutSet[] = Array.from({ length: item.sets }, (_, i) => ({ id: `set-${Date.now()}-${index}-${i}`, setNumber: i + 1, type: 'normal' as const, reps: parseInt(item.reps, 10) || 10, weight: 0, completed: false }));
-      return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: item.rest };
-    }).filter(Boolean) as WorkoutExercise[];
+      return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: 0, sets, restSeconds: item.rest };
+    }).filter(Boolean) as WorkoutExercise[]).map((ex, i) => ({ ...ex, order: i }));
     if (workoutExercises.length === 0) {
       Alert.alert('Ошибка', 'В этой тренировке нет упражнений');
       return;
