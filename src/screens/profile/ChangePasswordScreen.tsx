@@ -58,6 +58,7 @@ export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation
     if (!/[0-9]/.test(newPassword)) { setError('Пароль должен содержать хотя бы одну цифру'); return; }
     if (newPassword !== confirmPassword) { setError('Пароли не совпадают'); return; }
     if (!isSocialOnly && !currentPassword) { setError('Введите текущий пароль'); return; }
+    if (!isSocialOnly && currentPassword === newPassword) { setError('Новый пароль должен отличаться от текущего'); return; }
     if (hasTwoFactor && totpCode.length !== 6) { setError('Введите код из аутентификатора'); return; }
     setError('');
     setLoading(true);
