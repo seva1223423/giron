@@ -118,6 +118,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, [email]);
 
   const startCountdown = (seconds = 60) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
     setOtpCountdown(seconds);
     countdownRef.current = setInterval(() => {
       setOtpCountdown((v) => {
