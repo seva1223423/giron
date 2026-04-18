@@ -49,16 +49,16 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     const startTime = activeWorkout.startTime;
 
     // Update immediately
-    setElapsed(Math.round((Date.now() - startTime) / 60000));
+    setElapsed(Math.max(0, Math.round((Date.now() - startTime) / 60000)));
 
     // Update every 30 seconds
     const interval = setInterval(() => {
-      setElapsed(Math.round((Date.now() - startTime) / 60000));
+      setElapsed(Math.max(0, Math.round((Date.now() - startTime) / 60000)));
     }, 30000);
 
     // Refresh elapsed immediately when app comes back to foreground (interval may have been paused)
     const appStateSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') setElapsed(Math.round((Date.now() - startTime) / 60000));
+      if (state === 'active') setElapsed(Math.max(0, Math.round((Date.now() - startTime) / 60000)));
     });
 
     return () => {
