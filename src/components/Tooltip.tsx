@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
 import { useThemeStore } from '../store';
@@ -15,11 +15,13 @@ export const Tooltip: React.FC<Props> = ({ tipId, text, position = 'bottom', del
   const { colors } = useThemeStore();
   const { hasShown, markShown } = useOnboardingTipsStore();
   const opacity = useSharedValue(0);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!hasShown(tipId)) {
       opacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
     }
+    return () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current); };
   }, []);
 
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
@@ -28,7 +30,8 @@ export const Tooltip: React.FC<Props> = ({ tipId, text, position = 'bottom', del
 
   const dismiss = () => {
     opacity.value = withTiming(0, { duration: 200 });
-    setTimeout(() => markShown(tipId), 200);
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = setTimeout(() => markShown(tipId), 200);
   };
 
   return (

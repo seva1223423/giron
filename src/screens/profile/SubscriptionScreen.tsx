@@ -25,6 +25,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
   useEffect(() => { syncWithBackend(); }, []);
 
   const handleSubscribe = async () => {
+    if (loading) return;
     haptic.success();
     setLoading(true);
     try {
