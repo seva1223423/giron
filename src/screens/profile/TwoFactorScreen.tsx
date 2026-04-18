@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, Image, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, StyleSheet,
@@ -36,6 +36,9 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const [regenCode, setRegenCode] = useState('');
   const [regenerating, setRegenerating] = useState(false);
   const [isRegenResult, setIsRegenResult] = useState(false);
+  const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current); }, []);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -86,7 +89,8 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const digits = value.replace(/\D/g, '').slice(0, 6);
     setCode(digits);
     if (digits.length === 6) {
-      setTimeout(() => enableTotp(digits), 100);
+      if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+      autoSubmitTimerRef.current = setTimeout(() => enableTotp(digits), 100);
     }
   };
 
@@ -111,7 +115,8 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const digits = value.replace(/\D/g, '').slice(0, 6);
     setRegenCode(digits);
     if (digits.length === 6) {
-      setTimeout(() => regenerateBackupCodes(digits), 100);
+      if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current);
+      autoSubmitTimerRef.current = setTimeout(() => regenerateBackupCodes(digits), 100);
     }
   };
 
