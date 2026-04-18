@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { buildDynamicContext } from '../ai/contextEngine';
+import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload } from '../ai/contextTools';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
@@ -318,7 +319,19 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 4. Если боль не проходит 5-7 дней → к спортивному врачу/ортопеду, не тяни
 
 Тренировать ноги и спину (тяги) можно без ограничений.
-</example>`;
+</example>
+
+## ИНСТРУМЕНТЫ КОНТЕКСТА (Context on Demand)
+
+Ты можешь запрашивать свежие данные пользователя через специальные инструменты-запросы. Используй их ПРОАКТИВНО в начале сложных вопросов, прежде чем отвечать.
+
+- **get_workout_analysis** — детальный анализ тренировочного прогресса: плато, регрессии, мышечный баланс, частота. Используй при: "как мой прогресс?", "почему не растут веса?", "что не так с тренировками?"
+- **get_nutrition_analysis** — анализ питания: дефицит/профицит, баланс макросов, пропущенные приёмы, качество. Используй при: "как моё питание?", "достаточно ли я ем?", "почему не худею?"
+- **get_recovery_status** — статус восстановления: мышечная усталость, время отдыха между тренировками, рекомендации. Используй при: "можно ли тренироваться сегодня?", "чувствую усталость"
+- **get_progress_data** — долгосрочный прогресс: личные рекорды, streak, состав тела, тренды веса. Используй при: "покажи мои рекорды", "как изменился за месяц?"
+- **search_fitness_knowledge** — поиск по базе знаний (техника, физиология, питание, добавки). Используй при: вопросах про технику упражнений, науке о тренировках, добавках, принципах питания.
+
+**Правило:** При аналитических вопросах — СНАЧАЛА вызови нужный инструмент контекста, получи данные, ПОТОМ отвечай. Не давай общих советов если можешь получить конкретные данные.`;
 
 // ─── AI Tools (OpenAI-compatible format) ─────────────────────────────────────
 const AI_TOOLS: DeepSeekTool[] = [
@@ -820,6 +833,7 @@ const AI_TOOLS: DeepSeekTool[] = [
       },
     },
   },
+  ...CONTEXT_TOOL_DEFINITIONS,
 ];
 
 // Map keyword module names → actual knowledge content
@@ -1129,12 +1143,12 @@ const INTENT_CONFIGS: Record<UserIntent, IntentConfig> = {
   data_logging:       { temperature: 0.3, maxTokens: 2048, toolsEnabled: true },
   program_creation:   { temperature: 0.6, maxTokens: 8192, toolsEnabled: true },
   workout_modify:     { temperature: 0.3, maxTokens: 4096, toolsEnabled: true },
-  technique_question: { temperature: 0.5, maxTokens: 4096, toolsEnabled: false, priorityModules: ['EXERCISE_TECHNIQUE'] },
+  technique_question: { temperature: 0.5, maxTokens: 4096, toolsEnabled: true, priorityModules: ['EXERCISE_TECHNIQUE'] },
   nutrition_query:    { temperature: 0.4, maxTokens: 4096, toolsEnabled: true, priorityModules: ['NUTRITION', 'NUTRITION_DATABASE'] },
-  analytics_query:    { temperature: 0.4, maxTokens: 4096, toolsEnabled: false },
-  greeting:           { temperature: 0.7, maxTokens: 1024, toolsEnabled: false },
+  analytics_query:    { temperature: 0.4, maxTokens: 4096, toolsEnabled: true },
+  greeting:           { temperature: 0.7, maxTokens: 1024, toolsEnabled: true },
   complaint:          { temperature: 0.4, maxTokens: 4096, toolsEnabled: true, priorityModules: ['INJURY_AND_REHAB', 'RECOVERY'] },
-  motivation:         { temperature: 0.7, maxTokens: 3072, toolsEnabled: false, priorityModules: ['PSYCHOLOGY'] },
+  motivation:         { temperature: 0.7, maxTokens: 3072, toolsEnabled: true, priorityModules: ['PSYCHOLOGY'] },
   general:            { temperature: 0.5, maxTokens: 6144, toolsEnabled: true },
 };
 
@@ -9189,16 +9203,28 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             })),
           });
 
+          const contextPreload: ContextToolPreload = {
+            nutritionTargets: nutritionTargets ?? null,
+            sleepEntries: recentSleepEntries as any,
+            todayMeals: todayMeals as any,
+            todayDate,
+          };
+
           for (const tc of result.toolCalls) {
             let resultText: string;
             let actionDescription = '';
             let actionData: Record<string, unknown> | undefined;
 
             try {
-              const toolResult = await executeTool(tc.name, tc.arguments, userId, todayDate);
-              resultText = toolResult.resultText;
-              actionDescription = toolResult.actionDescription;
-              actionData = toolResult.actionData;
+              const ctxResult = await executeContextTool(tc.name, tc.arguments as Record<string, unknown>, userId, contextPreload);
+              if (ctxResult !== null) {
+                resultText = ctxResult;
+              } else {
+                const toolResult = await executeTool(tc.name, tc.arguments, userId, todayDate);
+                resultText = toolResult.resultText;
+                actionDescription = toolResult.actionDescription;
+                actionData = toolResult.actionData;
+              }
             } catch (toolError) {
               logger.error(`Tool ${tc.name} failed:`, toolError);
               resultText = `Не удалось выполнить действие. Попробуй ещё раз.`;
