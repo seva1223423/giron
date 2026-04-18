@@ -140,8 +140,8 @@ export const SleepTab: React.FC<Props> = ({ colors }) => {
     })),
   [sorted]);
 
-  const qualityColor = avgQuality7 === 0 ? colors.primary
-    : QUALITY_COLORS[Math.min(Math.round(avgQuality7) - 1, 4)];
+  const qualityColorIdx = Math.min(Math.max(Math.round(avgQuality7) - 1, 0), 4);
+  const qualityColor = avgQuality7 === 0 ? colors.primary : QUALITY_COLORS[qualityColorIdx];
 
   const handleSave = (bedtime: string, wakeTime: string, quality: number | null) => {
     haptic.success();
