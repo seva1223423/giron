@@ -1178,7 +1178,7 @@ interface IntentConfig {
 }
 
 const INTENT_CONFIGS: Record<UserIntent, IntentConfig> = {
-  data_logging:       { temperature: 0.3, maxTokens: 2048, toolsEnabled: true },
+  data_logging:       { temperature: 0.3, maxTokens: 3072, toolsEnabled: true },
   program_creation:   { temperature: 0.6, maxTokens: 8192, toolsEnabled: true },
   workout_modify:     { temperature: 0.3, maxTokens: 4096, toolsEnabled: true },
   technique_question: { temperature: 0.5, maxTokens: 4096, toolsEnabled: true, priorityModules: ['EXERCISE_TECHNIQUE'] },
@@ -1207,6 +1207,12 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /(?:логировать|залогировать|добавить?\s*приём)/i,
     /(?:спал[аи]?|поспал[аи]?|лёг\s*в|лег\s*в|встал\s*в|проснул[ся]*\s*в)\s*\d/i,
     /\d+\s*час(?:ов|а)?\s*(?:сна|спал|поспал)/i,
+    // Cardio logging
+    /(?:бежал[аи]?|пробежал[аи]?|пробежк[аи]?|бегал[аи]?)\s*\d/i,
+    /(?:ехал[аи]?|катался?|поехал|вело(?:сипед)?|вел(?:ик)?|велотренажёр)\s*\d/i,
+    /(?:плавал[аи]?|поплавал[аи]?|бассейн)\s*\d/i,
+    /(?:кардио|cardio)\s*(?:сделал[аи]?|выполнил[аи]?|записать?|\d)/i,
+    /\d+\s*мин(?:ут)?\s*(?:бег[аа]?|кардио|вело|бежал|плавани)/i,
   ]],
   ['program_creation', [
     /(?:составь|создай|сделай|придумай|напиши)\s*(?:програм|план|сплит|тренировк)/i,
@@ -1352,12 +1358,16 @@ function detectMood(message: string): MoodDirective {
 
 // ─── Time-Aware Context ─────────────────────────────────────────────────────
 
-function getTimeContext(clientHour?: number): string {
+function getTimeContext(clientHour?: number, clientDate?: string): string {
   const now = new Date();
   const hour = clientHour ?? now.getHours();
   const DAY_NAMES = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
-  const dayName = DAY_NAMES[now.getDay()];
-  const dateStr = now.toLocaleDateString('ru-RU');
+  // Use client-provided date for day-of-week/date string to avoid server-timezone mismatch
+  const refDate = clientDate ? new Date(clientDate + 'T12:00:00.000Z') : now;
+  const dayName = DAY_NAMES[refDate.getDay()];
+  const dateStr = clientDate
+    ? refDate.toLocaleDateString('ru-RU')
+    : now.toLocaleDateString('ru-RU');
 
   let timeOfDay: string;
   let timeHint: string;
@@ -3102,7 +3112,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const { mood, directive: moodDirective } = detectMood(message);
 
     // ─── Time context: inject current time/day for situational awareness ──────
-    const timeContext = getTimeContext(clientHour);
+    const timeContext = getTimeContext(clientHour, todayDate);
 
     // ─── Profile completeness: detect missing data ──────
     const profileGaps = getProfileGaps(user);
