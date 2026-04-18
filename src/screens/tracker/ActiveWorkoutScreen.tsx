@@ -75,11 +75,13 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   // PR toast state
   const [prToast, setPrToast] = useState<{ name: string; rm: number; prevRm?: number } | null>(null);
   const prToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (prToastTimer.current) clearTimeout(prToastTimer.current);
+      if (restEndTimerRef.current) clearTimeout(restEndTimerRef.current);
     };
   }, []);
 
@@ -151,7 +153,8 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           // Use setTimeout to avoid state update during render
-          setTimeout(() => handleRestEnd(), 0);
+          if (restEndTimerRef.current) clearTimeout(restEndTimerRef.current);
+          restEndTimerRef.current = setTimeout(() => handleRestEnd(), 0);
           return 0;
         }
         return prev - 1;
