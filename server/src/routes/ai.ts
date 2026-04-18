@@ -1192,7 +1192,7 @@ const INTENT_CONFIGS: Record<UserIntent, IntentConfig> = {
 
 const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
   ['data_logging', [
-    /(?:вешу|вес\s*\d|взвеси|записать?\s*вес|моё?\s*вес)/i,
+    /(?:вешу|вес\s*\d|взвеси|записать?\s*вес|мой\s*вес\s*\d)/i,
     /(?:съел[аи]?|поел[аи]?|кушал|завтрак|обед|ужин|перекус).*(?:\d|грамм|порц|тарелк)/i,
     /(?:выпил[аи]?|пил[аи]?)\s*(?:вод|стакан|бутылк|чай|кофе|литр|\d)/i,
     /(?:съел[аи]?|поел[аи]?|кушал[аи]?)\b/i,
@@ -1205,7 +1205,7 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /(?:тали[яюи]|обхват\s*(?:тали|груд|плеч)|груд[ьи]|бёдр[ао]?|бицепс|шею?|икр[ыа]?|бедр[оа]?|поясниц[аы]?|предплечь[еяи]?)\s*[\d.,]/i,
     /^\d{2,3}(?:[.,]\d)?\s*(?:кг|kg)\s*$/i,
     /(?:сегодня|утром|вчера)\s*(?:вес|вешу|взвесил[ся]?)\s*\d/i,
-    /(?:записать?\s*(?:замер|измерен|сон|кардио|пробежк|плавание))/i,
+    /(?:записать?|добавить?|внести|залогировать?)\s*(?:замер|измерен|сон|кардио|пробежк|плавание|питание|приём\s*пищи)/i,
     /(?:выпил[аи]?|пил[аи]?)\s*(?:воды?|воду)\s*\d/i,
     /(?:логировать|залогировать|добавить?\s*приём)/i,
     /(?:спал[аи]?|поспал[аи]?|лёг\s*в|лег\s*в|встал\s*в|проснул[ся]*\s*в)\s*\d/i,
@@ -12016,8 +12016,11 @@ function validateAIResponse(response: string, intent: string): { cleaned: string
   }
 
   // Ensure response isn't absurdly long — limit varies by intent
-  // program_creation: 8000 (full program table), general: 5000, others: 3000
-  const maxLen = intent === 'program_creation' ? 8000 : intent === 'general' ? 5000 : 3000;
+  // Align char limits with per-intent token budgets
+  const maxLen = intent === 'program_creation' ? 8000
+    : intent === 'general' ? 6000
+    : ['analytics_query', 'nutrition_query', 'workout_modify', 'technique_question', 'complaint'].includes(intent) ? 5000
+    : 3000;
   if (cleaned.length > maxLen) {
     warnings.push('too_long');
     const trimPoint = cleaned.lastIndexOf('.', maxLen - 200);
