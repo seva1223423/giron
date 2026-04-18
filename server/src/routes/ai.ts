@@ -2543,17 +2543,10 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode, clientDate } = chatParsed.data;
     const todayDate = clientDate ?? new Date().toISOString().split('T')[0];
 
-    // Set SSE headers early if streaming requested
-    if (streamMode) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-    }
-
     const userId = req.userId!;
 
     // ── Server-side daily message quota ──────────────────────────────────────
+    // Rate limit check BEFORE SSE headers — once headers are flushed we can't send 402 JSON.
     // Free-tier users: max 10 AI messages/day. Paid plans: unlimited.
     const AI_FREE_DAILY_LIMIT = 10;
     const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
@@ -2566,6 +2559,14 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       if (todayCount >= AI_FREE_DAILY_LIMIT) {
         return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
       }
+    }
+
+    // Set SSE headers after quota check — prevents sending JSON error over an open SSE stream
+    if (streamMode) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
     }
 
     // Fetch all user context data in parallel — 8 independent queries
