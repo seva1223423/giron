@@ -41,7 +41,7 @@ const addClientSchema = z.object({
 });
 
 const updateClientSchema = addClientSchema.partial().extend({
-  totalWorkouts: z.number().int().finite().min(0).optional(),
+  totalWorkouts: z.number().int().finite().min(0).max(100000).optional(),
   lastVisit: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'lastVisit должен быть в формате YYYY-MM-DD').optional(),
 });
 
@@ -124,7 +124,7 @@ const sessionSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   name: z.string().min(1).max(200),
   durationMinutes: z.number().int().finite().min(1).max(600),
-  volumeKg: z.number().finite().min(0).optional(),
+  volumeKg: z.number().finite().min(0).max(100000).optional(),
   notes: z.string().max(1000).optional(),
 });
 
