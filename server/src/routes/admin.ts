@@ -583,13 +583,13 @@ router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Respon
     if (req.params.id === req.userId) {
       return res.status(400).json({ error: 'Нельзя заблокировать самого себя' });
     }
-    const user = await prisma.user.update({
-      where: { id: req.params.id as string },
-      data: { isBanned: true, bannedAt: new Date(), banReason: reason },
-      select: { id: true, email: true, firstName: true, isBanned: true },
-    });
-    // Revoke all sessions immediately so banned user can't stay logged in
-    await Promise.all([
+    // Ban + revoke sessions atomically — prevents banned user from using a valid refresh token during the window
+    const [user] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: req.params.id as string },
+        data: { isBanned: true, bannedAt: new Date(), banReason: reason },
+        select: { id: true, email: true, firstName: true, isBanned: true },
+      }),
       prisma.refreshToken.updateMany({ where: { userId: req.params.id as string, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.params.id as string } }),
     ]);
@@ -2281,7 +2281,7 @@ router.post('/users/:id/force-logout', requireAdmin, async (req: AuthRequest, re
   try {
     const target = await prisma.user.findUnique({ where: { id: req.params.id as string }, select: { id: true } });
     if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
-    const [{ count }, { count: deviceCount }] = await Promise.all([
+    const [{ count }, { count: deviceCount }] = await prisma.$transaction([
       prisma.refreshToken.updateMany({
         where: { userId: req.params.id as string, revoked: false },
         data: { revoked: true },
