@@ -3123,12 +3123,24 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // Add weekly plan context if provided
     if (weekPlan && Object.keys(weekPlan).length > 0) {
       const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+
+      // Detect exercise IDs (cuid: 25 chars, no spaces) and resolve them to names in one batch query
+      const looksLikeId = (s: string) => s.length >= 20 && !/\s/.test(s);
+      const allExerciseIds = Object.values(weekPlan)
+        .flatMap((e) => (e?.exercises ?? []).filter(looksLikeId));
+      const idToName = new Map<string, string>();
+      if (allExerciseIds.length > 0) {
+        const resolved = await prisma.exercise.findMany({ where: { id: { in: allExerciseIds } }, select: { id: true, name: true } });
+        resolved.forEach((ex) => idToName.set(ex.id, ex.name));
+      }
+
       const planLines: string[] = [];
       for (let i = 0; i <= 6; i++) {
         const entry = weekPlan[i];
         if (entry) {
-          const exStr = entry.exercises && entry.exercises.length > 0
-            ? ` (${entry.exercises.slice(0, 5).join(', ')}${entry.exercises.length > 5 ? ` +${entry.exercises.length - 5}` : ''})`
+          const resolvedExercises = (entry.exercises ?? []).map((ex) => idToName.get(ex) ?? ex);
+          const exStr = resolvedExercises.length > 0
+            ? ` (${resolvedExercises.slice(0, 5).join(', ')}${resolvedExercises.length > 5 ? ` +${resolvedExercises.length - 5}` : ''})`
             : '';
           planLines.push(`- ${DAY_NAMES[i]}: ${entry.emoji} ${entry.name}${exStr}`);
         } else {
