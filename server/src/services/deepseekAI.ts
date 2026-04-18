@@ -471,25 +471,38 @@ export async function analyzeImage(
   };
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const response = await fetchWithTimeout(`${AI_BASE_URL}/chat/completions`, fetchOptions, REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetchWithTimeout(`${AI_BASE_URL}/chat/completions`, fetchOptions, REQUEST_TIMEOUT_MS);
 
-    if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
-      const retryAfter = response.headers.get('retry-after');
-      const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : NaN;
-      const delay = Math.max(RETRY_DELAY_MS, Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : RETRY_DELAY_MS * (attempt + 1));
-      logger.warn(`AI vision ${response.status}, retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
-      await sleep(delay);
-      continue;
+      if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
+        const retryAfter = response.headers.get('retry-after');
+        const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : NaN;
+        const delay = Math.max(RETRY_DELAY_MS, Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : RETRY_DELAY_MS * (attempt + 1));
+        logger.warn(`AI vision ${response.status}, retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
+        await sleep(delay);
+        continue;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI vision error ${response.status}: ${errorText}`);
+      }
+
+      let data: { choices?: Array<{ message?: { content?: string } }> };
+      try { data = await response.json(); } catch (e) { throw new Error(`AI vision parse error: ${(e as Error).message}`); }
+      return data.choices?.[0]?.message?.content || '';
+    } catch (err) {
+      const isRetryable = (err as Error).name === 'AbortError' ||
+        (err as Error).message?.includes('fetch') ||
+        (err as Error).message?.includes('ECONNREFUSED') ||
+        (err as Error).message?.includes('ETIMEDOUT');
+      if (isRetryable && attempt < MAX_RETRIES) {
+        logger.warn(`AI vision network error, retry ${attempt + 1}/${MAX_RETRIES}: ${(err as Error).message}`);
+        await sleep(RETRY_DELAY_MS * (attempt + 1));
+        continue;
+      }
+      throw err;
     }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`AI vision error ${response.status}: ${errorText}`);
-    }
-
-    let data: { choices?: Array<{ message?: { content?: string } }> };
-    try { data = await response.json(); } catch (e) { throw new Error(`AI vision parse error: ${(e as Error).message}`); }
-    return data.choices?.[0]?.message?.content || '';
   }
   throw new Error('AI vision: max retries exceeded');
 }
