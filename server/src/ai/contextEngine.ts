@@ -426,7 +426,7 @@ function buildRecoveryBlock(data: ChatContextData): string {
   }
 
   let consecutive = 0;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = data.todayDate;
   for (let i = 0; i < 7; i++) {
     const d = new Date(todayStr);
     d.setDate(d.getDate() - i);
