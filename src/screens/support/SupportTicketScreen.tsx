@@ -64,15 +64,28 @@ export default function SupportTicketScreen() {
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
-    setText('');
     await sendMessage(ticketId, trimmed);
-    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    const sendError = useSupportStore.getState().error;
+    if (sendError) {
+      Alert.alert('Ошибка', sendError);
+    } else {
+      setText('');
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    }
   }, [text, sending, ticketId]);
 
   const handleClose = useCallback(() => {
     Alert.alert('Закрыть обращение?', 'После закрытия вы не сможете отправлять сообщения.', [
       { text: 'Отмена', style: 'cancel' },
-      { text: 'Закрыть', style: 'destructive', onPress: () => closeTicket(ticketId) },
+      {
+        text: 'Закрыть',
+        style: 'destructive',
+        onPress: async () => {
+          await closeTicket(ticketId);
+          const closeError = useSupportStore.getState().error;
+          if (closeError) Alert.alert('Ошибка', 'Не удалось закрыть обращение. Попробуйте ещё раз.');
+        },
+      },
     ]);
   }, [ticketId]);
 
