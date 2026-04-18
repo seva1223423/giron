@@ -81165,6 +81165,9 @@ function getFemaleTrainingSpecifics(message: string): string {
 router.get('/starters', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    // Use client-provided date/hour to avoid server timezone mismatch
+    const clientDate = (req.query.clientDate as string | undefined)?.match(/^\d{4}-\d{2}-\d{2}$/) ? req.query.clientDate as string : new Date().toISOString().split('T')[0];
+    const clientHour = req.query.clientHour !== undefined ? Math.max(0, Math.min(23, parseInt(req.query.clientHour as string, 10) || 0)) : new Date().getHours();
     const starters: Array<{ emoji: string; text: string; action?: string }> = [];
 
     const [user, lastWorkout, todayMeals, bodyWeight, activeProgram] = await Promise.all([
@@ -81174,15 +81177,16 @@ router.get('/starters', authenticate, async (req: AuthRequest, res: Response) =>
         orderBy: { completedAt: 'desc' },
       }),
       prisma.meal.findMany({
-        where: { userId, date: new Date().toISOString().split('T')[0] },
+        where: { userId, date: clientDate },
       }),
       prisma.bodyWeight.findFirst({ where: { userId }, orderBy: { date: 'desc' } }),
       prisma.program.findFirst({ where: { userId, isActive: true } }),
     ]);
 
-    const hour = new Date().getHours();
+    const hour = clientHour;
     const DAY_NAMES_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
-    const dayShort = DAY_NAMES_SHORT[new Date().getDay()];
+    const refDay = clientDate ? new Date(clientDate + 'T12:00:00.000Z') : new Date();
+    const dayShort = DAY_NAMES_SHORT[refDay.getUTCDay()];
 
     // 1. Time-based meal suggestion
     if (todayMeals.length === 0 && hour >= 7 && hour < 11) {

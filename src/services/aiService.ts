@@ -139,9 +139,12 @@ export const aiService = {
     }
   },
 
-  async getStarters(): Promise<AIStarter[]> {
+  async getStarters(clientDate?: string, clientHour?: number): Promise<AIStarter[]> {
     try {
-      const { data } = await api.get('/ai/starters');
+      const params: Record<string, string | number> = {};
+      if (clientDate) params.clientDate = clientDate;
+      if (clientHour !== undefined) params.clientHour = clientHour;
+      const { data } = await api.get('/ai/starters', { params });
       return data.starters ?? [];
     } catch {
       return [];
