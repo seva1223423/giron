@@ -54,8 +54,11 @@ export const useSleepStore = create<SleepStore>()(
       removeEntry: (date) => {
         const snapshot = get().entries;
         set((state) => ({ entries: state.entries.filter((e) => e.date !== date) }));
-        userService.deleteSleep(date).catch(() => {
-          set({ entries: snapshot });
+        userService.deleteSleep(date).catch((err) => {
+          // 404 = entry was never synced to server (local-only) — treat as success
+          if (err?.response?.status !== 404) {
+            set({ entries: snapshot });
+          }
         });
       },
 
