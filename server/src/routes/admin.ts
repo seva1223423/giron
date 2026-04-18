@@ -1572,10 +1572,10 @@ router.get('/staff', requireStaff, async (_req: AuthRequest, res: Response) => {
 });
 
 /** PATCH /admin/support/:id/assign — assign ticket to a staff member (or unassign with null) */
-router.patch('/support/:id/assign', requireStaff, async (req: AuthRequest, res: Response) => {
+router.patch('/support/:id/assign', requireAdmin, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
-    const { assignedToId } = z.object({ assignedToId: z.string().nullable() }).parse(req.body);
+    const { assignedToId } = z.object({ assignedToId: z.string().cuid().nullable() }).parse(req.body);
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
     // Validate assignee is staff if not null
