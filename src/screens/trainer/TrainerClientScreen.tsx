@@ -88,7 +88,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
   };
 
   const handleLogSession = async () => {
-    if (!sessionName.trim() || !sessionDuration.trim()) return;
+    if (savingSession || !sessionName.trim() || !sessionDuration.trim()) return;
     haptic.success();
     setSavingSession(true);
     try {
