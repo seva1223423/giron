@@ -168,6 +168,7 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
       const msgLower = data.message.toLowerCase();
       const isFoodLog = /съел|поел|завтрак|обед|ужин|перекус|гречк|курица|творог|ккал|калори|белк|протеин|углевод|жир|порц|грамм|блюдо|продукт/i.test(msgLower);
       const isSleepLog = /спал|поспал|лёг|лег\s*в|встал|проснул|сон|ночь|часов сна/i.test(msgLower);
+      const isWeightLog = /вешу|мой\s*вес|\d{2,3}[\s.,]\d?\s*кг|взвесил[ся]?/.test(msgLower);
       if (isFoodLog) {
         const macros = buildMacroBalanceBlock(data);
         if (macros) blocks.push(macros);
@@ -175,6 +176,10 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
       if (isSleepLog) {
         const sleep = buildSleepBlock(data);
         if (sleep) blocks.push(sleep);
+      }
+      if (isWeightLog) {
+        const bodyComp = buildBodyCompBlock(data);
+        if (bodyComp) blocks.push(bodyComp);
       }
       break;
     }
@@ -202,6 +207,9 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
       if (soreness) blocks.push(soreness);
       const injury = buildInjuryZoneBlock(data);
       if (injury) blocks.push(injury);
+      // Sleep is a key recovery factor — always include for complaints
+      const sleep = buildSleepBlock(data);
+      if (sleep) blocks.push(sleep);
       break;
     }
 
