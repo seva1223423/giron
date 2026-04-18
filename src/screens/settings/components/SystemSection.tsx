@@ -60,10 +60,14 @@ export const SystemSection: React.FC = () => {
       Alert.alert('Восстановить данные?', 'Текущие данные будут заменены.', [
         { text: 'Отмена', style: 'cancel' },
         { text: 'Восстановить', style: 'destructive', onPress: async () => {
-          if (data.workouts) await AsyncStorage.setItem('iron-gym-workouts', JSON.stringify(data.workouts));
-          if (data.nutrition) await AsyncStorage.setItem('iron-gym-nutrition', JSON.stringify(data.nutrition));
-          if (data.settings) await AsyncStorage.setItem('iron-gym-settings', JSON.stringify(data.settings));
-          Alert.alert('Готово', 'Данные восстановлены. Перезапустите приложение для применения.');
+          try {
+            if (data.workouts) await AsyncStorage.setItem('iron-gym-workouts', JSON.stringify(data.workouts));
+            if (data.nutrition) await AsyncStorage.setItem('iron-gym-nutrition', JSON.stringify(data.nutrition));
+            if (data.settings) await AsyncStorage.setItem('iron-gym-settings', JSON.stringify(data.settings));
+            Alert.alert('Готово', 'Данные восстановлены. Перезапустите приложение для применения.');
+          } catch {
+            Alert.alert('Ошибка', 'Не удалось записать данные. Проверь свободное место на устройстве.');
+          }
         }},
       ]);
     } catch (e) {

@@ -27,53 +27,61 @@ export const NotificationsSection: React.FC = () => {
 
   const handleToggleNotifications = async (value: boolean) => {
     haptic.selection();
-    if (value) {
-      const status = await getNotificationPermissionStatus();
-      let granted = status === 'granted';
-      if (!granted) granted = await requestNotificationPermissions();
-      if (granted) {
-        await scheduleDailyWorkoutReminder(reminderHour, 0);
-        setNotificationsEnabled(true);
-        Alert.alert('Уведомления включены', `Напоминание каждый день в ${reminderHour}:00.`);
+    try {
+      if (value) {
+        const status = await getNotificationPermissionStatus();
+        let granted = status === 'granted';
+        if (!granted) granted = await requestNotificationPermissions();
+        if (granted) {
+          await scheduleDailyWorkoutReminder(reminderHour, 0);
+          setNotificationsEnabled(true);
+          Alert.alert('Уведомления включены', `Напоминание каждый день в ${reminderHour}:00.`);
+        } else {
+          Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства:\nНастройки → Iron Gym → Уведомления.');
+        }
       } else {
-        Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства:\nНастройки → Iron Gym → Уведомления.');
+        await cancelWorkoutReminders();
+        setNotificationsEnabled(false);
       }
-    } else {
-      await cancelWorkoutReminders();
-      setNotificationsEnabled(false);
-    }
+    } catch { /* notification scheduling can fail on restricted devices — ignore */ }
   };
 
   const handleChangeReminderTime = async (hour: number) => {
     haptic.selection();
     setReminderHour(hour);
     setShowTimePicker(false);
-    if (notificationsEnabled) await scheduleDailyWorkoutReminder(hour, 0);
+    try {
+      if (notificationsEnabled) await scheduleDailyWorkoutReminder(hour, 0);
+    } catch { /* ignore scheduling errors */ }
   };
 
   const handleToggleWaterReminders = async (value: boolean) => {
     haptic.selection();
-    if (value) {
-      const status = await getNotificationPermissionStatus();
-      let granted = status === 'granted';
-      if (!granted) granted = await requestNotificationPermissions();
-      if (granted) {
-        await scheduleWaterReminders(waterReminderInterval);
-        setWaterRemindersEnabled(true);
-        Alert.alert('Напоминания о воде включены', `Буду напоминать каждые ${waterReminderInterval} ч с 8:00 до 22:00.`);
+    try {
+      if (value) {
+        const status = await getNotificationPermissionStatus();
+        let granted = status === 'granted';
+        if (!granted) granted = await requestNotificationPermissions();
+        if (granted) {
+          await scheduleWaterReminders(waterReminderInterval);
+          setWaterRemindersEnabled(true);
+          Alert.alert('Напоминания о воде включены', `Буду напоминать каждые ${waterReminderInterval} ч с 8:00 до 22:00.`);
+        } else {
+          Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства.');
+        }
       } else {
-        Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства.');
+        await cancelWaterReminders();
+        setWaterRemindersEnabled(false);
       }
-    } else {
-      await cancelWaterReminders();
-      setWaterRemindersEnabled(false);
-    }
+    } catch { /* ignore scheduling errors */ }
   };
 
   const handleWaterIntervalChange = async (hours: number) => {
     haptic.selection();
     setWaterReminderInterval(hours);
-    if (waterRemindersEnabled) await scheduleWaterReminders(hours);
+    try {
+      if (waterRemindersEnabled) await scheduleWaterReminders(hours);
+    } catch { /* ignore scheduling errors */ }
   };
 
   return (
