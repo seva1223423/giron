@@ -1448,10 +1448,10 @@ function getRelevantKnowledge(
 
       // Profile-based implicit relevance boost
       if (userContext?.gender === 'FEMALE' && module === 'WOMENS_PROGRAMMING') score += 2.0;
-      if (userContext?.goal === 'weight_loss' && module === 'CUTTING_BULKING') score += 1.5;
-      if (userContext?.goal === 'muscle_gain' && module === 'CUTTING_BULKING') score += 1.5;
-      if (userContext?.goal === 'strength' && module === 'POWERLIFTING') score += 1.5;
-      if (userContext?.goal === 'endurance' && module === 'ENDURANCE_SPORTS') score += 1.5;
+      if (userContext?.goal === 'WEIGHT_LOSS' && module === 'CUTTING_BULKING') score += 1.5;
+      if (userContext?.goal === 'MUSCLE_GAIN' && module === 'CUTTING_BULKING') score += 1.5;
+      if (userContext?.goal === 'STRENGTH' && module === 'POWERLIFTING') score += 1.5;
+      if (userContext?.goal === 'ENDURANCE' && module === 'ENDURANCE_SPORTS') score += 1.5;
 
       // Diversity bonus: number of distinct matched keywords matters
       const uniqueMatches = new Set(matchedKeywords).size;
@@ -2327,16 +2327,39 @@ async function executeTool(
   }
 
   if (toolName === 'log_body_measurement') {
-    const measurements = (toolInput && typeof toolInput === 'object' ? toolInput : {}) as Record<string, number>;
-    const fields = Object.entries(measurements).filter(([_, v]) => typeof v === 'number' && v > 0);
-    if (fields.length === 0) return { resultText: 'Нет данных для записи', actionDescription: '' };
-    const labels: Record<string, string> = { chest: 'грудь', waist: 'талия', hips: 'бёдра', bicepLeft: 'бицепс Л', bicepRight: 'бицепс П', thighLeft: 'бедро Л', thighRight: 'бедро П', neck: 'шея', calfLeft: 'икра Л', calfRight: 'икра П' };
-    const summary = fields.map(([k, v]) => `${labels[k] || k}: ${v} см`).join(', ');
-    const safeMeasurements = Object.fromEntries(fields);
+    const raw = (toolInput && typeof toolInput === 'object' ? toolInput : {}) as Record<string, number>;
+    const toNum = (v: unknown) => (typeof v === 'number' && v > 0 && v < 500 ? v : null);
+    // DB schema uses single fields (bicep, thigh, calf) — average left/right if both provided
+    const avg = (a: unknown, b: unknown) => {
+      const na = toNum(a), nb = toNum(b);
+      if (na && nb) return Math.round((na + nb) / 2 * 10) / 10;
+      return na ?? nb;
+    };
+    const dbData: Record<string, number | null> = {
+      chest: toNum(raw.chest),
+      waist: toNum(raw.waist),
+      hips: toNum(raw.hips),
+      bicep: avg(raw.bicepLeft, raw.bicepRight) ?? toNum(raw.bicep),
+      thigh: avg(raw.thighLeft, raw.thighRight) ?? toNum(raw.thigh),
+      calf: avg(raw.calfLeft, raw.calfRight) ?? toNum(raw.calf),
+      neck: toNum(raw.neck),
+    };
+    const presentFields = Object.entries(dbData).filter(([, v]) => v !== null);
+    if (presentFields.length === 0) return { resultText: 'Нет данных для записи', actionDescription: '' };
+
+    const measureDate = new Date(`${clientDate ?? new Date().toISOString().split('T')[0]}T00:00:00.000Z`);
+    await prisma.bodyMeasurement.upsert({
+      where: { userId_date: { userId, date: measureDate } },
+      create: { userId, date: measureDate, ...Object.fromEntries(presentFields) },
+      update: Object.fromEntries(presentFields),
+    });
+
+    const LABELS: Record<string, string> = { chest: 'грудь', waist: 'талия', hips: 'бёдра', bicep: 'бицепс', thigh: 'бедро', neck: 'шея', calf: 'икра' };
+    const summary = presentFields.map(([k, v]) => `${LABELS[k] || k}: ${v} см`).join(', ');
     return {
       resultText: `Замеры записаны: ${summary}`,
       actionDescription: `Замеры тела: ${summary}`,
-      actionData: { date: clientDate ?? new Date().toISOString().split('T')[0], ...safeMeasurements },
+      actionData: { date: (clientDate ?? new Date().toISOString().split('T')[0]), ...Object.fromEntries(presentFields) },
     };
   }
 
@@ -3135,6 +3158,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         fitnessLevel: user.fitnessLevel,
         weightKg: user.weightKg,
         heightCm: user.heightCm,
+        age: user.dateOfBirth ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null,
         trainingExperienceYears: user.trainingExperienceYears,
         gender: (user as any).gender ?? null,
         healthRestrictions: user.healthRestrictions,
