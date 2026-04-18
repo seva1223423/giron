@@ -57,8 +57,9 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         const snapshot = get().entries;
         const entry = get().entries.find((e) => e.id === id);
         set((s) => ({ entries: s.entries.filter((e) => e.id !== id) }));
-        // Sync deletion to server; rollback if server rejects
-        if (entry?.date) {
+        // Only sync deletion for server-persisted entries; local-only entries (pending sync)
+        // are not on the server yet so calling delete would 404 and rollback the local removal.
+        if (entry?.date && entry.id.startsWith('server-')) {
           userService.deleteMeasurement(entry.date).catch(() => {
             set({ entries: snapshot });
           });
