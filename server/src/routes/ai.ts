@@ -1286,9 +1286,9 @@ function detectMood(message: string): MoodDirective {
 
 // ─── Time-Aware Context ─────────────────────────────────────────────────────
 
-function getTimeContext(): string {
+function getTimeContext(clientHour?: number): string {
   const now = new Date();
-  const hour = now.getHours();
+  const hour = clientHour ?? now.getHours();
   const DAY_NAMES = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
   const dayName = DAY_NAMES[now.getDay()];
   const dateStr = now.toLocaleDateString('ru-RU');
@@ -2972,7 +2972,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const { mood, directive: moodDirective } = detectMood(message);
 
     // ─── Time context: inject current time/day for situational awareness ──────
-    const timeContext = getTimeContext();
+    const timeContext = getTimeContext(clientHour);
 
     // ─── Profile completeness: detect missing data ──────
     const profileGaps = getProfileGaps(user);
