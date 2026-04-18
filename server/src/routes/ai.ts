@@ -3109,7 +3109,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     if (user && nutritionTargets && todayMeals.length > 0) {
       const totalProt = todayMeals.reduce((s, m) => s + m.totalProtein, 0);
       const targetProt = nutritionTargets.protein;
-      const hourNow = new Date().getHours();
+      const hourNow = clientHour ?? new Date().getHours();
       // If past 14:00 and protein eaten < 40% of target — flag
       if (hourNow >= 14 && targetProt > 0 && totalProt < targetProt * 0.4) {
         proactiveInsights.push(`⚠️ ВНИМАНИЕ: пользователь съел всего ${Math.round(totalProt)}г белка из ${targetProt}г (${Math.round(totalProt / targetProt * 100)}%) — а уже вторая половина дня. ОБЯЗАТЕЛЬНО упомяни это.`);
@@ -3214,7 +3214,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 17: Nutrition timing intelligence ──────
     const nutritionTimingAdvice = getNutritionTimingAdvice(
-      new Date().getHours(),
+      clientHour ?? new Date().getHours(),
       todayMeals.map((m) => ({ type: m.type, totalCalories: m.totalCalories, totalProtein: m.totalProtein, createdAt: m.createdAt })),
       recentWorkouts.map((w) => ({ completedAt: w.completedAt })),
       nutritionTargets,
@@ -3405,7 +3405,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
 
     // ─── Block 48: Supplement timing advisor ──────
-    const currentHour = new Date().getHours();
+    const currentHour = clientHour ?? new Date().getHours();
     const supplementContext = buildSupplementAdvice(
       user?.goal || null,
       !!scheduledWorkoutToday,
@@ -3961,7 +3961,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
 
     // ─── Block 137: Time-of-day optimization ──────
-    const currentHourNow = new Date().getHours();
+    const currentHourNow = clientHour ?? new Date().getHours();
     const timeAdviceContext = buildTimeBasedAdvice(currentHourNow, typicalHour);
 
     // ─── Block 138: Muscle group synergy ──────
@@ -7367,7 +7367,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     // ─── Block 30: Smart greeting directive ──────
     let greetingDirective = '';
     if (intent === 'greeting') {
-      const hour = new Date().getHours();
+      const hour = clientHour ?? new Date().getHours();
       let tod = 'день';
       if (hour >= 5 && hour < 12) tod = 'утро';
       else if (hour >= 12 && hour < 17) tod = 'день';
@@ -7398,6 +7398,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
       greetingDirective = buildSmartGreetingDirective({
         timeOfDay: tod,
+        clientHour: clientHour ?? undefined,
         userName: user?.firstName || 'друг',
         daysSinceLastWorkout: daysSinceLast,
         lastWorkoutName: lastWo?.name || null,
@@ -10777,6 +10778,7 @@ ${advice.suggestion}
 
 interface GreetingContext {
   timeOfDay: string; // утро/день/вечер/ночь
+  clientHour?: number; // client's local hour (0-23) for time-sensitive checks
   userName: string;
   daysSinceLastWorkout: number | null;
   lastWorkoutName: string | null;
@@ -10830,7 +10832,7 @@ function buildSmartGreetingDirective(ctx: GreetingContext): string {
 
   // Nutrition check
   if (ctx.todayMealsCount === 0) {
-    const hour = new Date().getHours();
+    const hour = ctx.clientHour ?? new Date().getHours();
     if (hour >= 10) {
       lines.push(`Пользователь ещё не записал ни одного приёма пищи сегодня. Если уместно — напомни.`);
     }
