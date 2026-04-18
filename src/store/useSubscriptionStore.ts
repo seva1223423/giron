@@ -115,6 +115,7 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
           set({
             isPremium: data.isPremium,
             premiumExpiresAt: data.expiresAt || null,
+            plan: data.plan || null,
             status: data.status,
           });
           return { message: data.message };
