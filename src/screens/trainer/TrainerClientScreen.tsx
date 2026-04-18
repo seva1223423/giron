@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useTrainerStore } from '../../store';
@@ -109,6 +109,8 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
       setSessionVolume('');
       setSessionNotes('');
       setShowLogSession(false);
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось сохранить тренировку. Попробуйте ещё раз.');
     } finally {
       setSavingSession(false);
     }
