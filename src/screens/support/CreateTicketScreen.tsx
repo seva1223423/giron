@@ -31,6 +31,7 @@ export default function CreateTicketScreen() {
   const [message, setMessage] = useState('');
 
   const handleSubmit = async () => {
+    if (sending) return;
     const trimSubject = subject.trim();
     const trimMessage = message.trim();
     if (!trimSubject) { Alert.alert('Укажите тему обращения'); return; }
