@@ -133,14 +133,24 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
       break;
     }
 
-    case 'nutrition_query':
-    case 'data_logging': {
+    case 'nutrition_query': {
       const macros = buildMacroBalanceBlock(data);
       if (macros) blocks.push(macros);
       const gaps = buildNutritionGapsBlock(data);
       if (gaps) blocks.push(gaps);
       const timing = buildMealTimingBlock(data);
       if (timing) blocks.push(timing);
+      break;
+    }
+
+    case 'data_logging': {
+      // Only add nutrition context if the message looks food-related
+      const msgLower = data.message.toLowerCase();
+      const isFoodLog = /съел|поел|завтрак|обед|ужин|перекус|гречк|курица|творог|ккал|калори|белк|протеин|углевод|жир|порц|грамм/i.test(msgLower);
+      if (isFoodLog) {
+        const macros = buildMacroBalanceBlock(data);
+        if (macros) blocks.push(macros);
+      }
       break;
     }
 
