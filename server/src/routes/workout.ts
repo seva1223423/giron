@@ -244,9 +244,9 @@ router.post('/start', authenticate, async (req: AuthRequest, res: Response) => {
 // Sync a locally-completed workout to the server (offline-first pattern)
 // Uses clientId as idempotency key — if the workout was already synced, returns the existing record
 router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
+  const parsed = syncWorkoutSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
   try {
-    const parsed = syncWorkoutSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
     const { clientId, name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = parsed.data;
 
     // If clientId provided, check if this workout was already synced (idempotency).
@@ -306,8 +306,13 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(workout);
   } catch (e: any) {
-    // P2002 = unique constraint violation — clientId already taken globally (another user's workout)
+    // P2002 = unique constraint violation — concurrent sync with same clientId+userId
     if (e?.code === 'P2002' && e?.meta?.target?.includes?.('clientId')) {
+      // Race condition: another request already created it — return existing record
+      if (parsed.success && parsed.data.clientId) {
+        const existing = await prisma.workout.findFirst({ where: { clientId: parsed.data.clientId, userId: req.userId! } }).catch(() => null);
+        if (existing) return res.status(200).json(existing);
+      }
       return res.status(409).json({ error: 'Тренировка с данным clientId уже существует' });
     }
     // P2003 = foreign key constraint — one of the exerciseIds does not exist

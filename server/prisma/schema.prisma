@@ -170,7 +170,7 @@ model Program {
 
 model Workout {
   id              String    @id @default(cuid())
-  clientId        String?   @unique // client-generated ID for offline-first idempotency
+  clientId        String?   // client-generated ID for offline-first idempotency
   name            String
   description     String?
   scheduledDate   DateTime?
@@ -189,6 +189,7 @@ model Workout {
 
   createdAt       DateTime  @default(now())
 
+  @@unique([clientId, userId]) // per-user idempotency: same timestamp can't collide across users
   @@index([userId])
   @@index([completedAt])
   // Composite for leaderboard: groupBy filters completedAt IS NOT NULL, groups by userId;
