@@ -213,12 +213,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       ? await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true })
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, base64: true });
     if (!result.canceled && result.assets[0]) {
-      if (!consumeFoodScan()) { setShowPaywall(true); return; }
       const base64 = result.assets[0].base64 || '';
       if (base64.length > 5_000_000) {
         setError('Изображение слишком большое. Выбери изображение поменьше.');
         return;
       }
+      // Consume credit only after passing validation checks
+      if (!consumeFoodScan()) { setShowPaywall(true); return; }
       setImageUri(result.assets[0].uri);
       setError('');
       analyzeFood(base64);
