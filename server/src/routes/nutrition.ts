@@ -87,7 +87,7 @@ router.get('/meals', authenticate, async (req: AuthRequest, res: Response) => {
 
     const meals = await prisma.meal.findMany({
       where: {
-        userId: req.userId,
+        userId: req.userId!,
         date: dateStr,
       },
       include: { items: true },
