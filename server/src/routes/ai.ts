@@ -2726,7 +2726,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const chatParsed = chatRequestSchema.safeParse(req.body);
     if (!chatParsed.success) return res.status(400).json({ error: chatParsed.error.errors[0].message });
-    const { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode, clientDate, clientHour } = chatParsed.data;
+    const { message, nutritionTargets: clientNutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: streamMode, clientDate, clientHour } = chatParsed.data;
     const todayDate = clientDate ?? new Date().toISOString().split('T')[0];
 
     const userId = req.userId!;
@@ -2875,6 +2875,20 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const rawSleepEntries = (sleepEntries && sleepEntries.length > 0) ? sleepEntries : sleepFromDb;
     const recentSleepEntries = rawSleepEntries.sort((a, b) => b.date.localeCompare(a.date));
     const lastSleepEntry = recentSleepEntries[0] ?? null;
+
+    // Use server-stored nutrition targets as fallback if client sends none (fresh install / multi-device)
+    const nutritionTargets = clientNutritionTargets ?? (
+      user && (user as any).targetCalories != null
+        ? {
+            calories: (user as any).targetCalories as number,
+            protein: (user as any).targetProtein as number ?? 150,
+            fats: (user as any).targetFats as number ?? 80,
+            carbs: (user as any).targetCarbs as number ?? 300,
+            waterTargetMl: (user as any).targetWaterMl as number ?? 2500,
+          }
+        : null
+    );
+
     const avgSleepHours = recentSleepEntries.length > 0
       ? recentSleepEntries.slice(0, 7).reduce((sum, e) => sum + e.durationHours, 0) / Math.min(recentSleepEntries.length, 7)
       : null;
