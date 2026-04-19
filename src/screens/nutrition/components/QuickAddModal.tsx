@@ -48,9 +48,10 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
     if (!food) return;
     const w = Math.max(1, parseFloat(quickWeight) || 100);
     const ratio = w / (food.weightGrams || 100);
+    const ts = Date.now();
     const item: NutritionItem = {
       ...food,
-      id: Date.now().toString(),
+      id: `item-${ts}-${Math.random().toString(36).slice(2, 7)}`,
       weightGrams: w,
       calories: Math.round(food.calories * ratio),
       protein: Math.round(food.protein * ratio * 10) / 10,
@@ -58,7 +59,7 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
       carbs: Math.round(food.carbs * ratio * 10) / 10,
     };
     const meal: Meal = {
-      id: Date.now().toString(),
+      id: `meal-${ts}-${Math.random().toString(36).slice(2, 7)}`,
       type: mealType,
       items: [item],
       totalCalories: item.calories,
