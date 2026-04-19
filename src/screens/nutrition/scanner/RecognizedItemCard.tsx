@@ -19,6 +19,19 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
   const { colors } = useThemeStore();
   const { saveFoodItem } = useNutritionStore();
   const [saved, setSaved] = React.useState(false);
+  // Local draft avoids spamming macro recalc on every keystroke
+  const [weightDraft, setWeightDraft] = React.useState(item.weightGrams?.toString() ?? '100');
+
+  // Sync draft when item.weightGrams changes externally (e.g. preset tap)
+  React.useEffect(() => {
+    setWeightDraft(item.weightGrams?.toString() ?? '100');
+  }, [item.weightGrams]);
+
+  const commitWeight = () => {
+    if (weightDraft !== item.weightGrams?.toString()) {
+      onWeightChange(item.id, weightDraft);
+    }
+  };
 
   const handleSave = () => {
     saveFoodItem({
@@ -54,8 +67,10 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <TextInput
               style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
-              value={item.weightGrams?.toString() ?? ''}
-              onChangeText={(v) => onWeightChange(item.id, v)}
+              value={weightDraft}
+              onChangeText={setWeightDraft}
+              onBlur={commitWeight}
+              onSubmitEditing={commitWeight}
               keyboardType="numeric"
               selectTextOnFocus
             />
