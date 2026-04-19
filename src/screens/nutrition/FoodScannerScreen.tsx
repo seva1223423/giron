@@ -75,10 +75,13 @@ async function loadRecentScans(): Promise<RecentScan[]> {
 
 // ─── OpenFoodFacts helpers ────────────────────────────────────────────────────
 
-/** Extract kcal/100g from nutriments (kcal only, no kJ conversion). */
+/** Extract kcal/100g from nutriments. Falls back to kJ→kcal for products that only provide kJ. */
 function extractKcal(n: Record<string, any>): number {
   if (n['energy-kcal_100g'] != null && n['energy-kcal_100g'] > 0) return Math.round(n['energy-kcal_100g']);
   if (n['energy-kcal'] != null && n['energy-kcal'] > 0) return Math.round(n['energy-kcal']);
+  // Many EU/RU products only carry kJ — convert (1 kcal ≈ 4.184 kJ)
+  if (n['energy-kj_100g'] != null && n['energy-kj_100g'] > 0) return Math.round(n['energy-kj_100g'] / 4.184);
+  if (n['energy_100g'] != null && n['energy_100g'] > 100) return Math.round(n['energy_100g'] / 4.184);
   return 0;
 }
 
@@ -298,11 +301,14 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
     setBarcodeLoading(true);
     const fetchController = new AbortController();
-    const fetchTimeout = setTimeout(() => fetchController.abort(), 10_000);
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15_000);
+
+    // Request only the fields we need to reduce payload size
+    const OFF_FIELDS = 'product_name,product_name_ru,product_name_en,brands,nutriments,serving_size,serving_quantity';
 
     try {
       const response = await fetch(
-        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`,
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=${OFF_FIELDS}&lc=ru`,
         { signal: fetchController.signal },
       );
       const data = await response.json();
@@ -323,7 +329,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
         const fats = Math.round((n.fat_100g || 0) * 10) / 10;
         const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
-        const productName: string = p.product_name_ru || p.product_name || p.brands || 'Неизвестный продукт';
+        const productName: string =
+          p.product_name_ru || p.product_name || p.product_name_en || p.brands || 'Неизвестный продукт';
 
         const product: BarcodeProduct = { name: productName, cal, prot, fats, carbs };
         const servingGrams = parseServingGrams(p.serving_size || p.serving_quantity || '');
@@ -564,10 +571,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           <Card style={{ marginTop: spacing.lg }}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Продукт не найден</Text>
             <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md }]}>
-              Штрих-код {lastBarcode} не найден в базе данных.
+              Штрих-код {lastBarcode} не найден в базе данных. Можно распознать по фото или добавить вручную.
             </Text>
-            <Button title="Добавить вручную" onPress={() => navigation.navigate('ManualFoodAdd', { mealType: 'snack', date: todayDate() })} fullWidth />
-            <TouchableOpacity style={{ marginTop: spacing.md, alignItems: 'center' }} onPress={() => { setNotFound(false); setShowBarcodeScanner(true); }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+              <Button title="📷 Фото" onPress={() => { setNotFound(false); pickImage(true); }} style={{ flex: 1 }} />
+              <Button title="Вручную" variant="outline" onPress={() => navigation.navigate('ManualFoodAdd', { mealType: 'snack', date: todayDate() })} style={{ flex: 1 }} />
+            </View>
+            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: spacing.sm }} onPress={() => { setNotFound(false); setShowBarcodeScanner(true); }}>
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Сканировать другой код</Text>
             </TouchableOpacity>
           </Card>
