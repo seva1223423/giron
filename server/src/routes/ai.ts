@@ -2455,10 +2455,10 @@ async function executeTool(
       carbs: Math.min(1000, Math.max(0, Number(i.carbs) || 0)),
       weightGrams: Math.min(10000, Math.max(0, Number(i.weightGrams) || 0)),
     }));
-    const totalCalories = safeModifyItems.reduce((s, i) => s + i.calories, 0);
-    const totalProtein = safeModifyItems.reduce((s, i) => s + i.protein, 0);
-    const totalFats = safeModifyItems.reduce((s, i) => s + i.fats, 0);
-    const totalCarbs = safeModifyItems.reduce((s, i) => s + i.carbs, 0);
+    const totalCalories = Math.round(safeModifyItems.reduce((s, i) => s + i.calories, 0));
+    const totalProtein = Math.round(safeModifyItems.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const totalFats = Math.round(safeModifyItems.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const totalCarbs = Math.round(safeModifyItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
 
     try {
       await prisma.$transaction(async (tx) => {
