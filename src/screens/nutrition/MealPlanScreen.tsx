@@ -165,8 +165,10 @@ export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const addMealToLog = (meal: PlanMeal, dayOffset: number) => {
     haptic.success();
     const date = offsetDate(dayOffset);
+    const ts = Date.now();
+    const rid = Math.random().toString(36).slice(2, 7);
     const nutritionItems: NutritionItem[] = meal.items.map((it, i) => ({
-      id: `plan-${Date.now()}-${i}`,
+      id: `plan-${ts}-${rid}-${i}`,
       name: it.name,
       calories: it.calories,
       protein: it.protein,
@@ -175,7 +177,7 @@ export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       weightGrams: it.weightGrams,
     }));
     const newMeal: Meal = {
-      id: `meal-plan-${Date.now()}`,
+      id: `meal-plan-${ts}-${rid}`,
       type: meal.type,
       items: nutritionItems,
       totalCalories: meal.totalCalories,
