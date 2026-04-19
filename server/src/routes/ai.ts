@@ -3407,8 +3407,19 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }
     }
 
-    // ─── Context Engine + Gamification: run in parallel (both hit DB independently) ──────
-    const [engineContext, gamification] = await Promise.all([
+    // ─── Context Engine + Gamification + secondary DB queries: all in one parallel block ──────
+    const todayStartDate = new Date(`${todayDate}T00:00:00.000Z`);
+    const todayEndDate = new Date(`${todayDate}T23:59:59.999Z`);
+    const [
+      engineContext,
+      gamification,
+      programExerciseRows,
+      totalWorkoutsLast30Days,
+      allRecentForFatigue,
+      recentMealsForGaps,
+      userMemories,
+      scheduledWorkoutToday,
+    ] = await Promise.all([
       buildDynamicContext({
         userId,
         intent,
@@ -3439,6 +3450,32 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         } : null,
       }),
       getGamificationData(userId, todayDate),
+      // Blocks 32-48 secondary DB queries (merged here to avoid sequential round-trip)
+      activeProgram
+        ? prisma.workoutExercise.findMany({
+            where: { workout: { programId: activeProgram.id } },
+            select: { exercise: { select: { name: true, type: true } } },
+            take: 500,
+          })
+        : Promise.resolve([]),
+      prisma.workout.count({
+        where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+      }),
+      prisma.workout.findMany({
+        where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) } },
+        select: { completedAt: true, totalVolume: true, durationMinutes: true },
+        take: 100,
+      }),
+      prisma.meal.findMany({
+        where: { userId, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+        include: { items: true },
+        take: 100,
+      }),
+      prisma.aIMemory.findMany({ where: { userId }, select: { key: true }, take: 200 }),
+      prisma.workout.findFirst({
+        where: { userId, scheduledDate: { gte: todayStartDate, lte: todayEndDate }, completedAt: null },
+        include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
+      }),
     ]);
     const gamificationContext = buildGamificationContext(gamification);
 
@@ -3531,45 +3568,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       : [];
     const difficultyContext = buildDifficultyContext(difficultyAdjustments);
 
-    // ─── Blocks 32-48: Parallel DB fetch for context builders ──────
-    const todayStartDate = new Date(`${todayDate}T00:00:00.000Z`);
-    const todayEndDate = new Date(`${todayDate}T23:59:59.999Z`);
-    const [
-      programExerciseRows,
-      totalWorkoutsLast30Days,
-      allRecentForFatigue,
-      recentMealsForGaps,
-      userMemories,
-      scheduledWorkoutToday,
-    ] = await Promise.all([
-      activeProgram
-        ? prisma.workoutExercise.findMany({
-            where: { workout: { programId: activeProgram.id } },
-            select: { exercise: { select: { name: true, type: true } } },
-            take: 500,
-          })
-        : Promise.resolve([]),
-      prisma.workout.count({
-        where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
-      }),
-      prisma.workout.findMany({
-        where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) } },
-        select: { completedAt: true, totalVolume: true, durationMinutes: true },
-        take: 100,
-      }),
-      prisma.meal.findMany({
-        where: { userId, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
-        include: { items: true },
-        take: 100,
-      }),
-      prisma.aIMemory.findMany({ where: { userId }, select: { key: true }, take: 200 }),
-      prisma.workout.findFirst({
-        where: { userId, scheduledDate: { gte: todayStartDate, lte: todayEndDate }, completedAt: null },
-        include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
-      }),
-    ]);
-
-    // Derive memory count from secondary block result (avoids a separate count query in the main block)
+    // Derive memory count from userMemories (avoids a separate count query)
     const aiMemoryCount = userMemories.length;
 
     // ─── Block 32: Contextual exercise alternatives ──────
