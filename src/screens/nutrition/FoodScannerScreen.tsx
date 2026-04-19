@@ -288,7 +288,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       calories: Math.round((product.cal * w) / 100),
       protein: Math.round(((product.prot * w) / 100) * 10) / 10,
       fats: Math.round(((product.fats * w) / 100) * 10) / 10,
-      carbs: Math.round((product.carbs * w) / 100),
+      carbs: Math.round(((product.carbs * w) / 100) * 10) / 10,
       weightGrams: w,
     };
     setItemBases({ [item.id]: { cal: product.cal, prot: product.prot, fats: product.fats, carbs: product.carbs } });
@@ -434,12 +434,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const handleSave = () => {
     if (recognizedItems.length === 0) return;
     const totalCal = recognizedItems.reduce((s, i) => s + i.calories, 0);
-    const totalProt = recognizedItems.reduce((s, i) => s + i.protein, 0);
+    const totalProt = Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10;
     const meal: Meal = {
       id: `meal-${Date.now()}`, type: mealType, items: recognizedItems, photoUrl: imageUri || undefined,
       totalCalories: totalCal, totalProtein: totalProt,
-      totalFats: recognizedItems.reduce((s, i) => s + i.fats, 0),
-      totalCarbs: recognizedItems.reduce((s, i) => s + i.carbs, 0),
+      totalFats: Math.round(recognizedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10,
+      totalCarbs: Math.round(recognizedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10,
       createdAt: new Date().toISOString(),
     };
     // Compute date at save time — handles midnight-boundary edge case
