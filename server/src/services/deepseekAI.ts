@@ -445,8 +445,11 @@ export function cleanResponse(content: string): string {
 export async function analyzeImage(
   imageBase64: string,
   prompt: string,
+  mimeType: string = 'image/jpeg',
 ): Promise<string> {
   const model = process.env.AI_VISION_MODEL || process.env.AI_MODEL || DEFAULT_MODEL;
+  // Normalize HEIC/HEIF to jpeg for API compatibility (most vision APIs don't support HEIC)
+  const safeMime = (mimeType === 'image/heic' || mimeType === 'image/heif') ? 'image/jpeg' : mimeType;
   const fetchOptions = {
     method: 'POST',
     headers: {
@@ -459,14 +462,14 @@ export async function analyzeImage(
         {
           role: 'user',
           content: [
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+            { type: 'image_url', image_url: { url: `data:${safeMime};base64,${imageBase64}` } },
             { type: 'text', text: prompt },
           ],
         },
       ],
       stream: false,
-      max_tokens: 1024,
-      temperature: 0.3,
+      max_tokens: 2048,
+      temperature: 0.2,
     }),
   };
 

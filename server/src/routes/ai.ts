@@ -9704,6 +9704,7 @@ interface FoodItem {
   protein: number;
   fats: number;
   carbs: number;
+  confidence?: number;
 }
 
 /** Парсит JSON с едой из ответа AI. Обрабатывает битый JSON, markdown-обёртки, etc. */
@@ -9728,6 +9729,8 @@ function parseFoodResponse(text: string): FoodItem[] | null {
   // 3. Пробуем прямой парсинг
   try {
     const parsed = JSON.parse(jsonMatch[0]);
+    // Если AI сказал "не еда" — возвращаем пустой массив (отличается от null = parse error)
+    if (parsed.notFood === true) return [];
     if (parsed.items && Array.isArray(parsed.items)) return parsed.items;
     if (Array.isArray(parsed)) return parsed;
     return null;
@@ -9742,6 +9745,7 @@ function parseFoodResponse(text: string): FoodItem[] | null {
       .replace(/(\w+)\s*:/g, '"$1":')   // ключи без кавычек
       .replace(/""(\w+)""/g, '"$1"');   // двойные кавычки
     const parsed = JSON.parse(fixed);
+    if (parsed.notFood === true) return [];
     if (parsed.items && Array.isArray(parsed.items)) return parsed.items;
     return null;
   } catch {
@@ -9749,31 +9753,55 @@ function parseFoodResponse(text: string): FoodItem[] | null {
   }
 }
 
-/** Проверяет валидность КБЖУ значений */
+/** Проверяет и нормализует КБЖУ значения */
 function validateFoodItems(items: FoodItem[]): FoodItem[] {
   return items
-    .filter((item) => item.name && item.weightGrams > 0)
-    .map((item) => ({
-      name: item.name,
-      weightGrams: Math.round(Math.max(1, item.weightGrams)),
-      calories: Math.round(Math.max(0, item.calories || 0)),
-      protein: Math.round(Math.max(0, item.protein || 0) * 10) / 10,
-      fats: Math.round(Math.max(0, item.fats || 0) * 10) / 10,
-      carbs: Math.round(Math.max(0, item.carbs || 0) * 10) / 10,
-    }))
+    .filter((item) => item.name && typeof item.name === 'string' && item.name.trim().length > 0)
+    .filter((item) => {
+      const w = Number(item.weightGrams);
+      return w > 0 && w <= 5000;
+    })
     .map((item) => {
-      const macroCal = Math.round(item.protein * 4 + item.fats * 9 + item.carbs * 4);
-      // Sanity check: если КБЖУ = 0 но вес > 0 — пересчитаем из макросов
-      if (item.calories === 0 && item.weightGrams > 0) {
-        item.calories = macroCal;
-      } else if (macroCal > 0 && item.calories > 0) {
-        // Если AI указал калории с расхождением >40% от расчётных по макросам — исправляем
-        const deviation = Math.abs(item.calories - macroCal) / macroCal;
-        if (deviation > 0.4) {
-          item.calories = macroCal;
+      const w = Math.round(Math.max(1, Math.min(5000, Number(item.weightGrams) || 100)));
+      const prot = Math.max(0, Math.min(300, Number(item.protein) || 0));
+      const fats = Math.max(0, Math.min(300, Number(item.fats) || 0));
+      const carbs = Math.max(0, Math.min(600, Number(item.carbs) || 0));
+      const aiCal = Math.max(0, Math.min(5000, Number(item.calories) || 0));
+      const macroCal = prot * 4 + fats * 9 + carbs * 4;
+
+      let finalCal: number;
+      if (aiCal === 0) {
+        // AI не указал калории — считаем из макросов
+        finalCal = Math.round(macroCal);
+      } else if (macroCal === 0) {
+        // Нет макросов — доверяем AI
+        finalCal = Math.round(aiCal);
+      } else {
+        // Проверяем консистентность: допускаем ±25% погрешность
+        // (жирная еда: жиры дают 9 ккал/г, AI может округлять)
+        const ratio = aiCal / macroCal;
+        if (ratio < 0.75 || ratio > 1.25) {
+          // Значительное расхождение — берём среднее между AI и макросами
+          finalCal = Math.round((aiCal + macroCal) / 2);
+        } else {
+          finalCal = Math.round(aiCal);
         }
       }
-      return item;
+
+      const result: any = {
+        name: String(item.name).trim().slice(0, 200),
+        weightGrams: w,
+        calories: finalCal,
+        protein: Math.round(prot * 10) / 10,
+        fats: Math.round(fats * 10) / 10,
+        carbs: Math.round(carbs * 10) / 10,
+      };
+      // Сохраняем confidence если AI его вернул
+      const conf = Number((item as any).confidence);
+      if (!isNaN(conf) && conf >= 0.5 && conf <= 1.0) {
+        result.confidence = Math.round(conf * 100) / 100;
+      }
+      return result;
     });
 }
 
@@ -81234,11 +81262,11 @@ const FOOD_SCAN_FREE_DAILY_LIMIT = 5;
 router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const parsed = z.object({
-      // ~7MB of base64 = ~5.25MB decoded, reasonable for a photo
       imageBase64: z.string().min(100, 'Изображение слишком маленькое').max(9_000_000, 'Изображение слишком большое'),
+      mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-    const { imageBase64 } = parsed.data;
+    const { imageBase64, mimeType = 'image/jpeg' } = parsed.data;
 
     const userId = req.userId!;
 
@@ -81248,110 +81276,127 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const [userSub, scanTodayCount, user, userMemories] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
       prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
-      prisma.user.findUnique({ where: { id: userId } }),
-      prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference'] } }, take: 10 }),
+      prisma.user.findUnique({ where: { id: userId }, include: { healthRestrictions: true } }),
+      prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference'] } }, take: 15 }),
     ]);
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
       return res.status(402).json({ error: 'Достигнут дневной лимит сканирования еды (5/день) для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'SCAN_DAILY_LIMIT_EXCEEDED' });
     }
 
-    const allergyLines = userMemories
+    // Combine allergies/restrictions from AI memory AND user profile healthRestrictions
+    const memoryAllergyLines = userMemories
       .filter((m) => m.category === 'allergy')
-      .map((m) => `- Аллергия/непереносимость: ${m.value}`)
-      .join('\n');
+      .map((m) => `- ${m.value}`);
+    const profileRestrictions = (user?.healthRestrictions ?? [])
+      .map((r) => `- ${r.description || r.bodyPart || ''}`.trim())
+      .filter((s) => s.length > 1);
+    const allAllergyLines = [...new Set([...memoryAllergyLines, ...profileRestrictions])];
     const prefLines = userMemories
       .filter((m) => m.category === 'preference')
-      .map((m) => `- Пищевое предпочтение: ${m.value}`)
-      .join('\n');
-    const restrictionsBlock = [allergyLines, prefLines].filter(Boolean).join('\n');
+      .map((m) => `- ${m.value}`);
 
+    const hasRestrictions = allAllergyLines.length > 0 || prefLines.length > 0;
+    const restrictionsBlock = [
+      allAllergyLines.length > 0 ? `Аллергии и противопоказания:\n${allAllergyLines.join('\n')}` : '',
+      prefLines.length > 0 ? `Предпочтения:\n${prefLines.join('\n')}` : '',
+    ].filter(Boolean).join('\n');
+
+    const goalRu = user?.goal ? ({
+      WEIGHT_LOSS: 'похудение',
+      MUSCLE_GAIN: 'набор массы',
+      STRENGTH: 'сила',
+      ENDURANCE: 'выносливость',
+      GENERAL_FITNESS: 'общая форма',
+    } as Record<string, string>)[user.goal] ?? '' : '';
     const userInfo = user
-      ? `Пользователь: ${user.gender === 'MALE' ? 'мужчина' : user.gender === 'FEMALE' ? 'женщина' : ''}, ${user.weightKg ? `вес ${user.weightKg} кг` : ''}, цель: ${user.goal || 'не указана'}.${restrictionsBlock ? `\n\nОграничения и предпочтения пользователя:\n${restrictionsBlock}` : ''}`
+      ? [
+          user.gender === 'MALE' ? 'мужчина' : user.gender === 'FEMALE' ? 'женщина' : '',
+          user.weightKg ? `вес ${user.weightKg} кг` : '',
+          goalRu ? `цель: ${goalRu}` : '',
+        ].filter(Boolean).join(', ')
       : '';
 
-    const prompt = `Ты — эксперт-нутрициолог. Проанализируй фото еды максимально точно.
+    const prompt = `Ты — нутрициолог-эксперт. Проанализируй ЧТО изображено на фото.
 
-${userInfo}
-${restrictionsBlock ? '\nЕсли на фото присутствуют продукты, на которые у пользователя аллергия, добавь предупреждение "⚠️ аллерген" к названию этого продукта.\n' : ''}
-Для КАЖДОГО продукта на фото определи:
-1. Название продукта (на русском)
-2. Примерный вес в граммах (оценивай по размеру тарелки/порции)
-3. Калорийность (ккал)
-4. Белки (г)
-5. Жиры (г)
-6. Углеводы (г)
+ПРАВИЛА:
+1. Если на фото НЕТ еды/напитков — верни {"items": [], "notFood": true}.
+2. Для каждого продукта/блюда укажи КБЖУ на фактическую порцию (не на 100г).
+3. Вес оценивай по стандартной тарелке (~24–26 см) или по видимым ориентирам.
+4. Для смешанных блюд (борщ, салат) перечисляй как одну позицию, не разбивая на ингредиенты.
+5. Напитки: оценивай объём в мл, перевод 1мл≈1г для воды/кофе/сока.
+6. Используй среднероссийские значения КБЖУ (таблицы Скурихина).
+${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ? `\n\nОГРАНИЧЕНИЯ ПОЛЬЗОВАТЕЛЯ:\n${restrictionsBlock}\n→ Добавь префикс "⚠️ " к названию если продукт попадает под ограничения.` : ''}
 
-Используй стандартные значения КБЖУ из российских таблиц калорийности.
-Будь точным в оценке размера порции — это критически важно.
-
-Ответь СТРОГО в формате JSON:
+Ответь СТРОГО JSON без комментариев:
 {
   "items": [
     {
-      "name": "название продукта",
-      "weightGrams": 150,
-      "calories": 200,
-      "protein": 30,
-      "fats": 5,
-      "carbs": 10
+      "name": "Гречка отварная",
+      "weightGrams": 200,
+      "calories": 172,
+      "protein": 6.8,
+      "fats": 1.6,
+      "carbs": 35.0,
+      "confidence": 0.9
     }
   ]
 }
 
-Только JSON, без комментариев и пояснений.`;
+Поле confidence: 0.5–1.0 (насколько уверен в распознавании и весе).`;
 
-    // Retry loop: до 2 попыток
-    const MAX_FOOD_RETRIES = 2;
-    let lastError: string | null = null;
+    const text = await analyzeImage(imageBase64, prompt, mimeType);
+    const items = parseFoodResponse(text);
 
-    for (let attempt = 0; attempt < MAX_FOOD_RETRIES; attempt++) {
+    if (!items) {
+      // Check if AI said it's not food
       try {
-        const text = await analyzeImage(imageBase64, prompt);
-        const items = parseFoodResponse(text);
-
-        if (!items || items.length === 0) {
-          lastError = 'Не удалось распознать JSON из ответа AI';
-          logger.warn(`Food analysis attempt ${attempt + 1}: parse failed. Raw: ${text.slice(0, 200)}`);
-          continue;
+        const raw = JSON.parse(text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim());
+        if (raw.notFood) {
+          return res.status(422).json({
+            error: 'На фото не еда',
+            suggestion: 'Убедись, что на фото видна еда. Сфотографируй тарелку сверху при хорошем освещении.',
+            retryable: true,
+          });
         }
+      } catch { /* continue to generic error */ }
 
-        const validated = validateFoodItems(items);
-        if (validated.length === 0) {
-          lastError = 'Продукты не прошли валидацию';
-          continue;
-        }
-
-        prisma.foodScanLog.create({ data: { userId } }).catch((e) => logger.error('[FoodScan] Failed to log scan quota:', e));
-        return res.json({ items: validated });
-      } catch (analyzeError) {
-        lastError = (analyzeError as Error).message;
-        logger.warn(`Food analysis attempt ${attempt + 1} failed:`, lastError);
-        // Если ошибка сети/таймаут — подождём перед retry
-        if (attempt < MAX_FOOD_RETRIES - 1) {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-      }
-    }
-
-    // Если vision не сработал — fallback на text-only модель с описанием
-    try {
-      logger.warn('Vision failed, attempting text-only fallback for food analysis');
-      const fallbackText = await generate(
-        `Пользователь сфотографировал еду. К сожалению, фото не удалось обработать. Попроси пользователя описать еду текстом (что ел, примерный размер порции), и ты рассчитаешь КБЖУ. Ответь на русском, кратко.`,
-        { maxTokens: 256, temperature: 0.5 },
-      );
+      logger.warn(`Food analysis: parse failed. Raw: ${text.slice(0, 300)}`);
       return res.status(422).json({
         error: 'Не удалось распознать еду на фото',
-        suggestion: fallbackText || 'Попробуй описать еду текстом в чате с Iron Coach — он рассчитает КБЖУ.',
-        retryable: true,
-      });
-    } catch {
-      return res.status(500).json({
-        error: lastError || 'Ошибка анализа фото',
+        suggestion: 'Попробуй сфотографировать при лучшем освещении или опиши еду текстом в чате.',
         retryable: true,
       });
     }
+
+    if (items.length === 0) {
+      return res.status(422).json({
+        error: 'Продукты не распознаны',
+        suggestion: 'Убедись, что на фото видна еда. Сфотографируй тарелку сверху при хорошем освещении.',
+        retryable: true,
+      });
+    }
+
+    const validated = validateFoodItems(items);
+    if (validated.length === 0) {
+      return res.status(422).json({
+        error: 'Не удалось проверить данные о продуктах',
+        suggestion: 'Попробуй ещё раз.',
+        retryable: true,
+      });
+    }
+
+    prisma.foodScanLog.create({ data: { userId } }).catch((e) => logger.error('[FoodScan] Failed to log scan quota:', e));
+
+    const totalCalories = Math.round(validated.reduce((s, i) => s + i.calories, 0));
+    const totalProtein = Math.round(validated.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const totalFats = Math.round(validated.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const totalCarbs = Math.round(validated.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
+    const avgConfidence = validated.some((i: any) => i.confidence != null)
+      ? Math.round(validated.reduce((s: number, i: any) => s + (i.confidence ?? 0.8), 0) / validated.length * 100) / 100
+      : null;
+
+    return res.json({ items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence });
   } catch (e) {
     logger.error('Food analysis error:', e);
     res.status(500).json({ error: 'Ошибка анализа фото', retryable: true });

@@ -151,9 +151,9 @@ export const aiService = {
     }
   },
 
-  async analyzeFood(imageBase64: string, signal?: AbortSignal): Promise<FoodAnalysisResult> {
+  async analyzeFood(imageBase64: string, signal?: AbortSignal, mimeType = 'image/jpeg'): Promise<FoodAnalysisResult> {
     try {
-      const { data } = await api.post('/ai/analyze-food', { imageBase64 }, { signal });
+      const { data } = await api.post('/ai/analyze-food', { imageBase64, mimeType }, { signal });
       return data;
     } catch (e: any) {
       // 422: vision failed, server provides a suggestion text for the user
