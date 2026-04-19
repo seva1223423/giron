@@ -265,8 +265,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           setLoading(false);
           return;
         }
-        // ~9MB server limit — base64 is ~33% larger than binary, so check decoded size
-        if (compressed.base64.length > 12_000_000) {
+        // Server rejects base64 strings > 9MB — reject early on client to avoid opaque 400 error
+        if (compressed.base64.length > 9_000_000) {
           setImageUri(null);
           setError('Фото слишком большое. Попробуй более близкий кадр или другое изображение.');
           setLoading(false);
