@@ -70,8 +70,8 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
       date,
       durationMinutes: min,
       distanceKm: distance ? toFinite(distance, (v) => parseFloat(v.replace(',', '.'))) : undefined,
-      caloriesBurned: calories ? toFinite(calories, (v) => parseInt(v, 10)) : undefined,
-      avgHeartRate: heartRate ? toFinite(heartRate, (v) => parseInt(v, 10)) : undefined,
+      caloriesBurned: calories ? toFinite(calories, (v) => parseInt(v.replace(',', '.'), 10)) : undefined,
+      avgHeartRate: heartRate ? toFinite(heartRate, (v) => parseInt(v.replace(',', '.'), 10)) : undefined,
       notes: notes.trim() || undefined,
     });
     haptic.success();
