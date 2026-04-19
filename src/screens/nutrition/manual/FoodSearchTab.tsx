@@ -29,9 +29,12 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
 
   const filteredFoods = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return [...savedAsFoodItems.slice(0, 4), ...FOOD_DB.slice(0, 8)];
+    const savedSlice = savedAsFoodItems.slice(0, 4);
+    const savedNames = new Set(savedSlice.map((f) => f.name.toLowerCase()));
+    if (!q) return [...savedSlice, ...FOOD_DB.filter((f) => !savedNames.has(f.name.toLowerCase())).slice(0, 8)];
     const fromSaved = savedAsFoodItems.filter((f) => f.name.toLowerCase().includes(q));
-    const fromDB = FOOD_DB.filter((f) => f.name.toLowerCase().includes(q) && !fromSaved.some((s) => s.name === f.name));
+    const fromSavedNames = new Set(fromSaved.map((f) => f.name.toLowerCase()));
+    const fromDB = FOOD_DB.filter((f) => f.name.toLowerCase().includes(q) && !fromSavedNames.has(f.name.toLowerCase()));
     return [...fromSaved, ...fromDB];
   }, [searchQuery, savedAsFoodItems]);
 
@@ -92,10 +95,10 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
         placeholderTextColor={colors.inputPlaceholder}
       />
 
-      {filteredFoods.map((food) => {
+      {filteredFoods.map((food, idx) => {
         const isSelected = selectedFood?.name === food.name;
         return (
-          <TouchableOpacity key={food.name} onPress={() => { haptic.selection(); onSelectFood(food); }}>
+          <TouchableOpacity key={`${food.name}-${idx}`} onPress={() => { haptic.selection(); onSelectFood(food); }}>
             <Card style={{ marginBottom: spacing.sm, borderWidth: isSelected ? 1.5 : 0, borderColor: isSelected ? colors.primary : 'transparent' }} padding={spacing.md}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={[typography.bodySemibold, { color: isSelected ? colors.primary : colors.text, flex: 1, marginRight: 8 }]} numberOfLines={1}>{food.name}</Text>

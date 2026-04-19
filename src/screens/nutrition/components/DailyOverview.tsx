@@ -51,7 +51,7 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
   }), [dayLog.meals]);
 
   const remaining = dayLog.targetCalories - totalCalories;
-  const isGain = user?.goal === 'muscle_gain' || (user?.goal as string) === 'MUSCLE_GAIN' || user?.goal === 'strength' || (user?.goal as string) === 'STRENGTH';
+  const isGain = user?.goal === 'muscle_gain' || user?.goal === 'strength';
 
   // Remaining macros
   const remainingProtein = Math.max(0, dayLog.targetProtein - totalProtein);
@@ -116,8 +116,8 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
       {dayLog.targetCalories > 0 && (
         <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.sm, textAlign: 'center' }]} numberOfLines={3}>
           {remaining < 0
-            ? `Превышение ${Math.abs(remaining)} ккал · Б ещё ${remainingProtein}г · Ж ${remainingFats}г · У ${remainingCarbs}г`
-            : `Осталось: ${remainingCal} ккал · ${remainingProtein}г белка · ${remainingFats}г жиров · ${remainingCarbs}г углев.`}
+            ? `Превышение ${Math.abs(Math.round(remaining))} ккал · Б ещё ${Math.round(remainingProtein)}г · Ж ${Math.round(remainingFats)}г · У ${Math.round(remainingCarbs)}г`
+            : `Осталось: ${remainingCal} ккал · ${Math.round(remainingProtein)}г белка · ${Math.round(remainingFats)}г жиров · ${Math.round(remainingCarbs)}г углев.`}
         </Text>
       )}
 

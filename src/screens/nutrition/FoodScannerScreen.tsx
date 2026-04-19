@@ -193,7 +193,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setError('');
     try {
       const result = await aiService.analyzeFood(base64, controller.signal, mimeType);
-      const items: NutritionItem[] = result.items.map((item: any, index: number) => ({
+      const items: NutritionItem[] = result.items.map((item, index) => ({
         id: `item-${Date.now()}-${index}`,
         name: item.name, calories: item.calories, protein: item.protein,
         fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams,
