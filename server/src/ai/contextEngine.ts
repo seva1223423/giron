@@ -137,8 +137,6 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
   switch (data.intent) {
     case 'greeting':
     case 'motivation': {
-      const gamification = await buildGamificationBlock(data);
-      if (gamification) blocks.push(gamification);
       const motivation = buildMotivationBlock(data);
       if (motivation) blocks.push(motivation);
       break;
@@ -190,8 +188,6 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
     case 'analytics_query': {
       const overload = buildProgressiveOverloadBlock(data);
       if (overload) blocks.push(overload);
-      const gamification = await buildGamificationBlock(data);
-      if (gamification) blocks.push(gamification);
       const bodyComp = buildBodyCompBlock(data);
       if (bodyComp) blocks.push(bodyComp);
       const macros = buildMacroBalanceBlock(data);
@@ -821,49 +817,6 @@ function buildSleepBlock(data: ChatContextData): string {
   }
 
   return lines.join('\n');
-}
-
-async function buildGamificationBlock(data: ChatContextData): Promise<string> {
-  const { userId, todayDate } = data;
-
-  try {
-    const workouts = await prisma.workout.findMany({
-      where: { userId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
-      select: { completedAt: true },
-      take: 400,
-    });
-
-    if (workouts.length === 0) return '';
-
-    const trainingDays = new Set(
-      workouts.filter((w) => w.completedAt).map((w) => w.completedAt!.toISOString().split('T')[0]),
-    );
-
-    let streak = 0;
-    const check = new Date(todayDate + 'T00:00:00.000Z');
-    if (!trainingDays.has(check.toISOString().split('T')[0])) {
-      check.setUTCDate(check.getUTCDate() - 1);
-    }
-    while (trainingDays.has(check.toISOString().split('T')[0])) {
-      streak++;
-      check.setUTCDate(check.getUTCDate() - 1);
-    }
-
-    const total = workouts.length;
-    const milestones = [10, 25, 50, 100, 200, 500].filter((m) => total >= m);
-    const nextMilestone = [10, 25, 50, 100, 200, 500].find((m) => m > total);
-
-    const lines = [`\n## 🏆 ДОСТИЖЕНИЯ\nСтрик: ${streak} дн | Всего тренировок: ${total}`];
-    if (milestones.length > 0) lines.push(`Достигнуто: ${milestones.map((m) => `${m} тр`).join(', ')}`);
-    if (nextMilestone) lines.push(`До вехи ${nextMilestone}: ещё ${nextMilestone - total} тренировок`);
-    if (streak >= 7) lines.push(`🔥 Стрик ${streak} дней — обязательно отметь этот факт!`);
-    if (streak === 0 && total > 5) lines.push('→ Стрик прерван — мотивируй вернуться сегодня.');
-
-    return lines.join('\n');
-  } catch {
-    return '';
-  }
 }
 
 async function buildMemoryBlock(data: ChatContextData): Promise<string> {
