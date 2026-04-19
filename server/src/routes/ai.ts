@@ -2520,7 +2520,7 @@ async function executeTool(
 
   if (toolName === 'set_rest_timer') {
     const { seconds } = toolInput as { seconds: number };
-    const clamped = Math.min(Math.max(seconds, 15), 600);
+    const clamped = Math.min(Math.max(Math.round(Number(seconds) || 90), 15), 600);
     return { resultText: `Таймер отдыха установлен: ${clamped} сек`, actionDescription: `Отдых: ${clamped} сек`, actionData: { restTimerSeconds: clamped } };
   }
 
