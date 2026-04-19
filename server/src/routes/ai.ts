@@ -2783,7 +2783,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
-    // Fetch all user context data in parallel — 10 independent queries
+    // Fetch all user context data in parallel — 11 independent queries
     const [
       user,
       history,
@@ -2795,6 +2795,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       recentMeasurements,
       userPrograms,
       sleepFromDb,
+      totalWorkoutsEver,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -2864,6 +2865,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
             take: 14,
             select: { date: true, durationHours: true, quality: true },
           }),
+      prisma.workout.count({ where: { userId, completedAt: { not: null } } }),
     ]);
 
     // Build user context
@@ -3747,9 +3749,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Block 55: Training age estimator ──────
     const avgVolumePerWorkout = weekWorkouts.length > 0 ? thisWeekVolume / weekWorkouts.length : 0;
-    const totalWorkoutsEver = await prisma.workout.count({
-      where: { userId, completedAt: { not: null } },
-    });
     const trainingAgeContext = estimateTrainingAge(
       { trainingExperienceYears: user?.trainingExperienceYears, fitnessLevel: user?.fitnessLevel },
       totalWorkoutsEver,
