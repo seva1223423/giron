@@ -614,7 +614,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               <Button title="📷 Фото" onPress={() => { setNotFound(false); pickImage(true); }} style={{ flex: 1 }} />
               <Button title="Вручную" variant="outline" onPress={() => navigation.navigate('ManualFoodAdd', { mealType: 'snack', date: todayDate() })} style={{ flex: 1 }} />
             </View>
-            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: spacing.sm }} onPress={() => { setNotFound(false); setShowBarcodeScanner(true); }}>
+            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: spacing.sm }} onPress={() => { setNotFound(false); setBarcodeScanned(false); setShowBarcodeScanner(true); }}>
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Сканировать другой код</Text>
             </TouchableOpacity>
           </Card>
