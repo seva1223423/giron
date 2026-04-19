@@ -32,4 +32,8 @@ export const nutritionService = {
   async deleteMeal(id: string): Promise<void> {
     await api.delete(`/nutrition/meals/${id}`);
   },
+
+  async updateNutritionTargets(targets: { calories?: number; protein?: number; fats?: number; carbs?: number }): Promise<void> {
+    await api.patch('/user/nutrition-targets', targets);
+  },
 };

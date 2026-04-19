@@ -139,6 +139,36 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
+// Update nutrition targets (КБЖУ goals)
+router.patch('/nutrition-targets', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      calories: z.number().finite().min(500).max(10000).optional(),
+      protein: z.number().finite().min(0).max(500).optional(),
+      fats: z.number().finite().min(0).max(500).optional(),
+      carbs: z.number().finite().min(0).max(1000).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+
+    const { calories, protein, fats, carbs } = parsed.data;
+    const data: Record<string, number> = {};
+    if (calories != null) data.targetCalories = calories;
+    if (protein != null) data.targetProtein = protein;
+    if (fats != null) data.targetFats = fats;
+    if (carbs != null) data.targetCarbs = carbs;
+
+    if (Object.keys(data).length === 0) return res.json({ ok: true });
+
+    await prisma.user.update({ where: { id: req.userId }, data });
+    res.json({ ok: true, calories, protein, fats, carbs });
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка сохранения целей КБЖУ' });
+  }
+});
+
 // Add body weight
 router.post('/weight', authenticate, async (req: AuthRequest, res: Response) => {
   try {
