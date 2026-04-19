@@ -63,8 +63,10 @@ export const QuickMeals: React.FC = () => {
   const handleQuickAdd = (meal: QuickMealItem | { name: string; type: string; cal: number; protein: number; fats: number; carbs: number; weight: number }) => {
     haptic.success();
     const today = todayDateStr();
+    const ts = Date.now();
+    const rid = Math.random().toString(36).slice(2, 7);
     addMeal(today, {
-      id: `meal-${Date.now()}`,
+      id: `meal-${ts}-${rid}`,
       type: meal.type as 'breakfast' | 'lunch' | 'dinner' | 'snack',
       photoUrl: undefined,
       totalCalories: meal.cal,
@@ -72,7 +74,7 @@ export const QuickMeals: React.FC = () => {
       totalFats: meal.fats,
       totalCarbs: meal.carbs,
       items: [{
-        id: `item-${Date.now()}`,
+        id: `item-${ts}-${rid}-0`,
         name: meal.name,
         calories: meal.cal,
         protein: meal.protein,
