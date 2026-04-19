@@ -146,7 +146,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
       setPrograms: (programs) => set({ programs }),
       addProgram: (program) => set((s) => ({ programs: [...s.programs, program] })),
       updateProgram: async (id, data) => {
-        const snapshot = get().programs;
+        const prevProgram = get().programs.find((p) => p.id === id);
+        const prevActiveId = get().programs.find((p) => p.isActive)?.id;
         // Optimistic local update — mirror server behaviour: activating one deactivates all others
         set((s) => ({
           programs: s.programs.map((p) => {
@@ -155,18 +156,28 @@ export const useWorkoutStore = create<WorkoutStore>()(
             return p;
           }),
         }));
-        // Persist to server; rollback to snapshot on failure (404 = already gone, treat as success)
+        // Persist to server; revert only affected programs on failure
         workoutService.updateProgram(id, data as any).catch((err) => {
-          if (err?.response?.status !== 404) set({ programs: snapshot });
+          if (err?.response?.status !== 404 && prevProgram) {
+            set((s) => ({
+              programs: s.programs.map((p) => {
+                if (p.id === id) return prevProgram;
+                if (data.isActive === true && p.id === prevActiveId) return { ...p, isActive: true };
+                return p;
+              }),
+            }));
+          }
         });
       },
       deleteProgram: async (id) => {
-        const snapshot = get().programs;
+        const removed = get().programs.find((p) => p.id === id);
         // Optimistic local delete
         set((s) => ({ programs: s.programs.filter((p) => p.id !== id) }));
-        // Persist to server; rollback to snapshot on failure (404 = already deleted)
+        // Persist to server; re-add only the removed program on failure
         workoutService.deleteProgram(id).catch((err) => {
-          if (err?.response?.status !== 404) set({ programs: snapshot });
+          if (err?.response?.status !== 404 && removed) {
+            set((s) => ({ programs: [...s.programs, removed] }));
+          }
         });
       },
 
@@ -488,14 +499,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
       })),
 
       updateWorkoutInHistory: (id, data) => {
-        const snapshot = get().workoutHistory;
+        const prevWorkout = get().workoutHistory.find((w) => w.id === id);
         set((s) => ({
           workoutHistory: s.workoutHistory.map((w) => w.id === id ? { ...w, ...data } : w),
         }));
         // Sync notes to server (workout.id is used as clientId on the server)
         if ('notes' in data) {
           workoutService.patchWorkoutNotes(id, data.notes ?? null).catch((err) => {
-            if (err?.response?.status !== 404) set({ workoutHistory: snapshot });
+            if (err?.response?.status !== 404 && prevWorkout) {
+              set((s) => ({
+                workoutHistory: s.workoutHistory.map((w) => w.id === id ? prevWorkout : w),
+              }));
+            }
           });
         }
       },
