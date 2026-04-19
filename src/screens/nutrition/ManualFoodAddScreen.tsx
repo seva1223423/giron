@@ -47,7 +47,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
       item = { id: `item-${Date.now()}`, name: `${selectedFood.name} (${weightGrams}г)`, ...computedNutrition, weightGrams: Math.max(1, parseFloat(weightGrams.replace(',', '.')) || 100) };
     } else if (tab === 'custom') {
       if (!custom.name.trim()) { Alert.alert('Укажи название продукта'); return; }
-      const parsedCal = parseInt(custom.calories, 10);
+      const parsedCal = parseInt(custom.calories.replace(',', '.'), 10);
       if (!custom.calories.trim() || isNaN(parsedCal) || parsedCal <= 0) { Alert.alert('Укажи калорийность (больше 0)'); return; }
       item = { id: `item-${Date.now()}`, name: custom.name.trim(), calories: parsedCal, protein: Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0), fats: Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0), carbs: Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0), weightGrams: 100 };
     } else {
@@ -112,7 +112,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
             <TouchableOpacity
               onPress={() => {
                 haptic.success();
-                saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, parseInt(custom.calories, 10) || 0), protein: Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0), fats: Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0), carbs: Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0), weightGrams: 100 });
+                saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, parseInt(custom.calories.replace(',', '.'), 10) || 0), protein: Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0), fats: Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0), carbs: Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0), weightGrams: 100 });
                 Alert.alert('Сохранено', `${custom.name.trim()} добавлен в быстрые продукты`);
               }}
               style={[styles.saveBtnLg, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
