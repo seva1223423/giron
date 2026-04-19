@@ -80,16 +80,23 @@ export const useNutritionStore = create<NutritionStore>()(
             weightGrams: item.weightGrams,
           })),
         }).then((serverMeal) => {
+          const dayLog = get().dailyLog[date];
+          const stillPresent = dayLog?.meals.some((m) => m.id === tempId);
+          if (!stillPresent) {
+            // Meal was deleted locally while the server call was in-flight — clean up server copy
+            nutritionService.deleteMeal(serverMeal.id).catch(() => {});
+            return;
+          }
           // Replace temp meal with server-authoritative data (ID + recalculated macros)
           set((s) => {
-            const dayLog = s.dailyLog[date];
-            if (!dayLog) return s;
+            const dl = s.dailyLog[date];
+            if (!dl) return s;
             return {
               dailyLog: {
                 ...s.dailyLog,
                 [date]: {
-                  ...dayLog,
-                  meals: dayLog.meals.map((m) => m.id === tempId ? serverMeal : m),
+                  ...dl,
+                  meals: dl.meals.map((m) => m.id === tempId ? serverMeal : m),
                 },
               },
             };
@@ -97,12 +104,12 @@ export const useNutritionStore = create<NutritionStore>()(
         }).catch(() => {
           // Rollback: remove the optimistically added meal
           set((s) => {
-            const dayLog = s.dailyLog[date];
-            if (!dayLog) return s;
+            const dl = s.dailyLog[date];
+            if (!dl) return s;
             return {
               dailyLog: {
                 ...s.dailyLog,
-                [date]: { ...dayLog, meals: dayLog.meals.filter((m) => m.id !== tempId) },
+                [date]: { ...dl, meals: dl.meals.filter((m) => m.id !== tempId) },
               },
             };
           });
