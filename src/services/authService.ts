@@ -120,9 +120,9 @@ export const authService = {
     await api.post('/auth/resend-verification', { email });
   },
 
-  async logout(refreshToken?: string): Promise<void> {
+  async logout(refreshToken?: string, all?: boolean): Promise<void> {
     try {
-      await api.post('/auth/logout', { refreshToken });
+      await api.post('/auth/logout', { refreshToken, ...(all ? { all: true } : {}) });
     } catch {}
   },
 

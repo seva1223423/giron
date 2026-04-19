@@ -38,6 +38,7 @@ interface AuthStore {
   loginByPhone: (phone: string, code: string) => Promise<void>;
   register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string }) => Promise<void>;
   logout: () => Promise<void>;
+  logoutAllDevices: () => Promise<void>;
   completeOnboarding: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
   fetchProfile: () => Promise<void>;
@@ -104,6 +105,9 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authService.verifyTotp(totpPendingToken, code, undefined, rememberDevice);
           await tokenStorage.setTokens(response.token, response.refreshToken);
+          if (response.deviceToken) {
+            await tokenStorage.setDeviceToken(response.deviceToken);
+          }
           set({
             user: normalizeUser(response.user),
             token: response.token,
@@ -193,12 +197,35 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: async () => {
         const { refreshToken } = get();
-        // Revoke refresh token on server (non-blocking)
+        // Revoke current device's refresh token on server (non-blocking — UX stays snappy)
         if (refreshToken) authService.logout(refreshToken).catch(() => {});
-        // Clear tokens from SecureStore (hardware-backed Keychain/Keystore)
+        // Clear session tokens from SecureStore; device trust survives logout intentionally
         await tokenStorage.clearTokens();
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isOnboarded: false, error: null, totpPendingToken: null });
         // Clear all per-user data from other persisted stores to prevent data leak to next user
+        try {
+          const stores = require('./index');
+          stores.useWorkoutStore?.getState().clearUserData();
+          stores.useNutritionStore?.getState().clearUserData();
+          stores.useCardioStore?.getState().clearUserData();
+          stores.useTrainerStore?.getState().clearUserData();
+          stores.useMeasurementsStore?.getState().clearUserData();
+          stores.useSleepStore?.getState().clearUserData();
+          stores.useSubscriptionStore?.getState().clearUserData();
+          stores.useSupportStore?.getState().clearUserData();
+          stores.useOnboardingTipsStore?.getState().resetAll();
+          stores.useThemeStore?.getState().resetToDefaults();
+          stores.useSettingsStore?.getState().resetToDefaults();
+        } catch { /* best effort */ }
+      },
+
+      logoutAllDevices: async () => {
+        const { refreshToken } = get();
+        // Revoke ALL refresh tokens for this user on the server — ends every active session
+        if (refreshToken) await authService.logout(refreshToken, true).catch(() => {});
+        // Clear session tokens AND device trust from SecureStore
+        await tokenStorage.clearAll();
+        set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isOnboarded: false, error: null, totpPendingToken: null, deviceToken: null });
         try {
           const stores = require('./index');
           stores.useWorkoutStore?.getState().clearUserData();
@@ -288,8 +315,14 @@ export const useAuthStore = create<AuthStore>()(
       }),
       onRehydrateStorage: () => async (state) => {
         if (!state) return;
+        // Always restore deviceToken — device trust is independent of authentication state
+        try {
+          const deviceToken = await tokenStorage.getDeviceToken();
+          if (deviceToken) useAuthStore.setState({ deviceToken });
+        } catch { /* SecureStore unavailable */ }
+
         if (state.isAuthenticated) {
-          // Restore tokens from SecureStore (Keychain/Keystore) back into in-memory Zustand state
+          // Restore session tokens from SecureStore (Keychain/Keystore) back into in-memory state
           try {
             const [token, refreshToken] = await Promise.all([
               tokenStorage.getAccessToken(),
