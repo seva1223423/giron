@@ -259,12 +259,21 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         // Resize to max 1280px and convert to JPEG — reduces payload 4-10x vs raw HEIC/PNG
         const compressed = await compressImageForUpload(asset.uri);
         if (!compressed.base64) {
+          setImageUri(null);
           setError('Не удалось обработать изображение. Попробуй ещё раз.');
+          setLoading(false);
+          return;
+        }
+        // ~9MB server limit — base64 is ~33% larger than binary, so check decoded size
+        if (compressed.base64.length > 12_000_000) {
+          setImageUri(null);
+          setError('Фото слишком большое. Попробуй более близкий кадр или другое изображение.');
           setLoading(false);
           return;
         }
         analyzeFood(compressed.base64, compressed.mimeType);
       } catch {
+        setImageUri(null);
         setError('Не удалось обработать изображение.');
         setLoading(false);
       }
@@ -493,8 +502,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         ) : (
           <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.huge }}>
             <Text style={{ fontSize: 64, marginBottom: spacing.lg }}>📷</Text>
-            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xxl }]}>
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.md }]}>
               Сфотографируй еду или загрузи из галереи{'\n'}ИИ определит продукты и рассчитает КБЖУ
+            </Text>
+            <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginBottom: spacing.xl }]}>
+              Совет: снимай тарелку сверху при хорошем освещении — чем лучше фото, тем точнее результат
             </Text>
             <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
               <Button title="📷 Камера" onPress={() => pickImage(true)} style={{ flex: 1 }} />
@@ -572,7 +584,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {!!error && (
           <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.error }}>
             <Text style={[typography.body, { color: colors.error }]}>{error}</Text>
-            {errorRetryable && (
+            {errorRetryable && !loading && (
               <Button
                 title="Попробовать снова"
                 variant="outline"
