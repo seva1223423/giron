@@ -239,7 +239,7 @@ export const useAuthStore = create<AuthStore>()(
           set({ user: normalizeUser(user) });
           // Sync server-persisted nutrition targets (set by AI coach) to local store
           const u = user as any;
-          if (u.targetCalories || u.targetProtein || u.targetFats || u.targetCarbs) {
+          if (u.targetCalories || u.targetProtein || u.targetFats || u.targetCarbs || u.targetWaterMl) {
             useNutritionStore.getState().applyServerTargets({
               calories: u.targetCalories ?? null,
               protein: u.targetProtein ?? null,
