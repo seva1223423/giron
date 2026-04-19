@@ -538,17 +538,42 @@ async function getRecoveryStatus(userId: string, preload: ContextToolPreload, to
 async function getProgressData(userId: string, todayDate: string, include: string): Promise<string> {
   const sections: string[] = ['## 📈 ПРОГРЕСС'];
 
-  if (include === 'prs' || include === 'all') {
-    const exerciseSets = await prisma.workoutExercise.findMany({
-      where: { workout: { userId, completedAt: { not: null } } },
-      select: {
-        exercise: { select: { name: true } },
-        sets: { where: { completed: true, weight: { gt: 0 }, reps: { gt: 0 } }, select: { weight: true, reps: true } },
-      },
-      orderBy: { workout: { completedAt: 'desc' } },
-      take: 1000,
-    });
+  // Run all needed queries in parallel regardless of which include mode is active
+  const needPrs = include === 'prs' || include === 'all';
+  const needStreak = include === 'streak' || include === 'all';
+  const needWeight = include === 'weight' || include === 'all';
 
+  const [exerciseSets, workouts, bwHistory] = await Promise.all([
+    needPrs
+      ? prisma.workoutExercise.findMany({
+          where: { workout: { userId, completedAt: { not: null } } },
+          select: {
+            exercise: { select: { name: true } },
+            sets: { where: { completed: true, weight: { gt: 0 }, reps: { gt: 0 } }, select: { weight: true, reps: true } },
+          },
+          orderBy: { workout: { completedAt: 'desc' } },
+          take: 1000,
+        })
+      : Promise.resolve([]),
+    needStreak
+      ? prisma.workout.findMany({
+          where: { userId, completedAt: { not: null } },
+          orderBy: { completedAt: 'desc' },
+          select: { completedAt: true },
+          take: 500,
+        })
+      : Promise.resolve([]),
+    needWeight
+      ? prisma.bodyWeight.findMany({
+          where: { userId },
+          orderBy: { date: 'desc' },
+          take: 20,
+          select: { weightKg: true, date: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  if (needPrs) {
     // Track best set per exercise: highest est1RM
     const prMap = new Map<string, { weight: number; reps: number; e1rm: number }>();
     for (const we of exerciseSets) {
@@ -573,14 +598,7 @@ async function getProgressData(userId: string, todayDate: string, include: strin
     }
   }
 
-  if (include === 'streak' || include === 'all') {
-    const workouts = await prisma.workout.findMany({
-      where: { userId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
-      select: { completedAt: true },
-      take: 500,
-    });
-
+  if (needStreak) {
     const total = workouts.length;
     const trainingDays = new Set(
       workouts.filter((w) => w.completedAt).map((w) => w.completedAt!.toISOString().split('T')[0]),
@@ -606,14 +624,7 @@ async function getProgressData(userId: string, todayDate: string, include: strin
     if (streak >= 30) sections.push(`🏆 Невероятный стрик ${streak} дней — это топ!`);
   }
 
-  if (include === 'weight' || include === 'all') {
-    const bwHistory = await prisma.bodyWeight.findMany({
-      where: { userId },
-      orderBy: { date: 'desc' },
-      take: 20,
-      select: { weightKg: true, date: true },
-    });
-
+  if (needWeight) {
     if (bwHistory.length >= 2) {
       const newest = bwHistory[0];
       const oldest = bwHistory[bwHistory.length - 1];
