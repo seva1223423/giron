@@ -167,7 +167,7 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
             <Text style={[typography.caption, { color: colors.textSecondary }]}>итого кг</Text>
           </View>
         </View>
-        {Math.abs(actualWeight - (parseFloat(targetWeight) || 0)) > 0.1 && parseFloat(targetWeight) > 0 && (
+        {Math.abs(actualWeight - (parseFloat(targetWeight.replace(',', '.')) || 0)) > 0.1 && parseFloat(targetWeight.replace(',', '.')) > 0 && (
           <Text style={[typography.small, { color: colors.warning || colors.accent, textAlign: 'center', marginTop: spacing.sm }]}>
             Точный вес: {actualWeight} кг (ближайший возможный)
           </Text>
@@ -181,9 +181,9 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
             <TouchableOpacity
               key={w}
               onPress={() => { haptic.selection(); setTargetWeight(String(w)); }}
-              style={[styles.presetBtn, { backgroundColor: parseFloat(targetWeight) === w ? colors.primary : colors.surface, borderColor: parseFloat(targetWeight) === w ? colors.primary : colors.border }]}
+              style={[styles.presetBtn, { backgroundColor: parseFloat(targetWeight.replace(',', '.')) === w ? colors.primary : colors.surface, borderColor: parseFloat(targetWeight.replace(',', '.')) === w ? colors.primary : colors.border }]}
             >
-              <Text style={[typography.smallMedium, { color: parseFloat(targetWeight) === w ? '#fff' : colors.text }]}>{w}</Text>
+              <Text style={[typography.smallMedium, { color: parseFloat(targetWeight.replace(',', '.')) === w ? '#fff' : colors.text }]}>{w}</Text>
             </TouchableOpacity>
           ))}
         </View>
