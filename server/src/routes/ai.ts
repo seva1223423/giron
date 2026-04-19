@@ -10575,10 +10575,11 @@ function extractMemories(message: string): MemoryExtraction[] {
  */
 async function cleanupStaleMemories(userId: string): Promise<void> {
   try {
-    // Remove memories with very low confidence
-    await prisma.aIMemory.deleteMany({ where: { userId, confidence: { lt: 0.1 } } });
-    // Clamp confidence to 1.0 (can exceed 1.0 from increments)
-    await prisma.aIMemory.updateMany({ where: { userId, confidence: { gt: 1.0 } }, data: { confidence: 1.0 } });
+    // Remove low-confidence and clamp over-1.0 entries — independent, run in parallel
+    await Promise.all([
+      prisma.aIMemory.deleteMany({ where: { userId, confidence: { lt: 0.1 } } }),
+      prisma.aIMemory.updateMany({ where: { userId, confidence: { gt: 1.0 } }, data: { confidence: 1.0 } }),
+    ]);
     // Cap total memories per user at 100 — remove oldest lowest-confidence ones
     const count = await prisma.aIMemory.count({ where: { userId } });
     if (count > 100) {
@@ -10594,7 +10595,7 @@ async function cleanupStaleMemories(userId: string): Promise<void> {
 }
 
 async function saveMemories(userId: string, memories: MemoryExtraction[]): Promise<void> {
-  for (const mem of memories) {
+  await Promise.all(memories.map(async (mem) => {
     try {
       const safeKey = String(mem.key).slice(0, 100);
       const safeValue = String(mem.value).slice(0, 500);
@@ -10610,7 +10611,6 @@ async function saveMemories(userId: string, memories: MemoryExtraction[]): Promi
         },
         update: {
           value: safeValue,
-          // Increment confidence each time user re-states the same fact (capped to 1.0 in cleanup)
           confidence: { increment: 0.05 },
           source: mem.source,
         },
@@ -10618,7 +10618,7 @@ async function saveMemories(userId: string, memories: MemoryExtraction[]): Promi
     } catch (e) {
       logger.error('AIMemory save error:', e);
     }
-  }
+  }));
 }
 
 /**

@@ -31,7 +31,7 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
               name: ex.exercise!.name,
               sets: ex.sets.map((s) => ({ weight: s.weight, reps: s.reps, completed: s.completed, rpe: s.rpe })),
             })),
-        });
+        }, controller.signal);
         setInsights(result);
       } catch {
         setInsights('Отличная тренировка! Продолжай в том же духе.');
