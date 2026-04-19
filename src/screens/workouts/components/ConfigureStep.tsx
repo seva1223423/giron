@@ -84,13 +84,19 @@ export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, on
     Alert.alert('Сохранено', 'Шаблон добавлен в «Мои шаблоны»');
   };
 
+  // Clear index-based superset pairs when exercises are reordered — indices become stale
+  const handleMove = (index: number, direction: 'up' | 'down') => {
+    setSupersetPairs(new Set());
+    onMove(index, direction);
+  };
+
   // ConfigureStep needs navigation to start workout — pass it via context or prop
   // Since this is called from CustomWorkoutScreen which has navigation, we use a callback
   return (
     <ConfigureStepView
       selectedExercises={selectedExercises}
       onRemove={onRemove}
-      onMove={onMove}
+      onMove={handleMove}
       onBack={onBack}
       workoutName={workoutName}
       onNameChange={setWorkoutName}
