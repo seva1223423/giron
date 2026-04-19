@@ -64,6 +64,7 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
               keyboardType="decimal-pad"
               placeholder="0"
               placeholderTextColor={colors.inputPlaceholder}
+              selectTextOnFocus
             />
           </View>
         ))}
@@ -79,6 +80,7 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
               keyboardType="decimal-pad"
               placeholder="0"
               placeholderTextColor={colors.inputPlaceholder}
+              selectTextOnFocus
             />
           </View>
         ))}
