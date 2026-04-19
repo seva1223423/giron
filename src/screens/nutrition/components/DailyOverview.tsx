@@ -107,8 +107,8 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
             )}
           </Text>
           <MacroBar label="Белки" current={totalProtein} target={dayLog.targetProtein} color={colors.protein} />
-          <MacroBar label="Жиры" current={totalFats} target={dayLog.targetFats} color={colors.fats} />
-          <MacroBar label="Углеводы" current={totalCarbs} target={dayLog.targetCarbs} color={colors.carbs} />
+          <MacroBar label="Жиры" current={totalFats} target={dayLog.targetFats || 70} color={colors.fats} />
+          <MacroBar label="Углеводы" current={totalCarbs} target={dayLog.targetCarbs || 250} color={colors.carbs} />
         </View>
       </View>
 

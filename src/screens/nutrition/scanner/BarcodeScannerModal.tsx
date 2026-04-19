@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ActivityIndicator, StyleSheet, Alert, Linking } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useThemeStore } from '../../../store';
@@ -43,8 +43,9 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
   const handleRequestPermission = async () => {
     const result = await requestPermission();
     if (!result.granted) {
-      Alert.alert('Камера', 'Для сканирования штрих-кода нужен доступ к камере. Разрешите в настройках.', [
-        { text: 'OK', onPress: onClose },
+      Alert.alert('Доступ к камере', 'Для сканирования штрих-кода нужен доступ к камере.', [
+        { text: 'Отмена', style: 'cancel', onPress: onClose },
+        { text: 'Настройки', onPress: () => { Linking.openSettings(); onClose(); } },
       ]);
     }
   };
