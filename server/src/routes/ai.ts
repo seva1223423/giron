@@ -81347,19 +81347,22 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
     const text = await analyzeImage(imageBase64, prompt, mimeType);
     const items = parseFoodResponse(text);
 
-    if (!items) {
-      // Check if AI said it's not food
+    // Check if AI explicitly said it's not food — parseFoodResponse returns [] for notFood
+    const isNotFood = (() => {
       try {
         const raw = JSON.parse(text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim());
-        if (raw.notFood) {
-          return res.status(422).json({
-            error: 'На фото не еда',
-            suggestion: 'Убедись, что на фото видна еда. Сфотографируй тарелку сверху при хорошем освещении.',
-            retryable: true,
-          });
-        }
-      } catch { /* continue to generic error */ }
+        return raw.notFood === true;
+      } catch { return false; }
+    })();
 
+    if (!items || (items.length === 0 && isNotFood)) {
+      if (isNotFood) {
+        return res.status(422).json({
+          error: 'На фото не еда',
+          suggestion: 'Убедись, что на фото видна еда. Сфотографируй тарелку сверху при хорошем освещении.',
+          retryable: true,
+        });
+      }
       logger.warn(`Food analysis: parse failed. Raw: ${text.slice(0, 300)}`);
       return res.status(422).json({
         error: 'Не удалось распознать еду на фото',
