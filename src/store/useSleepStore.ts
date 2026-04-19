@@ -38,26 +38,29 @@ export const useSleepStore = create<SleepStore>()(
       entries: [],
 
       addEntry: (entry) => {
-        const snapshot = get().entries;
         const durationHours = computeDuration(entry.bedtime, entry.wakeTime);
         const newEntry: SleepEntry = { ...entry, durationHours };
         set((state) => ({
           entries: [newEntry, ...state.entries.filter((e) => e.date !== entry.date)]
             .sort((a, b) => b.date.localeCompare(a.date)),
         }));
-        // Sync to server with rollback on failure
+        // Sync to server; remove only this entry on failure — restoring a snapshot would
+        // erase concurrent entries added while this sync was in-flight
         userService.saveSleep({ ...newEntry }).catch(() => {
-          set({ entries: snapshot });
+          set((s) => ({ entries: s.entries.filter((e) => e.date !== newEntry.date) }));
         });
       },
 
       removeEntry: (date) => {
-        const snapshot = get().entries;
+        const removed = get().entries.find((e) => e.date === date);
         set((state) => ({ entries: state.entries.filter((e) => e.date !== date) }));
         userService.deleteSleep(date).catch((err) => {
           // 404 = entry was never synced to server (local-only) — treat as success
-          if (err?.response?.status !== 404) {
-            set({ entries: snapshot });
+          if (err?.response?.status !== 404 && removed) {
+            // Re-add only the removed entry — restoring a snapshot would erase concurrent changes
+            set((s) => ({
+              entries: [...s.entries, removed].sort((a, b) => b.date.localeCompare(a.date)),
+            }));
           }
         });
       },
