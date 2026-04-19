@@ -28,7 +28,7 @@ const InputField: React.FC<{ label: string; unit: string; value: string; onChang
   <View style={{ flex: 1, alignItems: 'center' }}>
     <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{label}</Text>
     <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <TextInput value={value} onChangeText={onChange} keyboardType="numeric" style={[typography.bodyMedium, { color: colors.text, textAlign: 'center', flex: 1 }]} />
+      <TextInput value={value} onChangeText={onChange} keyboardType="numeric" selectTextOnFocus style={[typography.bodyMedium, { color: colors.text, textAlign: 'center', flex: 1 }]} />
     </View>
     <Text style={[typography.small, { color: colors.textSecondary, marginTop: 4 }]}>{unit}</Text>
   </View>

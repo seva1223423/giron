@@ -95,20 +95,29 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
         placeholderTextColor={colors.inputPlaceholder}
       />
 
-      {filteredFoods.map((food, idx) => {
-        const isSelected = selectedFood?.name === food.name;
-        return (
-          <TouchableOpacity key={`${food.name}-${idx}`} onPress={() => { haptic.selection(); onSelectFood(food); }}>
-            <Card style={{ marginBottom: spacing.sm, borderWidth: isSelected ? 1.5 : 0, borderColor: isSelected ? colors.primary : 'transparent' }} padding={spacing.md}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={[typography.bodySemibold, { color: isSelected ? colors.primary : colors.text, flex: 1, marginRight: 8 }]} numberOfLines={1}>{food.name}</Text>
-                <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{food.calories} ккал/100г</Text>
-              </View>
-              <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>Б: {food.protein}г  Ж: {food.fats}г  У: {food.carbs}г</Text>
-            </Card>
-          </TouchableOpacity>
-        );
-      })}
+      {filteredFoods.length === 0 && searchQuery.trim().length > 0 ? (
+        <Card style={{ marginBottom: spacing.sm, alignItems: 'center', paddingVertical: spacing.xl }}>
+          <Text style={[typography.body, { color: colors.textSecondary }]}>Ничего не найдено</Text>
+          <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
+            Попробуй другой запрос или введи КБЖУ вручную
+          </Text>
+        </Card>
+      ) : (
+        filteredFoods.map((food, idx) => {
+          const isSelected = selectedFood?.name === food.name;
+          return (
+            <TouchableOpacity key={`${food.name}-${idx}`} onPress={() => { haptic.selection(); onSelectFood(food); }}>
+              <Card style={{ marginBottom: spacing.sm, borderWidth: isSelected ? 1.5 : 0, borderColor: isSelected ? colors.primary : 'transparent' }} padding={spacing.md}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[typography.bodySemibold, { color: isSelected ? colors.primary : colors.text, flex: 1, marginRight: 8 }]} numberOfLines={1}>{food.name}</Text>
+                  <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{food.calories} ккал/100г</Text>
+                </View>
+                <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>Б: {food.protein}г  Ж: {food.fats}г  У: {food.carbs}г</Text>
+              </Card>
+            </TouchableOpacity>
+          );
+        })
+      )}
 
       {selectedFood && (
         <Card style={{ marginTop: spacing.md, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
