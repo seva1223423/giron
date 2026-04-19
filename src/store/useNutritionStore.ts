@@ -274,7 +274,8 @@ export const useNutritionStore = create<NutritionStore>()(
       setTargets: (date, targets) => {
         set((s) => {
           const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
-          const waterTargetMl = targets.waterTargetMl ?? s.defaultTargets.waterTargetMl;
+          // Preserve existing per-day water target when caller doesn't supply one (e.g. GoalsModal only saves KBJU)
+          const waterTargetMl = targets.waterTargetMl ?? s.dailyLog[date]?.waterTargetMl ?? s.defaultTargets.waterTargetMl;
           return {
             defaultTargets: { ...s.defaultTargets, ...targets, waterTargetMl },
             dailyLog: {
