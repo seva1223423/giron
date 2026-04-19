@@ -2798,7 +2798,8 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       ? Object.values(weekPlan).flatMap((e) => (e?.exercises ?? []).filter(looksLikeId))
       : [];
 
-    // Fetch all user context data in parallel — 15 independent queries
+    // Fetch all user context data in parallel — 14 independent queries
+    // (aiMemoryCount derived from userMemories.length after secondary block)
     const [
       user,
       history,
@@ -2813,7 +2814,6 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       totalWorkoutsEver,
       firstWorkout,
       weekMealsForCalories,
-      aiMemoryCount,
       weekPlanExercisesRaw,
     ] = await Promise.all([
       prisma.user.findUnique({
@@ -2895,7 +2895,6 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         select: { totalCalories: true },
         take: 200,
       }),
-      prisma.aIMemory.count({ where: { userId } }),
       allWeekPlanExerciseIds.length > 0
         ? prisma.exercise.findMany({ where: { id: { in: allWeekPlanExerciseIds } }, select: { id: true, name: true } })
         : Promise.resolve([] as Array<{ id: string; name: string }>),
@@ -3567,6 +3566,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
       }),
     ]);
+
+    // Derive memory count from secondary block result (avoids a separate count query in the main block)
+    const aiMemoryCount = userMemories.length;
 
     // ─── Block 32: Contextual exercise alternatives ──────
     const programExerciseNames = programExerciseRows.filter((we) => we.exercise).map((we) => we.exercise?.name);
