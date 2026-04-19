@@ -9481,7 +9481,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             clientHour,
           };
 
-          for (const tc of result.toolCalls) {
+          const toolResults = await Promise.all(result.toolCalls.map(async (tc) => {
             let resultText: string;
             let actionDescription = '';
             let actionData: Record<string, unknown> | undefined;
@@ -9501,6 +9501,10 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
               resultText = `Не удалось выполнить действие. Попробуй ещё раз.`;
             }
 
+            return { tc, resultText: resultText!, actionDescription, actionData };
+          }));
+
+          for (const { tc, resultText, actionDescription, actionData } of toolResults) {
             if (actionDescription) {
               performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
             }
