@@ -139,6 +139,7 @@ export interface NutritionItem {
   carbs: number;
   weightGrams: number;
   imageUrl?: string;
+  confidence?: number;
 }
 
 export interface Meal {

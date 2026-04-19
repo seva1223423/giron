@@ -7,7 +7,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import type { NutritionItem } from '../../../types';
 
 interface Props {
-  item: NutritionItem & { confidence?: number };
+  item: NutritionItem;
   base: { cal: number; prot: number; fats: number; carbs: number } | undefined;
   onWeightChange: (id: string, weight: string) => void;
   onRemove: (id: string) => void;

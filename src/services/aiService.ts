@@ -16,6 +16,7 @@ export interface FoodAnalysisItem {
   protein: number;
   fats: number;
   carbs: number;
+  confidence?: number;
 }
 
 export interface FoodAnalysisResult {
