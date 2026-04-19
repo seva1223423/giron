@@ -117,8 +117,7 @@ export const useNutritionStore = create<NutritionStore>()(
       },
 
       removeMeal: (date, mealId) => {
-        // Snapshot for rollback — only attempt server delete for server-side meals
-        const snapshot = get().dailyLog[date]?.meals ?? [];
+        const removed = get().dailyLog[date]?.meals.find((m) => m.id === mealId);
 
         set((s) => {
           const dayLog = s.dailyLog[date];
@@ -137,18 +136,21 @@ export const useNutritionStore = create<NutritionStore>()(
         nutritionService.deleteMeal(mealId).catch((err) => {
           // 404 = already deleted on server — treat as success
           if (err?.response?.status === 404) return;
-          set((s) => {
-            const dayLog = s.dailyLog[date];
-            if (!dayLog) return s;
-            return {
-              dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: snapshot } },
-            };
-          });
+          // Re-add only the removed meal — restoring a snapshot would erase concurrent changes
+          if (removed) {
+            set((s) => {
+              const dayLog = s.dailyLog[date];
+              if (!dayLog) return s;
+              return {
+                dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: [...dayLog.meals, removed] } },
+              };
+            });
+          }
         });
       },
 
       updateMealItem: (date, mealId, itemId, data) => {
-        const snapshot = get().dailyLog[date]?.meals ?? [];
+        const prevMeal = get().dailyLog[date]?.meals.find((m) => m.id === mealId);
 
         let updatedMeal: Meal | undefined;
         set((s) => {
@@ -174,11 +176,14 @@ export const useNutritionStore = create<NutritionStore>()(
         // Sync to server with rollback; skip local-only meals that were never persisted
         if (updatedMeal && !mealId.startsWith('meal-')) {
           nutritionService.updateMeal(mealId, updatedMeal.items).catch(() => {
-            set((s) => {
-              const dayLog = s.dailyLog[date];
-              if (!dayLog) return s;
-              return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: snapshot } } };
-            });
+            // Revert only this meal — restoring a snapshot would erase concurrent changes
+            if (prevMeal) {
+              set((s) => {
+                const dayLog = s.dailyLog[date];
+                if (!dayLog) return s;
+                return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: dayLog.meals.map((m) => m.id === mealId ? prevMeal : m) } } };
+              });
+            }
           });
         }
       },
@@ -201,7 +206,7 @@ export const useNutritionStore = create<NutritionStore>()(
       }),
 
       removeMealItem: (date, mealId, itemId) => {
-        const snapshot = get().dailyLog[date]?.meals ?? [];
+        const prevMeal = get().dailyLog[date]?.meals.find((m) => m.id === mealId);
         let remainingItems: Meal['items'] = [];
         let mealIsEmpty = false;
 
@@ -232,11 +237,18 @@ export const useNutritionStore = create<NutritionStore>()(
 
         const rollback = (err?: any) => {
           if (err?.response?.status === 404) return; // already gone — treat as success
-          set((s) => {
-            const dayLog = s.dailyLog[date];
-            if (!dayLog) return s;
-            return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals: snapshot } } };
-          });
+          // Re-add only this meal — restoring a snapshot would erase concurrent changes
+          if (prevMeal) {
+            set((s) => {
+              const dayLog = s.dailyLog[date];
+              if (!dayLog) return s;
+              const hasMeal = dayLog.meals.some((m) => m.id === mealId);
+              const meals = hasMeal
+                ? dayLog.meals.map((m) => m.id === mealId ? prevMeal : m)
+                : [...dayLog.meals, prevMeal];
+              return { dailyLog: { ...s.dailyLog, [date]: { ...dayLog, meals } } };
+            });
+          }
         };
 
         if (mealIsEmpty) {
