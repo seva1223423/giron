@@ -39,8 +39,8 @@ export const FOOD_DB = [
   { name: 'Рис (варёный)', calories: 130, protein: 2.7, fats: 0.3, carbs: 28 },
   { name: 'Овсянка (варёная)', calories: 68, protein: 2.4, fats: 1.4, carbs: 12 },
   { name: 'Овсяные хлопья (сухие)', calories: 352, protein: 12, fats: 6, carbs: 60 },
-  { name: 'Перловка (варёная)', calories: 109, protein: 3.1, fats: 0.4, carbs: 22 },
-  { name: 'Пшено (варёное)', calories: 90, protein: 3, fats: 0.7, carbs: 18 },
+  { name: 'Перловка варёная', calories: 109, protein: 3.1, fats: 0.4, carbs: 22 },
+  { name: 'Пшено варёное', calories: 90, protein: 3, fats: 0.7, carbs: 18 },
   { name: 'Макароны (варёные)', calories: 158, protein: 5.5, fats: 0.9, carbs: 31 },
   // Хлеб
   { name: 'Хлеб цельнозерновой', calories: 247, protein: 8, fats: 2, carbs: 48 },
@@ -210,8 +210,6 @@ export const FOOD_DB = [
   { name: 'Рассольник (250г)', calories: 55, protein: 3, fats: 2.5, carbs: 6 },
   { name: 'Уха (250г)', calories: 45, protein: 6, fats: 1.5, carbs: 3 },
   // Каши (приготовленные)
-  { name: 'Перловка варёная', calories: 109, protein: 3.1, fats: 0.4, carbs: 22 },
-  { name: 'Пшённая каша на воде', calories: 90, protein: 3, fats: 0.7, carbs: 18 },
   { name: 'Манная каша на молоке', calories: 100, protein: 3.3, fats: 2.5, carbs: 16 },
   { name: 'Ячневая каша', calories: 88, protein: 2.5, fats: 0.4, carbs: 19 },
   // Мясные блюда
@@ -247,7 +245,7 @@ export const FOOD_DB = [
   { name: 'Хурма', calories: 67, protein: 0.5, fats: 0.4, carbs: 16 },
   { name: 'Авокадо', calories: 160, protein: 2, fats: 15, carbs: 9 },
   // Хлебцы и снэки
-  { name: 'Хлебцы рисовые', calories: 380, protein: 8, fats: 2.5, carbs: 82 },
+  { name: 'Хлебцы гречневые', calories: 353, protein: 11, fats: 2.5, carbs: 73 },
   { name: 'Крекеры цельнозерновые', calories: 400, protein: 10, fats: 10, carbs: 70 },
   { name: 'Чипсы картофельные', calories: 536, protein: 7, fats: 30, carbs: 62 },
   // Соусы и заправки
@@ -267,6 +265,55 @@ export const FOOD_DB = [
   { name: 'Шоколад горький (70%)', calories: 547, protein: 8, fats: 35, carbs: 52 },
   { name: 'Мёд', calories: 304, protein: 0.8, fats: 0, carbs: 80 },
   { name: 'Варенье', calories: 268, protein: 0.3, fats: 0.1, carbs: 70 },
+  // Рыба и морепродукты (дополнительные)
+  { name: 'Форель', calories: 148, protein: 20, fats: 7, carbs: 0 },
+  { name: 'Сёмга запечённая', calories: 196, protein: 24, fats: 11, carbs: 0 },
+  { name: 'Шпроты в масле', calories: 363, protein: 18, fats: 32, carbs: 0 },
+  { name: 'Икра красная', calories: 251, protein: 32, fats: 14, carbs: 0 },
+  { name: 'Морская капуста', calories: 5, protein: 0.6, fats: 0.1, carbs: 0.7 },
+  { name: 'Мидии варёные', calories: 86, protein: 12, fats: 2, carbs: 3.7 },
+  { name: 'Креветки варёные', calories: 99, protein: 21, fats: 1.1, carbs: 0 },
+  // Мясо и птица (дополнительные)
+  { name: 'Курица жареная', calories: 238, protein: 25, fats: 15, carbs: 0 },
+  { name: 'Утка запечённая', calories: 308, protein: 22, fats: 24, carbs: 0 },
+  { name: 'Кролик тушёный', calories: 179, protein: 21, fats: 9, carbs: 3 },
+  { name: 'Печень куриная', calories: 138, protein: 19, fats: 5, carbs: 3 },
+  { name: 'Печень говяжья', calories: 127, protein: 20, fats: 3.7, carbs: 4.2 },
+  // Овощи (дополнительные)
+  { name: 'Брокколи', calories: 34, protein: 2.8, fats: 0.4, carbs: 7 },
+  { name: 'Цветная капуста', calories: 30, protein: 2.5, fats: 0.3, carbs: 5 },
+  { name: 'Шпинат', calories: 23, protein: 2.9, fats: 0.4, carbs: 3.6 },
+  { name: 'Кабачок', calories: 24, protein: 0.7, fats: 0.3, carbs: 5 },
+  { name: 'Тыква', calories: 26, protein: 1, fats: 0.1, carbs: 6 },
+  { name: 'Баклажан', calories: 25, protein: 1.2, fats: 0.1, carbs: 5.5 },
+  { name: 'Спаржа', calories: 20, protein: 2.2, fats: 0.1, carbs: 3.1 },
+  { name: 'Болгарский перец красный', calories: 31, protein: 1, fats: 0.3, carbs: 6 },
+  { name: 'Артишок', calories: 47, protein: 3.3, fats: 0.2, carbs: 11 },
+  // Молочное (дополнительные)
+  { name: 'Творожная масса с изюмом', calories: 257, protein: 8, fats: 9, carbs: 38 },
+  { name: 'Ряженка 4%', calories: 67, protein: 2.8, fats: 4, carbs: 4.9 },
+  { name: 'Масло сливочное', calories: 748, protein: 0.8, fats: 82, carbs: 0.8 },
+  { name: 'Сыр Моцарелла', calories: 280, protein: 18, fats: 22, carbs: 2.4 },
+  { name: 'Сыр Брынза', calories: 262, protein: 17, fats: 20, carbs: 0.4 },
+  // Фрукты и ягоды (дополнительные)
+  { name: 'Арбуз', calories: 30, protein: 0.6, fats: 0.1, carbs: 7.5 },
+  { name: 'Дыня', calories: 35, protein: 0.6, fats: 0.3, carbs: 8.3 },
+  { name: 'Персик', calories: 39, protein: 0.9, fats: 0.1, carbs: 9.5 },
+  { name: 'Нектарин', calories: 44, protein: 1, fats: 0.3, carbs: 10 },
+  { name: 'Киви', calories: 61, protein: 1.1, fats: 0.5, carbs: 14 },
+  { name: 'Абрикос', calories: 44, protein: 0.9, fats: 0.3, carbs: 10 },
+  { name: 'Малина', calories: 41, protein: 0.8, fats: 0.5, carbs: 9 },
+  { name: 'Клубника', calories: 30, protein: 0.8, fats: 0.4, carbs: 6.5 },
+  // Напитки (дополнительные)
+  { name: 'Кофе с молоком (150мл)', calories: 40, protein: 1.5, fats: 1.5, carbs: 4 },
+  { name: 'Какао на молоке', calories: 92, protein: 4.5, fats: 3.5, carbs: 11 },
+  { name: 'Кефир 3.2%', calories: 59, protein: 2.9, fats: 3.2, carbs: 3.8 },
+  // Снэки и фастфуд
+  { name: 'Горсть орехов (30г)', calories: 183, protein: 5, fats: 17, carbs: 6 },
+  { name: 'Шаурма куриная', calories: 210, protein: 14, fats: 10, carbs: 18 },
+  { name: 'Блин (1 шт, 50г)', calories: 108, protein: 3, fats: 4, carbs: 15 },
+  { name: 'Сырник творожный', calories: 220, protein: 12, fats: 10, carbs: 22 },
+  { name: 'Оладьи', calories: 205, protein: 7, fats: 9, carbs: 26 },
 ];
 
 export type FoodItem = typeof FOOD_DB[0];
