@@ -689,7 +689,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               </View>
               <View style={styles.nutritionRow}>
                 {[
-                  { label: 'ккал', value: String(recognizedItems.reduce((s, i) => s + i.calories, 0)), color: colors.calories },
+                  { label: 'ккал', value: String(Math.round(recognizedItems.reduce((s, i) => s + i.calories, 0))), color: colors.calories },
                   { label: 'белки', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10}г`, color: colors.protein },
                   { label: 'жиры', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10}г`, color: colors.fats },
                   { label: 'углев.', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10}г`, color: colors.carbs },
@@ -704,7 +704,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
             {/* Remaining calories indicator */}
             {dayLog.targetCalories > 0 && (() => {
-              const afterMeal = alreadyEaten + totalCal;
+              const afterMeal = Math.round(alreadyEaten + totalCal);
               const remaining = dayLog.targetCalories - afterMeal;
               return (
                 <View style={[{ padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.lg }, { backgroundColor: remaining >= 0 ? colors.success + '15' : colors.error + '15' }]}>
