@@ -24,7 +24,7 @@ export const WeekStats: React.FC = () => {
         protein: log.meals.reduce((s, m) => s + m.totalProtein, 0),
         fats: log.meals.reduce((s, m) => s + m.totalFats, 0),
         carbs: log.meals.reduce((s, m) => s + m.totalCarbs, 0),
-        target: log.targetCalories,
+        target: log.targetCalories || 0,
       });
     }
     if (days.length === 0) return null;
