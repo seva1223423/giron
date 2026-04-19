@@ -46,8 +46,17 @@ export const useNutritionStore = create<NutritionStore>()(
 
       getDayLog: (date) => {
         const existing = get().dailyLog[date];
-        if (existing) return existing;
-        return getDefaultDayLog(date, get().defaultTargets);
+        if (!existing) return getDefaultDayLog(date, get().defaultTargets);
+        const dt = get().defaultTargets;
+        // Older persisted entries may be missing target fields — fill from defaults
+        return {
+          ...existing,
+          targetCalories: existing.targetCalories ?? dt.calories,
+          targetProtein: existing.targetProtein ?? dt.protein,
+          targetFats: existing.targetFats ?? dt.fats,
+          targetCarbs: existing.targetCarbs ?? dt.carbs,
+          waterTargetMl: existing.waterTargetMl ?? dt.waterTargetMl,
+        };
       },
 
       addMeal: (date, meal) => {
