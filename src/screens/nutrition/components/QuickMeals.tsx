@@ -39,7 +39,7 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
       const log = dailyLog[date];
       if (!log?.meals) continue;
       // Sort meals by createdAt descending
-      const sorted = [...log.meals].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const sorted = [...log.meals].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
       for (const meal of sorted) {
         for (const item of meal.items) {
           const cleanName = item.name.replace(/\s*\(\d+г\)$/, '').trim();
