@@ -86,7 +86,7 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
             premiumExpiresAt: data.expiresAt || null,
             plan: data.plan || null,
             status: data.status || null,
-            trialUsed: data.plan !== 'free',
+            trialUsed: data.plan !== 'free' ? true : get().trialUsed,
           });
         } catch (e) {
           console.error('Sync subscription error:', e);
