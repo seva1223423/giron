@@ -283,7 +283,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const applyBarcodeProduct = (product: BarcodeProduct, defaultWeight?: number) => {
     const w = defaultWeight ?? 100;
     const item: NutritionItem = {
-      id: `item-${Date.now()}-barcode`,
+      id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-barcode`,
       name: product.name,
       calories: Math.round((product.cal * w) / 100),
       protein: Math.round(((product.prot * w) / 100) * 10) / 10,
@@ -414,7 +414,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   }, []);
 
   const addSavedFoodItem = useCallback((food: NutritionItem) => {
-    const id = `item-${Date.now()}-added`;
+    const id = `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-added`;
     const w = food.weightGrams || 100;
     setRecognizedItems((prev) => [...prev, { ...food, id }]);
     setItemBases((prev) => ({
