@@ -164,10 +164,10 @@ export const useNutritionStore = create<NutritionStore>()(
             const updated: Meal = {
               ...meal,
               items: updatedItems,
-              totalCalories: updatedItems.reduce((s, i) => s + i.calories, 0),
-              totalProtein: updatedItems.reduce((s, i) => s + i.protein, 0),
-              totalFats: updatedItems.reduce((s, i) => s + i.fats, 0),
-              totalCarbs: updatedItems.reduce((s, i) => s + i.carbs, 0),
+              totalCalories: Math.round(updatedItems.reduce((s, i) => s + i.calories, 0)),
+              totalProtein: Math.round(updatedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10,
+              totalFats: Math.round(updatedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10,
+              totalCarbs: Math.round(updatedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10,
             };
             updatedMeal = updated;
             return updated;
@@ -224,10 +224,10 @@ export const useNutritionStore = create<NutritionStore>()(
             const updated: Meal = {
               ...meal,
               items: updatedItems,
-              totalCalories: updatedItems.reduce((s, i) => s + i.calories, 0),
-              totalProtein: updatedItems.reduce((s, i) => s + i.protein, 0),
-              totalFats: updatedItems.reduce((s, i) => s + i.fats, 0),
-              totalCarbs: updatedItems.reduce((s, i) => s + i.carbs, 0),
+              totalCalories: Math.round(updatedItems.reduce((s, i) => s + i.calories, 0)),
+              totalProtein: Math.round(updatedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10,
+              totalFats: Math.round(updatedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10,
+              totalCarbs: Math.round(updatedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10,
             };
             updatedMeals.push(updated);
           }
