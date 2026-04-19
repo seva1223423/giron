@@ -2745,7 +2745,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
-    // Fetch all user context data in parallel — 11 independent queries
+    // Fetch all user context data in parallel — 12 independent queries
     const [
       user,
       history,
@@ -2758,6 +2758,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       userPrograms,
       sleepFromDb,
       totalWorkoutsEver,
+      firstWorkout,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -2828,6 +2829,11 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
             select: { date: true, durationHours: true, quality: true },
           }),
       prisma.workout.count({ where: { userId, completedAt: { not: null } } }),
+      prisma.workout.findFirst({
+        where: { userId, completedAt: { not: null } },
+        orderBy: { completedAt: 'asc' },
+        select: { completedAt: true },
+      }),
     ]);
 
     // Build user context
@@ -4345,9 +4351,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }) : '';
 
     // ─── Block 165: Periodization phase advisor ──────
-    const userCreatedAt = await prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
-    const weeksSinceStart = userCreatedAt?.createdAt
-      ? Math.floor((Date.now() - userCreatedAt.createdAt.getTime()) / (7 * 86400000))
+    const weeksSinceStart = user?.createdAt
+      ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (7 * 86400000))
       : 0;
     const periodizationAdviceContext = advisePeriodizationPhase(
       weeksSinceStart,
@@ -4437,13 +4442,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
 
     // ─── Block 179: Long-term progress narrative ──────
-    const firstEverWorkout = await prisma.workout.findFirst({
-      where: { userId, completedAt: { not: null } },
-      orderBy: { completedAt: 'asc' },
-      select: { completedAt: true },
-    });
-    const firstWorkoutDaysAgo179 = firstEverWorkout?.completedAt
-      ? Math.floor((Date.now() - new Date(firstEverWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24))
+    const firstWorkoutDaysAgo179 = firstWorkout?.completedAt
+      ? Math.floor((Date.now() - new Date(firstWorkout.completedAt).getTime()) / (1000 * 60 * 60 * 24))
       : 0;
     const totalVolumeTons179 = allCompletedExerciseSets.reduce((sum, ex) =>
       sum + ex.sets.reduce((s, st) => s + (st.weight || 0) * (st.reps || 0), 0), 0) / 1000;
