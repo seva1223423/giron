@@ -1608,6 +1608,26 @@ function getRelevantKnowledge(
   return { content, topics: finalSelection };
 }
 
+const EN_TO_RU_EXERCISES: Record<string, string> = {
+  'bench press': 'жим штанги лёжа', 'squat': 'приседания', 'deadlift': 'становая тяга',
+  'overhead press': 'жим штанги стоя', 'barbell row': 'тяга штанги в наклоне',
+  'pull-up': 'подтягивания', 'pullup': 'подтягивания', 'chin-up': 'подтягивания',
+  'dip': 'отжимания на брусьях', 'lat pulldown': 'тяга верхнего блока',
+  'cable row': 'тяга нижнего блока', 'leg press': 'жим ногами в тренажёре',
+  'leg curl': 'сгибание ног в тренажёре', 'leg extension': 'разгибание ног в тренажёре',
+  'calf raise': 'подъём на носки в тренажёре', 'bicep curl': 'сгибание рук со штангой',
+  'tricep pushdown': 'разгибание рук на блоке', 'lateral raise': 'махи гантелями в стороны',
+  'romanian deadlift': 'румынская тяга', 'rdl': 'румынская тяга',
+  'incline bench press': 'жим штанги на наклонной скамье',
+  'dumbbell fly': 'разводка гантелей лёжа', 'cable fly': 'кроссовер на блоках',
+  'plank': 'планка', 'crunch': 'скручивания', 'sit-up': 'скручивания',
+  'push-up': 'отжимания от пола', 'pushup': 'отжимания от пола',
+  'arnold press': 'жим арнольда', 'hyperextension': 'гиперэкстензия',
+  'shrug': 'шраги со штангой', 'close grip bench': 'жим штанги узким хватом',
+  'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
+  'front raise': 'махи гантелями перед собой',
+};
+
 // Execute an AI tool call and return the result string + performed action info
 async function executeTool(
   toolName: string,
@@ -1685,27 +1705,6 @@ async function executeTool(
       }>;
     };
 
-    // English → Russian fallback for common exercise names
-    const EN_RU: Record<string, string> = {
-      'bench press': 'жим штанги лёжа', 'squat': 'приседания', 'deadlift': 'становая тяга',
-      'overhead press': 'жим штанги стоя', 'barbell row': 'тяга штанги в наклоне',
-      'pull-up': 'подтягивания', 'pullup': 'подтягивания', 'chin-up': 'подтягивания',
-      'dip': 'отжимания на брусьях', 'lat pulldown': 'тяга верхнего блока',
-      'cable row': 'тяга нижнего блока', 'leg press': 'жим ногами в тренажёре',
-      'leg curl': 'сгибание ног в тренажёре', 'leg extension': 'разгибание ног в тренажёре',
-      'calf raise': 'подъём на носки в тренажёре', 'bicep curl': 'сгибание рук со штангой',
-      'tricep pushdown': 'разгибание рук на блоке', 'lateral raise': 'махи гантелями в стороны',
-      'romanian deadlift': 'румынская тяга', 'rdl': 'румынская тяга',
-      'incline bench press': 'жим штанги на наклонной скамье',
-      'dumbbell fly': 'разводка гантелей лёжа', 'cable fly': 'кроссовер на блоках',
-      'plank': 'планка', 'crunch': 'скручивания', 'sit-up': 'скручивания',
-      'push-up': 'отжимания от пола', 'pushup': 'отжимания от пола',
-      'arnold press': 'жим арнольда', 'hyperextension': 'гиперэкстензия',
-      'shrug': 'шраги со штангой', 'close grip bench': 'жим штанги узким хватом',
-      'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
-      'front raise': 'махи гантелями перед собой',
-    };
-
     // Find exercises + active program in parallel
     const [exerciseRecords, activeProgramResult] = await Promise.all([
       Promise.all(
@@ -1717,7 +1716,7 @@ async function executeTool(
           // Try English → Russian translation fallback
           if (!found) {
             const lower = searchName.toLowerCase();
-            const translated = EN_RU[lower] || Object.entries(EN_RU).find(([k]) => lower.includes(k))?.[1];
+            const translated = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
             if (translated) {
               found = await prisma.exercise.findFirst({
                 where: { name: { contains: translated, mode: 'insensitive' } },
@@ -1939,33 +1938,13 @@ async function executeTool(
       }>;
     };
 
-    // English → Russian fallback for common exercise names
-    const EN_RU_PROG: Record<string, string> = {
-      'bench press': 'жим штанги лёжа', 'squat': 'приседания', 'deadlift': 'становая тяга',
-      'overhead press': 'жим штанги стоя', 'barbell row': 'тяга штанги в наклоне',
-      'pull-up': 'подтягивания', 'pullup': 'подтягивания', 'chin-up': 'подтягивания',
-      'dip': 'отжимания на брусьях', 'lat pulldown': 'тяга верхнего блока',
-      'cable row': 'тяга нижнего блока', 'leg press': 'жим ногами в тренажёре',
-      'leg curl': 'сгибание ног в тренажёре', 'leg extension': 'разгибание ног в тренажёре',
-      'calf raise': 'подъём на носки в тренажёре', 'bicep curl': 'сгибание рук со штангой',
-      'tricep pushdown': 'разгибание рук на блоке', 'lateral raise': 'махи гантелями в стороны',
-      'romanian deadlift': 'румынская тяга', 'rdl': 'румынская тяга',
-      'incline bench press': 'жим штанги на наклонной скамье',
-      'dumbbell fly': 'разводка гантелей лёжа', 'plank': 'планка',
-      'push-up': 'отжимания от пола', 'pushup': 'отжимания от пола',
-      'arnold press': 'жим арнольда', 'hyperextension': 'гиперэкстензия',
-      'shrug': 'шраги со штангой', 'close grip bench': 'жим штанги узким хватом',
-      'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
-      'front raise': 'махи гантелями перед собой',
-    };
-
     const resolveExercise = async (exerciseName: string) => {
       let found = await prisma.exercise.findFirst({
         where: { name: { contains: exerciseName, mode: 'insensitive' } },
       });
       if (!found) {
         const lower = exerciseName.toLowerCase();
-        const translated = EN_RU_PROG[lower] || Object.entries(EN_RU_PROG).find(([k]) => lower.includes(k))?.[1];
+        const translated = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
         if (translated) {
           found = await prisma.exercise.findFirst({
             where: { name: { contains: translated, mode: 'insensitive' } },
@@ -2110,27 +2089,6 @@ async function executeTool(
       restSeconds?: number;
     };
 
-    // EN→RU fallback (reuse same map)
-    const EN_RU_MAP: Record<string, string> = {
-      'bench press': 'жим штанги лёжа', 'squat': 'приседания', 'deadlift': 'становая тяга',
-      'overhead press': 'жим штанги стоя', 'barbell row': 'тяга штанги в наклоне',
-      'pull-up': 'подтягивания', 'pullup': 'подтягивания', 'chin-up': 'подтягивания',
-      'dip': 'отжимания на брусьях', 'lat pulldown': 'тяга верхнего блока',
-      'cable row': 'тяга нижнего блока', 'leg press': 'жим ногами в тренажёре',
-      'leg curl': 'сгибание ног в тренажёре', 'leg extension': 'разгибание ног в тренажёре',
-      'calf raise': 'подъём на носки в тренажёре', 'bicep curl': 'сгибание рук со штангой',
-      'tricep pushdown': 'разгибание рук на блоке', 'lateral raise': 'махи гантелями в стороны',
-      'romanian deadlift': 'румынская тяга', 'rdl': 'румынская тяга',
-      'incline bench press': 'жим штанги на наклонной скамье',
-      'dumbbell fly': 'разводка гантелей лёжа', 'cable fly': 'кроссовер на блоках',
-      'plank': 'планка', 'crunch': 'скручивания', 'sit-up': 'скручивания',
-      'push-up': 'отжимания от пола', 'pushup': 'отжимания от пола',
-      'arnold press': 'жим арнольда', 'hyperextension': 'гиперэкстензия',
-      'shrug': 'шраги со штангой', 'close grip bench': 'жим штанги узким хватом',
-      'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
-      'front raise': 'махи гантелями перед собой',
-    };
-
     // Resolve exercise name with EN→RU fallback
     const resolveExerciseName = async (name: string) => {
       let found = await prisma.exercise.findFirst({
@@ -2138,7 +2096,7 @@ async function executeTool(
       });
       if (!found) {
         const lower = name.toLowerCase();
-        const translated = EN_RU_MAP[lower] || Object.entries(EN_RU_MAP).find(([k]) => lower.includes(k))?.[1];
+        const translated = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
         if (translated) {
           found = await prisma.exercise.findFirst({
             where: { name: { contains: translated, mode: 'insensitive' } },
