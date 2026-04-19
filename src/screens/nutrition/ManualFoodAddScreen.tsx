@@ -108,7 +108,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
         )}
 
         <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.huge }}>
-          {tab === 'custom' && custom.name.trim() !== '' && (
+          {tab === 'custom' && custom.name.trim() !== '' && (parseFloat(custom.calories.replace(',', '.')) || 0) > 0 && (
             <TouchableOpacity
               onPress={() => {
                 haptic.success();
