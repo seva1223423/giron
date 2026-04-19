@@ -2745,7 +2745,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
-    // Fetch all user context data in parallel — 12 independent queries
+    // Fetch all user context data in parallel — 14 independent queries
     const [
       user,
       history,
@@ -2759,6 +2759,8 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       sleepFromDb,
       totalWorkoutsEver,
       firstWorkout,
+      weekMealsForCalories,
+      aiMemoryCount,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -2834,6 +2836,12 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         orderBy: { completedAt: 'asc' },
         select: { completedAt: true },
       }),
+      prisma.meal.findMany({
+        where: { userId, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+        select: { totalCalories: true },
+        take: 200,
+      }),
+      prisma.aIMemory.count({ where: { userId } }),
     ]);
 
     // Build user context
@@ -3768,13 +3776,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       else trainingFocus = 'mixed';
     }
     // Avg calories from recent meals
-    const recentMealsAll = await prisma.meal.findMany({
-      where: { userId, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
-      select: { totalCalories: true },
-      take: 200,
-    });
-    const avgCalories = recentMealsAll.length > 0
-      ? recentMealsAll.reduce((s, m) => s + m.totalCalories, 0) / Math.max(recentMealsAll.length / 3, 1) // per day estimate
+    const avgCalories = weekMealsForCalories.length > 0
+      ? weekMealsForCalories.reduce((s, m) => s + m.totalCalories, 0) / Math.max(weekMealsForCalories.length / 3, 1) // per day estimate
       : null;
     // Body weight trend
     let bwTrendForGoal: 'up' | 'down' | 'stable' | null = null;
@@ -3837,7 +3840,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       : '';
 
     // ─── Block 75: Confidence calibration ──────
-    const aiMemoryCount = await prisma.aIMemory.count({ where: { userId } });
     const confidenceContext = calibrateConfidence(
       totalWorkoutsEver,
       bodyWeightHistory.length,
