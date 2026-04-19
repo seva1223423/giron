@@ -222,6 +222,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setError('Анализ отменён.');
         setImageUri(null);
         lastBase64Ref.current = '';
+      } else if (e?.response?.status === 402) {
+        // Server quota exceeded (e.g. scanned on another device) — show paywall
+        setImageUri(null);
+        lastBase64Ref.current = '';
+        setShowPaywall(true);
       } else if (e?.suggestion) {
         setError(e.suggestion);
         setErrorRetryable(e?.retryable !== false);
