@@ -49,7 +49,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
       if (!custom.name.trim()) { Alert.alert('Укажи название продукта'); return; }
       const parsedCal = Math.round(parseFloat(custom.calories.replace(',', '.')) || 0);
       if (!custom.calories.trim() || isNaN(parsedCal) || parsedCal <= 0) { Alert.alert('Укажи калорийность (больше 0)'); return; }
-      item = { id: `item-${Date.now()}`, name: custom.name.trim(), calories: parsedCal, protein: Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0), fats: Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0), carbs: Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0), weightGrams: 100 };
+      item = { id: `item-${Date.now()}`, name: custom.name.trim(), calories: parsedCal, protein: Math.round(Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0) * 10) / 10, fats: Math.round(Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0) * 10) / 10, carbs: Math.round(Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0) * 10) / 10, weightGrams: 100 };
     } else {
       Alert.alert('Выбери продукт из списка или введи данные вручную');
       return;
@@ -112,7 +112,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
             <TouchableOpacity
               onPress={() => {
                 haptic.success();
-                saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, Math.round(parseFloat(custom.calories.replace(',', '.')) || 0)), protein: Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0), fats: Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0), carbs: Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0), weightGrams: 100 });
+                saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, Math.round(parseFloat(custom.calories.replace(',', '.')) || 0)), protein: Math.round(Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0) * 10) / 10, fats: Math.round(Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0) * 10) / 10, carbs: Math.round(Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0) * 10) / 10, weightGrams: 100 });
                 Alert.alert('Сохранено', `${custom.name.trim()} добавлен в быстрые продукты`);
               }}
               style={[styles.saveBtnLg, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
