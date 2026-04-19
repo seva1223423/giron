@@ -130,6 +130,9 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
   const core = buildCoreStatsContext(data);
   if (core) blocks.push(core);
 
+  // Start memory fetch early — runs in parallel with the intent-specific switch
+  const memoryPromise = buildMemoryBlock(data);
+
   // Intent-specific blocks
   switch (data.intent) {
     case 'greeting':
@@ -233,8 +236,8 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
     }
   }
 
-  // Memory: for all intents (cross-session personalization)
-  const memory = await buildMemoryBlock(data);
+  // Memory: for all intents (cross-session personalization) — awaited after parallel work above
+  const memory = await memoryPromise;
   if (memory) blocks.push(memory);
 
   return blocks.join('\n\n');
