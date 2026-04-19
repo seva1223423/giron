@@ -868,24 +868,44 @@ async function buildGamificationBlock(data: ChatContextData): Promise<string> {
 
 async function buildMemoryBlock(data: ChatContextData): Promise<string> {
   const { userId } = data;
+  const profileGoal = data.user?.goal ?? null;
 
   try {
     const memories = await prisma.aIMemory.findMany({
       where: { userId, confidence: { gte: 0.5 } },
       orderBy: [{ confidence: 'desc' }, { updatedAt: 'desc' }],
-      take: 15,
-      select: { category: true, key: true, value: true },
+      take: 20,
+      select: { category: true, key: true, value: true, confidence: true },
     });
 
     if (memories.length === 0) return '';
 
+    const lines = ['\n## 🧠 ПЕРСОНАЛИЗАЦИЯ (из прошлых сессий)'];
+
+    // Goal contradiction detection
+    if (profileGoal) {
+      const PROFILE_GOAL_MAP: Record<string, string[]> = {
+        WEIGHT_LOSS: ['похудение', 'сжечь жир', 'сбросить вес'],
+        MUSCLE_GAIN: ['набор массы', 'накачаться', 'нарастить мышц'],
+        STRENGTH: ['сила', 'стать сильнее'],
+        ENDURANCE: ['выносливость', 'кардио'],
+        GENERAL_FITNESS: ['общая форма', 'поддерживать форму'],
+      };
+      const goalMemory = memories.find((m) => m.key === 'user_goal');
+      if (goalMemory) {
+        const expectedValues = PROFILE_GOAL_MAP[profileGoal] ?? [];
+        const isConsistent = expectedValues.some((v) => goalMemory.value.toLowerCase().includes(v));
+        if (!isConsistent) {
+          lines.push(`⚠️ ПРОТИВОРЕЧИЕ: в памяти цель — «${goalMemory.value}», в профиле — «${profileGoal}». Уточни у пользователя.`);
+        }
+      }
+    }
+
     const grouped: Record<string, string[]> = {};
     for (const m of memories) {
       if (!grouped[m.category]) grouped[m.category] = [];
-      grouped[m.category].push(`${m.key}: ${m.value}`);
+      grouped[m.category].push(`${m.key}: ${m.value} (${Math.round(m.confidence * 100)}%)`);
     }
-
-    const lines = ['\n## 🧠 ПЕРСОНАЛИЗАЦИЯ (из прошлых сессий)'];
     for (const [cat, items] of Object.entries(grouped)) {
       lines.push(`${cat}: ${items.join(', ')}`);
     }
