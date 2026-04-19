@@ -35,8 +35,11 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         const snapshot = get().entries;
         const entry: BodyMeasurement = { ...data, id: `meas-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
         set((s) => ({ entries: [entry, ...s.entries] }));
-        // Sync to server with rollback on failure
-        userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, calf: data.calf, neck: data.neck }).catch(() => {
+        // Sync to server; upgrade local ID to server-{date} so deleteEntry can reach it
+        const serverId = `server-${data.date}`;
+        userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, calf: data.calf, neck: data.neck }).then(() => {
+          set((s) => ({ entries: s.entries.map((e) => e.id === entry.id ? { ...e, id: serverId } : e) }));
+        }).catch(() => {
           set({ entries: snapshot });
         });
       },
