@@ -62,7 +62,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
       calories: Math.round(item.calories * ratio),
       protein: Math.round(item.protein * ratio * 10) / 10,
       fats: Math.round(item.fats * ratio * 10) / 10,
-      carbs: Math.round(item.carbs * ratio),
+      carbs: Math.round(item.carbs * ratio * 10) / 10,
     });
     setEditingItem(null);
   };

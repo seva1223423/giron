@@ -402,7 +402,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             calories: Math.round((base.cal * w) / 100),
             protein: Math.round(((base.prot * w) / 100) * 10) / 10,
             fats: Math.round(((base.fats * w) / 100) * 10) / 10,
-            carbs: Math.round((base.carbs * w) / 100),
+            carbs: Math.round(((base.carbs * w) / 100) * 10) / 10,
           }
         : item,
     ));
