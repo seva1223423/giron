@@ -328,23 +328,28 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       const data = await response.json();
 
       if (data.status === 1 && data.product) {
-        // Credit consumed only on success
-        if (!consumeFoodScan()) {
-          setShowBarcodeScanner(false);
-          setBarcodeLoading(false);
-          setShowPaywall(true);
-          barcodeProcessingRef.current = false;
-          return;
-        }
-
         const p = data.product;
         const n: Record<string, any> = p.nutriments || {};
         const cal = extractKcal(n);
         const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
         const fats = Math.round((n.fat_100g || 0) * 10) / 10;
         const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
-        const productName: string =
-          p.product_name_ru || p.product_name || p.product_name_en || p.brands || 'Неизвестный продукт';
+        const rawName: string = p.product_name_ru || p.product_name || p.product_name_en || p.brands || 'Неизвестный продукт';
+        const productName = rawName.replace(/\s+/g, ' ').trim().slice(0, 150);
+
+        // Skip products with no usable nutrition data — don't charge a scan
+        if (cal === 0 && prot === 0 && fats === 0 && carbs === 0) {
+          setShowBarcodeScanner(false);
+          setNotFound(true);
+          return;
+        }
+
+        // Credit consumed only when we have actual nutrition data to return
+        if (!consumeFoodScan()) {
+          setShowBarcodeScanner(false);
+          setShowPaywall(true);
+          return;
+        }
 
         const product: BarcodeProduct = { name: productName, cal, prot, fats, carbs };
         const servingGrams = parseServingGrams(p.serving_size || p.serving_quantity || '');
