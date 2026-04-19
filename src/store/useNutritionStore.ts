@@ -262,24 +262,33 @@ export const useNutritionStore = create<NutritionStore>()(
         }
       },
 
-      setTargets: (date, targets) => set((s) => {
-        const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
-        const waterTargetMl = targets.waterTargetMl ?? s.defaultTargets.waterTargetMl;
-        return {
-          defaultTargets: { ...s.defaultTargets, ...targets, waterTargetMl },
-          dailyLog: {
-            ...s.dailyLog,
-            [date]: {
-              ...dayLog,
-              targetCalories: targets.calories,
-              targetProtein: targets.protein,
-              targetFats: targets.fats,
-              targetCarbs: targets.carbs,
-              waterTargetMl,
+      setTargets: (date, targets) => {
+        set((s) => {
+          const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
+          const waterTargetMl = targets.waterTargetMl ?? s.defaultTargets.waterTargetMl;
+          return {
+            defaultTargets: { ...s.defaultTargets, ...targets, waterTargetMl },
+            dailyLog: {
+              ...s.dailyLog,
+              [date]: {
+                ...dayLog,
+                targetCalories: targets.calories,
+                targetProtein: targets.protein,
+                targetFats: targets.fats,
+                targetCarbs: targets.carbs,
+                waterTargetMl,
+              },
             },
-          },
-        };
-      }),
+          };
+        });
+        // Fire-and-forget sync to server — targets survive reinstall/multi-device
+        nutritionService.updateNutritionTargets({
+          calories: targets.calories,
+          protein: targets.protein,
+          fats: targets.fats,
+          carbs: targets.carbs,
+        }).catch(() => {});
+      },
 
       applyServerTargets: ({ calories, protein, fats, carbs, waterMl }) => set((s) => {
         // Only apply when server has non-null values; don't overwrite user's local customizations
