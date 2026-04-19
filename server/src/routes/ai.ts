@@ -2745,7 +2745,13 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
-    // Fetch all user context data in parallel — 14 independent queries
+    // Pre-compute weekPlan exercise IDs (available immediately from request body)
+    const looksLikeId = (s: string) => s.length >= 20 && !/\s/.test(s);
+    const allWeekPlanExerciseIds = weekPlan
+      ? Object.values(weekPlan).flatMap((e) => (e?.exercises ?? []).filter(looksLikeId))
+      : [];
+
+    // Fetch all user context data in parallel — 15 independent queries
     const [
       user,
       history,
@@ -2761,6 +2767,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       firstWorkout,
       weekMealsForCalories,
       aiMemoryCount,
+      weekPlanExercisesRaw,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -2842,9 +2849,14 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         take: 200,
       }),
       prisma.aIMemory.count({ where: { userId } }),
+      allWeekPlanExerciseIds.length > 0
+        ? prisma.exercise.findMany({ where: { id: { in: allWeekPlanExerciseIds } }, select: { id: true, name: true } })
+        : Promise.resolve([] as Array<{ id: string; name: string }>),
     ]);
 
-    // Build user context
+    const weekPlanIdToName = new Map<string, string>();
+    weekPlanExercisesRaw.forEach((ex) => weekPlanIdToName.set(ex.id, ex.name));
+
     let userContext = '';
     if (user) {
       const age = user.dateOfBirth
@@ -3105,21 +3117,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     if (weekPlan && Object.keys(weekPlan).length > 0) {
       const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
-      // Detect exercise IDs (cuid: 25 chars, no spaces) and resolve them to names in one batch query
-      const looksLikeId = (s: string) => s.length >= 20 && !/\s/.test(s);
-      const allExerciseIds = Object.values(weekPlan)
-        .flatMap((e) => (e?.exercises ?? []).filter(looksLikeId));
-      const idToName = new Map<string, string>();
-      if (allExerciseIds.length > 0) {
-        const resolved = await prisma.exercise.findMany({ where: { id: { in: allExerciseIds } }, select: { id: true, name: true } });
-        resolved.forEach((ex) => idToName.set(ex.id, ex.name));
-      }
-
       const planLines: string[] = [];
       for (let i = 0; i <= 6; i++) {
         const entry = weekPlan[i];
         if (entry) {
-          const resolvedExercises = (entry.exercises ?? []).map((ex) => idToName.get(ex) ?? ex);
+          // weekPlanIdToName was pre-fetched in the main parallel block
+          const resolvedExercises = (entry.exercises ?? []).map((ex) => weekPlanIdToName.get(ex) ?? ex);
           const exStr = resolvedExercises.length > 0
             ? ` (${resolvedExercises.slice(0, 5).join(', ')}${resolvedExercises.length > 5 ? ` +${resolvedExercises.length - 5}` : ''})`
             : '';
@@ -3486,7 +3489,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const [
       programExerciseRows,
       totalWorkoutsLast30Days,
-      exerciseTypeRows,
       allRecentForFatigue,
       recentMealsForGaps,
       userMemories,
@@ -3495,20 +3497,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       activeProgram
         ? prisma.workoutExercise.findMany({
             where: { workout: { programId: activeProgram.id } },
-            select: { exercise: { select: { name: true } } },
+            select: { exercise: { select: { name: true, type: true } } },
             take: 500,
           })
         : Promise.resolve([]),
       prisma.workout.count({
         where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
       }),
-      activeProgram
-        ? prisma.workoutExercise.findMany({
-            where: { workout: { programId: activeProgram.id } },
-            select: { exercise: { select: { type: true } } },
-            take: 500,
-          })
-        : Promise.resolve([]),
       prisma.workout.findMany({
         where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) } },
         select: { completedAt: true, totalVolume: true, durationMinutes: true },
@@ -3555,7 +3550,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const goalProgressContext = buildGoalProgressContext(goalProgress);
 
     // ─── Block 35: Smart rest timer suggestion ──────
-    const exerciseTypesInProgram = [...new Set(exerciseTypeRows.filter((we) => we.exercise).map((we) => we.exercise?.type))];
+    const exerciseTypesInProgram = [...new Set(programExerciseRows.filter((we) => we.exercise).map((we) => we.exercise?.type))];
     const restTimerContext = buildRestTimerContext(user?.goal || null, exerciseTypesInProgram);
 
     // ─── Block 36: Fatigue index (ACWR) ──────
