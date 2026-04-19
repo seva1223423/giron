@@ -77,6 +77,26 @@ describe('entry management', () => {
   });
 });
 
+describe('input validation', () => {
+  test('getLastEntries returns empty array for negative count', () => {
+    useSleepStore.getState().addEntry({ date: '2026-04-08', bedtime: '23:00', wakeTime: '07:00' });
+    expect(useSleepStore.getState().getLastEntries(-1)).toEqual([]);
+    expect(useSleepStore.getState().getLastEntries(0)).toEqual([]);
+  });
+
+  test('getAverageDuration returns 0 for negative days', () => {
+    useSleepStore.getState().addEntry({ date: '2026-04-08', bedtime: '23:00', wakeTime: '07:00' });
+    expect(useSleepStore.getState().getAverageDuration(-5)).toBe(0);
+    expect(useSleepStore.getState().getAverageDuration(0)).toBe(0);
+  });
+
+  test('getAverageQuality returns 0 for negative days', () => {
+    useSleepStore.getState().addEntry({ date: '2026-04-08', bedtime: '23:00', wakeTime: '07:00', quality: 8 });
+    expect(useSleepStore.getState().getAverageQuality(-5)).toBe(0);
+    expect(useSleepStore.getState().getAverageQuality(0)).toBe(0);
+  });
+});
+
 describe('average duration', () => {
   test('average duration with mixed sleep lengths', () => {
     useSleepStore.getState().addEntry({ date: '2026-04-08', bedtime: '23:00', wakeTime: '07:00' }); // 8h

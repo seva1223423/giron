@@ -132,6 +132,21 @@ describe('syncMealsFromServer merge bug', () => {
   });
 });
 
+describe('water tracking — input validation', () => {
+  test('addWater ignores non-positive ml values', () => {
+    useNutritionStore.setState({ dailyLog: {}, defaultTargets: { calories: 2000, protein: 150, fats: 70, carbs: 250, waterTargetMl: 2500 } });
+    useNutritionStore.getState().addWater('2026-04-08', 0);
+    useNutritionStore.getState().addWater('2026-04-08', -250);
+    expect(useNutritionStore.getState().getDayLog('2026-04-08').waterMl).toBe(0);
+  });
+
+  test('addWater accepts valid positive ml', () => {
+    useNutritionStore.setState({ dailyLog: {}, defaultTargets: { calories: 2000, protein: 150, fats: 70, carbs: 250, waterTargetMl: 2500 } });
+    useNutritionStore.getState().addWater('2026-04-08', 300);
+    expect(useNutritionStore.getState().getDayLog('2026-04-08').waterMl).toBe(300);
+  });
+});
+
 describe('water tracking', () => {
   test('water accumulates correctly', () => {
     useNutritionStore.setState({
