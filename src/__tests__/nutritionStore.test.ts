@@ -14,6 +14,7 @@ jest.mock('../services', () => ({
     getMealsByDate: jest.fn(() => Promise.resolve([])),
     updateMeal: jest.fn(() => Promise.resolve({})),
     deleteMeal: jest.fn(() => Promise.resolve()),
+    updateNutritionTargets: jest.fn(() => Promise.resolve()),
   },
 }));
 
