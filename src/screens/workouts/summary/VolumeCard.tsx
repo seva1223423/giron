@@ -15,9 +15,10 @@ export const VolumeCard: React.FC<Props> = ({ workout }) => {
   const rpeValues = workout.exercises
     .flatMap((e) => e.sets.filter((s) => s.completed && s.rpe))
     .map((s) => s.rpe as number);
-  const avgRpe = rpeValues.length > 0
-    ? formatNum(rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length)
+  const avgRpeNum = rpeValues.length > 0
+    ? rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length
     : null;
+  const avgRpe = avgRpeNum !== null ? formatNum(avgRpeNum) : null;
 
   return (
     <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10', borderLeftWidth: 4, borderLeftColor: colors.primary }}>
@@ -35,7 +36,7 @@ export const VolumeCard: React.FC<Props> = ({ workout }) => {
           <View style={{ alignItems: 'center' }}>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>Ср. RPE</Text>
             <Text style={[typography.numberSmall, {
-              color: parseFloat(avgRpe) >= 9 ? colors.error : parseFloat(avgRpe) >= 8 ? colors.accent : colors.success,
+              color: avgRpeNum! >= 9 ? colors.error : avgRpeNum! >= 8 ? colors.accent : colors.success,
             }]}>
               {avgRpe}
             </Text>
