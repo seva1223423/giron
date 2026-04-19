@@ -677,7 +677,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]}>Итого:</Text>
-                {(recognizedItems as any[]).some((i) => i.confidence != null && i.confidence < 0.75) && (
+                {recognizedItems.some((i) => i.confidence != null && i.confidence < 0.75) && (
                   <Text style={[typography.caption, { color: colors.warning }]}>~ приблизительно</Text>
                 )}
               </View>

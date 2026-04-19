@@ -152,7 +152,7 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
             {MEAL_TYPES.map((mt) => (
               <TouchableOpacity
                 key={mt.key}
-                onPress={() => setMealType(mt.key as any)}
+                onPress={() => setMealType(mt.key)}
                 style={[styles.chip, { backgroundColor: mealType === mt.key ? colors.primary : colors.surface, borderColor: mealType === mt.key ? colors.primary : colors.border }]}
               >
                 <Text style={[typography.caption, { color: mealType === mt.key ? '#FFF' : colors.text }]}>
