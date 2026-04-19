@@ -1847,13 +1847,12 @@ async function executeTool(
     }
 
     const safeItems = items.slice(0, 50).map((i) => ({
-      ...i,
       name: String(i.name ?? '').trim().slice(0, 200) || 'Продукт',
-      calories: Math.min(10000, Math.max(0, Number(i.calories) || 0)),
-      protein: Math.min(1000, Math.max(0, Number(i.protein) || 0)),
-      fats: Math.min(1000, Math.max(0, Number(i.fats) || 0)),
-      carbs: Math.min(1000, Math.max(0, Number(i.carbs) || 0)),
-      weightGrams: Math.min(10000, Math.max(0, Number(i.weightGrams) || 0)),
+      calories: Math.round(Math.min(10000, Math.max(0, Number(i.calories) || 0))),
+      protein: Math.round(Math.min(1000, Math.max(0, Number(i.protein) || 0)) * 10) / 10,
+      fats: Math.round(Math.min(1000, Math.max(0, Number(i.fats) || 0)) * 10) / 10,
+      carbs: Math.round(Math.min(1000, Math.max(0, Number(i.carbs) || 0)) * 10) / 10,
+      weightGrams: Math.round(Math.min(10000, Math.max(0, Number(i.weightGrams) || 0))),
     }));
     const totalCalories = safeItems.reduce((s, i) => s + i.calories, 0);
     const totalProtein = safeItems.reduce((s, i) => s + i.protein, 0);
