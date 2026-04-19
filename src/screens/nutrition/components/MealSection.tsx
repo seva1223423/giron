@@ -52,7 +52,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
   };
 
   const handleWeightChange = (mealId: string, item: NutritionItem, newWeightStr: string) => {
-    const newWeight = parseInt(newWeightStr.replace(',', '.'), 10) || 0;
+    const newWeight = parseFloat(newWeightStr.replace(',', '.')) || 0;
     if (newWeight <= 0 || !item.weightGrams) return;
     const ratio = newWeight / item.weightGrams;
     haptic.light();
