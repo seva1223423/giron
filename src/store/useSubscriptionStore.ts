@@ -128,7 +128,7 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
       isPremiumActive: () => {
         const { isPremium, premiumExpiresAt } = get();
         if (!isPremium) return false;
-        if (!premiumExpiresAt) return false;
+        if (!premiumExpiresAt) return true; // null = permanent/lifetime premium, no expiry
         return new Date(premiumExpiresAt) > new Date();
       },
 
