@@ -89,6 +89,8 @@ describe('Auth Routes', () => {
     (mockPrisma.otpCode as any).findFirst.mockResolvedValue(null);
     (mockPrisma.passwordHistory.findMany as jest.Mock).mockResolvedValue([]);
     (mockPrisma.passwordHistory.create as jest.Mock).mockResolvedValue({});
+    // Default user.update response covers login attempt increments / lockout resets
+    (mockPrisma.user.update as jest.Mock).mockResolvedValue({ loginAttempts: 1, lockedUntil: null });
   });
 
   // ─── Registration ──────────────────────────────────────────────────────────
@@ -164,9 +166,10 @@ describe('Auth Routes', () => {
     });
 
     it('should reject registration with duplicate email', async () => {
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
-        id: 'existing-user',
-        email: validPayload.email,
+      // Register route creates directly and catches P2002 (unique constraint) — no pre-check via findUnique
+      (mockPrisma.user.create as jest.Mock).mockRejectedValue({
+        code: 'P2002',
+        meta: { target: ['email'] },
       });
 
       const res = await request(app)

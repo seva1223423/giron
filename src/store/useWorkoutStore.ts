@@ -89,10 +89,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       setWeekPlanDay: (dow, entry) => {
         if (!Number.isInteger(dow) || dow < 0 || dow > 6) return;
+        const prevEntry = get().weekPlan[dow];
         set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: entry } }));
-        // Sync to server (fire and forget)
         const updated = { ...get().weekPlan, [dow]: entry };
-        userService.saveWeekPlan(updated).catch(() => {});
+        userService.saveWeekPlan(updated).catch(() => {
+          // Rollback only the changed day — restoring a snapshot would erase concurrent changes
+          set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: prevEntry } }));
+        });
       },
 
       syncWeekPlan: async () => {
@@ -233,9 +236,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 return rm > best ? rm : best;
               }, 0)
             : null;
-          completedSet.isPR = historyBest !== null && newRM > historyBest;
-        } else {
-          completedSet.isPR = false;
+          completedSet.isPR = historyBest === null || newRM > historyBest;
         }
 
         sets[setIndex] = completedSet;
@@ -276,7 +277,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const exercises = [...workout.exercises];
         if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return s;
         const exercise = { ...exercises[exerciseIndex] };
-        exercise.sets = exercise.sets.filter((_, i) => i !== setIndex);
+        exercise.sets = exercise.sets
+          .filter((_, i) => i !== setIndex)
+          .map((s, i) => ({ ...s, setNumber: i + 1 }));
         exercises[exerciseIndex] = exercise;
         workout.exercises = exercises;
         return {
@@ -370,11 +373,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
           reps: cfg.reps,
           completed: false,
         }));
-        // Renumber existing sets after prepending warmup sets
-        const existingSets = exercise.sets.map((set, i) => ({
-          ...set,
-          setNumber: warmupSets.length + i + 1,
-        }));
+        // Strip any existing warmup sets, then renumber after prepending new ones
+        const existingSets = exercise.sets
+          .filter((set) => set.type !== 'warmup')
+          .map((set, i) => ({ ...set, setNumber: warmupSets.length + i + 1 }));
         exercise.sets = [...warmupSets, ...existingSets];
         exercises[exerciseIndex] = exercise;
         workout.exercises = exercises;
@@ -398,10 +400,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           }
         } else {
-          // Link with the next exercise
+          // If nextExercise already belongs to a different group, dissolve that group
+          // if removing it would leave only one member (dangling superset).
+          if (nextExercise.supersetGroupId) {
+            const oldGroupId = nextExercise.supersetGroupId;
+            const remainingInOld = exercises.filter(
+              (e, i) => i !== exerciseIndex + 1 && e.supersetGroupId === oldGroupId
+            );
+            if (remainingInOld.length <= 1) {
+              for (let i = 0; i < exercises.length; i++) {
+                if (exercises[i].supersetGroupId === oldGroupId) {
+                  exercises[i] = { ...exercises[i], supersetGroupId: undefined };
+                }
+              }
+            }
+          }
+          // Link with the next exercise using a fresh group
           const groupId = `ss-${Date.now()}`;
-          exercises[exerciseIndex] = { ...exercise, supersetGroupId: groupId };
-          exercises[exerciseIndex + 1] = { ...nextExercise, supersetGroupId: groupId };
+          exercises[exerciseIndex] = { ...exercises[exerciseIndex], supersetGroupId: groupId };
+          exercises[exerciseIndex + 1] = { ...exercises[exerciseIndex + 1], supersetGroupId: groupId };
         }
 
         const workout = { ...s.activeWorkout.workout, exercises };

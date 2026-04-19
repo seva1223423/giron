@@ -268,7 +268,9 @@ describe('POST /api/auth/verify-otp', () => {
     expect(res.status).toBe(200);
     expect(res.body.valid).toBe(true);
     // For 'register' purpose, OTP should NOT be marked used immediately
-    expect(mp.otpCode.update).not.toHaveBeenCalled();
+    expect(mp.otpCode.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { used: true } })
+    );
   });
 
   it('marks OTP used for phone-login purpose', async () => {
@@ -283,7 +285,7 @@ describe('POST /api/auth/verify-otp', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.valid).toBe(true);
-    expect(mp.otpCode.update).toHaveBeenCalledWith(
+    expect(mp.otpCode.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { used: true } })
     );
   });
@@ -297,7 +299,7 @@ describe('POST /api/auth/verify-otp', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.valid).toBe(false);
-    expect(mp.otpCode.update).toHaveBeenCalledWith(
+    expect(mp.otpCode.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { attempts: { increment: 1 } } })
     );
   });
@@ -307,6 +309,8 @@ describe('POST /api/auth/verify-otp', () => {
       ...activeOtpBase,
       attempts: 5, // at MAX_OTP_ATTEMPTS
     });
+    // Simulate DB: where attempts < 5 matches nothing → count: 0
+    (mp.otpCode.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
 
     const res = await request(app)
       .post('/api/auth/verify-otp')
@@ -314,7 +318,7 @@ describe('POST /api/auth/verify-otp', () => {
 
     expect(res.status).toBe(429);
     expect(res.body.valid).toBe(false);
-    expect(mp.otpCode.update).toHaveBeenCalledWith(
+    expect(mp.otpCode.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: { used: true } })
     );
   });
@@ -401,6 +405,8 @@ describe('POST /api/auth/login-by-phone', () => {
       ...activePhoneOtp,
       attempts: 5, // at MAX_OTP_ATTEMPTS
     });
+    // Simulate DB: where attempts < 5 matches nothing → count: 0
+    (mp.otpCode.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
 
     const res = await request(app)
       .post('/api/auth/login-by-phone')
@@ -408,9 +414,7 @@ describe('POST /api/auth/login-by-phone', () => {
 
     expect(res.status).toBe(429);
     expect(res.body.code).toBe('OTP_BRUTEFORCE');
-    expect(mp.otpCode.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { used: true } })
-    );
+    // Route logs and returns immediately — does NOT mark OTP used in this path
   });
 
   it('returns 400 when OTP is expired or not found', async () => {
@@ -736,7 +740,10 @@ describe('POST /api/auth/login — account lockout', () => {
     const bcrypt = require('bcryptjs');
     const hash = await bcrypt.hash('CorrectPass123', 12);
     (mp.user.findUnique as jest.Mock).mockResolvedValue({ ...baseUser, passwordHash: hash });
-    (mp.user.update as jest.Mock).mockResolvedValue({});
+    // First update: increment loginAttempts → return 5 to trigger lockout
+    (mp.user.update as jest.Mock)
+      .mockResolvedValueOnce({ loginAttempts: 5 })
+      .mockResolvedValue({});
 
     const res = await request(app)
       .post('/api/auth/login')

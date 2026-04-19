@@ -13,6 +13,7 @@ const config: Config = {
   // In tests we never actually send push notifications, so mock the whole package.
   moduleNameMapper: {
     '^expo-server-sdk$': '<rootDir>/src/__tests__/__mocks__/expo-server-sdk.ts',
+    '^otpauth$': '<rootDir>/src/__tests__/__mocks__/otpauth.ts',
   },
 };
 

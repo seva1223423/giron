@@ -262,7 +262,7 @@ describe('POST /api/support/tickets/:id/messages', () => {
       .set('Authorization', `Bearer ${makeToken()}`)
       .send({ content: 'not my ticket' });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404); // route returns 404 to prevent IDOR (don't reveal ticket existence)
   });
 
   it('401 without token', async () => {
