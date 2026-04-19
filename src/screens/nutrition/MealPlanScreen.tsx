@@ -67,11 +67,11 @@ function parsePlanFromAI(text: string): PlanDay[] | null {
       const meals: PlanMeal[] = (day.meals ?? []).map((m: any) => {
         const items: PlanMealItem[] = (m.items ?? []).map((it: any) => ({
           name: String(it.name ?? ''),
-          calories: Number(it.calories ?? 0),
-          protein: Number(it.protein ?? 0),
-          fats: Number(it.fats ?? 0),
-          carbs: Number(it.carbs ?? 0),
-          weightGrams: Number(it.weightGrams ?? 100),
+          calories: Math.round(Number(it.calories ?? 0)),
+          protein: Math.round(Number(it.protein ?? 0) * 10) / 10,
+          fats: Math.round(Number(it.fats ?? 0) * 10) / 10,
+          carbs: Math.round(Number(it.carbs ?? 0) * 10) / 10,
+          weightGrams: Math.round(Number(it.weightGrams ?? 100)),
         }));
         const total = items.reduce(
           (acc, it) => ({ cal: acc.cal + it.calories, p: acc.p + it.protein, f: acc.f + it.fats, c: acc.c + it.carbs }),
@@ -82,9 +82,9 @@ function parsePlanFromAI(text: string): PlanDay[] | null {
           name: String(m.name ?? m.type ?? 'Приём пищи'),
           items,
           totalCalories: Math.round(total.cal),
-          totalProtein: Math.round(total.p),
-          totalFats: Math.round(total.f),
-          totalCarbs: Math.round(total.c),
+          totalProtein: Math.round(total.p * 10) / 10,
+          totalFats: Math.round(total.f * 10) / 10,
+          totalCarbs: Math.round(total.c * 10) / 10,
         };
       });
       return {
