@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Card, FadeIn, SkeletonLoader } from '../../../components';
 import { LineChart } from './LineChart';
@@ -9,7 +8,8 @@ import { spacing } from '../../../theme/spacing';
 import { userService } from '../../../services';
 import { formatNum } from '../../../utils/date';
 import type { BodyWeight, BodyMeasurement } from '../../../types';
-import { AddWeightModal, AddMeasurementsModal, BodyMeasurementsCard, MEASUREMENTS_KEY } from './weight';
+import { useMeasurementsStore } from '../../../store/useMeasurementsStore';
+import { AddWeightModal, AddMeasurementsModal, BodyMeasurementsCard } from './weight';
 
 interface WeightTabProps {
   colors: any;
@@ -26,7 +26,7 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
 
   const fetchMeasurementHistory = useCallback(async () => {
     try {
-      // Try server first, fall back to AsyncStorage
+      // Try server first
       const serverData = await userService.getMeasurements();
       if (serverData.length > 0) {
         setMeasurementHistory(serverData.map((m) => ({
@@ -36,14 +36,11 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
         return;
       }
     } catch {}
-    // Offline fallback
-    try {
-      const raw = await AsyncStorage.getItem(MEASUREMENTS_KEY);
-      if (raw) {
-        const data: BodyMeasurement[] = JSON.parse(raw);
-        setMeasurementHistory(data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-      }
-    } catch {}
+    // Offline fallback: read from the Zustand store (persisted to AsyncStorage)
+    const storeEntries = useMeasurementsStore.getState().entries;
+    if (storeEntries.length > 0) {
+      setMeasurementHistory([...storeEntries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    }
   }, []);
 
   const fetchWeightHistory = useCallback(async () => {
