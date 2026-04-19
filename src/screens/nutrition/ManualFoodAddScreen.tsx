@@ -42,19 +42,21 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const handleAdd = () => {
     haptic.medium();
+    const ts = Date.now();
+    const rid = Math.random().toString(36).slice(2, 7);
     let item: NutritionItem;
     if (tab === 'search' && selectedFood && computedNutrition) {
-      item = { id: `item-${Date.now()}`, name: `${selectedFood.name} (${weightGrams}г)`, ...computedNutrition, weightGrams: Math.max(1, parseFloat(weightGrams.replace(',', '.')) || 100) };
+      item = { id: `item-${ts}-${rid}`, name: `${selectedFood.name} (${weightGrams}г)`, ...computedNutrition, weightGrams: Math.max(1, parseFloat(weightGrams.replace(',', '.')) || 100) };
     } else if (tab === 'custom') {
       if (!custom.name.trim()) { Alert.alert('Укажи название продукта'); return; }
       const parsedCal = Math.round(parseFloat(custom.calories.replace(',', '.')) || 0);
       if (!custom.calories.trim() || isNaN(parsedCal) || parsedCal <= 0) { Alert.alert('Укажи калорийность (больше 0)'); return; }
-      item = { id: `item-${Date.now()}`, name: custom.name.trim(), calories: parsedCal, protein: Math.round(Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0) * 10) / 10, fats: Math.round(Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0) * 10) / 10, carbs: Math.round(Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0) * 10) / 10, weightGrams: 100 };
+      item = { id: `item-${ts}-${rid}`, name: custom.name.trim(), calories: parsedCal, protein: Math.round(Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0) * 10) / 10, fats: Math.round(Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0) * 10) / 10, carbs: Math.round(Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0) * 10) / 10, weightGrams: 100 };
     } else {
       Alert.alert('Выбери продукт из списка или введи данные вручную');
       return;
     }
-    const meal: Meal = { id: `meal-${Date.now()}`, type: mealType, items: [item], totalCalories: item.calories, totalProtein: item.protein, totalFats: item.fats, totalCarbs: item.carbs, createdAt: new Date().toISOString() };
+    const meal: Meal = { id: `meal-${ts}-${rid}`, type: mealType, items: [item], totalCalories: item.calories, totalProtein: item.protein, totalFats: item.fats, totalCarbs: item.carbs, createdAt: new Date().toISOString() };
     addMeal(today, meal);
     haptic.success();
     const todayStr = localDateStr(new Date());
