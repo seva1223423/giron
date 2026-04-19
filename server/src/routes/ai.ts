@@ -1854,10 +1854,10 @@ async function executeTool(
       carbs: Math.round(Math.min(1000, Math.max(0, Number(i.carbs) || 0)) * 10) / 10,
       weightGrams: Math.round(Math.min(10000, Math.max(0, Number(i.weightGrams) || 0))),
     }));
-    const totalCalories = safeItems.reduce((s, i) => s + i.calories, 0);
-    const totalProtein = safeItems.reduce((s, i) => s + i.protein, 0);
-    const totalFats = safeItems.reduce((s, i) => s + i.fats, 0);
-    const totalCarbs = safeItems.reduce((s, i) => s + i.carbs, 0);
+    const totalCalories = Math.round(safeItems.reduce((s, i) => s + i.calories, 0));
+    const totalProtein = Math.round(safeItems.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const totalFats = Math.round(safeItems.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const totalCarbs = Math.round(safeItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
 
     const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
     const safeMealType = VALID_MEAL_TYPES.includes(mealType) ? mealType : 'snack';
@@ -1889,12 +1889,12 @@ async function executeTool(
     };
     const label = MEAL_LABELS[safeMealType] || safeMealType;
     const itemSummary = safeItems.map((i) => `${i.name} ${i.weightGrams}г`).join(', ');
-    const description = `${label} записан: ${itemSummary} — ${Math.round(totalCalories)} ккал`;
+    const description = `${label} записан: ${itemSummary} — ${totalCalories} ккал`;
 
     return {
-      resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${Math.round(totalCalories)} ккал, Б${Math.round(totalProtein)}г, Ж${Math.round(totalFats)}г, У${Math.round(totalCarbs)}г`,
+      resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${totalCalories} ккал, Б${totalProtein}г, Ж${totalFats}г, У${totalCarbs}г`,
       actionDescription: description,
-      actionData: { mealType: safeMealType, totalCalories: Math.round(totalCalories) },
+      actionData: { mealType: safeMealType, totalCalories },
     };
   }
 
