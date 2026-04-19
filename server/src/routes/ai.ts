@@ -4870,9 +4870,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const extractedMemories = extractMemories(message);
     if (extractedMemories.length > 0) {
       saveMemories(userId, extractedMemories).catch((e) => logger.error('saveMemories failed:', e)); // fire-and-forget
-      // Periodically cleanup stale memories (roughly every 10 requests)
-      if (Math.random() < 0.1) cleanupStaleMemories(userId).catch((e) => logger.error('cleanupStaleMemories failed:', e));
     }
+    // Periodically cleanup stale memories (~every 20 requests, independent of extraction)
+    if (Math.random() < 0.05) cleanupStaleMemories(userId).catch((e) => logger.error('cleanupStaleMemories failed:', e));
     // Memory context is now part of engineContext (buildDynamicContext → buildMemoryBlock)
 
     // ─── Block 241: Deload timing ──────
