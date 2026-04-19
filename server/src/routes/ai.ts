@@ -2306,28 +2306,35 @@ async function executeTool(
       return { resultText: 'Расписание не содержит корректных дней (dayIndex должен быть 0–6)', actionDescription: '' };
     }
 
-    // Resolve exercise names (keep originals; DB lookup validates they exist)
-    const resolvedSchedule = await Promise.all(
-      validSchedule.map(async (day) => {
-        const exResults = await Promise.all(
-          day.exerciseNames.map(async (name) => {
-            const found = await prisma.exercise.findFirst({ where: { name: { contains: name, mode: 'insensitive' } }, select: { id: true, name: true } });
-            return found;
-          }),
-        );
-        // Store resolved names for human-readable AI context; fall back to original name if not found in DB
-        const exerciseNames = exResults.map((ex, i) => ex?.name ?? day.exerciseNames[i]);
-        const exerciseIds = exResults.filter((ex): ex is { id: string; name: string } => ex !== null).map((ex) => ex.id);
-        return {
-          dayIndex: day.dayIndex,
-          workoutName: day.workoutName,
-          emoji: day.emoji || '🏋️',
-          exerciseIds,
-          // Names are sent to client so weekPlan context shows readable exercise names to AI
-          exerciseNames,
-        };
-      }),
-    );
+    // Batch-resolve all exercise names across all days in a single query
+    const allWpNames = [...new Set(validSchedule.flatMap((d) => d.exerciseNames))];
+    const wpRows = allWpNames.length > 0
+      ? await prisma.exercise.findMany({
+          where: { OR: allWpNames.map((n) => ({ name: { contains: n, mode: 'insensitive' as const } })) },
+          select: { id: true, name: true },
+        })
+      : [];
+    const wpMap = new Map<string, { id: string; name: string }>();
+    for (const row of wpRows) wpMap.set(row.name.toLowerCase(), row);
+    const wpResolve = (n: string) => {
+      const lower = n.toLowerCase();
+      if (wpMap.has(lower)) return wpMap.get(lower)!;
+      for (const [k, v] of wpMap) { if (k.includes(lower) || lower.includes(k)) return v; }
+      return null;
+    };
+
+    const resolvedSchedule = validSchedule.map((day) => {
+      const exResults = day.exerciseNames.map((n) => wpResolve(n));
+      const exerciseNames = exResults.map((ex, i) => ex?.name ?? day.exerciseNames[i]);
+      const exerciseIds = exResults.filter((ex): ex is { id: string; name: string } => ex !== null).map((ex) => ex.id);
+      return {
+        dayIndex: day.dayIndex,
+        workoutName: day.workoutName,
+        emoji: day.emoji || '🏋️',
+        exerciseIds,
+        exerciseNames,
+      };
+    });
 
     const summary = resolvedSchedule
       .map((d) => `${DAY_NAMES[d.dayIndex]}: ${d.workoutName}`)
