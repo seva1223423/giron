@@ -171,6 +171,37 @@ export const FOOD_DB = [
   { name: 'Тунец в собственном соку', calories: 99, protein: 23, fats: 0.5, carbs: 0 },
   { name: 'Креветки варёные', calories: 99, protein: 21, fats: 1.1, carbs: 0 },
   { name: 'Карп запечённый', calories: 121, protein: 18, fats: 5, carbs: 0 },
+  // Готовые блюда и фастфуд
+  { name: 'Сырники (2 шт)', calories: 220, protein: 14, fats: 9, carbs: 22 },
+  { name: 'Блины (2 шт)', calories: 180, protein: 6, fats: 7, carbs: 24 },
+  { name: 'Вареники с картошкой', calories: 195, protein: 6, fats: 4, carbs: 34 },
+  { name: 'Салат Цезарь', calories: 180, protein: 9, fats: 13, carbs: 8 },
+  { name: 'Оливье', calories: 198, protein: 6, fats: 15, carbs: 12 },
+  { name: 'Пицца (1 кусок, 100г)', calories: 270, protein: 12, fats: 12, carbs: 30 },
+  { name: 'Шашлык из свинины', calories: 218, protein: 19, fats: 15, carbs: 2 },
+  { name: 'Шашлык из курицы', calories: 158, protein: 24, fats: 7, carbs: 0 },
+  { name: 'Котлета рыбная', calories: 165, protein: 16, fats: 9, carbs: 6 },
+  { name: 'Роллы (Калифорния, 100г)', calories: 146, protein: 7, fats: 4.5, carbs: 20 },
+  // Колбасные изделия
+  { name: 'Сосиски молочные', calories: 266, protein: 12, fats: 24, carbs: 1.8 },
+  { name: 'Сардельки', calories: 332, protein: 11, fats: 31, carbs: 1.4 },
+  // Молочные (дополнительные)
+  { name: 'Молоко 1.5%', calories: 44, protein: 3, fats: 1.5, carbs: 4.7 },
+  { name: 'Кефир 2.5%', calories: 54, protein: 3, fats: 2.5, carbs: 3.9 },
+  { name: 'Сыр Гауда', calories: 356, protein: 25, fats: 28, carbs: 2.2 },
+  { name: 'Сыр Чеддер', calories: 402, protein: 23, fats: 34, carbs: 1.3 },
+  { name: 'Сыр Фета', calories: 264, protein: 14, fats: 21, carbs: 4.1 },
+  // Напитки
+  { name: 'Молочный коктейль', calories: 85, protein: 3.4, fats: 2.5, carbs: 12 },
+  { name: 'Сок апельсиновый', calories: 45, protein: 0.7, fats: 0.2, carbs: 10 },
+  { name: 'Сок яблочный', calories: 46, protein: 0.5, fats: 0.1, carbs: 11 },
+  { name: 'Компот (без сахара)', calories: 30, protein: 0.2, fats: 0.1, carbs: 7 },
+  // Яйца (способы приготовления)
+  { name: 'Яйцо варёное вкрутую', calories: 155, protein: 13, fats: 11, carbs: 1.1 },
+  { name: 'Яйцо варёное всмятку', calories: 143, protein: 13, fats: 10, carbs: 0.7 },
+  // Сладкое
+  { name: 'Мороженое пломбир', calories: 226, protein: 3.5, fats: 12, carbs: 27 },
+  { name: 'Печенье овсяное', calories: 437, protein: 6, fats: 18, carbs: 63 },
 ];
 
 export type FoodItem = typeof FOOD_DB[0];
