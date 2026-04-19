@@ -45,6 +45,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
   [dayLog.meals]);
 
   const [editingItem, setEditingItem] = useState<{ mealId: string; item: NutritionItem } | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
   const handleWeightEdit = (mealId: string, item: NutritionItem) => {
     if (!item.weightGrams) return;
@@ -116,11 +117,20 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                 const itemPct = totalDayCalories > 0 ? Math.round((item.calories / totalDayCalories) * 100) : 0;
                 return (
                   <View key={item.id} style={styles.itemRow}>
-                    <View style={{ flex: 1, marginRight: spacing.sm }}>
+                    <TouchableOpacity
+                      style={{ flex: 1, marginRight: spacing.sm }}
+                      onPress={() => setExpandedItemId((prev) => (prev === item.id ? null : item.id))}
+                      activeOpacity={0.7}
+                    >
                       <Text style={[typography.body, { color: colors.text }]} numberOfLines={1}>
                         {item.name}
                       </Text>
-                    </View>
+                      {expandedItemId === item.id && (
+                        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                          {`Б ${item.protein}г · Ж ${item.fats}г · У ${item.carbs}г`}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                       {item.weightGrams ? (
                         editingItem?.mealId === meal.id && editingItem?.item.id === item.id ? (
