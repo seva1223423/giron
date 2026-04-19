@@ -3449,7 +3449,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
           level: activeProgram.level,
         } : null,
       }),
-      getGamificationData(userId, todayDate),
+      getGamificationData(userId, todayDate, allCompletedExerciseSets as any),
       // Blocks 32-48 secondary DB queries (merged here to avoid sequential round-trip)
       activeProgram
         ? prisma.workoutExercise.findMany({
@@ -9793,26 +9793,32 @@ interface GamificationData {
   milestones: string[];        // human-readable milestone messages
 }
 
-async function getGamificationData(userId: string, clientDate?: string): Promise<GamificationData> {
-  // Fetch workouts and exercise sets in parallel — both are needed for full gamification data
-  const [workouts, exerciseSets] = await Promise.all([
-    prisma.workout.findMany({
-      where: { userId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
-      select: { completedAt: true },
-      take: 2000,
-    }),
-    prisma.workoutExercise.findMany({
-      where: { workout: { userId, completedAt: { not: null } } },
-      select: {
-        exercise: { select: { name: true } },
-        workout: { select: { completedAt: true } },
-        sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
-      },
-      orderBy: { workout: { completedAt: 'desc' } },
-      take: 5000,
-    }),
-  ]);
+async function getGamificationData(
+  userId: string,
+  clientDate?: string,
+  preloadedExerciseSets?: Array<{
+    exercise: { name: string } | null;
+    workout: { completedAt: Date | null };
+    sets: Array<{ weight?: number | null; reps?: number | null }>;
+  }>,
+): Promise<GamificationData> {
+  // Fetch workout history for streak + use pre-loaded exercise sets if available (avoids redundant 5k-row query)
+  const workouts = await prisma.workout.findMany({
+    where: { userId, completedAt: { not: null } },
+    orderBy: { completedAt: 'desc' },
+    select: { completedAt: true },
+    take: 2000,
+  });
+  const exerciseSets = preloadedExerciseSets ?? await prisma.workoutExercise.findMany({
+    where: { workout: { userId, completedAt: { not: null } } },
+    select: {
+      exercise: { select: { name: true } },
+      workout: { select: { completedAt: true } },
+      sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
+    },
+    orderBy: { workout: { completedAt: 'desc' } },
+    take: 5000,
+  });
 
   // Calculate current streak (consecutive days)
   let currentStreak = 0;
