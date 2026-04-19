@@ -8,7 +8,7 @@ import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { CalorieBarChart, WeeklyInsightsCard, NutritionDayCard, MacroTrendsChart } from './history';
 import type { WeeklyInsights } from './history';
-import { localDateStr } from '../../utils/date';
+import { localDateStr, getPastDates } from '../../utils/date';
 
 const PERIODS = [
   { label: '7 дн', days: 7 },
@@ -16,14 +16,6 @@ const PERIODS = [
   { label: '30 дн', days: 30 },
   { label: '90 дн', days: 90 },
 ];
-
-function getPastDates(days: number): string[] {
-  return Array.from({ length: days }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    return localDateStr(d);
-  });
-}
 
 export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
