@@ -18,7 +18,11 @@ jest.mock('../services/api', () => ({
     interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
     defaults: { headers: { common: {} } },
   },
-  getApiError: jest.fn((e: any) => ({ message: e?.message || 'Unknown error' })),
+  getApiError: jest.fn((e: any) => ({
+    message: e?.response?.data?.error || e?.message || 'Unknown error',
+    status: e?.response?.status ?? 0,
+    code: e?.response?.data?.code,
+  })),
 }));
 
 jest.mock('../services/userService', () => ({
@@ -50,7 +54,11 @@ jest.mock('../services', () => ({
     loginWithYandex: jest.fn(),
     loginByPhone: jest.fn(),
   },
-  getApiError: jest.fn((e: any) => ({ message: e?.message || 'Unknown error' })),
+  getApiError: jest.fn((e: any) => ({
+    message: e?.response?.data?.error || e?.message || 'Unknown error',
+    status: e?.response?.status ?? 0,
+    code: e?.response?.data?.code,
+  })),
 }));
 
 import { useAuthStore } from '../store/useAuthStore';
@@ -218,6 +226,34 @@ describe('useAuthStore', () => {
 
     const { authService } = require('../services');
     expect(authService.logout).toHaveBeenCalledWith('xyz', true);
+  });
+
+  test('loginWithTotp clears totpPendingToken on PENDING_TOKEN_EXPIRED', async () => {
+    useAuthStore.setState({ totpPendingToken: 'expired-token' });
+    const { authService } = require('../services');
+    const expiredError: any = new Error('Token expired');
+    expiredError.response = { status: 401, data: { error: 'Токен истёк. Войдите снова.', code: 'PENDING_TOKEN_EXPIRED' } };
+    authService.verifyTotp.mockRejectedValueOnce(expiredError);
+
+    await expect(useAuthStore.getState().loginWithTotp('123456')).rejects.toThrow();
+
+    // Expired pending token must be cleared so user can restart login
+    expect(useAuthStore.getState().totpPendingToken).toBeNull();
+    expect(useAuthStore.getState().isLoading).toBe(false);
+  });
+
+  test('loginWithTotp keeps totpPendingToken on wrong code (400)', async () => {
+    useAuthStore.setState({ totpPendingToken: 'valid-token' });
+    const { authService } = require('../services');
+    const wrongCodeError: any = new Error('Wrong code');
+    wrongCodeError.response = { status: 400, data: { error: 'Неверный код' } };
+    authService.verifyTotp.mockRejectedValueOnce(wrongCodeError);
+
+    await expect(useAuthStore.getState().loginWithTotp('000000')).rejects.toThrow();
+
+    // Wrong code — keep pending token, user can retry
+    expect(useAuthStore.getState().totpPendingToken).toBe('valid-token');
+    expect(useAuthStore.getState().isLoading).toBe(false);
   });
 
   test('logout preserves deviceToken (device trust survives session end)', async () => {

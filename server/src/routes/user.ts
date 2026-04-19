@@ -23,6 +23,12 @@ const JWT_AUD = 'irongym-app';
 const CUID_RE = /^c[a-z0-9]{20,30}$/;
 const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 
+/** Constant-time OTP comparison — prevents timing-based enumeration of valid digits. */
+const otpEquals = (stored: string, input: string): boolean => {
+  if (stored.length !== input.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(stored), Buffer.from(input));
+};
+
 /** Prevent TOTP replay attacks: check if code was recently used, then record it. Returns true if replay detected. */
 async function isTotpReplay(userId: string, code: string): Promise<boolean> {
   // TOTP window=1 means codes are valid for up to 90 seconds (prev + current + next period)
@@ -882,11 +888,15 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     if (incResult.count === 0) {
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
-    if (activeOtp.code !== code) {
+    if (!otpEquals(activeOtp.code, code)) {
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
-    await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+    // Atomic mark-as-used: only the first concurrent request wins; subsequent ones are rejected
+    const { count: consumed } = await prisma.otpCode.updateMany({ where: { id: activeOtp.id, used: false }, data: { used: true } });
+    if (consumed === 0) {
+      return res.status(400).json({ error: 'Код уже был использован', code: 'INVALID_OTP' });
+    }
 
     // Atomically update email — unique constraint violation (P2002) means already taken
     try {
@@ -977,11 +987,15 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     if (incResult.count === 0) {
       return res.status(429).json({ error: 'Слишком много попыток. Запросите новый код.', code: 'OTP_BRUTEFORCE' });
     }
-    if (activeOtp.code !== code) {
+    if (!otpEquals(activeOtp.code, code)) {
       const attemptsLeft = MAX_OTP_ATTEMPTS - activeOtp.attempts - 1;
       return res.status(400).json({ error: attemptsLeft > 0 ? `Неверный код. Осталось попыток: ${attemptsLeft}` : 'Слишком много попыток. Запросите новый код.', code: 'INVALID_OTP' });
     }
-    await prisma.otpCode.updateMany({ where: { id: activeOtp.id }, data: { used: true } });
+    // Atomic mark-as-used: only the first concurrent request wins; subsequent ones are rejected
+    const { count: consumed } = await prisma.otpCode.updateMany({ where: { id: activeOtp.id, used: false }, data: { used: true } });
+    if (consumed === 0) {
+      return res.status(400).json({ error: 'Код уже был использован', code: 'INVALID_OTP' });
+    }
 
     // Atomically update phone — unique constraint violation (P2002) means already taken
     try {

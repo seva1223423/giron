@@ -45,6 +45,24 @@ interface AuthStore {
   clearError: () => void;
 }
 
+/** Clear all other stores' per-user data to prevent data leaks between accounts. */
+function clearStoreUserData() {
+  try {
+    const stores = require('./index');
+    stores.useWorkoutStore?.getState().clearUserData();
+    stores.useNutritionStore?.getState().clearUserData();
+    stores.useCardioStore?.getState().clearUserData();
+    stores.useTrainerStore?.getState().clearUserData();
+    stores.useMeasurementsStore?.getState().clearUserData();
+    stores.useSleepStore?.getState().clearUserData();
+    stores.useSubscriptionStore?.getState().clearUserData();
+    stores.useSupportStore?.getState().clearUserData();
+    stores.useOnboardingTipsStore?.getState().resetAll();
+    stores.useThemeStore?.getState().resetToDefaults();
+    stores.useSettingsStore?.getState().resetToDefaults();
+  } catch { /* best effort */ }
+}
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
@@ -119,7 +137,9 @@ export const useAuthStore = create<AuthStore>()(
           });
         } catch (e) {
           const apiError = getApiError(e);
-          set({ isLoading: false, error: apiError.message });
+          // Expired/invalid pending token — clear it so the user can restart the login flow
+          const tokenExpired = apiError.code === 'PENDING_TOKEN_EXPIRED' || apiError.code === 'INVALID_TOKEN' || apiError.status === 401;
+          set({ isLoading: false, error: apiError.message, ...(tokenExpired ? { totpPendingToken: null } : {}) });
           throw e;
         }
       },
@@ -202,21 +222,7 @@ export const useAuthStore = create<AuthStore>()(
         // Clear session tokens from SecureStore; device trust survives logout intentionally
         await tokenStorage.clearTokens();
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isOnboarded: false, error: null, totpPendingToken: null });
-        // Clear all per-user data from other persisted stores to prevent data leak to next user
-        try {
-          const stores = require('./index');
-          stores.useWorkoutStore?.getState().clearUserData();
-          stores.useNutritionStore?.getState().clearUserData();
-          stores.useCardioStore?.getState().clearUserData();
-          stores.useTrainerStore?.getState().clearUserData();
-          stores.useMeasurementsStore?.getState().clearUserData();
-          stores.useSleepStore?.getState().clearUserData();
-          stores.useSubscriptionStore?.getState().clearUserData();
-          stores.useSupportStore?.getState().clearUserData();
-          stores.useOnboardingTipsStore?.getState().resetAll();
-          stores.useThemeStore?.getState().resetToDefaults();
-          stores.useSettingsStore?.getState().resetToDefaults();
-        } catch { /* best effort */ }
+        clearStoreUserData();
       },
 
       logoutAllDevices: async () => {
@@ -226,20 +232,7 @@ export const useAuthStore = create<AuthStore>()(
         // Clear session tokens AND device trust from SecureStore
         await tokenStorage.clearAll();
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isOnboarded: false, error: null, totpPendingToken: null, deviceToken: null });
-        try {
-          const stores = require('./index');
-          stores.useWorkoutStore?.getState().clearUserData();
-          stores.useNutritionStore?.getState().clearUserData();
-          stores.useCardioStore?.getState().clearUserData();
-          stores.useTrainerStore?.getState().clearUserData();
-          stores.useMeasurementsStore?.getState().clearUserData();
-          stores.useSleepStore?.getState().clearUserData();
-          stores.useSubscriptionStore?.getState().clearUserData();
-          stores.useSupportStore?.getState().clearUserData();
-          stores.useOnboardingTipsStore?.getState().resetAll();
-          stores.useThemeStore?.getState().resetToDefaults();
-          stores.useSettingsStore?.getState().resetToDefaults();
-        } catch { /* best effort */ }
+        clearStoreUserData();
       },
 
       completeOnboarding: () => set({ isOnboarded: true }),
