@@ -2089,10 +2089,10 @@ async function executeTool(
       carbs: number;
     };
 
-    const cal = Math.min(10000, Math.max(500, Math.round(calories)));
-    let prot = Math.min(500, Math.max(30, Math.round(protein)));
-    let fat = Math.min(500, Math.max(20, Math.round(fats)));
-    let carb = Math.min(1000, Math.max(0, Math.round(carbs)));
+    const cal = Math.min(10000, Math.max(500, Math.round(Number(calories) || 2000)));
+    let prot = Math.min(500, Math.max(30, Math.round(Number(protein) || 150)));
+    let fat = Math.min(500, Math.max(20, Math.round(Number(fats) || 70)));
+    let carb = Math.min(1000, Math.max(0, Math.round(Number(carbs) || 250)));
 
     // Scale macros down if their caloric sum exceeds the target calories
     const macroCal = prot * 4 + fat * 9 + carb * 4;
