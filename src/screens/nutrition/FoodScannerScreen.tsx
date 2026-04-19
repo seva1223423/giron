@@ -212,6 +212,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       });
       setItemBases(bases);
       setRecognizedItems(items);
+      setIsBarcodeResult(false);
       if (items.length === 0) {
         setError('Продукты не распознаны. Попробуй сделать чёткое фото тарелки с едой.');
         setImageUri(null);
