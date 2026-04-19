@@ -252,7 +252,6 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.9, base64: false });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      if (!isPremiumActive() && !consumeFoodScan()) { setShowPaywall(true); return; }
       setImageUri(asset.uri);
       setError('');
       setLoading(true);
@@ -270,6 +269,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           setImageUri(null);
           setError('Фото слишком большое. Попробуй более близкий кадр или другое изображение.');
           setLoading(false);
+          return;
+        }
+        // Consume credit only after successful compression — failed compression must not deduct a scan
+        if (!isPremiumActive() && !consumeFoodScan()) {
+          setImageUri(null);
+          setLoading(false);
+          setShowPaywall(true);
           return;
         }
         analyzeFood(compressed.base64, compressed.mimeType);
