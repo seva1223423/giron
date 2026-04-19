@@ -3236,16 +3236,22 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
-    const weekWorkouts = await prisma.workout.findMany({
-      where: { userId, completedAt: { gte: oneWeekAgo } },
-      include: { exercises: { include: { sets: true } } },
-      take: 50,
-    });
-    const prevWeekWorkouts = await prisma.workout.findMany({
-      where: { userId, completedAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
-      include: { exercises: { include: { sets: true } } },
-      take: 50,
-    });
+    const [weekWorkouts, prevWeekWorkouts, weekMeals] = await Promise.all([
+      prisma.workout.findMany({
+        where: { userId, completedAt: { gte: oneWeekAgo } },
+        include: { exercises: { include: { sets: true } } },
+        take: 50,
+      }),
+      prisma.workout.findMany({
+        where: { userId, completedAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
+        include: { exercises: { include: { sets: true } } },
+        take: 50,
+      }),
+      prisma.meal.findMany({
+        where: { userId, createdAt: { gte: oneWeekAgo } },
+        take: 200,
+      }),
+    ]);
 
     const calcWeekVolume = (workouts: typeof weekWorkouts) =>
       workouts.reduce((total, w) =>
@@ -3299,10 +3305,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
 
     // Estimated TDEE from actual data (if we have weight trend + calorie data for 7+ days)
-    const weekMeals = await prisma.meal.findMany({
-      where: { userId, createdAt: { gte: oneWeekAgo } },
-      take: 200,
-    });
     if (weekMeals.length >= 5 && bodyWeightHistory.length >= 2) {
       const avgDailyCal = weekMeals.reduce((s, m) => s + m.totalCalories, 0) / 7;
       const newestWeight = bodyWeightHistory[0]?.weightKg;
@@ -3373,39 +3375,39 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }
     }
 
-    // ─── Context Engine: intent-aware selective context (replaces brute-force 1800-block pre-compute) ──────
-    const engineContext = await buildDynamicContext({
-      userId,
-      intent,
-      message,
-      todayDate,
-      user: user ? {
-        goal: user.goal,
-        fitnessLevel: user.fitnessLevel,
-        weightKg: user.weightKg,
-        heightCm: user.heightCm,
-        age: user.dateOfBirth ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null,
-        trainingExperienceYears: user.trainingExperienceYears,
-        gender: (user as any).gender ?? null,
-        healthRestrictions: user.healthRestrictions,
-      } : null,
-      recentWorkouts: recentWorkouts as any,
-      allCompletedExerciseSets: allCompletedExerciseSets as any,
-      todayMeals: todayMeals as any,
-      bodyWeightHistory: bodyWeightHistory as any,
-      nutritionTargets: nutritionTargets ?? null,
-      sleepEntries: recentSleepEntries,
-      clientHour: clientHour ?? undefined,
-      activeProgram: activeProgram ? {
-        name: activeProgram.name,
-        type: activeProgram.type,
-        daysPerWeek: activeProgram.daysPerWeek,
-        level: activeProgram.level,
-      } : null,
-    });
-
-    // ─── Block 11: Gamification & streaks ──────
-    const gamification = await getGamificationData(userId, todayDate);
+    // ─── Context Engine + Gamification: run in parallel (both hit DB independently) ──────
+    const [engineContext, gamification] = await Promise.all([
+      buildDynamicContext({
+        userId,
+        intent,
+        message,
+        todayDate,
+        user: user ? {
+          goal: user.goal,
+          fitnessLevel: user.fitnessLevel,
+          weightKg: user.weightKg,
+          heightCm: user.heightCm,
+          age: user.dateOfBirth ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null,
+          trainingExperienceYears: user.trainingExperienceYears,
+          gender: (user as any).gender ?? null,
+          healthRestrictions: user.healthRestrictions,
+        } : null,
+        recentWorkouts: recentWorkouts as any,
+        allCompletedExerciseSets: allCompletedExerciseSets as any,
+        todayMeals: todayMeals as any,
+        bodyWeightHistory: bodyWeightHistory as any,
+        nutritionTargets: nutritionTargets ?? null,
+        sleepEntries: recentSleepEntries,
+        clientHour: clientHour ?? undefined,
+        activeProgram: activeProgram ? {
+          name: activeProgram.name,
+          type: activeProgram.type,
+          daysPerWeek: activeProgram.daysPerWeek,
+          level: activeProgram.level,
+        } : null,
+      }),
+      getGamificationData(userId, todayDate),
+    ]);
     const gamificationContext = buildGamificationContext(gamification);
 
     // ─── Block 12: Exercise substitution for injuries ──────
@@ -3497,14 +3499,54 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       : [];
     const difficultyContext = buildDifficultyContext(difficultyAdjustments);
 
+    // ─── Blocks 32-48: Parallel DB fetch for context builders ──────
+    const todayStartDate = new Date(`${todayDate}T00:00:00.000Z`);
+    const todayEndDate = new Date(`${todayDate}T23:59:59.999Z`);
+    const [
+      programExerciseRows,
+      totalWorkoutsLast30Days,
+      exerciseTypeRows,
+      allRecentForFatigue,
+      recentMealsForGaps,
+      userMemories,
+      scheduledWorkoutToday,
+    ] = await Promise.all([
+      activeProgram
+        ? prisma.workoutExercise.findMany({
+            where: { workout: { programId: activeProgram.id } },
+            select: { exercise: { select: { name: true } } },
+            take: 500,
+          })
+        : Promise.resolve([]),
+      prisma.workout.count({
+        where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+      }),
+      activeProgram
+        ? prisma.workoutExercise.findMany({
+            where: { workout: { programId: activeProgram.id } },
+            select: { exercise: { select: { type: true } } },
+            take: 500,
+          })
+        : Promise.resolve([]),
+      prisma.workout.findMany({
+        where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) } },
+        select: { completedAt: true, totalVolume: true, durationMinutes: true },
+        take: 100,
+      }),
+      prisma.meal.findMany({
+        where: { userId, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+        include: { items: true },
+        take: 100,
+      }),
+      prisma.aIMemory.findMany({ where: { userId }, select: { key: true }, take: 200 }),
+      prisma.workout.findFirst({
+        where: { userId, scheduledDate: { gte: todayStartDate, lte: todayEndDate }, completedAt: null },
+        include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
+      }),
+    ]);
+
     // ─── Block 32: Contextual exercise alternatives ──────
-    const programExerciseNames = activeProgram
-      ? (await prisma.workoutExercise.findMany({
-          where: { workout: { programId: activeProgram.id } },
-          select: { exercise: { select: { name: true } } },
-          take: 500,
-        })).filter((we) => we.exercise).map((we) => we.exercise?.name)
-      : [];
+    const programExerciseNames = programExerciseRows.filter((we) => we.exercise).map((we) => we.exercise?.name);
     const exerciseAlternatives = getExerciseAlternatives([...new Set(programExerciseNames)], injuryZones);
     const alternativesContext = buildExerciseAlternativesContext(exerciseAlternatives);
 
@@ -3523,9 +3565,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const weeklySummaryContext = buildWeeklySummaryContext(weeklySummary);
 
     // ─── Block 34: Goal progress tracker ──────
-    const totalWorkoutsLast30Days = await prisma.workout.count({
-      where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
-    });
     const goalProgress = estimateGoalProgress(
       { weightKg: user?.weightKg, goal: user?.goal, fitnessLevel: user?.fitnessLevel },
       bodyWeightHistory,
@@ -3535,21 +3574,10 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const goalProgressContext = buildGoalProgressContext(goalProgress);
 
     // ─── Block 35: Smart rest timer suggestion ──────
-    const exerciseTypesInProgram = activeProgram
-      ? [...new Set((await prisma.workoutExercise.findMany({
-          where: { workout: { programId: activeProgram.id } },
-          select: { exercise: { select: { type: true } } },
-          take: 500,
-        })).filter((we) => we.exercise).map((we) => we.exercise?.type))]
-      : [];
+    const exerciseTypesInProgram = [...new Set(exerciseTypeRows.filter((we) => we.exercise).map((we) => we.exercise?.type))];
     const restTimerContext = buildRestTimerContext(user?.goal || null, exerciseTypesInProgram);
 
     // ─── Block 36: Fatigue index (ACWR) ──────
-    const allRecentForFatigue = await prisma.workout.findMany({
-      where: { userId, completedAt: { not: null, gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) } },
-      select: { completedAt: true, totalVolume: true, durationMinutes: true },
-      take: 100,
-    });
     const fatigueData = calculateFatigueIndex(allRecentForFatigue);
     const fatigueContext = buildFatigueContext(fatigueData);
 
@@ -3561,11 +3589,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
 
     // ─── Block 38: Nutrition gap detector ──────
-    const recentMealsForGaps = await prisma.meal.findMany({
-      where: { userId, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
-      include: { items: true },
-      take: 100,
-    });
     const nutritionGapsContext = detectNutritionGaps(
       recentMealsForGaps.map((m) => ({
         items: m.items.map((i) => ({ name: i.name, protein: i.protein, fats: i.fats, carbs: i.carbs })),
@@ -3593,7 +3616,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const plateauContext = buildPlateauContext(plateauStrategies);
 
     // ─── Block 42: Sleep & recovery questionnaire ──────
-    const userMemories = await prisma.aIMemory.findMany({ where: { userId }, select: { key: true }, take: 200 });
     const hasAskedAboutSleep = userMemories.some((m) => m.key.includes('sleep') || m.key.includes('сон'));
     const recoveryQuestionnaireContext = buildRecoveryQuestionnaire(recovery.score, hasAskedAboutSleep, fatigueData.status);
 
@@ -3608,13 +3630,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     );
 
     // ─── Block 46: Warm-up generator ──────
-    // Get scheduled workout today for warm-up and supplement advice
-    const todayStartDate = new Date(`${todayDate}T00:00:00.000Z`);
-    const todayEndDate = new Date(`${todayDate}T23:59:59.999Z`);
-    const scheduledWorkoutToday = await prisma.workout.findFirst({
-      where: { userId, scheduledDate: { gte: todayStartDate, lte: todayEndDate }, completedAt: null },
-      include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
-    });
     const todayMuscles = scheduledWorkoutToday
       ? scheduledWorkoutToday.exercises.flatMap((e) => e.exercise?.primaryMuscles ?? [])
       : [];
@@ -81295,12 +81310,13 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       }
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-
-    const userMemories = await prisma.aIMemory.findMany({
-      where: { userId, category: { in: ['allergy', 'preference'] } },
-      take: 10,
-    });
+    const [user, userMemories] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.aIMemory.findMany({
+        where: { userId, category: { in: ['allergy', 'preference'] } },
+        take: 10,
+      }),
+    ]);
 
     const allergyLines = userMemories
       .filter((m) => m.category === 'allergy')
