@@ -7578,13 +7578,6 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         ? Math.floor((Date.now() - new Date(lastWo.completedAt).getTime()) / (1000 * 60 * 60 * 24))
         : null;
 
-      // Check for scheduled workout today using client-supplied local date
-      const greetingTodayStart = new Date(`${todayDate}T00:00:00.000Z`);
-      const greetingTodayEnd = new Date(`${todayDate}T23:59:59.999Z`);
-      const scheduledToday = await prisma.workout.findFirst({
-        where: { userId, scheduledDate: { gte: greetingTodayStart, lte: greetingTodayEnd }, completedAt: null },
-      });
-
       // Body weight trend
       let bwTrend: 'up' | 'down' | 'stable' | null = null;
       if (bodyWeightHistory.length >= 3) {
@@ -7602,7 +7595,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         daysSinceLastWorkout: daysSinceLast,
         lastWorkoutName: lastWo?.name || null,
         streak: gamification.currentStreak,
-        scheduledToday: scheduledToday?.name || null,
+        scheduledToday: scheduledWorkoutToday?.name || null,
         todayMealsCount: todayMeals.length,
         bodyWeightTrend: bwTrend,
         newPRs: gamification.newPRsThisWeek.map((pr) => pr.exercise),
