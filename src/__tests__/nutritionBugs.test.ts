@@ -164,3 +164,31 @@ describe('getDayLog defaults', () => {
     expect(dayLog.waterMl).toBe(0);
   });
 });
+
+describe('saveFoodItem deduplication', () => {
+  beforeEach(() => {
+    useNutritionStore.setState({ savedFoods: [] });
+  });
+
+  test('prevents duplicate IDs', () => {
+    const food = { id: 'saved-chicken', name: 'Chicken', calories: 165, protein: 31, fats: 3.6, carbs: 0, weightGrams: 100 };
+    useNutritionStore.getState().saveFoodItem(food);
+    useNutritionStore.getState().saveFoodItem(food);
+    expect(useNutritionStore.getState().savedFoods.length).toBe(1);
+  });
+
+  test('allows same-name foods with different IDs', () => {
+    const food1 = { id: 'saved-chicken-1', name: 'Chicken', calories: 165, protein: 31, fats: 3.6, carbs: 0, weightGrams: 100 };
+    const food2 = { id: 'saved-chicken-2', name: 'Chicken', calories: 180, protein: 30, fats: 5, carbs: 0, weightGrams: 100 };
+    useNutritionStore.getState().saveFoodItem(food1);
+    useNutritionStore.getState().saveFoodItem(food2);
+    expect(useNutritionStore.getState().savedFoods.length).toBe(2);
+  });
+
+  test('caps saved foods at 30', () => {
+    for (let i = 0; i < 35; i++) {
+      useNutritionStore.getState().saveFoodItem({ id: `saved-food-${i}`, name: `Food ${i}`, calories: 100, protein: 10, fats: 5, carbs: 10, weightGrams: 100 });
+    }
+    expect(useNutritionStore.getState().savedFoods.length).toBe(30);
+  });
+});
