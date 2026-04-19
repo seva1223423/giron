@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
 import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Card, AnimatedPressable } from '../../../components';
@@ -26,6 +26,7 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
 
   const [excessWarning, setExcessWarning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
 
   const waterPercent = waterTarget > 0 ? dayLog.waterMl / waterTarget : 0;
   const remaining = Math.max(0, waterTarget - dayLog.waterMl);
@@ -95,6 +96,34 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
         ))}
       </View>
 
+      {/* Custom amount row */}
+      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+        <TextInput
+          style={[styles.customInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+          value={customAmount}
+          onChangeText={setCustomAmount}
+          placeholder="Свой объём, мл"
+          placeholderTextColor={colors.inputPlaceholder}
+          keyboardType="numeric"
+          maxLength={5}
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            const ml = parseInt(customAmount, 10);
+            if (ml > 0 && ml <= 3000) { handleAddWater(ml); setCustomAmount(''); }
+          }}
+        />
+        <TouchableOpacity
+          style={[styles.customBtn, { backgroundColor: parseInt(customAmount, 10) > 0 ? colors.info : colors.border }]}
+          disabled={!(parseInt(customAmount, 10) > 0)}
+          onPress={() => {
+            const ml = parseInt(customAmount, 10);
+            if (ml > 0 && ml <= 3000) { handleAddWater(ml); setCustomAmount(''); }
+          }}
+        >
+          <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>+</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Day history */}
       {showHistory && waterLog.length > 0 && (
         <View style={{ marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: spacing.sm }}>
@@ -148,4 +177,6 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
 const styles = StyleSheet.create({
   waterBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, alignItems: 'center' },
   waterBar: { height: 8, borderRadius: borderRadius.full, marginTop: spacing.md, overflow: 'hidden' },
+  customInput: { flex: 1, height: 36, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.md, fontSize: 14 },
+  customBtn: { width: 36, height: 36, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
 });

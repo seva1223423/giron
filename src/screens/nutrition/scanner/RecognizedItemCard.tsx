@@ -18,6 +18,7 @@ const PORTION_PRESETS = [30, 50, 100, 150, 200, 300];
 export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove }) => {
   const { colors } = useThemeStore();
   const { saveFoodItem } = useNutritionStore();
+  const [saved, setSaved] = React.useState(false);
 
   const handleSave = () => {
     saveFoodItem({
@@ -29,7 +30,8 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
       carbs: base ? Math.round(base.carbs * 10) / 10 : item.carbs,
       weightGrams: 100,
     });
-    Alert.alert('Сохранено', `${item.name} добавлен в быстрые продукты`);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const currentWeight = item.weightGrams || 100;
@@ -44,8 +46,10 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
               <Text style={{ fontSize: 12, color: colors.error, fontWeight: '700' }}>✕</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleSave} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>+</Text>
+          <TouchableOpacity onPress={handleSave} disabled={saved} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: saved ? colors.success : colors.primary }}>
+              {saved ? '✓' : '+'}
+            </Text>
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <TextInput
