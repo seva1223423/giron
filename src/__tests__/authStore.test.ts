@@ -8,14 +8,47 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(() => Promise.resolve()),
 }));
 
+jest.mock('../services/api', () => ({
+  api: {
+    get: jest.fn(() => Promise.resolve({ data: {} })),
+    post: jest.fn(() => Promise.resolve({ data: {} })),
+    put: jest.fn(() => Promise.resolve({ data: {} })),
+    delete: jest.fn(() => Promise.resolve({ data: {} })),
+    patch: jest.fn(() => Promise.resolve({ data: {} })),
+    interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+    defaults: { headers: { common: {} } },
+  },
+  getApiError: jest.fn((e: any) => ({ message: e?.message || 'Unknown error' })),
+}));
+
+jest.mock('../services/userService', () => ({
+  userService: {
+    getProfile: jest.fn(),
+    updateProfile: jest.fn(),
+    saveWeekPlan: jest.fn(() => Promise.resolve()),
+    getWeekPlan: jest.fn(() => Promise.resolve({})),
+    saveSleep: jest.fn(() => Promise.resolve()),
+    deleteSleep: jest.fn(() => Promise.resolve()),
+    getSleep: jest.fn(() => Promise.resolve([])),
+  },
+}));
+
 jest.mock('../services', () => ({
   userService: {
     getProfile: jest.fn(),
     updateProfile: jest.fn(),
+    saveWeekPlan: jest.fn(() => Promise.resolve()),
+    getWeekPlan: jest.fn(() => Promise.resolve({})),
   },
   authService: {
     login: jest.fn(),
     register: jest.fn(),
+    logout: jest.fn(() => Promise.resolve()),
+    verifyTotp: jest.fn(),
+    loginWithGoogle: jest.fn(),
+    loginWithVk: jest.fn(),
+    loginWithYandex: jest.fn(),
+    loginByPhone: jest.fn(),
   },
   getApiError: jest.fn((e: any) => ({ message: e?.message || 'Unknown error' })),
 }));
@@ -46,14 +79,14 @@ describe('useAuthStore', () => {
     expect(useAuthStore.getState().user).toBeNull();
   });
 
-  test('logout clears all auth state', () => {
+  test('logout clears all auth state', async () => {
     useAuthStore.setState({
       token: 'abc',
       refreshToken: 'xyz',
       isAuthenticated: true,
       user: { id: '1', firstName: 'Test' } as any,
     });
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
     expect(useAuthStore.getState().token).toBeNull();
     expect(useAuthStore.getState().refreshToken).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);

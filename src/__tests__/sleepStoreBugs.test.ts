@@ -8,6 +8,14 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(() => Promise.resolve()),
 }));
 
+jest.mock('../services/userService', () => ({
+  userService: {
+    saveSleep: jest.fn(() => Promise.resolve()),
+    deleteSleep: jest.fn(() => Promise.resolve()),
+    getSleep: jest.fn(() => Promise.resolve([])),
+  },
+}));
+
 import { useSleepStore } from '../store/useSleepStore';
 
 beforeEach(() => {

@@ -13,8 +13,15 @@ jest.mock('../services', () => ({
     completeWorkout: jest.fn(() => Promise.resolve()),
     syncWorkout: jest.fn(() => Promise.resolve()),
     autosaveWorkout: jest.fn(() => Promise.resolve()),
-    getHistory: jest.fn(() => Promise.resolve([])),
+    getHistory: jest.fn(() => Promise.resolve({ workouts: [], total: 0 })),
     getPrograms: jest.fn(() => Promise.resolve([])),
+  },
+}));
+
+jest.mock('../services/userService', () => ({
+  userService: {
+    saveWeekPlan: jest.fn(() => Promise.resolve()),
+    getWeekPlan: jest.fn(() => Promise.resolve({})),
   },
 }));
 
@@ -76,13 +83,13 @@ describe('useWorkoutStore', () => {
       expect(active!.startTime).toBeGreaterThan(0);
     });
 
-    test('starting new workout replaces active', () => {
+    test('second startWorkout is ignored when one is already active', () => {
       const workout = { id: 'w-1', name: 'A', exercises: [] };
       useWorkoutStore.getState().startWorkout(workout);
       useWorkoutStore.getState().startWorkout({ id: 'w-2', name: 'B', exercises: [] });
 
-      // Store allows replacing — this is the actual behavior
-      expect(useWorkoutStore.getState().activeWorkout!.workout.name).toBe('B');
+      // Guard prevents silently overwriting an in-progress workout
+      expect(useWorkoutStore.getState().activeWorkout!.workout.name).toBe('A');
     });
   });
 
@@ -198,8 +205,8 @@ describe('useWorkoutStore', () => {
 
       const result = useWorkoutStore.getState().finishWorkout();
 
-      // (10×80) + (8×80) + (6×80) + (10×40) = 800 + 640 + 480 + 400 = 2320
-      expect(result!.totalVolume).toBe(2320);
+      // Warmup sets excluded: (10×80) + (8×80) + (6×80) = 800 + 640 + 480 = 1920
+      expect(result!.totalVolume).toBe(1920);
     });
 
     test('returns null if no active workout', () => {

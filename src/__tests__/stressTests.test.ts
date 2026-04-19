@@ -14,7 +14,7 @@ jest.mock('../services', () => ({
     completeWorkout: jest.fn(() => Promise.resolve()),
     syncWorkout: jest.fn(() => Promise.resolve()),
     autosaveWorkout: jest.fn(() => Promise.resolve()),
-    getHistory: jest.fn(() => Promise.resolve([])),
+    getHistory: jest.fn(() => Promise.resolve({ workouts: [], total: 0 })),
     getPrograms: jest.fn(() => Promise.resolve([])),
   },
   nutritionService: {
@@ -22,6 +22,16 @@ jest.mock('../services', () => ({
     getMealsByDate: jest.fn(() => Promise.resolve([])),
     updateMeal: jest.fn(() => Promise.resolve({})),
     deleteMeal: jest.fn(() => Promise.resolve()),
+  },
+}));
+
+jest.mock('../services/userService', () => ({
+  userService: {
+    saveWeekPlan: jest.fn(() => Promise.resolve()),
+    getWeekPlan: jest.fn(() => Promise.resolve({})),
+    saveSleep: jest.fn(() => Promise.resolve()),
+    deleteSleep: jest.fn(() => Promise.resolve()),
+    getSleep: jest.fn(() => Promise.resolve([])),
   },
 }));
 
@@ -209,8 +219,8 @@ describe('edge cases', () => {
       }],
     });
     const result = useWorkoutStore.getState().finishWorkout();
-    // Volume includes all completed sets: 10*20 + 10*30 = 500
-    expect(result!.totalVolume).toBe(500);
+    // Warmup sets excluded from volume — result is 0
+    expect(result!.totalVolume).toBe(0);
   });
 
   test('workout with no exercises finishes cleanly', () => {
@@ -373,12 +383,10 @@ describe('edge cases', () => {
         restSeconds: 0,
       }],
     });
-    // This will throw because exercises[5] is undefined — verify it doesn't corrupt state
-    expect(() => {
-      useWorkoutStore.getState().completeSet(5, 0, { reps: 10, weight: 50 });
-    }).toThrow();
-    // Active workout should still be intact
+    // Out-of-bounds index is silently ignored — state must remain intact
+    useWorkoutStore.getState().completeSet(5, 0, { reps: 10, weight: 50 });
     expect(useWorkoutStore.getState().activeWorkout).not.toBeNull();
+    expect(useWorkoutStore.getState().activeWorkout!.workout.exercises).toHaveLength(1);
   });
 
   test('finishWorkout with no active workout returns null', () => {
@@ -425,11 +433,11 @@ describe('concurrent operations', () => {
     expect(useNutritionStore.getState().getDayLog('2026-04-08').meals.length).toBe(5);
   });
 
-  test('start workout while another is active replaces it', () => {
+  test('second startWorkout is ignored when one is already active', () => {
     useWorkoutStore.getState().startWorkout({ id: 'w-1', name: 'First', exercises: [] });
     useWorkoutStore.getState().startWorkout({ id: 'w-2', name: 'Second', exercises: [] });
-    expect(useWorkoutStore.getState().activeWorkout!.workout.id).toBe('w-2');
-    // First workout is lost (not added to history)
+    // Guard prevents overwriting an in-progress workout
+    expect(useWorkoutStore.getState().activeWorkout!.workout.id).toBe('w-1');
     expect(useWorkoutStore.getState().workoutHistory).toHaveLength(0);
   });
 

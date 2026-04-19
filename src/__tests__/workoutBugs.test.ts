@@ -13,8 +13,15 @@ jest.mock('../services', () => ({
     completeWorkout: jest.fn(() => Promise.resolve()),
     syncWorkout: jest.fn(() => Promise.resolve()),
     autosaveWorkout: jest.fn(() => Promise.resolve()),
-    getHistory: jest.fn(() => Promise.resolve([])),
+    getHistory: jest.fn(() => Promise.resolve({ workouts: [], total: 0 })),
     getPrograms: jest.fn(() => Promise.resolve([])),
+  },
+}));
+
+jest.mock('../services/userService', () => ({
+  userService: {
+    saveWeekPlan: jest.fn(() => Promise.resolve()),
+    getWeekPlan: jest.fn(() => Promise.resolve({})),
   },
 }));
 
@@ -145,7 +152,7 @@ describe('fetchHistory merge bug', () => {
       exercises: [], durationMinutes: 45, totalVolume: 800,
     };
     const { workoutService } = require('../services');
-    workoutService.getHistory.mockResolvedValueOnce([serverWorkout]);
+    workoutService.getHistory.mockResolvedValueOnce({ workouts: [serverWorkout], total: 1 });
 
     await useWorkoutStore.getState().fetchHistory();
 
@@ -164,7 +171,7 @@ describe('fetchHistory merge bug', () => {
     useWorkoutStore.setState({ workoutHistory: [localWorkout] as any });
 
     const { workoutService } = require('../services');
-    workoutService.getHistory.mockResolvedValueOnce([]);
+    workoutService.getHistory.mockResolvedValueOnce({ workouts: [], total: 0 });
 
     await useWorkoutStore.getState().fetchHistory();
 

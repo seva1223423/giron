@@ -15,6 +15,7 @@ jest.mock('../db', () => ({
       findUnique: jest.fn(),
     },
     subscription: {
+      create: jest.fn().mockResolvedValue({}),
       upsert: jest.fn().mockResolvedValue({}),
       updateMany: jest.fn().mockResolvedValue({}),
     },
@@ -77,6 +78,7 @@ function resetMocks() {
   (mp.refreshToken.findMany as jest.Mock).mockResolvedValue([]);
   (mp.refreshToken.create as jest.Mock).mockResolvedValue({});
   (mp.refreshToken.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+  (mp.subscription.create as jest.Mock).mockResolvedValue({});
   (mp.subscription.upsert as jest.Mock).mockResolvedValue({});
   (mp.subscription.updateMany as jest.Mock).mockResolvedValue({});
 }
@@ -352,8 +354,7 @@ describe('POST /api/subscription/activate', () => {
   });
 
   it('allows trial activation (no transactionId) for new user', async () => {
-    (mp.subscription as any).findUnique = jest.fn().mockResolvedValue(null);
-    (mp.subscription.upsert as jest.Mock).mockResolvedValue({
+    (mp.subscription.create as jest.Mock).mockResolvedValue({
       plan: 'pro',
       status: 'active',
       startDate: new Date(),
@@ -381,11 +382,8 @@ describe('POST /api/subscription/activate', () => {
   });
 
   it('blocks duplicate trial for user who already has a subscription', async () => {
-    (mp.subscription as any).findUnique = jest.fn().mockResolvedValue({
-      id: 'sub-1',
-      plan: 'pro',
-      status: 'expired',
-    });
+    // Route calls subscription.create; P2002 = unique constraint (userId already has a subscription)
+    (mp.subscription.create as jest.Mock).mockRejectedValue({ code: 'P2002' });
 
     const res = await request(app)
       .post('/api/subscription/activate')

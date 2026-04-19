@@ -32,6 +32,9 @@ jest.mock('../db', () => ({
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({}),
     },
+    $transaction: jest.fn().mockImplementation(async (ops: any[]) =>
+      Promise.all(ops.map((op: any) => (typeof op?.then === 'function' ? op : Promise.resolve(op))))
+    ),
   },
 }));
 
