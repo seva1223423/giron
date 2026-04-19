@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useNutritionStore } from '../../store';
@@ -28,6 +28,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [weightGrams, setWeightGrams] = useState('100');
   const [custom, setCustom] = useState<CustomFoodState>({ name: '', calories: '', protein: '', fats: '', carbs: '' });
+  const [savedCustomConfirm, setSavedCustomConfirm] = useState(false);
 
   const computedNutrition = useMemo(() => {
     if (!selectedFood) return null;
@@ -115,11 +116,13 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
               onPress={() => {
                 haptic.success();
                 saveFoodItem({ id: `saved-${custom.name.trim().replace(/\s/g, '-').toLowerCase()}-${Date.now()}`, name: custom.name.trim(), calories: Math.max(0, Math.round(parseFloat(custom.calories.replace(',', '.')) || 0)), protein: Math.round(Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0) * 10) / 10, fats: Math.round(Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0) * 10) / 10, carbs: Math.round(Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0) * 10) / 10, weightGrams: 100 });
-                Alert.alert('Сохранено', `${custom.name.trim()} добавлен в быстрые продукты`);
+                setSavedCustomConfirm(true);
+                setTimeout(() => setSavedCustomConfirm(false), 2000);
               }}
-              style={[styles.saveBtnLg, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
+              disabled={savedCustomConfirm}
+              style={[styles.saveBtnLg, { backgroundColor: savedCustomConfirm ? colors.success + '20' : colors.warning + '20', borderColor: savedCustomConfirm ? colors.success : colors.warning }]}
             >
-              <Text style={[typography.smallMedium, { color: colors.primary, fontWeight: '700' }]}>+</Text>
+              <Text style={[typography.smallMedium, { color: savedCustomConfirm ? colors.success : colors.primary, fontWeight: '700' }]}>{savedCustomConfirm ? '✓' : '+'}</Text>
             </TouchableOpacity>
           )}
           <Button title="Добавить" onPress={handleAdd} fullWidth size="lg" style={{ flex: 1 }} />

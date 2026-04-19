@@ -130,7 +130,7 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
         if (totalMacroCal <= 0) return null;
         const pPct = Math.round((proteinCal / totalMacroCal) * 100);
         const fPct = Math.round((fatCal / totalMacroCal) * 100);
-        const cPct = 100 - pPct - fPct;
+        const cPct = Math.max(0, 100 - pPct - fPct);
         return (
           <View style={{ marginTop: spacing.md }}>
             <View style={macroStyles.bar}>
