@@ -82,7 +82,7 @@ export const NutritionDayCard: React.FC<Props> = ({ date, log, isExpanded, onPre
                     {meal.type === 'breakfast' ? 'Завтрак' : meal.type === 'lunch' ? 'Обед' : meal.type === 'dinner' ? 'Ужин' : 'Перекус'}
                   </Text>
                   <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>
-                    {meal.items.map((i) => i.name).join(', ')}
+                    {meal.items.map((i) => i.name.replace(/\s*\(\d+г\)$/, '').trim()).join(', ')}
                   </Text>
                   <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{meal.totalCalories} ккал</Text>
                 </View>
