@@ -24,7 +24,7 @@ const RECENT_SCANS_KEY = 'iron_gym_recent_scans';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 interface BarcodeProduct { name: string; cal: number; prot: number; fats: number; carbs: number; }
-interface RecentScan extends BarcodeProduct { barcode: string; }
+interface RecentScan extends BarcodeProduct { barcode: string; servingGrams?: number; }
 
 async function getCachedProduct(barcode: string): Promise<BarcodeProduct | null> {
   try {
@@ -355,7 +355,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         const servingGrams = parseServingGrams(p.serving_size || p.serving_quantity || '');
 
         await cacheProduct(barcode, product);
-        const scan: RecentScan = { barcode, ...product };
+        const scan: RecentScan = { barcode, ...product, ...(servingGrams ? { servingGrams } : {}) };
         await saveRecentScan(scan);
         loadRecentScans().then(setRecentScans);
 
@@ -535,7 +535,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                     {recentScans.map((scan) => (
                       <TouchableOpacity
                         key={scan.barcode}
-                        onPress={() => applyBarcodeProduct(scan)}
+                        onPress={() => applyBarcodeProduct(scan, scan.servingGrams)}
                         style={[styles.recentChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
                       >
                         <Text style={[typography.captionMedium, { color: colors.text }]} numberOfLines={1}>
