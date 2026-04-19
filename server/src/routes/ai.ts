@@ -9788,20 +9788,17 @@ function validateFoodItems(items: FoodItem[]): FoodItem[] {
         }
       }
 
-      const result: any = {
+      const conf = Number(item.confidence);
+      const confidence = !isNaN(conf) && conf >= 0.5 && conf <= 1.0 ? Math.round(conf * 100) / 100 : undefined;
+      return {
         name: String(item.name).trim().slice(0, 200),
         weightGrams: w,
         calories: finalCal,
         protein: Math.round(prot * 10) / 10,
         fats: Math.round(fats * 10) / 10,
         carbs: Math.round(carbs * 10) / 10,
+        ...(confidence != null ? { confidence } : {}),
       };
-      // Сохраняем confidence если AI его вернул
-      const conf = Number((item as any).confidence);
-      if (!isNaN(conf) && conf >= 0.5 && conf <= 1.0) {
-        result.confidence = Math.round(conf * 100) / 100;
-      }
-      return result;
     });
 }
 
@@ -81395,8 +81392,8 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
     const totalProtein = Math.round(validated.reduce((s, i) => s + i.protein, 0) * 10) / 10;
     const totalFats = Math.round(validated.reduce((s, i) => s + i.fats, 0) * 10) / 10;
     const totalCarbs = Math.round(validated.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
-    const avgConfidence = validated.some((i: any) => i.confidence != null)
-      ? Math.round(validated.reduce((s: number, i: any) => s + (i.confidence ?? 0.8), 0) / validated.length * 100) / 100
+    const avgConfidence = validated.some((i) => i.confidence != null)
+      ? Math.round(validated.reduce((s, i) => s + (i.confidence ?? 0.8), 0) / validated.length * 100) / 100
       : null;
 
     return res.json({ items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence });
