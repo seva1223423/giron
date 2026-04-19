@@ -56,7 +56,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   };
 
   const handleSave = () => {
-    const min = parseInt(duration, 10);
+    const min = parseInt(duration.replace(',', '.'), 10);
     if (!min || min <= 0) {
       Alert.alert('Ошибка', 'Укажи продолжительность');
       return;

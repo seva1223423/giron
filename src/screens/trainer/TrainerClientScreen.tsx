@@ -96,7 +96,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
         clientId: client.id,
         date: today,
         name: sessionName.trim(),
-        durationMinutes: parseInt(sessionDuration, 10) || 60,
+        durationMinutes: parseInt(sessionDuration.replace(',', '.'), 10) || 60,
         volumeKg: sessionVolume ? parseFloat(sessionVolume.replace(',', '.')) * 1000 : undefined,
         notes: sessionNotes.trim() || undefined,
       });

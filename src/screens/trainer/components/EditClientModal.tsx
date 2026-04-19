@@ -56,7 +56,7 @@ export const EditClientModal: React.FC<Props> = ({ visible, client, onClose, onS
 
   const handleSave = () => {
     haptic.medium();
-    const age = editAge ? parseInt(editAge, 10) || undefined : undefined;
+    const age = editAge ? parseInt(editAge.replace(',', '.'), 10) || undefined : undefined;
     onSave({
       name: editName.trim() || client.name,
       age,
