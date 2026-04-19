@@ -1706,26 +1706,29 @@ async function executeTool(
       'front raise': 'махи гантелями перед собой',
     };
 
-    // Find exercises in DB (case-insensitive partial match, with EN→RU fallback)
-    const exerciseRecords = await Promise.all(
-      exercises.slice(0, 20).map(async (ex) => {
-        const searchName = ex.exerciseName;
-        let found = await prisma.exercise.findFirst({
-          where: { name: { contains: searchName, mode: 'insensitive' } },
-        });
-        // Try English → Russian translation fallback
-        if (!found) {
-          const lower = searchName.toLowerCase();
-          const translated = EN_RU[lower] || Object.entries(EN_RU).find(([k]) => lower.includes(k))?.[1];
-          if (translated) {
-            found = await prisma.exercise.findFirst({
-              where: { name: { contains: translated, mode: 'insensitive' } },
-            });
+    // Find exercises + active program in parallel
+    const [exerciseRecords, activeProgramResult] = await Promise.all([
+      Promise.all(
+        exercises.slice(0, 20).map(async (ex) => {
+          const searchName = ex.exerciseName;
+          let found = await prisma.exercise.findFirst({
+            where: { name: { contains: searchName, mode: 'insensitive' } },
+          });
+          // Try English → Russian translation fallback
+          if (!found) {
+            const lower = searchName.toLowerCase();
+            const translated = EN_RU[lower] || Object.entries(EN_RU).find(([k]) => lower.includes(k))?.[1];
+            if (translated) {
+              found = await prisma.exercise.findFirst({
+                where: { name: { contains: translated, mode: 'insensitive' } },
+              });
+            }
           }
-        }
-        return { input: ex, record: found };
-      }),
-    );
+          return { input: ex, record: found };
+        }),
+      ),
+      prisma.program.findFirst({ where: { userId, isActive: true } }),
+    ]);
 
     const validExercises = exerciseRecords.filter((e) => e.record !== null);
 
@@ -1737,9 +1740,7 @@ async function executeTool(
     }
 
     // Find active program or get/create Iron Coach program
-    let activeProgram = await prisma.program.findFirst({
-      where: { userId, isActive: true },
-    });
+    let activeProgram = activeProgramResult;
 
     if (!activeProgram) {
       // Find existing Iron Coach program
