@@ -56,18 +56,20 @@ export const WeekStats: React.FC = () => {
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 56, marginBottom: spacing.md }}>
-        {weekStats.days.map((d) => {
+        {(() => {
           const maxCal = Math.max(...weekStats.days.map((dd) => dd.calories), weekStats.days[0]?.target || 2000);
-          const barH = Math.max(4, (d.calories / maxCal) * 44);
-          const isGoalMet = d.calories <= d.target * 1.05 && d.calories >= d.target * 0.85;
-          const dayLabel = new Date(d.date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'short' }).slice(0, 2);
-          return (
-            <View key={d.date} style={{ flex: 1, alignItems: 'center' }}>
-              <View style={{ width: '80%', height: barH, backgroundColor: isGoalMet ? colors.success : colors.primary, borderRadius: 3 }} />
-              <Text style={[typography.small, { color: colors.textTertiary, fontSize: 9, marginTop: 3 }]}>{dayLabel}</Text>
-            </View>
-          );
-        })}
+          return weekStats.days.map((d) => {
+            const barH = Math.max(4, (d.calories / maxCal) * 44);
+            const isGoalMet = d.calories <= d.target * 1.05 && d.calories >= d.target * 0.85;
+            const dayLabel = new Date(d.date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'short' }).slice(0, 2);
+            return (
+              <View key={d.date} style={{ flex: 1, alignItems: 'center' }}>
+                <View style={{ width: '80%', height: barH, backgroundColor: isGoalMet ? colors.success : colors.primary, borderRadius: 3 }} />
+                <Text style={[typography.small, { color: colors.textTertiary, fontSize: 9, marginTop: 3 }]}>{dayLabel}</Text>
+              </View>
+            );
+          });
+        })()}
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
