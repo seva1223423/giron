@@ -85,7 +85,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
       <DailyOverview selectedDate={selectedDate} />
-      <QuickMeals />
+      <QuickMeals selectedDate={selectedDate} />
       <Tooltip tipId="nutrition-scan" text="Нажми кнопку ниже для сканирования еды по фото или штрих-коду" />
 
       <Button title="Сканировать еду по фото" onPress={handlePhotoScan} fullWidth size="lg" style={{ marginBottom: spacing.lg }} />
