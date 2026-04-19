@@ -47,7 +47,7 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
       item = { id: `item-${Date.now()}`, name: `${selectedFood.name} (${weightGrams}г)`, ...computedNutrition, weightGrams: Math.max(1, parseFloat(weightGrams.replace(',', '.')) || 100) };
     } else if (tab === 'custom') {
       if (!custom.name.trim()) { Alert.alert('Укажи название продукта'); return; }
-      const parsedCal = parseInt(custom.calories.replace(',', '.'), 10);
+      const parsedCal = Math.round(parseFloat(custom.calories.replace(',', '.')) || 0);
       if (!custom.calories.trim() || isNaN(parsedCal) || parsedCal <= 0) { Alert.alert('Укажи калорийность (больше 0)'); return; }
       item = { id: `item-${Date.now()}`, name: custom.name.trim(), calories: parsedCal, protein: Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0), fats: Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0), carbs: Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0), weightGrams: 100 };
     } else {
