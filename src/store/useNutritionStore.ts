@@ -98,17 +98,16 @@ export const useNutritionStore = create<NutritionStore>()(
             nutritionService.deleteMeal(serverMeal.id).catch(() => {});
             return;
           }
-          // Replace temp meal with server-authoritative data (ID + recalculated macros)
+          // Replace temp meal with server-authoritative data (ID + recalculated macros).
+          // First remove any pre-synced copy by CUID (syncMealsFromServer race), then swap temp ID.
           set((s) => {
             const dl = s.dailyLog[date];
             if (!dl) return s;
+            const deduped = dl.meals.filter((m) => m.id !== serverMeal.id);
             return {
               dailyLog: {
                 ...s.dailyLog,
-                [date]: {
-                  ...dl,
-                  meals: dl.meals.map((m) => m.id === tempId ? serverMeal : m),
-                },
+                [date]: { ...dl, meals: deduped.map((m) => m.id === tempId ? serverMeal : m) },
               },
             };
           });
