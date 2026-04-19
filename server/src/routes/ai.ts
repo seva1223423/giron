@@ -81239,23 +81239,18 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const userId = req.userId!;
 
     // Server-side food scan quota — free users: 5 scans/day
-    const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
-    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
-    if (!isPaidSub) {
-      const todayFloor = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
-      const todayCount = await prisma.foodScanLog.count({ where: { userId, createdAt: { gte: todayFloor } } });
-      if (todayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
-        return res.status(402).json({ error: 'Достигнут дневной лимит сканирования еды (5/день) для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'SCAN_DAILY_LIMIT_EXCEEDED' });
-      }
-    }
-
-    const [user, userMemories] = await Promise.all([
+    // Fetch subscription, scan count, user profile and memories all in parallel
+    const scanTodayFloor = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+    const [userSub, scanTodayCount, user, userMemories] = await Promise.all([
+      prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
+      prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
       prisma.user.findUnique({ where: { id: userId } }),
-      prisma.aIMemory.findMany({
-        where: { userId, category: { in: ['allergy', 'preference'] } },
-        take: 10,
-      }),
+      prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference'] } }, take: 10 }),
     ]);
+    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
+      return res.status(402).json({ error: 'Достигнут дневной лимит сканирования еды (5/день) для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'SCAN_DAILY_LIMIT_EXCEEDED' });
+    }
 
     const allergyLines = userMemories
       .filter((m) => m.category === 'allergy')
