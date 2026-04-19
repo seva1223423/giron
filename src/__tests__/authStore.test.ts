@@ -198,4 +198,40 @@ describe('useAuthStore', () => {
     expect(useAuthStore.getState().isLoading).toBe(false);
     expect(useAuthStore.getState().error).toBe('Invalid credentials');
   });
+
+  test('logoutAllDevices clears all auth state and calls logout with all=true', async () => {
+    useAuthStore.setState({
+      token: 'abc',
+      refreshToken: 'xyz',
+      isAuthenticated: true,
+      user: { id: '1', firstName: 'Test' } as any,
+      deviceToken: 'dt-token',
+    });
+
+    await useAuthStore.getState().logoutAllDevices();
+
+    expect(useAuthStore.getState().token).toBeNull();
+    expect(useAuthStore.getState().refreshToken).toBeNull();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().deviceToken).toBeNull();
+
+    const { authService } = require('../services');
+    expect(authService.logout).toHaveBeenCalledWith('xyz', true);
+  });
+
+  test('logout preserves deviceToken (device trust survives session end)', async () => {
+    useAuthStore.setState({
+      token: 'abc',
+      refreshToken: 'xyz',
+      isAuthenticated: true,
+      user: { id: '1', firstName: 'Test' } as any,
+      deviceToken: 'dt-token',
+    });
+
+    await useAuthStore.getState().logout();
+
+    // deviceToken is NOT cleared on normal logout — device trust is device-level
+    expect(useAuthStore.getState().deviceToken).toBe('dt-token');
+  });
 });

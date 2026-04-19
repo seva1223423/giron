@@ -1147,9 +1147,22 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
 router.post('/logout', async (req: Request, res: Response) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken, all } = req.body;
     if (refreshToken && typeof refreshToken === 'string') {
-      await prisma.refreshToken.updateMany({ where: { token: refreshToken, revoked: false }, data: { revoked: true } });
+      if (all) {
+        // Revoke all active sessions for this user — used by "logout all devices"
+        try {
+          const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!, {
+            issuer: JWT_ISS, audience: JWT_AUD,
+          }) as { userId: string };
+          await prisma.refreshToken.updateMany({ where: { userId: payload.userId, revoked: false }, data: { revoked: true } });
+        } catch {
+          // Token invalid/expired — fall back to revoking only this token
+          await prisma.refreshToken.updateMany({ where: { token: refreshToken, revoked: false }, data: { revoked: true } });
+        }
+      } else {
+        await prisma.refreshToken.updateMany({ where: { token: refreshToken, revoked: false }, data: { revoked: true } });
+      }
     }
     res.json({ message: 'Выход выполнен' });
   } catch {

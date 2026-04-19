@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const ACCESS_TOKEN_KEY = 'iron_gym_access_token';
 const REFRESH_TOKEN_KEY = 'iron_gym_refresh_token';
+const DEVICE_TOKEN_KEY = 'iron_gym_device_token';
 
 // Web fallback: in-memory only (no persistence — safer than localStorage)
 const webMemory: Record<string, string> = {};
@@ -70,11 +71,31 @@ export const tokenStorage = {
     await set(ACCESS_TOKEN_KEY, token);
   },
 
-  /** Clear both tokens on logout or authentication failure. */
+  /** Persist the trusted device token (used to skip TOTP on recognized devices). */
+  async setDeviceToken(deviceToken: string): Promise<void> {
+    await set(DEVICE_TOKEN_KEY, deviceToken);
+  },
+
+  /** Read the trusted device token. Returns null if not set or device not trusted. */
+  getDeviceToken(): Promise<string | null> {
+    return get(DEVICE_TOKEN_KEY);
+  },
+
+  /** Clear both session tokens on logout. Device trust token is intentionally NOT cleared
+   *  (device trust survives logout — it's device-level, not session-level). */
   async clearTokens(): Promise<void> {
     await Promise.all([
       remove(ACCESS_TOKEN_KEY),
       remove(REFRESH_TOKEN_KEY),
+    ]);
+  },
+
+  /** Clear everything including device trust — call only on explicit "remove this device" or security events. */
+  async clearAll(): Promise<void> {
+    await Promise.all([
+      remove(ACCESS_TOKEN_KEY),
+      remove(REFRESH_TOKEN_KEY),
+      remove(DEVICE_TOKEN_KEY),
     ]);
   },
 };
