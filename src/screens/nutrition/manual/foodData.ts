@@ -132,6 +132,45 @@ export const FOOD_DB = [
   { name: 'Грибы шампиньоны', calories: 27, protein: 4.3, fats: 1, carbs: 1 },
   { name: 'Чеснок', calories: 149, protein: 6.4, fats: 0.5, carbs: 33 },
   { name: 'Лук репчатый', calories: 41, protein: 1.1, fats: 0.1, carbs: 8.5 },
+  // Фрукты и ягоды (дополнительные)
+  { name: 'Виноград', calories: 67, protein: 0.6, fats: 0.2, carbs: 17 },
+  { name: 'Арбуз', calories: 27, protein: 0.7, fats: 0.1, carbs: 6.8 },
+  { name: 'Дыня', calories: 33, protein: 0.8, fats: 0.1, carbs: 7.7 },
+  { name: 'Мандарин', calories: 40, protein: 0.8, fats: 0.2, carbs: 9.2 },
+  { name: 'Груша', calories: 42, protein: 0.4, fats: 0.3, carbs: 11 },
+  { name: 'Персик', calories: 39, protein: 0.9, fats: 0.1, carbs: 9.5 },
+  { name: 'Черника', calories: 44, protein: 0.7, fats: 0.5, carbs: 10 },
+  { name: 'Малина', calories: 46, protein: 1.2, fats: 0.8, carbs: 9 },
+  { name: 'Голубика', calories: 57, protein: 0.7, fats: 0.3, carbs: 14 },
+  { name: 'Гранат', calories: 83, protein: 1.7, fats: 1.2, carbs: 19 },
+  { name: 'Манго', calories: 60, protein: 0.8, fats: 0.4, carbs: 15 },
+  { name: 'Ананас', calories: 50, protein: 0.5, fats: 0.1, carbs: 13 },
+  { name: 'Киви', calories: 61, protein: 1.1, fats: 0.5, carbs: 14 },
+  // Овощи (дополнительные)
+  { name: 'Батат (варёный)', calories: 86, protein: 2, fats: 0.1, carbs: 20 },
+  { name: 'Спаржа', calories: 20, protein: 2.2, fats: 0.1, carbs: 3.9 },
+  { name: 'Сельдерей', calories: 16, protein: 0.7, fats: 0.1, carbs: 3.6 },
+  { name: 'Редис', calories: 20, protein: 1.2, fats: 0.1, carbs: 3.4 },
+  { name: 'Кукуруза варёная', calories: 123, protein: 4, fats: 2.4, carbs: 22 },
+  { name: 'Горошек зелёный', calories: 82, protein: 5.4, fats: 0.4, carbs: 14 },
+  { name: 'Баклажан', calories: 24, protein: 1.2, fats: 0.1, carbs: 5.5 },
+  // Зерновые и хлеб (дополнительные)
+  { name: 'Лаваш армянский', calories: 277, protein: 9, fats: 1.1, carbs: 58 },
+  { name: 'Киноа варёная', calories: 120, protein: 4.4, fats: 1.9, carbs: 21 },
+  { name: 'Булгур варёный', calories: 83, protein: 3, fats: 0.2, carbs: 18 },
+  { name: 'Овсяноблин', calories: 140, protein: 10, fats: 5, carbs: 14 },
+  // Молочные (дополнительные)
+  { name: 'Творожный сыр (рикотта/крем-чиз)', calories: 260, protein: 7, fats: 24, carbs: 3.2 },
+  { name: 'Пармезан', calories: 392, protein: 36, fats: 26, carbs: 0 },
+  { name: 'Брынза', calories: 260, protein: 17, fats: 20, carbs: 0.5 },
+  { name: 'Молоко 2.5%', calories: 54, protein: 2.9, fats: 2.5, carbs: 4.7 },
+  // Напитки (дополнительные)
+  { name: 'Кофе с молоком', calories: 38, protein: 1.8, fats: 1.9, carbs: 3.7 },
+  { name: 'Зелёный чай', calories: 2, protein: 0, fats: 0, carbs: 0 },
+  // Рыба (дополнительные)
+  { name: 'Тунец в собственном соку', calories: 99, protein: 23, fats: 0.5, carbs: 0 },
+  { name: 'Креветки варёные', calories: 99, protein: 21, fats: 1.1, carbs: 0 },
+  { name: 'Карп запечённый', calories: 121, protein: 18, fats: 5, carbs: 0 },
 ];
 
 export type FoodItem = typeof FOOD_DB[0];
