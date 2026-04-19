@@ -87,6 +87,7 @@ export const useSleepStore = create<SleepStore>()(
       },
 
       getLastEntries: (count) => {
+        if (count <= 0) return [];
         return [...get().entries]
           .sort((a, b) => b.date.localeCompare(a.date))
           .slice(0, count);
@@ -95,7 +96,7 @@ export const useSleepStore = create<SleepStore>()(
       getAverageDuration: (days) => {
         const last = [...get().entries]
           .sort((a, b) => b.date.localeCompare(a.date))
-          .slice(0, days);
+          .slice(0, Math.max(0, days));
         if (last.length === 0) return 0;
         return parseFloat((last.reduce((sum, e) => sum + e.durationHours, 0) / last.length).toFixed(1));
       },
@@ -103,7 +104,7 @@ export const useSleepStore = create<SleepStore>()(
       getAverageQuality: (days) => {
         const last = [...get().entries]
           .sort((a, b) => b.date.localeCompare(a.date))
-          .slice(0, days)
+          .slice(0, Math.max(0, days))
           .filter((e) => e.quality != null);
         if (last.length === 0) return 0;
         return parseFloat((last.reduce((sum, e) => sum + (e.quality ?? 0), 0) / last.length).toFixed(1));

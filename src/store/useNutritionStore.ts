@@ -199,6 +199,7 @@ export const useNutritionStore = create<NutritionStore>()(
       },
 
       addWater: (date, ml) => set((s) => {
+        if (!ml || ml <= 0) return s;
         const dayLog = s.dailyLog[date] || getDefaultDayLog(date, s.defaultTargets);
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
