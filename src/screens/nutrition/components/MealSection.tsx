@@ -123,7 +123,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                       activeOpacity={0.7}
                     >
                       <Text style={[typography.body, { color: colors.text }]} numberOfLines={1}>
-                        {item.name.replace(/\s*\(\d+г\)$/, '').trim()}
+                        {item.name.replace(/\s*\(\d+(?:[.,]\d+)?г\)$/, '').trim()}
                       </Text>
                       {expandedItemId === item.id && (
                         <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
