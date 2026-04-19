@@ -495,7 +495,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {imageUri ? (
           <View style={styles.imageContainer}>
             <Image source={{ uri: imageUri }} style={[styles.image, { height: Math.min(250, screenHeight * 0.3) }]} />
-            <TouchableOpacity style={[styles.retakeBtn, { backgroundColor: colors.surface }]} onPress={() => { setImageUri(null); setRecognizedItems([]); setError(''); lastBase64Ref.current = ''; }}>
+            <TouchableOpacity style={[styles.retakeBtn, { backgroundColor: colors.surface }]} onPress={() => { abortRef.current?.abort(); setImageUri(null); setRecognizedItems([]); setLoading(false); setError(''); lastBase64Ref.current = ''; }}>
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Переснять</Text>
             </TouchableOpacity>
           </View>
