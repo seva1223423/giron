@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, FlatList, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, FlatList, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
@@ -21,6 +21,7 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
   const { colors } = useThemeStore();
   const { dailyLog, saveFoodItem, savedFoods } = useNutritionStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [savedConfirm, setSavedConfirm] = useState(false);
 
   // Merge saved foods (from scanner) with FOOD_DB — saved foods appear first when matched
   const savedAsFoodItems = useMemo((): FoodItem[] =>
@@ -124,14 +125,18 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
             <Text style={[typography.captionMedium, { color: colors.primary }]}>{selectedFood.name}</Text>
             <TouchableOpacity
+              disabled={savedConfirm}
               onPress={() => {
                 haptic.success();
                 saveFoodItem({ id: `saved-${selectedFood.name.replace(/\s/g, '-').toLowerCase()}`, ...selectedFood, weightGrams: 100 });
-                Alert.alert('Сохранено', `${selectedFood.name} добавлен в быстрые продукты`);
+                setSavedConfirm(true);
+                setTimeout(() => setSavedConfirm(false), 2000);
               }}
-              style={[styles.saveBtn, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}
+              style={[styles.saveBtn, { backgroundColor: savedConfirm ? colors.success + '20' : colors.warning + '20', borderColor: savedConfirm ? colors.success : colors.warning }]}
             >
-              <Text style={[typography.caption, { color: colors.primary }]}>Сохранить</Text>
+              <Text style={[typography.caption, { color: savedConfirm ? colors.success : colors.primary }]}>
+                {savedConfirm ? '✓ Сохранено' : 'Сохранить'}
+              </Text>
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
