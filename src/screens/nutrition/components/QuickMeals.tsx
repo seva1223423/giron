@@ -38,11 +38,12 @@ export const QuickMeals: React.FC = () => {
       const sorted = [...log.meals].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       for (const meal of sorted) {
         for (const item of meal.items) {
-          const key = item.name.toLowerCase().trim();
+          const cleanName = item.name.replace(/\s*\(\d+г\)$/, '').trim();
+          const key = cleanName.toLowerCase();
           if (seen.has(key)) continue;
           seen.add(key);
           allMeals.push({
-            name: item.name,
+            name: cleanName,
             type: meal.type,
             cal: item.calories,
             protein: item.protein,
