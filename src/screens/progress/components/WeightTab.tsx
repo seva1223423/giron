@@ -136,7 +136,10 @@ export const WeightTab: React.FC<WeightTabProps> = ({ colors, user }) => {
         const lastWeight = sample[sample.length - 1].weightKg;
         const firstDate = new Date(sample[0].date).getTime();
         const lastDate = new Date(sample[sample.length - 1].date).getTime();
-        const weeks = (lastDate - firstDate) / (7 * 24 * 60 * 60 * 1000) || 1;
+        const spanDays = (lastDate - firstDate) / (24 * 60 * 60 * 1000);
+        // Need at least 3 days of span to avoid wildly inflated weekly rates
+        if (spanDays < 3) return null;
+        const weeks = spanDays / 7;
         const weeklyRate = (lastWeight - firstWeight) / weeks;
 
         let icon: string;
