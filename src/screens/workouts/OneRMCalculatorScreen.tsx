@@ -19,7 +19,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   const [weightStr, setWeightStr] = useState('');
   const [repsStr, setRepsStr] = useState('');
 
-  const weight = parseFloat(weightStr) || 0;
+  const weight = parseFloat(weightStr.replace(',', '.')) || 0;
   const reps = parseInt(repsStr, 10) || 0;
   const validInput = weight > 0 && reps >= 1 && reps <= 30;
 

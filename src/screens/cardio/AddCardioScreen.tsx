@@ -47,7 +47,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
   const selected = CARDIO_TYPES.find((t) => t.type === selectedType)!;
 
   const estimateCalories = () => {
-    const min = parseFloat(duration);
+    const min = parseFloat(duration.replace(',', '.'));
     if (!min || min <= 0) return;
     // Estimate using MET × weight(assumed 75kg) × hours
     const est = Math.round(MET[selectedType] * 75 * (min / 60));
@@ -69,7 +69,7 @@ export const AddCardioScreen: React.FC<{ navigation: any; route: any }> = ({ nav
       type: selectedType,
       date,
       durationMinutes: min,
-      distanceKm: distance ? toFinite(distance, parseFloat) : undefined,
+      distanceKm: distance ? toFinite(distance, (v) => parseFloat(v.replace(',', '.'))) : undefined,
       caloriesBurned: calories ? toFinite(calories, (v) => parseInt(v, 10)) : undefined,
       avgHeartRate: heartRate ? toFinite(heartRate, (v) => parseInt(v, 10)) : undefined,
       notes: notes.trim() || undefined,
