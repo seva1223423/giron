@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore } from '../../../store';
@@ -71,6 +71,18 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
     removeMealItem(selectedDate, mealId, itemId);
   };
 
+  const handleDeleteMeal = useCallback((mealId: string, mealCalories: number) => {
+    haptic.warning();
+    Alert.alert(
+      'Удалить приём пищи?',
+      `${meta.label} · ${mealCalories} ккал`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Удалить', style: 'destructive', onPress: () => removeMeal(selectedDate, mealId) },
+      ],
+    );
+  }, [selectedDate, meta.label, haptic, removeMeal]);
+
   return (
     <Card style={{ marginBottom: spacing.md }}>
       <View style={styles.header}>
@@ -89,13 +101,13 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                   <Text style={[typography.caption, { color: colors.textTertiary, flex: 1, marginRight: 8 }]} numberOfLines={1}>
                     {meta.label} · {mealTime}
                   </Text>
-                  <TouchableOpacity onPress={() => { haptic.warning(); removeMeal(selectedDate, meal.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity onPress={() => handleDeleteMeal(meal.id, meal.totalCalories)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Text style={[typography.caption, { color: colors.error }]}>Удалить всё</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.xs }}>
-                  <TouchableOpacity onPress={() => { haptic.warning(); removeMeal(selectedDate, meal.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity onPress={() => handleDeleteMeal(meal.id, meal.totalCalories)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Text style={[typography.caption, { color: colors.error }]}>Удалить всё</Text>
                   </TouchableOpacity>
                 </View>
