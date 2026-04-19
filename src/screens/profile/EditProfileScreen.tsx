@@ -27,7 +27,7 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
   const handleSave = async () => {
     const wKgParsed = weightKg ? parseFloat(weightKg.replace(',', '.')) : undefined;
     const hCmParsed = heightCm ? parseFloat(heightCm.replace(',', '.')) : undefined;
-    const expParsed = experienceYears ? parseInt(experienceYears, 10) : undefined;
+    const expParsed = experienceYears ? parseInt(experienceYears.replace(',', '.'), 10) : undefined;
     if (wKgParsed !== undefined && (!Number.isFinite(wKgParsed) || wKgParsed < 20 || wKgParsed > 400)) {
       Alert.alert('Ошибка', 'Вес должен быть от 20 до 400 кг');
       return;
