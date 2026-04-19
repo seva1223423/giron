@@ -67,7 +67,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
     setEditingItem(null);
   };
 
-  const handleDeleteItem = (mealId: string, itemId: string, itemName: string) => {
+  const handleDeleteItem = (mealId: string, itemId: string) => {
     haptic.light();
     removeMealItem(selectedDate, mealId, itemId);
   };
@@ -161,7 +161,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                       </View>
                       {/* Delete individual item button */}
                       <TouchableOpacity
-                        onPress={() => handleDeleteItem(meal.id, item.id, item.name)}
+                        onPress={() => handleDeleteItem(meal.id, item.id)}
                         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         accessibilityLabel={`Удалить ${item.name}`}
                         accessibilityRole="button"
