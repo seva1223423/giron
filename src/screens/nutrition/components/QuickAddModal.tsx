@@ -117,6 +117,7 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
             keyboardType="numeric"
             selectTextOnFocus
             placeholderTextColor={colors.inputPlaceholder}
+            accessibilityLabel="Вес в граммах"
           />
           <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, flexWrap: 'wrap' }}>
             {[50, 100, 150, 200, 250, 300].map((g) => {

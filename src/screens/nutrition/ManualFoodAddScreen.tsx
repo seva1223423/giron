@@ -47,7 +47,8 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
     const rid = Math.random().toString(36).slice(2, 7);
     let item: NutritionItem;
     if (tab === 'search' && selectedFood && computedNutrition) {
-      item = { id: `item-${ts}-${rid}`, name: `${selectedFood.name} (${weightGrams}г)`, ...computedNutrition, weightGrams: Math.max(1, parseFloat(weightGrams.replace(',', '.')) || 100) };
+      const parsedW = Math.max(1, Math.round(parseFloat(weightGrams.replace(',', '.')) || 100));
+      item = { id: `item-${ts}-${rid}`, name: `${selectedFood.name} (${parsedW}г)`, ...computedNutrition, weightGrams: parsedW };
     } else if (tab === 'custom') {
       if (!custom.name.trim()) { Alert.alert('Укажи название продукта'); return; }
       const parsedCal = Math.round(parseFloat(custom.calories.replace(',', '.')) || 0);
