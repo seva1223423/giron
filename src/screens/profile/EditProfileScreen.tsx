@@ -25,8 +25,8 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    const wKgParsed = weightKg ? parseFloat(weightKg) : undefined;
-    const hCmParsed = heightCm ? parseFloat(heightCm) : undefined;
+    const wKgParsed = weightKg ? parseFloat(weightKg.replace(',', '.')) : undefined;
+    const hCmParsed = heightCm ? parseFloat(heightCm.replace(',', '.')) : undefined;
     const expParsed = experienceYears ? parseInt(experienceYears, 10) : undefined;
     if (wKgParsed !== undefined && (!Number.isFinite(wKgParsed) || wKgParsed < 20 || wKgParsed > 400)) {
       Alert.alert('Ошибка', 'Вес должен быть от 20 до 400 кг');

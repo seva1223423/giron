@@ -49,9 +49,9 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   const [goal, setGoal] = useState('muscle_gain');
 
   const result = useMemo(() => {
-    const w = parseFloat(weight) || 80;
-    const h = parseFloat(height) || 175;
-    const a = parseFloat(age) || 28;
+    const w = parseFloat(weight.replace(',', '.')) || 80;
+    const h = parseFloat(height.replace(',', '.')) || 175;
+    const a = parseFloat(age.replace(',', '.')) || 28;
     const bmr = gender === 'female' ? 10 * w + 6.25 * h - 5 * a - 161 : 10 * w + 6.25 * h - 5 * a + 5;
     const actInfo = ACTIVITY_LEVELS.find((x) => x.key === activityLevel) ?? ACTIVITY_LEVELS[2];
     const tdee = Math.round(bmr * actInfo.multiplier);

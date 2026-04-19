@@ -46,7 +46,7 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
 
   const handleConfirm = () => {
     if (!food) return;
-    const w = Math.max(1, parseFloat(quickWeight) || 100);
+    const w = Math.max(1, parseFloat(quickWeight.replace(',', '.')) || 100);
     const ratio = w / (food.weightGrams || 100);
     const ts = Date.now();
     const item: NutritionItem = {

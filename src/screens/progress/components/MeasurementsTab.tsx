@@ -77,7 +77,7 @@ export const MeasurementsTab: React.FC<Props> = ({ colors }) => {
     const entry: Omit<BodyMeasurement, 'id'> = { date: formDate, notes: formNotes.trim() || undefined };
     FIELDS.forEach((f) => {
       if (formValues[f.key]) {
-        (entry as any)[f.key] = parseFloat(formValues[f.key]);
+        (entry as any)[f.key] = parseFloat(formValues[f.key].replace(',', '.'));
       }
     });
     addEntry(entry);
