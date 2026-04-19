@@ -116,9 +116,15 @@ const MAX_IMAGE_SIDE = 1280;
 const COMPRESS_QUALITY = 0.82;
 
 async function compressImageForUpload(uri: string): Promise<{ base64: string; mimeType: string }> {
+  // Get original size to decide whether to constrain width or height
+  const info = await ImageManipulator.manipulateAsync(uri, [], { base64: false });
+  const { width: w, height: h } = info;
+  const resize = w > h
+    ? { width: Math.min(w, MAX_IMAGE_SIDE) }
+    : { height: Math.min(h, MAX_IMAGE_SIDE) };
   const result = await ImageManipulator.manipulateAsync(
     uri,
-    [{ resize: { width: MAX_IMAGE_SIDE } }],
+    [{ resize }],
     { compress: COMPRESS_QUALITY, format: ImageManipulator.SaveFormat.JPEG, base64: true },
   );
   return { base64: result.base64 ?? '', mimeType: 'image/jpeg' };
