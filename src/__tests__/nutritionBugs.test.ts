@@ -192,3 +192,46 @@ describe('saveFoodItem deduplication', () => {
     expect(useNutritionStore.getState().savedFoods.length).toBe(30);
   });
 });
+
+describe('cleanupOldLogs', () => {
+  test('removes logs older than keepDays', () => {
+    const today = new Date();
+    const recent = new Date(today); recent.setDate(today.getDate() - 5);
+    const old = new Date(today); old.setDate(today.getDate() - 100);
+    const recentStr = recent.toISOString().split('T')[0];
+    const oldStr = old.toISOString().split('T')[0];
+
+    useNutritionStore.setState({
+      dailyLog: {
+        [recentStr]: { date: recentStr, meals: [], waterMl: 0, targetCalories: 2000, targetProtein: 150, targetFats: 70, targetCarbs: 250, waterTargetMl: 2500 },
+        [oldStr]: { date: oldStr, meals: [], waterMl: 0, targetCalories: 2000, targetProtein: 150, targetFats: 70, targetCarbs: 250, waterTargetMl: 2500 },
+      },
+    });
+
+    useNutritionStore.getState().cleanupOldLogs(90);
+
+    const state = useNutritionStore.getState();
+    expect(state.dailyLog[recentStr]).toBeDefined();
+    expect(state.dailyLog[oldStr]).toBeUndefined();
+  });
+
+  test('keeps all logs within keepDays', () => {
+    const today = new Date();
+    const dates = [0, 10, 30, 60, 89].map((offset) => {
+      const d = new Date(today); d.setDate(today.getDate() - offset);
+      return d.toISOString().split('T')[0];
+    });
+    const dailyLog: any = {};
+    dates.forEach((d) => {
+      dailyLog[d] = { date: d, meals: [], waterMl: 0, targetCalories: 2000, targetProtein: 150, targetFats: 70, targetCarbs: 250, waterTargetMl: 2500 };
+    });
+
+    useNutritionStore.setState({ dailyLog });
+    useNutritionStore.getState().cleanupOldLogs(90);
+
+    const state = useNutritionStore.getState();
+    dates.forEach((d) => {
+      expect(state.dailyLog[d]).toBeDefined();
+    });
+  });
+});
