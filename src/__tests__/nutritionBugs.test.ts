@@ -163,6 +163,62 @@ describe('getDayLog defaults', () => {
     expect(dayLog.meals).toEqual([]);
     expect(dayLog.waterMl).toBe(0);
   });
+
+  test('BUG FIX: fills missing targets from defaults for old persisted entries', () => {
+    // Old AsyncStorage data may lack targetFats/targetCarbs — getDayLog must fill from defaultTargets
+    useNutritionStore.setState({
+      dailyLog: {
+        '2026-01-01': {
+          date: '2026-01-01',
+          meals: [],
+          waterMl: 0,
+          targetCalories: 2000,
+          targetProtein: 150,
+          // targetFats and targetCarbs intentionally missing (old format)
+        } as any,
+      },
+      defaultTargets: { calories: 2000, protein: 150, fats: 80, carbs: 300, waterTargetMl: 2500 },
+    });
+    const dayLog = useNutritionStore.getState().getDayLog('2026-01-01');
+    expect(dayLog.targetFats).toBe(80);
+    expect(dayLog.targetCarbs).toBe(300);
+    expect(dayLog.waterTargetMl).toBe(2500);
+  });
+});
+
+describe('syncMealsFromServer sort with missing createdAt', () => {
+  test('BUG FIX: does not crash when merged meals have undefined createdAt', async () => {
+    const localMeal = {
+      id: 'meal-local-no-date',
+      type: 'snack' as const,
+      totalCalories: 100, totalProtein: 5, totalFats: 5, totalCarbs: 10,
+      items: [],
+      // createdAt intentionally missing (old format)
+    } as any;
+    useNutritionStore.setState({
+      dailyLog: {
+        '2026-04-12': {
+          date: '2026-04-12', meals: [localMeal], waterMl: 0,
+          targetCalories: 2000, targetProtein: 150, targetFats: 70, targetCarbs: 250, waterTargetMl: 2500,
+        },
+      },
+    });
+
+    const serverMeal = {
+      id: 'uuid-server-no-date',
+      type: 'breakfast' as const,
+      totalCalories: 300, totalProtein: 20, totalFats: 10, totalCarbs: 40,
+      items: [],
+      // createdAt intentionally missing
+    } as any;
+    const { nutritionService } = require('../services');
+    nutritionService.getMealsByDate.mockResolvedValueOnce([serverMeal]);
+
+    // Should not throw
+    await expect(useNutritionStore.getState().syncMealsFromServer('2026-04-12')).resolves.toBeUndefined();
+    const dayLog = useNutritionStore.getState().getDayLog('2026-04-12');
+    expect(dayLog.meals.length).toBe(2);
+  });
 });
 
 describe('saveFoodItem deduplication', () => {
