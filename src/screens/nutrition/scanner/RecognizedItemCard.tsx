@@ -54,12 +54,12 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
         <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}>{item.name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <TouchableOpacity onPress={() => onRemove(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={() => onRemove(item.id)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={`Удалить ${item.name}`} accessibilityRole="button">
             <View style={[styles.deleteBtn, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
               <Text style={{ fontSize: 12, color: colors.error, fontWeight: '700' }}>✕</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleSave} disabled={saved} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={handleSave} disabled={saved} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={saved ? 'Сохранено' : `Сохранить ${item.name}`} accessibilityRole="button">
             <Text style={{ fontSize: 14, fontWeight: '700', color: saved ? colors.success : colors.primary }}>
               {saved ? '✓' : '+'}
             </Text>
@@ -84,7 +84,7 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
           <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
             На 100г: {Math.round(base.cal)} ккал · Б {Math.round(base.prot * 10) / 10}г · Ж {Math.round(base.fats * 10) / 10}г · У {Math.round(base.carbs * 10) / 10}г
           </Text>
-          {item.confidence != null && item.confidence < 0.75 && (
+          {(item.confidence == null || item.confidence < 0.75) && (
             <View style={[styles.lowConfidenceBadge, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '50' }]}>
               <Text style={{ fontSize: 10, color: colors.warning, fontWeight: '700' }}>~</Text>
             </View>
