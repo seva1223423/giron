@@ -291,8 +291,8 @@ export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
                   {[
-                    { label: 'Ккал', value: currentDay.totalCalories, color: colors.error },
-                    { label: 'Белки', value: `${currentDay.totalProtein}г`, color: colors.primary },
+                    { label: 'Ккал', value: currentDay.totalCalories, color: colors.calories },
+                    { label: 'Белки', value: `${currentDay.totalProtein}г`, color: colors.protein },
                     { label: 'Блюд', value: currentDay.meals.length, color: colors.accent },
                   ].map(({ label, value, color }) => (
                     <View key={label} style={{ alignItems: 'center' }}>
@@ -324,10 +324,10 @@ export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   {/* Macros row */}
                   <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm }}>
                     {[
-                      { label: 'ккал', val: meal.totalCalories, c: colors.error },
-                      { label: 'б', val: `${meal.totalProtein}г`, c: colors.primary },
-                      { label: 'ж', val: `${meal.totalFats}г`, c: '#FF9F0A' },
-                      { label: 'у', val: `${meal.totalCarbs}г`, c: '#34C759' },
+                      { label: 'ккал', val: meal.totalCalories, c: colors.calories },
+                      { label: 'б', val: `${meal.totalProtein}г`, c: colors.protein },
+                      { label: 'ж', val: `${meal.totalFats}г`, c: colors.fats },
+                      { label: 'у', val: `${meal.totalCarbs}г`, c: colors.carbs },
                     ].map(({ label, val, c }) => (
                       <View key={label} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
                         <Text style={{ fontSize: 13, fontWeight: '700', color: c }}>{val}</Text>
