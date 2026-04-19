@@ -2090,8 +2090,8 @@ async function executeTool(
     };
 
     const cal = Math.min(10000, Math.max(500, Math.round(calories)));
-    let prot = Math.min(500, Math.max(0, Math.round(protein)));
-    let fat = Math.min(500, Math.max(0, Math.round(fats)));
+    let prot = Math.min(500, Math.max(30, Math.round(protein)));
+    let fat = Math.min(500, Math.max(20, Math.round(fats)));
     let carb = Math.min(1000, Math.max(0, Math.round(carbs)));
 
     // Scale macros down if their caloric sum exceeds the target calories
