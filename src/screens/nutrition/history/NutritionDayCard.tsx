@@ -9,7 +9,7 @@ import { localDateStr } from '../../../utils/date';
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + 'T00:00:00');
   if (isNaN(d.getTime())) return dateStr;
   const today = localDateStr(new Date());
   const yest = new Date(); yest.setDate(yest.getDate() - 1);
