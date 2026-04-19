@@ -17,8 +17,11 @@ const PORTION_PRESETS = [30, 50, 100, 150, 200, 300];
 
 export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove }) => {
   const { colors } = useThemeStore();
-  const { saveFoodItem } = useNutritionStore();
-  const [saved, setSaved] = React.useState(false);
+  const { saveFoodItem, savedFoods } = useNutritionStore();
+  const savedId = `saved-${item.name.replace(/\s/g, '-').toLowerCase()}`;
+  const isAlreadySaved = savedFoods.some((f) => f.id === savedId);
+  const [justSaved, setJustSaved] = React.useState(false);
+  const saved = isAlreadySaved || justSaved;
   // Local draft avoids spamming macro recalc on every keystroke
   const [weightDraft, setWeightDraft] = React.useState(item.weightGrams?.toString() ?? '100');
 
@@ -34,17 +37,18 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
   };
 
   const handleSave = () => {
+    if (isAlreadySaved) return;
     saveFoodItem({
       ...item,
-      id: `saved-${item.name.replace(/\s/g, '-').toLowerCase()}`,
+      id: savedId,
       calories: base ? Math.round(base.cal) : item.calories,
       protein: base ? Math.round(base.prot * 10) / 10 : item.protein,
       fats: base ? Math.round(base.fats * 10) / 10 : item.fats,
       carbs: base ? Math.round(base.carbs * 10) / 10 : item.carbs,
       weightGrams: 100,
     });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
   };
 
   const currentWeight = item.weightGrams || 100;

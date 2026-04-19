@@ -22,6 +22,9 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
   const { dailyLog, saveFoodItem, savedFoods } = useNutritionStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [savedConfirm, setSavedConfirm] = useState(false);
+  const savedFoodId = selectedFood ? `saved-${selectedFood.name.replace(/\s/g, '-').toLowerCase()}` : '';
+  const isFoodAlreadySaved = !!selectedFood && savedFoods.some((f) => f.id === savedFoodId);
+  const showSaved = isFoodAlreadySaved || savedConfirm;
 
   // Merge saved foods (from scanner) with FOOD_DB — saved foods appear first when matched
   const savedAsFoodItems = useMemo((): FoodItem[] =>
@@ -131,17 +134,18 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
             <Text style={[typography.captionMedium, { color: colors.primary }]}>{selectedFood.name}</Text>
             <TouchableOpacity
-              disabled={savedConfirm}
+              disabled={showSaved}
               onPress={() => {
+                if (isFoodAlreadySaved) return;
                 haptic.success();
-                saveFoodItem({ id: `saved-${selectedFood.name.replace(/\s/g, '-').toLowerCase()}`, ...selectedFood, weightGrams: 100 });
+                saveFoodItem({ id: savedFoodId, ...selectedFood, weightGrams: 100 });
                 setSavedConfirm(true);
                 setTimeout(() => setSavedConfirm(false), 2000);
               }}
-              style={[styles.saveBtn, { backgroundColor: savedConfirm ? colors.success + '20' : colors.warning + '20', borderColor: savedConfirm ? colors.success : colors.warning }]}
+              style={[styles.saveBtn, { backgroundColor: showSaved ? colors.success + '20' : colors.warning + '20', borderColor: showSaved ? colors.success : colors.warning }]}
             >
-              <Text style={[typography.caption, { color: savedConfirm ? colors.success : colors.primary }]}>
-                {savedConfirm ? '✓ Сохранено' : 'Сохранить'}
+              <Text style={[typography.caption, { color: showSaved ? colors.success : colors.primary }]}>
+                {showSaved ? '✓ Сохранено' : 'Сохранить'}
               </Text>
             </TouchableOpacity>
           </View>
