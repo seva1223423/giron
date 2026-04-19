@@ -101,6 +101,12 @@ async function checkSuspiciousLogin(userId: string, req: Request, userEmail?: st
 const JWT_ISS = 'irongym-api';
 const JWT_AUD = 'irongym-app';
 
+/** Constant-time OTP comparison — prevents timing-based enumeration of correct digits. */
+const otpEquals = (stored: string, input: string): boolean => {
+  if (stored.length !== input.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(stored), Buffer.from(input));
+};
+
 const MAX_SESSIONS_PER_USER = 10;
 
 async function signTokens(userId: string, req?: Request) {
@@ -856,7 +862,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
 
-    if (otp.code !== code) {
+    if (!otpEquals(otp.code, code)) {
       // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
       const incResult = await prisma.otpCode.updateMany({
         where: { id: otp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },
@@ -1034,7 +1040,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
-    if (activeOtp.code !== code) {
+    if (!otpEquals(activeOtp.code, code)) {
       // Atomically increment only if below limit — prevents concurrent bypass via TOCTOU
       const updated = await prisma.otpCode.updateMany({
         where: { id: activeOtp.id, attempts: { lt: MAX_OTP_ATTEMPTS } },
@@ -1302,7 +1308,7 @@ router.post('/verify-email', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', valid: false });
     }
 
-    if (activeOtp.code !== code) {
+    if (!otpEquals(activeOtp.code, code)) {
       // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
       const incResult = await prisma.otpCode.updateMany({
         where: { id: activeOtp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },
@@ -1391,7 +1397,7 @@ router.post('/reset-password-by-phone', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
 
-    if (otp.code !== code) {
+    if (!otpEquals(otp.code, code)) {
       // Atomic increment with limit guard — prevents concurrent requests from bypassing the attempt cap
       const incResult = await prisma.otpCode.updateMany({
         where: { id: otp.id, attempts: { lt: MAX_OTP_ATTEMPTS }, used: false },

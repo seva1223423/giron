@@ -722,7 +722,7 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
 
     // Generate 8 single-use backup codes
     const plainCodes: string[] = Array.from({ length: 8 }, () =>
-      crypto.randomBytes(4).toString('hex').toUpperCase(), // 8-char hex codes like "A3F7B2D1"
+      crypto.randomBytes(6).toString('hex').toUpperCase(), // 12-char hex codes — 48 bits entropy
     );
     const backupCodeEntries = plainCodes.map((code) => ({
       hash: crypto.createHash('sha256').update(code).digest('hex'),
@@ -815,7 +815,7 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
     }
 
     const plainCodes: string[] = Array.from({ length: 8 }, () =>
-      crypto.randomBytes(4).toString('hex').toUpperCase(),
+      crypto.randomBytes(6).toString('hex').toUpperCase(),
     );
     const backupCodeEntries = plainCodes.map((c) => ({
       hash: crypto.createHash('sha256').update(c).digest('hex'),

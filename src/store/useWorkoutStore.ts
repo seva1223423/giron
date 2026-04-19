@@ -256,7 +256,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const exercise = { ...exercises[exerciseIndex] };
         const lastSet = exercise.sets[exercise.sets.length - 1];
         const newSet: WorkoutSet = {
-          id: `set-${Date.now()}`,
+          id: `set-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           setNumber: exercise.sets.length + 1,
           type: 'normal',
           reps: lastSet?.reps,
@@ -295,6 +295,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const exercise = { ...exercises[exerciseIndex] };
         const sets = [...exercise.sets];
         if (setIndex < 0 || setIndex >= sets.length) return s;
+        // Reject physically impossible values
+        if (data.reps !== undefined && (!Number.isFinite(data.reps) || data.reps < 0)) return s;
+        if (data.weight !== undefined && (!Number.isFinite(data.weight) || data.weight < 0)) return s;
+        if (data.rpe !== undefined && (data.rpe < 1 || data.rpe > 10)) return s;
         sets[setIndex] = { ...sets[setIndex], ...data };
         exercise.sets = sets;
         exercises[exerciseIndex] = exercise;
@@ -306,13 +310,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!s.activeWorkout) return s;
         if (s.activeWorkout.workout.exercises.some((e) => e.exerciseId === exercise.id)) return s;
         const workout = { ...s.activeWorkout.workout };
+        const weId = `we-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const newExercise: WorkoutExercise = {
-          id: `we-${Date.now()}`,
+          id: weId,
           exerciseId: exercise.id,
           exercise,
           order: workout.exercises.length,
           sets: Array.from({ length: 3 }, (_, i) => ({
-            id: `set-${Date.now()}-${i}`,
+            id: `set-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 5)}`,
             setNumber: i + 1,
             type: 'normal' as const,
             reps: 10,
@@ -391,32 +396,34 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const nextExercise = exercises[exerciseIndex + 1];
         if (!nextExercise) return s;
 
-        if (exercise.supersetGroupId) {
-          // Remove superset — clear the group from all exercises in it
-          const groupId = exercise.supersetGroupId;
+        const sameGroup = exercise.supersetGroupId &&
+          exercise.supersetGroupId === nextExercise.supersetGroupId;
+
+        if (sameGroup) {
+          // Both already in same superset — dissolve the whole group
+          const groupId = exercise.supersetGroupId!;
           for (let i = 0; i < exercises.length; i++) {
             if (exercises[i].supersetGroupId === groupId) {
               exercises[i] = { ...exercises[i], supersetGroupId: undefined };
             }
           }
         } else {
-          // If nextExercise already belongs to a different group, dissolve that group
-          // if removing it would leave only one member (dangling superset).
-          if (nextExercise.supersetGroupId) {
-            const oldGroupId = nextExercise.supersetGroupId;
-            const remainingInOld = exercises.filter(
-              (e, i) => i !== exerciseIndex + 1 && e.supersetGroupId === oldGroupId
-            );
-            if (remainingInOld.length <= 1) {
+          // Create new superset between exercise and nextExercise.
+          // Before linking, clean up any group that would be left with a single member.
+          const cleanOrphan = (oldGroupId: string, skipIndex: number) => {
+            const remaining = exercises.filter((e, i) => i !== skipIndex && e.supersetGroupId === oldGroupId);
+            if (remaining.length <= 1) {
               for (let i = 0; i < exercises.length; i++) {
                 if (exercises[i].supersetGroupId === oldGroupId) {
                   exercises[i] = { ...exercises[i], supersetGroupId: undefined };
                 }
               }
             }
-          }
-          // Link with the next exercise using a fresh group
-          const groupId = `ss-${Date.now()}`;
+          };
+          if (exercise.supersetGroupId) cleanOrphan(exercise.supersetGroupId, exerciseIndex);
+          if (nextExercise.supersetGroupId) cleanOrphan(nextExercise.supersetGroupId, exerciseIndex + 1);
+
+          const groupId = `ss-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
           exercises[exerciseIndex] = { ...exercises[exerciseIndex], supersetGroupId: groupId };
           exercises[exerciseIndex + 1] = { ...exercises[exerciseIndex + 1], supersetGroupId: groupId };
         }
