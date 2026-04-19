@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore, useNutritionStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
@@ -106,6 +107,20 @@ const MEAL_TYPES = [
   { key: 'snack', label: 'Перекус' },
 ] as const;
 
+// ─── Image compression ───────────────────────────────────────────────────────
+
+const MAX_IMAGE_SIDE = 1280;
+const COMPRESS_QUALITY = 0.82;
+
+async function compressImageForUpload(uri: string): Promise<{ base64: string; mimeType: string }> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: MAX_IMAGE_SIDE } }],
+    { compress: COMPRESS_QUALITY, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+  );
+  return { base64: result.base64 ?? '', mimeType: 'image/jpeg' };
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -129,6 +144,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const abortRef = useRef<AbortController | null>(null);
   const lastBase64Ref = useRef<string>('');
+  const lastMimeRef = useRef<string>('image/jpeg');
   // Prevent double barcode scan consumption
   const barcodeProcessingRef = useRef(false);
 
@@ -149,20 +165,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   // ─── AI photo analysis ──────────────────────────────────────────────────────
 
-  const analyzeFood = async (base64: string) => {
+  const analyzeFood = async (base64: string, mimeType = 'image/jpeg') => {
     const controller = new AbortController();
     abortRef.current = controller;
     lastBase64Ref.current = base64;
-    const timeoutId = setTimeout(() => controller.abort(), 45_000);
+    lastMimeRef.current = mimeType;
+    const timeoutId = setTimeout(() => controller.abort(), 50_000);
 
     setLoading(true);
     setError('');
     try {
-      const result = await aiService.analyzeFood(base64, controller.signal);
+      const result = await aiService.analyzeFood(base64, controller.signal, mimeType);
       const items: NutritionItem[] = result.items.map((item: any, index: number) => ({
         id: `item-${Date.now()}-${index}`,
         name: item.name, calories: item.calories, protein: item.protein,
         fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams,
+        confidence: item.confidence,
       }));
       const bases: typeof itemBases = {};
       items.forEach((item) => {
@@ -186,7 +204,6 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setImageUri(null);
         lastBase64Ref.current = '';
       } else if (e?.suggestion) {
-        // 422: vision failed — server provides a helpful hint
         setError(e.suggestion);
       } else {
         setError(getApiError(e).message);
@@ -210,19 +227,27 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) { Alert.alert('Нужен доступ', 'Разрешите доступ к камере/галерее в настройках'); return; }
     const result = useCamera
-      ? await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true })
-      : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, base64: true });
+      ? await ImagePicker.launchCameraAsync({ quality: 0.9, base64: false })
+      : await ImagePicker.launchImageLibraryAsync({ quality: 0.9, base64: false });
     if (!result.canceled && result.assets[0]) {
-      const base64 = result.assets[0].base64 || '';
-      if (base64.length > 5_000_000) {
-        setError('Изображение слишком большое. Выбери изображение поменьше.');
-        return;
-      }
-      // Consume credit only after passing validation checks
+      const asset = result.assets[0];
       if (!consumeFoodScan()) { setShowPaywall(true); return; }
-      setImageUri(result.assets[0].uri);
+      setImageUri(asset.uri);
       setError('');
-      analyzeFood(base64);
+      setLoading(true);
+      try {
+        // Resize to max 1280px and convert to JPEG — reduces payload 4-10x vs raw HEIC/PNG
+        const compressed = await compressImageForUpload(asset.uri);
+        if (!compressed.base64) {
+          setError('Не удалось обработать изображение. Попробуй ещё раз.');
+          setLoading(false);
+          return;
+        }
+        analyzeFood(compressed.base64, compressed.mimeType);
+      } catch {
+        setError('Не удалось обработать изображение.');
+        setLoading(false);
+      }
     }
   };
 
@@ -506,6 +531,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.md }]}>ИИ анализирует фото...</Text>
             <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Определяю продукты и рассчитываю КБЖУ</Text>
+            <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Обычно 5–15 секунд</Text>
             <TouchableOpacity onPress={cancelAnalysis} style={{ marginTop: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border }}>
               <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
             </TouchableOpacity>
@@ -522,7 +548,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               onPress={() => {
                 if (lastBase64Ref.current) {
                   setError('');
-                  analyzeFood(lastBase64Ref.current);
+                  analyzeFood(lastBase64Ref.current, lastMimeRef.current);
                 } else {
                   setImageUri(null);
                   setError('');
@@ -620,7 +646,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
             {/* Totals */}
             <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
-              <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.sm }]}>Итого:</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                <Text style={[typography.bodySemibold, { color: colors.text }]}>Итого:</Text>
+                {(recognizedItems as any[]).some((i) => i.confidence != null && i.confidence < 0.75) && (
+                  <Text style={[typography.caption, { color: colors.warning }]}>~ приблизительно</Text>
+                )}
+              </View>
               <View style={styles.nutritionRow}>
                 {[
                   { label: 'ккал', value: String(recognizedItems.reduce((s, i) => s + i.calories, 0)), color: colors.calories },

@@ -7,7 +7,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import type { NutritionItem } from '../../../types';
 
 interface Props {
-  item: NutritionItem;
+  item: NutritionItem & { confidence?: number };
   base: { cal: number; prot: number; fats: number; carbs: number } | undefined;
   onWeightChange: (id: string, weight: string) => void;
   onRemove: (id: string) => void;
@@ -61,9 +61,16 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
       </View>
 
       {base && (
-        <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>
-          На 100г: {Math.round(base.cal)} ккал · Б {Math.round(base.prot * 10) / 10}г · Ж {Math.round(base.fats * 10) / 10}г · У {Math.round(base.carbs * 10) / 10}г
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs, gap: spacing.sm }}>
+          <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
+            На 100г: {Math.round(base.cal)} ккал · Б {Math.round(base.prot * 10) / 10}г · Ж {Math.round(base.fats * 10) / 10}г · У {Math.round(base.carbs * 10) / 10}г
+          </Text>
+          {item.confidence != null && item.confidence < 0.75 && (
+            <View style={[styles.lowConfidenceBadge, { backgroundColor: colors.warning + '20', borderColor: colors.warning + '50' }]}>
+              <Text style={{ fontSize: 10, color: colors.warning, fontWeight: '700' }}>~</Text>
+            </View>
+          )}
+        </View>
       )}
 
       {/* Portion presets — shown when base macros per 100g are available */}
@@ -105,6 +112,7 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
 
 const styles = StyleSheet.create({
   deleteBtn: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  lowConfidenceBadge: { width: 18, height: 18, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   weightInput: { width: 56, height: 32, borderRadius: borderRadius.sm, borderWidth: 1, paddingHorizontal: spacing.sm, textAlign: 'center', fontSize: 14, fontWeight: '600' },
   nutritionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   nutritionCell: { alignItems: 'center' },
