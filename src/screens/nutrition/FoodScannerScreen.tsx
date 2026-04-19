@@ -392,7 +392,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const updateItemWeight = useCallback((id: string, newWeight: string) => {
     const w = parseFloat(newWeight.replace(',', '.')) || 0;
-    if (w <= 0) return;
+    if (w <= 0 || w > 5000) return;
     const base = itemBases[id];
     if (!base) return;
     setRecognizedItems((prev) => prev.map((item) =>
@@ -517,11 +517,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 onSubmitEditing={() => { if (manualDigits.length >= 8) handleBarcodeScan(manualDigits); }}
               />
               <TouchableOpacity
-                onPress={() => { if (manualDigits.length >= 8) handleBarcodeScan(manualDigits); }}
-                disabled={manualDigits.length < 8}
+                onPress={() => { if (manualDigits.length >= 8 && !barcodeLoading) handleBarcodeScan(manualDigits); }}
+                disabled={manualDigits.length < 8 || barcodeLoading}
                 style={{ paddingHorizontal: spacing.lg, justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: manualDigits.length >= 8 ? colors.primary : colors.border }}
               >
-                <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>
+                {barcodeLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>}
               </TouchableOpacity>
             </View>
 
@@ -678,7 +678,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]}>Итого:</Text>
-                {recognizedItems.some((i) => i.confidence != null && i.confidence < 0.75) && (
+                {recognizedItems.some((i) => i.confidence == null || i.confidence < 0.75) && (
                   <Text style={[typography.caption, { color: colors.warning }]}>~ приблизительно</Text>
                 )}
               </View>

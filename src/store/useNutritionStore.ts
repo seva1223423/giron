@@ -303,7 +303,7 @@ export const useNutritionStore = create<NutritionStore>()(
       }),
 
       saveFoodItem: (item) => set((s) => {
-        const already = s.savedFoods.some((f) => f.id === item.id || f.name === item.name);
+        const already = s.savedFoods.some((f) => f.id === item.id);
         if (already) return s;
         return { savedFoods: [item, ...s.savedFoods].slice(0, 30) };
       }),
