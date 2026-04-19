@@ -103,6 +103,14 @@ function parseServingGrams(servingSize: string): number | null {
 
 // ─── Meal type labels ─────────────────────────────────────────────────────────
 
+function defaultMealType(): 'breakfast' | 'lunch' | 'dinner' | 'snack' {
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 20) return 'dinner';
+  return 'snack';
+}
+
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Завтрак' },
   { key: 'lunch', label: 'Обед' },
@@ -145,7 +153,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [loading, setLoading] = useState(false);
   const [recognizedItems, setRecognizedItems] = useState<NutritionItem[]>([]);
   const [itemBases, setItemBases] = useState<Record<string, { cal: number; prot: number; fats: number; carbs: number }>>({});
-  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('lunch');
+  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>(defaultMealType);
   const [error, setError] = useState('');
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
@@ -671,9 +679,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               <View style={styles.nutritionRow}>
                 {[
                   { label: 'ккал', value: String(recognizedItems.reduce((s, i) => s + i.calories, 0)), color: colors.calories },
-                  { label: 'белки', value: `${recognizedItems.reduce((s, i) => s + i.protein, 0)}г`, color: colors.protein },
+                  { label: 'белки', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10}г`, color: colors.protein },
                   { label: 'жиры', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10}г`, color: colors.fats },
-                  { label: 'углев.', value: `${recognizedItems.reduce((s, i) => s + i.carbs, 0)}г`, color: colors.carbs },
+                  { label: 'углев.', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10}г`, color: colors.carbs },
                 ].map(({ label, value, color }) => (
                   <View key={label} style={{ alignItems: 'center' }}>
                     <Text style={[typography.numberSmall, { color }]}>{value}</Text>
