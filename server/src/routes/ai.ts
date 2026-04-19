@@ -1705,29 +1705,44 @@ async function executeTool(
       }>;
     };
 
-    // Find exercises + active program in parallel
-    const [exerciseRecords, activeProgramResult] = await Promise.all([
-      Promise.all(
-        exercises.slice(0, 20).map(async (ex) => {
-          const searchName = ex.exerciseName;
-          let found = await prisma.exercise.findFirst({
-            where: { name: { contains: searchName, mode: 'insensitive' } },
-          });
-          // Try English → Russian translation fallback
-          if (!found) {
-            const lower = searchName.toLowerCase();
-            const translated = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
-            if (translated) {
-              found = await prisma.exercise.findFirst({
-                where: { name: { contains: translated, mode: 'insensitive' } },
-              });
-            }
-          }
-          return { input: ex, record: found };
-        }),
-      ),
+    // Batch-resolve exercises + find active program in parallel
+    const safeExercises = exercises.slice(0, 20);
+    const cwNames = [...new Set(safeExercises.map((e) => e.exerciseName))];
+    const cwTranslated = cwNames.flatMap((n) => {
+      const lower = n.toLowerCase();
+      const ru = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
+      return ru ? [ru] : [];
+    });
+    const cwCandidates = [...new Set([...cwNames, ...cwTranslated])];
+    const [cwExactRows, activeProgramResult] = await Promise.all([
+      cwCandidates.length > 0
+        ? prisma.exercise.findMany({ where: { name: { in: cwCandidates } } })
+        : Promise.resolve([] as Awaited<ReturnType<typeof prisma.exercise.findMany>>),
       prisma.program.findFirst({ where: { userId, isActive: true } }),
     ]);
+    const cwRows = [...cwExactRows];
+    const cwMissed = cwCandidates.filter((c) => !cwExactRows.some((r) => r.name === c));
+    if (cwMissed.length > 0) {
+      const fuzzy = await prisma.exercise.findMany({
+        where: { OR: cwMissed.map((n) => ({ name: { contains: n, mode: 'insensitive' as const } })) },
+      });
+      cwRows.push(...fuzzy);
+    }
+    const cwMap = new Map<string, typeof cwRows[0]>();
+    for (const row of cwRows) cwMap.set(row.name.toLowerCase(), row);
+    const cwResolve = (n: string) => {
+      const lower = n.toLowerCase();
+      if (cwMap.has(lower)) return cwMap.get(lower)!;
+      for (const [k, v] of cwMap) { if (k.includes(lower) || lower.includes(k)) return v; }
+      const ru = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
+      if (ru) {
+        const ruLower = ru.toLowerCase();
+        if (cwMap.has(ruLower)) return cwMap.get(ruLower)!;
+        for (const [k, v] of cwMap) { if (k.includes(ruLower) || ruLower.includes(k)) return v; }
+      }
+      return null;
+    };
+    const exerciseRecords = safeExercises.map((ex) => ({ input: ex, record: cwResolve(ex.exerciseName) }));
 
     const validExercises = exerciseRecords.filter((e) => e.record !== null);
 
