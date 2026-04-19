@@ -1938,22 +1938,6 @@ async function executeTool(
       }>;
     };
 
-    const resolveExercise = async (exerciseName: string) => {
-      let found = await prisma.exercise.findFirst({
-        where: { name: { contains: exerciseName, mode: 'insensitive' } },
-      });
-      if (!found) {
-        const lower = exerciseName.toLowerCase();
-        const translated = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
-        if (translated) {
-          found = await prisma.exercise.findFirst({
-            where: { name: { contains: translated, mode: 'insensitive' } },
-          });
-        }
-      }
-      return found;
-    };
-
     const VALID_PROG_GOALS = ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'];
     const VALID_PROG_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
     const safeGoal = VALID_PROG_GOALS.includes(goal) ? goal : 'GENERAL_FITNESS';
@@ -1962,8 +1946,54 @@ async function executeTool(
     // Cap number of workouts to prevent runaway DB inserts from misbehaving AI responses
     const safeWorkouts = workouts.slice(0, 14);
 
-    // Limit per-user programs to prevent DB bloat
-    const programCount = await prisma.program.count({ where: { userId } });
+    // Batch-resolve all exercise names upfront — one query instead of N×M per-exercise lookups
+    const allExerciseNames = [...new Set(
+      safeWorkouts.flatMap((w) => (w.exercises ?? []).slice(0, 20).map((e) => e.exerciseName)),
+    )];
+    // Build candidate set: original names + EN→RU translations
+    const translatedNames = allExerciseNames.flatMap((n) => {
+      const lower = n.toLowerCase();
+      const ru = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
+      return ru ? [ru] : [];
+    });
+    const allCandidates = [...new Set([...allExerciseNames, ...translatedNames])];
+
+    // Batch-fetch exercises + check program count in parallel
+    const [exerciseRowsExact, programCount] = await Promise.all([
+      allCandidates.length > 0
+        ? prisma.exercise.findMany({ where: { name: { in: allCandidates } } })
+        : Promise.resolve([] as Awaited<ReturnType<typeof prisma.exercise.findMany>>),
+      prisma.program.count({ where: { userId } }),
+    ]);
+    const exerciseRows = [...exerciseRowsExact];
+
+    // Falls back to contains (case-insensitive) for names not matched by exact `in`
+    const missedNames = allCandidates.filter((c) => !exerciseRowsExact.some((r) => r.name === c));
+    if (missedNames.length > 0) {
+      const fuzzyRows = await prisma.exercise.findMany({
+        where: { OR: missedNames.map((n) => ({ name: { contains: n, mode: 'insensitive' as const } })) },
+      });
+      exerciseRows.push(...fuzzyRows);
+    }
+    // Build lookup map: lowercased name → exercise record
+    const exerciseMap = new Map<string, typeof exerciseRows[0]>();
+    for (const row of exerciseRows) exerciseMap.set(row.name.toLowerCase(), row);
+
+    const resolveExerciseFast = (exerciseName: string) => {
+      const lower = exerciseName.toLowerCase();
+      if (exerciseMap.has(lower)) return exerciseMap.get(lower)!;
+      // Partial match
+      for (const [k, v] of exerciseMap) { if (k.includes(lower) || lower.includes(k)) return v; }
+      // EN→RU fallback
+      const ru = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
+      if (ru) {
+        const ruLower = ru.toLowerCase();
+        if (exerciseMap.has(ruLower)) return exerciseMap.get(ruLower)!;
+        for (const [k, v] of exerciseMap) { if (k.includes(ruLower) || ruLower.includes(k)) return v; }
+      }
+      return null;
+    };
+
     if (programCount >= 50) {
       return { resultText: 'У тебя уже 50 программ. Удали старые через раздел "Программы", чтобы создать новую.', actionDescription: '' };
     }
@@ -1986,12 +2016,7 @@ async function executeTool(
     // Create all workouts for this program in parallel — each workout is independent of the others
     const workoutResults = await Promise.all(safeWorkouts.map(async (workoutDef) => {
       const safeExercises = (workoutDef.exercises ?? []).slice(0, 20);
-      const exerciseRecords = await Promise.all(
-        safeExercises.map(async (ex) => {
-          const record = await resolveExercise(ex.exerciseName);
-          return { input: ex, record };
-        }),
-      );
+      const exerciseRecords = safeExercises.map((ex) => ({ input: ex, record: resolveExerciseFast(ex.exerciseName) }));
       const valid = exerciseRecords.filter((e) => e.record !== null);
       if (valid.length === 0) {
         logger.warn(`create_program: skipping workout "${workoutDef.name}" — no valid exercises resolved`);
