@@ -252,7 +252,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.9, base64: false });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      if (!consumeFoodScan()) { setShowPaywall(true); return; }
+      if (!isPremiumActive() && !consumeFoodScan()) { setShowPaywall(true); return; }
       setImageUri(asset.uri);
       setError('');
       setLoading(true);
@@ -359,7 +359,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         }
 
         // Credit consumed only when we have actual nutrition data to return
-        if (!consumeFoodScan()) {
+        if (!isPremiumActive() && !consumeFoodScan()) {
           setShowBarcodeScanner(false);
           setShowPaywall(true);
           return;
