@@ -107,6 +107,7 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
           keyboardType="numeric"
           maxLength={5}
           returnKeyType="done"
+          selectTextOnFocus
           onSubmitEditing={() => {
             const ml = parseInt(customAmount, 10);
             if (ml > 0 && ml <= 3000) { handleAddWater(ml); setCustomAmount(''); }

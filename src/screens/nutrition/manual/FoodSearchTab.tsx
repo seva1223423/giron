@@ -132,6 +132,7 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
               value={weightGrams}
               onChangeText={onWeightChange}
               keyboardType="numeric"
+              selectTextOnFocus
             />
             <Text style={[typography.body, { color: colors.textSecondary }]}>г</Text>
           </View>
