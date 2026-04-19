@@ -2772,16 +2772,16 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     // Rate limit check BEFORE SSE headers — once headers are flushed we can't send 402 JSON.
     // Free-tier users: max 10 AI messages/day. Paid plans: unlimited.
     const AI_FREE_DAILY_LIMIT = 10;
-    const userSub = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } });
+    const rateLimitFloor = new Date(`${todayDate}T00:00:00.000Z`);
+    // Fetch subscription + today's count in parallel — saves 1 RTT for free users
+    const [userSub, todayCountPre] = await Promise.all([
+      prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
+      prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: rateLimitFloor } } }),
+    ]);
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     // Fast early exit (non-atomic) — the atomic check+save happens below at message persist time
-    if (!isPaidSub) {
-      const rateLimitDate = new Date().toISOString().split('T')[0];
-      const todayFloor = new Date(`${rateLimitDate}T00:00:00.000Z`);
-      const todayCount = await prisma.chatMessage.count({ where: { userId, role: 'user', createdAt: { gte: todayFloor } } });
-      if (todayCount >= AI_FREE_DAILY_LIMIT) {
-        return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
-      }
+    if (!isPaidSub && todayCountPre >= AI_FREE_DAILY_LIMIT) {
+      return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
     }
 
     // Set SSE headers after quota check — prevents sending JSON error over an open SSE stream
