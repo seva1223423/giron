@@ -155,6 +155,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [itemBases, setItemBases] = useState<Record<string, { cal: number; prot: number; fats: number; carbs: number }>>({});
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>(defaultMealType);
   const [error, setError] = useState('');
+  const [errorRetryable, setErrorRetryable] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
@@ -222,8 +223,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         lastBase64Ref.current = '';
       } else if (e?.suggestion) {
         setError(e.suggestion);
+        setErrorRetryable(e?.retryable !== false);
       } else {
         setError(getApiError(e).message);
+        setErrorRetryable(true);
       }
     } finally {
       clearTimeout(timeoutId);
@@ -569,20 +572,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {!!error && (
           <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.error }}>
             <Text style={[typography.body, { color: colors.error }]}>{error}</Text>
-            <Button
-              title="Попробовать снова"
-              variant="outline"
-              onPress={() => {
-                if (lastBase64Ref.current) {
-                  setError('');
-                  analyzeFood(lastBase64Ref.current, lastMimeRef.current);
-                } else {
-                  setImageUri(null);
-                  setError('');
-                }
-              }}
-              style={{ marginTop: spacing.md }}
-            />
+            {errorRetryable && (
+              <Button
+                title="Попробовать снова"
+                variant="outline"
+                onPress={() => {
+                  if (lastBase64Ref.current) {
+                    setError('');
+                    analyzeFood(lastBase64Ref.current, lastMimeRef.current);
+                  } else {
+                    setImageUri(null);
+                    setError('');
+                  }
+                }}
+                style={{ marginTop: spacing.md }}
+              />
+            )}
           </Card>
         )}
 
