@@ -5,7 +5,7 @@ import { useThemeStore, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
-import { todayDateStr } from '../../../utils/date';
+import { localDateStr } from '../../../utils/date';
 
 const QUICK_MEALS = [
   { name: 'Овсянка с бананом', abbr: 'ОВ', type: 'breakfast', cal: 350, protein: 12, fats: 8, carbs: 55, weight: 300 },
@@ -20,7 +20,11 @@ const QUICK_MEALS = [
 
 type QuickMealItem = typeof QUICK_MEALS[0];
 
-export const QuickMeals: React.FC = () => {
+interface Props {
+  selectedDate?: string;
+}
+
+export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { addMeal, dailyLog } = useNutritionStore();
@@ -62,7 +66,7 @@ export const QuickMeals: React.FC = () => {
 
   const handleQuickAdd = (meal: QuickMealItem | { name: string; type: string; cal: number; protein: number; fats: number; carbs: number; weight: number }) => {
     haptic.success();
-    const today = todayDateStr();
+    const today = selectedDate ?? localDateStr(new Date());
     const ts = Date.now();
     const rid = Math.random().toString(36).slice(2, 7);
     addMeal(today, {
