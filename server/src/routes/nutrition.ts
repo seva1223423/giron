@@ -53,7 +53,7 @@ router.post('/meals', authenticate, async (req: AuthRequest, res: Response) => {
         totalCarbs,
         userId: req.userId!,
         items: {
-          create: items.map((item: any) => ({
+          create: items.map((item) => ({
             name: item.name,
             calories: item.calories,
             protein: item.protein,
