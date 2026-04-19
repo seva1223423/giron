@@ -111,12 +111,27 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
           </Text>
           <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs }]}>Вес (г)</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text, marginBottom: spacing.lg }]}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text, marginBottom: spacing.sm }]}
             value={quickWeight}
             onChangeText={setQuickWeight}
             keyboardType="numeric"
+            selectTextOnFocus
             placeholderTextColor={colors.inputPlaceholder}
           />
+          <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, flexWrap: 'wrap' }}>
+            {[50, 100, 150, 200, 250, 300].map((g) => {
+              const isActive = quickWeight === String(g);
+              return (
+                <TouchableOpacity
+                  key={g}
+                  onPress={() => setQuickWeight(String(g))}
+                  style={[styles.portionChip, { backgroundColor: isActive ? colors.primary : colors.inputBackground, borderColor: isActive ? colors.primary : colors.inputBorder }]}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: isActive ? '#FFF' : colors.textSecondary }}>{g}г</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
           {preview && (
             <View style={[styles.preview, { backgroundColor: colors.primary + '08', borderColor: colors.primary + '25' }]}>
               {[
@@ -162,4 +177,5 @@ const styles = StyleSheet.create({
   input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, fontWeight: '600' },
   chip: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   preview: { flexDirection: 'row', justifyContent: 'space-around', borderRadius: borderRadius.md, borderWidth: 1, paddingVertical: spacing.sm, marginBottom: spacing.lg },
+  portionChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm, borderWidth: 1 },
 });
