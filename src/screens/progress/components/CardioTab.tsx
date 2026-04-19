@@ -6,7 +6,7 @@ import { LineChart } from './LineChart';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { useCardioStore } from '../../../store';
-import { getMonday } from '../../../utils/date';
+import { getMonday, localDateStr } from '../../../utils/date';
 import type { CardioSession } from '../../../types';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -31,11 +31,13 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6); weekStart.setHours(0, 0, 0, 0);
-    const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    const weekStartDate = new Date(now); weekStartDate.setDate(now.getDate() - 6);
+    const monthStartDate = new Date(now); monthStartDate.setDate(1);
+    const weekStartStr = localDateStr(weekStartDate);
+    const monthStartStr = localDateStr(monthStartDate);
 
-    const weekSessions = sessions.filter((s) => new Date(s.date) >= weekStart);
-    const monthSessions = sessions.filter((s) => new Date(s.date) >= monthStart);
+    const weekSessions = sessions.filter((s) => s.date >= weekStartStr);
+    const monthSessions = sessions.filter((s) => s.date >= monthStartStr);
 
     const totalMin = sessions.reduce((s, c) => s + c.durationMinutes, 0);
     const totalKm = sessions.reduce((s, c) => s + (c.distanceKm || 0), 0);
@@ -58,10 +60,10 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
     for (let w = 7; w >= 0; w--) {
       const monday = getMonday(now); const start = new Date(monday); start.setDate(monday.getDate() - w * 7); start.setHours(0, 0, 0, 0);
       const end = new Date(start); end.setDate(start.getDate() + 7);
-      const weekMin = sessions.filter((s) => {
-        const d = new Date(s.date);
-        return d >= start && d < end;
-      }).reduce((s, c) => s + c.durationMinutes, 0);
+      const startStr = localDateStr(start);
+      const endStr = localDateStr(end);
+      const weekMin = sessions.filter((s) => s.date >= startStr && s.date < endStr)
+        .reduce((s, c) => s + c.durationMinutes, 0);
       buckets.push({
         label: `${start.getDate()}/${start.getMonth() + 1}`,
         value: Math.round(weekMin),
@@ -84,7 +86,7 @@ export const CardioTab: React.FC<Props> = ({ colors }) => {
 
   // Last 20 sessions duration trend
   const durationTrend = useMemo(() =>
-    [...sessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    [...sessions].sort((a, b) => a.date.localeCompare(b.date))
       .slice(-20)
       .map((s, i) => ({
         label: new Date(s.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''),
