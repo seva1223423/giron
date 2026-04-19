@@ -10585,15 +10585,14 @@ async function cleanupStaleMemories(userId: string): Promise<void> {
       prisma.aIMemory.deleteMany({ where: { userId, confidence: { lt: 0.1 } } }),
       prisma.aIMemory.updateMany({ where: { userId, confidence: { gt: 1.0 } }, data: { confidence: 1.0 } }),
     ]);
-    // Cap total memories per user at 100 — remove oldest lowest-confidence ones
-    const count = await prisma.aIMemory.count({ where: { userId } });
-    if (count > 100) {
-      const excess = await prisma.aIMemory.findMany({
-        where: { userId },
-        orderBy: [{ confidence: 'asc' }, { updatedAt: 'asc' }],
-        take: count - 100,
-        select: { id: true },
-      });
+    // Cap total memories per user at 100 — remove lowest-confidence/oldest beyond the top 100
+    const excess = await prisma.aIMemory.findMany({
+      where: { userId },
+      orderBy: [{ confidence: 'desc' }, { updatedAt: 'desc' }],
+      skip: 100,
+      select: { id: true },
+    });
+    if (excess.length > 0) {
       await prisma.aIMemory.deleteMany({ where: { id: { in: excess.map((m) => m.id) } } });
     }
   } catch { /* non-critical */ }
