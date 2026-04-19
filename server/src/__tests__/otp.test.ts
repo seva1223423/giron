@@ -786,3 +786,90 @@ describe('POST /api/auth/login — account lockout', () => {
     expect(elapsed).toBeGreaterThan(50);
   });
 });
+
+// ─── change-email TOCTOU guard ─────────────────────────────────────────────────
+
+describe('POST /api/user/change-email — TOCTOU guard', () => {
+  beforeEach(resetMocks);
+
+  const makeUserToken = () =>
+    jwt.sign({ userId: 'u-test' }, process.env.JWT_SECRET!, {
+      expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+    });
+
+  it('returns 400 when OTP already consumed by concurrent request', async () => {
+    // authenticate middleware lookup
+    (mp.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' })
+      // route: 2FA check
+      .mockResolvedValueOnce({ totpEnabled: false, totpSecret: null });
+
+    (mp.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 'otp-1',
+      code: '123456',
+      attempts: 0,
+      used: false,
+      expiresAt: new Date(Date.now() + 60000),
+    });
+    // increment: succeeds
+    (mp.otpCode.updateMany as jest.Mock)
+      .mockResolvedValueOnce({ count: 1 })  // increment attempts
+      .mockResolvedValueOnce({ count: 0 }); // mark-as-used: already consumed by concurrent request
+
+    const res = await request(app)
+      .post('/api/user/change-email')
+      .set('Authorization', `Bearer ${makeUserToken()}`)
+      .send({ email: 'new@example.com', code: '123456' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_OTP');
+  });
+
+  it('returns 400 for wrong OTP code (timing-safe path)', async () => {
+    (mp.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' })
+      .mockResolvedValueOnce({ totpEnabled: false, totpSecret: null });
+
+    (mp.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 'otp-1',
+      code: '999999',
+      attempts: 0,
+      used: false,
+      expiresAt: new Date(Date.now() + 60000),
+    });
+    // increment: succeeds (wrong code path increments first)
+    (mp.otpCode.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    const res = await request(app)
+      .post('/api/user/change-email')
+      .set('Authorization', `Bearer ${makeUserToken()}`)
+      .send({ email: 'new@example.com', code: '123456' }); // wrong code
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_OTP');
+  });
+
+  it('returns 429 when OTP max attempts reached', async () => {
+    (mp.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' })
+      .mockResolvedValueOnce({ totpEnabled: false, totpSecret: null });
+
+    (mp.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: 'otp-1',
+      code: '123456',
+      attempts: 5,
+      used: false,
+      expiresAt: new Date(Date.now() + 60000),
+    });
+    // increment returns count: 0 because attempts >= MAX_OTP_ATTEMPTS
+    (mp.otpCode.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+    const res = await request(app)
+      .post('/api/user/change-email')
+      .set('Authorization', `Bearer ${makeUserToken()}`)
+      .send({ email: 'new@example.com', code: '123456' });
+
+    expect(res.status).toBe(429);
+    expect(res.body.code).toBe('OTP_BRUTEFORCE');
+  });
+});
