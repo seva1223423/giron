@@ -19,13 +19,21 @@ interface Props {
 export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, weightGrams, onWeightChange, computedNutrition }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { dailyLog, saveFoodItem } = useNutritionStore();
+  const { dailyLog, saveFoodItem, savedFoods } = useNutritionStore();
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Merge saved foods (from scanner) with FOOD_DB — saved foods appear first when matched
+  const savedAsFoodItems = useMemo((): FoodItem[] =>
+    savedFoods.map((f) => ({ name: f.name, calories: f.calories, protein: f.protein, fats: f.fats, carbs: f.carbs })),
+  [savedFoods]);
+
   const filteredFoods = useMemo(() => {
-    if (!searchQuery.trim()) return FOOD_DB.slice(0, 12);
-    return FOOD_DB.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [searchQuery]);
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [...savedAsFoodItems.slice(0, 4), ...FOOD_DB.slice(0, 8)];
+    const fromSaved = savedAsFoodItems.filter((f) => f.name.toLowerCase().includes(q));
+    const fromDB = FOOD_DB.filter((f) => f.name.toLowerCase().includes(q) && !fromSaved.some((s) => s.name === f.name));
+    return [...fromSaved, ...fromDB];
+  }, [searchQuery, savedAsFoodItems]);
 
   const recentFoods = useMemo(() => {
     const seen = new Set<string>();
