@@ -2792,13 +2792,19 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
+    // Pre-compute date ranges needed by parallel queries
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
     // Pre-compute weekPlan exercise IDs (available immediately from request body)
     const looksLikeId = (s: string) => s.length >= 20 && !/\s/.test(s);
     const allWeekPlanExerciseIds = weekPlan
       ? Object.values(weekPlan).flatMap((e) => (e?.exercises ?? []).filter(looksLikeId))
       : [];
 
-    // Fetch all user context data in parallel — 14 independent queries
+    // Fetch all user context data in parallel — 17 independent queries
     // (aiMemoryCount derived from userMemories.length after secondary block)
     const [
       user,
@@ -2815,6 +2821,9 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       firstWorkout,
       weekMealsForCalories,
       weekPlanExercisesRaw,
+      weekWorkouts,
+      prevWeekWorkouts,
+      weekMeals,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -2898,6 +2907,20 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       allWeekPlanExerciseIds.length > 0
         ? prisma.exercise.findMany({ where: { id: { in: allWeekPlanExerciseIds } }, select: { id: true, name: true } })
         : Promise.resolve([] as Array<{ id: string; name: string }>),
+      prisma.workout.findMany({
+        where: { userId, completedAt: { gte: oneWeekAgo } },
+        include: { exercises: { include: { sets: true } } },
+        take: 50,
+      }),
+      prisma.workout.findMany({
+        where: { userId, completedAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
+        include: { exercises: { include: { sets: true } } },
+        take: 50,
+      }),
+      prisma.meal.findMany({
+        where: { userId, createdAt: { gte: oneWeekAgo } },
+        take: 200,
+      }),
     ]);
 
     const weekPlanIdToName = new Map<string, string>();
@@ -3260,28 +3283,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
     // ─── Advanced analytics: compute deeper metrics for smarter AI ──────
 
-    // Weekly training volume and adherence
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const twoWeeksAgo = new Date();
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-
-    const [weekWorkouts, prevWeekWorkouts, weekMeals] = await Promise.all([
-      prisma.workout.findMany({
-        where: { userId, completedAt: { gte: oneWeekAgo } },
-        include: { exercises: { include: { sets: true } } },
-        take: 50,
-      }),
-      prisma.workout.findMany({
-        where: { userId, completedAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
-        include: { exercises: { include: { sets: true } } },
-        take: 50,
-      }),
-      prisma.meal.findMany({
-        where: { userId, createdAt: { gte: oneWeekAgo } },
-        take: 200,
-      }),
-    ]);
+    // Weekly training volume and adherence (weekWorkouts/prevWeekWorkouts/weekMeals pre-fetched in main block)
 
     const calcWeekVolume = (workouts: typeof weekWorkouts) =>
       workouts.reduce((total, w) =>
