@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Alert, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useThemeStore } from '../../../../store';
+import { useThemeStore, useMeasurementsStore } from '../../../../store';
 import { typography } from '../../../../theme';
 import { spacing, borderRadius } from '../../../../theme/spacing';
 import { useHaptic } from '../../../../hooks/useHaptic';
-import { userService } from '../../../../services';
 import type { BodyMeasurement } from '../../../../types';
 import { localDateStr } from '../../../../utils/date';
 
+/** @deprecated Use useMeasurementsStore — kept for backward compat with WeightTab's offline fallback */
 export const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
 
 export const MEASUREMENT_FIELDS: { key: keyof BodyMeasurement; label: string; emoji: string }[] = [
@@ -28,15 +27,16 @@ interface Props {
   onSaved: (updated: BodyMeasurement[]) => void;
 }
 
-export const AddMeasurementsModal: React.FC<Props> = ({ visible, measurementHistory, onClose, onSaved }) => {
+export const AddMeasurementsModal: React.FC<Props> = ({ visible, measurementHistory: _measurementHistory, onClose, onSaved }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
+  const { addEntry } = useMeasurementsStore();
   const [fields, setFields] = useState<Partial<Record<keyof BodyMeasurement, string>>>({});
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     const today = localDateStr(new Date());
-    const entry: BodyMeasurement = { date: today };
+    const entry: Omit<BodyMeasurement, 'id'> = { date: today };
     let hasAny = false;
     MEASUREMENT_FIELDS.forEach(({ key }) => {
       const val = parseFloat((fields[key] ?? '').replace(',', '.'));
@@ -45,13 +45,12 @@ export const AddMeasurementsModal: React.FC<Props> = ({ visible, measurementHist
     if (!hasAny) { Alert.alert('Ошибка', 'Введи хотя бы одно измерение'); return; }
     setSaving(true);
     try {
-      const updated = [...measurementHistory.filter((m) => m.date !== today), entry]
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      // Save to AsyncStorage (offline) and server (online)
-      await AsyncStorage.setItem(MEASUREMENTS_KEY, JSON.stringify(updated));
-      userService.saveMeasurement(entry).catch(() => {}); // fire and forget
+      addEntry(entry);
       setFields({});
       haptic.success();
+      // Pass updated store entries so WeightTab's local state reflects the addition
+      const storeEntries = useMeasurementsStore.getState().entries;
+      const updated = [...storeEntries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       onSaved(updated);
     } catch {
       Alert.alert('Ошибка', 'Не удалось сохранить измерения');
