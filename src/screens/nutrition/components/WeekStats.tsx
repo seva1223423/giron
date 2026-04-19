@@ -6,8 +6,6 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { localDateStr } from '../../../utils/date';
 
-const todayDate = () => localDateStr(new Date());
-
 export const WeekStats: React.FC = () => {
   const { colors } = useThemeStore();
   const { dailyLog } = useNutritionStore();
@@ -37,7 +35,7 @@ export const WeekStats: React.FC = () => {
       avgProtein: avg(days.map((d) => d.protein)),
       avgFats: avg(days.map((d) => d.fats)),
       avgCarbs: avg(days.map((d) => d.carbs)),
-      goalMet: days.filter((d) => d.calories <= d.target * 1.05 && d.calories >= d.target * 0.85).length,
+      goalMet: days.filter((d) => d.target > 0 && d.calories <= d.target * 1.05 && d.calories >= d.target * 0.85).length,
       days,
     };
   }, [dailyLog]);
