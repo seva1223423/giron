@@ -186,8 +186,8 @@ export const aiService = {
       name: string;
       sets: Array<{ weight?: number; reps?: number; completed?: boolean; rpe?: number }>;
     }>;
-  }): Promise<string> {
-    const { data } = await api.post('/ai/workout-insights', { workout });
+  }, signal?: AbortSignal): Promise<string> {
+    const { data } = await api.post('/ai/workout-insights', { workout }, { signal });
     return data.insights as string;
   },
 };
