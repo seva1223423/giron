@@ -33,9 +33,15 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
     const savedSlice = savedAsFoodItems.slice(0, 4);
     const savedNames = new Set(savedSlice.map((f) => f.name.toLowerCase()));
     if (!q) return [...savedSlice, ...FOOD_DB.filter((f) => !savedNames.has(f.name.toLowerCase())).slice(0, 8)];
-    const fromSaved = savedAsFoodItems.filter((f) => f.name.toLowerCase().includes(q));
+    // Multi-word search: single phrase OR all words must appear (order-independent)
+    const words = q.split(/\s+/).filter(Boolean);
+    const matchName = (name: string) => {
+      const n = name.toLowerCase();
+      return n.includes(q) || (words.length > 1 && words.every((w) => n.includes(w)));
+    };
+    const fromSaved = savedAsFoodItems.filter((f) => matchName(f.name));
     const fromSavedNames = new Set(fromSaved.map((f) => f.name.toLowerCase()));
-    const fromDB = FOOD_DB.filter((f) => f.name.toLowerCase().includes(q) && !fromSavedNames.has(f.name.toLowerCase()));
+    const fromDB = FOOD_DB.filter((f) => matchName(f.name) && !fromSavedNames.has(f.name.toLowerCase()));
     return [...fromSaved, ...fromDB];
   }, [searchQuery, savedAsFoodItems]);
 
