@@ -9758,7 +9758,8 @@ function validateFoodItems(items: FoodItem[]): FoodItem[] {
     .filter((item) => item.name && typeof item.name === 'string' && item.name.trim().length > 0)
     .filter((item) => {
       const w = Number(item.weightGrams);
-      return w > 0 && w <= 5000;
+      // Allow missing/zero weight (will default to 100g); only reject clearly out-of-range values
+      return isNaN(w) || w === 0 || (w > 0 && w <= 5000);
     })
     .map((item) => {
       const w = Math.round(Math.max(1, Math.min(5000, Number(item.weightGrams) || 100)));
