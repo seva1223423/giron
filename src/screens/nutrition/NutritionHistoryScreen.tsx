@@ -191,7 +191,7 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
               log={log}
               isExpanded={expandedDate === date}
               onPress={() => { haptic.selection(); setExpandedDate(expandedDate === date ? null : date); }}
-              animDelay={i * 30}
+              animDelay={Math.min(i * 30, 600)}
             />
           ))}
         </ScrollView>
