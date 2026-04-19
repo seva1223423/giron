@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore } from '../../../store';
@@ -8,6 +8,14 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { NutritionItem, Meal } from '../../../types';
 import { scheduleNutritionSummaryReminder } from '../../../services/notificationService';
 import { localDateStr } from '../../../utils/date';
+
+function defaultMealType(): 'breakfast' | 'lunch' | 'dinner' | 'snack' {
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 20) return 'dinner';
+  return 'snack';
+}
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Завтрак', emoji: 'З' },
@@ -30,15 +38,27 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
   const { colors } = useThemeStore();
   const { addMeal, getDayLog } = useNutritionStore();
   const [quickWeight, setQuickWeight] = useState('100');
-  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
+  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>(defaultMealType);
 
   // Reset state when modal opens with new food
   React.useEffect(() => {
     if (visible) {
       setQuickWeight(food?.weightGrams?.toString() || '100');
-      setMealType('breakfast');
+      setMealType(defaultMealType());
     }
   }, [visible, food?.id]);
+
+  const preview = useMemo(() => {
+    if (!food) return null;
+    const w = Math.max(1, parseFloat(quickWeight.replace(',', '.')) || 100);
+    const ratio = w / (food.weightGrams || 100);
+    return {
+      calories: Math.round(food.calories * ratio),
+      protein: Math.round(food.protein * ratio * 10) / 10,
+      fats: Math.round(food.fats * ratio * 10) / 10,
+      carbs: Math.round(food.carbs * ratio * 10) / 10,
+    };
+  }, [food, quickWeight]);
 
   const dayLog = getDayLog(selectedDate);
   const totalCalories = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
@@ -97,6 +117,21 @@ export const QuickAddModal: React.FC<Props> = ({ visible, onClose, food, selecte
             keyboardType="numeric"
             placeholderTextColor={colors.inputPlaceholder}
           />
+          {preview && (
+            <View style={[styles.preview, { backgroundColor: colors.primary + '08', borderColor: colors.primary + '25' }]}>
+              {[
+                { label: 'Ккал', value: String(preview.calories), color: colors.calories },
+                { label: 'Белки', value: `${preview.protein}г`, color: colors.protein },
+                { label: 'Жиры', value: `${preview.fats}г`, color: colors.fats },
+                { label: 'Углев.', value: `${preview.carbs}г`, color: colors.carbs },
+              ].map(({ label, value, color }) => (
+                <View key={label} style={{ alignItems: 'center' }}>
+                  <Text style={[typography.captionMedium, { color }]}>{value}</Text>
+                  <Text style={[typography.caption, { color: colors.textTertiary }]}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>Приём пищи</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
             {MEAL_TYPES.map((mt) => (
@@ -126,4 +161,5 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.xl, paddingBottom: 48 },
   input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, fontWeight: '600' },
   chip: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  preview: { flexDirection: 'row', justifyContent: 'space-around', borderRadius: borderRadius.md, borderWidth: 1, paddingVertical: spacing.sm, marginBottom: spacing.lg },
 });
