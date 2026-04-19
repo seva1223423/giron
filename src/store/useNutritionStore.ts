@@ -67,10 +67,12 @@ export const useNutritionStore = create<NutritionStore>()(
         });
 
         // Sync to server — replace temp ID with server ID on success, rollback on failure
+        // Only send photo URLs that the server can validate (must be HTTPS, not local file URIs)
+        const serverPhotoUrl = meal.photoUrl?.startsWith('https://') ? meal.photoUrl : undefined;
         nutritionService.addMeal({
           type: meal.type,
           date,
-          photoUrl: meal.photoUrl,
+          photoUrl: serverPhotoUrl,
           items: meal.items.map((item) => ({
             name: item.name,
             calories: item.calories,
