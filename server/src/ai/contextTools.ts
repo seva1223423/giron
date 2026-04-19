@@ -394,12 +394,18 @@ async function getNutritionAnalysis(userId: string, preload: ContextToolPreload,
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-    const weekMeals = await prisma.meal.findMany({
-      where: { userId, date: { gte: sevenDaysAgoStr } },
-      select: { totalCalories: true, totalProtein: true, totalFats: true, totalCarbs: true, date: true },
-      orderBy: { date: 'asc' },
-      take: 200,
-    });
+
+    const [weekMeals, bodyWeights] = await Promise.all([
+      prisma.meal.findMany({
+        where: { userId, date: { gte: sevenDaysAgoStr } },
+        select: { totalCalories: true, totalProtein: true, totalFats: true, totalCarbs: true, date: true },
+        orderBy: { date: 'asc' },
+        take: 200,
+      }),
+      nutritionTargets
+        ? prisma.bodyWeight.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 14, select: { weightKg: true, date: true } })
+        : Promise.resolve([] as Array<{ weightKg: number; date: Date }>),
+    ]);
 
     if (weekMeals.length >= 3) {
       const byDay: Record<string, { cal: number; prot: number }> = {};
@@ -423,12 +429,6 @@ async function getNutritionAnalysis(userId: string, preload: ContextToolPreload,
         if (protPct < 70) sections.push('⚠️ Хронический дефицит белка — это тормозит прогресс');
 
         // TDEE estimate from weight delta
-        const bodyWeights = await prisma.bodyWeight.findMany({
-          where: { userId },
-          orderBy: { date: 'desc' },
-          take: 14,
-          select: { weightKg: true, date: true },
-        });
         if (bodyWeights.length >= 2) {
           const newest = bodyWeights[0];
           const oldest = bodyWeights[bodyWeights.length - 1];
