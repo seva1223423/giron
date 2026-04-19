@@ -132,13 +132,15 @@ export const NutritionHistoryScreen: React.FC<{ navigation: any }> = ({ navigati
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* 14-day calorie chart */}
+          {/* Calorie bar chart — capped at 30 days for readability */}
           <FadeIn delay={0}>
             <Card style={{ marginBottom: spacing.xl }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
                 <View>
                   <Text style={[typography.h4, { color: colors.text }]}>Калории за {chartDays} дней</Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>Отслежено {daysTracked} из {chartDays} дней</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                    {`Отслежено ${daysTracked} из ${chartDays} дней${period > chartDays ? ` (показаны последние ${chartDays})` : ''}`}
+                  </Text>
                 </View>
                 {totalCalAvg > 0 && (
                   <View style={{ alignItems: 'flex-end' }}>
