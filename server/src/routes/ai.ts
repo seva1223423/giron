@@ -81413,14 +81413,15 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
     const [messages, total] = await prisma.$transaction([
       prisma.chatMessage.findMany({
         where: { userId: req.userId },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' }, // newest first; client reverses for display
         take: limit,
         skip: (page - 1) * limit,
       }),
       prisma.chatMessage.count({ where: { userId: req.userId } }),
     ]);
 
-    res.json({ messages, total, page, pages: Math.ceil(total / limit) });
+    // Return in chronological order so client can display oldest→newest
+    res.json({ messages: messages.reverse(), total, page, pages: Math.ceil(total / limit) });
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка получения истории чата' });
