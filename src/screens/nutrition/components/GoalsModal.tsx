@@ -162,6 +162,7 @@ export const GoalsModal: React.FC<Props> = ({ visible, onClose, selectedDate }) 
                   value={value}
                   onChangeText={(v) => { setter(v); setSelectedGoal(null); }}
                   keyboardType="numeric"
+                  selectTextOnFocus
                   placeholderTextColor={colors.inputPlaceholder}
                 />
               </View>

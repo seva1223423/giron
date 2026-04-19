@@ -8,7 +8,8 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 
 const QUICK_AMOUNTS = [
   { label: 'Стакан', ml: 250 },
-  { label: 'Бутылка', ml: 500 },
+  { label: '0.5 л', ml: 500 },
+  { label: '0.75 л', ml: 750 },
   { label: '1 литр', ml: 1000 },
 ];
 
