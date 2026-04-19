@@ -197,7 +197,7 @@ export const useAuthStore = create<AuthStore>()(
         if (refreshToken) authService.logout(refreshToken).catch(() => {});
         // Clear tokens from SecureStore (hardware-backed Keychain/Keystore)
         await tokenStorage.clearTokens();
-        set({ user: null, token: null, refreshToken: null, isAuthenticated: false, error: null, totpPendingToken: null });
+        set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isOnboarded: false, error: null, totpPendingToken: null });
         // Clear all per-user data from other persisted stores to prevent data leak to next user
         try {
           const stores = require('./index');
