@@ -54,7 +54,7 @@ export const SavedFoodsQuickAdd: React.FC<Props> = ({ onQuickAdd }) => {
             style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Text style={[typography.captionMedium, { color: colors.text }]} numberOfLines={1}>{food.name}</Text>
-            <Text style={[typography.small, { color: colors.primary }]}>{food.calories} ккал</Text>
+            <Text style={[typography.small, { color: colors.primary }]}>{food.calories} ккал/100г</Text>
           </TouchableOpacity>
         ))}
         {visibleFoods.length === 0 && (
