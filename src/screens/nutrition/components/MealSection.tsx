@@ -162,7 +162,9 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                       {/* Delete individual item button */}
                       <TouchableOpacity
                         onPress={() => handleDeleteItem(meal.id, item.id, item.name)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        accessibilityLabel={`Удалить ${item.name}`}
+                        accessibilityRole="button"
                       >
                         <Text style={{ fontSize: 14, color: colors.error, fontWeight: '600' }}>×</Text>
                       </TouchableOpacity>

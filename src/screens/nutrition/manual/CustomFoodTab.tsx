@@ -22,9 +22,9 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
   const { colors } = useThemeStore();
 
   const macroCal = useMemo(() => {
-    const p = parseFloat(state.protein.replace(',', '.')) || 0;
-    const f = parseFloat(state.fats.replace(',', '.')) || 0;
-    const c = parseFloat(state.carbs.replace(',', '.')) || 0;
+    const p = Math.max(0, parseFloat(state.protein.replace(',', '.')) || 0);
+    const f = Math.max(0, parseFloat(state.fats.replace(',', '.')) || 0);
+    const c = Math.max(0, parseFloat(state.carbs.replace(',', '.')) || 0);
     if (p + f + c === 0) return null;
     return Math.round(p * 4 + f * 9 + c * 4);
   }, [state.protein, state.fats, state.carbs]);
