@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
@@ -21,6 +21,14 @@ interface Props {
 export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
   const { colors } = useThemeStore();
 
+  const macroCal = useMemo(() => {
+    const p = parseFloat(state.protein.replace(',', '.')) || 0;
+    const f = parseFloat(state.fats.replace(',', '.')) || 0;
+    const c = parseFloat(state.carbs.replace(',', '.')) || 0;
+    if (p + f + c === 0) return null;
+    return Math.round(p * 4 + f * 9 + c * 4);
+  }, [state.protein, state.fats, state.carbs]);
+
   return (
     <Card>
       <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Ввод вручную</Text>
@@ -34,6 +42,17 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
           placeholderTextColor={colors.inputPlaceholder}
         />
       </View>
+      {macroCal !== null && (
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.sm }}
+          onPress={() => onChange('calories', String(macroCal))}
+        >
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            Из макросов: {macroCal} ккал
+          </Text>
+          <Text style={[typography.caption, { color: colors.primary }]}>Подставить</Text>
+        </TouchableOpacity>
+      )}
       <View style={styles.row}>
         {([['calories', 'Калории', 'ккал'], ['protein', 'Белки', 'г']] as const).map(([field, label, unit]) => (
           <View key={field} style={{ flex: 1 }}>
