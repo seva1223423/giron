@@ -32,7 +32,6 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       entries: [],
 
       addEntry: (data) => {
-        const snapshot = get().entries;
         const entry: BodyMeasurement = { ...data, id: `meas-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
         set((s) => ({ entries: [entry, ...s.entries] }));
         // Sync to server; upgrade local ID to server-{date} so deleteEntry can reach it
@@ -40,18 +39,20 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, calf: data.calf, neck: data.neck }).then(() => {
           set((s) => ({ entries: s.entries.map((e) => e.id === entry.id ? { ...e, id: serverId } : e) }));
         }).catch(() => {
-          set({ entries: snapshot });
+          // Remove only this specific entry on failure — restoring a full snapshot would
+          // erase any entries added by the user while this sync was in-flight
+          set((s) => ({ entries: s.entries.filter((e) => e.id !== entry.id) }));
         });
       },
 
       updateEntry: (id, data) => {
-        const snapshot = get().entries;
-        const existing = snapshot.find((e) => e.id === id);
+        const existing = get().entries.find((e) => e.id === id);
         set((s) => ({ entries: s.entries.map((e) => e.id === id ? { ...e, ...data } : e) }));
         if (existing) {
           const updated = { ...existing, ...data };
           userService.saveMeasurement({ date: updated.date, chest: updated.chest, waist: updated.waist, hips: updated.hips, bicep: updated.bicep, thigh: updated.thigh, calf: updated.calf, neck: updated.neck }).catch(() => {
-            set({ entries: snapshot });
+            // Revert only this entry — restoring a snapshot would erase concurrent updates
+            set((s) => ({ entries: s.entries.map((e) => e.id === id ? existing : e) }));
           });
         }
       },
