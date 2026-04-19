@@ -343,10 +343,11 @@ export const useNutritionStore = create<NutritionStore>()(
             // Merge: keep local-only meals (IDs starting with 'meal-') that server doesn't know about
             const serverIds = new Set(meals.map((m) => m.id));
             const localOnly = dayLog.meals.filter((m) => m.id.startsWith('meal-') && !serverIds.has(m.id));
+            const merged = [...meals, ...localOnly].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
             return {
               dailyLog: {
                 ...s.dailyLog,
-                [date]: { ...dayLog, meals: [...meals, ...localOnly] },
+                [date]: { ...dayLog, meals: merged },
               },
             };
           });
