@@ -2148,29 +2148,34 @@ async function executeTool(
       return found;
     };
 
-    // Find the target workout
-    let workout: { id: string; name: string } | null = null;
-    if (workoutName) {
-      workout = await prisma.workout.findFirst({
-        where: { userId, completedAt: null, name: { contains: workoutName, mode: 'insensitive' } },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
-    if (!workout) {
-      // Use last uncompleted workout in active program
-      const prog = await prisma.program.findFirst({
-        where: { userId, isActive: true },
-        include: { workouts: { where: { completedAt: null }, orderBy: { createdAt: 'desc' }, take: 1 } },
-      });
-      workout = prog?.workouts[0] ?? null;
-    }
+    // Find workout and resolve exercise name in parallel
+    const [workoutResult, exerciseRecord] = await Promise.all([
+      (async () => {
+        let w: { id: string; name: string } | null = null;
+        if (workoutName) {
+          w = await prisma.workout.findFirst({
+            where: { userId, completedAt: null, name: { contains: workoutName, mode: 'insensitive' } },
+            orderBy: { createdAt: 'desc' },
+          });
+        }
+        if (!w) {
+          const prog = await prisma.program.findFirst({
+            where: { userId, isActive: true },
+            include: { workouts: { where: { completedAt: null }, orderBy: { createdAt: 'desc' }, take: 1 } },
+          });
+          w = prog?.workouts[0] ?? null;
+        }
+        return w;
+      })(),
+      resolveExerciseName(exerciseName),
+    ]);
+    const workout = workoutResult;
     if (!workout) {
       return { resultText: 'Активная тренировка не найдена. Сначала создай тренировку.', actionDescription: '' };
     }
 
     if (action === 'remove_exercise') {
       // Find WorkoutExercise containing this exercise
-      const exerciseRecord = await resolveExerciseName(exerciseName);
       if (!exerciseRecord) {
         return { resultText: `Упражнение "${exerciseName}" не найдено в базе данных.`, actionDescription: '' };
       }
@@ -2189,7 +2194,6 @@ async function executeTool(
     }
 
     if (action === 'update_exercise') {
-      const exerciseRecord = await resolveExerciseName(exerciseName);
       if (!exerciseRecord) {
         return { resultText: `Упражнение "${exerciseName}" не найдено в базе данных.`, actionDescription: '' };
       }
@@ -2241,7 +2245,6 @@ async function executeTool(
     }
 
     if (action === 'add_exercise') {
-      const exerciseRecord = await resolveExerciseName(exerciseName);
       if (!exerciseRecord) {
         return { resultText: `Упражнение "${exerciseName}" не найдено в базе данных.`, actionDescription: '' };
       }
