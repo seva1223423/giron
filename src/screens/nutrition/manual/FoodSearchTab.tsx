@@ -56,7 +56,7 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
       for (const meal of log.meals) {
         for (const item of meal.items) {
           const grams = item.weightGrams || 100;
-          const baseName = item.name.replace(/\s*\(\d+г\)$/, '').trim();
+          const baseName = item.name.replace(/\s*\(\d+(?:[.,]\d+)?г\)$/, '').trim();
           if (seen.has(baseName)) continue;
           seen.add(baseName);
           const factor = 100 / grams;
