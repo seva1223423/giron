@@ -34,7 +34,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { user, fetchProfile } = useAuthStore();
   const { fetchHistory, fetchPrograms, setWeekPlanDay, weekPlan } = useWorkoutStore();
-  const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater } = useNutritionStore();
+  const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater, applyServerTargets } = useNutritionStore();
   const { getWeekSessions, syncFromServer: syncCardio, addSession: addCardioSession } = useCardioStore();
   const { getLastEntries: getSleepEntries, syncFromServer: syncSleep } = useSleepStore();
   const { consumeAiMessage } = useSubscriptionStore();
@@ -225,15 +225,20 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             const { calories, protein, fats, carbs } = nutrAction.data as any;
             if (typeof calories === 'number' && typeof protein === 'number' && typeof fats === 'number' && typeof carbs === 'number') {
               setTargets(localDateStr(new Date()), { calories, protein, fats, carbs });
+              // Also update defaultTargets so future days inherit the new KBJU goals
+              applyServerTargets({ calories, protein, fats, carbs });
             }
           }
         }
         if (types.includes('set_water_target')) {
           const wtAction = actions.find((act) => act.type === 'set_water_target');
           if (wtAction?.data?.waterTargetMl) {
+            const waterTargetMl = wtAction.data.waterTargetMl as number;
             const today = localDateStr(new Date());
             const todayTargets = getDayLog(today);
-            setTargets(today, { calories: todayTargets.targetCalories, protein: todayTargets.targetProtein, fats: todayTargets.targetFats ?? defaultTargets.fats, carbs: todayTargets.targetCarbs ?? defaultTargets.carbs, waterTargetMl: wtAction.data.waterTargetMl as number });
+            setTargets(today, { calories: todayTargets.targetCalories, protein: todayTargets.targetProtein, fats: todayTargets.targetFats ?? defaultTargets.fats, carbs: todayTargets.targetCarbs ?? defaultTargets.carbs, waterTargetMl });
+            // Also update defaultTargets so future days inherit the new water goal
+            applyServerTargets({ waterMl: waterTargetMl });
           }
         }
         if (types.includes('set_rest_timer')) {
