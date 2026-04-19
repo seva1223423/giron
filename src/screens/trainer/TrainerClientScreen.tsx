@@ -97,7 +97,7 @@ export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({
         date: today,
         name: sessionName.trim(),
         durationMinutes: parseInt(sessionDuration, 10) || 60,
-        volumeKg: sessionVolume ? parseFloat(sessionVolume) * 1000 : undefined,
+        volumeKg: sessionVolume ? parseFloat(sessionVolume.replace(',', '.')) * 1000 : undefined,
         notes: sessionNotes.trim() || undefined,
       });
       // Update local client state to reflect new totalWorkouts / lastVisit
