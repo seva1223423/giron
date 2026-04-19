@@ -307,6 +307,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setItemBases({ [item.id]: { cal: product.cal, prot: product.prot, fats: product.fats, carbs: product.carbs } });
     setRecognizedItems([item]);
     setIsBarcodeResult(true);
+    setError('');
     setNotFound(false);
     setShowBarcodeScanner(false);
   };
