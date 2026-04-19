@@ -34,10 +34,10 @@ router.post('/meals', authenticate, async (req: AuthRequest, res: Response) => {
 
     const { type, items, photoUrl, date } = parsed.data;
 
-    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
-    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
-    const totalFats = items.reduce((s, i) => s + i.fats, 0);
-    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+    const totalCalories = Math.round(items.reduce((s, i) => s + i.calories, 0));
+    const totalProtein = Math.round(items.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const totalFats = Math.round(items.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const totalCarbs = Math.round(items.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
 
     // Use client-supplied local date; fall back to server UTC date (acceptable for UTC users)
     const mealDate = date ?? new Date().toISOString().split('T')[0];
@@ -113,10 +113,10 @@ router.patch('/meals/:id', authenticate, async (req: AuthRequest, res: Response)
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
 
     const { items } = parsed.data;
-    const totalCalories = items.reduce((s, i) => s + i.calories, 0);
-    const totalProtein = items.reduce((s, i) => s + i.protein, 0);
-    const totalFats = items.reduce((s, i) => s + i.fats, 0);
-    const totalCarbs = items.reduce((s, i) => s + i.carbs, 0);
+    const totalCalories = Math.round(items.reduce((s, i) => s + i.calories, 0));
+    const totalProtein = Math.round(items.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const totalFats = Math.round(items.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const totalCarbs = Math.round(items.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
 
     // Replace all items and update totals atomically in a transaction
     const updated = await prisma.$transaction(async (tx) => {
