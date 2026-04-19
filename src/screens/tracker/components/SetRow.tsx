@@ -166,7 +166,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
         {/* Plate calc */}
         {SHOW_PLATE_CALC && onOpenPlates && (
           <AnimatedPressable
-            onPress={() => { haptic.selection(); onOpenPlates(parseFloat(weight) || 0); }}
+            onPress={() => { haptic.selection(); onOpenPlates(parseFloat(weight.replace(',', '.')) || 0); }}
             haptic={false}
             scaleDown={0.9}
             style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm } as any}
@@ -208,7 +208,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
       </View>
 
       {/* Quick weight presets */}
-      {!set.completed && (parseFloat(weight) === 0 || weight === '') && prevSet?.weight && (
+      {!set.completed && (parseFloat(weight.replace(',', '.')) === 0 || weight === '') && prevSet?.weight && (
         <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, paddingHorizontal: spacing.sm, paddingBottom: spacing.xs, flexWrap: 'wrap' }}>
           {[prevSet.weight, prevSet.weight + 2.5, prevSet.weight + 5, prevSet.weight - 5].filter(w => w > 0).map((w) => (
             <AnimatedPressable
