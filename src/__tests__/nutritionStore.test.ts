@@ -68,6 +68,31 @@ describe('useNutritionStore', () => {
       expect(useNutritionStore.getState().getDayLog('2026-04-08').meals).toHaveLength(1);
       expect(useNutritionStore.getState().getDayLog('2026-04-09').meals).toHaveLength(1);
     });
+
+    test('deduplicates if syncMealsFromServer added CUID copy before server confirmation', () => {
+      // Simulate optimistic add (temp ID)
+      useNutritionStore.getState().addMeal('2026-04-08', mockMeal('meal-temp'));
+      // Simulate syncMealsFromServer pulling the confirmed copy before addMeal.then() fires
+      const serverMeal = { ...mockMeal('cuid-confirmed'), id: 'cuid-confirmed', createdAt: new Date().toISOString() };
+      useNutritionStore.setState((s) => ({
+        dailyLog: { ...s.dailyLog, '2026-04-08': { ...s.dailyLog['2026-04-08'], meals: [...(s.dailyLog['2026-04-08']?.meals ?? []), serverMeal] } },
+      }));
+      // Both temp + CUID should be present now (pre-fix state)
+      expect(useNutritionStore.getState().getDayLog('2026-04-08').meals).toHaveLength(2);
+
+      // Simulate addMeal.then() dedup logic: remove pre-synced CUID, swap temp with server meal
+      useNutritionStore.setState((s) => {
+        const dl = s.dailyLog['2026-04-08'];
+        if (!dl) return s;
+        const deduped = dl.meals.filter((m) => m.id !== serverMeal.id);
+        return { dailyLog: { ...s.dailyLog, '2026-04-08': { ...dl, meals: deduped.map((m) => m.id === 'meal-temp' ? serverMeal : m) } } };
+      });
+
+      // After dedup, only one meal with the CUID should remain
+      const meals = useNutritionStore.getState().getDayLog('2026-04-08').meals;
+      expect(meals).toHaveLength(1);
+      expect(meals[0].id).toBe('cuid-confirmed');
+    });
   });
 
   describe('removeMeal', () => {
@@ -117,6 +142,19 @@ describe('useNutritionStore', () => {
 
       const dayLog = useNutritionStore.getState().getDayLog('2026-04-08');
       expect(dayLog.waterTargetMl).toBe(3000);
+    });
+
+    test('preserves per-day waterTargetMl when not passed (GoalsModal pattern)', () => {
+      // Set a day-specific water target
+      useNutritionStore.getState().setTargets('2026-04-08', { calories: 2000, protein: 150, fats: 70, carbs: 250, waterTargetMl: 3500 });
+      // Update defaultTargets water target via a different day
+      useNutritionStore.getState().setTargets('2026-04-09', { calories: 2000, protein: 150, fats: 70, carbs: 250, waterTargetMl: 2000 });
+      // Now call setTargets for the first day WITHOUT waterTargetMl (GoalsModal only changes KBJU)
+      useNutritionStore.getState().setTargets('2026-04-08', { calories: 2500, protein: 180, fats: 80, carbs: 300 });
+
+      // The first day's stored waterTargetMl (3500) should be preserved, not overwritten by defaultTargets (2000)
+      const dayLog = useNutritionStore.getState().getDayLog('2026-04-08');
+      expect(dayLog.waterTargetMl).toBe(3500);
     });
   });
 
