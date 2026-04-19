@@ -318,6 +318,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
     setLastBarcode(barcode);
     setNotFound(false);
+    setError('');
 
     // Cache hit — free, no credit consumed
     const cached = await getCachedProduct(barcode);
