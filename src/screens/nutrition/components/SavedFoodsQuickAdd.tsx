@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
@@ -50,7 +50,13 @@ export const SavedFoodsQuickAdd: React.FC<Props> = ({ onQuickAdd }) => {
           <TouchableOpacity
             key={food.id}
             onPress={() => onQuickAdd(food)}
-            onLongPress={() => { haptic.medium(); removeSavedFood(food.id); }}
+            onLongPress={() => {
+              haptic.medium();
+              Alert.alert('Удалить продукт?', food.name, [
+                { text: 'Отмена', style: 'cancel' },
+                { text: 'Удалить', style: 'destructive', onPress: () => removeSavedFood(food.id) },
+              ]);
+            }}
             style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Text style={[typography.captionMedium, { color: colors.text }]} numberOfLines={1}>{food.name}</Text>
