@@ -94,8 +94,8 @@ export const useTrainerStore = create<TrainerStore>()(
       },
 
       deleteClient: async (id) => {
-        const prevClients = get().clients;
-        const prevSessions = get().sessions;
+        const removedClient = get().clients.find((c) => c.id === id);
+        const removedSessions = get().sessions.filter((s) => s.clientId === id);
         set((s) => ({
           clients: s.clients.filter((c) => c.id !== id),
           sessions: s.sessions.filter((s) => s.clientId !== id),
@@ -105,7 +105,14 @@ export const useTrainerStore = create<TrainerStore>()(
           await trainerService.deleteClient(id);
         } catch (err: any) {
           // 404 = already deleted on server — treat as success, don't rollback
-          if (err?.response?.status !== 404) set({ clients: prevClients, sessions: prevSessions });
+          if (err?.response?.status !== 404 && removedClient) {
+            // Re-add only the removed client and sessions — restoring a snapshot would
+            // erase concurrent changes made while this delete was in-flight
+            set((s) => ({
+              clients: [...s.clients, removedClient],
+              sessions: [...s.sessions, ...removedSessions],
+            }));
+          }
         }
       },
 
@@ -125,7 +132,6 @@ export const useTrainerStore = create<TrainerStore>()(
       },
 
       logWorkoutSession: async (data) => {
-        const prevSessions = get().sessions;
         const tempId = `session-${Date.now()}`;
         const tempSession: TrainerWorkoutSession = { ...data, id: tempId };
         set((s) => ({ sessions: [tempSession, ...s.sessions] }));
@@ -139,12 +145,13 @@ export const useTrainerStore = create<TrainerStore>()(
           }));
           // Client totalWorkouts will resync on next fetchClients call
         } catch {
-          set({ sessions: prevSessions });
+          // Remove only the temp session — restoring a snapshot would erase concurrent changes
+          set((s) => ({ sessions: s.sessions.filter((sess) => sess.id !== tempId) }));
         }
       },
 
       removeWorkoutSession: async (id) => {
-        const prev = get().sessions;
+        const removed = get().sessions.find((s) => s.id === id);
         set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
 
         try {
@@ -154,7 +161,10 @@ export const useTrainerStore = create<TrainerStore>()(
           set({ clients: updatedClients });
         } catch (err: any) {
           // 404 = already deleted on server — treat as success, don't rollback
-          if (err?.response?.status !== 404) set({ sessions: prev });
+          if (err?.response?.status !== 404 && removed) {
+            // Re-add only the removed session — restoring a snapshot would erase concurrent changes
+            set((s) => ({ sessions: [...s.sessions, removed] }));
+          }
         }
       },
 
