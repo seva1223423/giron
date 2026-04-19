@@ -2804,8 +2804,9 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       ? Object.values(weekPlan).flatMap((e) => (e?.exercises ?? []).filter(looksLikeId))
       : [];
 
-    // Fetch all user context data in parallel — 17 independent queries
+    // Fetch all user context data in parallel — 16 independent queries
     // (aiMemoryCount derived from userMemories.length after secondary block)
+    // (weekMealsForCalories replaced by weekMeals which has all columns)
     const [
       user,
       history,
@@ -2819,7 +2820,6 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       sleepFromDb,
       totalWorkoutsEver,
       firstWorkout,
-      weekMealsForCalories,
       weekPlanExercisesRaw,
       weekWorkouts,
       prevWeekWorkouts,
@@ -2898,11 +2898,6 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         where: { userId, completedAt: { not: null } },
         orderBy: { completedAt: 'asc' },
         select: { completedAt: true },
-      }),
-      prisma.meal.findMany({
-        where: { userId, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
-        select: { totalCalories: true },
-        take: 200,
       }),
       allWeekPlanExerciseIds.length > 0
         ? prisma.exercise.findMany({ where: { id: { in: allWeekPlanExerciseIds } }, select: { id: true, name: true } })
@@ -3821,8 +3816,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       else trainingFocus = 'mixed';
     }
     // Avg calories from recent meals
-    const avgCalories = weekMealsForCalories.length > 0
-      ? weekMealsForCalories.reduce((s, m) => s + m.totalCalories, 0) / Math.max(weekMealsForCalories.length / 3, 1) // per day estimate
+    const avgCalories = weekMeals.length > 0
+      ? weekMeals.reduce((s, m) => s + m.totalCalories, 0) / Math.max(weekMeals.length / 3, 1) // per day estimate
       : null;
     // Body weight trend
     let bwTrendForGoal: 'up' | 'down' | 'stable' | null = null;
