@@ -381,11 +381,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       if (e?.name === 'AbortError') {
         Alert.alert('Тайм-аут', 'База продуктов не ответила. Попробуй ещё раз.', [
           { text: 'ОК', onPress: () => setBarcodeScanned(false) },
-        ]);
+        ], { cancelable: false });
       } else {
         Alert.alert('Ошибка', 'Не удалось получить данные.', [
           { text: 'ОК', onPress: () => setBarcodeScanned(false) },
-        ]);
+        ], { cancelable: false });
       }
     } finally {
       clearTimeout(fetchTimeout);
@@ -686,6 +686,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                         </Text>
                       </TouchableOpacity>
                     ))}
+                    {savedFoods.length > 15 && (
+                      <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', paddingTop: spacing.xs }]}>
+                        + ещё {savedFoods.length - 15} — открой «Поиск продуктов» для полного списка
+                      </Text>
+                    )}
                   </>
                 )}
               </Card>
