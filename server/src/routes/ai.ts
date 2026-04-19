@@ -2003,10 +2003,8 @@ async function executeTool(
       },
     });
 
-    // Create all workouts for this program
-    let totalExercises = 0;
-    const workoutNames: string[] = [];
-    for (const workoutDef of safeWorkouts) {
+    // Create all workouts for this program in parallel — each workout is independent of the others
+    const workoutResults = await Promise.all(safeWorkouts.map(async (workoutDef) => {
       const safeExercises = (workoutDef.exercises ?? []).slice(0, 20);
       const exerciseRecords = await Promise.all(
         safeExercises.map(async (ex) => {
@@ -2017,7 +2015,7 @@ async function executeTool(
       const valid = exerciseRecords.filter((e) => e.record !== null);
       if (valid.length === 0) {
         logger.warn(`create_program: skipping workout "${workoutDef.name}" — no valid exercises resolved`);
-        continue;
+        return null;
       }
 
       await prisma.workout.create({
@@ -2042,8 +2040,13 @@ async function executeTool(
         },
       });
 
-      totalExercises += valid.length;
-      workoutNames.push(workoutDef.name);
+      return { exerciseCount: valid.length, name: String(workoutDef.name ?? '') };
+    }));
+
+    let totalExercises = 0;
+    const workoutNames: string[] = [];
+    for (const result of workoutResults) {
+      if (result) { totalExercises += result.exerciseCount; workoutNames.push(result.name); }
     }
 
     // Deactivate all OTHER programs now that the new one was created successfully
