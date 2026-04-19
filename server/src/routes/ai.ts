@@ -9786,13 +9786,25 @@ interface GamificationData {
 }
 
 async function getGamificationData(userId: string, clientDate?: string): Promise<GamificationData> {
-  // Get all completed workouts ordered by date
-  const workouts = await prisma.workout.findMany({
-    where: { userId, completedAt: { not: null } },
-    orderBy: { completedAt: 'desc' },
-    select: { completedAt: true },
-    take: 2000,
-  });
+  // Fetch workouts and exercise sets in parallel — both are needed for full gamification data
+  const [workouts, exerciseSets] = await Promise.all([
+    prisma.workout.findMany({
+      where: { userId, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      select: { completedAt: true },
+      take: 2000,
+    }),
+    prisma.workoutExercise.findMany({
+      where: { workout: { userId, completedAt: { not: null } } },
+      select: {
+        exercise: { select: { name: true } },
+        workout: { select: { completedAt: true } },
+        sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
+      },
+      orderBy: { workout: { completedAt: 'desc' } },
+      take: 5000,
+    }),
+  ]);
 
   // Calculate current streak (consecutive days)
   let currentStreak = 0;
@@ -9837,17 +9849,6 @@ async function getGamificationData(userId: string, clientDate?: string): Promise
   }
 
   // Personal records per exercise (best weight for any reps ≥ 1)
-  const exerciseSets = await prisma.workoutExercise.findMany({
-    where: { workout: { userId, completedAt: { not: null } } },
-    select: {
-      exercise: { select: { name: true } },
-      workout: { select: { completedAt: true } },
-      sets: { where: { completed: true, weight: { gt: 0 } }, select: { weight: true, reps: true } },
-    },
-    orderBy: { workout: { completedAt: 'desc' } },
-    take: 5000,
-  });
-
   const prMap = new Map<string, { weight: number; reps: number; date: Date }>();
   for (const we of exerciseSets) {
     const name = we.exercise?.name;
