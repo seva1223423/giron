@@ -43,7 +43,9 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
     });
     const heightVal = Math.max(100, Math.min(300, parseInt(height.replace(',', '.'), 10) || 175));
     const weightVal = Math.max(20, Math.min(500, parseFloat(weight.replace(',', '.')) || 75));
-    const ageVal = Math.max(10, Math.min(120, parseInt(age.replace(',', '.'), 10) || 25));
+    // Age floor 14 — users under 14 need a legal guardian's consent under 152-ФЗ ст. 9,
+    // and we don't currently collect parental consent through a dedicated flow.
+    const ageVal = Math.max(14, Math.min(120, parseInt(age.replace(',', '.'), 10) || 25));
     // Use July 1 as estimated birth date (midpoint of year) to minimise ±1 year error
     const dateOfBirth = ageVal > 0 ? new Date(new Date().getFullYear() - ageVal, 6, 1).toISOString() : undefined;
 
