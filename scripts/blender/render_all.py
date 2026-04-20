@@ -49,6 +49,10 @@ with open(animations_file, "r", encoding="utf-8") as f:
 
 exercise_ids = [k for k in animations.keys() if not k.startswith("_")]
 
+# Resolve to an absolute path — Blender's ffmpeg writer is flaky on Windows
+# with relative paths (silently writes nothing while the render log still says
+# "Done, Saved to …"). Forcing absolute avoids the whole class of issue.
+output_dir = str(Path(output_dir).resolve())
 os.makedirs(output_dir, exist_ok=True)
 
 # We delegate each exercise to a fresh Blender subprocess to guarantee clean
