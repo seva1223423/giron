@@ -25,6 +25,9 @@ export const BodyStep: React.FC<Props> = ({ height, weight, age, onHeightChange,
       <Input label="Рост (см)" placeholder="175" keyboardType="numeric" value={height} onChangeText={onHeightChange} containerStyle={{ marginBottom: spacing.xl }} />
       <Input label="Вес (кг)" placeholder="75" keyboardType="numeric" value={weight} onChangeText={onWeightChange} containerStyle={{ marginBottom: spacing.xl }} />
       <Input label="Возраст" placeholder="25" keyboardType="numeric" value={age} onChangeText={onAgeChange} />
+      <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.md, lineHeight: 18 }]}>
+        Приложение доступно с 14 лет. Для младших возрастов необходимо согласие законного представителя.
+      </Text>
     </View>
   );
 };
