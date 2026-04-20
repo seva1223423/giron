@@ -15,6 +15,8 @@ interface Props {
   startMuted?: boolean;
   /** Hide the mute toggle (useful for very compact previews). */
   hideMuteButton?: boolean;
+  /** Show native player controls (scrubber, fullscreen, mute). Useful in modal view. */
+  nativeControls?: boolean;
   /** Pause playback from outside (e.g. when a modal overlays this card). */
   paused?: boolean;
   /** Fallback to render on player error (e.g. video missing). */
@@ -41,7 +43,8 @@ interface Props {
  * Uses expo-video (Expo SDK 54+). Works identically on iOS and Android.
  */
 export const ExerciseInlineVideo: React.FC<Props> = ({
-  videoUrl, posterUrl, height, startMuted = true, hideMuteButton = false, paused = false, onError,
+  videoUrl, posterUrl, height, startMuted = true, hideMuteButton = false,
+  nativeControls = false, paused = false, onError,
 }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
@@ -102,9 +105,12 @@ export const ExerciseInlineVideo: React.FC<Props> = ({
       <VideoView
         player={player}
         style={StyleSheet.absoluteFillObject}
-        contentFit="cover"
-        nativeControls={false}
+        contentFit={nativeControls ? 'contain' : 'cover'}
+        nativeControls={nativeControls}
         allowsPictureInPicture={false}
+        // When native controls are on (modal view), the OS renders its own
+        // fullscreen button which handles orientation changes properly — much
+        // better than wiring expo-screen-orientation ourselves.
       />
 
       {/* Poster overlay — fades away the moment the player starts rendering frames */}
