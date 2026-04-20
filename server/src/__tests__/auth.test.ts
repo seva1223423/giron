@@ -423,16 +423,10 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(401);
     });
 
-    it('should accept valid RevenueCat auth header', async () => {
-      (mockPrisma as any).subscription = {
-        upsert: jest.fn().mockResolvedValue({}),
-        updateMany: jest.fn().mockResolvedValue({}),
-      };
-
+    it('should reject legacy RevenueCat provider with 410 Gone', async () => {
       const res = await request(app)
         .post('/api/subscription/webhook')
         .set('Content-Type', 'application/json')
-        .set('x-revenuecat-webhook-auth', process.env.REVENUECAT_WEBHOOK_SECRET!)
         .send({
           provider: 'revenuecat',
           event: 'subscription_activated',
@@ -441,21 +435,9 @@ describe('Auth Routes', () => {
           durationDays: 30,
         });
 
-      expect(res.status).toBe(200);
-    });
-
-    it('should reject invalid RevenueCat auth header', async () => {
-      const res = await request(app)
-        .post('/api/subscription/webhook')
-        .set('Content-Type', 'application/json')
-        .set('x-revenuecat-webhook-auth', 'wrong-secret')
-        .send({
-          provider: 'revenuecat',
-          event: 'subscription_activated',
-          userId: 'user-1',
-        });
-
-      expect(res.status).toBe(401);
+      // RevenueCat was removed (Apple/Google Play Billing unavailable from RF);
+      // incoming legacy webhooks are rejected with 410 Gone.
+      expect(res.status).toBe(410);
     });
 
     it('should reject webhook with missing generic secret header', async () => {
