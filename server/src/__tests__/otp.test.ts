@@ -428,7 +428,11 @@ describe('POST /api/auth/login-by-phone', () => {
     expect(res.body.code).toBe('INVALID_OTP');
   });
 
-  it('returns 404 when phone not registered', async () => {
+  it('responds with generic INVALID_OTP when user was deleted between send-otp and login', async () => {
+    // Edge case: OTP was issued (so phone was registered at that moment), but the user
+    // record is gone by the time login-by-phone runs. We deliberately do NOT return 404
+    // PHONE_NOT_FOUND here — leaking existence of the phone post-factum is a mild
+    // enumeration vector.
     (mp.otpCode.findFirst as jest.Mock).mockResolvedValue(activePhoneOtp);
     (mp.user.findUnique as jest.Mock).mockResolvedValue(null); // no user for this phone
 
@@ -436,8 +440,8 @@ describe('POST /api/auth/login-by-phone', () => {
       .post('/api/auth/login-by-phone')
       .send({ phone: '+79001234567', code: '654321' });
 
-    expect(res.status).toBe(404);
-    expect(res.body.code).toBe('PHONE_NOT_FOUND');
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_OTP');
   });
 
   it('returns 403 for banned user', async () => {
