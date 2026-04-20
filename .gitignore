@@ -2,6 +2,14 @@
 node_modules/
 server/node_modules/
 
+# Rendered exercise videos — generated via scripts/blender/ or stock downloads.
+# Upload to Yandex Object Storage instead of committing here.
+exercise-videos-raw/
+exercise-videos-ready/
+exercise-videos-rendered/
+exercise-videos-wikimedia/
+exercise-videos-test/
+
 # Environment variables — NEVER commit these
 .env
 server/.env
