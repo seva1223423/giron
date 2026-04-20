@@ -679,13 +679,30 @@ router.get('/2fa/status', authenticate, async (req: AuthRequest, res: Response) 
 /** POST /user/2fa/setup — generate TOTP secret, return QR code (2FA not enabled until verified) */
 router.post('/2fa/setup', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const { currentPassword } = z.object({
+      currentPassword: z.string().optional(),
+    }).parse(req.body ?? {});
+
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { email: true, totpEnabled: true },
+      select: { email: true, totpEnabled: true, passwordHash: true },
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
     if (user.totpEnabled) {
       return res.status(400).json({ error: 'Двухфакторная аутентификация уже включена', code: 'TOTP_ALREADY_ENABLED' });
+    }
+
+    // Step-up re-auth: a stolen access token must not be enough to bind an attacker's
+    // authenticator to the victim's account. Require the current password before setup.
+    // Social-only accounts (no passwordHash) are exempt — they are re-authed via OAuth.
+    if (user.passwordHash) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Введите текущий пароль', code: 'PASSWORD_REQUIRED' });
+      }
+      const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!ok) {
+        return res.status(401).json({ error: 'Неверный пароль', code: 'INVALID_PASSWORD' });
+      }
     }
 
     const secret = new Secret();

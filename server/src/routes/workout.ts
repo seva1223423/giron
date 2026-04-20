@@ -79,6 +79,14 @@ const syncWorkoutSchema = z.object({
   exercises: z.array(syncWorkoutExerciseSchema).min(1).max(50),
 });
 
+// Exercise fields needed for list rendering. Heavy fields (description, instructions,
+// videoUrl, imageUrl) are only used in ExerciseDetailScreen — fetched on demand there,
+// not in program/history list responses.
+const EXERCISE_LIST_SELECT = {
+  id: true, name: true, type: true, category: true, difficulty: true,
+  primaryMuscles: true, secondaryMuscles: true,
+} as const;
+
 // Get all programs
 router.get('/programs', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -88,7 +96,7 @@ router.get('/programs', authenticate, async (req: AuthRequest, res: Response) =>
         workouts: {
           include: {
             exercises: {
-              include: { exercise: true, sets: true },
+              include: { exercise: { select: EXERCISE_LIST_SELECT }, sets: true },
               orderBy: { order: 'asc' },
             },
           },
@@ -487,7 +495,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
         where,
         include: {
           exercises: {
-            include: { exercise: true, sets: true },
+            include: { exercise: { select: EXERCISE_LIST_SELECT }, sets: true },
             orderBy: { order: 'asc' },
           },
         },

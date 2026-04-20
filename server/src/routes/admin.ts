@@ -1194,12 +1194,14 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
     const since = new Date(`${todayUtcStr2}T00:00:00.000Z`);
     since.setUTCDate(since.getUTCDate() - numDays);
 
-    const subs = await prisma.subscription.findMany({
-      where: { plan: { not: 'free' }, createdAt: { gte: since } },
-      select: { plan: true, createdAt: true },
-      orderBy: { createdAt: 'asc' },
-      take: 50000,
-    });
+    // Aggregate in Postgres instead of loading up to 50k rows. DATE_TRUNC + GROUP BY
+    // returns one row per (day, plan) — a few hundred rows for 90 days max.
+    const rows = await prisma.$queryRaw<{ day: Date; plan: string; count: bigint }[]>`
+      SELECT DATE_TRUNC('day', "createdAt")::date AS day, plan, COUNT(*)::bigint AS count
+      FROM "Subscription"
+      WHERE plan != 'free' AND "createdAt" >= ${since}
+      GROUP BY day, plan
+    `;
 
     // Build daily buckets per plan
     const buckets: Record<string, { pro: number; trainer: number; club: number; total: number }> = {};
@@ -1208,18 +1210,19 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
       d.setUTCDate(d.getUTCDate() + i);
       buckets[d.toISOString().split('T')[0]] = { pro: 0, trainer: 0, club: 0, total: 0 };
     }
-    for (const s of subs) {
-      const key = s.createdAt.toISOString().split('T')[0];
-      if (buckets[key]) {
-        buckets[key].total++;
-        if (s.plan === 'pro') buckets[key].pro++;
-        else if (s.plan === 'trainer') buckets[key].trainer++;
-        else if (s.plan === 'club') buckets[key].club++;
-      }
+    let totalNew = 0;
+    for (const r of rows) {
+      const key = r.day.toISOString().split('T')[0];
+      if (!buckets[key]) continue;
+      const c = Number(r.count);
+      totalNew += c;
+      buckets[key].total += c;
+      if (r.plan === 'pro') buckets[key].pro += c;
+      else if (r.plan === 'trainer') buckets[key].trainer += c;
+      else if (r.plan === 'club') buckets[key].club += c;
     }
 
     const timeline = Object.entries(buckets).map(([date, v]) => ({ date, ...v }));
-    const totalNew = subs.length;
     res.json({ timeline, totalNew, period: numDays });
   } catch (e) {
     logger.error('GET /admin/analytics/subscriptions:', e);
@@ -1235,11 +1238,15 @@ router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Resp
     const now = new Date();
     const start = new Date(now.getTime() - numDays * 86400 * 1000);
 
+    // Per-day aggregation pushed down to Postgres. `groupBy({ by: ['createdAt'] })` on a
+    // timestamp column creates one bucket per unique millisecond — effectively a full scan
+    // returning one row per record. DATE_TRUNC collapses to one row per day.
+    type DailyCount = { day: Date; count: bigint };
     const [signups, workouts, aiMessages, cardio] = await Promise.all([
-      prisma.user.groupBy({ by: ['createdAt'], where: { createdAt: { gte: start } }, _count: { id: true } }),
-      prisma.workout.groupBy({ by: ['completedAt'], where: { completedAt: { gte: start } }, _count: { id: true } }),
-      prisma.chatMessage.groupBy({ by: ['createdAt'], where: { role: 'user', createdAt: { gte: start } }, _count: { id: true } }),
-      prisma.cardioSession.groupBy({ by: ['createdAt'], where: { createdAt: { gte: start } }, _count: { id: true } }),
+      prisma.$queryRaw<DailyCount[]>`SELECT DATE_TRUNC('day', "createdAt")::date AS day, COUNT(*)::bigint AS count FROM "User" WHERE "createdAt" >= ${start} GROUP BY day`,
+      prisma.$queryRaw<DailyCount[]>`SELECT DATE_TRUNC('day', "completedAt")::date AS day, COUNT(*)::bigint AS count FROM "Workout" WHERE "completedAt" >= ${start} GROUP BY day`,
+      prisma.$queryRaw<DailyCount[]>`SELECT DATE_TRUNC('day', "createdAt")::date AS day, COUNT(*)::bigint AS count FROM "ChatMessage" WHERE role = 'user' AND "createdAt" >= ${start} GROUP BY day`,
+      prisma.$queryRaw<DailyCount[]>`SELECT DATE_TRUNC('day', "createdAt")::date AS day, COUNT(*)::bigint AS count FROM "CardioSession" WHERE "createdAt" >= ${start} GROUP BY day`,
     ]);
 
     const buckets: Record<string, { signups: number; workouts: number; ai: number; cardio: number }> = {};
@@ -1247,10 +1254,11 @@ router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Resp
       const d = new Date(start.getTime() + i * 86400 * 1000);
       buckets[d.toISOString().split('T')[0]] = { signups: 0, workouts: 0, ai: 0, cardio: 0 };
     }
-    signups.forEach((r) => { const d = new Date(r.createdAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].signups += r._count.id; });
-    workouts.forEach((r) => { if (r.completedAt) { const d = new Date(r.completedAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].workouts += r._count.id; } });
-    aiMessages.forEach((r) => { const d = new Date(r.createdAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].ai += r._count.id; });
-    cardio.forEach((r) => { const d = new Date(r.createdAt).toISOString().split('T')[0]; if (buckets[d]) buckets[d].cardio += r._count.id; });
+    const keyOf = (d: Date) => d.toISOString().split('T')[0];
+    signups.forEach((r) => { const k = keyOf(r.day); if (buckets[k]) buckets[k].signups += Number(r.count); });
+    workouts.forEach((r) => { const k = keyOf(r.day); if (buckets[k]) buckets[k].workouts += Number(r.count); });
+    aiMessages.forEach((r) => { const k = keyOf(r.day); if (buckets[k]) buckets[k].ai += Number(r.count); });
+    cardio.forEach((r) => { const k = keyOf(r.day); if (buckets[k]) buckets[k].cardio += Number(r.count); });
 
     const header = 'date,signups,workouts,ai_messages,cardio_sessions';
     const rows = Object.entries(buckets).map(([date, v]) => `${date},${v.signups},${v.workouts},${v.ai},${v.cardio}`);
@@ -1995,8 +2003,13 @@ router.get('/subscriptions/forecast', requireAdmin, async (_req: AuthRequest, re
 });
 
 /** GET /admin/analytics/segments — engagement metrics by subscription plan */
+const SEGMENTS_CACHE_KEY = 'analytics:segments';
+const SEGMENTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — 16 join-heavy queries underneath
 router.get('/analytics/segments', requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
+    const cached = adminStatsCache.get(SEGMENTS_CACHE_KEY);
+    if (cached) return res.json(cached);
+
     const thirtyAgo = new Date(Date.now() - 30 * 86400 * 1000);
     const sevenAgo = new Date(Date.now() - 7 * 86400 * 1000);
     const plans = ['free', 'pro', 'trainer', 'club'];
@@ -2030,7 +2043,9 @@ router.get('/analytics/segments', requireAdmin, async (_req: AuthRequest, res: R
       })
     );
 
-    res.json(results.filter((r) => r.userCount > 0));
+    const payload = results.filter((r) => r.userCount > 0);
+    adminStatsCache.set(SEGMENTS_CACHE_KEY, payload, SEGMENTS_CACHE_TTL_MS);
+    res.json(payload);
   } catch (e) {
     logger.error('GET /admin/analytics/segments:', e);
     res.status(500).json({ error: 'Ошибка' });
