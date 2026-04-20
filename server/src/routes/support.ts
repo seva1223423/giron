@@ -273,6 +273,18 @@ router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: Auth
     if (!parsed.success) return res.status(400).json({ error: 'Некорректный assignedToId' });
 
     const { assignedToId } = parsed.data;
+
+    // Verify assignee is actually staff — prevents assigning tickets to arbitrary users.
+    if (assignedToId) {
+      const assignee = await prisma.user.findUnique({
+        where: { id: assignedToId },
+        select: { role: true, isBanned: true },
+      });
+      if (!assignee || assignee.isBanned || !['ADMIN', 'SUPPORT'].includes(assignee.role)) {
+        return res.status(400).json({ error: 'Назначить тикет можно только сотруднику поддержки или администратору' });
+      }
+    }
+
     const ticket = await prisma.supportTicket.update({
       where: { id: req.params.id as string },
       data: {
