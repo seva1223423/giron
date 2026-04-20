@@ -13,10 +13,11 @@
 
 ### Сервер (`server/`)
 - Express 4 + TypeScript
-- Prisma 6 ORM (PostgreSQL, 22 модели)
-- JWT (7d access + 30d refresh) + bcryptjs
+- Prisma 6 ORM (PostgreSQL на Neon eu-central-1, 34 модели)
+- JWT (7d access + 30d refresh) + bcryptjs, helmet, express-rate-limit
 - Zod (валидация), Multer (загрузка файлов), CORS
-- AI: Mistral API (основной), DeepSeek, Ollama (локальный fallback)
+- AI: Mistral API (основной, `mistral-small-latest`), DeepSeek, Ollama (локальный fallback)
+- Деплой: Render (`iron-gym-swoe.onrender.com`), автодеплой на push в master
 
 ## Архитектура клиента
 
@@ -24,24 +25,28 @@
 
 **7 вкладок:** Главная, Тренировки (12 экранов), Питание (5), Прогресс, ИИ, Новости, Профиль (6)
 
-**8 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, store/index.ts
+**14 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support + store/index.ts
 
-**8 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal
+**11 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip
 
-**7 сервисов:** api.ts (axios + JWT auto-refresh), authService, userService, workoutService, nutritionService, aiService, newsService, notificationService (12 функций уведомлений)
+**12 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout
+
+**Области экранов (15):** admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts
 
 **Данные:** 71 упражнение (data/exercises.ts), 6 программ (data/programs.ts), 20 ачивок (utils/achievements.ts)
 
 ## Архитектура сервера
 
 ### API маршруты (server/src/routes/)
-- `auth.ts` — register, login, refresh
-- `user.ts` — profile CRUD, weight log (upsert по дате)
-- `workout.ts` — programs CRUD, start/complete workout, history (paginated), leaderboard (top-100 по est1RM), exercises
+- `auth.ts` (1458 строк) — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
+- `user.ts` (1152 строки) — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
+- `workout.ts` (635 строк) — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises
 - `nutrition.ts` — meals CRUD (фильтр по дате)
 - `news.ts` — RSS парсинг (4 Google News источника, каждые 6ч), save/unsave, refresh
-- `subscription.ts` — status, activate, cancel, webhook
-- `ai.ts` — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → 180+ аналитических блоков → AI call → 11 tool-функций)
+- `subscription.ts` — status, activate, cancel, webhook (RevenueCat/YuKassa/generic)
+- `trainer.ts` — клиенты тренера CRUD
+- `cardio.ts`, `support.ts`, `admin.ts` — кардио, поддержка (тикеты), админка
+- `ai.ts` (~84k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)
 - Intent: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
@@ -54,6 +59,9 @@
 - `deepseekAI.ts` — OpenAI-compatible клиент (Mistral/DeepSeek), retry, timeout 60s
 - `localAI.ts` — Ollama (qwen2.5:14b chat, llama3.2-vision для фото еды)
 - `newsRefreshService.ts` — RSS парсер, авто-категоризация
+- `emailService.ts` — Nodemailer + Gmail SMTP (reset password, верификация)
+- `smsService.ts` — SMS.ru (RU) / Twilio (fallback)
+- `pushService.ts` — Expo push notifications
 
 ## Структура
 
@@ -80,7 +88,12 @@ server/
     controllers/ — (пусто, логика в routes)
     utils/       — утилиты
   prisma/
-    schema.prisma — 22 модели (User, Program, Workout, Exercise, Meal, ChatMessage, AIMemory, Subscription...)
+    schema.prisma — 34 модели (User, RefreshToken, TrustedDevice, UsedTotpCode, OtpCode, PasswordHistory,
+                    PasswordResetToken, SecurityEvent, PushToken, Program, Workout, WorkoutExercise,
+                    WorkoutSet, Exercise, HealthRestriction, Gym, CardioSession, SleepEntry,
+                    BodyWeight, BodyMeasurement, Meal, MealItem, FoodScanLog, ChatMessage, AIMemory,
+                    NewsArticle, SavedNews, Subscription, TrainerClient, TrainerSession,
+                    SupportTicket, SupportMessage, AdminLog, Announcement)
     seed.ts       — 150+ упражнений, начальные данные
 ```
 
@@ -90,13 +103,16 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
+npm test               # jest (client unit tests)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
+npm test               # jest (server integration tests, ~40 файлов)
 npm run prisma:studio  # GUI для БД
-npm run prisma:migrate # миграции
 npm run prisma:generate # генерация Prisma client
+# НЕ запускать: npm run prisma:migrate (prisma migrate dev) — проект использует `prisma db push`
+npx prisma db push     # синхронизация схемы с БД (без migration-файлов)
 ```
 
 ## Бренд
