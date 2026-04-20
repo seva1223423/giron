@@ -8,6 +8,10 @@ import { features } from '../../../config/store';
 
 interface Props {
   exerciseName: string;
+  /** Own-hosted demo video URL (takes priority over YouTube/Rutube). */
+  inlineVideoUrl?: string;
+  /** Poster for own-hosted video. */
+  inlineVideoPoster?: string;
   youtubeId?: string;
   rutubeId?: string;
   primaryMuscles: string[];
@@ -19,16 +23,18 @@ interface Props {
 }
 
 export const ExerciseVideoCard: React.FC<Props> = ({
-  exerciseName, youtubeId, rutubeId, primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
+  exerciseName, inlineVideoUrl, inlineVideoPoster, youtubeId, rutubeId,
+  primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
   const [modalVisible, setModalVisible] = useState(false);
   // RuStore build: YouTube is unreliable in RF, so prefer Rutube if available; otherwise hide the
   // thumbnail and show a placeholder. International builds keep YouTube-first behavior.
   const effectiveYoutubeId = features.youtubeVideos ? youtubeId : undefined;
-  const thumbUrl = effectiveYoutubeId ? `https://img.youtube.com/vi/${effectiveYoutubeId}/hqdefault.jpg` : null;
+  // Preview thumbnail: own-hosted poster first, YouTube thumbnail otherwise.
+  const thumbUrl = inlineVideoPoster ?? (effectiveYoutubeId ? `https://img.youtube.com/vi/${effectiveYoutubeId}/hqdefault.jpg` : null);
   const stepsCount = instructions?.length ?? 0;
-  const badgeLabel = effectiveYoutubeId ? '▶ YouTube' : (rutubeId ? '▶ Rutube' : '🔍 Найти');
+  const badgeLabel = inlineVideoUrl ? '▶ Видео' : effectiveYoutubeId ? '▶ YouTube' : (rutubeId ? '▶ Rutube' : '🔍 Найти');
 
   return (
     <>
@@ -81,11 +87,13 @@ export const ExerciseVideoCard: React.FC<Props> = ({
               {exerciseName} — техника выполнения
             </Text>
             <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-              {effectiveYoutubeId
-                ? 'Откроется в YouTube'
-                : rutubeId
-                  ? 'Откроется в Rutube'
-                  : 'Поиск видео в браузере'}
+              {inlineVideoUrl
+                ? 'Воспроизведение в приложении'
+                : effectiveYoutubeId
+                  ? 'Откроется в YouTube'
+                  : rutubeId
+                    ? 'Откроется в Rutube'
+                    : 'Поиск видео в браузере'}
               {tips && tips.length > 0 ? ` · ${tips.length} совета` : ''}
             </Text>
           </View>
@@ -97,6 +105,8 @@ export const ExerciseVideoCard: React.FC<Props> = ({
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         exerciseName={exerciseName}
+        inlineVideoUrl={inlineVideoUrl}
+        inlineVideoPoster={inlineVideoPoster}
         youtubeId={effectiveYoutubeId}
         rutubeId={rutubeId}
         primaryMuscles={primaryMuscles}

@@ -8,6 +8,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
 import { ExerciseVideoCard, ExerciseStatsCard } from './exercise';
+import { exerciseVideoUrl, exerciseThumbUrl } from '../../config/store';
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
@@ -176,6 +177,8 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
       <FadeIn delay={140}>
         <ExerciseVideoCard
           exerciseName={exercise.name}
+          inlineVideoUrl={exercise.videoUrl || exerciseVideoUrl(exercise.id)}
+          inlineVideoPoster={exerciseThumbUrl(exercise.id)}
           youtubeId={exercise.youtubeId}
           rutubeId={exercise.rutubeId}
           primaryMuscles={exercise.primaryMuscles}

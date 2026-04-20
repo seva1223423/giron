@@ -7,11 +7,16 @@ import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { features } from '../../../config/store';
+import { ExerciseInlineVideo } from './ExerciseInlineVideo';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   exerciseName: string;
+  /** Direct URL to an own-hosted demo video (mp4/HLS). Preferred over YouTube/Rutube when present. */
+  inlineVideoUrl?: string;
+  /** Poster/thumbnail for the own-hosted video (optional). */
+  inlineVideoPoster?: string;
   youtubeId?: string;
   rutubeId?: string;
   primaryMuscles: string[];
@@ -68,7 +73,7 @@ async function openVideo(youtubeId: string | undefined, rutubeId: string | undef
 }
 
 export const ExerciseVideoModal: React.FC<Props> = ({
-  visible, onClose, exerciseName, youtubeId, rutubeId,
+  visible, onClose, exerciseName, inlineVideoUrl, inlineVideoPoster, youtubeId, rutubeId,
   primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
@@ -80,6 +85,14 @@ export const ExerciseVideoModal: React.FC<Props> = ({
   // so the RuStore build shows the generic placeholder for Rutube videos instead.
   const thumbUrl = safeYoutubeId ? `https://img.youtube.com/vi/${safeYoutubeId}/maxresdefault.jpg` : null;
   const videoProvider: 'youtube' | 'rutube' | 'search' = safeYoutubeId ? 'youtube' : safeRutubeId ? 'rutube' : 'search';
+
+  // Own-hosted video takes precedence. On error (404, bad CDN, offline) we fall back
+  // to the YouTube/Rutube thumbnail+open-in-app flow below.
+  const [inlineVideoFailed, setInlineVideoFailed] = useState(false);
+  const showInlineVideo = !!inlineVideoUrl && !inlineVideoFailed;
+  // Reset the inline-video error flag each time the modal is re-opened so a temporary
+  // network hiccup doesn't permanently switch this exercise to YouTube fallback.
+  useEffect(() => { if (visible) setInlineVideoFailed(false); }, [visible]);
   const [activeTab, setActiveTab] = useState<'steps' | 'tips'>('steps');
 
   const pulse = useRef(new Animated.Value(1)).current;
@@ -115,33 +128,47 @@ export const ExerciseVideoModal: React.FC<Props> = ({
         {/* Drag handle */}
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
-        {/* Video thumbnail (YouTube on intl builds, Rutube placeholder on RuStore) */}
-        <TouchableOpacity activeOpacity={0.88} onPress={() => openVideo(safeYoutubeId, safeRutubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
-          {thumbUrl ? (
-            <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
-          ) : (
-            <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
-              <Text style={styles.placeholderIcon}>▶</Text>
-              <Text style={styles.placeholderText}>
-                {videoProvider === 'rutube' ? 'Открыть в Rutube' : features.youtubeVideos ? 'Найти в YouTube' : 'Найти в Rutube'}
-              </Text>
-            </View>
-          )}
-          <View style={styles.overlay} />
-          <Text style={styles.muscleLabel}>
-            {primaryMuscles.slice(0, 3).map((m) => muscleLabels[m] || m).join(' · ')}
-          </Text>
-          <Animated.View style={[styles.playWrapper, { transform: [{ scale: pulse }] }]}>
-            <View style={styles.playCircle}>
-              <Text style={styles.playIcon}>▶</Text>
-            </View>
-          </Animated.View>
-          <View style={styles.ytBadge}>
-            <Text style={styles.ytBadgeText}>
-              {videoProvider === 'youtube' ? 'YouTube' : videoProvider === 'rutube' ? 'Rutube' : 'Поиск'}
+        {/* Video area — own-hosted inline video first, then YouTube/Rutube fallback */}
+        {showInlineVideo ? (
+          <View style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
+            <ExerciseInlineVideo
+              videoUrl={inlineVideoUrl!}
+              posterUrl={inlineVideoPoster}
+              height={THUMB_H}
+              onError={() => setInlineVideoFailed(true)}
+            />
+            <Text style={styles.muscleLabel}>
+              {primaryMuscles.slice(0, 3).map((m) => muscleLabels[m] || m).join(' · ')}
             </Text>
           </View>
-        </TouchableOpacity>
+        ) : (
+          <TouchableOpacity activeOpacity={0.88} onPress={() => openVideo(safeYoutubeId, safeRutubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
+            {thumbUrl ? (
+              <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
+            ) : (
+              <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
+                <Text style={styles.placeholderIcon}>▶</Text>
+                <Text style={styles.placeholderText}>
+                  {videoProvider === 'rutube' ? 'Открыть в Rutube' : features.youtubeVideos ? 'Найти в YouTube' : 'Найти в Rutube'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.overlay} />
+            <Text style={styles.muscleLabel}>
+              {primaryMuscles.slice(0, 3).map((m) => muscleLabels[m] || m).join(' · ')}
+            </Text>
+            <Animated.View style={[styles.playWrapper, { transform: [{ scale: pulse }] }]}>
+              <View style={styles.playCircle}>
+                <Text style={styles.playIcon}>▶</Text>
+              </View>
+            </Animated.View>
+            <View style={styles.ytBadge}>
+              <Text style={styles.ytBadgeText}>
+                {videoProvider === 'youtube' ? 'YouTube' : videoProvider === 'rutube' ? 'Rutube' : 'Поиск'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Exercise name + description */}
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm }}>

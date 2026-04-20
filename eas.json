@@ -34,7 +34,8 @@
       },
       "env": {
         "EXPO_PUBLIC_STORE": "rustore",
-        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
+        "EXPO_PUBLIC_MEDIA_URL": "https://storage.yandexcloud.net/iron-gym-media"
       }
     },
     "play": {
@@ -44,7 +45,8 @@
       },
       "env": {
         "EXPO_PUBLIC_STORE": "play",
-        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
+        "EXPO_PUBLIC_MEDIA_URL": "https://storage.yandexcloud.net/iron-gym-media"
       }
     },
     "appstore": {
@@ -54,7 +56,8 @@
       },
       "env": {
         "EXPO_PUBLIC_STORE": "appstore",
-        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
+        "EXPO_PUBLIC_MEDIA_URL": "https://storage.yandexcloud.net/iron-gym-media"
       }
     },
     "production": {
