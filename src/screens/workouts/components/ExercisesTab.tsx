@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
@@ -9,6 +9,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
 import { Exercise } from '../../../types';
 import { workoutService } from '../../../services';
+import { exerciseThumbUrl } from '../../../config/store';
 
 const FAVORITES_KEY = 'iron_gym_exercise_favorites';
 
@@ -104,6 +105,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
 
   const renderExerciseCard = useCallback(({ item: ex }: { item: Exercise }) => {
     const isFav = favoriteIds.has(ex.id);
+    const thumb = exerciseThumbUrl(ex.id);
     return (
       <Card
         style={{ marginBottom: spacing.sm }}
@@ -111,19 +113,28 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
-            style={{ flex: 1 }}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
+            onPress={() => { haptic.light(); navigation.navigate('ExerciseDetail', { exerciseId: ex.id }); }}
           >
-            <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
-            <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-              {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
-            </Text>
+            <Image
+              source={{ uri: thumb }}
+              style={styles.cardThumb}
+              // Tiny (20 KB) — preloading here populates the cache so the
+              // detail screen's inline video card shows the same poster instantly.
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => toggleFavorite(ex.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={{ paddingLeft: spacing.md }}
+            accessibilityLabel={isFav ? 'Убрать из избранного' : 'Добавить в избранное'}
           >
             <Text style={{ fontSize: 18, fontWeight: '700', color: isFav ? colors.error : colors.textTertiary }}>
               {isFav ? '●' : '○'}
@@ -132,7 +143,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
         </View>
       </Card>
     );
-  }, [favoriteIds, colors, navigation, toggleFavorite]);
+  }, [favoriteIds, colors, navigation, toggleFavorite, haptic]);
 
   const keyExtractor = useCallback((ex: Exercise) => ex.id, []);
 
@@ -213,4 +224,5 @@ const styles = StyleSheet.create({
   searchInput: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, marginBottom: spacing.md },
   filterChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   emptyState: { alignItems: 'center', paddingVertical: spacing.huge },
+  cardThumb: { width: 56, height: 56, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
 });
