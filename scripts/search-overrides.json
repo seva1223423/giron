@@ -1,0 +1,24 @@
+{
+  "_description": "Per-exercise search-string overrides for fetch-exercise-videos.mjs. Keys are exercise IDs from src/data/exercises.ts; values are the English search string sent to Pexels/Pixabay. Tweak this when a default lookup misses or returns the wrong kind of clip.",
+
+  "bench-press": "barbell bench press gym",
+  "dumbbell-fly": "dumbbell chest fly workout",
+  "push-ups": "push up exercise",
+  "dips": "parallel bars dip exercise",
+  "squat": "barbell back squat gym",
+  "deadlift": "barbell deadlift gym",
+  "romanian-deadlift": "romanian deadlift barbell",
+  "pull-ups": "pull up bar exercise",
+  "lat-pulldown": "lat pulldown cable gym",
+  "bent-over-row": "bent over barbell row",
+  "overhead-press": "overhead shoulder press barbell",
+  "lateral-raise": "dumbbell lateral raise",
+  "bicep-curl": "dumbbell bicep curl",
+  "tricep-pushdown": "tricep pushdown cable",
+  "leg-press": "leg press machine",
+  "calf-raise": "standing calf raise",
+  "plank": "plank exercise core",
+  "crunch": "abdominal crunch exercise",
+  "leg-curl": "hamstring leg curl machine",
+  "leg-extension": "leg extension machine"
+}
