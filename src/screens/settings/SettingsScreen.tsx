@@ -7,7 +7,7 @@ import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import {
   AppearanceSection, UnitsSection, WorkoutSection,
-  NotificationsSection, SystemSection,
+  NotificationsSection, SystemSection, LegalSection,
 } from './components';
 
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -34,6 +34,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       <WorkoutSection />
       <NotificationsSection />
       <SystemSection />
+      <LegalSection />
 
       <FadeIn delay={300}>
         <View style={styles.appInfo}>
