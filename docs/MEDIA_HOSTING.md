@@ -184,12 +184,65 @@ curl -I https://storage.yandexcloud.net/iron-gym-media/exercises/bench-press.mp4
 
 Для старта и тестов — **Yandex Object Storage** по умолчанию. Cloudflare R2 как `dev` альтернатива — бесплатно и быстро, но только для разработки.
 
-## Интеграция с ИИ-генерацией видео (на будущее)
+## Быстрый способ получить видео без съёмки: стоки Pexels / Pixabay
 
-Если не хочется снимать 71 видео самому, на рынке есть AI-инструменты, которые генерируют демо упражнения из описания и скелета:
-- **Sora (OpenAI)** — платный, качество высокое, доступ ограничен
-- **Runway Gen-3** — доступен, $15/мес, подходит для стилизованных демо
-- **Pika Labs** — дешевле, качество для фитнеса так-себе
-- **Stable Video Diffusion** — open-source, можно запускать локально
+Для запуска можно не снимать 71 собственное видео, а автоматически скачать подходящие из бесплатных стоковых источников. Лицензии **Pexels License** и **Pixabay Content License** разрешают коммерческое использование без атрибуции.
 
-Экономнее: один раз снять эталонные видео с тренером (2–3 часа работы на 71 упражнение при правильной подготовке), залить.
+В репо лежит скрипт [`scripts/fetch-exercise-videos.mjs`](../scripts/fetch-exercise-videos.mjs), который:
+1. Читает список упражнений из `src/data/exercises.ts`.
+2. Для каждого отправляет поиск в Pexels Videos API.
+3. Выбирает видео 480p (ближайшее к целевому разрешению).
+4. Скачивает в папку `./exercise-videos-raw/`.
+
+### Как запустить
+
+```bash
+# 1) Получите бесплатный ключ Pexels за 30 секунд на pexels.com/api
+export PEXELS_API_KEY="ваш_ключ"
+
+# (опционально) ключ Pixabay как fallback если Pexels промахнулся
+export PIXABAY_API_KEY="ваш_ключ"
+
+# 2) Скачать все 71 видео
+node scripts/fetch-exercise-videos.mjs
+
+# 3) Просмотреть, удалить неподходящие, переименовать и т.д.
+#    Для промахов — отредактировать scripts/search-overrides.json и перезапустить
+#    (уже скачанные файлы не качаются повторно).
+
+# 4) Нормализовать через ffmpeg
+./scripts/process-exercise-videos.sh ./exercise-videos-raw ./exercise-videos-ready
+
+# 5) Загрузить
+aws --profile yandex --endpoint-url=https://storage.yandexcloud.net \
+  s3 sync ./exercise-videos-ready/ s3://iron-gym-media/exercises/ \
+  --cache-control "public, max-age=2592000" --content-type-by-suffix
+```
+
+Покрытие: на тестах обычно 60–75% упражнений получают релевантные клипы с первого запуска. Оставшиеся 25–40% обычно фиксятся уточнением поискового запроса в `search-overrides.json` — ключ это ID упражнения, значение — английская фраза для поиска:
+
+```json
+{
+  "bench-press": "barbell bench press gym",
+  "dumbbell-fly": "dumbbell chest fly workout"
+}
+```
+
+### Гибридный подход
+
+Разумная стратегия для запуска в RuStore:
+1. Прогнать скрипт → 50 нормальных видео из стока автоматически.
+2. Для 20 оставшихся — снять самому за час (короткие 15-секундные демо, смартфон на штатив).
+3. Со временем — заменить стоковые на свои, когда будет время или бюджет на тренера.
+
+## Интеграция с ИИ-генерацией видео
+
+Если стоки не подходят и снимать не хочется:
+- **Runway Gen-3** — $15/мес, 10 секунд за промпт, хорошо работает для нейтрального фона
+- **Pika Labs** — $10/мес, проще, качество для фитнес-движений среднее
+- **Luma Dream Machine** — бесплатный демо-режим, $29/мес полный
+- **Sora (OpenAI)** — пока ограниченный доступ, самое высокое качество
+- **Stable Video Diffusion** — open-source, надо локальный GPU (минимум 12 GB VRAM)
+
+Типичный промпт для упражнения:
+`"top-down view of a person performing {exercise name}, fitness demonstration, neutral grey background, 10 seconds loop, no text, studio lighting"`
