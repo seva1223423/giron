@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#8B5CF6',
     opacity: 0.15,
   },
   glow2: {
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 3,
-    color: '#FF6B35',
+    color: '#8B5CF6',
   },
   date: {
     fontSize: 12,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   exSet: {
     fontSize: 13,
-    color: '#FF6B35',
+    color: '#8B5CF6',
     fontWeight: '700',
     marginLeft: 8,
   },
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: '#FF6B35',
+    color: '#8B5CF6',
     fontWeight: '700',
     letterSpacing: 0.5,
   },
