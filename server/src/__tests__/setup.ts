@@ -4,7 +4,6 @@
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-32ch';
 process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-key-for-testing-32ch';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/iron_gym_test';
-process.env.REVENUECAT_WEBHOOK_SECRET = 'rc-test-secret';
 process.env.YUKASSA_WEBHOOK_SECRET = 'yukassa-test-secret';
 process.env.WEBHOOK_SECRET = 'generic-test-secret';
 process.env.PORT = '0'; // random port — OS assigns a free port
