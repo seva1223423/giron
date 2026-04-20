@@ -11,6 +11,7 @@ import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { authService } from '../../services/authService';
+import { features } from '../../config/store';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -403,17 +404,19 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
         </View>
 
-        <TouchableOpacity
-          onPress={async () => { if (!googleConfigured) { setLocalError('Google OAuth не настроен'); return; } clearErrors(); await promptAsync(); }}
-          disabled={anyLoading || !request}
-          style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.sm }, (anyLoading || !request) && { opacity: 0.5 }]}
-        >
-          {googleLoading
-            ? <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
-            : <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
-          }
-          <Text style={[typography.bodySemibold, { color: colors.text }]}>Регистрация через Google</Text>
-        </TouchableOpacity>
+        {features.googleOAuth && (
+          <TouchableOpacity
+            onPress={async () => { if (!googleConfigured) { setLocalError('Google OAuth не настроен'); return; } clearErrors(); await promptAsync(); }}
+            disabled={anyLoading || !request}
+            style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.sm }, (anyLoading || !request) && { opacity: 0.5 }]}
+          >
+            {googleLoading
+              ? <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
+              : <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
+            }
+            <Text style={[typography.bodySemibold, { color: colors.text }]}>Регистрация через Google</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           onPress={handleVkPress}
