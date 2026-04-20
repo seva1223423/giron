@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
-import { spacing } from '../../../theme/spacing';
+import { spacing, borderRadius } from '../../../theme/spacing';
 import { Workout } from '../../../types';
+import { exerciseThumbUrl } from '../../../config/store';
 
 interface Props { workout: Workout }
 
@@ -19,9 +20,13 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
         const exVolume = completedSets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
         const nextEx = workout.exercises[i + 1];
         const isSuperset = ex.supersetGroupId && nextEx?.supersetGroupId === ex.supersetGroupId;
+        const thumb = exerciseThumbUrl(ex.exerciseId);
         return (
           <View key={ex.id}>
-            <View style={[{ flexDirection: 'row', paddingVertical: spacing.md }, i < workout.exercises.length - 1 && !isSuperset && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
+            <View style={[{ flexDirection: 'row', paddingVertical: spacing.md, gap: spacing.md }, i < workout.exercises.length - 1 && !isSuperset && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
+              {thumb && (
+                <Image source={{ uri: thumb }} style={styles.thumb} />
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.exercise?.name ?? ''}</Text>
                 <Text style={[typography.small, { color: colors.textSecondary }]}>
@@ -54,3 +59,7 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
     </Card>
   );
 };
+
+const styles = StyleSheet.create({
+  thumb: { width: 44, height: 44, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
+});
