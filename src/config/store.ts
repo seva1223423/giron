@@ -34,8 +34,30 @@ export const MEDIA_BASE_URL =
   process.env.EXPO_PUBLIC_MEDIA_URL?.replace(/\/+$/, '') ??
   'https://raw.githubusercontent.com/seva1223423/iron-gym-media/main/exercises';
 
-export const exerciseVideoUrl = (id: string) => `${MEDIA_BASE_URL}/${id}.mp4`;
-export const exerciseThumbUrl = (id: string) => `${MEDIA_BASE_URL}/${id}.jpg`;
+/**
+ * Exercises that have a verified inline demo video uploaded to iron-gym-media.
+ * Kept in sync with scripts/whitelist-verified.json and the actual contents of
+ * the media repo. For any exercise NOT in this set, the client skips the
+ * inline-video attempt (no 404) and goes straight to the YouTube/Rutube fallback.
+ */
+export const VERIFIED_INLINE_VIDEO_IDS = new Set<string>([
+  'arnold-press', 'barbell-curl', 'barbell-row', 'bench-press', 'burpee',
+  'chest-press-machine', 'deadlift', 'dumbbell-bench-press', 'dumbbell-row',
+  'dumbbell-shoulder-press', 'french-press', 'front-squat', 'goblet-squat',
+  'hack-squat', 'hammer-curl', 'hanging-leg-raise', 'hyperextension',
+  'incline-bench-press', 'jump-rope', 'kettlebell-swing', 'lat-pulldown',
+  'leg-curl', 'leg-extension', 'leg-press', 'machine-shoulder-press',
+  'overhead-press', 'rack-pull', 'reverse-crunch', 'romanian-deadlift',
+  'squat', 'sumo-deadlift', 't-bar-row',
+]);
+
+export const hasVerifiedInlineVideo = (id: string) => VERIFIED_INLINE_VIDEO_IDS.has(id);
+
+export const exerciseVideoUrl = (id: string) =>
+  hasVerifiedInlineVideo(id) ? `${MEDIA_BASE_URL}/${id}.mp4` : undefined;
+
+export const exerciseThumbUrl = (id: string) =>
+  hasVerifiedInlineVideo(id) ? `${MEDIA_BASE_URL}/${id}.jpg` : undefined;
 
 /**
  * Feature flags derived from the store target.
