@@ -78,6 +78,20 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
     return () => { mounted = false; };
   }, []);
 
+  // Prefetch posters for exercises that have a verified inline video. JPGs are
+  // ≈20 KB each and HTTP-cached by the OS, so this costs maybe 600 KB once per
+  // session but makes the detail screen's video card feel instant. Only runs
+  // after the list finishes loading so we don't steal bandwidth from the API.
+  useEffect(() => {
+    if (loadingExercises || exerciseList.length === 0) return;
+    const urls = exerciseList
+      .map((ex) => exerciseThumbUrl(ex.id))
+      .filter((u): u is string => !!u);
+    for (const url of urls) {
+      Image.prefetch(url).catch(() => { /* best effort, ignore failures */ });
+    }
+  }, [loadingExercises, exerciseList]);
+
   const toggleFavorite = useCallback((exerciseId: string) => {
     haptic.light();
     setFavoriteIds((prev) => {
