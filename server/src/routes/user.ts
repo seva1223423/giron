@@ -413,17 +413,19 @@ async function checkPasswordHistory(userId: string, newPassword: string): Promis
 
 async function recordPasswordHistory(userId: string, hash: string): Promise<void> {
   await prisma.passwordHistory.create({ data: { userId, passwordHash: hash } });
-  // Prune: keep only last PASSWORD_HISTORY_DEPTH+2 entries
-  const all = await prisma.passwordHistory.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true },
-    take: PASSWORD_HISTORY_DEPTH + 10,
-  });
-  const toDelete = all.slice(PASSWORD_HISTORY_DEPTH + 2);
-  if (toDelete.length > 0) {
-    await prisma.passwordHistory.deleteMany({ where: { id: { in: toDelete.map((r) => r.id) } } });
-  }
+  // Prune in SQL: keep only the most recent PASSWORD_HISTORY_DEPTH+2 rows for this user.
+  // The previous JS pattern fetched up to N+10 rows then issued a separate deleteMany.
+  const keep = PASSWORD_HISTORY_DEPTH + 2;
+  await prisma.$executeRaw`
+    DELETE FROM "PasswordHistory"
+    WHERE "userId" = ${userId}
+      AND id NOT IN (
+        SELECT id FROM "PasswordHistory"
+        WHERE "userId" = ${userId}
+        ORDER BY "createdAt" DESC
+        LIMIT ${keep}
+      )
+  `;
 }
 
 // ── Change password ───────────────────────────────────────────────────────────

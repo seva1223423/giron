@@ -681,7 +681,7 @@ router.post('/vk', async (req: Request, res: Response) => {
         access_token: accessToken,
         v: '5.199',
       });
-      const resp = await fetch(`https://api.vk.com/method/users.get?${params}`);
+      const resp = await fetch(`https://api.vk.com/method/users.get?${params}`, { signal: AbortSignal.timeout(5000) });
       const data = await resp.json() as any;
       if (data.error) throw new Error(data.error.error_msg);
       vkUser = data.response?.[0];
@@ -771,6 +771,7 @@ router.post('/yandex', async (req: Request, res: Response) => {
     try {
       const resp = await fetch('https://login.yandex.ru/info?format=json', {
         headers: { Authorization: `OAuth ${accessToken}` },
+        signal: AbortSignal.timeout(5000),
       });
       if (!resp.ok) throw new Error(`Yandex API error: ${resp.status}`);
       yandexUser = await resp.json();
