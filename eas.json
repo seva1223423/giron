@@ -35,7 +35,7 @@
       "env": {
         "EXPO_PUBLIC_STORE": "rustore",
         "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
-        "EXPO_PUBLIC_MEDIA_URL": "https://storage.yandexcloud.net/iron-gym-media"
+        "EXPO_PUBLIC_MEDIA_URL": "https://raw.githubusercontent.com/seva1223423/iron-gym-media/main/exercises"
       }
     },
     "play": {
@@ -46,7 +46,7 @@
       "env": {
         "EXPO_PUBLIC_STORE": "play",
         "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
-        "EXPO_PUBLIC_MEDIA_URL": "https://storage.yandexcloud.net/iron-gym-media"
+        "EXPO_PUBLIC_MEDIA_URL": "https://raw.githubusercontent.com/seva1223423/iron-gym-media/main/exercises"
       }
     },
     "appstore": {
@@ -57,7 +57,7 @@
       "env": {
         "EXPO_PUBLIC_STORE": "appstore",
         "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api",
-        "EXPO_PUBLIC_MEDIA_URL": "https://storage.yandexcloud.net/iron-gym-media"
+        "EXPO_PUBLIC_MEDIA_URL": "https://raw.githubusercontent.com/seva1223423/iron-gym-media/main/exercises"
       }
     },
     "production": {
