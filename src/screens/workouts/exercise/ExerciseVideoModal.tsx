@@ -137,6 +137,8 @@ export const ExerciseVideoModal: React.FC<Props> = ({
               posterUrl={inlineVideoPoster}
               height={THUMB_H}
               startMuted={false}
+              nativeControls
+              hideMuteButton
               onError={() => setInlineVideoFailed(true)}
             />
             <Text style={styles.muscleLabel}>

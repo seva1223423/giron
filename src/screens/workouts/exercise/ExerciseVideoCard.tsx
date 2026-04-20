@@ -139,15 +139,17 @@ export const ExerciseVideoCard: React.FC<Props> = ({
             <Text style={[typography.smallMedium, { color: colors.text }]} numberOfLines={1}>
               {exerciseName} — техника выполнения
             </Text>
-            <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-              {showInlineVideo
-                ? 'Тап для полноэкранного режима'
-                : effectiveYoutubeId
-                  ? 'Откроется в YouTube'
-                  : rutubeId
-                    ? 'Откроется в Rutube'
-                    : 'Поиск видео в браузере'}
-              {tips && tips.length > 0 ? ` · ${tips.length} совета` : ''}
+            <Text style={[typography.caption, { color: inlineFailed ? colors.warning : colors.textTertiary, marginTop: 2 }]}>
+              {inlineFailed
+                ? 'Инлайн видео недоступно — откроется внешняя ссылка'
+                : showInlineVideo
+                  ? 'Тап для полноэкранного режима'
+                  : effectiveYoutubeId
+                    ? 'Откроется в YouTube'
+                    : rutubeId
+                      ? 'Откроется в Rutube'
+                      : 'Поиск видео в браузере'}
+              {tips && tips.length > 0 && !inlineFailed ? ` · ${tips.length} совета` : ''}
             </Text>
           </View>
           <Text style={{ fontSize: 18, color: colors.textTertiary }}>›</Text>
