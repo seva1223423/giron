@@ -28,14 +28,19 @@ else:
 
 output_dir = "./exercise-videos-rendered"
 skip_existing = False
+renderer = "mixamo"  # 'mixamo' (Xbot skinned mesh) or 'capsule' (stick-figure primitives)
 i = 0
 while i < len(argv):
     if argv[i] == "--output-dir" and i + 1 < len(argv):
         output_dir = argv[i + 1]; i += 2
     elif argv[i] == "--skip-existing":
         skip_existing = True; i += 1
+    elif argv[i] == "--renderer" and i + 1 < len(argv):
+        renderer = argv[i + 1]; i += 2
     else:
         i += 1
+
+render_script_name = "render_exercise_mixamo.py" if renderer == "mixamo" else "render_exercise.py"
 
 script_dir = Path(__file__).resolve().parent
 animations_file = script_dir / "exercise-animations.json"
@@ -50,7 +55,7 @@ os.makedirs(output_dir, exist_ok=True)
 # scene state (materials, objects, world all start fresh) and so that a crash
 # on one exercise doesn't take down the whole batch.
 blender_exe = bpy.app.binary_path
-render_script = str(script_dir / "render_exercise.py")
+render_script = str(script_dir / render_script_name)
 
 start = time.time()
 total = len(exercise_ids)
