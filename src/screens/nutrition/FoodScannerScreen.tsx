@@ -216,6 +216,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       if (items.length === 0) {
         setError('Продукты не распознаны. Попробуй сделать чёткое фото тарелки с едой.');
         setImageUri(null);
+      } else {
+        // Release the ~5-7MB base64 — retry is only meaningful on error paths.
+        lastBase64Ref.current = '';
       }
     } catch (e: any) {
       if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {

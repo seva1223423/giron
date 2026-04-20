@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
   RefreshControl, TouchableOpacity, TextInput, Alert, Share, Modal, FlatList,
+  AppState,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -232,9 +233,22 @@ export default function AdminDashboardScreen() {
 
   useEffect(() => {
     load();
-    // Auto-refresh every 60 seconds
-    intervalRef.current = setInterval(() => load(true), 60_000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    // Auto-refresh every 60 seconds — pause when the app is backgrounded so we're not
+    // firing 4 parallel admin-API calls per minute on a locked device.
+    const start = () => {
+      if (intervalRef.current) return;
+      intervalRef.current = setInterval(() => load(true), 60_000);
+    };
+    const stop = () => {
+      if (!intervalRef.current) return;
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    };
+    start();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') { load(true); start(); } else { stop(); }
+    });
+    return () => { stop(); sub.remove(); };
   }, []);
 
   const handleSearchChange = useCallback((q: string) => {

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView, Modal,
+  AppState,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -127,10 +128,16 @@ export default function AdminTicketScreen() {
 
   useEffect(() => { load(); }, []);
 
-  // Auto-poll every 20s while screen is mounted
+  // Auto-poll every 20s while screen is mounted AND app is foregrounded.
   useEffect(() => {
-    const interval = setInterval(poll, 20000);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => { if (!interval) interval = setInterval(poll, 20000); };
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    start();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') { poll(); start(); } else { stop(); }
+    });
+    return () => { stop(); sub.remove(); };
   }, [poll]);
 
   useEffect(() => {
