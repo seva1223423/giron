@@ -10,6 +10,9 @@
       "android": {
         "buildType": "apk",
         "credentialsSource": "local"
+      },
+      "env": {
+        "EXPO_PUBLIC_STORE": "universal"
       }
     },
     "preview": {
@@ -17,8 +20,47 @@
       "android": {
         "buildType": "apk",
         "credentialsSource": "local"
+      },
+      "env": {
+        "EXPO_PUBLIC_STORE": "universal"
       }
     },
-    "production": {}
+    "rustore": {
+      "extends": "preview",
+      "distribution": "store",
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "local"
+      },
+      "env": {
+        "EXPO_PUBLIC_STORE": "rustore",
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+      }
+    },
+    "play": {
+      "extends": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_STORE": "play",
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+      }
+    },
+    "appstore": {
+      "extends": "production",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_STORE": "appstore",
+        "EXPO_PUBLIC_API_URL": "https://iron-gym-swoe.onrender.com/api"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_STORE": "universal"
+      }
+    }
   }
 }

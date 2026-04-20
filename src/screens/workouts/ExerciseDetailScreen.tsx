@@ -177,6 +177,7 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
         <ExerciseVideoCard
           exerciseName={exercise.name}
           youtubeId={exercise.youtubeId}
+          rutubeId={exercise.rutubeId}
           primaryMuscles={exercise.primaryMuscles}
           muscleLabels={MUSCLE_LABELS}
           description={exercise.description}

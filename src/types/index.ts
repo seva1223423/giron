@@ -64,6 +64,8 @@ export interface Exercise {
   category: ExerciseCategory;
   videoUrl?: string;
   youtubeId?: string;
+  /** Rutube video ID (32-char hex). Used in the RuStore build where YouTube is unreliable in RF. */
+  rutubeId?: string;
   imageUrl?: string;
   difficulty: FitnessLevel;
   tips?: string[];

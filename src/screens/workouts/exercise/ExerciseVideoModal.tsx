@@ -6,12 +6,14 @@ import {
 import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { features } from '../../../config/store';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   exerciseName: string;
   youtubeId?: string;
+  rutubeId?: string;
   primaryMuscles: string[];
   muscleLabels: Record<string, string>;
   description?: string;
@@ -20,11 +22,30 @@ interface Props {
   commonMistakes?: string[];
 }
 
-// YouTube video IDs are exactly 11 chars: alphanumeric + hyphen + underscore.
+// YouTube IDs are 11 chars: alphanumeric + hyphen + underscore.
+// Rutube IDs are 32-char hex strings.
 // Validating prevents URL injection in case the backend or DB is ever compromised.
 const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const RUTUBE_ID_RE = /^[a-f0-9]{32}$/;
 
-async function openYouTube(youtubeId?: string, exerciseName?: string) {
+async function openRutube(rutubeId: string, exerciseName?: string) {
+  try {
+    if (RUTUBE_ID_RE.test(rutubeId)) {
+      await Linking.openURL(`https://rutube.ru/video/${rutubeId}/`);
+    } else {
+      const query = encodeURIComponent(`${exerciseName || ''} техника выполнения`);
+      await Linking.openURL(`https://rutube.ru/search/?query=${query}`);
+    }
+  } catch {
+    const query = encodeURIComponent(`${exerciseName || ''} техника выполнения`);
+    Linking.openURL(`https://rutube.ru/search/?query=${query}`);
+  }
+}
+
+async function openVideo(youtubeId: string | undefined, rutubeId: string | undefined, exerciseName?: string) {
+  // RuStore build prefers Rutube; international builds prefer YouTube.
+  if (!features.youtubeVideos && rutubeId) return openRutube(rutubeId, exerciseName);
+
   try {
     const query = encodeURIComponent(`${exerciseName || ''} техника выполнения`);
     if (youtubeId && YOUTUBE_ID_RE.test(youtubeId)) {
@@ -32,27 +53,33 @@ async function openYouTube(youtubeId?: string, exerciseName?: string) {
       const webUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
       const canApp = await Linking.canOpenURL(appUrl);
       await Linking.openURL(canApp ? appUrl : webUrl);
+    } else if (rutubeId) {
+      return openRutube(rutubeId, exerciseName);
     } else {
-      const appUrl = `youtube://results?search_query=${query}`;
-      const webUrl = `https://www.youtube.com/results?search_query=${query}`;
-      const canApp = await Linking.canOpenURL(appUrl);
-      await Linking.openURL(canApp ? appUrl : webUrl);
+      // Final fallback — searching on whichever video platform is available in this build.
+      const base = features.youtubeVideos ? 'https://www.youtube.com/results?search_query=' : 'https://rutube.ru/search/?query=';
+      await Linking.openURL(`${base}${query}`);
     }
   } catch {
     const query = encodeURIComponent(`${exerciseName || ''} техника выполнения`);
-    Linking.openURL(`https://www.youtube.com/results?search_query=${query}`);
+    const base = features.youtubeVideos ? 'https://www.youtube.com/results?search_query=' : 'https://rutube.ru/search/?query=';
+    Linking.openURL(`${base}${query}`);
   }
 }
 
 export const ExerciseVideoModal: React.FC<Props> = ({
-  visible, onClose, exerciseName, youtubeId,
+  visible, onClose, exerciseName, youtubeId, rutubeId,
   primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const THUMB_H = Math.round((screenW * 9) / 16);
-  const safeYoutubeId = youtubeId && YOUTUBE_ID_RE.test(youtubeId) ? youtubeId : undefined;
+  const safeYoutubeId = features.youtubeVideos && youtubeId && YOUTUBE_ID_RE.test(youtubeId) ? youtubeId : undefined;
+  const safeRutubeId = rutubeId && RUTUBE_ID_RE.test(rutubeId) ? rutubeId : undefined;
+  // YouTube thumbnails are CDN-served; Rutube requires a separate oEmbed fetch which we don't do here,
+  // so the RuStore build shows the generic placeholder for Rutube videos instead.
   const thumbUrl = safeYoutubeId ? `https://img.youtube.com/vi/${safeYoutubeId}/maxresdefault.jpg` : null;
+  const videoProvider: 'youtube' | 'rutube' | 'search' = safeYoutubeId ? 'youtube' : safeRutubeId ? 'rutube' : 'search';
   const [activeTab, setActiveTab] = useState<'steps' | 'tips'>('steps');
 
   const pulse = useRef(new Animated.Value(1)).current;
@@ -88,14 +115,16 @@ export const ExerciseVideoModal: React.FC<Props> = ({
         {/* Drag handle */}
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
-        {/* YouTube thumbnail */}
-        <TouchableOpacity activeOpacity={0.88} onPress={() => openYouTube(safeYoutubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
+        {/* Video thumbnail (YouTube on intl builds, Rutube placeholder on RuStore) */}
+        <TouchableOpacity activeOpacity={0.88} onPress={() => openVideo(safeYoutubeId, safeRutubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
           {thumbUrl ? (
             <Image source={{ uri: thumbUrl }} style={styles.thumbnail} resizeMode="cover" />
           ) : (
             <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
               <Text style={styles.placeholderIcon}>▶</Text>
-              <Text style={styles.placeholderText}>Найти в YouTube</Text>
+              <Text style={styles.placeholderText}>
+                {videoProvider === 'rutube' ? 'Открыть в Rutube' : features.youtubeVideos ? 'Найти в YouTube' : 'Найти в Rutube'}
+              </Text>
             </View>
           )}
           <View style={styles.overlay} />
@@ -108,7 +137,9 @@ export const ExerciseVideoModal: React.FC<Props> = ({
             </View>
           </Animated.View>
           <View style={styles.ytBadge}>
-            <Text style={styles.ytBadgeText}>{youtubeId ? 'YouTube' : 'Найти'}</Text>
+            <Text style={styles.ytBadgeText}>
+              {videoProvider === 'youtube' ? 'YouTube' : videoProvider === 'rutube' ? 'Rutube' : 'Поиск'}
+            </Text>
           </View>
         </TouchableOpacity>
 

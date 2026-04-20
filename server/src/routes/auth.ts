@@ -886,7 +886,9 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { phone }, include: { healthRestrictions: true } });
 
     if (!user) {
-      return res.status(404).json({ error: 'Пользователь с таким номером не найден', code: 'PHONE_NOT_FOUND' });
+      // Edge case: user deleted their account between send-otp and login-by-phone.
+      // Respond like a wrong code — don't leak that the phone was ever registered here.
+      return res.status(400).json({ error: 'Неверный или истёкший код', code: 'INVALID_OTP' });
     }
 
     if (user.isBanned) {
