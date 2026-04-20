@@ -62,6 +62,9 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
           )}
         </View>
       </View>
+      <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 6, fontSize: 10, textAlign: 'center', paddingHorizontal: spacing.md }]}>
+        Рекомендации носят информационный характер и не заменяют консультацию врача.
+      </Text>
     </View>
   );
 };

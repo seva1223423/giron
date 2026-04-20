@@ -81,12 +81,12 @@ async function checkSuspiciousLogin(userId: string, req: Request, userEmail?: st
     const isNewDevice = currentUa && lastLogin.userAgent && lastLogin.userAgent !== currentUa;
     if (isNewIp || isNewDevice) {
       logSecurityEvent('SUSPICIOUS_LOGIN', userId, req, `prev_ip=${lastLogin.ip} new_ip=${currentIp}`);
-      const alertMsg = isNewIp
-        ? `Вход с нового IP-адреса: ${currentIp}. Если это не вы — смените пароль.`
-        : `Вход с нового устройства. Если это не вы — смените пароль.`;
+      // Push goes through FCM/APNs — treat the payload as if a third party can read it.
+      // Don't embed the actual IP here; the full IP/UA is shown inside the app on the
+      // security screen (and sent by email, which is a more controlled channel).
       sendPushToUser(userId, {
         title: 'Новый вход в аккаунт',
-        body: alertMsg,
+        body: 'Обнаружен вход с нового устройства или IP-адреса. Если это не вы — откройте приложение и смените пароль.',
         data: { url: 'irongym://profile/security' },
       }).catch(() => {});
       if (userEmail && emailVerified && currentIp) {

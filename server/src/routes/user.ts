@@ -1127,6 +1127,68 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
   }
 });
 
+// ── Data export (152-ФЗ / GDPR — right to data portability) ──────────────────
+
+/**
+ * GET /user/export — full dump of the authenticated user's data as JSON.
+ *
+ * Covers the subject-access request obligation under 152-ФЗ ст. 14 (right to
+ * know what data is held) and GDPR art. 20 (portability). Excluded on purpose:
+ * passwordHash, totpSecret, totpBackupCodes, adminNote — these are internal
+ * and not "personal data of the subject" in the portability sense.
+ */
+router.get('/export', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const [
+      user, workouts, meals, bodyWeights, bodyMeasurements, chatMessages,
+      aiMemories, savedNews, subscription, cardioSessions, sleepEntries,
+      supportTickets, securityEvents, foodScanLogs,
+    ] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: USER_PROFILE_SELECT }),
+      prisma.workout.findMany({ where: { userId }, include: { exercises: { include: { sets: true } } }, orderBy: { createdAt: 'desc' } }),
+      prisma.meal.findMany({ where: { userId }, include: { items: true }, orderBy: { date: 'desc' } }),
+      prisma.bodyWeight.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.bodyMeasurement.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.chatMessage.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }),
+      prisma.aIMemory.findMany({ where: { userId } }),
+      prisma.savedNews.findMany({ where: { userId }, include: { article: true } }),
+      prisma.subscription.findUnique({ where: { userId } }),
+      prisma.cardioSession.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.sleepEntry.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.supportTicket.findMany({ where: { userId }, include: { messages: true }, orderBy: { createdAt: 'desc' } }),
+      prisma.securityEvent.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 500 }),
+      prisma.foodScanLog.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+    ]);
+
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="irongym-export-${userId}-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json({
+      exportedAt: new Date().toISOString(),
+      format: 'iron-gym/user-export/v1',
+      user,
+      workouts,
+      meals,
+      bodyWeights,
+      bodyMeasurements,
+      chatMessages,
+      aiMemories,
+      savedNews,
+      subscription,
+      cardioSessions,
+      sleepEntries,
+      supportTickets,
+      securityEvents,
+      foodScanLogs,
+    });
+  } catch (e) {
+    logger.error('GET /user/export:', e);
+    res.status(500).json({ error: 'Ошибка экспорта данных' });
+  }
+});
+
 // ── Delete account ────────────────────────────────────────────────────────────
 
 /**

@@ -5,6 +5,12 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 
+// The app is targeted at the RF market: primary payment channel is ЮKassa,
+// secondary is a generic webhook. RevenueCat (Apple/Google Play Billing bridge)
+// is intentionally unsupported — Apple/Google in-app payments from Russia are
+// not available since 2022, and keeping the branch alive was dead code plus
+// attack surface (static-secret header compare was a replay risk).
+
 const router = Router();
 
 // ─── Get subscription status ─────────────────────────────────────────────────
@@ -149,18 +155,6 @@ router.post('/cancel', authenticate, async (req: AuthRequest, res: Response) => 
 
 // ─── Webhook signature verification ──────────────────────────────────────────
 
-function verifyRevenueCatSignature(req: Request): boolean {
-  const secret = process.env.REVENUECAT_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const header = req.headers['x-revenuecat-webhook-auth'] as string | undefined;
-  if (!header) return false;
-  try {
-    return timingSafeEqual(Buffer.from(header), Buffer.from(secret));
-  } catch {
-    return false;
-  }
-}
-
 function verifyYukassaSignature(req: Request, rawBody: string): boolean {
   const secret = process.env.YUKASSA_WEBHOOK_SECRET;
   if (!secret) return false;
@@ -174,7 +168,7 @@ function verifyYukassaSignature(req: Request, rawBody: string): boolean {
   }
 }
 
-// ─── Webhook for payment providers (RevenueCat / ЮKassa) ─────────────────────
+// ─── Webhook for payment providers (ЮKassa / generic) ─────────────────────
 // This endpoint doesn't require auth — it's called by the payment provider
 router.post('/webhook', async (req: Request, res: Response) => {
   try {
@@ -183,14 +177,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     // Verify signature based on provider — ALWAYS require secret to be configured
     if (provider === 'revenuecat') {
-      if (!process.env.REVENUECAT_WEBHOOK_SECRET) {
-        logger.warn('Webhook: REVENUECAT_WEBHOOK_SECRET not configured, rejecting');
-        return res.status(500).json({ error: 'Webhook secret not configured' });
-      }
-      if (!verifyRevenueCatSignature(req)) {
-        logger.warn('Webhook: invalid RevenueCat signature');
-        return res.status(401).json({ error: 'Invalid signature' });
-      }
+      return res.status(410).json({ error: 'RevenueCat provider is no longer supported on this deployment' });
     } else if (provider === 'yukassa') {
       if (!process.env.YUKASSA_WEBHOOK_SECRET) {
         logger.warn('Webhook: YUKASSA_WEBHOOK_SECRET not configured, rejecting');
