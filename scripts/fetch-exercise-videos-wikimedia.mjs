@@ -2,19 +2,22 @@
 /**
  * Fetch exercise demo videos from Wikimedia Commons.
  *
- * Why Wikimedia:
- *  - No API key required (open, unthrottled reasonable use)
- *  - All files are CC-BY-SA / CC-BY / PD — commercial use allowed with attribution
- *  - Decent coverage of common strength movements (Wikipedia medical/fitness pages
- *    have contributed short demonstration clips)
+ * Design constraints learned from the first attempt:
+ *   - Always save manifest — even for clips that existed from a prior run —
+ *     so attribution is never lost when the script is re-run.
+ *   - De-duplicate across exercises: if query-1 for ID-A returns the same
+ *     source URL as query-0 for some earlier ID-B, skip that hit and try the
+ *     next result. Two different exercises MUST NOT share the same clip.
+ *   - Reject obvious off-topic matches by keyword: a clip whose title matches
+ *     /satellite|orbit|whale|marine|nasa|cosmonaut|cat |dog |black hole/ is
+ *     never a fitness demo.
  *
- * Coverage is lower than Pexels (~30-50% of exercises find a match), but it needs
- * zero configuration, so it's a solid zero-cost baseline.
+ * Output:
+ *   {OUT_DIR}/{id}.(webm|mp4|ogv)
+ *   {OUT_DIR}/videos-manifest.json — full metadata for every clip
+ *   {OUT_DIR}/ATTRIBUTIONS.md      — human-readable credits page
  *
- * Output: ./exercise-videos-wikimedia/{exercise-id}.webm (+ per-file attribution
- * recorded in ATTRIBUTIONS.md).
- *
- * Usage:
+ * Run:
  *   node scripts/fetch-exercise-videos-wikimedia.mjs [outputDir]
  */
 
@@ -27,6 +30,7 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const EXERCISES_FILE = path.join(REPO_ROOT, 'src', 'data', 'exercises.ts');
 const OVERRIDES_FILE = path.join(__dirname, 'search-overrides.json');
 const OUT_DIR = path.resolve(process.argv[2] ?? './exercise-videos-wikimedia');
+const MANIFEST_FILE = path.join(OUT_DIR, 'videos-manifest.json');
 const ATTRIB_FILE = path.join(OUT_DIR, 'ATTRIBUTIONS.md');
 
 const src = fs.readFileSync(EXERCISES_FILE, 'utf8');
@@ -40,14 +44,37 @@ const searchQuery = (id) => overrides[id] ?? id.replace(/-/g, ' ');
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-// Wikimedia Commons search: look for video files matching the query, up to 5 hits,
-// sorted by relevance.
-async function searchCommons(query) {
+// Off-topic keyword filter — only the most obviously-non-fitness topics, so we
+// don't accidentally reject borderline-generic titles.
+const OFF_TOPIC = /\b(orbit|satellite|spacecraft|rover|nasa|astronaut|cosmonaut|galaxy|nebula|black.?hole|comet|mars|lunar|jupiter|europa|astronomy|doggy.style|porn|nsfw|sex tape|black.?holes|baboon|kitten|cell.division|microscope|bacteria|bacterial|virus)\b/i;
+
+// Tokenize the search query for positive-match scoring.
+const STOPWORDS = new Set(['the','a','an','of','and','in','on','for','to','with','exercise','fitness','workout','bar','gym']);
+function queryTokens(q) {
+  return String(q).toLowerCase()
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
+}
+
+function titleMatchScore(title, tokens) {
+  if (!tokens.length) return 0;
+  const lower = String(title).toLowerCase();
+  let hits = 0;
+  for (const t of tokens) if (lower.includes(t)) hits++;
+  return hits / tokens.length; // 0..1
+}
+
+// Light positive filter — breaks ties when both look generic.
+const FITNESS_HINT = /\b(fitness|exercise|workout|gym|bodybuild|weightlift|crossfit|dumbbell|barbell|kettlebell|pose|yoga|stretch|squat|deadlift|bench|press|curl|row|pull|push|plank|crunch|lunge|abs|abdominal|bicep|tricep|quad|glute|hamstring|calf|lat |deltoid|pec|chest|shoulder|back |leg )\b/i;
+
+// Wikimedia Commons search.
+async function searchCommons(query, limit = 10) {
   const url = `https://commons.wikimedia.org/w/api.php?` + new URLSearchParams({
     action: 'query',
     generator: 'search',
     gsrsearch: `filetype:video ${query}`,
-    gsrlimit: '5',
+    gsrlimit: String(limit),
     gsrnamespace: '6',
     prop: 'imageinfo',
     iiprop: 'url|mime|size|extmetadata',
@@ -55,7 +82,7 @@ async function searchCommons(query) {
     origin: '*',
   });
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'iron-gym-fetch/1.0 (https://github.com/seva1223423/iron-gym)' },
+    headers: { 'User-Agent': 'iron-gym-fetch/2.0 (https://github.com/seva1223423/iron-gym)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
@@ -66,8 +93,9 @@ async function searchCommons(query) {
       const info = p.imageinfo?.[0];
       if (!info) return null;
       const meta = info.extmetadata ?? {};
+      const title = String(p.title ?? '');
       return {
-        title: p.title,
+        title,
         url: info.url,
         mime: info.mime,
         size: info.size,
@@ -80,10 +108,9 @@ async function searchCommons(query) {
       };
     })
     .filter(Boolean)
-    // Prefer webm (what Wikimedia stores natively), reasonable size (avoid 100MB+
-    // Commons Encyclopedia entries), and under 90 seconds.
-    .filter((f) => f.size < 30 * 1024 * 1024)
-    .filter((f) => !f.duration || f.duration < 90);
+    .filter((f) => f.size < 40 * 1024 * 1024)
+    .filter((f) => !f.duration || f.duration < 120)
+    .filter((f) => !OFF_TOPIC.test(f.title));
 }
 
 function stripHtml(s) {
@@ -92,7 +119,7 @@ function stripHtml(s) {
 
 async function download(url, outPath) {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'iron-gym-fetch/1.0 (https://github.com/seva1223423/iron-gym)' },
+    headers: { 'User-Agent': 'iron-gym-fetch/2.0 (https://github.com/seva1223423/iron-gym)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
@@ -101,46 +128,81 @@ async function download(url, outPath) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const attributions = [];
+
+// Load existing manifest so we can keep already-assigned URLs out of the pool
+// for later exercises in this run. Also lets us re-run cheaply.
+let manifest = {};
+if (fs.existsSync(MANIFEST_FILE)) {
+  try { manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8')); } catch {}
+}
+const usedUrls = new Set(Object.values(manifest).map((e) => e?.url).filter(Boolean));
+
 const report = { ok: 0, miss: [], fail: [] };
 
 console.log(`Fetching ${ids.length} exercises from Wikimedia Commons → ${OUT_DIR}\n`);
 
 for (const id of ids) {
   const q = searchQuery(id);
-  const existingWebm = path.join(OUT_DIR, `${id}.webm`);
-  const existingMp4 = path.join(OUT_DIR, `${id}.mp4`);
-  if ((fs.existsSync(existingWebm) && fs.statSync(existingWebm).size > 0) ||
-      (fs.existsSync(existingMp4) && fs.statSync(existingMp4).size > 0)) {
-    console.log(`✓ ${id} (exists)`);
+  const existingEntry = manifest[id];
+  const existingOnDisk = existingEntry && fs.existsSync(path.join(OUT_DIR, existingEntry.file))
+    && fs.statSync(path.join(OUT_DIR, existingEntry.file)).size > 0;
+  if (existingOnDisk) {
+    console.log(`✓ ${id} (manifested)`);
     report.ok++;
     continue;
   }
+
   process.stdout.write(`→ ${id.padEnd(30)} "${q}"  `);
   try {
-    const results = await searchCommons(q);
+    const results = await searchCommons(q, 15);
     if (results.length === 0) {
-      console.log('[no match]');
+      console.log('[no match after filters]');
       report.miss.push(id);
       continue;
     }
-    const pick = results[0];
+
+    // Rank candidates by:
+    //   (1) unused URL
+    //   (2) title-vs-query token overlap (strongest signal of real relevance)
+    //   (3) fitness-hint keyword in title
+    const tokens = queryTokens(q);
+    const ranked = results
+      .filter((r) => !usedUrls.has(r.url))
+      .map((r) => {
+        const score = titleMatchScore(r.title, tokens) * 10
+          + (FITNESS_HINT.test(r.title) ? 1 : 0);
+        return { ...r, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    // If the best remaining candidate has zero token overlap AND zero fitness
+    // hint, treat it as "no real match" rather than a garbage pick.
+    const pick = ranked[0];
+    if (!pick || pick.score === 0) {
+      console.log(pick ? '[no token overlap — skip]' : '[all used / no candidates]');
+      report.miss.push(id);
+      continue;
+    }
+
+    usedUrls.add(pick.url);
     const ext = pick.mime === 'video/webm' ? 'webm' : pick.mime === 'video/ogg' ? 'ogv' : 'mp4';
-    const outPath = path.join(OUT_DIR, `${id}.${ext}`);
+    const fileName = `${id}.${ext}`;
+    const outPath = path.join(OUT_DIR, fileName);
     const bytes = await download(pick.url, outPath);
-    attributions.push({ id, ...pick });
+    manifest[id] = { id, file: fileName, bytes, ...pick };
+    // Write manifest progressively so a crash doesn't lose the work.
+    fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
     console.log(`${ext} ${pick.width}×${pick.height} ${(bytes / 1024 / 1024).toFixed(1)} MB  [${pick.license}]`);
     report.ok++;
   } catch (e) {
     console.log(`[error: ${e.message}]`);
     report.fail.push(id);
   }
-  // Wikimedia asks for <= 200 req/min and a descriptive User-Agent. 300ms apart
-  // is generous.
   await sleep(300);
 }
 
-// ── Write attribution file ───────────────────────────────────────────────────
+// ── Write attribution markdown ────────────────────────────────────────────────
+const entries = Object.values(manifest).sort((a, b) => a.id.localeCompare(b.id));
 const attribMd = [
   '# Video attributions',
   '',
@@ -153,8 +215,8 @@ const attribMd = [
   '',
   '| Exercise | Title | Author | License | Source |',
   '|---|---|---|---|---|',
-  ...attributions.map((a) =>
-    `| ${a.id} | ${a.title.replace(/\|/g, '\\|')} | ${a.artist.replace(/\|/g, '\\|')} | ${a.license} | [link](${a.descriptionUrl}) |`
+  ...entries.map((a) =>
+    `| ${a.id} | ${a.title.replace(/\|/g, '\\|')} | ${(a.artist || '').replace(/\|/g, '\\|')} | ${a.license} | [link](${a.descriptionUrl}) |`
   ),
 ].join('\n') + '\n';
 fs.writeFileSync(ATTRIB_FILE, attribMd);
@@ -163,9 +225,6 @@ console.log('\n─── Summary ───────────────�
 console.log(`Downloaded: ${report.ok}`);
 console.log(`No match:   ${report.miss.length}${report.miss.length ? ` (${report.miss.join(', ')})` : ''}`);
 console.log(`Errors:     ${report.fail.length}${report.fail.length ? ` (${report.fail.join(', ')})` : ''}`);
-console.log(`\nFiles: ${OUT_DIR}`);
+console.log(`Unique URLs: ${usedUrls.size}`);
+console.log(`\nManifest: ${MANIFEST_FILE}`);
 console.log(`Attribution: ${ATTRIB_FILE}`);
-console.log('\nNext: for un-matched exercises, either:');
-console.log('  - edit scripts/search-overrides.json and rerun');
-console.log('  - get a PEXELS_API_KEY and run scripts/fetch-exercise-videos.mjs');
-console.log('  - shoot the rest yourself');

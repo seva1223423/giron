@@ -117,12 +117,13 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             activeOpacity={0.7}
             onPress={() => { haptic.light(); navigation.navigate('ExerciseDetail', { exerciseId: ex.id }); }}
           >
-            <Image
-              source={{ uri: thumb }}
-              style={styles.cardThumb}
-              // Tiny (20 KB) — preloading here populates the cache so the
-              // detail screen's inline video card shows the same poster instantly.
-            />
+            {thumb ? (
+              <Image source={{ uri: thumb }} style={styles.cardThumb} />
+            ) : (
+              <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
+                <Text style={styles.cardThumbPlaceholderIcon}>{ex.type === 'cardio' ? '🏃' : '💪'}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
@@ -225,4 +226,6 @@ const styles = StyleSheet.create({
   filterChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   emptyState: { alignItems: 'center', paddingVertical: spacing.huge },
   cardThumb: { width: 56, height: 56, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
+  cardThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  cardThumbPlaceholderIcon: { fontSize: 22, opacity: 0.6 },
 });
