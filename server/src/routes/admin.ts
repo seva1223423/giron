@@ -3,7 +3,7 @@ import os from 'os';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { authenticate, requireAdmin, requireStaff, AuthRequest } from '../middleware/auth';
-import { getActiveUsersCount, getTotalSeenCount, getActiveUserIds } from '../utils/activityTracker';
+import { getActiveUsersCount, getActiveUserIds } from '../utils/activityTracker';
 import { getAIMetrics } from '../utils/aiMetrics';
 import { logger } from '../utils/logger';
 import { adminStatsCache } from '../utils/memCache';

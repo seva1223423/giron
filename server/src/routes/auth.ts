@@ -1215,7 +1215,10 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       data: { token, userId: user.id, expiresAt },
     });
 
-    await sendPasswordResetEmail(email, token);
+    // Fire-and-forget: awaiting SMTP leaks registration state via response timing.
+    sendPasswordResetEmail(email, token).catch((err) => {
+      logger.warn('sendPasswordResetEmail failed:', err);
+    });
 
     res.json({ message: 'Если такой email зарегистрирован, письмо отправлено' });
   } catch (e: any) {
@@ -1351,9 +1354,11 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
     if (email.endsWith('@irongym.internal')) {
       return res.status(400).json({ error: 'Email verification не поддерживается для этого аккаунта' });
     }
+    const GENERIC_OK = { message: 'Если такой email зарегистрирован, письмо отправлено' };
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true, emailVerified: true } });
-    if (!user) return res.json({ message: 'Если такой email зарегистрирован, письмо отправлено' });
-    if (user.emailVerified) return res.json({ message: 'Email уже подтверждён' });
+    // Return the same response for missing user OR already-verified email to prevent
+    // account enumeration / verification-state probing.
+    if (!user || user.emailVerified) return res.json(GENERIC_OK);
 
     // Rate limit: max 3 per hour
     const since = new Date(Date.now() - 60 * 60 * 1000);
@@ -1362,8 +1367,10 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
       return res.status(429).json({ error: 'Слишком много запросов. Попробуйте через час.' });
     }
 
-    await sendEmailVerificationOtp(email);
-    res.json({ message: 'Код подтверждения отправлен на ' + email });
+    sendEmailVerificationOtp(email).catch((err) => {
+      logger.warn('sendEmailVerificationOtp failed:', err);
+    });
+    res.json(GENERIC_OK);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /auth/resend-verification:', e);

@@ -1,13 +1,7 @@
-import { api } from './api';
+import { api, BASE_URL } from './api';
 import { Platform } from 'react-native';
 import { ChatMessage } from '../types';
-import { useAuthStore } from '../store/useAuthStore';
-
-const BASE_URL = 'https://iron-gym-swoe.onrender.com/api';
-
-function getAuthToken(): string | null {
-  return useAuthStore.getState().token ?? null;
-}
+import { tokenStorage } from '../utils/secureStorage';
 
 export interface FoodAnalysisItem {
   name: string;
@@ -72,7 +66,7 @@ export const aiService = {
     clientDate?: string,
   ): AsyncGenerator<string> {
     const clientHour = new Date().getHours();
-    const token = getAuthToken();
+    const token = await tokenStorage.getAccessToken();
     const response = await fetch(`${BASE_URL}/ai/chat`, {
       method: 'POST',
       headers: {
