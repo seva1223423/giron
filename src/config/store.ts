@@ -19,20 +19,23 @@ export const isPlayBuild = STORE_TARGET === 'play';
 export const isAppStoreBuild = STORE_TARGET === 'appstore';
 
 /**
- * Base URL for own-hosted exercise videos and media (Yandex Object Storage or a CDN in front).
+ * Base URL for own-hosted exercise videos and media.
  * Set EXPO_PUBLIC_MEDIA_URL at build time to switch bucket/CDN without a code change.
- * Default points at the Yandex Object Storage public bucket.
  *
- * Expected layout:
- *   {base}/exercises/{exercise-id}.mp4      — main video for an exercise
- *   {base}/exercises/{exercise-id}.jpg      — poster/thumbnail
+ * Default points at seva1223423/iron-gym-media served via raw.githubusercontent.com —
+ * zero-cost, works for early traffic. Swap to Yandex Object Storage / Cloudflare R2
+ * when GitHub raw rate limiting becomes an issue.
+ *
+ * Expected layout at the base URL:
+ *   /{exercise-id}.mp4      — main video for an exercise (8s, 480p H.264, ≈ 400 KB)
+ *   /{exercise-id}.jpg      — 1-second poster frame (≈ 20 KB)
  */
 export const MEDIA_BASE_URL =
   process.env.EXPO_PUBLIC_MEDIA_URL?.replace(/\/+$/, '') ??
-  'https://storage.yandexcloud.net/iron-gym-media';
+  'https://raw.githubusercontent.com/seva1223423/iron-gym-media/main/exercises';
 
-export const exerciseVideoUrl = (id: string) => `${MEDIA_BASE_URL}/exercises/${id}.mp4`;
-export const exerciseThumbUrl = (id: string) => `${MEDIA_BASE_URL}/exercises/${id}.jpg`;
+export const exerciseVideoUrl = (id: string) => `${MEDIA_BASE_URL}/${id}.mp4`;
+export const exerciseThumbUrl = (id: string) => `${MEDIA_BASE_URL}/${id}.jpg`;
 
 /**
  * Feature flags derived from the store target.
