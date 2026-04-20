@@ -248,12 +248,29 @@ export const ExerciseVideoModal: React.FC<Props> = ({
           )}
         </ScrollView>
 
-        {/* CTA buttons */}
+        {/* CTA buttons — only show external 'open in YouTube/Rutube' when we don't have
+            our own inline video (which plays above). */}
         <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
-          <TouchableOpacity style={[styles.watchBtn]} onPress={() => openYouTube(safeYoutubeId, exerciseName)}>
-            <Text style={styles.watchBtnText}>{youtubeId ? '▶ Открыть в YouTube' : '🔍 Найти в YouTube'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.closeBtn, { borderColor: colors.border }]} onPress={onClose}>
+          {!showInlineVideo && (
+            <TouchableOpacity
+              style={[styles.watchBtn]}
+              onPress={() => openVideo(safeYoutubeId, safeRutubeId, exerciseName)}
+              accessibilityRole="button"
+              accessibilityLabel={videoProvider === 'rutube' ? 'Открыть в Rutube' : 'Открыть в YouTube'}
+            >
+              <Text style={styles.watchBtnText}>
+                {videoProvider === 'rutube'
+                  ? (rutubeId ? '▶ Открыть в Rutube' : '🔍 Найти в Rutube')
+                  : (youtubeId ? '▶ Открыть в YouTube' : '🔍 Найти в YouTube')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.closeBtn, { borderColor: colors.border }]}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Закрыть"
+          >
             <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>Закрыть</Text>
           </TouchableOpacity>
         </View>

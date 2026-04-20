@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useThemeStore } from '../../../store';
+import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { ExerciseVideoModal } from './ExerciseVideoModal';
@@ -30,39 +31,51 @@ const CARD_HEIGHT = 220;
  *
  * Two modes:
  *   1. `inlineVideoUrl` present → video auto-plays (muted, looped) right inside
- *      the card as the detail screen opens. Tap to open a fullscreen modal.
- *      If the video 404s (e.g. not yet uploaded), falls back to the YouTube/
+ *      the card as the detail screen opens. Tap opens a fullscreen modal. If
+ *      the video 404s (e.g. not yet uploaded), falls back to the YouTube/
  *      Rutube flow automatically.
- *   2. No inline video → static thumbnail + tap-to-open modal (the pre-own-video
- *      behavior).
+ *   2. No inline video → static thumbnail + tap-to-open modal.
+ *
+ * When the modal is open, the inline player below it is paused — avoids two
+ * simultaneous decoders on the same URL.
  */
 export const ExerciseVideoCard: React.FC<Props> = ({
   exerciseName, inlineVideoUrl, inlineVideoPoster, youtubeId, rutubeId,
   primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
+  const haptic = useHaptic();
   const [modalVisible, setModalVisible] = useState(false);
   const [inlineFailed, setInlineFailed] = useState(false);
 
   const effectiveYoutubeId = features.youtubeVideos ? youtubeId : undefined;
   const showInlineVideo = !!inlineVideoUrl && !inlineFailed;
 
-  // Fallback thumbnail when we don't have an inline video.
   const thumbUrl = inlineVideoPoster
     ?? (effectiveYoutubeId ? `https://img.youtube.com/vi/${effectiveYoutubeId}/hqdefault.jpg` : null);
 
-  const openFullscreen = () => setModalVisible(true);
+  const openFullscreen = () => { haptic.light(); setModalVisible(true); };
   const stepsCount = instructions?.length ?? 0;
 
   return (
     <>
       <View style={[styles.card, { borderColor: colors.border }]}>
-        <TouchableOpacity activeOpacity={0.92} onPress={openFullscreen} style={styles.media}>
+        {/* Media area — own video OR thumbnail. Outer touch opens fullscreen.
+            The inline video's own mute button sits inside and handles its
+            own taps via hitSlop; the rest of the surface bubbles up here. */}
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={openFullscreen}
+          style={styles.media}
+          accessibilityRole="button"
+          accessibilityLabel={`${exerciseName} — открыть видео в полном экране`}
+        >
           {showInlineVideo ? (
             <ExerciseInlineVideo
               videoUrl={inlineVideoUrl!}
               posterUrl={inlineVideoPoster}
               height={CARD_HEIGHT}
+              paused={modalVisible}
               onError={() => setInlineFailed(true)}
             />
           ) : thumbUrl ? (
@@ -79,15 +92,14 @@ export const ExerciseVideoCard: React.FC<Props> = ({
             {primaryMuscles.slice(0, 3).map((m) => muscleLabels[m] || m).join(' · ')}
           </Text>
 
-          {/* Top-right: expand / fullscreen button. Only for inline videos —
-              for YouTube-only exercises the whole card already opens the modal. */}
+          {/* Top-right: expand / fullscreen button — rendered only for inline video */}
           {showInlineVideo && (
             <View style={styles.expandBtn} pointerEvents="none">
               <Text style={styles.expandIcon}>⤢</Text>
             </View>
           )}
 
-          {/* Center play button — only when there's no auto-playing inline video */}
+          {/* Center play circle — shown when there's no auto-playing inline video */}
           {!showInlineVideo && (
             <View style={styles.playCircle}>
               <Text style={{ color: '#FFF', fontSize: 22, marginLeft: 3 }}>▶</Text>
@@ -117,7 +129,12 @@ export const ExerciseVideoCard: React.FC<Props> = ({
         </TouchableOpacity>
 
         {/* Bottom info row */}
-        <TouchableOpacity activeOpacity={0.8} onPress={openFullscreen} style={[styles.info, { backgroundColor: colors.surface }]}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={openFullscreen}
+          style={[styles.info, { backgroundColor: colors.surface }]}
+          accessibilityRole="button"
+        >
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]} numberOfLines={1}>
               {exerciseName} — техника выполнения
@@ -178,7 +195,7 @@ const styles = StyleSheet.create({
   },
   expandBtn: {
     position: 'absolute', top: 12, right: 12,
-    width: 32, height: 32, borderRadius: 16,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center', justifyContent: 'center',
   },
