@@ -4,6 +4,7 @@ import { useThemeStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { ExerciseVideoModal } from './ExerciseVideoModal';
+import { ExerciseInlineVideo } from './ExerciseInlineVideo';
 import { features } from '../../../config/store';
 
 interface Props {
@@ -22,73 +23,108 @@ interface Props {
   commonMistakes?: string[];
 }
 
+const CARD_HEIGHT = 220;
+
+/**
+ * Exercise demo card.
+ *
+ * Two modes:
+ *   1. `inlineVideoUrl` present → video auto-plays (muted, looped) right inside
+ *      the card as the detail screen opens. Tap to open a fullscreen modal.
+ *      If the video 404s (e.g. not yet uploaded), falls back to the YouTube/
+ *      Rutube flow automatically.
+ *   2. No inline video → static thumbnail + tap-to-open modal (the pre-own-video
+ *      behavior).
+ */
 export const ExerciseVideoCard: React.FC<Props> = ({
   exerciseName, inlineVideoUrl, inlineVideoPoster, youtubeId, rutubeId,
   primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
   const [modalVisible, setModalVisible] = useState(false);
-  // RuStore build: YouTube is unreliable in RF, so prefer Rutube if available; otherwise hide the
-  // thumbnail and show a placeholder. International builds keep YouTube-first behavior.
+  const [inlineFailed, setInlineFailed] = useState(false);
+
   const effectiveYoutubeId = features.youtubeVideos ? youtubeId : undefined;
-  // Preview thumbnail: own-hosted poster first, YouTube thumbnail otherwise.
-  const thumbUrl = inlineVideoPoster ?? (effectiveYoutubeId ? `https://img.youtube.com/vi/${effectiveYoutubeId}/hqdefault.jpg` : null);
+  const showInlineVideo = !!inlineVideoUrl && !inlineFailed;
+
+  // Fallback thumbnail when we don't have an inline video.
+  const thumbUrl = inlineVideoPoster
+    ?? (effectiveYoutubeId ? `https://img.youtube.com/vi/${effectiveYoutubeId}/hqdefault.jpg` : null);
+
+  const openFullscreen = () => setModalVisible(true);
   const stepsCount = instructions?.length ?? 0;
-  const badgeLabel = inlineVideoUrl ? '▶ Видео' : effectiveYoutubeId ? '▶ YouTube' : (rutubeId ? '▶ Rutube' : '🔍 Найти');
 
   return (
     <>
-      <TouchableOpacity
-        activeOpacity={0.88}
-        onPress={() => setModalVisible(true)}
-        style={[styles.card, { borderColor: colors.border }]}
-      >
-        {/* Thumbnail */}
-        <View style={styles.thumbnail}>
-          {thumbUrl ? (
+      <View style={[styles.card, { borderColor: colors.border }]}>
+        <TouchableOpacity activeOpacity={0.92} onPress={openFullscreen} style={styles.media}>
+          {showInlineVideo ? (
+            <ExerciseInlineVideo
+              videoUrl={inlineVideoUrl!}
+              posterUrl={inlineVideoPoster}
+              height={CARD_HEIGHT}
+              onError={() => setInlineFailed(true)}
+            />
+          ) : thumbUrl ? (
             <Image source={{ uri: thumbUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
           ) : (
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0F0F1A', alignItems: 'center', justifyContent: 'center' }]}>
+            <View style={[StyleSheet.absoluteFillObject, styles.placeholder]}>
               <Text style={{ fontSize: 36, marginBottom: 8 }}>▶</Text>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600' }}>Техника выполнения</Text>
             </View>
           )}
 
-          {/* Gradient overlay */}
-          <View style={styles.overlay} />
-
-          {/* Top: muscle label */}
+          {/* Top-left: primary muscle label */}
           <Text style={styles.muscleText}>
             {primaryMuscles.slice(0, 3).map((m) => muscleLabels[m] || m).join(' · ')}
           </Text>
 
-          {/* Center: play button */}
-          <View style={styles.playCircle}>
-            <Text style={{ color: '#FFF', fontSize: 22, marginLeft: 3 }}>▶</Text>
-          </View>
+          {/* Top-right: expand / fullscreen button. Only for inline videos —
+              for YouTube-only exercises the whole card already opens the modal. */}
+          {showInlineVideo && (
+            <View style={styles.expandBtn} pointerEvents="none">
+              <Text style={styles.expandIcon}>⤢</Text>
+            </View>
+          )}
 
-          {/* Bottom-left: steps count */}
+          {/* Center play button — only when there's no auto-playing inline video */}
+          {!showInlineVideo && (
+            <View style={styles.playCircle}>
+              <Text style={{ color: '#FFF', fontSize: 22, marginLeft: 3 }}>▶</Text>
+            </View>
+          )}
+
+          {/* Bottom-left: step count */}
           {stepsCount > 0 && (
             <View style={styles.stepsBadge}>
               <Text style={styles.stepsText}>{stepsCount} шагов</Text>
             </View>
           )}
 
-          {/* Bottom-right: video source badge */}
-          <View style={styles.ytBadge}>
-            <Text style={styles.ytText}>{badgeLabel}</Text>
-          </View>
-        </View>
+          {/* Bottom-right: live indicator or source badge */}
+          {showInlineVideo ? (
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Демо</Text>
+            </View>
+          ) : (
+            <View style={styles.ytBadge}>
+              <Text style={styles.ytText}>
+                {effectiveYoutubeId ? '▶ YouTube' : rutubeId ? '▶ Rutube' : '🔍 Найти'}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         {/* Bottom info row */}
-        <View style={[styles.info, { backgroundColor: colors.surface }]}>
+        <TouchableOpacity activeOpacity={0.8} onPress={openFullscreen} style={[styles.info, { backgroundColor: colors.surface }]}>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]} numberOfLines={1}>
               {exerciseName} — техника выполнения
             </Text>
             <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 2 }]}>
-              {inlineVideoUrl
-                ? 'Воспроизведение в приложении'
+              {showInlineVideo
+                ? 'Тап для полноэкранного режима'
                 : effectiveYoutubeId
                   ? 'Откроется в YouTube'
                   : rutubeId
@@ -98,14 +134,14 @@ export const ExerciseVideoCard: React.FC<Props> = ({
             </Text>
           </View>
           <Text style={{ fontSize: 18, color: colors.textTertiary }}>›</Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
 
       <ExerciseVideoModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         exerciseName={exerciseName}
-        inlineVideoUrl={inlineVideoUrl}
+        inlineVideoUrl={inlineFailed ? undefined : inlineVideoUrl}
         inlineVideoPoster={inlineVideoPoster}
         youtubeId={effectiveYoutubeId}
         rutubeId={rutubeId}
@@ -122,23 +158,36 @@ export const ExerciseVideoCard: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   card: { borderRadius: borderRadius.lg, borderWidth: 1, overflow: 'hidden', marginBottom: spacing.xl },
-  thumbnail: {
-    height: 200,
+  media: {
+    height: CARD_HEIGHT,
+    backgroundColor: '#0F0F1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  placeholder: {
     backgroundColor: '#0F0F1A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.30)' },
   muscleText: {
     position: 'absolute', top: 12, left: 14,
-    color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '700',
     letterSpacing: 1, textTransform: 'uppercase',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
+  expandBtn: {
+    position: 'absolute', top: 12, right: 12,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  expandIcon: { color: '#FFF', fontSize: 16, fontWeight: '700', lineHeight: 18 },
   playCircle: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#FF0000',
+    backgroundColor: '#8B5CF6',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#FF0000', shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.55, shadowRadius: 12, elevation: 8,
   },
   stepsBadge: {
@@ -148,6 +197,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   stepsText: { color: '#FFF', fontSize: 10, fontWeight: '600' },
+  liveBadge: {
+    position: 'absolute', bottom: 10, right: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 10, gap: 5,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#34C759' },
+  liveText: { color: '#FFF', fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
   ytBadge: {
     position: 'absolute', bottom: 10, right: 12,
     backgroundColor: '#FF0000',

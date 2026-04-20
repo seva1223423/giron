@@ -128,18 +128,23 @@ export const ExerciseVideoModal: React.FC<Props> = ({
         {/* Drag handle */}
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
-        {/* Video area — own-hosted inline video first, then YouTube/Rutube fallback */}
+        {/* Video area — own-hosted inline video first, then YouTube/Rutube fallback.
+            Fullscreen (modal) view starts UNmuted — the user explicitly opened it. */}
         {showInlineVideo ? (
           <View style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
             <ExerciseInlineVideo
               videoUrl={inlineVideoUrl!}
               posterUrl={inlineVideoPoster}
               height={THUMB_H}
+              startMuted={false}
               onError={() => setInlineVideoFailed(true)}
             />
             <Text style={styles.muscleLabel}>
               {primaryMuscles.slice(0, 3).map((m) => muscleLabels[m] || m).join(' · ')}
             </Text>
+            <TouchableOpacity style={styles.videoCloseBtn} onPress={onClose} activeOpacity={0.8}>
+              <Text style={styles.videoCloseIcon}>✕</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity activeOpacity={0.88} onPress={() => openVideo(safeYoutubeId, safeRutubeId, exerciseName)} style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
@@ -291,4 +296,11 @@ const styles = StyleSheet.create({
   watchBtn: { backgroundColor: '#FF0000', borderRadius: borderRadius.md, paddingVertical: 14, alignItems: 'center' },
   watchBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   closeBtn: { borderRadius: borderRadius.md, paddingVertical: 12, alignItems: 'center', borderWidth: 1 },
+  videoCloseBtn: {
+    position: 'absolute', top: 12, right: 12,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  videoCloseIcon: { color: '#FFF', fontSize: 18, fontWeight: '700', lineHeight: 20 },
 });

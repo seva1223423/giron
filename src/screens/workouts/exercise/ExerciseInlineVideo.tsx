@@ -1,17 +1,19 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useThemeStore } from '../../../store';
-import { typography } from '../../../theme';
-import { spacing } from '../../../theme/spacing';
 
 interface Props {
   /** Direct .mp4 / HLS URL served from our own CDN (set via EXPO_PUBLIC_MEDIA_URL). */
   videoUrl: string;
-  /** Optional poster image shown before the video loads. */
+  /** Optional poster image shown before the video starts playing. */
   posterUrl?: string;
   /** Height in px (16:9 aspect is handled by the caller). */
   height: number;
+  /** Start muted (default true — autoplay only works muted on most platforms). */
+  startMuted?: boolean;
+  /** Hide the mute toggle (useful for secondary cards). */
+  hideMuteButton?: boolean;
   /** Fallback to render on player error (e.g. video missing). */
   onError?: () => void;
 }
@@ -19,36 +21,55 @@ interface Props {
 /**
  * Inline native video player for exercise demonstration videos.
  *
- * Uses expo-video (Expo SDK 54+). Autoplays when mounted, loops so a short
- * demo plays continuously, and respects system mute unless the user taps to
- * unmute by tapping the video.
+ * Behavior:
+ *   - Autoplays on mount (muted, looped).
+ *   - Shows poster JPG overlay until the first frame actually renders — makes
+ *     the card look "instant" even on slow connections where the MP4 takes
+ *     200-400 ms to buffer.
+ *   - Tap anywhere on the video toggles mute. Small mute-state badge in the
+ *     bottom-left so the user knows what state the sound is in.
+ *   - Surfaces load errors via onError so the parent card can fall back to a
+ *     YouTube/Rutube link.
  *
- * Videos are hosted on our own infrastructure (Yandex Object Storage — RF
- * jurisdiction, no dependency on YouTube/Rutube availability). That makes the
- * same build work identically in RuStore, Google Play and App Store.
+ * Uses expo-video (Expo SDK 54+). Works identically on iOS and Android.
  */
-export const ExerciseInlineVideo: React.FC<Props> = ({ videoUrl, posterUrl, height, onError }) => {
+export const ExerciseInlineVideo: React.FC<Props> = ({
+  videoUrl, posterUrl, height, startMuted = true, hideMuteButton = false, onError,
+}) => {
   const { colors } = useThemeStore();
+  const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
+  const [muted, setMuted] = useState(startMuted);
 
   const player = useVideoPlayer(videoUrl, (p) => {
     p.loop = true;
-    p.muted = true;
+    p.muted = startMuted;
     p.play();
   });
 
-  // expo-video surfaces errors via the `statusChange` event; we subscribe and
-  // bubble a single callback so the parent can swap to a YouTube/Rutube link.
+  // Track player state. statusChange → 'readyToPlay' / 'error'. We use 'playingChange'
+  // to know when real frames are being rendered so we can hide the poster overlay.
   useEffect(() => {
-    const sub = player.addListener('statusChange', (e) => {
+    const statusSub = player.addListener('statusChange', (e) => {
       if (e.status === 'error') onError?.();
     });
-    return () => sub.remove();
+    const playingSub = player.addListener('playingChange', (e) => {
+      if (e.isPlaying) setHasStartedPlayback(true);
+    });
+    return () => { statusSub.remove(); playingSub.remove(); };
   }, [player, onError]);
 
-  const toggleMute = () => { player.muted = !player.muted; };
+  const toggleMute = () => {
+    const next = !player.muted;
+    player.muted = next;
+    setMuted(next);
+  };
 
   return (
-    <View style={[styles.wrapper, { height, backgroundColor: colors.background }]}>
+    <TouchableOpacity
+      activeOpacity={0.95}
+      onPress={toggleMute}
+      style={[styles.wrapper, { height, backgroundColor: colors.background }]}
+    >
       <VideoView
         player={player}
         style={StyleSheet.absoluteFillObject}
@@ -56,30 +77,32 @@ export const ExerciseInlineVideo: React.FC<Props> = ({ videoUrl, posterUrl, heig
         nativeControls={false}
         allowsPictureInPicture={false}
       />
-      <TouchableOpacity style={styles.muteBadge} onPress={toggleMute} activeOpacity={0.8}>
-        <Text style={styles.muteIcon}>{player.muted ? '🔇' : '🔊'}</Text>
-      </TouchableOpacity>
-      {!player.playing && (
-        <View style={styles.loader} pointerEvents="none">
-          <ActivityIndicator color="#fff" size="small" />
+
+      {/* Poster overlay — fades away the moment the player starts rendering frames */}
+      {!hasStartedPlayback && posterUrl && (
+        <Image
+          source={{ uri: posterUrl }}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode="cover"
+        />
+      )}
+
+      {!hideMuteButton && (
+        <View style={styles.muteBadge} pointerEvents="none">
+          <Text style={styles.muteIcon}>{muted ? '🔇' : '🔊'}</Text>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   wrapper: { width: '100%', overflow: 'hidden' },
   muteBadge: {
-    position: 'absolute', bottom: 10, right: 12,
+    position: 'absolute', bottom: 10, left: 12,
     backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 10,
   },
-  muteIcon: { fontSize: 14 },
-  loader: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
+  muteIcon: { fontSize: 13 },
 });
