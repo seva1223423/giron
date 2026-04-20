@@ -83,7 +83,6 @@ function resetMocks() {
   (mp.subscription.updateMany as jest.Mock).mockResolvedValue({});
 }
 
-const RC_SECRET = 'rc-test-secret'; // matches setup.ts
 const YK_SECRET = 'yukassa-test-secret';
 const GENERIC_SECRET = 'generic-test-secret';
 
@@ -91,145 +90,29 @@ function yukassaSignature(body: string): string {
   return createHmac('sha256', YK_SECRET).update(body).digest('hex');
 }
 
-// ─── RevenueCat Webhook ────────────────────────────────────────────────────────
+// ─── RevenueCat removed ────────────────────────────────────────────────────────
+// RevenueCat (Apple/Google Play Billing bridge) was removed because Apple/Google
+// in-app payments from Russia are unavailable since 2022 and the static-secret
+// header compare was a replay risk. Incoming webhooks with provider='revenuecat'
+// are now rejected with 410 Gone so any stale client is visible in logs.
 
-describe('POST /api/subscription/webhook — RevenueCat', () => {
+describe('POST /api/subscription/webhook — RevenueCat removed', () => {
   beforeEach(resetMocks);
 
-  const basePayload = {
-    provider: 'revenuecat',
-    event: 'subscription_activated',
-    userId: 'user-rc-1',
-    plan: 'pro',
-    durationDays: 30,
-    transactionId: 'rc-txn-001',
-  };
-
-  it('activates subscription with valid RevenueCat signature', async () => {
-    (mp.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-rc-1' });
-
+  it('returns 410 Gone for legacy RevenueCat provider', async () => {
     const res = await request(app)
       .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', RC_SECRET)
-      .send(basePayload);
+      .send({
+        provider: 'revenuecat',
+        event: 'subscription_activated',
+        userId: 'user-rc-1',
+        plan: 'pro',
+        durationDays: 30,
+      });
 
-    expect(res.status).toBe(200);
-    expect(res.body.received).toBe(true);
-    expect(mp.subscription.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: 'user-rc-1' },
-        create: expect.objectContaining({ plan: 'pro', status: 'active' }),
-        update: expect.objectContaining({ plan: 'pro', status: 'active' }),
-      })
-    );
-  });
-
-  it('returns 401 for missing RevenueCat signature header', async () => {
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .send(basePayload);
-
-    expect(res.status).toBe(401);
-    expect(res.body.error).toMatch(/Invalid signature/i);
-  });
-
-  it('returns 401 for wrong RevenueCat signature', async () => {
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', 'wrong-secret')
-      .send(basePayload);
-
-    expect(res.status).toBe(401);
-  });
-
-  it('returns 404 for unknown userId', async () => {
-    (mp.user.findUnique as jest.Mock).mockResolvedValue(null);
-
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', RC_SECRET)
-      .send(basePayload);
-
-    expect(res.status).toBe(404);
-    expect(res.body.error).toMatch(/Пользователь не найден/);
+    expect(res.status).toBe(410);
     expect(mp.subscription.upsert).not.toHaveBeenCalled();
-  });
-
-  it('cancels subscription on subscription_cancelled event', async () => {
-    (mp.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-rc-1' });
-
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', RC_SECRET)
-      .send({ ...basePayload, event: 'subscription_cancelled' });
-
-    expect(res.status).toBe(200);
-    expect(mp.subscription.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ userId: 'user-rc-1', status: 'active' }),
-        data: { status: 'cancelled' },
-      })
-    );
-  });
-
-  it('expires subscription on subscription_expired event', async () => {
-    (mp.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-rc-1' });
-
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', RC_SECRET)
-      .send({ ...basePayload, event: 'subscription_expired' });
-
-    expect(res.status).toBe(200);
-    expect(mp.subscription.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ userId: 'user-rc-1' }),
-        data: { status: 'expired' },
-      })
-    );
-  });
-
-  it('normalizes unknown plan names to "pro"', async () => {
-    (mp.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-rc-1' });
-
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', RC_SECRET)
-      .send({ ...basePayload, plan: 'enterprise' }); // unknown plan
-
-    expect(res.status).toBe(200);
-    expect(mp.subscription.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ plan: 'pro' }), // falls back to 'pro'
-      })
-    );
-  });
-
-  it('clamps durationDays to max 3650', async () => {
-    (mp.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-rc-1' });
-
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', RC_SECRET)
-      .send({ ...basePayload, durationDays: 99999 }); // attacker-supplied value
-
-    expect(res.status).toBe(200);
-    // The endDate should be ~3650 days from now (not 99999)
-    const upsertCall = (mp.subscription.upsert as jest.Mock).mock.calls[0][0];
-    const startDate: Date = upsertCall.create.startDate;
-    const endDate: Date = upsertCall.create.endDate;
-    const days = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    expect(days).toBeLessThanOrEqual(3650);
-  });
-
-  it('returns 400 for missing userId', async () => {
-    const res = await request(app)
-      .post('/api/subscription/webhook')
-      .set('x-revenuecat-webhook-auth', RC_SECRET)
-      .send({ provider: 'revenuecat', event: 'subscription_activated', plan: 'pro', durationDays: 30 });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/userId обязателен/);
+    expect(mp.subscription.updateMany).not.toHaveBeenCalled();
   });
 });
 
