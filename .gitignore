@@ -45,3 +45,5 @@ Thumbs.db
 server/prisma/migrations/dev.db
 android-keystore.jks
 credentials.json
+.ffmpeg_path
+render_log.txt
