@@ -93,7 +93,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
         set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: entry } }));
         const updated = { ...get().weekPlan, [dow]: entry };
         userService.saveWeekPlan(updated).catch(() => {
-          // Rollback only the changed day — restoring a snapshot would erase concurrent changes
+          // Rollback only if the slot still holds *our* optimistic value. A newer
+          // edit may have replaced it while we were in flight — don't clobber that.
+          if (get().weekPlan[dow] !== entry) return;
           set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: prevEntry } }));
         });
       },
@@ -159,17 +161,20 @@ export const useWorkoutStore = create<WorkoutStore>()(
             return p;
           }),
         }));
-        // Persist to server; revert only affected programs on failure
+        const optimistic = get().programs.find((p) => p.id === id);
+        // Persist to server; revert only affected programs on failure, and only if a
+        // concurrent update hasn't already replaced our optimistic value.
         workoutService.updateProgram(id, data as any).catch((err) => {
-          if (err?.response?.status !== 404 && prevProgram) {
-            set((s) => ({
-              programs: s.programs.map((p) => {
-                if (p.id === id) return prevProgram;
-                if (data.isActive === true && p.id === prevActiveId) return { ...p, isActive: true };
-                return p;
-              }),
-            }));
-          }
+          if (err?.response?.status === 404 || !prevProgram) return;
+          const current = get().programs.find((p) => p.id === id);
+          if (current !== optimistic) return; // newer update — leave it alone
+          set((s) => ({
+            programs: s.programs.map((p) => {
+              if (p.id === id) return prevProgram;
+              if (data.isActive === true && p.id === prevActiveId) return { ...p, isActive: true };
+              return p;
+            }),
+          }));
         });
       },
       deleteProgram: async (id) => {
