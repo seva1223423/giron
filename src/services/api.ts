@@ -3,8 +3,9 @@ import { Platform } from 'react-native';
 import { setOnlineStatus } from '../store/useConnectionStore';
 import { tokenStorage } from '../utils/secureStorage';
 
-// Production server on Render (works from any device/network)
-const BASE_URL = 'https://iron-gym-swoe.onrender.com/api';
+// Production server on Render (works from any device/network).
+// Override via EXPO_PUBLIC_API_URL for staging/local dev.
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://iron-gym-swoe.onrender.com/api';
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -73,7 +74,7 @@ api.interceptors.response.use(
         const refreshToken = await tokenStorage.getRefreshToken();
         if (!refreshToken) throw new Error('No refresh token');
 
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken }, { timeout: 15000 });
 
         // Persist new tokens in SecureStore
         await tokenStorage.setTokens(data.token, data.refreshToken);

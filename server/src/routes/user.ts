@@ -59,6 +59,24 @@ const router = Router();
 
 const MAX_OTP_ATTEMPTS = 5;
 
+// Explicit select to keep password hash, TOTP secret, backup codes, admin note,
+// ban reason, loginAttempts, lockedUntil out of /profile responses.
+const USER_PROFILE_SELECT = {
+  id: true, email: true, phone: true,
+  emailVerified: true, phoneVerified: true,
+  firstName: true, lastName: true,
+  dateOfBirth: true, gender: true,
+  heightCm: true, weightKg: true, goal: true,
+  fitnessLevel: true, trainingExperienceYears: true, avatarUrl: true,
+  role: true, gymId: true, weekPlan: true,
+  targetCalories: true, targetProtein: true, targetFats: true, targetCarbs: true, targetWaterMl: true,
+  totpEnabled: true,
+  isBanned: true, bannedAt: true,
+  createdAt: true, updatedAt: true,
+  googleId: true, vkId: true, yandexId: true,
+  healthRestrictions: true,
+} as const;
+
 const strongPassword = z
   .string()
   .min(8, 'Пароль минимум 8 символов')
@@ -76,11 +94,11 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      include: { healthRestrictions: true },
+      select: USER_PROFILE_SELECT,
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, adminNote, banReason, loginAttempts, lockedUntil, ...safeProfile } = user as any;
+    const { googleId, vkId, yandexId, ...safeProfile } = user;
     res.json({
       ...safeProfile,
       hasGoogle: !!googleId,
@@ -133,11 +151,11 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
     const user = await prisma.user.update({
       where: { id: req.userId },
       data,
-      include: { healthRestrictions: true },
+      select: USER_PROFILE_SELECT,
     });
 
-    const { passwordHash, googleId, vkId: _vk, yandexId, totpSecret, totpBackupCodes, adminNote: _an, banReason: _br, loginAttempts: _la, lockedUntil: _lu, ...safeProfile } = user as any;
-    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!_vk, hasYandex: !!yandexId });
+    const { googleId, vkId, yandexId, ...safeProfile } = user;
+    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId });
   } catch (e: any) {
     if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error(e);
