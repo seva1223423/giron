@@ -1,0 +1,119 @@
+{
+  "_comment": "Procedural keyframes for Blender-rendered exercise demos. Times are in seconds from the start of the clip; rotations in degrees around local axes of each body part after rest-pose setup. Add an entry per exercise; the file is read by render_exercise.py. A 3-second clip with 2 reps works well for most compound lifts.",
+
+  "squat": {
+    "duration": 3.0,
+    "keyframes": [
+      { "t": 0.0, "parts": {
+        "Root":     { "loc_z": 0 },
+        "Torso":    { "rot_x": 0 },
+        "Thigh_R":  { "rot_x": 0 }, "Thigh_L": { "rot_x": 0 },
+        "Shin_R":   { "rot_x": 0 }, "Shin_L":  { "rot_x": 0 },
+        "UpperArm_R": { "rot_x": -15 }, "UpperArm_L": { "rot_x": -15 },
+        "Forearm_R":  { "rot_x": 0 },   "Forearm_L":  { "rot_x": 0 }
+      }},
+      { "t": 0.75, "parts": {
+        "Root":     { "loc_z": -0.32 },
+        "Torso":    { "rot_x": 25 },
+        "Thigh_R":  { "rot_x": 75 }, "Thigh_L": { "rot_x": 75 },
+        "Shin_R":   { "rot_x": -80 }, "Shin_L":  { "rot_x": -80 },
+        "UpperArm_R": { "rot_x": 90 }, "UpperArm_L": { "rot_x": 90 },
+        "Forearm_R":  { "rot_x": 0 },   "Forearm_L":  { "rot_x": 0 }
+      }},
+      { "t": 1.5, "parts": {
+        "Root":     { "loc_z": 0 },
+        "Torso":    { "rot_x": 0 },
+        "Thigh_R":  { "rot_x": 0 }, "Thigh_L": { "rot_x": 0 },
+        "Shin_R":   { "rot_x": 0 }, "Shin_L":  { "rot_x": 0 },
+        "UpperArm_R": { "rot_x": -15 }, "UpperArm_L": { "rot_x": -15 },
+        "Forearm_R":  { "rot_x": 0 },   "Forearm_L":  { "rot_x": 0 }
+      }},
+      { "t": 2.25, "parts": {
+        "Root":     { "loc_z": -0.32 },
+        "Torso":    { "rot_x": 25 },
+        "Thigh_R":  { "rot_x": 75 }, "Thigh_L": { "rot_x": 75 },
+        "Shin_R":   { "rot_x": -80 }, "Shin_L":  { "rot_x": -80 },
+        "UpperArm_R": { "rot_x": 90 }, "UpperArm_L": { "rot_x": 90 }
+      }},
+      { "t": 3.0, "parts": {
+        "Root":     { "loc_z": 0 },
+        "Torso":    { "rot_x": 0 },
+        "Thigh_R":  { "rot_x": 0 }, "Thigh_L": { "rot_x": 0 },
+        "Shin_R":   { "rot_x": 0 }, "Shin_L":  { "rot_x": 0 },
+        "UpperArm_R": { "rot_x": -15 }, "UpperArm_L": { "rot_x": -15 }
+      }}
+    ]
+  },
+
+  "push-ups": {
+    "duration": 3.0,
+    "keyframes": [
+      { "t": 0.0, "parts": {
+        "Root":       { "loc_z": -0.6, "loc_y": 0.3 },
+        "Torso":      { "rot_x": 80 },
+        "Thigh_R":    { "rot_x": -80 }, "Thigh_L": { "rot_x": -80 },
+        "Shin_R":     { "rot_x": 0 },   "Shin_L":  { "rot_x": 0 },
+        "UpperArm_R": { "rot_x": 180, "rot_y": 15 }, "UpperArm_L": { "rot_x": 180, "rot_y": -15 },
+        "Forearm_R":  { "rot_x": 0 },   "Forearm_L":  { "rot_x": 0 }
+      }},
+      { "t": 0.75, "parts": {
+        "Root":       { "loc_z": -0.78, "loc_y": 0.3 },
+        "UpperArm_R": { "rot_x": 180, "rot_y": 15 }, "UpperArm_L": { "rot_x": 180, "rot_y": -15 },
+        "Forearm_R":  { "rot_x": 85 },   "Forearm_L":  { "rot_x": 85 }
+      }},
+      { "t": 1.5, "parts": {
+        "Root":       { "loc_z": -0.6, "loc_y": 0.3 },
+        "UpperArm_R": { "rot_x": 180, "rot_y": 15 }, "UpperArm_L": { "rot_x": 180, "rot_y": -15 },
+        "Forearm_R":  { "rot_x": 0 },   "Forearm_L":  { "rot_x": 0 }
+      }},
+      { "t": 2.25, "parts": {
+        "Root":       { "loc_z": -0.78, "loc_y": 0.3 },
+        "Forearm_R":  { "rot_x": 85 },   "Forearm_L":  { "rot_x": 85 }
+      }},
+      { "t": 3.0, "parts": {
+        "Root":       { "loc_z": -0.6, "loc_y": 0.3 },
+        "Forearm_R":  { "rot_x": 0 },   "Forearm_L":  { "rot_x": 0 }
+      }}
+    ]
+  },
+
+  "deadlift": {
+    "duration": 3.0,
+    "keyframes": [
+      { "t": 0.0, "parts": {
+        "Root":       { "loc_z": 0 },
+        "Torso":      { "rot_x": 0 },
+        "Thigh_R":    { "rot_x": 0 }, "Thigh_L":    { "rot_x": 0 },
+        "Shin_R":     { "rot_x": 0 }, "Shin_L":     { "rot_x": 0 },
+        "UpperArm_R": { "rot_x": 0 }, "UpperArm_L": { "rot_x": 0 }
+      }},
+      { "t": 0.75, "parts": {
+        "Root":       { "loc_z": -0.2 },
+        "Torso":      { "rot_x": 70 },
+        "Thigh_R":    { "rot_x": 35 }, "Thigh_L":    { "rot_x": 35 },
+        "Shin_R":     { "rot_x": -20 }, "Shin_L":    { "rot_x": -20 },
+        "UpperArm_R": { "rot_x": 15 }, "UpperArm_L": { "rot_x": 15 }
+      }},
+      { "t": 1.5, "parts": {
+        "Root":       { "loc_z": 0 },
+        "Torso":      { "rot_x": 0 },
+        "Thigh_R":    { "rot_x": 0 }, "Thigh_L":    { "rot_x": 0 },
+        "Shin_R":     { "rot_x": 0 }, "Shin_L":     { "rot_x": 0 },
+        "UpperArm_R": { "rot_x": 0 }, "UpperArm_L": { "rot_x": 0 }
+      }},
+      { "t": 2.25, "parts": {
+        "Root":       { "loc_z": -0.2 },
+        "Torso":      { "rot_x": 70 },
+        "Thigh_R":    { "rot_x": 35 }, "Thigh_L":    { "rot_x": 35 },
+        "Shin_R":     { "rot_x": -20 }, "Shin_L":    { "rot_x": -20 },
+        "UpperArm_R": { "rot_x": 15 }, "UpperArm_L": { "rot_x": 15 }
+      }},
+      { "t": 3.0, "parts": {
+        "Root":       { "loc_z": 0 },
+        "Torso":      { "rot_x": 0 },
+        "Thigh_R":    { "rot_x": 0 }, "Thigh_L":    { "rot_x": 0 },
+        "UpperArm_R": { "rot_x": 0 }, "UpperArm_L": { "rot_x": 0 }
+      }}
+    ]
+  }
+}
