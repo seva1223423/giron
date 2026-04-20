@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform,
-  ScrollView, ActivityIndicator, TextInput,
+  ScrollView, ActivityIndicator, TextInput, Linking,
 } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
@@ -385,6 +385,17 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           disabled={anyLoading}
           fullWidth size="lg" style={{ marginTop: spacing.xxl }}
         />
+
+        <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.md, paddingHorizontal: spacing.md, lineHeight: 18 }]}>
+          Нажимая «Зарегистрироваться», вы подтверждаете согласие на{' '}
+          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/privacy.html')}>
+            обработку персональных данных
+          </Text>
+          {' '}в соответствии с 152-ФЗ и принимаете{' '}
+          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/terms.html')}>
+            условия использования
+          </Text>.
+        </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xxl }}>
           <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
