@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { Card, Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
+import { exerciseThumbUrl } from '../../../config/store';
 
 interface DayExercise {
   exerciseId: string;
@@ -49,12 +50,17 @@ export const ProgramDayCard: React.FC<Props> = ({ day, dayIndex, goalColor, isEx
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           {day.exercises.map((item, exIndex) => {
             const ex = localExercises.find((e) => e.id === item.exerciseId);
+            const thumb = exerciseThumbUrl(item.exerciseId);
             return (
               <View key={exIndex} style={[styles.exRow, exIndex < day.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-                <View style={[styles.exNumber, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
-                  <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{exIndex + 1}</Text>
-                </View>
-                <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{ex?.name || item.exerciseId}</Text>
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={styles.exThumb} />
+                ) : (
+                  <View style={[styles.exNumber, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                    <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{exIndex + 1}</Text>
+                  </View>
+                )}
+                <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex?.name || item.exerciseId}</Text>
                 <Text style={[typography.captionMedium, { color: colors.primary }]}>{item.sets}×{item.reps}</Text>
               </View>
             );
@@ -71,5 +77,6 @@ const styles = StyleSheet.create({
   badge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   divider: { height: 1, marginVertical: spacing.md },
   exRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.sm },
-  exNumber: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  exNumber: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  exThumb: { width: 40, height: 40, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
 });
