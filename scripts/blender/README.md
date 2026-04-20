@@ -20,7 +20,24 @@ BLENDER="/c/Program Files/Blender Foundation/Blender 4.5/blender.exe"
   --output-dir ./exercise-videos-rendered --skip-existing
 ```
 
-Первый запуск одного упражнения занимает ~3 минуты (72 фрейма × ~2.4 сек EEVEE sample). Батч из 71 упражнения — порядка 3–3.5 часов. На GPU-рендере в 3–5 раз быстрее.
+Первый запуск одного упражнения занимает ~2 минуты c Mixamo-моделью (72 фрейма × ~1.4 сек EEVEE sample) или ~3 минуты с капсульным стик-фигуром. Батч из 71 упражнения — порядка 2–3.5 часов. На GPU-рендере в 3–5 раз быстрее.
+
+## Два варианта рендерера
+
+Есть два рендера, оба читают один и тот же `exercise-animations.json`:
+
+| Скрипт | Персонаж | Качество | Зависимости |
+|---|---|---|---|
+| `render_exercise.py` | Капсульный stick-figure (процедурно из примитивов) | Схематичное | только Blender |
+| `render_exercise_mixamo.py` | Mixamo Xbot (полноценный skinned humanoid с текстурами) | Реалистичное | нужен `assets/3d/xbot.glb` |
+
+**Рекомендация — использовать mixamo-рендерер**. Первый раз скачайте модель:
+```bash
+bash scripts/blender/fetch-character.sh
+```
+(2.9 МБ, Xbot из three.js examples, mixamorig-скелет, бесплатная для коммерческого использования под Mixamo EULA).
+
+Батч по умолчанию тоже использует mixamo-рендерер — опция `--renderer capsule` переключает на процедурный.
 
 ## Формат анимаций (`exercise-animations.json`)
 

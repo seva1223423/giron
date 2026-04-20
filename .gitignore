@@ -10,6 +10,11 @@ exercise-videos-rendered/
 exercise-videos-wikimedia/
 exercise-videos-test/
 
+# 3D character model — downloaded on demand by scripts/blender/fetch-character.sh
+# (Xbot from threejs.org/examples; Mixamo EULA applies when rendering).
+assets/3d/*.glb
+assets/3d/*.fbx
+
 # Environment variables — NEVER commit these
 .env
 server/.env
