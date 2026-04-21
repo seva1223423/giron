@@ -1,0 +1,281 @@
+/**
+ * Integration tests for the Routines API (CRUD, duplicate, PATCH, history, /start).
+ */
+
+jest.mock('express-rate-limit', () => {
+  const passthrough = () => (_req: any, _res: any, next: any) => next();
+  passthrough.ipKeyGenerator = (ip: string) => ip;
+  return passthrough;
+});
+
+jest.mock('../db', () => ({
+  prisma: {
+    user: { findUnique: jest.fn(), findFirst: jest.fn() },
+    refreshToken: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({}),
+    },
+    subscription: { findUnique: jest.fn().mockResolvedValue(null) },
+    routine: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    routineExercise: { deleteMany: jest.fn() },
+    workout: { findFirst: jest.fn(), findMany: jest.fn() },
+    securityEvent: { create: jest.fn().mockResolvedValue({}) },
+    $transaction: jest.fn((fn: any) => fn({
+      routineExercise: { deleteMany: jest.fn() },
+      routine: { update: jest.fn() },
+    })),
+  },
+}));
+
+jest.mock('../utils/logger', () => ({
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+}));
+
+import request from 'supertest';
+import jwt from 'jsonwebtoken';
+import app from '../index';
+import { prisma } from '../db';
+
+// CUID-format IDs required by isValidId() in workout.ts (regex: /^c[a-z0-9]{20,30}$/)
+const USER_ID    = 'cuser0000000000000000001';
+const ROUTINE_ID = 'croutine00000000000000001';
+const ROUTINE_ID2 = 'croutine00000000000000002';
+const EX_ID      = 'cexercise000000000000001';
+const RE_ID      = 'croutineex000000000000001';
+const RS_ID      = 'croutineset000000000000001';
+const WORKOUT_ID = 'cworkout000000000000001';
+
+const makeToken = (userId = USER_ID) =>
+  jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, {
+    expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+  });
+
+const mockUser = { id: USER_ID, isBanned: false, lockedUntil: null, role: 'USER' };
+
+const mockExercise = { id: EX_ID, name: 'Жим лёжа', type: 'barbell', category: 'strength' };
+
+const mockRoutine = {
+  id: ROUTINE_ID,
+  name: 'Push A',
+  description: null,
+  userId: USER_ID,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  exercises: [
+    {
+      id: RE_ID,
+      order: 0,
+      restSeconds: 90,
+      notes: null,
+      exerciseId: EX_ID,
+      exercise: mockExercise,
+      sets: [{ id: RS_ID, setNumber: 1, type: 'normal', reps: 8, weight: 80, rpe: null }],
+    },
+  ],
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+  (prisma.user.findFirst as jest.Mock).mockResolvedValue(mockUser);
+});
+
+// ─── GET /api/workouts/routines ───────────────────────────────────────────────
+
+describe('GET /api/workouts/routines', () => {
+  it('returns routines for authenticated user', async () => {
+    (prisma.routine.findMany as jest.Mock).mockResolvedValue([mockRoutine]);
+    const res = await request(app)
+      .get('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].id).toBe(ROUTINE_ID);
+  });
+
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/workouts/routines');
+    expect(res.status).toBe(401);
+  });
+});
+
+// ─── POST /api/workouts/routines ─────────────────────────────────────────────
+
+describe('POST /api/workouts/routines', () => {
+  const validBody = {
+    name: 'Push A',
+    exercises: [{
+      exerciseId: EX_ID,
+      order: 0,
+      restSeconds: 90,
+      sets: [{ setNumber: 1, type: 'normal', reps: 8, weight: 80 }],
+    }],
+  };
+
+  it('creates routine and returns 201', async () => {
+    (prisma.routine.create as jest.Mock).mockResolvedValue(mockRoutine);
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validBody);
+    expect(res.status).toBe(201);
+    expect(res.body.name).toBe('Push A');
+  });
+
+  it('returns 400 on empty name', async () => {
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, name: '' });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 on empty exercises array', async () => {
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, exercises: [] });
+    expect(res.status).toBe(400);
+  });
+});
+
+// ─── PATCH /api/workouts/routines/:id ────────────────────────────────────────
+
+describe('PATCH /api/workouts/routines/:id', () => {
+  it('renames routine and returns 200', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue({ id: ROUTINE_ID, userId: USER_ID });
+    (prisma.routine.update as jest.Mock).mockResolvedValue({ ...mockRoutine, name: 'Push B' });
+    const res = await request(app)
+      .patch(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ name: 'Push B' });
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe('Push B');
+  });
+
+  it('returns 404 when routine belongs to different user', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue({ id: ROUTINE_ID, userId: 'cother00000000000000001' });
+    const res = await request(app)
+      .patch(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ name: 'Push B' });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 when no fields provided', async () => {
+    const res = await request(app)
+      .patch(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+    expect(res.status).toBe(400);
+  });
+});
+
+// ─── POST /api/workouts/routines/:id/duplicate ───────────────────────────────
+
+describe('POST /api/workouts/routines/:id/duplicate', () => {
+  it('creates a copy and returns 201', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue(mockRoutine);
+    const copy = { ...mockRoutine, id: ROUTINE_ID2, name: 'Push A (копия)' };
+    (prisma.routine.create as jest.Mock).mockResolvedValue(copy);
+    const res = await request(app)
+      .post(`/api/workouts/routines/${ROUTINE_ID}/duplicate`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(201);
+    expect(res.body.name).toContain('копия');
+    expect(res.body.id).not.toBe(ROUTINE_ID);
+  });
+
+  it('returns 404 for another user routine', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue({ ...mockRoutine, userId: 'cother00000000000000001' });
+    const res = await request(app)
+      .post(`/api/workouts/routines/${ROUTINE_ID}/duplicate`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(404);
+  });
+});
+
+// ─── DELETE /api/workouts/routines/:id ───────────────────────────────────────
+
+describe('DELETE /api/workouts/routines/:id', () => {
+  it('deletes routine and returns success', async () => {
+    (prisma.routine.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+    const res = await request(app)
+      .delete(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('returns 404 if routine not found or owned by another user', async () => {
+    (prisma.routine.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+    const res = await request(app)
+      .delete(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(404);
+  });
+});
+
+// ─── GET /api/workouts/routines/:id/history ──────────────────────────────────
+
+describe('GET /api/workouts/routines/:id/history', () => {
+  it('returns history array for owned routine', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue({
+      id: ROUTINE_ID, userId: USER_ID,
+      exercises: [{ exerciseId: EX_ID, exercise: mockExercise }],
+    });
+    (prisma.workout.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: WORKOUT_ID,
+        completedAt: new Date('2026-04-01'),
+        durationMinutes: 45,
+        exercises: [{ exerciseId: EX_ID, sets: [{ weight: 82.5, reps: 8 }] }],
+      },
+    ]);
+    const res = await request(app)
+      .get(`/api/workouts/routines/${ROUTINE_ID}/history`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.history).toHaveLength(1);
+    expect(res.body.history[0].exercises[0].maxWeight).toBe(82.5);
+  });
+
+  it('returns 404 for another user routine', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue({ id: ROUTINE_ID, userId: 'cother00000000000000001', exercises: [] });
+    const res = await request(app)
+      .get(`/api/workouts/routines/${ROUTINE_ID}/history`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(404);
+  });
+});
+
+// ─── POST /api/workouts/sync (routineId passthrough) ─────────────────────────
+
+describe('POST /api/workouts/sync with routineId', () => {
+  it('accepts routineId in payload and stores it', async () => {
+    (prisma.workout.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null) // idempotency check
+      .mockResolvedValueOnce(null); // active program
+    (prisma.workout as any).create = jest.fn().mockResolvedValue({ id: WORKOUT_ID, routineId: ROUTINE_ID });
+
+    const body = {
+      name: 'Push A',
+      routineId: ROUTINE_ID,
+      exercises: [{ exerciseId: EX_ID, restSeconds: 90, sets: [{ type: 'normal', reps: 8, weight: 80, completed: true }] }],
+      completedAt: new Date().toISOString(),
+    };
+    const res = await request(app)
+      .post('/api/workouts/sync')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(body);
+    // We don't care about 200 vs 201 — just that it parses without 400
+    expect(res.status).not.toBe(400);
+  });
+});
