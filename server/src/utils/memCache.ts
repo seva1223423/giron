@@ -46,6 +46,12 @@ export class MemCache<T = unknown> {
     this.store.delete(key);
   }
 
+  /** Remove every entry. Used by tests that need a fresh cache between cases,
+   *  since module-singleton caches otherwise leak state across `it` blocks. */
+  clear(): void {
+    this.store.clear();
+  }
+
   /** Remove all expired entries (call periodically to free memory). */
   prune(): void {
     const now = Date.now();

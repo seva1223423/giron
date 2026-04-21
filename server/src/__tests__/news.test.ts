@@ -66,6 +66,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../index';
 import { prisma } from '../db';
+import { newsCache } from '../utils/memCache';
 
 const mp = prisma as jest.Mocked<typeof prisma>;
 
@@ -101,6 +102,10 @@ function resetMocks() {
   (mp.savedNews.findMany as jest.Mock).mockResolvedValue([]);
   (mp.savedNews.create as jest.Mock).mockResolvedValue({});
   (mp.savedNews.delete as jest.Mock).mockResolvedValue({});
+  // newsCache is a module-singleton MemCache — the first test's findMany
+  // result gets cached under `news:all:20:0` and would be served to later
+  // tests hitting the same key. Clear between cases.
+  newsCache.clear();
 }
 
 // ─── GET /api/news ─────────────────────────────────────────────────────────────
