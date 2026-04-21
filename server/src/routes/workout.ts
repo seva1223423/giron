@@ -325,8 +325,45 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
       }
       return res.status(409).json({ error: 'Тренировка с данным clientId уже существует' });
     }
-    // P2003 = foreign key constraint — one of the exerciseIds does not exist
+    // P2003 = foreign key constraint — either an exerciseId or routineId doesn't exist.
+    // For routineId, degrade gracefully (routine was deleted after /start was called).
     if (e?.code === 'P2003') {
+      const field: string = e?.meta?.field_name ?? '';
+      if (field.toLowerCase().includes('routine') && parsed.data.routineId) {
+        try {
+          const activeProgram = await prisma.program.findFirst({ where: { userId: req.userId, isActive: true } });
+          const fallback = await prisma.workout.create({
+            data: {
+              clientId: parsed.data.clientId || null,
+              name: parsed.data.name,
+              notes: parsed.data.notes || null,
+              startedAt: parsed.data.startedAt ? new Date(parsed.data.startedAt) : new Date(),
+              completedAt: parsed.data.completedAt ? new Date(parsed.data.completedAt) : new Date(),
+              durationMinutes: parsed.data.durationMinutes || 0,
+              totalVolume: parsed.data.totalVolume || 0,
+              userId: req.userId!,
+              programId: activeProgram?.id || null,
+              routineId: null,
+              exercises: {
+                create: parsed.data.exercises.map((ex: any, i: number) => ({
+                  order: i, exerciseId: ex.exerciseId, restSeconds: ex.restSeconds || 90,
+                  supersetGroupId: ex.supersetGroupId || null, notes: ex.notes || null,
+                  sets: { create: (ex.sets || []).map((s: any, j: number) => ({
+                    setNumber: j + 1, type: s.type || 'normal', reps: s.reps || null,
+                    weight: s.weight || null, rpe: s.rpe || null, completed: s.completed || false, notes: s.notes || null,
+                  })) },
+                })),
+              },
+            },
+            include: { exercises: { include: { exercise: true, sets: true }, orderBy: { order: 'asc' } } },
+          });
+          return res.status(201).json(fallback);
+        } catch (e2: any) {
+          if (e2?.code === 'P2003') return res.status(400).json({ error: 'Одно или несколько упражнений не найдены' });
+          logger.error('Workout sync fallback error:', e2);
+          return res.status(500).json({ error: 'Ошибка синхронизации тренировки' });
+        }
+      }
       return res.status(400).json({ error: 'Одно или несколько упражнений не найдены' });
     }
     logger.error('Workout sync error:', e);
