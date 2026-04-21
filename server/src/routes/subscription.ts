@@ -229,6 +229,16 @@ router.post('/webhook', async (req: Request, res: Response) => {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + resolvedDays);
 
+      // Stale-event guard: only update if the incoming endDate is strictly later than
+      // the current one. Prevents out-of-order webhook replay (e.g. a retried
+      // `subscription_renewed` arriving after `subscription_cancelled`) from reverting
+      // a more recent, correct state.
+      const current = await prisma.subscription.findUnique({ where: { userId }, select: { endDate: true } });
+      if (current && current.endDate && current.endDate >= endDate) {
+        logger.info(`Webhook stale event skipped: provider=${provider} event=${event} user=${userId} currentEnd=${current.endDate.toISOString()} incomingEnd=${endDate.toISOString()}`);
+        return res.json({ received: true, skipped: true });
+      }
+
       await prisma.subscription.upsert({
         where: { userId },
         create: {

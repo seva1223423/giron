@@ -62,7 +62,9 @@ export const useTrainerStore = create<TrainerStore>()(
       },
 
       addClient: async (data) => {
-        const tempId = Date.now().toString();
+        // Random suffix — two rapid addClient calls in the same millisecond
+        // would otherwise share an id, and a rollback on one would erase both.
+        const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const tempClient: TrainerClient = { ...data, id: tempId };
         set((s) => ({ clients: [tempClient, ...s.clients] }));
 
@@ -132,7 +134,9 @@ export const useTrainerStore = create<TrainerStore>()(
       },
 
       logWorkoutSession: async (data) => {
-        const tempId = `session-${Date.now()}`;
+        // Random suffix — prevents id collision when two sessions are logged
+        // within the same millisecond (same reason as addClient above).
+        const tempId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const tempSession: TrainerWorkoutSession = { ...data, id: tempId };
         set((s) => ({ sessions: [tempSession, ...s.sessions] }));
 
