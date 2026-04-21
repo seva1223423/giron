@@ -500,7 +500,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         position: 'absolute', bottom: 24, right: spacing.xl,
       }}>
         <AnimatedPressable
-          onPress={() => { haptic.medium(); navigation.navigate('WorkoutsTab', { screen: 'Workouts' }); }}
+          onPress={() => { haptic.medium(); navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' }); }}
           haptic={false}
           scaleDown={0.94}
           style={{
