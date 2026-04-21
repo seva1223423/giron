@@ -11,6 +11,9 @@ import {
   extractKcal,
   parseServingGrams,
   defaultMealType,
+  findSavedFoodMatch,
+  normalizeFoodName,
+  buildBarcodeDisplayName,
   SANITY_MAX_KCAL_PER_100G,
   SANITY_MAX_KCAL_PER_ITEM,
   SANITY_MAX_TOTAL_KCAL,
@@ -207,6 +210,135 @@ describe('parseServingGrams', () => {
   test('does not match "gmbh" or similar word-boundaries', () => {
     // The "g" in "gmbh" should not be interpreted as grams
     expect(parseServingGrams('100 gmbh')).toBeNull();
+  });
+});
+
+// ─── normalizeFoodName ────────────────────────────────────────────────────────
+
+describe('normalizeFoodName', () => {
+  test('lowercases + trims + collapses whitespace', () => {
+    expect(normalizeFoodName('  Куриная   ГРУДКА  ')).toBe('куриная грудка');
+  });
+
+  test('strips trailing weight markers', () => {
+    expect(normalizeFoodName('Куриная грудка (100г)')).toBe('куриная грудка');
+    expect(normalizeFoodName('Salmon (200g)')).toBe('salmon');
+    expect(normalizeFoodName('Milk (250ml)')).toBe('milk');
+  });
+
+  test('leaves mid-string parentheses alone', () => {
+    expect(normalizeFoodName('Хлеб (ржаной) с маслом'))
+      .toBe('хлеб (ржаной) с маслом');
+  });
+
+  test('empty / whitespace → empty', () => {
+    expect(normalizeFoodName('')).toBe('');
+    expect(normalizeFoodName('   ')).toBe('');
+  });
+});
+
+// ─── findSavedFoodMatch ───────────────────────────────────────────────────────
+
+describe('findSavedFoodMatch', () => {
+  const savedFoods = [
+    { id: '1', name: 'Куриная грудка', calories: 110, protein: 23, fats: 1, carbs: 0, weightGrams: 100 },
+    { id: '2', name: 'Рис бурый (100г)', calories: 112, protein: 2.6, fats: 0.9, carbs: 22, weightGrams: 100 },
+    { id: '3', name: 'Яблоко', calories: 52, protein: 0.3, fats: 0.2, carbs: 14, weightGrams: 100 },
+  ];
+
+  test('matches exactly (case-insensitive)', () => {
+    const m = findSavedFoodMatch(savedFoods, 'куриная грудка');
+    expect(m?.id).toBe('1');
+  });
+
+  test('matches with weight suffix in saved name', () => {
+    const m = findSavedFoodMatch(savedFoods, 'Рис бурый');
+    expect(m?.id).toBe('2');
+  });
+
+  test('returns undefined for non-match', () => {
+    expect(findSavedFoodMatch(savedFoods, 'пицца')).toBeUndefined();
+  });
+
+  test('returns undefined for empty query', () => {
+    expect(findSavedFoodMatch(savedFoods, '')).toBeUndefined();
+    expect(findSavedFoodMatch(savedFoods, '   ')).toBeUndefined();
+  });
+
+  test('does NOT do fuzzy / partial match', () => {
+    // "яблоко" vs "яблочное пюре" — macros differ, we want strict matching
+    expect(findSavedFoodMatch(savedFoods, 'яблочное')).toBeUndefined();
+    expect(findSavedFoodMatch(savedFoods, 'яблок')).toBeUndefined();
+  });
+});
+
+// ─── buildBarcodeDisplayName ──────────────────────────────────────────────────
+
+describe('buildBarcodeDisplayName', () => {
+  test('prefers Russian name over English', () => {
+    expect(buildBarcodeDisplayName({
+      product_name: 'Classic Coke',
+      product_name_ru: 'Кока-Кола Классик',
+      product_name_en: 'Coca-Cola Classic',
+    })).toContain('Кока-Кола');
+  });
+
+  test('prefixes brand when name is short and brand absent', () => {
+    expect(buildBarcodeDisplayName({
+      product_name_ru: 'Молоко',
+      brands: 'Простоквашино',
+    })).toBe('Простоквашино Молоко');
+  });
+
+  test('does NOT prefix brand if already in name', () => {
+    expect(buildBarcodeDisplayName({
+      product_name: 'Coca-Cola Vanilla',
+      brands: 'Coca-Cola',
+    })).toBe('Coca-Cola Vanilla');
+  });
+
+  test('does NOT prefix brand for long-name products', () => {
+    // 3+ word names are assumed to already be specific enough
+    const r = buildBarcodeDisplayName({
+      product_name_ru: 'Шоколад тёмный с фундуком',
+      brands: 'Alpen Gold',
+    });
+    expect(r).toBe('Шоколад тёмный с фундуком');
+  });
+
+  test('appends quantity when not already in name', () => {
+    expect(buildBarcodeDisplayName({
+      product_name: 'Greek Yogurt',
+      quantity: '150g',
+    })).toBe('Greek Yogurt (150g)');
+  });
+
+  test('does not double-append quantity that is already present', () => {
+    expect(buildBarcodeDisplayName({
+      product_name: 'Coke 0.5l',
+      quantity: '0.5l',
+    })).toBe('Coke 0.5l');
+  });
+
+  test('falls back to brand when no product name', () => {
+    expect(buildBarcodeDisplayName({
+      brands: 'Danone',
+    })).toBe('Danone');
+  });
+
+  test('falls back to placeholder when nothing given', () => {
+    expect(buildBarcodeDisplayName({})).toBe('Неизвестный продукт');
+  });
+
+  test('clamps length to 150 chars', () => {
+    const long = 'x'.repeat(300);
+    expect(buildBarcodeDisplayName({ product_name: long }).length).toBeLessThanOrEqual(150);
+  });
+
+  test('collapses internal whitespace', () => {
+    expect(buildBarcodeDisplayName({
+      product_name: '  Milk     Farm  ',
+    })).toBe('Milk Farm');
   });
 });
 

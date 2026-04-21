@@ -21,6 +21,8 @@ import {
   extractKcal,
   parseServingGrams,
   defaultMealType,
+  findSavedFoodMatch,
+  buildBarcodeDisplayName,
   type SanityFlag,
 } from '../../utils/foodScanner';
 
@@ -170,10 +172,62 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { addMeal, getDayLog, savedFoods } = useNutritionStore();
+  const { addMeal, getDayLog, savedFoods, dailyLog } = useNutritionStore();
   const today = todayDate();
   const dayLog = getDayLog(today);
   const alreadyEaten = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
+
+  /** Most recent meals from today/yesterday that can be one-tap repeated.
+   *  Dedupes by first-item name so three logs of "куриная грудка" collapse
+   *  to a single chip. Caps at 3 to keep the empty-state card tidy. */
+  const recentMealChips = React.useMemo(() => {
+    const now = new Date();
+    const yday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const keys = [localDateStr(now), localDateStr(yday)];
+    const all: Array<{ meal: Meal; date: string }> = [];
+    for (const k of keys) {
+      const day = dailyLog[k];
+      if (day?.meals) for (const m of day.meals) all.push({ meal: m, date: k });
+    }
+    // Newest first by createdAt
+    all.sort((a, b) => (b.meal.createdAt || '').localeCompare(a.meal.createdAt || ''));
+    const seen = new Set<string>();
+    const out: Array<{ meal: Meal; date: string }> = [];
+    for (const entry of all) {
+      const key = entry.meal.items[0]?.name?.toLowerCase() || entry.meal.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(entry);
+      if (out.length >= 3) break;
+    }
+    return out;
+  }, [dailyLog]);
+
+  const repeatMeal = useCallback((src: Meal) => {
+    haptic.medium();
+    // Clone the meal's items with fresh ids; reuse the bases for weight scaling.
+    const items: NutritionItem[] = src.items.map((it, i) => ({
+      ...it,
+      id: `item-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 5)}`,
+    }));
+    const bases: typeof itemBases = {};
+    items.forEach((item) => {
+      const w = item.weightGrams || 100;
+      bases[item.id] = {
+        cal: (item.calories / w) * 100,
+        prot: (item.protein / w) * 100,
+        fats: (item.fats / w) * 100,
+        carbs: (item.carbs / w) * 100,
+      };
+    });
+    setItemBases(bases);
+    setRecognizedItems(items);
+    setIsBarcodeResult(false);
+    setSanityFlags([]);
+    setTotalWeightDraft(String(items.reduce((s, i) => s + (i.weightGrams || 0), 0)));
+    setError('');
+    // Skip image / loading — we're not analysing anything, just re-seeding state.
+  }, [haptic]);
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -219,12 +273,33 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   // ─── AI photo analysis ──────────────────────────────────────────────────────
 
   const applyAIItems = (rawItems: CachedAIResult['items']) => {
-    const items: NutritionItem[] = rawItems.map((item, index) => ({
-      id: `item-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 5)}`,
-      name: item.name, calories: item.calories, protein: item.protein,
-      fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams,
-      confidence: item.confidence,
-    }));
+    const items: NutritionItem[] = rawItems.map((raw, index) => {
+      // Prefer user's saved macros when the AI-recognised name is one the
+      // user has previously added — their data is higher trust than the
+      // AI's per-image estimate. We keep the AI's weight guess and scale
+      // the saved per-100g values to it.
+      const match = findSavedFoodMatch(savedFoods, raw.name);
+      const w = raw.weightGrams || 100;
+      if (match) {
+        const mw = match.weightGrams || 100;
+        return {
+          id: `item-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 5)}`,
+          name: match.name,
+          calories: Math.round((match.calories * w) / mw),
+          protein: Math.round(((match.protein * w) / mw) * 10) / 10,
+          fats: Math.round(((match.fats * w) / mw) * 10) / 10,
+          carbs: Math.round(((match.carbs * w) / mw) * 10) / 10,
+          weightGrams: w,
+          confidence: 1, // user-sourced data, full confidence
+        };
+      }
+      return {
+        id: `item-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 5)}`,
+        name: raw.name, calories: raw.calories, protein: raw.protein,
+        fats: raw.fats, carbs: raw.carbs, weightGrams: raw.weightGrams,
+        confidence: raw.confidence,
+      };
+    });
     const bases: typeof itemBases = {};
     items.forEach((item) => {
       const w = item.weightGrams || 100;
@@ -419,7 +494,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15_000);
 
     // Request only the fields we need to reduce payload size
-    const OFF_FIELDS = 'product_name,product_name_ru,product_name_en,brands,nutriments,serving_size,serving_quantity';
+    const OFF_FIELDS = 'product_name,product_name_ru,product_name_en,brands,nutriments,serving_size,serving_quantity,quantity';
 
     try {
       const response = await fetch(
@@ -435,8 +510,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
         const fats = Math.round((n.fat_100g || 0) * 10) / 10;
         const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
-        const rawName: string = p.product_name_ru || p.product_name || p.product_name_en || p.brands || 'Неизвестный продукт';
-        const productName = rawName.replace(/\s+/g, ' ').trim().slice(0, 150);
+        const productName = buildBarcodeDisplayName({
+          product_name: p.product_name,
+          product_name_ru: p.product_name_ru,
+          product_name_en: p.product_name_en,
+          brands: p.brands,
+          quantity: p.quantity,
+        });
 
         // Skip products with no usable nutrition data — don't charge a scan
         if (cal === 0 && prot === 0 && fats === 0 && carbs === 0) {
@@ -686,6 +766,39 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 {barcodeLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>}
               </TouchableOpacity>
             </View>
+
+            {/* Repeat a recent meal — fastest possible path for habitual eaters.
+                Takes a meal from today/yesterday and re-seeds the recognised-items
+                list without hitting the camera, the AI, or a barcode lookup. */}
+            {recentMealChips.length > 0 && (
+              <View style={{ alignSelf: 'stretch', marginTop: spacing.lg }}>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
+                  Повторить приём:
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    {recentMealChips.map(({ meal }) => {
+                      const firstName = meal.items[0]?.name ?? 'Приём пищи';
+                      const more = meal.items.length > 1 ? ` +${meal.items.length - 1}` : '';
+                      return (
+                        <TouchableOpacity
+                          key={meal.id}
+                          onPress={() => repeatMeal(meal)}
+                          style={[styles.recentChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        >
+                          <Text style={[typography.captionMedium, { color: colors.text }]} numberOfLines={1}>
+                            {firstName.length > 20 ? firstName.slice(0, 18) + '…' : firstName}{more}
+                          </Text>
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                            {Math.round(meal.totalCalories)} ккал
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
 
             {/* Recent scans — quick re-use without camera */}
             {recentScans.length > 0 && (
