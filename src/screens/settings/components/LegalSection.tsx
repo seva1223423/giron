@@ -1,6 +1,8 @@
 import React from 'react';
 import { Text, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useThemeStore } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
@@ -23,6 +25,7 @@ const openInBrowser = async (url: string) => {
 
 export const LegalSection: React.FC = () => {
   const { colors } = useThemeStore();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   return (
     <FadeIn delay={260}>
@@ -42,6 +45,14 @@ export const LegalSection: React.FC = () => {
           sublabel="Условия использования приложения"
           divider
           onPress={() => openInBrowser(TERMS_URL)}
+          right={<Text style={[typography.body, { color: colors.primary }]}>→</Text>}
+        />
+
+        <SettingRow
+          label="Авторы видео"
+          sublabel="Лицензии и источники демо-клипов упражнений"
+          divider
+          onPress={() => navigation.navigate('Credits')}
           right={<Text style={[typography.body, { color: colors.primary }]}>→</Text>}
         />
 
