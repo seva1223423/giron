@@ -54,6 +54,7 @@ interface WorkoutStore {
   addRoutine: (routine: Routine) => void;
   removeRoutine: (id: string) => Promise<void>;
   updateRoutineName: (id: string, name: string, description?: string | null) => Promise<void>;
+  duplicateRoutine: (id: string) => Promise<Routine | null>;
   startWorkoutFromRoutine: (routineId: string, preloadedPayload?: import('../types').RoutineStartPayload) => Promise<Workout | null>;
 
   // Active workout
@@ -243,6 +244,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
         workoutService.renameRoutine(id, name, description).catch(() => {
           if (prev) set((s) => ({ routines: s.routines.map((r) => (r.id === id ? prev : r)) }));
         });
+      },
+
+      duplicateRoutine: async (id) => {
+        try {
+          const copy = await workoutService.duplicateRoutine(id);
+          set((s) => ({ routines: [copy, ...s.routines] }));
+          return copy;
+        } catch {
+          return null;
+        }
       },
 
       removeRoutine: async (id) => {

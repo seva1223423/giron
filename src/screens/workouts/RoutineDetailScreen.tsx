@@ -124,7 +124,7 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { routines, activeWorkout, removeRoutine, updateRoutineName, startWorkoutFromRoutine } = useWorkoutStore();
+  const { routines, activeWorkout, removeRoutine, updateRoutineName, duplicateRoutine, startWorkoutFromRoutine } = useWorkoutStore();
 
   const routine = routines.find((r) => r.id === routineId);
 
@@ -206,6 +206,18 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     }
   }, [renameValue, routine, updateRoutineName, haptic]);
 
+  const handleDuplicate = useCallback(async () => {
+    if (!routine) return;
+    haptic.medium();
+    const copy = await duplicateRoutine(routine.id);
+    if (copy) {
+      haptic.success();
+      Alert.alert('Скопировано', `«${copy.name}» добавлена в список рутин.`);
+    } else {
+      Alert.alert('Ошибка', 'Не удалось скопировать. Проверь соединение.');
+    }
+  }, [routine, duplicateRoutine, haptic]);
+
   const handleDelete = useCallback(() => {
     if (!routine) return;
     haptic.medium();
@@ -258,10 +270,9 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={openRename} style={{ flex: 1, alignItems: 'center' }} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>{routine.name}</Text>
-          <Text style={[typography.caption, { color: colors.primary, marginTop: 1 }]}>нажми чтобы переименовать</Text>
-        </TouchableOpacity>
+        </View>
         <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={{ fontSize: 18, color: colors.error }}>×</Text>
         </TouchableOpacity>
@@ -285,6 +296,24 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
               <Text style={[typography.caption, { color: colors.textSecondary }]}>создана</Text>
               <Text style={[typography.captionMedium, { color: colors.text }]}>{createdDate}</Text>
             </View>
+          </View>
+        </FadeIn>
+
+        {/* Quick actions */}
+        <FadeIn delay={50}>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+            <TouchableOpacity
+              onPress={openRename}
+              style={[styles.actionChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>✎ Переименовать</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDuplicate}
+              style={[styles.actionChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>◈ Дублировать</Text>
+            </TouchableOpacity>
           </View>
         </FadeIn>
 
@@ -491,5 +520,11 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
     minWidth: 140,
     maxWidth: 160,
+  },
+  actionChip: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
 });

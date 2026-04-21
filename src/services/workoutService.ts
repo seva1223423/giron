@@ -173,6 +173,11 @@ export const workoutService = {
     return data;
   },
 
+  async duplicateRoutine(id: string): Promise<Routine> {
+    const { data } = await api.post(`/workouts/routines/${id}/duplicate`);
+    return data;
+  },
+
   async deleteRoutine(id: string): Promise<void> {
     await api.delete(`/workouts/routines/${id}`);
   },
