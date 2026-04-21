@@ -73,3 +73,10 @@ export const adminStatsCache = new MemCache<unknown>(10);
 
 /** News feed cache — 6h TTL matches the RSS refresh schedule */
 export const newsCache = new MemCache<unknown>(200);
+
+/** Food-vision result cache — keyed by `userId:fingerprint(base64)`. Saves
+ *  the Mistral vision API call when the same user uploads the same photo
+ *  from two devices (phone + tablet), after reinstall, etc. Client-side
+ *  cache covers the single-device re-scan case; this covers cross-device.
+ *  100 entries / 24h TTL. */
+export const foodVisionCache = new MemCache<unknown>(100);
