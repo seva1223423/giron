@@ -154,3 +154,13 @@ const items = await prisma.workout.findMany({ where: { userId } });
 - Don't flag `Promise.all` as N+1 — it's intentional parallelism; only flag sequential loops
 - Don't recommend Redis unless the current MemCache is provably insufficient
 - Don't touch `$queryRaw` leaderboard without an `EXPLAIN ANALYZE` result
+
+## See Also (Cross-Agent Coordination)
+
+- **Missing indexes** — spawn `database` agent to add `@@index` to schema + run `prisma db push`. Performance agent finds the gap; database agent implements the fix.
+- **Cache invalidation on model update** — `exercisesCache` (1h TTL) isn't invalidated when an Exercise is updated. If exercise data changes, the cache returns stale data. Flag this for the `monitoring` agent (no cache invalidation logging) and `backend` agent (needs cache.del on PUT /exercises).
+- **Unbounded queries without pagination** — also a `data-integrity` concern (large response can OOM the server). Cross-reference with `monitoring` agent: is response time for these endpoints tracked?
+- **`buildAnalyticsContext` ~180 queries** — also flagged by `monitoring` (no timeout alerting). Fix requires `ai-coach` agent: either cache the context per-user with a short TTL, or make context build lazy (only for analytics_query intent).
+- **Payload size** — heavy `include:` chains also affect client memory. Cross-reference with `frontend` agent: does the client store all returned data in Zustand? If yes, large payloads inflate AsyncStorage.
+
+When you find a bottleneck, note which agent should implement the fix.

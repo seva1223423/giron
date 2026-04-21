@@ -124,7 +124,7 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { routines, activeWorkout, removeRoutine, updateRoutineName, duplicateRoutine, startWorkoutFromRoutine } = useWorkoutStore();
+  const { routines, activeWorkout, removeRoutine, updateRoutineName, duplicateRoutine, startWorkoutFromRoutine, fetchRoutines } = useWorkoutStore();
 
   const routine = routines.find((r) => r.id === routineId);
 
@@ -135,6 +135,8 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const [renaming, setRenaming] = useState(false);
   const [history, setHistory] = useState<RoutineHistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     if (!routine) return;
@@ -205,6 +207,37 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
       setRenaming(false);
     }
   }, [renameValue, routine, updateRoutineName, haptic]);
+
+  const handleRemoveExercise = useCallback(async (exerciseIndex: number) => {
+    if (!routine) return;
+    if (routine.exercises.length <= 1) {
+      Alert.alert('Нельзя удалить', 'Рутина должна содержать хотя бы одно упражнение.');
+      return;
+    }
+    haptic.medium();
+    setSavingEdit(true);
+    const updated = routine.exercises
+      .filter((_, i) => i !== exerciseIndex)
+      .map((ex, i) => ({
+        exerciseId: ex.exerciseId,
+        order: i,
+        restSeconds: ex.restSeconds,
+        notes: ex.notes,
+        sets: ex.sets.map((s) => ({ setNumber: s.setNumber, type: s.type as string, reps: s.reps, weight: s.weight, rpe: s.rpe })),
+      }));
+    try {
+      const saved = await workoutService.updateRoutine(routine.id, { name: routine.name, description: routine.description, exercises: updated });
+      updateRoutineName(routine.id, saved.name, saved.description ?? null);
+      // Update routines list with new exercises (full refresh)
+      fetchRoutines().catch(() => {});
+      haptic.success();
+    } catch {
+      haptic.error();
+      Alert.alert('Ошибка', 'Не удалось сохранить. Проверь соединение.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [routine, haptic, updateRoutineName, fetchRoutines]);
 
   const handleDuplicate = useCallback(async () => {
     if (!routine) return;
@@ -325,9 +358,17 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           </FadeIn>
         ) : null}
 
-        <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm, marginTop: spacing.sm }]}>
-          УПРАЖНЕНИЯ
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, marginTop: spacing.sm }}>
+          <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1 }]}>УПРАЖНЕНИЯ</Text>
+          <TouchableOpacity
+            onPress={() => setEditMode((v) => !v)}
+            style={[styles.actionChip, { borderColor: editMode ? colors.primary + '60' : colors.border, backgroundColor: editMode ? colors.primary + '12' : colors.surface }]}
+          >
+            <Text style={[typography.caption, { color: editMode ? colors.primary : colors.textSecondary }]}>
+              {editMode ? 'Готово' : 'Редактировать'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {routine.exercises.map((ex, i) => (
           <FadeIn key={ex.id ?? ex.exerciseId + i} delay={80 + i * 40}>
@@ -347,6 +388,16 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                     </Text>
                   )}
                 </View>
+                {editMode && (
+                  <TouchableOpacity
+                    onPress={() => handleRemoveExercise(i)}
+                    disabled={savingEdit}
+                    style={[styles.deleteBtn, { borderColor: colors.error + '50', marginLeft: spacing.sm }]}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    {savingEdit ? <ActivityIndicator size="small" color={colors.error} /> : <Text style={{ color: colors.error }}>×</Text>}
+                  </TouchableOpacity>
+                )}
               </View>
 
               {ex.notes ? (
@@ -526,5 +577,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
+  },
+  deleteBtn: {
+    width: 28, height: 28, borderRadius: 14,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
 });
