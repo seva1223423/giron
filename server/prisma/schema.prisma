@@ -191,6 +191,8 @@ model Workout {
 
   programId       String?
   program         Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  routineId       String?
+  routine         Routine?  @relation(fields: [routineId], references: [id], onDelete: SetNull)
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -204,6 +206,7 @@ model Workout {
   // Composite for leaderboard: groupBy filters completedAt IS NOT NULL, groups by userId;
   // nested WorkoutSet filter joins Workout WHERE userId IN (...) AND completedAt IS NOT NULL
   @@index([userId, completedAt])
+  @@index([routineId])
 }
 
 model WorkoutExercise {
@@ -250,6 +253,7 @@ model Routine {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   exercises   RoutineExercise[]
+  workouts    Workout[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

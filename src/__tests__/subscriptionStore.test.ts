@@ -16,6 +16,11 @@ jest.mock('../services/api', () => ({
 }));
 
 import { useSubscriptionStore, FREE_LIMITS } from '../store/useSubscriptionStore';
+import { localDateStr } from '../utils/date';
+
+/** Match the store's notion of "today" (local calendar day, not UTC) so these
+ *  tests don't flake around local midnight when UTC is still the previous day. */
+const today = () => localDateStr(new Date());
 
 const resetState = () => {
   useSubscriptionStore.setState({

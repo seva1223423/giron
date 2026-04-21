@@ -170,6 +170,7 @@ describe('useWorkoutStore — Routines slice', () => {
     const payload: RoutineStartPayload = {
       routineId: 'r-1',
       name: 'Push A',
+      lastUsedAt: null,
       exercises: [
         {
           exerciseId: 'ex-1',

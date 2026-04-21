@@ -89,13 +89,17 @@ const mockArticle = {
 };
 
 function resetMocks() {
-  jest.clearAllMocks();
-  (mp.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-  (mp.newsArticle.findMany as jest.Mock).mockResolvedValue([]);
-  (mp.savedNews.findUnique as jest.Mock).mockResolvedValue(null);
-  (mp.savedNews.findMany as jest.Mock).mockResolvedValue([]);
-  (mp.savedNews.create as jest.Mock).mockResolvedValue({});
-  (mp.savedNews.delete as jest.Mock).mockResolvedValue({});
+  // clearAllMocks only clears call history — it does NOT drain queued
+  // `mockResolvedValueOnce` values, so a leftover `Once` from a prior test
+  // would leak and make the next test see unexpected data. mockReset on each
+  // mock wipes the queue too.
+  (mp.user.findUnique as jest.Mock).mockReset().mockResolvedValue(mockUser);
+  (mp.newsArticle.findMany as jest.Mock).mockReset().mockResolvedValue([]);
+  (mp.savedNews.findUnique as jest.Mock).mockReset().mockResolvedValue(null);
+  (mp.savedNews.findMany as jest.Mock).mockReset().mockResolvedValue([]);
+  (mp.savedNews.create as jest.Mock).mockReset().mockResolvedValue({});
+  (mp.savedNews.delete as jest.Mock).mockReset().mockResolvedValue({});
+  jest.clearAllMocks(); // clear call history after re-applying defaults
 }
 
 // ─── GET /api/news ─────────────────────────────────────────────────────────────

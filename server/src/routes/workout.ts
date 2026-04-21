@@ -76,6 +76,7 @@ const syncWorkoutSchema = z.object({
   startedAt: z.string().datetime().optional().nullable(),
   durationMinutes: z.number().int().finite().min(0).max(1440).optional(),
   totalVolume: z.number().finite().min(0).max(1_000_000).optional(),
+  routineId: z.string().max(100).optional().nullable(),
   exercises: z.array(syncWorkoutExerciseSchema).min(1).max(50),
 });
 
@@ -255,7 +256,7 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
   const parsed = syncWorkoutSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
   try {
-    const { clientId, name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes } = parsed.data;
+    const { clientId, name, exercises, completedAt, startedAt, durationMinutes, totalVolume, notes, routineId } = parsed.data;
 
     // If clientId provided, check if this workout was already synced (idempotency).
     // Scope lookup to the current user so clientId uniqueness is per-user and no
@@ -283,6 +284,7 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response) => {
         totalVolume: totalVolume || 0,
         userId: req.userId!,
         programId: activeProgram?.id || null,
+        routineId: routineId || null,
         exercises: {
           create: exercises.map((ex: any, i: number) => ({
             order: i,
@@ -799,6 +801,41 @@ router.put('/routines/:id', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+// Rename / patch routine (name + description only — use PUT for full exercise replacement)
+router.patch('/routines/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  const parsed = z.object({
+    name: z.string().trim().min(1).max(200).optional(),
+    description: z.string().max(2000).nullable().optional(),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+  if (!parsed.data.name && parsed.data.description === undefined) {
+    return res.status(400).json({ error: 'Нет полей для обновления' });
+  }
+  try {
+    const { id } = req.params as { id: string };
+    const existing = await prisma.routine.findUnique({ where: { id }, select: { userId: true } });
+    if (!existing || existing.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
+    const routine = await prisma.routine.update({
+      where: { id },
+      data: {
+        ...(parsed.data.name !== undefined && { name: parsed.data.name }),
+        ...(parsed.data.description !== undefined && { description: parsed.data.description }),
+      },
+      include: {
+        exercises: {
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+    res.json(routine);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка обновления рутины' });
+  }
+});
+
 // Delete routine
 router.delete('/routines/:id', authenticate, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
@@ -829,6 +866,13 @@ router.post('/routines/:id/start', authenticate, async (req: AuthRequest, res: R
       },
     });
     if (!routine || routine.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
+
+    // Find the last workout that was started from this routine
+    const lastRoutineWorkout = await prisma.workout.findFirst({
+      where: { routineId: routine.id, userId: req.userId!, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      select: { completedAt: true },
+    });
 
     // Build workout exercises with progressive overload
     const exercises = await Promise.all(
@@ -888,6 +932,7 @@ router.post('/routines/:id/start', authenticate, async (req: AuthRequest, res: R
     res.json({
       routineId: routine.id,
       name: routine.name,
+      lastUsedAt: lastRoutineWorkout?.completedAt?.toISOString() ?? null,
       exercises,
     });
   } catch (e) {

@@ -24,7 +24,7 @@ RESULT:
 
 **After every schema change, always run in this order:**
 ```bash
-cd C:/Users/sevka/Projects/iron-gym/server
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server
 npx prisma generate          # regenerates TypeScript types
 npx prisma db push           # syncs schema to DB (no migration files)
 npx tsc --noEmit             # verify no TypeScript errors
@@ -32,7 +32,7 @@ npx tsc --noEmit             # verify no TypeScript errors
 
 Schema file: `server/prisma/schema.prisma`
 
-## Complete Schema — All 22 Models
+## Complete Schema — All 37 Models
 
 ### User & Auth
 

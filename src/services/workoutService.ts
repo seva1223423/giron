@@ -83,6 +83,7 @@ export const workoutService = {
       durationMinutes: workout.durationMinutes,
       totalVolume: workout.totalVolume,
       notes: workout.notes,
+      routineId: workout.routineId ?? null,
     });
     return data;
   },
@@ -164,6 +165,11 @@ export const workoutService = {
     }>;
   }): Promise<Routine> {
     const { data } = await api.put(`/workouts/routines/${id}`, params);
+    return data;
+  },
+
+  async renameRoutine(id: string, name: string, description?: string | null): Promise<Routine> {
+    const { data } = await api.patch(`/workouts/routines/${id}`, { name, description });
     return data;
   },
 
