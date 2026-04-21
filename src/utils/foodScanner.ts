@@ -76,6 +76,55 @@ export function confidenceBucket(conf: number | undefined | null): ConfidenceBuc
 
 // ─── OpenFoodFacts helpers ────────────────────────────────────────────────────
 
+/** Build a sensible display name from OFF product fields.
+ *
+ *  OpenFoodFacts returns `product_name` (often bare like "Classic Coke"),
+ *  `product_name_ru` / `_en` (localised), `brands` (comma-separated list of
+ *  manufacturers, often includes redundant trademark suffixes), and
+ *  `quantity` (e.g. "500ml"). Just taking product_name misses the brand on
+ *  generic-sounding names; just concatenating brand + name doubles up when
+ *  the product name already contains the brand.
+ *
+ *  Heuristic:
+ *   1. Pick the best name variant (ru → generic → en → brand).
+ *   2. If brand is present AND not already a substring of the name AND
+ *      the name looks generic (≤ 2 words), prefix it.
+ *   3. Append `quantity` in parens when present AND not already visible.
+ *   4. Strip junk whitespace and clamp to 150 chars.
+ */
+export function buildBarcodeDisplayName(p: {
+  product_name?: string;
+  product_name_ru?: string;
+  product_name_en?: string;
+  brands?: string;
+  quantity?: string;
+}): string {
+  const nameRaw = (p.product_name_ru || p.product_name || p.product_name_en || '').trim();
+  const brandRaw = (p.brands || '').split(',')[0]?.trim() || '';
+  const quantity = (p.quantity || '').trim();
+
+  let name = nameRaw || brandRaw || 'Неизвестный продукт';
+  const lowered = name.toLowerCase();
+
+  // Only prefix brand when (a) brand is known, (b) brand isn't already in the
+  // name, (c) the name is short/generic (likely missing brand context).
+  if (
+    brandRaw &&
+    brandRaw.toLowerCase() !== lowered &&
+    !lowered.includes(brandRaw.toLowerCase()) &&
+    name.split(/\s+/).length <= 2
+  ) {
+    name = `${brandRaw} ${name}`;
+  }
+
+  // Append quantity if not already visible (avoids "Coke 0.5l (500ml)").
+  if (quantity && !name.toLowerCase().includes(quantity.toLowerCase())) {
+    name = `${name} (${quantity})`;
+  }
+
+  return name.replace(/\s+/g, ' ').trim().slice(0, 150) || 'Неизвестный продукт';
+}
+
 /** Extract kcal/100g from OFF `nutriments`. Falls back to kJ→kcal (×0.239)
  *  for products that only carry kJ in their labelling (very common in EU/RU). */
 export function extractKcal(n: Record<string, any>): number {
@@ -103,6 +152,48 @@ export function parseServingGrams(servingSize: string): number | null {
     if (ml >= 5 && ml <= 500) return ml;
   }
   return null;
+}
+
+// ─── SavedFoods matching ──────────────────────────────────────────────────────
+//
+// When the AI recognises a food that the user has previously added manually or
+// saved from a prior scan (e.g. "куриная грудка" appears in savedFoods), the
+// user's saved macros are more trustworthy than the AI's per-image estimate.
+// We prefer the saved per-100g values scaled to the AI-reported weight.
+
+export interface MatchableFood {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  fats: number;
+  carbs: number;
+  weightGrams: number;
+}
+
+/** Normalize a food name for comparison: lowercase, collapse whitespace, drop
+ *  trailing weight markers like "(100г)" that are produced by the manual-add
+ *  flow so they don't prevent matching. */
+export function normalizeFoodName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s*\(\s*\d+\s*[гgml]+\s*\)\s*$/i, '') // strip "(100г)", "(30 g)", etc.
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Find a saved food whose normalized name matches the query. Only exact
+ * (normalized) matches — we don't want fuzzy matches like "яблоко" jumping
+ * to "яблочное пюре", because macros differ a lot.
+ */
+export function findSavedFoodMatch<T extends MatchableFood>(
+  savedFoods: T[],
+  query: string,
+): T | undefined {
+  const norm = normalizeFoodName(query);
+  if (!norm) return undefined;
+  return savedFoods.find((f) => normalizeFoodName(f.name) === norm);
 }
 
 // ─── Meal-type default (time-of-day heuristic) ────────────────────────────────
