@@ -87,7 +87,14 @@ export const RoutinesListScreen: React.FC<{ navigation: any }> = ({ navigation }
           </FadeIn>
         )}
 
-        {routines.map((routine, i) => {
+        {[...routines].sort((a, b) => {
+          const aLast = workoutHistory.find((w) => w.routineId === a.id && w.completedAt)?.completedAt;
+          const bLast = workoutHistory.find((w) => w.routineId === b.id && w.completedAt)?.completedAt;
+          if (aLast && bLast) return new Date(bLast).getTime() - new Date(aLast).getTime();
+          if (aLast) return -1;
+          if (bLast) return 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }).map((routine, i) => {
           const totalSets = routine.exercises.reduce((s, e) => s + e.sets.length, 0);
           const previewNames = routine.exercises.slice(0, 3).map((e) => e.exercise?.name).filter(Boolean).join(', ');
           const rest = routine.exercises.length - 3;
