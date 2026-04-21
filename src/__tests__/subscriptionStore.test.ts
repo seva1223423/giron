@@ -18,9 +18,9 @@ jest.mock('../services/api', () => ({
 import { useSubscriptionStore, FREE_LIMITS } from '../store/useSubscriptionStore';
 import { localDateStr } from '../utils/date';
 
-/** Match the store's notion of "today" (local calendar day, not UTC) so these
- *  tests don't flake around local midnight when UTC is still the previous day. */
-const today = () => localDateStr(new Date());
+// Tests use `localDateStr(new Date())` to get "today" because the store uses
+// the same helper — using `toISOString().split('T')[0]` (UTC) flakes around
+// local midnight when the UTC day hasn't rolled over yet.
 
 const resetState = () => {
   useSubscriptionStore.setState({
@@ -115,7 +115,7 @@ describe('useSubscriptionStore', () => {
     });
 
     test('consumeAiMessage returns false after hitting daily limit', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr(new Date());
       useSubscriptionStore.setState({
         aiMessagesUsedToday: FREE_LIMITS.AI_MESSAGES_PER_DAY,
         aiMessagesDate: today,
@@ -125,7 +125,7 @@ describe('useSubscriptionStore', () => {
     });
 
     test('canSendAiMessage returns false at daily limit', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr(new Date());
       useSubscriptionStore.setState({
         aiMessagesUsedToday: FREE_LIMITS.AI_MESSAGES_PER_DAY,
         aiMessagesDate: today,
@@ -135,7 +135,7 @@ describe('useSubscriptionStore', () => {
 
     test('premium user can always send AI messages', () => {
       const future = new Date(Date.now() + 86400000).toISOString();
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr(new Date());
       useSubscriptionStore.setState({
         isPremium: true,
         premiumExpiresAt: future,
@@ -147,7 +147,7 @@ describe('useSubscriptionStore', () => {
     });
 
     test('aiMessagesLeft returns correct count', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr(new Date());
       useSubscriptionStore.setState({ aiMessagesUsedToday: 3, aiMessagesDate: today });
       expect(useSubscriptionStore.getState().aiMessagesLeft()).toBe(FREE_LIMITS.AI_MESSAGES_PER_DAY - 3);
     });
@@ -181,7 +181,7 @@ describe('useSubscriptionStore', () => {
     });
 
     test('consumeFoodScan returns false at daily limit', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr(new Date());
       useSubscriptionStore.setState({
         foodScansUsedToday: FREE_LIMITS.FOOD_SCANS_PER_DAY,
         foodScansDate: today,
@@ -190,7 +190,7 @@ describe('useSubscriptionStore', () => {
     });
 
     test('foodScansLeft returns correct count', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr(new Date());
       useSubscriptionStore.setState({ foodScansUsedToday: 2, foodScansDate: today });
       expect(useSubscriptionStore.getState().foodScansLeft()).toBe(FREE_LIMITS.FOOD_SCANS_PER_DAY - 2);
     });
