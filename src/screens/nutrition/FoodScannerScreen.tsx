@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions, Modal, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore, useNutritionStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
+import { useHaptic } from '../../hooks/useHaptic';
 import { Button, Card, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -14,6 +15,14 @@ import { aiService, getApiError } from '../../services';
 import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../../services/notificationService';
 import { BarcodeScannerModal, RecognizedItemCard } from './scanner';
 import { localDateStr } from '../../utils/date';
+import {
+  fingerprintBase64,
+  flagSanity,
+  extractKcal,
+  parseServingGrams,
+  defaultMealType,
+  type SanityFlag,
+} from '../../utils/foodScanner';
 
 const todayDate = () => localDateStr(new Date());
 
@@ -73,42 +82,58 @@ async function loadRecentScans(): Promise<RecentScan[]> {
   } catch { return []; }
 }
 
-// ─── OpenFoodFacts helpers ────────────────────────────────────────────────────
+// ─── AI scan result cache (AsyncStorage wrapper around the utility helpers) ───
 
-/** Extract kcal/100g from nutriments. Falls back to kJ→kcal for products that only provide kJ. */
-function extractKcal(n: Record<string, any>): number {
-  if (n['energy-kcal_100g'] != null && n['energy-kcal_100g'] > 0) return Math.round(n['energy-kcal_100g']);
-  if (n['energy-kcal'] != null && n['energy-kcal'] > 0) return Math.round(n['energy-kcal']);
-  // Many EU/RU products only carry kJ — convert (1 kcal ≈ 4.184 kJ)
-  if (n['energy-kj_100g'] != null && n['energy-kj_100g'] > 0) return Math.round(n['energy-kj_100g'] / 4.184);
-  if (n['energy_100g'] != null && n['energy_100g'] > 100) return Math.round(n['energy_100g'] / 4.184);
-  return 0;
+const AI_SCAN_CACHE_KEY = 'iron_gym_ai_scan_cache';
+const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface CachedAIResult {
+  items: Array<{
+    name: string;
+    calories: number;
+    protein: number;
+    fats: number;
+    carbs: number;
+    weightGrams: number;
+    confidence?: number;
+  }>;
+  cachedAt: number;
 }
 
-/** Parse serving size string like "100g", "30 g", "1 portion (45g)", "250ml". */
-function parseServingGrams(servingSize: string): number | null {
-  if (!servingSize) return null;
-  const gMatch = servingSize.match(/(\d+(?:[.,]\d+)?)\s*g(?!\w)/i);
-  if (gMatch) {
-    const g = Math.round(parseFloat(gMatch[1].replace(',', '.')));
-    if (g >= 5 && g <= 2000) return g;
+async function getCachedAIResult(fingerprint: string): Promise<CachedAIResult | null> {
+  try {
+    const raw = await AsyncStorage.getItem(AI_SCAN_CACHE_KEY);
+    if (!raw) return null;
+    const parsed: Record<string, CachedAIResult> = JSON.parse(raw);
+    const entry = parsed[fingerprint];
+    if (!entry) return null;
+    if (Date.now() - entry.cachedAt > AI_CACHE_TTL_MS) {
+      delete parsed[fingerprint];
+      AsyncStorage.setItem(AI_SCAN_CACHE_KEY, JSON.stringify(parsed)).catch(() => {});
+      return null;
+    }
+    return entry;
+  } catch {
+    return null;
   }
-  const mlMatch = servingSize.match(/(\d+(?:[.,]\d+)?)\s*ml/i);
-  if (mlMatch) {
-    const ml = Math.round(parseFloat(mlMatch[1].replace(',', '.')));
-    if (ml >= 5 && ml <= 500) return ml;
-  }
-  return null;
 }
 
-// ─── Meal type labels ─────────────────────────────────────────────────────────
-
-function defaultMealType(): 'breakfast' | 'lunch' | 'dinner' | 'snack' {
-  const h = new Date().getHours();
-  if (h < 11) return 'breakfast';
-  if (h < 15) return 'lunch';
-  if (h < 20) return 'dinner';
-  return 'snack';
+async function cacheAIResult(fingerprint: string, items: CachedAIResult['items']): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(AI_SCAN_CACHE_KEY);
+    const parsed: Record<string, CachedAIResult> = raw ? JSON.parse(raw) : {};
+    parsed[fingerprint] = { items, cachedAt: Date.now() };
+    // Evict oldest when we hit 50 entries — AI payloads are larger than barcode
+    // entries and 50 is already ~50 meals of memory pressure.
+    const keys = Object.keys(parsed);
+    if (keys.length > 50) {
+      const sorted = keys.sort((a, b) => (parsed[a].cachedAt || 0) - (parsed[b].cachedAt || 0));
+      sorted.slice(0, keys.length - 50).forEach((k) => delete parsed[k]);
+    }
+    await AsyncStorage.setItem(AI_SCAN_CACHE_KEY, JSON.stringify(parsed));
+  } catch {
+    /* non-fatal */
+  }
 }
 
 const MEAL_TYPES = [
@@ -143,6 +168,7 @@ async function compressImageForUpload(uri: string): Promise<{ base64: string; mi
 export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { height: screenHeight } = useWindowDimensions();
   const safeTop = useSafeTop();
+  const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { addMeal, getDayLog, savedFoods } = useNutritionStore();
   const today = todayDate();
@@ -159,6 +185,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
+  // Full-size image preview on tap — the thumbnail is small and users want
+  // to double-check what they actually photographed before trusting the AI.
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  // Draft for the "scale all portions" total-weight input
+  const [totalWeightDraft, setTotalWeightDraft] = useState('');
+  // Sanity flags set after analyzeFood — triggers the implausible-values banner
+  const [sanityFlags, setSanityFlags] = useState<SanityFlag[]>([]);
+  // Whether the last AI result came from local cache (hint to the user + no credit burned)
+  const [cachedResult, setCachedResult] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastBase64Ref = useRef<string>('');
@@ -183,6 +218,31 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   // ─── AI photo analysis ──────────────────────────────────────────────────────
 
+  const applyAIItems = (rawItems: CachedAIResult['items']) => {
+    const items: NutritionItem[] = rawItems.map((item, index) => ({
+      id: `item-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 5)}`,
+      name: item.name, calories: item.calories, protein: item.protein,
+      fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams,
+      confidence: item.confidence,
+    }));
+    const bases: typeof itemBases = {};
+    items.forEach((item) => {
+      const w = item.weightGrams || 100;
+      bases[item.id] = {
+        cal: (item.calories / w) * 100,
+        prot: (item.protein / w) * 100,
+        fats: (item.fats / w) * 100,
+        carbs: (item.carbs / w) * 100,
+      };
+    });
+    setItemBases(bases);
+    setRecognizedItems(items);
+    setIsBarcodeResult(false);
+    setSanityFlags(flagSanity(items));
+    setTotalWeightDraft(String(items.reduce((s, i) => s + (i.weightGrams || 0), 0)));
+    return items;
+  };
+
   const analyzeFood = async (base64: string, mimeType = 'image/jpeg') => {
     const controller = new AbortController();
     abortRef.current = controller;
@@ -192,33 +252,36 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
     setLoading(true);
     setError('');
+    setSanityFlags([]);
+
+    // Cache hit — same photo was already analysed within 24h. Return instantly,
+    // don't burn a credit, don't hit the network.
+    const fingerprint = fingerprintBase64(base64);
+    const cached = await getCachedAIResult(fingerprint);
+    if (cached) {
+      const items = applyAIItems(cached.items);
+      setCachedResult(true);
+      lastBase64Ref.current = '';
+      setLoading(false);
+      clearTimeout(timeoutId);
+      if (items.length > 0) haptic.success();
+      return;
+    }
+    setCachedResult(false);
+
     try {
       const result = await aiService.analyzeFood(base64, controller.signal, mimeType);
-      const items: NutritionItem[] = result.items.map((item, index) => ({
-        id: `item-${Date.now()}-${index}`,
-        name: item.name, calories: item.calories, protein: item.protein,
-        fats: item.fats, carbs: item.carbs, weightGrams: item.weightGrams,
-        confidence: item.confidence,
-      }));
-      const bases: typeof itemBases = {};
-      items.forEach((item) => {
-        const w = item.weightGrams || 100;
-        bases[item.id] = {
-          cal: (item.calories / w) * 100,
-          prot: (item.protein / w) * 100,
-          fats: (item.fats / w) * 100,
-          carbs: (item.carbs / w) * 100,
-        };
-      });
-      setItemBases(bases);
-      setRecognizedItems(items);
-      setIsBarcodeResult(false);
+      const items = applyAIItems(result.items);
       if (items.length === 0) {
-        setError('Продукты не распознаны. Попробуй сделать чёткое фото тарелки с едой.');
+        setError('Продукты не распознаны. Попробуй сделать чёткое фото тарелки с едой, или просканируй штрих-код упаковки.');
         setImageUri(null);
+        haptic.warning();
       } else {
+        // Cache the successful result by the image fingerprint — next re-scan is free.
+        cacheAIResult(fingerprint, result.items).catch(() => {});
         // Release the ~5-7MB base64 — retry is only meaningful on error paths.
         lastBase64Ref.current = '';
+        haptic.success();
       }
     } catch (e: any) {
       if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {
@@ -230,12 +293,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setImageUri(null);
         lastBase64Ref.current = '';
         setShowPaywall(true);
+        haptic.warning();
       } else if (e?.suggestion) {
         setError(e.suggestion);
         setErrorRetryable(e?.retryable !== false);
+        haptic.error();
       } else {
         setError(getApiError(e).message);
         setErrorRetryable(true);
+        haptic.error();
       }
     } finally {
       clearTimeout(timeoutId);
@@ -250,7 +316,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const pickImage = async (useCamera: boolean) => {
-    if (foodScansLeft() === 0 && !isPremiumActive()) { setShowPaywall(true); return; }
+    haptic.selection();
+    if (foodScansLeft() === 0 && !isPremiumActive()) { setShowPaywall(true); haptic.warning(); return; }
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -263,6 +330,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       setImageUri(asset.uri);
       setError('');
       setLoading(true);
+      haptic.light();
       try {
         // Resize to max 1280px and convert to JPEG — reduces payload 4-10x vs raw HEIC/PNG
         const compressed = await compressImageForUpload(asset.uri);
@@ -298,9 +366,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   // ─── Barcode ────────────────────────────────────────────────────────────────
 
   const openBarcodeScanner = async () => {
+    haptic.selection();
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
-      if (!result.granted) { Alert.alert('Нет доступа', 'Разрешите доступ к камере в настройках устройства'); return; }
+      if (!result.granted) { Alert.alert('Нет доступа', 'Разрешите доступ к камере в настройках устройства'); haptic.warning(); return; }
     }
     setBarcodeScanned(false);
     setError('');
@@ -324,6 +393,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setError('');
     setNotFound(false);
     setShowBarcodeScanner(false);
+    setSanityFlags(flagSanity([item]));
+    setTotalWeightDraft(String(w));
+    haptic.success();
   };
 
   const lookupBarcode = async (barcode: string) => {
@@ -412,6 +484,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const handleBarcodeScan = (barcode: string) => {
+    haptic.medium();
     setBarcodeScanned(true);
     setManualBarcode('');
     lookupBarcode(barcode);
@@ -438,9 +511,46 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   }, [itemBases]);
 
   const removeItem = useCallback((id: string) => {
+    haptic.medium();
     setRecognizedItems((prev) => prev.filter((item) => item.id !== id));
     setItemBases((prev) => { const next = { ...prev }; delete next[id]; return next; });
+  }, [haptic]);
+
+  /** Rename a recognized item — lets the user correct AI misidentifications
+   *  (e.g. AI said "рис", user knows it's actually "плов"). */
+  const renameItem = useCallback((id: string, newName: string) => {
+    const trimmed = newName.trim().slice(0, 100);
+    if (!trimmed) return;
+    setRecognizedItems((prev) => prev.map((i) => (i.id === id ? { ...i, name: trimmed } : i)));
   }, []);
+
+  /** Scale all items proportionally so the combined weight equals `totalG`.
+   *  Use case: AI guessed the plate was 350g, but scale says 500g — one tap
+   *  corrects every item's macros instead of editing each row manually. */
+  const scaleAllPortions = useCallback(() => {
+    const target = parseFloat(totalWeightDraft.replace(',', '.')) || 0;
+    if (target <= 0 || target > 10000) {
+      haptic.warning();
+      return;
+    }
+    const currentTotal = recognizedItems.reduce((s, i) => s + (i.weightGrams || 0), 0);
+    if (currentTotal === 0) return;
+    const factor = target / currentTotal;
+    setRecognizedItems((prev) => prev.map((item) => {
+      const base = itemBases[item.id];
+      const newW = Math.max(1, Math.round((item.weightGrams || 0) * factor));
+      if (!base) return { ...item, weightGrams: newW };
+      return {
+        ...item,
+        weightGrams: newW,
+        calories: Math.round((base.cal * newW) / 100),
+        protein: Math.round(((base.prot * newW) / 100) * 10) / 10,
+        fats: Math.round(((base.fats * newW) / 100) * 10) / 10,
+        carbs: Math.round(((base.carbs * newW) / 100) * 10) / 10,
+      };
+    }));
+    haptic.success();
+  }, [totalWeightDraft, recognizedItems, itemBases, haptic]);
 
   const addSavedFoodItem = useCallback((food: NutritionItem) => {
     const id = `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-added`;
@@ -462,6 +572,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const handleSave = () => {
     if (recognizedItems.length === 0) return;
+    haptic.success();
     const totalCal = Math.round(recognizedItems.reduce((s, i) => s + i.calories, 0));
     const totalProt = Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10;
     const ts = Date.now();
@@ -515,8 +626,23 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {/* Photo or empty-state card */}
         {imageUri ? (
           <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUri }} style={[styles.image, { height: Math.min(250, screenHeight * 0.3) }]} />
-            <TouchableOpacity style={[styles.retakeBtn, { backgroundColor: colors.surface }]} onPress={() => { abortRef.current?.abort(); setImageUri(null); setRecognizedItems([]); setItemBases({}); setLoading(false); setError(''); setIsBarcodeResult(false); lastBase64Ref.current = ''; }}>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => { haptic.selection(); setImagePreviewOpen(true); }}>
+              <Image source={{ uri: imageUri }} style={[styles.image, { height: Math.min(250, screenHeight * 0.3) }]} />
+              <View style={styles.zoomHint}>
+                <Text style={{ fontSize: 14, color: '#FFF' }}>⤢</Text>
+              </View>
+            </TouchableOpacity>
+            {cachedResult && (
+              <View style={[styles.cachedBadge, { backgroundColor: colors.success + '20', borderColor: colors.success + '60' }]}>
+                <Text style={[typography.caption, { color: colors.success, fontWeight: '700' }]}>
+                  ✓ Из кеша — скан не засчитан
+                </Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.retakeBtn, { backgroundColor: colors.surface }]}
+              onPress={() => { haptic.light(); abortRef.current?.abort(); setImageUri(null); setRecognizedItems([]); setItemBases({}); setLoading(false); setError(''); setIsBarcodeResult(false); setSanityFlags([]); setCachedResult(false); setTotalWeightDraft(''); lastBase64Ref.current = ''; }}
+            >
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Переснять</Text>
             </TouchableOpacity>
           </View>
@@ -621,6 +747,39 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 style={{ marginTop: spacing.md }}
               />
             )}
+            {/* If the AI failed to recognise food, offer an immediate barcode
+                fallback — much more reliable for packaged products. */}
+            {!loading && (
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                <Button
+                  title="📦 Штрих-код"
+                  variant="outline"
+                  onPress={() => { setError(''); setImageUri(null); openBarcodeScanner(); }}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Вручную"
+                  variant="outline"
+                  onPress={() => { setError(''); setImageUri(null); navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() }); }}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            )}
+          </Card>
+        )}
+
+        {/* Sanity warning — AI returned implausible values. Non-blocking but loud. */}
+        {recognizedItems.length > 0 && sanityFlags.length > 0 && (
+          <Card style={{ marginBottom: spacing.md, borderLeftWidth: 3, borderLeftColor: colors.warning, backgroundColor: colors.warning + '10' }}>
+            <Text style={[typography.smallMedium, { color: colors.warning, marginBottom: 4 }]}>
+              ⚠ Подозрительные значения
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary, lineHeight: 17 }]}>
+              {sanityFlags.includes('kcal_per_100g') && 'Калорийность на 100г слишком высокая (&gt;900 ккал). '}
+              {sanityFlags.includes('kcal_per_item') && 'Один из продуктов содержит слишком много калорий. '}
+              {sanityFlags.includes('total_kcal') && 'Суммарно больше 5000 ккал. '}
+              Проверь названия и вес порций перед сохранением.
+            </Text>
           </Card>
         )}
 
@@ -671,8 +830,43 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Распознано:</Text>
             {recognizedItems.map((item) => (
-              <RecognizedItemCard key={item.id} item={item} base={itemBases[item.id]} onWeightChange={updateItemWeight} onRemove={removeItem} />
+              <RecognizedItemCard
+                key={item.id}
+                item={item}
+                base={itemBases[item.id]}
+                onWeightChange={updateItemWeight}
+                onRemove={removeItem}
+                onRename={renameItem}
+              />
             ))}
+
+            {/* Portion scaler — single input that resizes every item proportionally
+                to match the total plate/bowl weight. Useful when the AI got the
+                proportions right but guessed the absolute size wrong. */}
+            {recognizedItems.length >= 2 && (
+              <View style={[styles.scalerRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={[typography.small, { color: colors.textSecondary, flex: 1 }]}>
+                  Общий вес тарелки:
+                </Text>
+                <TextInput
+                  style={[styles.scalerInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                  value={totalWeightDraft}
+                  onChangeText={setTotalWeightDraft}
+                  keyboardType="numeric"
+                  selectTextOnFocus
+                  maxLength={5}
+                  returnKeyType="done"
+                  onSubmitEditing={scaleAllPortions}
+                />
+                <Text style={[typography.small, { color: colors.textSecondary, marginLeft: 4 }]}>г</Text>
+                <TouchableOpacity
+                  onPress={scaleAllPortions}
+                  style={[styles.scalerBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={[typography.captionMedium, { color: '#FFF', fontWeight: '700' }]}>Пересчитать</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Add saved food panel */}
             <TouchableOpacity
@@ -766,6 +960,21 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         onClose={() => setShowBarcodeScanner(false)}
         onScan={handleBarcodeScan}
       />
+
+      {/* Full-screen image preview — tap the thumbnail to inspect what you
+          actually photographed before trusting the AI's identification. */}
+      <Modal visible={imagePreviewOpen} transparent animationType="fade" onRequestClose={() => setImagePreviewOpen(false)}>
+        <TouchableOpacity
+          style={styles.previewOverlay}
+          activeOpacity={1}
+          onPress={() => { haptic.selection(); setImagePreviewOpen(false); }}
+        >
+          {imageUri && (
+            <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />
+          )}
+          <Text style={styles.previewHint}>Тап, чтобы закрыть</Text>
+        </TouchableOpacity>
+      </Modal>
     </React.Fragment>
   );
 };
@@ -785,4 +994,61 @@ const styles = StyleSheet.create({
   recentChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, minWidth: 120, maxWidth: 180 },
   addMoreBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, alignItems: 'center', marginBottom: spacing.md },
   savedFoodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
+  zoomHint: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    left: spacing.sm,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cachedBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  scalerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  scalerInput: {
+    width: 64,
+    height: 36,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  scalerBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: borderRadius.md,
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '80%',
+  },
+  previewHint: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 42 : 24,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+  },
 });
