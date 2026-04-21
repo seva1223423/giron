@@ -68,6 +68,12 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
     setEditingName(false);
   };
 
+  /** Portion preset tap — buzz + apply new weight immediately. */
+  const selectPortion = (g: number) => {
+    haptic.selection();
+    onWeightChange(item.id, String(g));
+  };
+
   const handleSave = () => {
     if (isAlreadySaved) return;
     haptic.success();
@@ -163,7 +169,7 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
           {PORTION_PRESETS.map((g) => (
             <TouchableOpacity
               key={g}
-              onPress={() => onWeightChange(item.id, String(g))}
+              onPress={() => selectPortion(g)}
               style={[styles.portionBtn, {
                 backgroundColor: currentWeight === g ? colors.primary : colors.inputBackground,
                 borderColor: currentWeight === g ? colors.primary : colors.border,
