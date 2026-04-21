@@ -198,3 +198,13 @@ SMTP_PASSWORD
 ```
 
 When auditing, verify: `server/.env` is in `.gitignore` and none of these appear in source files.
+
+## See Also (Cross-Agent Coordination)
+
+- **Admin actions** — also check `compliance.md`: every admin mutation (ban, delete user, send announcement) must write to `AdminLog`. Security flags the IDOR risk; compliance flags the audit trail gap.
+- **Per-user AI rate limit** — also flagged by `monitoring.md` (no per-user limit, only per-IP). Fix requires both: server code change (monitoring covers implementation guidance) and subscription limit check (subscription route).
+- **Subscription gating** — also covered by `feature.md` Layer 4 and `frontend.md`. If server gate is present but client gate is missing, use `/premium-feature` command for full 5-layer checklist.
+- **Data residency (152-ФЗ)** — overlap with `compliance.md`. Security handles the technical transport security; compliance handles the legal data location requirement. Both must be satisfied.
+- **Missing index + WHERE filter** — if security finds an IDOR risk that requires adding `userId` to `where:`, also check `performance.md` (index needed) and spawn `database` agent to add `@@index([userId])`.
+
+If you find a gap that spans multiple domains, note which agent should handle the fix.

@@ -175,3 +175,13 @@ These events should always be logged at appropriate level:
 - Don't flag `console.log` in seed files or scripts — only in routes and services
 - Don't recommend removing the Ollama fallback — it's intentional for offline dev
 - Don't flag every missing metric — focus on actionable gaps that affect reliability or security
+
+## See Also (Cross-Agent Coordination)
+
+- **Per-user AI rate limit** — also flagged by `security.md`. Fixing it requires both a server code change (rate limit by `req.userId` instead of IP) AND a subscription check (free users get 10/day, premium get unlimited). Coordinate with `backend` agent for implementation.
+- **AI analytics context ~180 queries** — also a concern for `performance.md`. Monitoring should alert if analytics context build exceeds 2s. Performance should optimize the query count. `ai-coach` agent implements the fix.
+- **Admin audit log** — also flagged by `compliance.md`. Every admin mutation must write to `AdminLog` (monitoring gap: no alerting if admin log write fails). Coordinate with `backend` agent to wrap admin mutations in `$transaction` with log write.
+- **Subscription limit race condition** — if two concurrent AI requests both pass the daily limit check, the user gets 2 free messages for the price of 1. Fix: atomic increment in Prisma (`$executeRaw UPDATE ... WHERE count < limit RETURNING count`) or a Redis counter. Coordinate with `backend` agent.
+- **Health check depth** — shallow health check (no DB ping) means Render deploys succeed even if DB is unreachable. Coordinate with `deployment` agent which also checks the health endpoint configuration.
+
+Note: `monitoring` flags observability gaps; the implementing agent (backend, ai-coach, etc.) fixes them.
