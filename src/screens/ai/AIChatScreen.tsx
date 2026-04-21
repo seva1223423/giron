@@ -8,10 +8,10 @@ import { useSleepStore } from '../../store/useSleepStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { PaywallModal } from '../../components';
 import { ChatMessage } from '../../types';
-import { aiService, getApiError, AIActionResult, AIMeta, AIStarter } from '../../services';
+import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionService, workoutService } from '../../services';
 import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
-  ActionsBar, CelebrationBar, ChatInputBar, useDynamicPrompts,
+  ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
 } from './components';
 import { localDateStr } from '../../utils/date';
 
@@ -69,6 +69,15 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   // stopped talking, and offered no way to cut a long rambling answer short.
   const abortRef = useRef<AbortController | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+
+  // Undo toast state for destructive AI tools (delete_meal / delete_program).
+  // The AI executes and announces the deletion immediately; this toast gives
+  // the user ~8s to reverse it if the model misinterpreted their intent.
+  const [undoState, setUndoState] = useState<
+    | { kind: 'delete_meal'; label: string; snapshot: { type: string; date: string; items: Array<{ name: string; calories: number; protein: number; fats: number; carbs: number; weightGrams: number }> } }
+    | { kind: 'delete_program'; label: string; snapshot: { programId: string } }
+    | null
+  >(null);
 
   // Stop speech, cancel in-flight stream, and clear timers on unmount
   useEffect(() => () => {
@@ -235,6 +244,31 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (actionsTimerRef.current) clearTimeout(actionsTimerRef.current);
         actionsTimerRef.current = setTimeout(() => setLastActions([]), 6000);
         const types = actions.map((act) => act.type);
+
+        // Destructive actions → show Undo toast with the snapshot the server
+        // attached. We prefer the most recent deletion if the AI somehow
+        // produced several in one turn (rare — keeps UX simple).
+        const deleteMeal = [...actions].reverse().find((a) => a.type === 'delete_meal');
+        const deleteProgram = [...actions].reverse().find((a) => a.type === 'delete_program');
+        if (deleteMeal?.data?.snapshot) {
+          const snap = deleteMeal.data.snapshot as any;
+          if (snap?.type && Array.isArray(snap?.items)) {
+            setUndoState({
+              kind: 'delete_meal',
+              label: deleteMeal.description || 'Приём пищи удалён',
+              snapshot: { type: snap.type, date: snap.date ?? localDateStr(new Date()), items: snap.items },
+            });
+          }
+        } else if (deleteProgram?.data?.snapshot) {
+          const snap = deleteProgram.data.snapshot as any;
+          if (snap?.programId) {
+            setUndoState({
+              kind: 'delete_program',
+              label: deleteProgram.description || 'Программа удалена',
+              snapshot: { programId: snap.programId },
+            });
+          }
+        }
         if (types.includes('create_workout') || types.includes('modify_workout') || types.includes('create_program') || types.includes('delete_program') || types.includes('adjust_all_weights') || types.includes('swap_exercise') || types.includes('add_superset')) {
           fetchPrograms().catch(() => {});
           fetchHistory().catch(() => {});
@@ -347,6 +381,50 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       <ActionsBar actions={lastActions} />
       <CelebrationBar celebration={celebration} />
+      {undoState && (
+        <UndoToast
+          label={undoState.label}
+          onUndo={async () => {
+            const toUndo = undoState;
+            setUndoState(null);
+            try {
+              if (toUndo.kind === 'delete_meal') {
+                // Recreate the meal with a new server id; local cache re-syncs
+                // via syncMealsFromServer so the NutritionCard reflects it.
+                await nutritionService.addMeal({
+                  type: toUndo.snapshot.type,
+                  date: toUndo.snapshot.date,
+                  items: toUndo.snapshot.items,
+                });
+                await syncMealsFromServer(toUndo.snapshot.date);
+              } else if (toUndo.kind === 'delete_program') {
+                // delete_program was a soft-delete (isActive=false). Flipping
+                // the flag restores it — no data was actually lost.
+                await workoutService.updateProgram(toUndo.snapshot.programId, { isActive: true });
+                await fetchPrograms();
+              }
+              haptic.success();
+              setMessages((prev) => [...prev, {
+                id: `undo-${Date.now()}`,
+                role: 'assistant',
+                createdAt: new Date().toISOString(),
+                content: toUndo.kind === 'delete_meal'
+                  ? 'Приём пищи восстановлен.'
+                  : 'Программа восстановлена.',
+              }]);
+            } catch {
+              haptic.error();
+              setMessages((prev) => [...prev, {
+                id: `undo-err-${Date.now()}`,
+                role: 'assistant',
+                createdAt: new Date().toISOString(),
+                content: 'Не удалось отменить — проверь соединение.',
+              }]);
+            }
+          }}
+          onDismiss={() => setUndoState(null)}
+        />
+      )}
       <ChatInputBar
         value={input}
         onChange={setInput}
