@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeStore, useWorkoutStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -46,6 +46,7 @@ interface Props {
 export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExercises, userTemplateEntries, onSelect, onClose }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
+  const { routines } = useWorkoutStore();
   const { height: screenHeight } = useWindowDimensions();
 
   const TemplateRow: React.FC<{ template: WeekPlanEntry; exercises: { id: string; name: string }[] }> = ({ template, exercises }) => {
@@ -86,6 +87,19 @@ export const DayPickerModal: React.FC<Props> = ({ pickerDay, weekPlan, allExerci
 
             <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>КАРДИО</Text>
             {CARDIO_TEMPLATES.map((t) => <TemplateRow key={t.name} template={t} exercises={localExercises} />)}
+
+            {routines.length > 0 && (
+              <>
+                <Text style={[typography.captionMedium, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>МОИ РУТИНЫ</Text>
+                {routines.map((r) => (
+                  <TemplateRow
+                    key={r.id}
+                    template={{ name: r.name, emoji: '◈', routineId: r.id, exercises: r.exercises.map((e) => e.exerciseId) }}
+                    exercises={allExercises}
+                  />
+                ))}
+              </>
+            )}
 
             {userTemplateEntries.length > 0 && (
               <>

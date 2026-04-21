@@ -13,7 +13,7 @@
 
 ### Сервер (`server/`)
 - Express 4 + TypeScript
-- Prisma 6 ORM (PostgreSQL на Neon eu-central-1, 34 модели)
+- Prisma 6 ORM (PostgreSQL на Neon eu-central-1, 37 моделей)
 - JWT (7d access + 30d refresh) + bcryptjs, helmet, express-rate-limit
 - Zod (валидация), Multer (загрузка файлов), CORS
 - AI: Mistral API (основной, `mistral-small-latest`), DeepSeek, Ollama (локальный fallback)
@@ -40,7 +40,7 @@
 ### API маршруты (server/src/routes/)
 - `auth.ts` (1458 строк) — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
 - `user.ts` (1152 строки) — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
-- `workout.ts` (635 строк) — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises
+- `workout.ts` (899 строк) — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
 - `nutrition.ts` — meals CRUD (фильтр по дате)
 - `news.ts` — RSS парсинг (4 Google News источника, каждые 6ч), save/unsave, refresh
 - `subscription.ts` — status, activate, cancel, webhook (RevenueCat/YuKassa/generic)
@@ -88,12 +88,13 @@ server/
     controllers/ — (пусто, логика в routes)
     utils/       — утилиты
   prisma/
-    schema.prisma — 34 модели (User, RefreshToken, TrustedDevice, UsedTotpCode, OtpCode, PasswordHistory,
+    schema.prisma — 37 моделей (User, RefreshToken, TrustedDevice, UsedTotpCode, OtpCode, PasswordHistory,
                     PasswordResetToken, SecurityEvent, PushToken, Program, Workout, WorkoutExercise,
                     WorkoutSet, Exercise, HealthRestriction, Gym, CardioSession, SleepEntry,
                     BodyWeight, BodyMeasurement, Meal, MealItem, FoodScanLog, ChatMessage, AIMemory,
                     NewsArticle, SavedNews, Subscription, TrainerClient, TrainerSession,
-                    SupportTicket, SupportMessage, AdminLog, Announcement)
+                    SupportTicket, SupportMessage, AdminLog, Announcement,
+                    Routine, RoutineExercise, RoutineSet)
     seed.ts       — 150+ упражнений, начальные данные
 ```
 
