@@ -10,6 +10,7 @@ import { exercises as localExercises } from '../../data/exercises';
 import { BuiltInProgram } from '../../data/programs';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { ProgramDayCard } from './program';
+import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
 
 const WEEK_SLOTS: Record<number, number[]> = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5] };
 const DAY_LABELS_FULL = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -22,7 +23,7 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const safeTop = useSafeTop();
   const program: BuiltInProgram = route.params?.program;
   const { colors } = useThemeStore();
-  const { startWorkout, setWeekPlanDay, activeWorkout } = useWorkoutStore();
+  const { setWeekPlanDay } = useWorkoutStore();
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
 
   useEffect(() => { if (!program) navigation.goBack(); }, [program, navigation]);
@@ -47,12 +48,6 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const startProgramDay = (day: typeof program.days[0]) => {
     haptic.medium();
 
-    // If another workout is already in progress, navigate to it instead of overwriting
-    if (activeWorkout) {
-      navigation.navigate('ActiveWorkout');
-      return;
-    }
-
     const workoutExercises: WorkoutExercise[] = (day.exercises.map((item, index) => {
       const ex = localExercises.find((e) => e.id === item.exerciseId);
       if (!ex) return null;
@@ -63,8 +58,10 @@ export const ProgramDetailScreen: React.FC<{ route: any; navigation: any }> = ({
       Alert.alert('Ошибка', 'В этой тренировке нет упражнений');
       return;
     }
-    startWorkout({ id: `workout-${Date.now()}`, name: `${program.name} — ${day.name}`, exercises: workoutExercises });
-    navigation.navigate('ActiveWorkout');
+    startWorkoutSafe(
+      { id: `workout-${Date.now()}`, name: `${program.name} — ${day.name}`, exercises: workoutExercises },
+      navigation,
+    );
   };
 
   return (

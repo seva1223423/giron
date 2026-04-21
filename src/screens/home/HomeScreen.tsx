@@ -28,6 +28,7 @@ const SPLITS = [
 ];
 
 import { todayDateStr, localDateStr } from '../../utils/date';
+import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
 import { useSafeTop } from '../../hooks/useSafeTop';
 const todayDate = todayDateStr;
 
@@ -75,7 +76,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
   const { user } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, startWorkout, customExercises, fetchWeekPlan } = useWorkoutStore();
+  const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, customExercises, fetchWeekPlan } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
 
   useEffect(() => {
@@ -220,12 +221,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       Alert.alert('Ошибка', 'Упражнения из плана не найдены');
       return;
     }
-    startWorkout({ id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises });
-    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  }, [todayPlan, customExercises, startWorkout, navigation, haptic]);
+    startWorkoutSafe(
+      { id: `workout-${Date.now()}`, name: todayPlan.name, exercises: workoutExercises },
+      navigation,
+      { tab: 'WorkoutsTab' },
+    );
+  }, [todayPlan, customExercises, navigation, haptic]);
 
   const handleRepeatWorkout = useCallback(() => {
-    if (!lastWorkout || activeWorkout) return;
+    if (!lastWorkout) return;
     haptic.medium();
     const workoutExercises: WorkoutExercise[] = (lastWorkout.exercises ?? []).map((we, index) => {
       const sets: WorkoutSet[] = (we.sets ?? []).map((s, i) => ({
@@ -234,9 +238,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }));
       return { ...we, id: `we-${Date.now()}-${index}`, sets };
     });
-    startWorkout({ id: `workout-${Date.now()}`, name: lastWorkout.name, exercises: workoutExercises });
-    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  }, [lastWorkout, activeWorkout, startWorkout, navigation, haptic]);
+    startWorkoutSafe(
+      { id: `workout-${Date.now()}`, name: lastWorkout.name, exercises: workoutExercises },
+      navigation,
+      { tab: 'WorkoutsTab' },
+    );
+  }, [lastWorkout, navigation, haptic]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -431,7 +438,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             workoutRecommendation={workoutRecommendation}
             activeProgram={activeProgram}
             haptic={haptic}
-            startWorkout={startWorkout}
             navigation={navigation}
           />
         </FadeIn>

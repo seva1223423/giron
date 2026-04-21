@@ -127,6 +127,32 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     if (!validateForm()) return;
     clearErrors();
 
+    // Pre-check email availability before burning an SMS quota on a registration
+    // that the server will just reject. checkEmail swallows network errors and
+    // returns { exists: false } — in that case we fall through and let the final
+    // register call surface any server-side 409 instead.
+    const emailTrimmed = email.trim().toLowerCase();
+    setOtpSending(true); // reuses the spinner — we're doing a network call here too
+    try {
+      const check = await authService.checkEmail(emailTrimmed);
+      if (check.exists) {
+        const methods: string[] = [];
+        if (check.hasPassword) methods.push('паролем');
+        if (check.hasGoogle) methods.push('Google');
+        if (check.hasVk) methods.push('VK');
+        if (check.hasYandex) methods.push('Яндекс');
+        const hint = methods.length > 0
+          ? ` Войдите через ${methods.join(' / ')}.`
+          : '';
+        setLocalError(`Email уже зарегистрирован.${hint}`);
+        return;
+      }
+    } catch {
+      // Non-fatal — proceed; the registration itself will surface conflicts
+    } finally {
+      setOtpSending(false);
+    }
+
     if (phoneDigits.length === 10) {
       // Need to send OTP first
       setOtpSending(true);

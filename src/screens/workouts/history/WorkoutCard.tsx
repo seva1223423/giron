@@ -6,6 +6,7 @@ import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { WorkoutExercise, WorkoutSet } from '../../../types';
+import { startWorkoutSafe } from '../../../utils/startWorkoutSafe';
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Грудь', back: 'Спина', shoulders: 'Плечи', biceps: 'Бицепс',
@@ -37,7 +38,7 @@ interface Props {
 export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { activeWorkout, startWorkout } = useWorkoutStore();
+  const { activeWorkout } = useWorkoutStore();
 
   const exercises = workout.exercises ?? [];
   const completedSets = exercises.reduce((s: number, e: any) => s + (e.sets ?? []).filter((set: any) => set.completed).length, 0);
@@ -47,7 +48,6 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
   const muscles = Array.from(muscleSet).slice(0, 3);
 
   const handleRepeat = () => {
-    if (activeWorkout) return;
     haptic.medium();
     const exercises: WorkoutExercise[] = (workout.exercises ?? []).map((we: any, index: number) => {
       const sets: WorkoutSet[] = (we.sets ?? []).map((s: any, i: number) => ({
@@ -55,8 +55,10 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
       }));
       return { ...we, id: `we-${Date.now()}-${index}`, sets };
     });
-    startWorkout({ id: `workout-${Date.now()}`, name: workout.name, exercises });
-    navigation.navigate('ActiveWorkout');
+    startWorkoutSafe(
+      { id: `workout-${Date.now()}`, name: workout.name, exercises },
+      navigation,
+    );
   };
 
   return (

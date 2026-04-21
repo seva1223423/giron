@@ -8,6 +8,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { builtInPrograms } from '../../../data/programs';
 import { Workout } from '../../../types';
 import { UserProgramsList } from './UserProgramsList';
+import { startWorkoutSafe } from '../../../utils/startWorkoutSafe';
 
 const GOAL_FILTERS = [
   { key: 'all', label: 'Все' },
@@ -34,7 +35,7 @@ interface Props {
 export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { programs, startWorkout, activeWorkout } = useWorkoutStore();
+  const { programs } = useWorkoutStore();
   const { isPremiumActive } = useSubscriptionStore();
   const [showPaywall, setShowPaywall] = useState(false);
   const [goalFilter, setGoalFilter] = useState<typeof GOAL_FILTERS[number]['key']>('all');
@@ -51,12 +52,6 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
 
   const startProgramWorkout = (workout: any) => {
     haptic.medium();
-
-    // If another workout is already in progress, navigate to it instead of overwriting
-    if (activeWorkout) {
-      navigation.navigate('ActiveWorkout');
-      return;
-    }
 
     if (!workout.exercises || workout.exercises.length === 0) {
       Alert.alert('Ошибка', 'В этой тренировке нет упражнений');
@@ -76,8 +71,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
       startedAt: undefined,
       completedAt: undefined,
     };
-    startWorkout(fresh);
-    navigation.navigate('ActiveWorkout');
+    startWorkoutSafe(fresh, navigation);
   };
 
   return (

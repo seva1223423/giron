@@ -40,6 +40,10 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
 
   // Track which exercises got PRs in this session
   const [sessionPRs, setSessionPRs] = useState<Set<string>>(new Set());
+  // Running best 1RM per exercise for the current session — used so a second heavier
+  // set of the same exercise is measured against the session's own running max, not
+  // just the historical best (which would re-toast at ever-increasing RMs).
+  const sessionBestRef = useRef<Record<string, number>>({});
 
   // Live elapsed time counter
   const [elapsed, setElapsed] = useState(0);
@@ -79,6 +83,10 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   // Captures exercise index at the moment rest started — guards against advancing the wrong exercise
   // if the user manually swiped to another exercise while resting
   const restingExerciseIndexRef = useRef<number>(-1);
+  // Wall-clock end time for the rest timer — anchors the countdown to Date.now() so the
+  // elapsed time stays accurate even if the JS interval is throttled or paused while the
+  // app is backgrounded. Local notifications are still the authoritative rest-end signal.
+  const restEndAtRef = useRef<number>(0);
 
   // PR toast state
   const [prToast, setPrToast] = useState<{ name: string; rm: number; prevRm?: number } | null>(null);
@@ -144,9 +152,30 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     restingAfterLastSetRef.current = false;
     setRestingAfterLastSet(false);
     restingExerciseIndexRef.current = -1;
+    restEndAtRef.current = 0;
   }, []);
 
+  // When the app returns to the foreground, snap the rest timer to the real remaining
+  // time. The JS interval may have been throttled while backgrounded; the scheduled
+  // local notification still fires on time, but the on-screen countdown would otherwise
+  // display a stale value until the next tick.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || !restEndAtRef.current) return;
+      const remaining = Math.max(0, Math.ceil((restEndAtRef.current - Date.now()) / 1000));
+      setRestTime(remaining);
+      if (remaining <= 0 && timerRef.current) {
+        clearInterval(timerRef.current);
+        if (restEndTimerRef.current) clearTimeout(restEndTimerRef.current);
+        restEndTimerRef.current = setTimeout(() => handleRestEnd(), 0);
+      }
+    });
+    return () => sub.remove();
+  }, [handleRestEnd]);
+
   const startRest = (seconds: number, isLastSet: boolean = false) => {
+    const endAt = Date.now() + seconds * 1000;
+    restEndAtRef.current = endAt;
     setRestTime(seconds);
     setRestTotal(seconds);
     setIsResting(true);
@@ -157,16 +186,15 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     scheduleRestEndNotification(seconds);
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setRestTime((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          // Use setTimeout to avoid state update during render
-          if (restEndTimerRef.current) clearTimeout(restEndTimerRef.current);
-          restEndTimerRef.current = setTimeout(() => handleRestEnd(), 0);
-          return 0;
-        }
-        return prev - 1;
-      });
+      // Recompute from the anchored end time on every tick — stays accurate even if the
+      // interval was throttled or the app was briefly backgrounded.
+      const remaining = Math.max(0, Math.ceil((restEndAtRef.current - Date.now()) / 1000));
+      setRestTime(remaining);
+      if (remaining <= 0) {
+        clearInterval(timerRef.current!);
+        if (restEndTimerRef.current) clearTimeout(restEndTimerRef.current);
+        restEndTimerRef.current = setTimeout(() => handleRestEnd(), 0);
+      }
     }, 1000);
   };
 
@@ -184,6 +212,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     restingAfterLastSetRef.current = false;
     setRestingAfterLastSet(false);
     restingExerciseIndexRef.current = -1;
+    restEndAtRef.current = 0;
   };
 
   // Previous session sets for current exercise (must be before early return)
@@ -273,34 +302,44 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const currentExHasSessionPR = sessionPRs.has(currentExercise.exerciseId);
 
   const handleRpeSelected = (rpe: number) => {
-    // Adjust active rest timer based on RPE
+    // Adjust active rest timer based on RPE — keep the wall-clock anchor in sync
+    // so the Date.now()-based tick reflects the new end time.
+    const delta =
+      rpe >= 9.5 ? 45 :
+      rpe >= 8.5 ? 30 :
+      rpe <= 6 ? -30 : 0;
+    if (delta === 0) return;
     setRestTime((current) => {
       if (current <= 0) return current;
-      if (rpe >= 9.5) return current + 45;
-      if (rpe >= 8.5) return current + 30;
-      if (rpe <= 6) return Math.max(10, current - 30);
-      return current;
+      return Math.max(10, current + delta);
     });
     setRestTotal((total) => {
       if (total <= 0) return total;
-      if (rpe >= 9.5) return total + 45;
-      if (rpe >= 8.5) return total + 30;
-      if (rpe <= 6) return Math.max(10, total - 30);
-      return total;
+      return Math.max(10, total + delta);
     });
+    if (restEndAtRef.current > Date.now()) {
+      const remaining = Math.max(10, Math.ceil((restEndAtRef.current - Date.now()) / 1000) + delta);
+      restEndAtRef.current = Date.now() + remaining * 1000;
+    }
   };
 
   const handleCompleteSet = (setIndex: number, reps: number, weight: number) => {
     haptic.medium();
     completeSet(currentExerciseIndex, setIndex, { reps, weight });
 
-    // PR detection
+    // PR detection — compare against max(historical, session running). Without the
+    // session part, back-to-back PRs on the same exercise would each compute against
+    // the old historical best and show the *previous* RM on the toast instead of the
+    // just-set session RM.
     if (weight > 0 && reps > 0) {
       const newRM = weight * (1 + reps / 30);
-      const prevBest = bestRMs[currentExercise.exerciseId] ?? 0;
+      const historicalBest = bestRMs[currentExercise.exerciseId] ?? 0;
+      const sessionBest = sessionBestRef.current[currentExercise.exerciseId] ?? 0;
+      const prevBest = Math.max(historicalBest, sessionBest);
       if (newRM > prevBest) {
         showPrToast(currentExercise.exercise?.name ?? 'Упражнение', Math.round(newRM), prevBest > 0 ? Math.round(prevBest) : undefined);
         setSessionPRs((prev) => new Set(prev).add(currentExercise.exerciseId));
+        sessionBestRef.current[currentExercise.exerciseId] = newRM;
       }
     }
 
@@ -374,8 +413,15 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     const buttons = alternatives.map((ex) => ({
       text: ex.name,
       onPress: () => {
-        addExerciseToWorkout(ex);
-        Alert.alert('Готово', `"${ex.name}" добавлено в тренировку`);
+        const added = addExerciseToWorkout(ex);
+        if (added) {
+          Alert.alert('Готово', `"${ex.name}" добавлено в тренировку`);
+        } else {
+          // Only reason this returns false (given we have an active workout) is that
+          // the exercise is already in the session — surface that instead of silently
+          // doing nothing.
+          Alert.alert('Уже добавлено', `"${ex.name}" уже есть в этой тренировке`);
+        }
       },
     }));
     buttons.push({ text: 'Отмена', onPress: () => {} } as any);
@@ -399,7 +445,11 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
         restTime={restTime}
         restTotal={restTotal}
         onSkip={skipRest}
-        onAddTime={(sec) => { setRestTime((r) => r + sec); setRestTotal((t) => t + sec); }}
+        onAddTime={(sec) => {
+          setRestTime((r) => r + sec);
+          setRestTotal((t) => t + sec);
+          restEndAtRef.current += sec * 1000;
+        }}
         nextExerciseName={nextExerciseName}
         isLastSetOfExercise={restingAfterLastSet}
       />
