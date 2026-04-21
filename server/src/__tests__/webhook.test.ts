@@ -18,6 +18,7 @@ jest.mock('../db', () => ({
       create: jest.fn().mockResolvedValue({}),
       upsert: jest.fn().mockResolvedValue({}),
       updateMany: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn().mockResolvedValue(null), // null = no existing sub (stale-event guard)
     },
     refreshToken: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -81,6 +82,7 @@ function resetMocks() {
   (mp.subscription.create as jest.Mock).mockResolvedValue({});
   (mp.subscription.upsert as jest.Mock).mockResolvedValue({});
   (mp.subscription.updateMany as jest.Mock).mockResolvedValue({});
+  (mp.subscription.findUnique as jest.Mock).mockResolvedValue(null);
 }
 
 const YK_SECRET = 'yukassa-test-secret';
