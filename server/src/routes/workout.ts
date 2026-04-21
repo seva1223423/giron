@@ -941,4 +941,55 @@ router.post('/routines/:id/start', authenticate, async (req: AuthRequest, res: R
   }
 });
 
+// Progression history for a routine — last N completed workouts started from this routine,
+// with per-exercise max weight so client can render a trend chart
+router.get('/routines/:id/history', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const { id } = req.params as { id: string };
+    const routine = await prisma.routine.findUnique({
+      where: { id },
+      select: { userId: true, exercises: { select: { exerciseId: true, exercise: { select: { id: true, name: true } } }, orderBy: { order: 'asc' } } },
+    });
+    if (!routine || routine.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
+
+    const workouts = await prisma.workout.findMany({
+      where: { routineId: id, userId: req.userId!, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        completedAt: true,
+        durationMinutes: true,
+        exercises: {
+          select: {
+            exerciseId: true,
+            sets: { where: { completed: true, type: { not: 'warmup' } }, select: { weight: true, reps: true } },
+          },
+        },
+      },
+    });
+
+    // For each workout, compute max weight per exercise
+    const history = workouts.map((w) => ({
+      id: w.id,
+      completedAt: w.completedAt!.toISOString(),
+      durationMinutes: w.durationMinutes,
+      exercises: routine.exercises.map((re) => {
+        const we = w.exercises.find((e) => e.exerciseId === re.exerciseId);
+        const maxWeight = we && we.sets.length > 0
+          ? Math.max(...we.sets.map((s) => s.weight ?? 0))
+          : null;
+        const totalReps = we ? we.sets.reduce((s, set) => s + (set.reps ?? 0), 0) : 0;
+        return { exerciseId: re.exerciseId, name: re.exercise.name, maxWeight, totalReps };
+      }),
+    }));
+
+    res.json({ routineId: id, history });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения истории рутины' });
+  }
+});
+
 export { router as workoutRouter };

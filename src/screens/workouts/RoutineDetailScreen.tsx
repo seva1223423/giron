@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform,
@@ -10,7 +10,7 @@ import { Button, Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { workoutService } from '../../services';
-import type { RoutineStartPayload } from '../../types';
+import type { RoutineStartPayload, RoutineHistoryEntry } from '../../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -133,6 +133,17 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const [showRename, setShowRename] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
+  const [history, setHistory] = useState<RoutineHistoryEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (!routine) return;
+    setLoadingHistory(true);
+    workoutService.getRoutineHistory(routine.id)
+      .then((r) => setHistory(r.history))
+      .catch(() => {})
+      .finally(() => setLoadingHistory(false));
+  }, [routine?.id]);
 
   const handleStartPress = useCallback(async () => {
     if (!routine) return;
@@ -338,6 +349,45 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           </FadeIn>
         ))}
 
+        {/* Progression history */}
+        {(history.length > 0 || loadingHistory) && (
+          <FadeIn delay={180}>
+            <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm, marginTop: spacing.sm }]}>
+              ПРОГРЕССИЯ
+            </Text>
+            {loadingHistory ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
+                {history.slice(0, 5).map((session, si) => {
+                  const dateStr = new Date(session.completedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+                  return (
+                    <View
+                      key={session.id}
+                      style={[styles.historyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    >
+                      <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.xs }]}>{dateStr}</Text>
+                      {session.exercises.slice(0, 3).map((ex) => (
+                        <View key={ex.exerciseId} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md }}>
+                          <Text style={[typography.caption, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex.name}</Text>
+                          <Text style={[typography.captionMedium, { color: ex.maxWeight ? colors.primary : colors.textTertiary }]}>
+                            {ex.maxWeight ? `${ex.maxWeight}кг` : '—'}
+                          </Text>
+                        </View>
+                      ))}
+                      {session.durationMinutes ? (
+                        <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
+                          {session.durationMinutes} мин
+                        </Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </FadeIn>
+        )}
+
         <FadeIn delay={200}>
           <View style={{ marginTop: spacing.md, marginBottom: spacing.huge }}>
             <Button
@@ -433,5 +483,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     fontSize: 16,
+  },
+  historyCard: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginRight: spacing.sm,
+    minWidth: 140,
+    maxWidth: 160,
   },
 });
