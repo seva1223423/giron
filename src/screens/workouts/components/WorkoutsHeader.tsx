@@ -12,6 +12,7 @@ interface Props {
 
 const SHORTCUTS = [
   { label: 'История', icon: '◧', screen: 'WorkoutHistory' },
+  { label: 'Рутины', icon: '◉', screen: 'Routines' },
   { label: 'Кардио', icon: '◑', screen: 'Cardio' },
   { label: 'Рекорды', icon: '◉', screen: 'PersonalRecords' },
   { label: 'Неделя', icon: '◫', screen: 'WeeklyPlan' },
