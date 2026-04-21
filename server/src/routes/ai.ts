@@ -1911,7 +1911,12 @@ async function executeTool(
   if (toolName === 'delete_meal') {
     const { mealId } = toolInput as { mealId: string };
 
-    const meal = await prisma.meal.findFirst({ where: { id: mealId, userId } });
+    // Fetch with items so the client can offer an "Отменить" toast that
+    // re-creates the meal with the exact same content.
+    const meal = await prisma.meal.findFirst({
+      where: { id: mealId, userId },
+      include: { items: true },
+    });
     if (!meal) {
       return { resultText: 'Приём пищи не найден или уже удалён', actionDescription: '' };
     }
@@ -1925,10 +1930,25 @@ async function executeTool(
     const label = MEAL_LABELS[meal.type] || meal.type;
     const description = `${label} удалён (${Math.round(meal.totalCalories)} ккал)`;
 
+    // Snapshot — small, self-contained, fits in the action payload. Client uses
+    // it to recreate the meal via POST /nutrition/meals if the user taps Undo.
+    const snapshot = {
+      type: meal.type,
+      date: meal.date,
+      items: meal.items.map((it: any) => ({
+        name: it.name,
+        calories: it.calories,
+        protein: it.protein,
+        fats: it.fats,
+        carbs: it.carbs,
+        weightGrams: it.weightGrams,
+      })),
+    };
+
     return {
       resultText: `${label} удалён из дневника питания`,
       actionDescription: description,
-      actionData: { mealId, mealType: meal.type },
+      actionData: { mealId, mealType: meal.type, snapshot },
     };
   }
 
@@ -2350,10 +2370,12 @@ async function executeTool(
     const active = await prisma.program.findFirst({ where: { userId, isActive: true } });
     if (!active) return { resultText: 'Нет активной программы для удаления', actionDescription: '' };
     await prisma.program.updateMany({ where: { id: active.id, userId }, data: { isActive: false } });
+    // delete_program is actually a soft-delete (isActive: false). The client's Undo
+    // path just flips the flag back, so the snapshot is just the id + name for UI.
     return {
       resultText: `Программа "${active.name}" деактивирована`,
       actionDescription: `Программа "${active.name}" удалена`,
-      actionData: { programId: active.id },
+      actionData: { programId: active.id, programName: active.name, snapshot: { programId: active.id } },
     };
   }
 
