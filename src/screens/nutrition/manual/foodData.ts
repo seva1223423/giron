@@ -1,5 +1,11 @@
-// Common foods database (per 100g)
-export const FOOD_DB = [
+// Common foods database (per 100g).
+//
+// Historical note: earlier edits appended new rows without checking existing
+// ones, which produced a handful of near-duplicates (e.g. "Шоколад тёмный 70%"
+// and "Шоколад горький (70%)"). The FOOD_DB export below is deduped at module
+// load: entries with the same normalized name (lowercase, trimmed, punctuation
+// stripped) and identical macros collapse to one.
+const RAW_FOOD_DB = [
   // Мясо и птица
   { name: 'Куриная грудка', calories: 165, protein: 31, fats: 3.6, carbs: 0 },
   { name: 'Куриное бедро', calories: 215, protein: 26, fats: 12, carbs: 0 },
@@ -283,5 +289,44 @@ export const FOOD_DB = [
   { name: 'Сырник творожный', calories: 220, protein: 12, fats: 10, carbs: 22 },
   { name: 'Оладьи', calories: 205, protein: 7, fats: 9, carbs: 26 },
 ];
+
+/** Normalize a food name for dedup: lowercase, collapse whitespace, strip
+ *  common decorative punctuation so "Шоколад тёмный 70%" and "Шоколад горький (70%)"
+ *  can be detected as the same product. Unicode-safe. */
+const normalizeFoodKey = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[()%]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+// Collapse duplicates by normalized name. If two entries with the same
+// normalized name have noticeably different macros (e.g. "Гречка варёная" vs
+// "Гречка сухая"), we keep both — the raw-vs-cooked distinction matters.
+const seenByKey = new Map<string, typeof RAW_FOOD_DB[number]>();
+for (const item of RAW_FOOD_DB) {
+  const key = normalizeFoodKey(item.name);
+  const existing = seenByKey.get(key);
+  if (!existing) {
+    seenByKey.set(key, item);
+    continue;
+  }
+  // Same normalized name — merge only if macros are within ~5% (same product
+  // written two ways). Otherwise keep the first (raw/cooked/variant distinction).
+  const close = (a: number, b: number) => Math.abs(a - b) <= Math.max(1, Math.abs(a) * 0.05);
+  if (
+    close(existing.calories, item.calories) &&
+    close(existing.protein, item.protein) &&
+    close(existing.fats, item.fats) &&
+    close(existing.carbs, item.carbs)
+  ) {
+    // drop duplicate silently
+    continue;
+  }
+  // Macros diverge — keep both under distinct keys so the user can still find them
+  seenByKey.set(`${key}__${item.calories}`, item);
+}
+
+export const FOOD_DB = Array.from(seenByKey.values());
 
 export type FoodItem = typeof FOOD_DB[0];

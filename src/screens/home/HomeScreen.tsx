@@ -15,6 +15,7 @@ import {
   HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
   LastWorkoutCard, NutritionCard, WaterCard,
   RecoveryScoreCard, TodaySummaryCard, StepsCard,
+  StreakWarningCard, MuscleReadinessCard,
 } from './components';
 import { Text, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography } from '../../theme';
@@ -443,10 +444,24 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeIn>
       )}
 
+      {/* Streak-at-risk warning — only when the user has a streak going but
+          hasn't trained today. Keeps the nag targeted instead of noisy. */}
+      {!activeWorkout && streak >= 2 && daysSinceLastWorkout !== null && daysSinceLastWorkout >= 1 && (
+        <FadeIn delay={160}>
+          <StreakWarningCard streak={streak} navigation={navigation} />
+        </FadeIn>
+      )}
+
       {/* ── ТРЕНИРОВКИ ─────────────────────────── */}
       <SectionDivider label="ТРЕНИРОВКИ" colors={colors} />
 
       <RecoveryScoreCard />
+
+      {workoutHistory.length > 0 && (
+        <FadeIn delay={200}>
+          <MuscleReadinessCard workoutHistory={workoutHistory} />
+        </FadeIn>
+      )}
 
       {isLoadingHistory && workoutHistory.length === 0 && (
         <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
