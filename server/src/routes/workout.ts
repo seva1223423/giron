@@ -640,4 +640,260 @@ router.get('/exercises', authenticate, async (_req, res: Response) => {
   }
 });
 
+// ==================== ROUTINES ====================
+
+const createRoutineSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  exercises: z.array(z.object({
+    exerciseId: z.string().min(1).max(100),
+    order: z.number().int().min(0).max(49),
+    restSeconds: z.number().int().min(0).max(600).optional(),
+    notes: z.string().max(500).optional(),
+    sets: z.array(z.object({
+      setNumber: z.number().int().min(1).max(30),
+      type: z.string().max(50).optional(),
+      reps: z.number().int().min(0).max(999).optional(),
+      weight: z.number().min(0).max(2000).optional(),
+      rpe: z.number().min(1).max(10).optional(),
+    })).min(1).max(30),
+  })).min(1).max(30),
+});
+
+// List user routines
+router.get('/routines', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const routines = await prisma.routine.findMany({
+      where: { userId: req.userId },
+      include: {
+        exercises: {
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json(routines);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения рутин' });
+  }
+});
+
+// Create routine
+router.post('/routines', authenticate, async (req: AuthRequest, res: Response) => {
+  const parsed = createRoutineSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+  try {
+    const { name, description, exercises } = parsed.data;
+    const routine = await prisma.routine.create({
+      data: {
+        name,
+        description,
+        userId: req.userId!,
+        exercises: {
+          create: exercises.map((ex) => ({
+            order: ex.order,
+            restSeconds: ex.restSeconds ?? 90,
+            notes: ex.notes,
+            exerciseId: ex.exerciseId,
+            sets: {
+              create: ex.sets.map((s) => ({
+                setNumber: s.setNumber,
+                type: s.type ?? 'normal',
+                reps: s.reps,
+                weight: s.weight,
+                rpe: s.rpe,
+              })),
+            },
+          })),
+        },
+      },
+      include: {
+        exercises: {
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+    res.status(201).json(routine);
+  } catch (e: any) {
+    if (e?.code === 'P2003') return res.status(400).json({ error: 'Одно или несколько упражнений не найдены' });
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка создания рутины' });
+  }
+});
+
+// Get single routine
+router.get('/routines/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const { id } = req.params as { id: string };
+    const routine = await prisma.routine.findUnique({
+      where: { id },
+      include: {
+        exercises: {
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+    if (!routine || routine.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
+    res.json(routine);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка получения рутины' });
+  }
+});
+
+// Replace routine exercises (full update)
+router.put('/routines/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  const parsed = createRoutineSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
+  try {
+    const { id } = req.params as { id: string };
+    const existing = await prisma.routine.findUnique({ where: { id }, select: { userId: true } });
+    if (!existing || existing.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
+
+    const { name, description, exercises } = parsed.data;
+    const routine = await prisma.$transaction(async (tx) => {
+      await tx.routineExercise.deleteMany({ where: { routineId: id } });
+      return tx.routine.update({
+        where: { id },
+        data: {
+          name,
+          description,
+          exercises: {
+            create: exercises.map((ex) => ({
+              order: ex.order,
+              restSeconds: ex.restSeconds ?? 90,
+              notes: ex.notes,
+              exerciseId: ex.exerciseId,
+              sets: {
+                create: ex.sets.map((s) => ({
+                  setNumber: s.setNumber,
+                  type: s.type ?? 'normal',
+                  reps: s.reps,
+                  weight: s.weight,
+                  rpe: s.rpe,
+                })),
+              },
+            })),
+          },
+        },
+        include: {
+          exercises: {
+            include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
+            orderBy: { order: 'asc' },
+          },
+        },
+      });
+    });
+    res.json(routine);
+  } catch (e: any) {
+    if (e?.code === 'P2003') return res.status(400).json({ error: 'Одно или несколько упражнений не найдены' });
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка обновления рутины' });
+  }
+});
+
+// Delete routine
+router.delete('/routines/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const { id } = req.params as { id: string };
+    const deleted = await prisma.routine.deleteMany({ where: { id, userId: req.userId! } });
+    if (deleted.count === 0) return res.status(404).json({ error: 'Рутина не найдена' });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка удаления рутины' });
+  }
+});
+
+// Prepare workout from routine — returns workout shape with progressive overload applied.
+// Does NOT create a workout record; client calls startWorkout() locally then syncs on finish.
+router.post('/routines/:id/start', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const { id } = req.params as { id: string };
+    const routine = await prisma.routine.findUnique({
+      where: { id },
+      include: {
+        exercises: {
+          include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+    if (!routine || routine.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
+
+    // Build workout exercises with progressive overload
+    const exercises = await Promise.all(
+      routine.exercises.map(async (re) => {
+        // Find the last completed workout session that used this exercise
+        const lastWorkout = await prisma.workout.findFirst({
+          where: {
+            userId: req.userId!,
+            completedAt: { not: null },
+            exercises: { some: { exerciseId: re.exerciseId } },
+          },
+          orderBy: { completedAt: 'desc' },
+          include: {
+            exercises: {
+              where: { exerciseId: re.exerciseId },
+              include: { sets: { where: { type: { not: 'warmup' } } } },
+            },
+          },
+        });
+
+        const lastSets = lastWorkout?.exercises[0]?.sets ?? [];
+        const completedSets = lastSets.filter((s) => s.completed);
+        const lastWeight = completedSets.length > 0
+          ? Math.max(...completedSets.map((s) => s.weight ?? 0))
+          : 0;
+        const targetReps = re.sets[re.sets.length - 1]?.reps;
+        const lastReps = completedSets.length > 0
+          ? completedSets[completedSets.length - 1].reps
+          : null;
+        const allCompleted = lastSets.length > 0 && lastSets.every((s) => s.completed);
+        const shouldProgress = allCompleted && lastReps !== null && targetReps !== null
+          && lastReps !== undefined && targetReps !== undefined && lastReps >= targetReps;
+
+        const progressedWeight = lastWeight > 0
+          ? (shouldProgress ? Math.round((lastWeight + 2.5) * 4) / 4 : lastWeight)
+          : 0;
+
+        return {
+          exerciseId: re.exerciseId,
+          exercise: re.exercise,
+          order: re.order,
+          restSeconds: re.restSeconds,
+          notes: re.notes,
+          sets: re.sets.map((s) => ({
+            setNumber: s.setNumber,
+            type: s.type,
+            reps: s.reps,
+            weight: progressedWeight > 0 ? progressedWeight : (s.weight ?? 0),
+            completed: false as const,
+          })),
+          progressionApplied: shouldProgress && progressedWeight > 0,
+          previousWeight: lastWeight > 0 ? lastWeight : null,
+        };
+      })
+    );
+
+    res.json({
+      routineId: routine.id,
+      name: routine.name,
+      exercises,
+    });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка подготовки тренировки' });
+  }
+});
+
 export { router as workoutRouter };

@@ -72,6 +72,51 @@ export interface Exercise {
   commonMistakes?: string[];
 }
 
+// ==================== ROUTINES ====================
+export interface RoutineSet {
+  id?: string;
+  setNumber: number;
+  type: SetType;
+  reps?: number;
+  weight?: number;
+  rpe?: number;
+}
+
+export interface RoutineExercise {
+  id?: string;
+  exerciseId: string;
+  exercise: Exercise;
+  order: number;
+  restSeconds: number;
+  notes?: string;
+  sets: RoutineSet[];
+}
+
+export interface Routine {
+  id: string;
+  name: string;
+  description?: string;
+  exercises: RoutineExercise[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Shape returned by POST /workouts/routines/:id/start
+export interface RoutineStartPayload {
+  routineId: string;
+  name: string;
+  exercises: Array<{
+    exerciseId: string;
+    exercise: Exercise;
+    order: number;
+    restSeconds: number;
+    notes?: string | null;
+    progressionApplied: boolean;
+    previousWeight: number | null;
+    sets: Array<{ setNumber: number; type: string; reps?: number; weight: number; completed: false }>;
+  }>;
+}
+
 // ==================== WORKOUTS ====================
 export type SetType = 'normal' | 'warmup' | 'dropset' | 'superset' | 'failure' | 'rest_pause';
 

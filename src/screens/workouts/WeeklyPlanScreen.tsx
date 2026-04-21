@@ -24,7 +24,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { weekPlan, setWeekPlanDay, savedTemplates, customExercises } = useWorkoutStore();
+  const { weekPlan, setWeekPlanDay, savedTemplates, customExercises, startWorkoutFromRoutine } = useWorkoutStore();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
 
   const allExercises = [...customExercises, ...localExercises];
@@ -47,9 +47,14 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
     setPickerDay(null);
   };
 
-  const handleStartWorkout = (entry: WeekPlanEntry) => {
-    if (entry.exercises.length === 0) return;
+  const handleStartWorkout = async (entry: WeekPlanEntry) => {
     haptic.medium();
+    if (entry.routineId) {
+      const workout = await startWorkoutFromRoutine(entry.routineId);
+      if (workout) navigation.navigate('ActiveWorkout');
+      return;
+    }
+    if (entry.exercises.length === 0) return;
     const workoutExercises: WorkoutExercise[] = entry.exercises
       .map((exId, index) => {
         const ex = allExercises.find((e) => e.id === exId);

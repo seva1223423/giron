@@ -1,5 +1,5 @@
 import { api } from './api';
-import { Program, Workout, Exercise } from '../types';
+import { Program, Workout, Exercise, Routine, RoutineStartPayload } from '../types';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -129,5 +129,50 @@ export const workoutService = {
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     const { data } = await api.get('/workouts/leaderboard');
     return data.leaderboard ?? [];
+  },
+
+  // Routines
+  async getRoutines(): Promise<Routine[]> {
+    const { data } = await api.get('/workouts/routines');
+    return data;
+  },
+
+  async createRoutine(params: {
+    name: string;
+    description?: string;
+    exercises: Array<{
+      exerciseId: string;
+      order: number;
+      restSeconds?: number;
+      notes?: string;
+      sets: Array<{ setNumber: number; type?: string; reps?: number; weight?: number; rpe?: number }>;
+    }>;
+  }): Promise<Routine> {
+    const { data } = await api.post('/workouts/routines', params);
+    return data;
+  },
+
+  async updateRoutine(id: string, params: {
+    name: string;
+    description?: string;
+    exercises: Array<{
+      exerciseId: string;
+      order: number;
+      restSeconds?: number;
+      notes?: string;
+      sets: Array<{ setNumber: number; type?: string; reps?: number; weight?: number; rpe?: number }>;
+    }>;
+  }): Promise<Routine> {
+    const { data } = await api.put(`/workouts/routines/${id}`, params);
+    return data;
+  },
+
+  async deleteRoutine(id: string): Promise<void> {
+    await api.delete(`/workouts/routines/${id}`);
+  },
+
+  async prepareRoutineWorkout(routineId: string): Promise<RoutineStartPayload> {
+    const { data } = await api.post(`/workouts/routines/${routineId}/start`);
+    return data;
   },
 };

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise } from '../types';
+import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise, Routine } from '../types';
 import { workoutService } from '../services';
 import { userService } from '../services/userService';
 
@@ -16,12 +16,15 @@ interface ActiveWorkout {
 export interface WeekPlanEntry {
   name: string;
   emoji: string;
-  exercises: string[]; // exercise IDs
+  exercises: string[]; // exercise IDs (legacy / cardio days)
+  routineId?: string;  // references a saved Routine — takes priority over exercises[] for start
   type?: 'workout' | 'cardio'; // default is 'workout'
 }
 
 interface WorkoutStore {
   programs: Program[];
+  routines: Routine[];
+  isLoadingRoutines: boolean;
   workoutHistory: Workout[];
   activeWorkout: ActiveWorkout | null;
   isLoadingPrograms: boolean;
@@ -45,6 +48,12 @@ interface WorkoutStore {
   updateProgram: (id: string, data: Partial<Program>) => Promise<void>;
   deleteProgram: (id: string) => Promise<void>;
   fetchPrograms: () => Promise<void>;
+
+  // Routines
+  fetchRoutines: () => Promise<void>;
+  addRoutine: (routine: Routine) => void;
+  removeRoutine: (id: string) => Promise<void>;
+  startWorkoutFromRoutine: (routineId: string) => Promise<Workout | null>;
 
   // Active workout
   startWorkout: (workout: Workout) => boolean;
@@ -88,6 +97,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
   persist(
     (set, get) => ({
       programs: [],
+      routines: [],
+      isLoadingRoutines: false,
       workoutHistory: [],
       activeWorkout: null,
       isLoadingPrograms: false,
@@ -206,6 +217,67 @@ export const useWorkoutStore = create<WorkoutStore>()(
           set({ programs, isLoadingPrograms: false });
         } catch {
           set({ isLoadingPrograms: false });
+        }
+      },
+
+      fetchRoutines: async () => {
+        set({ isLoadingRoutines: true });
+        try {
+          const routines = await workoutService.getRoutines();
+          set({ routines, isLoadingRoutines: false });
+        } catch {
+          set({ isLoadingRoutines: false });
+        }
+      },
+
+      addRoutine: (routine) => set((s) => ({ routines: [routine, ...s.routines] })),
+
+      removeRoutine: async (id) => {
+        const removed = get().routines.find((r) => r.id === id);
+        set((s) => ({ routines: s.routines.filter((r) => r.id !== id) }));
+        workoutService.deleteRoutine(id).catch((err) => {
+          if (err?.response?.status !== 404 && removed) {
+            set((s) => ({ routines: [...s.routines, removed] }));
+          }
+        });
+      },
+
+      startWorkoutFromRoutine: async (routineId) => {
+        if (get().activeWorkout) return null;
+        try {
+          const payload = await workoutService.prepareRoutineWorkout(routineId);
+          const workout: Workout = {
+            id: `workout-${Date.now()}`,
+            name: payload.name,
+            exercises: payload.exercises.map((ex, ei) => ({
+              id: `we-${Date.now()}-${ei}`,
+              exerciseId: ex.exerciseId,
+              exercise: ex.exercise,
+              order: ex.order,
+              restSeconds: ex.restSeconds,
+              notes: ex.notes ?? undefined,
+              sets: ex.sets.map((s, si) => ({
+                id: `set-${Date.now()}-${ei}-${si}`,
+                setNumber: s.setNumber,
+                type: (s.type as any) ?? 'normal',
+                reps: s.reps,
+                weight: s.weight,
+                completed: false,
+              })),
+            })),
+          };
+          set({
+            activeWorkout: {
+              workout: { ...workout, startedAt: new Date().toISOString() },
+              startTime: Date.now(),
+              currentExerciseIndex: 0,
+              isRestTimerActive: false,
+              restTimeRemaining: 0,
+            },
+          });
+          return workout;
+        } catch {
+          return null;
         }
       },
 
@@ -606,6 +678,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       clearUserData: () => set({
         programs: [],
+        routines: [],
         workoutHistory: [],
         activeWorkout: null,
         weekPlan: {},
@@ -614,6 +687,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         pendingSync: [],
         isLoadingPrograms: false,
         isLoadingHistory: false,
+        isLoadingRoutines: false,
       }),
 
       fetchHistory: async () => {
@@ -665,6 +739,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         programs: state.programs,
+        routines: state.routines,
         workoutHistory: state.workoutHistory,
         activeWorkout: state.activeWorkout,
         weekPlan: state.weekPlan,

@@ -59,6 +59,7 @@ model User {
   healthRestrictions      HealthRestriction[]
   programs                Program[]
   workouts                Workout[]
+  routines                Routine[]
   meals                   Meal[]
   bodyWeights             BodyWeight[]
   bodyMeasurements        BodyMeasurement[]
@@ -150,6 +151,7 @@ model Exercise {
   imageUrl         String?
 
   workoutExercises WorkoutExercise[]
+  routineExercises RoutineExercise[]
 }
 
 // ==================== PROGRAMS & WORKOUTS ====================
@@ -238,6 +240,48 @@ model WorkoutSet {
   workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
 
   @@index([workoutExerciseId])
+}
+
+// ==================== ROUTINES ====================
+model Routine {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises   RoutineExercise[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model RoutineExercise {
+  id          String   @id @default(cuid())
+  order       Int
+  restSeconds Int      @default(90)
+  notes       String?
+  exerciseId  String
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+  routineId   String
+  routine     Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  sets        RoutineSet[]
+
+  @@index([routineId])
+  @@index([exerciseId])
+}
+
+model RoutineSet {
+  id                String  @id @default(cuid())
+  setNumber         Int
+  type              String  @default("normal") // normal, warmup, dropset
+  reps              Int?
+  weight            Float?
+  rpe               Int?
+  routineExerciseId String
+  routineExercise   RoutineExercise @relation(fields: [routineExerciseId], references: [id], onDelete: Cascade)
+
+  @@index([routineExerciseId])
 }
 
 // ==================== NUTRITION ====================
