@@ -2,18 +2,14 @@
 node_modules/
 server/node_modules/
 
-# Rendered exercise videos — generated via scripts/blender/ or stock downloads.
-# Upload to Yandex Object Storage instead of committing here.
+# Scratch directories produced by scripts/fetch-exercise-videos-wikimedia.mjs and
+# scripts/normalize-exercise-videos.mjs. Normalized clips that actually belong in
+# the app go to assets/exercise-videos/ and ARE committed.
 exercise-videos-raw/
 exercise-videos-ready/
 exercise-videos-rendered/
 exercise-videos-wikimedia/
 exercise-videos-test/
-
-# 3D character model — downloaded on demand by scripts/blender/fetch-character.sh
-# (Xbot from threejs.org/examples; Mixamo EULA applies when rendering).
-assets/3d/*.glb
-assets/3d/*.fbx
 
 # Environment variables — NEVER commit these
 .env

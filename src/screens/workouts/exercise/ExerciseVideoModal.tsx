@@ -258,12 +258,12 @@ export const ExerciseVideoModal: React.FC<Props> = ({
               style={[styles.watchBtn]}
               onPress={() => openVideo(safeYoutubeId, safeRutubeId, exerciseName)}
               accessibilityRole="button"
-              accessibilityLabel={videoProvider === 'rutube' ? 'Открыть в Rutube' : 'Открыть в YouTube'}
+              accessibilityLabel={!features.youtubeVideos ? 'Открыть в Rutube' : 'Открыть в YouTube'}
             >
               <Text style={styles.watchBtnText}>
-                {videoProvider === 'rutube'
-                  ? (rutubeId ? '▶ Открыть в Rutube' : '🔍 Найти в Rutube')
-                  : (youtubeId ? '▶ Открыть в YouTube' : '🔍 Найти в YouTube')}
+                {!features.youtubeVideos
+                  ? (safeRutubeId ? '▶ Открыть в Rutube' : '🔍 Найти в Rutube')
+                  : (safeYoutubeId ? '▶ Открыть в YouTube' : '🔍 Найти в YouTube')}
               </Text>
             </TouchableOpacity>
           )}

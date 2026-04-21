@@ -13,7 +13,7 @@
 - **Zustand 5** — стейт, 14 сторов, все persist через AsyncStorage
 - **React Navigation 7** — bottom tabs + native stack
 - **React Native Reanimated 4 + Gesture Handler** — анимации
-- **expo-video 3.1** — инлайн-видео упражнений (bundled в APK)
+- **expo-av 16** — инлайн-видео упражнений (bundled в APK)
 - **axios** — HTTP с автоматическим JWT refresh
 - **expo-camera, expo-image-picker, expo-sharing, expo-secure-store** — медиа и безопасное хранилище токенов
 

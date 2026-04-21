@@ -39,19 +39,13 @@ export const hasVerifiedInlineVideo = (id: string) => VERIFIED_INLINE_VIDEO_IDS.
 /**
  * Returns a bundled video asset (a React Native module ID produced by require())
  * for the given exercise, or undefined when the exercise has no verified demo.
- * expo-video's useVideoPlayer accepts module IDs directly.
+ * expo-av's <Video source={…} /> accepts module IDs directly.
  */
 export const exerciseVideoSource = (id: string): number | undefined =>
   EXERCISE_VIDEO_ASSETS[id];
 
 export const exerciseThumbSource = (id: string): number | undefined =>
   EXERCISE_POSTER_ASSETS[id];
-
-// ── Legacy helpers (kept around for callers that still expect a string URL).
-// They now return undefined for every ID because we don't serve remote videos
-// anymore. Call sites should migrate to exerciseVideoSource / exerciseThumbSource.
-export const exerciseVideoUrl = (_id: string): string | undefined => undefined;
-export const exerciseThumbUrl = (_id: string): string | undefined => undefined;
 
 /**
  * Feature flags derived from the store target.

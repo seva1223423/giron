@@ -3,8 +3,8 @@
  *
  * Videos and posters live in assets/exercise-videos/ alongside the app code
  * (same repo — no separate iron-gym-media). Each entry is a React Native
- * module id (produced by require()), which expo-video's useVideoPlayer and
- * <Image source={…} /> both accept directly.
+ * module id (produced by require()), which expo-av's <Video source={…} />
+ * and <Image source={…} /> both accept directly.
  *
  * Keep the keys in sync with VERIFIED_INLINE_VIDEO_IDS in src/config/store.ts
  * and with scripts/whitelist-verified.json.
