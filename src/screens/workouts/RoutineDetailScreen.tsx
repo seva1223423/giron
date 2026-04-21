@@ -16,7 +16,7 @@ import type { RoutineStartPayload, RoutineHistoryEntry } from '../../types';
 
 function fmtWeight(w: number | undefined): string {
   if (!w || w === 0) return '—';
-  return Number.isInteger(w) ? `${w} кг` : `${w} кг`;
+  return `${w} кг`;
 }
 
 function fmtRest(sec: number): string {
@@ -176,12 +176,17 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     if (!previewPayload || !routine) return;
     const payload = previewPayload;
     setPreviewPayload(null);
-    const workout = await startWorkoutFromRoutine(routine.id, payload);
-    if (workout) {
-      haptic.success();
-      navigation.navigate('ActiveWorkout');
-    } else {
-      Alert.alert('Ошибка', 'Не удалось запустить тренировку.');
+    try {
+      const workout = await startWorkoutFromRoutine(routine.id, payload);
+      if (workout) {
+        haptic.success();
+        navigation.navigate('ActiveWorkout');
+      } else {
+        Alert.alert('Ошибка', 'Не удалось запустить тренировку.');
+      }
+    } catch {
+      haptic.error();
+      Alert.alert('Ошибка', 'Не удалось запустить тренировку. Проверь соединение.');
     }
   }, [previewPayload, routine, startWorkoutFromRoutine, haptic, navigation]);
 
