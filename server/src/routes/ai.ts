@@ -7,6 +7,7 @@ import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
 import { foodVisionCache } from '../utils/memCache';
+import { parseFoodResponse, validateFoodItems, type FoodItem as FoodVisionItem } from '../utils/foodVision';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -9719,145 +9720,10 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
 
 // ─── Food photo analysis helpers ──────────────────────────────────────────────
 
-interface FoodItem {
-  name: string;
-  weightGrams: number;
-  calories: number;
-  protein: number;
-  fats: number;
-  carbs: number;
-  confidence?: number;
-}
-
-/** Парсит JSON с едой из ответа AI. Обрабатывает битый JSON, markdown-обёртки, etc. */
-function parseFoodResponse(text: string): FoodItem[] | null {
-  // 1. Убираем markdown code blocks
-  let cleaned = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim();
-
-  // 2. Ищем JSON-объект
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    // Попробуем найти массив напрямую
-    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      try {
-        const items = JSON.parse(arrayMatch[0]);
-        if (Array.isArray(items) && items.length > 0 && items[0].name) return items;
-      } catch { /* continue */ }
-    }
-    return null;
-  }
-
-  // 3. Пробуем прямой парсинг
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    // Если AI сказал "не еда" — возвращаем пустой массив (отличается от null = parse error)
-    if (parsed.notFood === true) return [];
-    if (parsed.items && Array.isArray(parsed.items)) return parsed.items;
-    if (Array.isArray(parsed)) return parsed;
-    return null;
-  } catch { /* continue to fix */ }
-
-  // 4. Чиним типичные ошибки AI в JSON
-  try {
-    let fixed = jsonMatch[0]
-      .replace(/,\s*}/g, '}')           // trailing comma перед }
-      .replace(/,\s*]/g, ']')           // trailing comma перед ]
-      .replace(/'/g, '"')               // одинарные кавычки
-      .replace(/(\w+)\s*:/g, '"$1":')   // ключи без кавычек
-      .replace(/""(\w+)""/g, '"$1"');   // двойные кавычки
-    const parsed = JSON.parse(fixed);
-    if (parsed.notFood === true) return [];
-    if (parsed.items && Array.isArray(parsed.items)) return parsed.items;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/** Проверяет и нормализует КБЖУ значения */
-function validateFoodItems(items: FoodItem[]): FoodItem[] {
-  const normalized = items
-    .filter((item) => item.name && typeof item.name === 'string' && item.name.trim().length > 0)
-    .filter((item) => {
-      const w = Number(item.weightGrams);
-      // Allow missing/zero weight (will default to 100g); only reject clearly out-of-range values
-      return isNaN(w) || w === 0 || (w > 0 && w <= 5000);
-    })
-    .map((item) => {
-      const w = Math.round(Math.max(1, Math.min(5000, Number(item.weightGrams) || 100)));
-      const prot = Math.max(0, Math.min(300, Number(item.protein) || 0));
-      const fats = Math.max(0, Math.min(300, Number(item.fats) || 0));
-      const carbs = Math.max(0, Math.min(600, Number(item.carbs) || 0));
-      const aiCal = Math.max(0, Math.min(5000, Number(item.calories) || 0));
-      const macroCal = prot * 4 + fats * 9 + carbs * 4;
-
-      let finalCal: number;
-      if (aiCal === 0) {
-        // AI не указал калории — считаем из макросов
-        finalCal = Math.round(macroCal);
-      } else if (macroCal === 0) {
-        // Нет макросов — доверяем AI
-        finalCal = Math.round(aiCal);
-      } else {
-        // Проверяем консистентность: допускаем ±25% погрешность
-        // (жирная еда: жиры дают 9 ккал/г, AI может округлять)
-        const ratio = aiCal / macroCal;
-        if (ratio < 0.75 || ratio > 1.25) {
-          // Значительное расхождение — берём среднее между AI и макросами
-          finalCal = Math.round((aiCal + macroCal) / 2);
-        } else {
-          finalCal = Math.round(aiCal);
-        }
-      }
-
-      const conf = Number(item.confidence);
-      const confidence = !isNaN(conf) && conf >= 0.5 && conf <= 1.0 ? Math.round(conf * 100) / 100 : undefined;
-      return {
-        name: String(item.name).trim().slice(0, 200),
-        weightGrams: w,
-        calories: finalCal,
-        protein: Math.round(prot * 10) / 10,
-        fats: Math.round(fats * 10) / 10,
-        carbs: Math.round(carbs * 10) / 10,
-        ...(confidence != null ? { confidence } : {}),
-      };
-    });
-
-  // Deduplicate by normalized name — sometimes the vision model repeats the
-  // same ingredient twice ("грудка" and "куриная грудка" on the same plate).
-  // Merge weights and macros, keep the lower confidence and the more specific
-  // (longer) name.
-  const groups = new Map<string, FoodItem[]>();
-  for (const item of normalized) {
-    const key = item.name.toLowerCase().replace(/\s+/g, ' ').trim();
-    const bucket = groups.get(key) ?? [];
-    bucket.push(item);
-    groups.set(key, bucket);
-  }
-
-  return Array.from(groups.values()).map((bucket) => {
-    if (bucket.length === 1) return bucket[0];
-    const weightGrams = Math.min(5000, bucket.reduce((s, i) => s + i.weightGrams, 0));
-    const calories = Math.min(5000, bucket.reduce((s, i) => s + i.calories, 0));
-    const protein = Math.round(bucket.reduce((s, i) => s + i.protein, 0) * 10) / 10;
-    const fats = Math.round(bucket.reduce((s, i) => s + i.fats, 0) * 10) / 10;
-    const carbs = Math.round(bucket.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
-    // Prefer the longer name (more specific) and the lowest confidence (most conservative)
-    const name = bucket.reduce((best, i) => (i.name.length > best.length ? i.name : best), bucket[0].name);
-    const confidences = bucket.map((i) => i.confidence).filter((c): c is number => c != null);
-    const confidence = confidences.length > 0 ? Math.min(...confidences) : undefined;
-    return {
-      name,
-      weightGrams,
-      calories,
-      protein,
-      fats,
-      carbs,
-      ...(confidence != null ? { confidence } : {}),
-    };
-  });
-}
+// parseFoodResponse / validateFoodItems / FoodItem moved to
+// ../utils/foodVision.ts so they can be unit-tested without standing up
+// the whole Express app. Local type alias kept for any legacy callers.
+type FoodItem = FoodVisionItem;
 
 // ─── Block 11: Streak & Gamification Awareness ─────────────────────────────────
 
