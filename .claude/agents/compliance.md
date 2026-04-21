@@ -138,3 +138,11 @@ Compare current code state against this checklist. Flag any items marked as "don
 - Don't recommend specific legal text — flag that text is missing, note what category it should cover
 - Don't flag Mistral AI usage as illegal — it's a tool, not a processor of regulated data if prompts are anonymized
 - Don't recommend blocking Russian users — flag the data residency issue and note migration path (Yandex Cloud)
+
+## See Also (Cross-Agent Coordination)
+
+- **Admin audit log** — also flagged by `security.md` (IDOR risk) and `monitoring.md` (no alerting on admin mutations). Compliance mandates the audit trail; security and monitoring cover enforcement and visibility. Coordinate with `backend` agent to add `AdminLog` writes in a `$transaction` wrapper on every admin mutation.
+- **Data residency (152-ФЗ)** — Neon Frankfurt = German datacenter, violates 152-ФЗ Russian-user data localization. Security handles transport (TLS, encryption); compliance handles the legal migration obligation (Yandex Cloud / VK Cloud). Coordinate with `deployment` agent for infra change checklist.
+- **AsyncStorage unencrypted fitness data** — flagged by `security.md` as HIGH. Compliance overlap: health/biometric data (body measurements, sleep, weight) stored unencrypted may conflict with 152-ФЗ special-category personal data requirements. Coordinate with `security` agent on fix (react-native-encrypted-storage).
+- **AI medical disclaimer** — if `ai.ts` generates specific recommendations (e.g. "you should eat X calories"), check that the disclaimer appears in the chat UI. Coordinate with `frontend` agent to verify the disclaimer string is rendered in `AIScreen`.
+- **Privacy policy coverage** — `docs/privacy.html` is the authoritative document. Compliance audits that it lists AI data processing, photo scans (food analyzer), and push notification use. Coordinate with `docs` agent to keep the policy in sync with new features.

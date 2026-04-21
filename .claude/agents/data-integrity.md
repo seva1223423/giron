@@ -128,3 +128,11 @@ workout  Workout @relation(fields: [workoutId], references: [id], onDelete: Casc
 - Don't flag `Restrict` on purpose-built join tables (e.g. SavedNews — delete the save, not the article)
 - Don't recommend removing `onDelete: Restrict` if there's a route-level pre-check before delete
 - Don't touch migration files — project uses `prisma db push`
+
+## See Also (Cross-Agent Coordination)
+
+- **Missing FK indexes** — every FK field without `@@index` is both a data-integrity smell and a performance issue (full-table scan on cascade delete). Coordinate with `performance` agent (detects via findMany without take) and `database` agent (adds `@@index` to schema + runs `prisma db push`).
+- **AsyncStorage persist key staleness** — if a Zustand store shape changes but the persist key stays the same, stale data is hydrated silently. Also a `performance` concern (invalid cache). Coordinate with `frontend` agent: when stores are refactored, add a `version` field and a `migrate` function to the persist config.
+- **Orphaned WorkoutExercise / WorkoutSet records** — if `Workout` is deleted without cascade, child records remain. This is also a `performance` issue (unbounded growth of orphaned rows) and a `monitoring` gap (no alerting on orphan count). Coordinate with `database` agent to verify `onDelete: Cascade` is present on all child relations.
+- **routineId on Workout (new FK)** — `Workout.routineId` was added as `onDelete: SetNull` (intentional: deleting a Routine does not delete historical workouts). Data-integrity concern: if `prisma db push` was not run after schema change, the column doesn't exist and sync will silently drop the routineId. Coordinate with `deployment` agent to verify db push is run before deploying server code that writes routineId.
+- **Subscription limit race condition** — two concurrent `/api/ai/chat` requests both pass the daily count check → user gets 2 messages for 1. Data-integrity gap (count is stale), also flagged by `monitoring`. Fix: atomic `$executeRaw UPDATE ... WHERE count < limit RETURNING count`. Coordinate with `backend` agent.
