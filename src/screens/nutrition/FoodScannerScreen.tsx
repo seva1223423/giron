@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore, useNutritionStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useHaptic } from '../../hooks/useHaptic';
-import { Button, Card, PaywallModal } from '../../components';
+import { Button, Card, PaywallModal, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import type { NutritionItem, Meal } from '../../types';
@@ -942,15 +942,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             )}
 
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Распознано:</Text>
-            {recognizedItems.map((item) => (
-              <RecognizedItemCard
-                key={item.id}
-                item={item}
-                base={itemBases[item.id]}
-                onWeightChange={updateItemWeight}
-                onRemove={removeItem}
-                onRename={renameItem}
-              />
+            {recognizedItems.map((item, idx) => (
+              <FadeIn key={item.id} delay={idx * 60} from="bottom">
+                <RecognizedItemCard
+                  item={item}
+                  base={itemBases[item.id]}
+                  onWeightChange={updateItemWeight}
+                  onRemove={removeItem}
+                  onRename={renameItem}
+                />
+              </FadeIn>
             ))}
 
             {/* Portion scaler — single input that resizes every item proportionally
