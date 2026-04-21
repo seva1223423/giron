@@ -23,6 +23,7 @@ server/src/__tests__/           — server integration tests (Jest + Supertest)
   otp.test.ts                   — OTP flows, forgot/reset password, brute-force lockout
   webhook.test.ts               — RevenueCat, YuKassa, generic webhook signature verification
   subscription_gating.test.ts   — history/measurements/leaderboard gating by sub status
+  routines.test.ts              — GET/POST/PATCH/DELETE routines, duplicate, history, routineId in sync (15 tests)
   setup.ts                      — JWT secrets + env vars (runs before every test)
   __mocks__/
     expo-server-sdk.ts          — mock for push notification SDK
@@ -42,16 +43,16 @@ src/__tests__/                  — client store unit tests (Jest)
 
 ```bash
 # Run all server tests
-cd C:/Users/sevka/Projects/iron-gym/server && npx jest --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit
 
 # Run specific server test file
-cd C:/Users/sevka/Projects/iron-gym/server && npx jest auth --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest auth --no-coverage --forceExit
 
 # Run all client tests
-cd C:/Users/sevka/Projects/iron-gym && npx jest --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceExit
 
 # Run with verbose output (individual test names)
-cd C:/Users/sevka/Projects/iron-gym/server && npx jest --no-coverage --forceExit --verbose
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
 **Expected baseline:** 178+ server tests pass, ~200+ client tests pass.
