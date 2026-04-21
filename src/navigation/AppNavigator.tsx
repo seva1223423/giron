@@ -45,6 +45,7 @@ import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TrainerDashboardScreen } from '../screens/trainer/TrainerDashboardScreen';
 import { TrainerClientScreen } from '../screens/trainer/TrainerClientScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
+import { CreditsScreen } from '../screens/settings/CreditsScreen';
 import { ChangePasswordScreen } from '../screens/profile/ChangePasswordScreen';
 import { SessionsScreen } from '../screens/profile/SessionsScreen';
 import { DeleteAccountScreen } from '../screens/profile/DeleteAccountScreen';
@@ -164,6 +165,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="TrainerDashboard" component={TrainerDashboardScreen} />
       <ProfileStack.Screen name="TrainerClient" component={TrainerClientScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+      <ProfileStack.Screen name="Credits" component={CreditsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ animation: 'slide_from_right' }} />
       <ProfileStack.Screen name="SessionsScreen" component={SessionsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="DeleteAccountScreen" component={DeleteAccountScreen} options={{ headerShown: false }} />
