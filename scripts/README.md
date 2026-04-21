@@ -1,73 +1,48 @@
 # Scripts
 
-Утилиты для сопровождения приложения Iron Gym.
+Утилиты для наполнения библиотеки демо-видео упражнений.
 
-## `fetch-exercise-videos.mjs` — автоматический сбор видео
+Видео живут в [`assets/exercise-videos/`](../assets/exercise-videos/) и bundled в APK через [`src/data/exerciseVideoAssets.ts`](../src/data/exerciseVideoAssets.ts). Подробности пайплайна — [`docs/MEDIA_HOSTING.md`](../docs/MEDIA_HOSTING.md).
 
-Скачивает демо-видео упражнений из бесплатных стоков с коммерческой лицензией.
+## `fetch-exercise-videos-wikimedia.mjs`
 
-### Почему так
+Скачивает видео с Wikimedia Commons — open API, не требует ключей. Лицензии CC-BY / CC-BY-SA / Public Domain.
 
-Альтернативы съёмке 71 собственного видео:
-- Снимать с тренером — 1 полный день работы + затраты на оборудование.
-- AI-генерация (Runway, Pika, Sora) — $15–30/мес + качество для фитнес-движений пока нестабильно.
-- **Стоки Pexels / Pixabay — 5 минут работы скрипта, 0 рублей**, лицензия позволяет коммерческое использование без атрибуции.
+```bash
+node scripts/fetch-exercise-videos-wikimedia.mjs ./exercise-videos-wikimedia
+```
 
-Минусы стока: точность совпадения зависит от поискового запроса. Обычно 60–75% попаданий — остальные 25–40% придётся уточнить через [`search-overrides.json`](search-overrides.json) и перезапустить.
+Применяет:
+- token-overlap scoring между query и title (фильтрует нерелевантные клипы вроде «Asian Jumping Mantis» для `box-jump`)
+- OFF_TOPIC blocklist (orbital, space, NSFW, etc.)
+- дедупликацию по URL — две разные тренировки никогда не получат один и тот же файл
+- прогрессивный `videos-manifest.json` (для обязательной CC-BY атрибуции)
 
-### Пошагово
+Поисковые запросы для каждого ID настраиваются в [`search-overrides.json`](search-overrides.json).
 
-1. **Получить API-ключи (бесплатно, 30 секунд):**
-   - Pexels: [pexels.com/api](https://www.pexels.com/api/) — регистрация, Request Key
-   - Pixabay (fallback, необязательно): [pixabay.com/api/docs](https://pixabay.com/api/docs/)
+## `normalize-exercise-videos.mjs`
 
-2. **Запустить:**
-   ```bash
-   export PEXELS_API_KEY="…"
-   export PIXABAY_API_KEY="…"
-   node scripts/fetch-exercise-videos.mjs
-   ```
-   Файлы падают в `./exercise-videos-raw/`, по одному на каждое упражнение. Повторный запуск скипает уже скачанные.
+ffmpeg-пайплайн через бандлированный в `imageio-ffmpeg` бинарь — не требует глобальной установки ffmpeg.
 
-3. **Просмотреть результат.** Откройте папку, пролистайте видео — где содержимое не подходит, удалите файл.
+```bash
+python -m pip install imageio-ffmpeg   # один раз
+node scripts/normalize-exercise-videos.mjs ./exercise-videos-wikimedia ./assets/exercise-videos
+```
 
-4. **Уточнить поиски для пропущенных.** Откройте [`search-overrides.json`](search-overrides.json), добавьте/измените строку поиска для проблемных ID и перезапустите — скачаются только недостающие.
+На каждый исходник — MP4 854×480 H.264 (8 сек, silent AAC, `+faststart`) + JPG-постер с 1-й секунды. Обычно ~300 КБ на видео.
 
-5. **Нормализовать** в 480p H.264 с постером (скрипт уже в репо):
-   ```bash
-   ./scripts/process-exercise-videos.sh ./exercise-videos-raw ./exercise-videos-ready
-   ```
+## `process-exercise-videos.sh`
 
-6. **Загрузить в Yandex Object Storage** (подробности в [`docs/MEDIA_HOSTING.md`](../docs/MEDIA_HOSTING.md)):
-   ```bash
-   aws --profile yandex --endpoint-url=https://storage.yandexcloud.net \
-     s3 sync ./exercise-videos-ready/ s3://iron-gym-media/exercises/ \
-     --cache-control "public, max-age=2592000" --content-type-by-suffix
-   ```
+Альтернатива на чистом bash/ffmpeg для случаев когда Node недоступен или нужен другой пресет. Читай заголовок самого скрипта.
 
-7. После успешной заливки клиент автоматически покажет native-видео — никаких изменений в коде не нужно.
+## `whitelist-verified.json`
 
-### Лицензирование
+Список 32 exercise ID, чьи видео прошли визуальное QA и лежат в `assets/exercise-videos/`. Держать в синхроне с `EXERCISE_VIDEO_ASSETS` в `src/data/exerciseVideoAssets.ts`. Добавление новой записи: сначала обновить этот файл, потом подтянуть в TS.
 
-- **Pexels License** (<https://www.pexels.com/license/>): свободное использование, в том числе коммерческое и без атрибуции. Нельзя продавать сами видео как есть.
-- **Pixabay Content License** (<https://pixabay.com/service/license-summary/>): практически идентична.
+## Добавление нового упражнения с видео
 
-Хорошим тоном считается упомянуть Pexels и Pixabay в секции "Благодарности" / "Credits" где-нибудь в Настройках или на лендинге — не обязательно, но вежливо.
-
-### Что делать, если ни один сток не подходит
-
-1. Снять самостоятельно одно короткое демо (15 секунд, смартфон на штатив) → положить в `./exercise-videos-raw/{id}.mp4` → пропустить шаг 2.
-2. Либо использовать AI-генератор (Runway Gen-3, Pika, Luma Dream Machine) с промптом "top-down view of a person performing {exercise name}, fitness demonstration, neutral background, 10 seconds loop, no text".
-
----
-
-## `process-exercise-videos.sh` — ffmpeg-пайплайн
-
-Прогоняет исходные .mov/.mp4 через нормализацию:
-- 480p landscape с padding если не 16:9
-- H.264 veryslow CRF 24 — хорошо сжимает фитнес-движения
-- AAC audio 96k (или убирает audio если исходник без звука)
-- `-movflags +faststart` для прогрессивной загрузки
-- Постер-JPG с 1-й секунды
-
-Использование — в [`docs/MEDIA_HOSTING.md`](../docs/MEDIA_HOSTING.md) и в заголовке самого скрипта.
+1. `node scripts/fetch-exercise-videos-wikimedia.mjs ./tmp` — скачать по search-overrides.
+2. Посмотреть файл вручную. Если не подходит — подкорректировать query в `search-overrides.json` и запустить заново, либо подложить свой MP4 с нужным именем.
+3. `node scripts/normalize-exercise-videos.mjs ./tmp ./assets/exercise-videos` — привести к 480p H.264 + постер.
+4. Добавить запись в `src/data/exerciseVideoAssets.ts` и ID в `scripts/whitelist-verified.json`.
+5. Commit + push — клиент автоматически подхватит.

@@ -54,16 +54,6 @@ node scripts/normalize-exercise-videos.mjs ./exercise-videos-wikimedia ./assets/
 
 Детали: `scripts/README.md`.
 
-### Альтернатива: Pexels API (если нужно больше выбор)
-
-Получить бесплатный ключ на <https://www.pexels.com/api>, потом:
-
-```bash
-export PEXELS_API_KEY="…"
-node scripts/fetch-exercise-videos.mjs ./exercise-videos-raw
-./scripts/process-exercise-videos.sh ./exercise-videos-raw ./assets/exercise-videos
-```
-
 ## Лицензии
 
 Все текущие клипы — с Wikimedia Commons под CC-BY или CC-BY-SA. Атрибуция сохраняется в `assets/exercise-videos/ATTRIBUTIONS.md` и `assets/exercise-videos/videos-manifest.json`. По условиям CC-BY/CC-BY-SA эти файлы нужно бандлить с приложением или показывать на отдельном экране "Credits" (планируется в Settings → "Правовая информация").
