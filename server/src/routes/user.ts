@@ -909,9 +909,18 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     }
 
     // Find active OTP for new email (purpose: email-change) — validate BEFORE checking availability
-    // to prevent email enumeration (attacker can't distinguish 409 from 400 without a valid OTP)
+    // to prevent email enumeration (attacker can't distinguish 409 from 400 without a valid OTP).
+    // SECURITY: Scope by userId — an OTP is only valid for the user it was issued to.
+    // Accept legacy OTPs with userId=null (rows created before the userId column existed);
+    // those expire after 10 minutes so the fallback goes away naturally.
     const activeOtp = await prisma.otpCode.findFirst({
-      where: { email: newEmail, purpose: 'email-change', used: false, expiresAt: { gte: new Date() } },
+      where: {
+        email: newEmail,
+        purpose: 'email-change',
+        used: false,
+        expiresAt: { gte: new Date() },
+        OR: [{ userId: req.userId! }, { userId: null }],
+      },
       orderBy: { createdAt: 'desc' },
     });
     if (!activeOtp) {
@@ -1008,9 +1017,16 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     }
 
     // Find active OTP for this phone — validate BEFORE checking availability
-    // to prevent phone enumeration (attacker can't distinguish 409 from 400 without a valid OTP)
+    // to prevent phone enumeration (attacker can't distinguish 409 from 400 without a valid OTP).
+    // SECURITY: Scope by userId (see /change-email for rationale).
     const activeOtp = await prisma.otpCode.findFirst({
-      where: { phone, purpose: 'phone-change', used: false, expiresAt: { gte: new Date() } },
+      where: {
+        phone,
+        purpose: 'phone-change',
+        used: false,
+        expiresAt: { gte: new Date() },
+        OR: [{ userId: req.userId! }, { userId: null }],
+      },
       orderBy: { createdAt: 'desc' },
     });
     if (!activeOtp) {

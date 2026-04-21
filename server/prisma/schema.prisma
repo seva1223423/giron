@@ -588,8 +588,16 @@ model OtpCode {
   id        String   @id @default(cuid())
   phone     String?
   email     String?
+  // Optional owner for purposes that are only meaningful for an authenticated
+  // user (email-change, phone-change). For anonymous purposes (register, login,
+  // phone-reset, email-verify) this stays NULL.
+  //
+  // Security: /user/change-email and /user/change-phone filter on userId so
+  // an attacker cannot consume an OTP issued for a different account even if
+  // they observe the 6-digit code.
+  userId    String?
   code      String
-  purpose   String   // "register", "login", "phone-login", "phone-reset", "email-verify"
+  purpose   String   // "register", "login", "phone-login", "phone-reset", "email-verify", "email-change", "phone-change"
   used      Boolean  @default(false)
   attempts  Int      @default(0)  // wrong-guess counter; code invalidated at 5
   expiresAt DateTime
@@ -600,6 +608,7 @@ model OtpCode {
   @@index([email, purpose, createdAt])   // cooldown & rate-limit checks (email path)
   @@index([phone, purpose, used, expiresAt])  // active OTP lookup
   @@index([email, purpose, used, expiresAt])  // active OTP lookup (email path)
+  @@index([userId, purpose, used, expiresAt]) // scoped change-email/change-phone lookup
 }
 
 // ==================== SECURITY EVENTS ====================
