@@ -6,6 +6,7 @@ import { Card, Button, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Exercise, Workout, WorkoutExercise, WorkoutSet } from '../../../types';
+import { startWorkoutSafe } from '../../../utils/startWorkoutSafe';
 
 interface ExConfig { sets: number; reps: number; rest: number; }
 const DEFAULT_CONFIG: ExConfig = { sets: 4, reps: 10, rest: 90 };
@@ -21,7 +22,7 @@ interface Props {
 export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, onMove, onBack, navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { startWorkout, saveAsTemplate } = useWorkoutStore();
+  const { saveAsTemplate } = useWorkoutStore();
   const [workoutName, setWorkoutName] = useState('');
   const [exConfigs, setExConfigs] = useState<Record<string, ExConfig>>({});
   const [supersetPairs, setSupersetPairs] = useState<Set<number>>(new Set());
@@ -74,8 +75,7 @@ export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, on
 
   const handleStart = (navigation: any) => {
     haptic.medium();
-    startWorkout(buildWorkout());
-    navigation.navigate('ActiveWorkout');
+    startWorkoutSafe(buildWorkout(), navigation);
   };
 
   const handleSaveTemplate = () => {
@@ -250,7 +250,7 @@ export const ConfigureStepContainer: React.FC<{
   onBack: () => void;
   navigation: any;
 }> = ({ selectedExercises, onRemove, onMove, onBack, navigation }) => {
-  const { startWorkout, saveAsTemplate } = useWorkoutStore();
+  const { saveAsTemplate } = useWorkoutStore();
   const [workoutName, setWorkoutName] = useState('');
   const [exConfigs, setExConfigs] = useState<Record<string, ExConfig>>({});
   const [supersetPairs, setSupersetPairs] = useState<Set<number>>(new Set());
@@ -293,7 +293,7 @@ export const ConfigureStepContainer: React.FC<{
       onUpdateConfig={updateConfig}
       supersetPairs={supersetPairs}
       onToggleSuperset={toggleSuperset}
-      onStart={() => { startWorkout(buildWorkout()); navigation.navigate('ActiveWorkout'); }}
+      onStart={() => startWorkoutSafe(buildWorkout(), navigation)}
       onSaveTemplate={() => { if (selectedExercises.length === 0) { Alert.alert('Ошибка', 'Добавьте хотя бы одно упражнение'); return; } saveAsTemplate(buildWorkout()); Alert.alert('Сохранено', 'Шаблон добавлен в «Мои шаблоны»'); }}
       getConfig={getConfig}
       navigation={navigation}

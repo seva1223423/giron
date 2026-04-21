@@ -540,7 +540,8 @@ describe('useWorkoutStore', () => {
       useWorkoutStore.getState().setWeekPlanDay(0.5, { name: 'Push', emoji: '💪', exercises: [] });
 
       const plan = useWorkoutStore.getState().weekPlan;
-      expect(plan.every((p) => p === null)).toBe(true);
+      // weekPlan is a Record<number, …>, not an array — use Object.values
+      expect(Object.values(plan).every((p) => p === null)).toBe(true);
     });
   });
 

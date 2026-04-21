@@ -47,7 +47,7 @@ interface WorkoutStore {
   fetchPrograms: () => Promise<void>;
 
   // Active workout
-  startWorkout: (workout: Workout) => void;
+  startWorkout: (workout: Workout) => boolean;
   completeSet: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
   addSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
@@ -59,7 +59,7 @@ interface WorkoutStore {
   setExerciseNotes: (exerciseIndex: number, notes: string) => void;
   setWorkoutNotes: (notes: string) => void;
   updateSetData: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
-  addExerciseToWorkout: (exercise: Exercise) => void;
+  addExerciseToWorkout: (exercise: Exercise) => boolean;
   removeExerciseFromWorkout: (exerciseIndex: number) => void;
   toggleSuperset: (exerciseIndex: number) => void;
   generateWarmupSets: (exerciseIndex: number, workingWeight: number) => void;
@@ -201,8 +201,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       startWorkout: (workout) => {
         // Safety guard: don't silently overwrite an in-progress workout.
-        // Callers should check activeWorkout first and navigate to it instead.
-        if (get().activeWorkout) return;
+        // Callers should check the returned boolean and either navigate to the
+        // existing active workout or prompt the user to finish/cancel it first.
+        if (get().activeWorkout) return false;
         set({
           activeWorkout: {
             workout: { ...workout, startedAt: new Date().toISOString() },
@@ -212,6 +213,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
             restTimeRemaining: 0,
           },
         });
+        return true;
       },
 
       completeSet: (exerciseIndex, setIndex, data) => set((s) => {
@@ -311,9 +313,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
         return { activeWorkout: { ...s.activeWorkout, workout } };
       }),
 
-      addExerciseToWorkout: (exercise) => set((s) => {
-        if (!s.activeWorkout) return s;
-        if (s.activeWorkout.workout.exercises.some((e) => e.exerciseId === exercise.id)) return s;
+      addExerciseToWorkout: (exercise) => {
+        const s = get();
+        if (!s.activeWorkout) return false;
+        if (s.activeWorkout.workout.exercises.some((e) => e.exerciseId === exercise.id)) return false;
         const workout = { ...s.activeWorkout.workout };
         const weId = `we-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const newExercise: WorkoutExercise = {
@@ -332,8 +335,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
           restSeconds: 0,
         };
         workout.exercises = [...workout.exercises, newExercise];
-        return { activeWorkout: { ...s.activeWorkout, workout } };
-      }),
+        set({ activeWorkout: { ...s.activeWorkout, workout } });
+        return true;
+      },
 
       removeExerciseFromWorkout: (exerciseIndex) => set((s) => {
         if (!s.activeWorkout) return s;

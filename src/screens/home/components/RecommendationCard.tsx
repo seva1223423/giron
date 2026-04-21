@@ -4,6 +4,7 @@ import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
+import { startWorkoutSafe } from '../../../utils/startWorkoutSafe';
 
 interface RestDayRec { reason: string; tip: string }
 interface WorkoutRec { name: string; emoji: string; daysLabel: string; programWorkout: any | null }
@@ -13,12 +14,11 @@ interface Props {
   workoutRecommendation: WorkoutRec;
   activeProgram: any | null;
   haptic: { medium: () => void };
-  startWorkout: (w: any) => void;
   navigation: any;
 }
 
 export const RecommendationCard: React.FC<Props> = ({
-  restDayRecommendation, workoutRecommendation, activeProgram, haptic, startWorkout, navigation,
+  restDayRecommendation, workoutRecommendation, activeProgram, haptic, navigation,
 }) => {
   const { colors } = useThemeStore();
 
@@ -60,8 +60,7 @@ export const RecommendationCard: React.FC<Props> = ({
         completedAt: undefined,
       };
       haptic.medium();
-      startWorkout(fresh as any);
-      navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
+      startWorkoutSafe(fresh as any, navigation, { tab: 'WorkoutsTab' });
     } else {
       navigation.navigate('WorkoutsTab');
     }

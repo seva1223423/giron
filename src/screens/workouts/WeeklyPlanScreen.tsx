@@ -10,6 +10,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { DayPickerModal, TEMPLATES } from './weekly';
+import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
 
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -23,7 +24,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { weekPlan, setWeekPlanDay, startWorkout, savedTemplates, customExercises } = useWorkoutStore();
+  const { weekPlan, setWeekPlanDay, savedTemplates, customExercises } = useWorkoutStore();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
 
   const allExercises = [...customExercises, ...localExercises];
@@ -66,8 +67,7 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
       .filter(Boolean) as WorkoutExercise[];
 
     const workout: Workout = { id: `workout-${Date.now()}`, name: entry.name, exercises: workoutExercises };
-    startWorkout(workout);
-    navigation.navigate('ActiveWorkout');
+    startWorkoutSafe(workout, navigation);
   };
 
   return (

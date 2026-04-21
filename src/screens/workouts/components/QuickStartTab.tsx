@@ -7,6 +7,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../../types';
+import { startWorkoutSafe } from '../../../utils/startWorkoutSafe';
 
 const QUICK_WORKOUTS = [
   { name: 'Грудь + Трицепс', emoji: '◎', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown', 'overhead-tricep-ext'] },
@@ -30,7 +31,7 @@ interface Props {
 export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { activeWorkout, savedTemplates, startWorkout, deleteTemplate } = useWorkoutStore();
+  const { activeWorkout, savedTemplates, deleteTemplate } = useWorkoutStore();
 
   const createWorkoutFromTemplate = (template: typeof QUICK_WORKOUTS[0]) => {
     haptic.medium();
@@ -51,8 +52,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
       .filter(Boolean) as WorkoutExercise[];
 
     const workout: Workout = { id: `workout-${Date.now()}`, name: template.name, exercises: workoutExercises };
-    startWorkout(workout);
-    navigation.navigate('ActiveWorkout');
+    startWorkoutSafe(workout, navigation);
   };
 
   return (
@@ -94,8 +94,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
                         sets: ex.sets.map((s, si) => ({ ...s, id: `set-${Date.now()}-${ei}-${si}`, completed: false })),
                       })),
                     };
-                    startWorkout(workout);
-                    navigation.navigate('ActiveWorkout');
+                    startWorkoutSafe(workout, navigation);
                   }}
                   onLongPress={() => {
                     haptic.heavy();

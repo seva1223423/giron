@@ -53,6 +53,19 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
       if (!user) return;
       setUser({ ...user, ...updated });
 
+      // When the user changes their weight here, also log it to the weight history
+      // so it appears on the progress graph and weekly averages. Without this, the
+      // profile and the history diverge silently. Only fire when the value actually
+      // changed to avoid spurious duplicate log rows.
+      if (wKgParsed !== undefined && wKgParsed > 0 && wKgParsed !== user.weightKg) {
+        try {
+          await userService.addWeight(wKgParsed);
+        } catch {
+          // Non-fatal — the profile is already updated. Weight history can be
+          // manually added later via the progress screen.
+        }
+      }
+
       const wKg = wKgParsed ?? user?.weightKg;
       const hCm = hCmParsed ?? user?.heightCm;
       const currentGoal = goal || user?.goal;

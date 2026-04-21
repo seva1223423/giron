@@ -9,6 +9,7 @@ import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import type { Program, Workout, WorkoutExercise, WorkoutSet } from '../../types';
+import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
 
 const GOAL_LABELS: Record<string, string> = {
   weight_loss: 'Похудение', muscle_gain: 'Набор массы', strength: 'Сила',
@@ -192,7 +193,7 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
   const haptic = useHaptic();
   const program: Program = route.params?.program;
   const { colors } = useThemeStore();
-  const { startWorkout, updateProgram, workoutHistory, setWeekPlanDay, activeWorkout } = useWorkoutStore();
+  const { updateProgram, workoutHistory, setWeekPlanDay } = useWorkoutStore();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
 
   if (!program) { navigation.goBack(); return null; }
@@ -250,12 +251,6 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
   const startWorkoutDay = useCallback((workout: Workout) => {
     haptic.medium();
 
-    // If another workout is already in progress, navigate to it instead of overwriting
-    if (activeWorkout) {
-      navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-      return;
-    }
-
     // Build fresh workout from program template (reset completed/weights)
     const freshExercises = workout.exercises.map((ex, i) => ({
       ...ex,
@@ -271,13 +266,16 @@ export const AIProgramDetailScreen: React.FC<{ route: any; navigation: any }> = 
       Alert.alert('Ошибка', 'В этой тренировке нет упражнений');
       return;
     }
-    startWorkout({
-      id: `workout-${Date.now()}`,
-      name: workout.name,
-      exercises: freshExercises,
-    });
-    navigation.navigate('WorkoutsTab', { screen: 'ActiveWorkout' });
-  }, [haptic, startWorkout, navigation, activeWorkout]);
+    startWorkoutSafe(
+      {
+        id: `workout-${Date.now()}`,
+        name: workout.name,
+        exercises: freshExercises,
+      },
+      navigation,
+      { tab: 'WorkoutsTab' },
+    );
+  }, [haptic, navigation]);
 
   return (
     <ScrollView

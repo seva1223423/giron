@@ -149,12 +149,14 @@ export const ExerciseDetailScreen: React.FC<{ route: any; navigation: any }> = (
         <FadeIn delay={100}>
           <TouchableOpacity
             onPress={() => {
-              if (activeWorkout.workout.exercises.some((e) => e.exerciseId === exerciseId)) {
+              haptic.success();
+              const added = addExerciseToWorkout(exercise);
+              if (!added) {
+                // Store returns false on dupe (or if active workout disappeared between
+                // render and tap). Both are user-visible failures.
                 Alert.alert('Уже добавлено', 'Это упражнение уже есть в текущей тренировке.');
                 return;
               }
-              haptic.success();
-              addExerciseToWorkout(exercise);
               Alert.alert('Добавлено!', `${exercise.name} добавлено в тренировку.`, [
                 { text: 'Продолжить просмотр' },
                 { text: 'К тренировке', onPress: () => navigation.navigate('ActiveWorkout') },
