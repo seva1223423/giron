@@ -24,6 +24,9 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 
 // Response interceptor — handle 401 + token refresh
 let isRefreshing = false;
+// Module-level flag to prevent stacked "session expired" alerts when a burst of
+// parallel requests all 401 at once. Reset when the alert is dismissed.
+let sessionExpiredAlertShown = false;
 let failedQueue: Array<{
   resolve: (value: unknown) => void;
   reject: (reason: unknown) => void;
@@ -95,6 +98,21 @@ api.interceptors.response.use(
         try {
           const { useAuthStore } = require('../store');
           useAuthStore.getState().logout();
+        } catch { /* best effort */ }
+        // Surface the logout — otherwise the user suddenly finds themselves
+        // back on the login screen with no explanation. Debounced via a module
+        // flag so rapid-fire 401s from batched requests don't stack alerts.
+        try {
+          if (!sessionExpiredAlertShown) {
+            sessionExpiredAlertShown = true;
+            const { Alert } = require('react-native');
+            Alert.alert(
+              'Сессия истекла',
+              'Войди в приложение заново.',
+              [{ text: 'OK', onPress: () => { sessionExpiredAlertShown = false; } }],
+              { onDismiss: () => { sessionExpiredAlertShown = false; } },
+            );
+          }
         } catch { /* best effort */ }
         return Promise.reject(refreshError);
       } finally {

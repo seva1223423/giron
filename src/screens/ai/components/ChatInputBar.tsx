@@ -6,13 +6,21 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 interface Props {
   value: string;
   onChange: (text: string) => void;
+  /** True while the response is streaming. Toggles the send button to a stop button. */
+  isStreaming: boolean;
+  /** True while typing indicator is visible (request in flight before first chunk). */
   isTyping: boolean;
   onSend: () => void;
+  /** Called when user taps the stop button while streaming. */
+  onStop?: () => void;
 }
 
-export const ChatInputBar: React.FC<Props> = ({ value, onChange, isTyping, onSend }) => {
+export const ChatInputBar: React.FC<Props> = ({ value, onChange, isStreaming, isTyping, onSend, onStop }) => {
   const { colors } = useThemeStore();
-  const canSend = !!value.trim() && !isTyping;
+  // While streaming we want the stop button enabled even without input text —
+  // canSend would otherwise lock the button out.
+  const canSend = !!value.trim() && !isTyping && !isStreaming;
+  const showStop = (isStreaming || isTyping) && !!onStop;
 
   return (
     <View style={[styles.bar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
@@ -25,13 +33,23 @@ export const ChatInputBar: React.FC<Props> = ({ value, onChange, isTyping, onSen
         multiline
         maxLength={2000}
       />
-      <TouchableOpacity
-        onPress={onSend}
-        disabled={!canSend}
-        style={[styles.sendBtn, { backgroundColor: canSend ? colors.primary : colors.inputBackground }]}
-      >
-        <Text style={{ color: canSend ? '#FFF' : colors.textTertiary, fontSize: 18, fontWeight: '700' }}>↑</Text>
-      </TouchableOpacity>
+      {showStop ? (
+        <TouchableOpacity
+          onPress={onStop}
+          style={[styles.sendBtn, { backgroundColor: colors.error }]}
+          accessibilityLabel="Остановить ответ"
+        >
+          <View style={{ width: 12, height: 12, backgroundColor: '#FFF', borderRadius: 2 }} />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          onPress={onSend}
+          disabled={!canSend}
+          style={[styles.sendBtn, { backgroundColor: canSend ? colors.primary : colors.inputBackground }]}
+        >
+          <Text style={{ color: canSend ? '#FFF' : colors.textTertiary, fontSize: 18, fontWeight: '700' }}>↑</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

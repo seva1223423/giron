@@ -12,6 +12,7 @@ import { userService } from '../../services';
 import { authService } from '../../services/authService';
 import { localDateStr } from '../../utils/date';
 import type { BodyWeight } from '../../types';
+import { normalizeGender } from '../../utils/gender';
 
 const GOAL_LABELS: Record<string, string> = {
   WEIGHT_LOSS: 'Похудение', weight_loss: 'Похудение',
@@ -348,7 +349,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         </View>
         <ProfileRow label="Рост" value={user?.heightCm ? `${user.heightCm} см` : 'Не указан'} colors={colors} />
         <ProfileRow label="Вес" value={user?.weightKg ? `${user.weightKg} кг` : 'Не указан'} colors={colors} />
-        <ProfileRow label="Пол" value={user?.gender === 'male' ? 'Мужской' : user?.gender === 'female' ? 'Женский' : 'Не указан'} colors={colors} />
+        <ProfileRow label="Пол" value={(() => { const g = normalizeGender(user?.gender); return g === 'male' ? 'Мужской' : g === 'female' ? 'Женский' : 'Не указан'; })()} colors={colors} />
         <ProfileRow label="Цель" value={user?.goal ? GOAL_LABELS[user.goal] ?? user.goal : 'Не указана'} colors={colors} />
         <ProfileRow label="Уровень" value={user?.fitnessLevel ? LEVEL_LABELS[user.fitnessLevel] ?? user.fitnessLevel : 'Не указан'} colors={colors} />
         <ProfileRow label="Стаж" value={user?.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'Не указан'} colors={colors} isLast />

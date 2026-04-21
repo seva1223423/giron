@@ -8,6 +8,7 @@ import { spacing, borderRadius } from '../../../../theme/spacing';
 import type { BodyMeasurement } from '../../../../types';
 import { MEASUREMENT_FIELDS } from './AddMeasurementsModal';
 import { formatNum } from '../../../../utils/date';
+import { isFemale } from '../../../../utils/gender';
 
 interface Props {
   measurementHistory: BodyMeasurement[];
@@ -31,11 +32,11 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
     if (measurementHistory.length === 0) return null;
     const latest = measurementHistory[measurementHistory.length - 1];
     const heightCm = user?.heightCm;
-    const gender = user?.gender;
+    const female = isFemale(user?.gender);
     if (!heightCm || !latest.waist || !latest.neck) return null;
     const { waist, neck, hips } = latest;
     let pct: number;
-    if (gender === 'female') {
+    if (female) {
       if (!hips) return null;
       const val = 163.205 * Math.log10(waist + hips - neck) - 97.684 * Math.log10(heightCm) - 78.387;
       pct = Math.max(5, Math.min(60, Math.round(val * 10) / 10));
@@ -45,7 +46,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
     }
     let category: string;
     let color: string;
-    if (gender === 'female') {
+    if (female) {
       if (pct < 14) { category = 'Очень низкий'; color = '#FF9800'; }
       else if (pct < 21) { category = 'Спортсмен'; color = '#4CAF50'; }
       else if (pct < 25) { category = 'Фитнес'; color = '#2196F3'; }
@@ -157,7 +158,7 @@ export const BodyMeasurementsCard: React.FC<Props> = ({ measurementHistory, user
               <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>◧</Text>
             </View>
             <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.md }]}>
-              Рассчитано по методу ВМФ США на основе замеров шеи, талии{user?.gender === 'female' ? ', бёдер' : ''} и роста из профиля
+              Рассчитано по методу ВМФ США на основе замеров шеи, талии{isFemale(user?.gender) ? ', бёдер' : ''} и роста из профиля
             </Text>
           </Card>
         </FadeIn>

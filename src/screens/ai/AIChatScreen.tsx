@@ -64,11 +64,17 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   // isTyping becomes false when streaming starts, so isSendingRef is the reliable lock.
   const isSendingRef = useRef(false);
   const isMountedRef = useRef(true);
+  // Tracks active streaming state (AbortController + flag for UI). The previous
+  // generation blocked the user from sending a new question until the model
+  // stopped talking, and offered no way to cut a long rambling answer short.
+  const abortRef = useRef<AbortController | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
 
-  // Stop speech and clear timers on unmount
+  // Stop speech, cancel in-flight stream, and clear timers on unmount
   useEffect(() => () => {
     isMountedRef.current = false;
     Speech.stop();
+    abortRef.current?.abort();
     if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
     if (actionsTimerRef.current) clearTimeout(actionsTimerRef.current);
   }, []);
@@ -156,36 +162,59 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const streamMsgId = `ai-${Date.now()}`;
       setMessages((prev) => [...prev, { id: streamMsgId, role: 'assistant', content: '', createdAt: new Date().toISOString() }]);
       setIsTyping(false);
+      setIsStreaming(true);
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       let response: { message: string; actions: AIActionResult[]; meta?: AIMeta } | null = null;
+      let userAborted = false;
 
       try {
         const stream = aiService.chatStream(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, (result) => {
           response = { message: '', actions: result.actions, meta: result.meta };
-        }, sleepEntries, todayDate);
+        }, sleepEntries, todayDate, controller.signal);
 
         for await (const chunk of stream) {
           if (!isMountedRef.current) break;
+          if (controller.signal.aborted) { userAborted = true; break; }
           setMessages((prev) => prev.map((m) =>
             m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
           ));
           setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 0);
         }
-      } catch {
-        // Streaming failed — fall back to regular request
-        try {
-          const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries, todayDate);
-          if (!isMountedRef.current) return;
-          response = fallback;
-          setMessages((prev) => prev.map((m) =>
-            m.id === streamMsgId ? { ...m, content: fallback.message } : m
-          ));
-        } catch (fallbackErr) {
-          // Remove the empty stream placeholder so the outer catch's error message
-          // is the only thing added to the chat.
-          setMessages((prev) => prev.filter((m) => m.id !== streamMsgId));
-          throw fallbackErr;
+      } catch (e: any) {
+        if (controller.signal.aborted || e?.name === 'AbortError') {
+          userAborted = true;
+        } else {
+          // Streaming failed for a non-user reason — fall back to regular request
+          try {
+            const fallback = await aiService.chat(text.trim(), nutritionTargets, todayLog.waterMl, weekPlan, cardioSessions, sleepEntries, todayDate);
+            if (!isMountedRef.current) return;
+            response = fallback;
+            setMessages((prev) => prev.map((m) =>
+              m.id === streamMsgId ? { ...m, content: fallback.message } : m
+            ));
+          } catch (fallbackErr) {
+            // Remove the empty stream placeholder so the outer catch's error message
+            // is the only thing added to the chat.
+            setMessages((prev) => prev.filter((m) => m.id !== streamMsgId));
+            throw fallbackErr;
+          }
         }
+      } finally {
+        abortRef.current = null;
+        setIsStreaming(false);
+      }
+
+      if (userAborted) {
+        // Annotate the truncated bubble so it's clear the answer was cut short.
+        setMessages((prev) => prev.map((m) =>
+          m.id === streamMsgId
+            ? { ...m, content: m.content ? `${m.content}\n\n— остановлено —` : '— остановлено —' }
+            : m
+        ));
+        isSendingRef.current = false;
+        return;
       }
 
       haptic.success();
@@ -318,7 +347,18 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       <ActionsBar actions={lastActions} />
       <CelebrationBar celebration={celebration} />
-      <ChatInputBar value={input} onChange={setInput} isTyping={isTyping} onSend={() => sendMessage(input)} />
+      <ChatInputBar
+        value={input}
+        onChange={setInput}
+        isTyping={isTyping}
+        isStreaming={isStreaming}
+        onSend={() => sendMessage(input)}
+        onStop={() => {
+          // Abort the current stream; the sendMessage loop will detect the signal
+          // and append "— остановлено —" to the assistant bubble.
+          abortRef.current?.abort();
+        }}
+      />
     </KeyboardAvoidingView>
   );
 };
