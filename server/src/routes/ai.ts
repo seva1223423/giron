@@ -9776,7 +9776,7 @@ function parseFoodResponse(text: string): FoodItem[] | null {
 
 /** Проверяет и нормализует КБЖУ значения */
 function validateFoodItems(items: FoodItem[]): FoodItem[] {
-  return items
+  const normalized = items
     .filter((item) => item.name && typeof item.name === 'string' && item.name.trim().length > 0)
     .filter((item) => {
       const w = Number(item.weightGrams);
@@ -9822,6 +9822,40 @@ function validateFoodItems(items: FoodItem[]): FoodItem[] {
         ...(confidence != null ? { confidence } : {}),
       };
     });
+
+  // Deduplicate by normalized name — sometimes the vision model repeats the
+  // same ingredient twice ("грудка" and "куриная грудка" on the same plate).
+  // Merge weights and macros, keep the lower confidence and the more specific
+  // (longer) name.
+  const groups = new Map<string, FoodItem[]>();
+  for (const item of normalized) {
+    const key = item.name.toLowerCase().replace(/\s+/g, ' ').trim();
+    const bucket = groups.get(key) ?? [];
+    bucket.push(item);
+    groups.set(key, bucket);
+  }
+
+  return Array.from(groups.values()).map((bucket) => {
+    if (bucket.length === 1) return bucket[0];
+    const weightGrams = Math.min(5000, bucket.reduce((s, i) => s + i.weightGrams, 0));
+    const calories = Math.min(5000, bucket.reduce((s, i) => s + i.calories, 0));
+    const protein = Math.round(bucket.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const fats = Math.round(bucket.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const carbs = Math.round(bucket.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
+    // Prefer the longer name (more specific) and the lowest confidence (most conservative)
+    const name = bucket.reduce((best, i) => (i.name.length > best.length ? i.name : best), bucket[0].name);
+    const confidences = bucket.map((i) => i.confidence).filter((c): c is number => c != null);
+    const confidence = confidences.length > 0 ? Math.min(...confidences) : undefined;
+    return {
+      name,
+      weightGrams,
+      calories,
+      protein,
+      fats,
+      carbs,
+      ...(confidence != null ? { confidence } : {}),
+    };
+  });
 }
 
 // ─── Block 11: Streak & Gamification Awareness ─────────────────────────────────
