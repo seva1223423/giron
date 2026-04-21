@@ -75,12 +75,12 @@ _Нет активных незаконченных задач._
 Отдельный pipeline для демонстрационных видео всех упражнений:
 
 - **Рендер-пути (legacy, оставлены как fallback):** `scripts/blender/` — Python-скрипты для Blender, процедурный stick-figure + Mixamo Xbot. Keyframes в `exercise-animations.json` (генерируется `generate-animations.mjs` из паттернов движений). Не используется в продакшне — тяжело на сборку, результат схематичный.
-- **Основной путь (продакшен):** Wikimedia Commons → ffmpeg → GitHub Raw.
+- **Основной путь (продакшен):** Wikimedia Commons → ffmpeg → bundled в APK.
   1. `scripts/fetch-exercise-videos-wikimedia.mjs` — без API-ключа, с de-dup по URL, token-overlap scoring, OFF_TOPIC blocklist. Сохраняет `videos-manifest.json` прогрессивно (для CC-BY attribution).
-  2. `scripts/normalize-exercise-videos.mjs` — ffmpeg через `imageio-ffmpeg` pip-пакет: 854×480 H.264, 8 сек, silent AAC, +faststart, JPG-постер с 1-й секунды. Каждое видео ~400 KB.
-  3. Публикация в отдельный репо `seva1223423/iron-gym-media` (public), отдаётся через `raw.githubusercontent.com`.
-- **Whitelist:** 32 упражнения (`scripts/whitelist-verified.json` / `src/config/store.ts` → `VERIFIED_INLINE_VIDEO_IDS`) прошли визуальное QA. Остальные 79 падают на YouTube-fallback без 404-запроса.
-- **Хостинг:** `EXPO_PUBLIC_MEDIA_URL` в `eas.json` профилях (rustore/play/appstore). Сейчас = GitHub raw. Смена на Yandex Object Storage / Cloudflare R2 — одна строчка в env, файлы те же.
+  2. `scripts/normalize-exercise-videos.mjs` — ffmpeg через `imageio-ffmpeg` pip-пакет: 854×480 H.264, 8 сек, silent AAC, +faststart, JPG-постер с 1-й секунды. Каждое видео ~300 KB.
+  3. Файлы копируются в `assets/exercise-videos/` — bundled в APK. Отдельного медиа-репо больше нет: один репозиторий для кода и ассетов. Ранее использовался `seva1223423/iron-gym-media` с `raw.githubusercontent.com`, сейчас не нужен.
+- **Whitelist:** 32 упражнения (`scripts/whitelist-verified.json` / `src/data/exerciseVideoAssets.ts` → `EXERCISE_VIDEO_ASSETS`) прошли визуальное QA. Остальные 79 падают на YouTube-fallback без попытки загрузки.
+- **Размер APK:** +9 МБ за все верифицированные видео+постеры. Компромисс ради offline-воспроизведения.
 - **Клиентские компоненты:**
   - `src/screens/workouts/exercise/ExerciseInlineVideo.tsx` — expo-video wrapper. Autoplay muted + loop, poster overlay до первого кадра, `paused` prop для external pause, proper player release в cleanup.
   - `ExerciseVideoCard` — авто-играющая карточка в деталях упражнения. Тап → fullscreen modal.

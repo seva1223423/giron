@@ -19,45 +19,39 @@ export const isPlayBuild = STORE_TARGET === 'play';
 export const isAppStoreBuild = STORE_TARGET === 'appstore';
 
 /**
- * Base URL for own-hosted exercise videos and media.
- * Set EXPO_PUBLIC_MEDIA_URL at build time to switch bucket/CDN without a code change.
+ * Exercise demo videos and posters are BUNDLED with the app (assets/exercise-videos/).
  *
- * Default points at seva1223423/iron-gym-media served via raw.githubusercontent.com —
- * zero-cost, works for early traffic. Swap to Yandex Object Storage / Cloudflare R2
- * when GitHub raw rate limiting becomes an issue.
+ * Why bundled:
+ *   - One repo for everything — the media lives next to the code that uses it.
+ *   - Works offline — a cold-opened APK on the metro plays demos immediately.
+ *   - No rate limits, no CDN cost, no takedown risk.
+ *   - 9 MB APK size addition for 32 verified exercises (≈ 300 KB video + ≈ 20 KB poster each).
  *
- * Expected layout at the base URL:
- *   /{exercise-id}.mp4      — main video for an exercise (8s, 480p H.264, ≈ 400 KB)
- *   /{exercise-id}.jpg      — 1-second poster frame (≈ 20 KB)
+ * Keep EXERCISE_VIDEO_ASSETS / EXERCISE_POSTER_ASSETS in src/data/exerciseVideoAssets.ts
+ * in sync with VERIFIED_INLINE_VIDEO_IDS below and scripts/whitelist-verified.json.
  */
-export const MEDIA_BASE_URL =
-  process.env.EXPO_PUBLIC_MEDIA_URL?.replace(/\/+$/, '') ??
-  'https://raw.githubusercontent.com/seva1223423/iron-gym-media/main/exercises';
+import { EXERCISE_VIDEO_ASSETS, EXERCISE_POSTER_ASSETS } from '../data/exerciseVideoAssets';
 
-/**
- * Exercises that have a verified inline demo video uploaded to iron-gym-media.
- * Kept in sync with scripts/whitelist-verified.json and the actual contents of
- * the media repo. For any exercise NOT in this set, the client skips the
- * inline-video attempt (no 404) and goes straight to the YouTube/Rutube fallback.
- */
-export const VERIFIED_INLINE_VIDEO_IDS = new Set<string>([
-  'arnold-press', 'barbell-curl', 'barbell-row', 'bench-press', 'burpee',
-  'chest-press-machine', 'deadlift', 'dumbbell-bench-press', 'dumbbell-row',
-  'dumbbell-shoulder-press', 'french-press', 'front-squat', 'goblet-squat',
-  'hack-squat', 'hammer-curl', 'hanging-leg-raise', 'hyperextension',
-  'incline-bench-press', 'jump-rope', 'kettlebell-swing', 'lat-pulldown',
-  'leg-curl', 'leg-extension', 'leg-press', 'machine-shoulder-press',
-  'overhead-press', 'rack-pull', 'reverse-crunch', 'romanian-deadlift',
-  'squat', 'sumo-deadlift', 't-bar-row',
-]);
+export const VERIFIED_INLINE_VIDEO_IDS = new Set<string>(Object.keys(EXERCISE_VIDEO_ASSETS));
 
 export const hasVerifiedInlineVideo = (id: string) => VERIFIED_INLINE_VIDEO_IDS.has(id);
 
-export const exerciseVideoUrl = (id: string) =>
-  hasVerifiedInlineVideo(id) ? `${MEDIA_BASE_URL}/${id}.mp4` : undefined;
+/**
+ * Returns a bundled video asset (a React Native module ID produced by require())
+ * for the given exercise, or undefined when the exercise has no verified demo.
+ * expo-video's useVideoPlayer accepts module IDs directly.
+ */
+export const exerciseVideoSource = (id: string): number | undefined =>
+  EXERCISE_VIDEO_ASSETS[id];
 
-export const exerciseThumbUrl = (id: string) =>
-  hasVerifiedInlineVideo(id) ? `${MEDIA_BASE_URL}/${id}.jpg` : undefined;
+export const exerciseThumbSource = (id: string): number | undefined =>
+  EXERCISE_POSTER_ASSETS[id];
+
+// ── Legacy helpers (kept around for callers that still expect a string URL).
+// They now return undefined for every ID because we don't serve remote videos
+// anymore. Call sites should migrate to exerciseVideoSource / exerciseThumbSource.
+export const exerciseVideoUrl = (_id: string): string | undefined => undefined;
+export const exerciseThumbUrl = (_id: string): string | undefined => undefined;
 
 /**
  * Feature flags derived from the store target.

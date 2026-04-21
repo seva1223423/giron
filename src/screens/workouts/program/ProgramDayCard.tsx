@@ -6,7 +6,7 @@ import { Card, Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
-import { exerciseThumbUrl } from '../../../config/store';
+import { exerciseThumbSource } from '../../../config/store';
 
 interface DayExercise {
   exerciseId: string;
@@ -50,11 +50,11 @@ export const ProgramDayCard: React.FC<Props> = ({ day, dayIndex, goalColor, isEx
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           {day.exercises.map((item, exIndex) => {
             const ex = localExercises.find((e) => e.id === item.exerciseId);
-            const thumb = exerciseThumbUrl(item.exerciseId);
+            const thumb = exerciseThumbSource(item.exerciseId);
             return (
               <View key={exIndex} style={[styles.exRow, exIndex < day.exercises.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-                {thumb ? (
-                  <Image source={{ uri: thumb }} style={styles.exThumb} />
+                {thumb !== undefined ? (
+                  <Image source={thumb} style={styles.exThumb} />
                 ) : (
                   <View style={[styles.exNumber, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
                     <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>{exIndex + 1}</Text>

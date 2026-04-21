@@ -9,7 +9,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
 import { Exercise } from '../../../types';
 import { workoutService } from '../../../services';
-import { exerciseThumbUrl } from '../../../config/store';
+import { exerciseThumbSource } from '../../../config/store';
 
 const FAVORITES_KEY = 'iron_gym_exercise_favorites';
 
@@ -78,19 +78,8 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
     return () => { mounted = false; };
   }, []);
 
-  // Prefetch posters for exercises that have a verified inline video. JPGs are
-  // ≈20 KB each and HTTP-cached by the OS, so this costs maybe 600 KB once per
-  // session but makes the detail screen's video card feel instant. Only runs
-  // after the list finishes loading so we don't steal bandwidth from the API.
-  useEffect(() => {
-    if (loadingExercises || exerciseList.length === 0) return;
-    const urls = exerciseList
-      .map((ex) => exerciseThumbUrl(ex.id))
-      .filter((u): u is string => !!u);
-    for (const url of urls) {
-      Image.prefetch(url).catch(() => { /* best effort, ignore failures */ });
-    }
-  }, [loadingExercises, exerciseList]);
+  // Posters are now bundled with the app (see assets/exercise-videos/), so there's
+  // nothing to prefetch at runtime — they're already unpacked alongside the APK.
 
   const toggleFavorite = useCallback((exerciseId: string) => {
     haptic.light();
@@ -119,7 +108,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
 
   const renderExerciseCard = useCallback(({ item: ex }: { item: Exercise }) => {
     const isFav = favoriteIds.has(ex.id);
-    const thumb = exerciseThumbUrl(ex.id);
+    const thumb = exerciseThumbSource(ex.id);
     return (
       <Card
         style={{ marginBottom: spacing.sm }}
@@ -131,8 +120,8 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             activeOpacity={0.7}
             onPress={() => { haptic.light(); navigation.navigate('ExerciseDetail', { exerciseId: ex.id }); }}
           >
-            {thumb ? (
-              <Image source={{ uri: thumb }} style={styles.cardThumb} />
+            {thumb !== undefined ? (
+              <Image source={thumb} style={styles.cardThumb} />
             ) : (
               <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
                 <Text style={styles.cardThumbPlaceholderIcon}>{ex.type === 'cardio' ? '🏃' : '💪'}</Text>
