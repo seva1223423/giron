@@ -202,7 +202,10 @@ export const SetsSection: React.FC<Props> = ({
           onRpeChange={(rpe) => { updateSetData(currentExerciseIndex, setIndex, { rpe }); onRpeSelected?.(rpe); }}
           onRemove={currentExercise.sets.length > 1 ? () => { haptic.medium(); removeSet(currentExerciseIndex, setIndex); } : undefined}
           onTypeChange={(type) => updateSetData(currentExerciseIndex, setIndex, { type: type as any })}
-          onOpenPlates={(w) => navigation.navigate('PlateCalculator', { initialWeight: w })}
+          onOpenPlates={(w) => navigation.navigate('PlateCalculator', {
+            initialWeight: w,
+            applyTarget: { exerciseIndex: currentExerciseIndex, setIndex },
+          })}
           colors={colors}
         />
       ))}

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
-import { Card } from '../../../components';
+import { Card, Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -65,9 +65,16 @@ const PlateVisual: React.FC<{ plates: Map<number, number> }> = ({ plates }) => {
 
 interface Props {
   initialWeight?: number;
+  /**
+   * When supplied, a primary "Применить" action appears. The calculator was
+   * previously a one-way read-only trip from SetRow — the user would pick a
+   * weight, exit, and still have to type the value into the input manually.
+   * Now the caller can thread the result back.
+   */
+  onApplyWeight?: (weightKg: number) => void;
 }
 
-export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
+export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight, onApplyWeight }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const [targetWeight, setTargetWeight] = useState(initialWeight != null ? String(initialWeight) : '100');
@@ -173,6 +180,16 @@ export const PlateCalculatorTab: React.FC<Props> = ({ initialWeight }) => {
           </Text>
         )}
       </Card>
+
+      {onApplyWeight && (
+        <Button
+          title={`Применить ${actualWeight} кг`}
+          onPress={() => { haptic.medium(); onApplyWeight(actualWeight); }}
+          fullWidth
+          size="lg"
+          style={{ marginBottom: spacing.lg }}
+        />
+      )}
 
       <Card>
         <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.md }]}>ПОПУЛЯРНЫЕ ВЕСА</Text>

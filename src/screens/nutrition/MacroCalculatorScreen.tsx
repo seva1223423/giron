@@ -7,6 +7,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { MacroResultCard } from './macro';
 import { localDateStr } from '../../utils/date';
+import { isFemale, normalizeGender } from '../../utils/gender';
 
 const ACTIVITY_LEVELS = [
   { key: 'sedentary', label: 'Малоподвижный', desc: 'Офис, нет спорта', multiplier: 1.2 },
@@ -40,7 +41,7 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   const { setTargets } = useNutritionStore();
   const { user } = useAuthStore();
 
-  const [gender, setGender] = useState<'male' | 'female'>(user?.gender === 'female' ? 'female' : 'male');
+  const [gender, setGender] = useState<'male' | 'female'>(normalizeGender(user?.gender) ?? 'male');
   const userAge = user?.dateOfBirth ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
   const [age, setAge] = useState(userAge ? String(userAge) : '28');
   const [weight, setWeight] = useState(user?.weightKg ? String(user.weightKg) : '80');

@@ -60,6 +60,16 @@ interface WorkoutStore {
   setWorkoutNotes: (notes: string) => void;
   updateSetData: (exerciseIndex: number, setIndex: number, data: Partial<WorkoutSet>) => void;
   addExerciseToWorkout: (exercise: Exercise) => boolean;
+  /**
+   * Replace the exercise at `exerciseIndex` with a new one, preserving the set
+   * count / rest / supersetGroupId of the original slot but resetting completed
+   * flags. Use this for the Substitute action — adding to the end with
+   * `addExerciseToWorkout` would leave the user halfway through the wrong
+   * exercise with the new one tacked on at the bottom.
+   * Returns false if the active workout no longer has that index, or the
+   * replacement is already present elsewhere in the workout.
+   */
+  replaceExerciseInWorkout: (exerciseIndex: number, newExercise: Exercise) => boolean;
   removeExerciseFromWorkout: (exerciseIndex: number) => void;
   toggleSuperset: (exerciseIndex: number) => void;
   generateWarmupSets: (exerciseIndex: number, workingWeight: number) => void;
@@ -336,6 +346,46 @@ export const useWorkoutStore = create<WorkoutStore>()(
         };
         workout.exercises = [...workout.exercises, newExercise];
         set({ activeWorkout: { ...s.activeWorkout, workout } });
+        return true;
+      },
+
+      replaceExerciseInWorkout: (exerciseIndex, newExercise) => {
+        const s = get();
+        if (!s.activeWorkout) return false;
+        const exercises = s.activeWorkout.workout.exercises;
+        if (exerciseIndex < 0 || exerciseIndex >= exercises.length) return false;
+        // Don't allow replacing with something that's already in the workout elsewhere
+        const alreadyPresent = exercises.some((e, i) => i !== exerciseIndex && e.exerciseId === newExercise.id);
+        if (alreadyPresent) return false;
+        const old = exercises[exerciseIndex];
+        const now = Date.now();
+        // Preserve set structure (count, reps, weight, type, warmup flags) but wipe
+        // completed flags and PR markers so the user starts the new variant fresh.
+        const preservedSets: WorkoutSet[] = old.sets.map((os, i) => ({
+          id: `set-${now}-${i}-${Math.random().toString(36).slice(2, 5)}`,
+          setNumber: i + 1,
+          type: os.type,
+          reps: os.reps,
+          weight: os.weight,
+          completed: false,
+        }));
+        const replacement: WorkoutExercise = {
+          id: `we-${now}-${Math.random().toString(36).slice(2, 7)}`,
+          exerciseId: newExercise.id,
+          exercise: newExercise,
+          order: old.order,
+          sets: preservedSets,
+          restSeconds: old.restSeconds,
+          ...(old.supersetGroupId ? { supersetGroupId: old.supersetGroupId } : {}),
+          ...(old.notes ? { notes: old.notes } : {}),
+        };
+        const nextExercises = exercises.map((e, i) => i === exerciseIndex ? replacement : e);
+        set({
+          activeWorkout: {
+            ...s.activeWorkout,
+            workout: { ...s.activeWorkout.workout, exercises: nextExercises },
+          },
+        });
         return true;
       },
 

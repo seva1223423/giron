@@ -1095,13 +1095,17 @@ export default function AdminDashboardScreen() {
                 ))}
                 {genderEntries.length > 0 && (
                   <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-                    {genderEntries.map(([gender, count]) => (
+                    {genderEntries.map(([gender, count]) => {
+                      const g = String(gender).toLowerCase();
+                      const male = g === 'male';
+                      return (
                       <View key={gender} style={styles.genderChip}>
-                        <Text style={styles.genderIcon}>{gender === 'male' ? '♂' : '♀'}</Text>
-                        <Text style={styles.genderLabel}>{gender === 'male' ? 'Муж.' : 'Жен.'}</Text>
+                        <Text style={styles.genderIcon}>{male ? '♂' : '♀'}</Text>
+                        <Text style={styles.genderLabel}>{male ? 'Муж.' : 'Жен.'}</Text>
                         <Text style={styles.genderCount}>{count}</Text>
                       </View>
-                    ))}
+                    );
+                    })}
                   </View>
                 )}
               </View>

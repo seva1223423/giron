@@ -5,6 +5,7 @@ import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { isFemale } from '../../../utils/gender';
 
 type GoalKey = 'weight_loss' | 'muscle_gain' | 'strength' | 'maintenance' | 'endurance';
 
@@ -22,7 +23,7 @@ function calcBMR(user: { weightKg?: number; heightCm?: number; gender?: string; 
   const age = user?.dateOfBirth
     ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : 28;
-  const bmr = user?.gender === 'female'
+  const bmr = isFemale(user?.gender)
     ? 10 * weight + 6.25 * height - 5 * age - 161
     : 10 * weight + 6.25 * height - 5 * age + 5;
   return { bmr: Math.round(bmr), tdee: Math.round(bmr * 1.55) };

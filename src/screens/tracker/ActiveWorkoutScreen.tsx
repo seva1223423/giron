@@ -21,7 +21,7 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
   const {
     activeWorkout, workoutHistory,
     completeSet, nextExercise, prevExercise, finishWorkout, cancelWorkout,
-    setRestTimer, addExerciseToWorkout,
+    setRestTimer, addExerciseToWorkout, replaceExerciseInWorkout,
   } = useWorkoutStore();
 
   // Pre-compute best 1RM per exercise from history
@@ -418,16 +418,17 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
       return;
     }
 
+    // Substitute = REPLACE the current exercise in place (preserving set count,
+    // rest time, and superset grouping). Earlier this was appending the alternative
+    // to the end of the workout, which left the user mid-session with the old
+    // exercise still on screen and a new one parked at the bottom.
     const buttons = alternatives.map((ex) => ({
       text: ex.name,
       onPress: () => {
-        const added = addExerciseToWorkout(ex);
-        if (added) {
-          Alert.alert('Готово', `"${ex.name}" добавлено в тренировку`);
+        const swapped = replaceExerciseInWorkout(currentExerciseIndex, ex);
+        if (swapped) {
+          Alert.alert('Заменено', `Упражнение заменено на "${ex.name}"`);
         } else {
-          // Only reason this returns false (given we have an active workout) is that
-          // the exercise is already in the session — surface that instead of silently
-          // doing nothing.
           Alert.alert('Уже добавлено', `"${ex.name}" уже есть в этой тренировке`);
         }
       },

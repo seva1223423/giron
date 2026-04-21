@@ -6,6 +6,7 @@ import { Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { OneRMResultCard, PercentageTableCard, StrengthStandardsCard } from './onerm';
+import { isFemale } from '../../utils/gender';
 
 function epley(w: number, r: number) { return r === 1 ? w : Math.round(w * (1 + r / 30)); }
 function brzycki(w: number, r: number) { return r === 1 ? w : Math.round(w * (36 / (37 - r))); }
@@ -36,7 +37,7 @@ export const OneRMCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   }, [weight, reps, validInput]);
 
   const userWeight = user?.weightKg || 80;
-  const userGender: 'male' | 'female' = user?.gender === 'female' ? 'female' : 'male';
+  const userGender: 'male' | 'female' = isFemale(user?.gender) ? 'female' : 'male';
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={[styles.content, { paddingTop: safeTop }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

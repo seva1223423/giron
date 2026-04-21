@@ -64,6 +64,7 @@ export const aiService = {
     onDone?: (result: { actions: AIActionResult[]; meta?: AIMeta }) => void,
     sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>,
     clientDate?: string,
+    signal?: AbortSignal,
   ): AsyncGenerator<string> {
     const clientHour = new Date().getHours();
     const token = await tokenStorage.getAccessToken();
@@ -74,6 +75,7 @@ export const aiService = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, stream: true, clientDate, clientHour }),
+      signal,
     });
 
     if (!response.ok) throw new Error(`AI stream error ${response.status}`);
@@ -112,6 +114,12 @@ export const aiService = {
 
     try {
       while (true) {
+        if (signal?.aborted) {
+          // Best effort: tell the server-side fetch to disconnect. Some RN polyfills
+          // ignore cancel() — the `signal` on fetch() above is the primary mechanism.
+          try { await reader.cancel(); } catch { /* ignore */ }
+          break;
+        }
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });

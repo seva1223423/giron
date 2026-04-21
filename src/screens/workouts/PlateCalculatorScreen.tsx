@@ -2,16 +2,35 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore } from '../../store';
+import { useThemeStore, useWorkoutStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { PlateCalculatorTab, OneRMCalculatorTab } from './calculator';
+
+interface ApplyTarget {
+  exerciseIndex: number;
+  setIndex: number;
+}
 
 export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const [activeTab, setActiveTab] = useState<'plates' | 'onerm'>('plates');
+  const updateSetData = useWorkoutStore((s) => s.updateSetData);
+
+  const applyTarget: ApplyTarget | undefined = route?.params?.applyTarget;
+
+  // Only show "Apply" when the screen was opened from a specific set input
+  // (SetsSection passes applyTarget). When opened from the hub navigation there's
+  // nothing to apply to, so the button stays hidden.
+  const handleApply = applyTarget
+    ? (weight: number) => {
+        updateSetData(applyTarget.exerciseIndex, applyTarget.setIndex, { weight });
+        haptic.success();
+        navigation.goBack();
+      }
+    : undefined;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -38,7 +57,12 @@ export const PlateCalculatorScreen: React.FC<{ navigation: any; route: any }> = 
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'plates' && <PlateCalculatorTab initialWeight={route?.params?.initialWeight} />}
+        {activeTab === 'plates' && (
+          <PlateCalculatorTab
+            initialWeight={route?.params?.initialWeight}
+            onApplyWeight={handleApply}
+          />
+        )}
         {activeTab === 'onerm' && <OneRMCalculatorTab />}
       </ScrollView>
     </View>
