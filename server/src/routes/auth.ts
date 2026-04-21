@@ -924,14 +924,21 @@ router.post('/send-otp', async (req: Request, res: Response) => {
       purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change', 'email-change']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
 
-    // Authenticated purposes: require a valid JWT — prevents unauthenticated OTP spam to arbitrary addresses
+    // Authenticated purposes: require a valid JWT — prevents unauthenticated OTP spam
+    // to arbitrary addresses, and lets us scope the issued OTP to its owner so a
+    // different logged-in user can't consume it.
+    let ownerUserId: string | undefined;
     if (purpose === 'email-change' || purpose === 'phone-change') {
       const authHeader = req.headers.authorization;
       if (!authHeader?.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Требуется авторизация', code: 'UNAUTHORIZED' });
       }
       try {
-        jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD });
+        const payload = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD }) as { userId?: string };
+        ownerUserId = payload.userId;
+        if (!ownerUserId) {
+          return res.status(401).json({ error: 'Недействительный токен', code: 'UNAUTHORIZED' });
+        }
       } catch {
         return res.status(401).json({ error: 'Недействительный токен', code: 'UNAUTHORIZED' });
       }
@@ -999,7 +1006,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await prisma.otpCode.create({
-      data: { phone, email, code, purpose, expiresAt },
+      data: { phone, email, code, purpose, expiresAt, userId: ownerUserId ?? null },
     });
 
     if (phone) {
