@@ -36,6 +36,11 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const [regenCode, setRegenCode] = useState('');
   const [regenerating, setRegenerating] = useState(false);
   const [isRegenResult, setIsRegenResult] = useState(false);
+  // Step-up re-auth for the initial setup flow. Server requires currentPassword
+  // on /2fa/setup for users with a passwordHash (to stop a stolen access token
+  // from binding an attacker's authenticator). Social-only users can leave it empty.
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => { if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current); }, []);
@@ -53,14 +58,28 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
-  const startSetup = async () => {
+  const startSetup = async (password?: string) => {
     setSubmitting(true);
     try {
-      const { data } = await api.post<SetupData>('/user/2fa/setup');
+      const body = password ? { currentPassword: password } : {};
+      const { data } = await api.post<SetupData>('/user/2fa/setup', body);
       setSetupData(data);
+      setShowPasswordPrompt(false);
+      setCurrentPassword('');
       setCode('');
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось начать настройку 2FA');
+      const code = e?.response?.data?.code;
+      if (code === 'PASSWORD_REQUIRED') {
+        // Step-up re-auth — show inline password field, don't alert.
+        setShowPasswordPrompt(true);
+        setCurrentPassword('');
+      } else if (code === 'INVALID_PASSWORD') {
+        Alert.alert('Неверный пароль', 'Попробуйте ещё раз.');
+        setCurrentPassword('');
+      } else {
+        Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось начать настройку 2FA');
+        setShowPasswordPrompt(false);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -317,6 +336,40 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             )}
           </View>
         </View>
+      ) : showPasswordPrompt ? (
+        /* Password confirmation before generating TOTP secret */
+        <View>
+          <View style={{ backgroundColor: colors.primary + '12', borderRadius: borderRadius.md, padding: spacing.lg, marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.primary + '30' }}>
+            <Text style={[typography.smallMedium, { color: colors.primary, marginBottom: 4 }]}>Подтверждение пароля</Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              Для вашей безопасности подтвердите текущий пароль перед настройкой 2FA — это защищает от подключения аутентификатора злоумышленником.
+            </Text>
+          </View>
+          <TextInput
+            style={[styles.codeInput, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border, fontSize: 16, letterSpacing: 0, fontWeight: '500' }]}
+            placeholder="Текущий пароль"
+            placeholderTextColor={colors.textTertiary}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+            autoFocus
+            textContentType="password"
+          />
+          <Button
+            title="Продолжить"
+            onPress={() => startSetup(currentPassword)}
+            loading={submitting}
+            disabled={currentPassword.length === 0}
+            fullWidth
+            style={{ marginTop: spacing.xl }}
+          />
+          <TouchableOpacity
+            onPress={() => { setShowPasswordPrompt(false); setCurrentPassword(''); }}
+            style={{ marginTop: spacing.lg, alignItems: 'center' }}
+          >
+            <Text style={[typography.body, { color: colors.textSecondary }]}>Отмена</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         /* Not enabled */
         <View>
@@ -328,7 +381,7 @@ export const TwoFactorScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           </View>
           <Button
             title="Включить двухфакторную аутентификацию"
-            onPress={startSetup}
+            onPress={() => startSetup()}
             loading={submitting}
             fullWidth
           />
