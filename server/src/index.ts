@@ -100,7 +100,7 @@ const adminRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов к панели администратора. Попробуйте через 15 минут.' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 /** Auth endpoints: 20 attempts per 15 minutes per IP to slow brute-force */
@@ -110,7 +110,7 @@ const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много попыток входа. Попробуйте через 15 минут.' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 /** AI endpoints: 60 requests per minute per IP — prevents cost abuse */
@@ -120,7 +120,7 @@ const aiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов к ИИ. Подождите минуту.' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 /** User endpoints: 200 requests per minute per IP — prevents enumeration/scraping */
@@ -130,7 +130,7 @@ const userRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов. Подождите минуту.' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 /** TOTP verify: strict 5 attempts per 5 minutes per IP to mitigate brute-force */
@@ -140,7 +140,7 @@ const totpRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много попыток ввода кода 2FA. Подождите 5 минут.', code: 'TOTP_RATE_LIMIT' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 /** Food vision analysis: 20 per hour per IP — vision API is expensive; client enforces 5/day for free users */
@@ -150,7 +150,7 @@ const foodAnalysisRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов на анализ фото. Попробуйте через час.', code: 'VISION_RATE_LIMIT' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 /** Password-reset flow: 5 requests per hour per IP — prevents email-spam abuse */
@@ -160,7 +160,7 @@ const passwordResetRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов на сброс пароля. Попробуйте через час.', code: 'RESET_RATE_LIMIT' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 /** Account-existence probes (check-email / check-phone) — stricter than the
@@ -172,7 +172,7 @@ const enumRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов. Подождите 15 минут.' },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+  keyGenerator: (req, res) => ipKeyGenerator(req, res),
 });
 
 // Routes

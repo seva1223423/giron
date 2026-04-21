@@ -16,6 +16,10 @@ exercise-videos-test/
 server/.env
 *.env.local
 
+# Tooling credentials (Render API key, Neon tokens, etc.) used by Claude to
+# help debug the live environment. Must NEVER be committed — see secrets/README.md.
+secrets/
+
 # Build output
 dist/
 server/dist/
