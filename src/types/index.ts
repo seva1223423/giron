@@ -101,6 +101,18 @@ export interface Routine {
   updatedAt: string;
 }
 
+// Shape returned by GET /workouts/routines/:id/history
+export interface RoutineHistoryEntry {
+  id: string;
+  completedAt: string;
+  durationMinutes: number | null;
+  exercises: Array<{ exerciseId: string; name: string; maxWeight: number | null; totalReps: number }>;
+}
+export interface RoutineHistory {
+  routineId: string;
+  history: RoutineHistoryEntry[];
+}
+
 // Shape returned by POST /workouts/routines/:id/start
 export interface RoutineStartPayload {
   routineId: string;

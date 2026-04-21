@@ -1,5 +1,5 @@
 import { api } from './api';
-import { Program, Workout, Exercise, Routine, RoutineStartPayload } from '../types';
+import { Program, Workout, Exercise, Routine, RoutineStartPayload, RoutineHistory } from '../types';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -179,6 +179,11 @@ export const workoutService = {
 
   async prepareRoutineWorkout(routineId: string): Promise<RoutineStartPayload> {
     const { data } = await api.post(`/workouts/routines/${routineId}/start`);
+    return data;
+  },
+
+  async getRoutineHistory(routineId: string): Promise<RoutineHistory> {
+    const { data } = await api.get(`/workouts/routines/${routineId}/history`);
     return data;
   },
 };
