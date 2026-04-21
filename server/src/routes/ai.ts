@@ -6,6 +6,7 @@ import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload }
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
+import { foodVisionCache } from '../utils/memCache';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -81323,6 +81324,20 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
 
     const userId = req.userId!;
 
+    // Cross-device cache — same user submitting the same photo a second time
+    // (from a different device, after reinstall, etc.) gets the previous
+    // result without paying for another Mistral vision call. Fingerprint is
+    // length + first/last 64 chars — cheap, collision-safe for within-user.
+    const fingerprint = imageBase64.length > 128
+      ? `${imageBase64.length}:${imageBase64.slice(0, 64)}:${imageBase64.slice(-64)}`
+      : `${imageBase64.length}:${imageBase64}`;
+    const cacheKey = `${userId}:${fingerprint}`;
+    const cachedResponse = foodVisionCache.get(cacheKey);
+    if (cachedResponse) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cachedResponse);
+    }
+
     // Server-side food scan quota — free users: 5 scans/day
     // Fetch subscription, scan count, user profile and memories all in parallel
     const scanTodayFloor = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
@@ -81459,7 +81474,12 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
       ? Math.round(validated.reduce((s, i) => s + (i.confidence ?? 0.8), 0) / validated.length * 100) / 100
       : null;
 
-    return res.json({ items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence });
+    const responsePayload = { items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence };
+    // Cache for 24h under (userId, fingerprint) — next repeat-scan by the
+    // same user on any device returns instantly without a Mistral call.
+    foodVisionCache.set(cacheKey, responsePayload, 24 * 60 * 60 * 1000);
+    res.setHeader('X-Cache', 'MISS');
+    return res.json(responsePayload);
   } catch (e) {
     logger.error('Food analysis error:', e);
     res.status(500).json({ error: 'Ошибка анализа фото', retryable: true });
