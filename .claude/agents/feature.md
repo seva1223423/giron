@@ -36,7 +36,7 @@ Rules:
 
 After every schema change — run in this order, never skip:
 ```bash
-cd C:/Users/sevka/Projects/iron-gym/server
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server
 npx prisma generate    # regenerates TypeScript types
 npx prisma db push     # syncs to DB (NEVER prisma migrate)
 npx tsc --noEmit       # verify no TypeScript errors
@@ -111,7 +111,7 @@ Error response format (never deviate):
 
 Verify:
 ```bash
-cd C:/Users/sevka/Projects/iron-gym/server && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx tsc --noEmit
 ```
 
 ---
@@ -396,13 +396,13 @@ Always implement both. Server = security. Client = UX. Client gate alone is bypa
 
 ```bash
 # Server TypeScript
-cd C:/Users/sevka/Projects/iron-gym/server && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx tsc --noEmit
 
 # Client TypeScript
-cd C:/Users/sevka/Projects/iron-gym && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx tsc --noEmit
 
 # Server tests (confirm nothing broke)
-cd C:/Users/sevka/Projects/iron-gym/server && npx jest --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit
 ```
 
 All three must be clean before reporting success.
@@ -421,3 +421,13 @@ All three must be clean before reporting success.
 8. **Store `partialize` missing new fields** — new state lost on app restart
 9. **Store `version` not bumped after shape change** — crash on existing installs
 10. **No `@@index([userId])` on new model** — full table scan on every query
+
+## See Also (Cross-Agent Coordination)
+
+When implementing a feature, these agents handle specific concerns:
+- **Schema changes** → also spawn `database` agent to verify indexes, cascade rules, and run `prisma db push`
+- **New premium gate** → use `/premium-feature` command: 5-layer checklist (server → client → store → paywall UI → test)
+- **New admin action** → `compliance` agent: needs `AdminLog` write in `$transaction`; `security` agent: needs `authenticate` + `requireAdmin`
+- **Tests** → spawn `tests` agent to write server integration tests after feature is complete
+- **AI tools** → `ai-coach` agent handles AI tool registration (26 tools currently in `server/src/routes/ai.ts`)
+- **Performance** → if feature adds a `findMany` without pagination or an N+1 loop, spawn `performance` agent to audit before shipping
