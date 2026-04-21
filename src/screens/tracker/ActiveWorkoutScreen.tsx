@@ -101,10 +101,18 @@ export const ActiveWorkoutScreen: React.FC<{ navigation: any }> = ({ navigation 
     };
   }, []);
 
-  // Autosave every 30 seconds — use getState() to avoid stale closure
+  // Autosave every 30 seconds — use getState() to avoid stale closure.
+  // The server's /:id/autosave requires a CUID; locally-created workouts have ids
+  // like "workout-1712345-abc" which would 400 every tick. Only autosave once the
+  // workout has been synced and received a server id — the local finishWorkout
+  // flow already syncs to /workouts/sync on completion, and in-progress persistence
+  // is already covered by Zustand's AsyncStorage persistence, so skipping server
+  // autosave on pre-sync workouts is safe.
   useEffect(() => {
     if (!activeWorkout) return;
     const workoutId = activeWorkout.workout.id;
+    const CUID_RE = /^c[a-z0-9]{20,30}$/;
+    if (!CUID_RE.test(workoutId)) return; // not yet synced — rely on local persistence
 
     const doAutosave = () => {
       const current = useWorkoutStore.getState().activeWorkout;
