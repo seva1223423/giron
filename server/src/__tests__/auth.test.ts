@@ -45,6 +45,15 @@ jest.mock('../db', () => ({
       create: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({}),
     },
+    subscription: {
+      // Required by subscription.ts webhook stale-event guard — without it
+      // `prisma.subscription.findUnique` throws, which bubbles into a 500
+      // when this file tests the YuKassa webhook.
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({}),
+      upsert: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({}),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -391,8 +400,11 @@ describe('Auth Routes', () => {
         .update(body)
         .digest('hex');
 
-      // Need to mock prisma.subscription for the webhook handler
+      // Need to mock prisma.subscription for the webhook handler.
+      // findUnique is required by the stale-event guard (subscription.ts) —
+      // null = no existing sub, so the guard proceeds to the upsert path.
       (mockPrisma as any).subscription = {
+        findUnique: jest.fn().mockResolvedValue(null),
         upsert: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn().mockResolvedValue({}),
       };

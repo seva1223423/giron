@@ -88,7 +88,7 @@ my_new_intent: {
 - `motivation` → toolsEnabled: false, cacheable
 - `general` → toolsEnabled: false, cacheable
 
-## 11 Tools — Adding a New One
+## 26 Tools — Adding a New One
 
 **Step 1:** Add to `TOOLS` array (search for `const TOOLS`):
 ```typescript
@@ -127,10 +127,14 @@ case 'my_tool_name': {
 }
 ```
 
-**Existing tools (don't duplicate):**
+**Existing tools (don't duplicate — 26 total):**
 `update_user_profile`, `log_body_weight`, `log_body_measurement`,
 `create_workout`, `create_program`, `modify_workout`,
-`update_nutrition_targets`, `log_meal`, `log_water`, `delete_meal`, `set_weekly_plan`
+`update_nutrition_targets`, `log_meal`, `log_water`, `delete_meal`, `delete_program`,
+`set_weekly_plan`, `adjust_all_weights`, `log_cardio`, `modify_meal`,
+`set_water_target`, `set_rest_timer`, `set_notifications`, `swap_exercise`,
+`add_superset`, `generate_warmup`, `set_workout_duration_goal`,
+`analyze_progress`, `suggest_next_workout`, `log_sleep`, `activate_program`
 
 ## 25 Knowledge Modules — Adding a New One
 

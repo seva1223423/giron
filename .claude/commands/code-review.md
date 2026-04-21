@@ -15,7 +15,7 @@ git diff --cached
 2. **For each changed server file, check:**
 
 ### Auth & Authorization
-- Every route that accesses user data has `authenticateToken` middleware
+- Every route that accesses user data has `authenticate` middleware (the function is `authenticate` in `server/src/middleware/auth.ts`, not `authenticateToken`)
 - Routes that modify another user's data check `req.user.id === resource.userId`
 - Admin routes check `req.user.role === 'admin'`
 - No JWT secret hardcoded (must be `process.env.JWT_SECRET`)

@@ -105,6 +105,7 @@ export interface Routine {
 export interface RoutineStartPayload {
   routineId: string;
   name: string;
+  lastUsedAt: string | null;
   exercises: Array<{
     exerciseId: string;
     exercise: Exercise;
@@ -157,6 +158,7 @@ export interface Workout {
   totalVolume?: number; // kg
   notes?: string;
   rating?: number; // 1–5 субъективная оценка
+  routineId?: string; // set when started from a Routine — enables lastUsedAt tracking
 }
 
 // ==================== PROGRAMS ====================

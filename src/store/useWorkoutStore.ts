@@ -53,7 +53,8 @@ interface WorkoutStore {
   fetchRoutines: () => Promise<void>;
   addRoutine: (routine: Routine) => void;
   removeRoutine: (id: string) => Promise<void>;
-  startWorkoutFromRoutine: (routineId: string) => Promise<Workout | null>;
+  updateRoutineName: (id: string, name: string, description?: string | null) => Promise<void>;
+  startWorkoutFromRoutine: (routineId: string, preloadedPayload?: import('../types').RoutineStartPayload) => Promise<Workout | null>;
 
   // Active workout
   startWorkout: (workout: Workout) => boolean;
@@ -232,6 +233,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       addRoutine: (routine) => set((s) => ({ routines: [routine, ...s.routines] })),
 
+      updateRoutineName: async (id, name, description) => {
+        const prev = get().routines.find((r) => r.id === id);
+        set((s) => ({
+          routines: s.routines.map((r) =>
+            r.id === id ? { ...r, name, ...(description !== undefined && { description: description ?? undefined }) } : r
+          ),
+        }));
+        workoutService.renameRoutine(id, name, description).catch(() => {
+          if (prev) set((s) => ({ routines: s.routines.map((r) => (r.id === id ? prev : r)) }));
+        });
+      },
+
       removeRoutine: async (id) => {
         const removed = get().routines.find((r) => r.id === id);
         set((s) => ({ routines: s.routines.filter((r) => r.id !== id) }));
@@ -242,13 +255,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
         });
       },
 
-      startWorkoutFromRoutine: async (routineId) => {
+      startWorkoutFromRoutine: async (routineId, preloadedPayload) => {
         if (get().activeWorkout) return null;
         try {
-          const payload = await workoutService.prepareRoutineWorkout(routineId);
+          const payload = preloadedPayload ?? await workoutService.prepareRoutineWorkout(routineId);
           const workout: Workout = {
             id: `workout-${Date.now()}`,
             name: payload.name,
+            routineId: payload.routineId,
             exercises: payload.exercises.map((ex, ei) => ({
               id: `we-${Date.now()}-${ei}`,
               exerciseId: ex.exerciseId,

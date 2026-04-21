@@ -10,7 +10,7 @@ You are validating the Iron Gym AI system integrity after recent changes. Check 
 - Knowledge modules: `server/src/knowledge/` (should be 25 modules)
 - Services: `server/src/services/deepseekAI.ts`, `server/src/services/localAI.ts`
 - Intents: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
-- Tools: create_program, create_workout, log_meal, log_water, delete_meal, update_profile, log_body_weight, modify_workout, set_weekly_plan, update_nutrition_targets (10 tools)
+- Tools: 26 tools — update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program
 - Cache: LRU 4h TTL, max 200 entries
 
 ## Validation Steps
@@ -26,14 +26,20 @@ Verify all 10 intents are handled. Flag any intent referenced in classification 
 ### 2. Tool Schema Correctness
 
 ```bash
-grep -n '"name":\|"description":\|"parameters":\|"required":' server/src/routes/ai.ts | head -60
+# Get authoritative tool count
+grep -n "name: '" server/src/routes/ai.ts | grep -v "Iron Coach\|user\|program\|stats\|workout\|nutrition" | head -40
+
+# Verify tool count matches expected 26
+grep -c "name: '" server/src/routes/ai.ts
 ```
 
 For each tool function:
-- `name` matches the function handler
+- `name` matches the function handler (case-sensitive)
 - `parameters` schema matches what the handler expects
 - `required` array includes all non-optional params
 - Handler validates input before DB write (Zod or manual check)
+- Tool description clearly states WHEN to call it (not just what it does)
+- Tool does NOT accept `userId` as parameter — must use `req.userId` from JWT
 
 ### 3. Knowledge Module Count
 

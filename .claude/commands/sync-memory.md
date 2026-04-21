@@ -48,7 +48,7 @@ ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" | wc -l
 grep -n "Projects/iron-gym\|sevka/Projects" "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\docs.md" 2>/dev/null
 ```
 
-Flag: `C:/Users/sevka/Projects/iron-gym` is the OLD path — should be `C:/Users/sevka/Desktop/1223/work/iron-gym`.
+Flag: `C:/Users/sevka/Desktop/1223/work/iron-gym` is the OLD path — should be `C:/Users/sevka/Desktop/1223/work/iron-gym`.
 
 ### 4. Report drift
 
@@ -71,7 +71,7 @@ MEMORY SYNC REPORT:
 If stale facts found in files:
 
 **Fix docs.md agent old path:**
-Replace `C:/Users/sevka/Projects/iron-gym` with `C:/Users/sevka/Desktop/1223/work/iron-gym` in `.claude/agents/docs.md`.
+Replace `C:/Users/sevka/Desktop/1223/work/iron-gym` with `C:/Users/sevka/Desktop/1223/work/iron-gym` in `.claude/agents/docs.md`.
 
 **Fix CLAUDE.md model count:**
 Read `server/prisma/schema.prisma`, count `^model ` lines, update CLAUDE.md to match.

@@ -25,12 +25,12 @@ RESULT:
 
 ## Critical Project Facts
 
-**Server root:** `C:/Users/sevka/Projects/iron-gym/server/`
+**Server root:** `C:/Users/sevka/Desktop/1223/work/iron-gym/server/`
 
 **Verification commands (always run both before reporting done):**
 ```bash
-cd C:/Users/sevka/Projects/iron-gym/server && npx tsc --noEmit
-cd C:/Users/sevka/Projects/iron-gym/server && npx jest --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit
 ```
 
 **Route files and their mount paths:**

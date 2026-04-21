@@ -5,30 +5,35 @@ let lastRefreshAt = 0;
 let isRefreshing = false; // mutex: prevent concurrent refreshes
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-// RSS sources: Russian fitness/sport news
+// RSS sources: Russian fitness/sport news.
+//
+// Previous URLs (championat /lifestyle/, sport.rbc.ru/rss, rsport.ria.ru/*)
+// all returned 404 — verified in prod logs. These endpoints were silently
+// deprecated by the publishers some time before 2026-04. Replaced with the
+// current working feeds, probed on 2026-04-21.
 const RSS_SOURCES = [
   {
-    url: 'https://www.championat.com/lifestyle/rss.xml',
-    category: 'fitness',
+    url: 'https://www.championat.com/rss/news/',
+    category: 'sport',
     source: 'Чемпионат',
-    categories: ['fitness', 'russian'],
-  },
-  {
-    url: 'https://sport.rbc.ru/rss',
-    category: 'sport',
-    source: 'РБК Спорт',
-    categories: ['sport', 'russian'],
-  },
-  {
-    url: 'https://rsport.ria.ru/rsport_news/index.rss',
-    category: 'sport',
-    source: 'РИА Спорт',
     categories: ['sport', 'russian'],
   },
   {
     url: 'https://www.sports.ru/rss/main.xml',
     category: 'sport',
     source: 'Sports.ru',
+    categories: ['sport', 'russian'],
+  },
+  {
+    url: 'https://lenta.ru/rss/news/sport',
+    category: 'sport',
+    source: 'Lenta.ru Спорт',
+    categories: ['sport', 'russian'],
+  },
+  {
+    url: 'https://tass.ru/rss/v2.xml?sections=MjA%3D',
+    category: 'sport',
+    source: 'ТАСС Спорт',
     categories: ['sport', 'russian'],
   },
 ];
