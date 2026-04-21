@@ -4,11 +4,19 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { useThemeStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 
+/**
+ * Video + poster sources can be either:
+ *   - a React Native module ID (`require('../assets/foo.mp4')`) for bundled assets
+ *   - a remote URL string (legacy / fallback)
+ * expo-video's useVideoPlayer and RN's <Image source={…} /> both accept either form.
+ */
+type MediaSource = number | string;
+
 interface Props {
-  /** Direct .mp4 / HLS URL served from our own CDN (set via EXPO_PUBLIC_MEDIA_URL). */
-  videoUrl: string;
-  /** Optional poster image shown before the video starts playing. */
-  posterUrl?: string;
+  /** Bundled asset module ID or a remote URL for the demo video. */
+  videoSource: MediaSource;
+  /** Optional poster shown before the first frame renders. */
+  posterSource?: MediaSource;
   /** Height in px (16:9 aspect is handled by the caller). */
   height: number;
   /** Start muted (default true — autoplay only works muted on most platforms). */
@@ -42,8 +50,13 @@ interface Props {
  *
  * Uses expo-video (Expo SDK 54+). Works identically on iOS and Android.
  */
+function toImageSource(s: MediaSource | undefined) {
+  if (s === undefined) return undefined;
+  return typeof s === 'number' ? s : { uri: s };
+}
+
 export const ExerciseInlineVideo: React.FC<Props> = ({
-  videoUrl, posterUrl, height, startMuted = true, hideMuteButton = false,
+  videoSource, posterSource, height, startMuted = true, hideMuteButton = false,
   nativeControls = false, paused = false, onError,
 }) => {
   const { colors } = useThemeStore();
@@ -51,7 +64,7 @@ export const ExerciseInlineVideo: React.FC<Props> = ({
   const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
   const [muted, setMuted] = useState(startMuted);
 
-  const player = useVideoPlayer(videoUrl, (p) => {
+  const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true;
     p.muted = startMuted;
     p.play();
@@ -114,9 +127,9 @@ export const ExerciseInlineVideo: React.FC<Props> = ({
       />
 
       {/* Poster overlay — fades away the moment the player starts rendering frames */}
-      {!hasStartedPlayback && posterUrl && (
+      {!hasStartedPlayback && posterSource !== undefined && (
         <Image
-          source={{ uri: posterUrl }}
+          source={toImageSource(posterSource)!}
           style={StyleSheet.absoluteFillObject}
           resizeMode="cover"
         />

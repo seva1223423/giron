@@ -4,7 +4,7 @@ import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
-import { exerciseThumbUrl } from '../../../config/store';
+import { exerciseThumbSource } from '../../../config/store';
 import { exercises as localExercises } from '../../../data/exercises';
 
 interface Props {
@@ -23,7 +23,7 @@ export const TodayPlanCard: React.FC<Props> = ({ todayPlan, onStart }) => {
     const ids = todayPlan.exercises.slice(0, MAX_THUMBS);
     return ids.map((id) => ({
       id,
-      thumb: exerciseThumbUrl(id),
+      thumb: exerciseThumbSource(id),
       emoji: localExercises.find((e) => e.id === id)?.type === 'cardio' ? '🏃' : '💪',
     }));
   }, [todayPlan.exercises]);
@@ -57,8 +57,8 @@ export const TodayPlanCard: React.FC<Props> = ({ todayPlan, onStart }) => {
                 { marginLeft: i === 0 ? 0 : -10, borderColor: colors.surface, zIndex: MAX_THUMBS - i },
               ]}
             >
-              {item.thumb ? (
-                <Image source={{ uri: item.thumb }} style={StyleSheet.absoluteFillObject} />
+              {item.thumb !== undefined ? (
+                <Image source={item.thumb} style={StyleSheet.absoluteFillObject} />
               ) : (
                 <View style={[StyleSheet.absoluteFillObject, styles.placeholder]}>
                   <Text style={styles.placeholderIcon}>{item.emoji}</Text>

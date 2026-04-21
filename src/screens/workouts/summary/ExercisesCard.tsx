@@ -5,7 +5,7 @@ import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Workout } from '../../../types';
-import { exerciseThumbUrl } from '../../../config/store';
+import { exerciseThumbSource } from '../../../config/store';
 
 interface Props { workout: Workout }
 
@@ -20,12 +20,12 @@ export const ExercisesCard: React.FC<Props> = ({ workout }) => {
         const exVolume = completedSets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
         const nextEx = workout.exercises[i + 1];
         const isSuperset = ex.supersetGroupId && nextEx?.supersetGroupId === ex.supersetGroupId;
-        const thumb = exerciseThumbUrl(ex.exerciseId);
+        const thumb = exerciseThumbSource(ex.exerciseId);
         return (
           <View key={ex.id}>
             <View style={[{ flexDirection: 'row', paddingVertical: spacing.md, gap: spacing.md }, i < workout.exercises.length - 1 && !isSuperset && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
-              {thumb && (
-                <Image source={{ uri: thumb }} style={styles.thumb} />
+              {thumb !== undefined && (
+                <Image source={thumb} style={styles.thumb} />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.exercise?.name ?? ''}</Text>

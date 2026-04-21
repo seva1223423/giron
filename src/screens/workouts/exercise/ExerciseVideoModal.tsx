@@ -9,14 +9,16 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 import { features } from '../../../config/store';
 import { ExerciseInlineVideo } from './ExerciseInlineVideo';
 
+type MediaSource = number | string;
+
 interface Props {
   visible: boolean;
   onClose: () => void;
   exerciseName: string;
-  /** Direct URL to an own-hosted demo video (mp4/HLS). Preferred over YouTube/Rutube when present. */
-  inlineVideoUrl?: string;
-  /** Poster/thumbnail for the own-hosted video (optional). */
-  inlineVideoPoster?: string;
+  /** Bundled asset module ID or remote URL for the demo video. Preferred over YouTube/Rutube. */
+  inlineVideoSource?: MediaSource;
+  /** Poster/thumbnail for the own-hosted video. */
+  inlineVideoPoster?: MediaSource;
   youtubeId?: string;
   rutubeId?: string;
   primaryMuscles: string[];
@@ -73,7 +75,7 @@ async function openVideo(youtubeId: string | undefined, rutubeId: string | undef
 }
 
 export const ExerciseVideoModal: React.FC<Props> = ({
-  visible, onClose, exerciseName, inlineVideoUrl, inlineVideoPoster, youtubeId, rutubeId,
+  visible, onClose, exerciseName, inlineVideoSource, inlineVideoPoster, youtubeId, rutubeId,
   primaryMuscles, muscleLabels, description, instructions, tips, commonMistakes,
 }) => {
   const { colors } = useThemeStore();
@@ -81,15 +83,13 @@ export const ExerciseVideoModal: React.FC<Props> = ({
   const THUMB_H = Math.round((screenW * 9) / 16);
   const safeYoutubeId = features.youtubeVideos && youtubeId && YOUTUBE_ID_RE.test(youtubeId) ? youtubeId : undefined;
   const safeRutubeId = rutubeId && RUTUBE_ID_RE.test(rutubeId) ? rutubeId : undefined;
-  // YouTube thumbnails are CDN-served; Rutube requires a separate oEmbed fetch which we don't do here,
-  // so the RuStore build shows the generic placeholder for Rutube videos instead.
   const thumbUrl = safeYoutubeId ? `https://img.youtube.com/vi/${safeYoutubeId}/maxresdefault.jpg` : null;
   const videoProvider: 'youtube' | 'rutube' | 'search' = safeYoutubeId ? 'youtube' : safeRutubeId ? 'rutube' : 'search';
 
-  // Own-hosted video takes precedence. On error (404, bad CDN, offline) we fall back
-  // to the YouTube/Rutube thumbnail+open-in-app flow below.
+  // Own-hosted video takes precedence. On error we fall back to the YouTube/Rutube
+  // thumbnail + open-in-app flow below.
   const [inlineVideoFailed, setInlineVideoFailed] = useState(false);
-  const showInlineVideo = !!inlineVideoUrl && !inlineVideoFailed;
+  const showInlineVideo = inlineVideoSource !== undefined && !inlineVideoFailed;
   // Reset the inline-video error flag each time the modal is re-opened so a temporary
   // network hiccup doesn't permanently switch this exercise to YouTube fallback.
   useEffect(() => { if (visible) setInlineVideoFailed(false); }, [visible]);
@@ -133,8 +133,8 @@ export const ExerciseVideoModal: React.FC<Props> = ({
         {showInlineVideo ? (
           <View style={[styles.thumbnailWrapper, { height: THUMB_H }]}>
             <ExerciseInlineVideo
-              videoUrl={inlineVideoUrl!}
-              posterUrl={inlineVideoPoster}
+              videoSource={inlineVideoSource!}
+              posterSource={inlineVideoPoster}
               height={THUMB_H}
               startMuted={false}
               nativeControls

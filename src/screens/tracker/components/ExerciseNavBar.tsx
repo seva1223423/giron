@@ -7,7 +7,7 @@ import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { WorkoutExercise } from '../../../types';
-import { exerciseVideoUrl, exerciseThumbUrl } from '../../../config/store';
+import { exerciseVideoSource, exerciseThumbSource } from '../../../config/store';
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: '\u0413\u0440\u0443\u0434\u044C', back: '\u0421\u043F\u0438\u043D\u0430', shoulders: '\u041F\u043B\u0435\u0447\u0438', biceps: '\u0411\u0438\u0446\u0435\u043F\u0441', triceps: '\u0422\u0440\u0438\u0446\u0435\u043F\u0441',
@@ -164,8 +164,8 @@ export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerci
         visible={videoVisible}
         onClose={() => setVideoVisible(false)}
         exerciseName={currentExercise.exercise?.name ?? ''}
-        inlineVideoUrl={currentExercise.exercise?.videoUrl || exerciseVideoUrl(currentExercise.exerciseId)}
-        inlineVideoPoster={exerciseThumbUrl(currentExercise.exerciseId)}
+        inlineVideoSource={currentExercise.exercise?.videoUrl ?? exerciseVideoSource(currentExercise.exerciseId)}
+        inlineVideoPoster={exerciseThumbSource(currentExercise.exerciseId)}
         youtubeId={currentExercise.exercise?.youtubeId}
         rutubeId={(currentExercise.exercise as any)?.rutubeId}
         primaryMuscles={currentExercise.exercise?.primaryMuscles ?? []}
