@@ -1,16 +1,17 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, Share } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Share, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { useThemeStore, useWorkoutStore, useNutritionStore } from '../../store';
-import { Button, FadeIn } from '../../components';
+import { Button, FadeIn, Card } from '../../components';
 import { typography } from '../../theme';
-import { spacing } from '../../theme/spacing';
+import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements, getNewlyUnlocked } from '../../utils/achievements';
 import { localDateStr } from '../../utils/date';
 import { scheduleStreakRiskNotification } from '../../services/notificationService';
+import { workoutService } from '../../services';
 import {
   PRCelebration,
   PRsCard,
@@ -31,7 +32,14 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { workoutHistory } = useWorkoutStore();
+  const { workoutHistory, routines, addRoutine } = useWorkoutStore();
+
+  // Save-as-routine modal state — lives here rather than in a card component so
+  // the async call + error handling is close to the workout object.
+  const [showSaveRoutine, setShowSaveRoutine] = useState(false);
+  const [routineName, setRoutineName] = useState('');
+  const [savingRoutine, setSavingRoutine] = useState(false);
+  const [routineSavedId, setRoutineSavedId] = useState<string | null>(null);
   const { dailyLog } = useNutritionStore();
   const workout = route.params?.workout;
   const shareCardRef = useRef<View>(null);
@@ -140,6 +148,69 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
     if (!workout) navigation.goBack();
   }, [workout, navigation]);
 
+  const openSaveRoutineModal = () => {
+    haptic.selection();
+    // Default name = workout name + " рутина" unless it already ends with the
+    // word, so repeating this gesture doesn't keep tacking more suffixes on.
+    const base = workout.name || 'Тренировка';
+    const isAutoName = /^Тренировка( \d+| \w+ \d+)?$/i.test(base);
+    const proposed = isAutoName ? `Рутина ${new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}` : base;
+    setRoutineName(proposed);
+    setShowSaveRoutine(true);
+  };
+
+  const handleSaveRoutine = async () => {
+    const name = routineName.trim();
+    if (!name) {
+      Alert.alert('Введи название рутины');
+      return;
+    }
+    if (routines.some((r) => r.name.toLowerCase() === name.toLowerCase())) {
+      Alert.alert(
+        'Уже существует',
+        `Рутина «${name}» уже есть. Выбери другое название или переименуй старую.`,
+      );
+      return;
+    }
+    setSavingRoutine(true);
+    try {
+      // Keep only completed working sets for the routine template — warmups and
+      // skipped sets don't represent the intended structure.
+      const mapped = workout.exercises.map((ex: any, idx: number) => ({
+        exerciseId: ex.exerciseId,
+        order: idx,
+        restSeconds: typeof ex.restSeconds === 'number' ? ex.restSeconds : 90,
+        notes: ex.notes || undefined,
+        sets: (ex.sets || [])
+          .filter((s: any) => s.type !== 'warmup')
+          .map((s: any, si: number) => ({
+            setNumber: si + 1,
+            type: s.type ?? 'normal',
+            reps: typeof s.reps === 'number' ? s.reps : undefined,
+            weight: typeof s.weight === 'number' ? s.weight : undefined,
+            rpe: typeof s.rpe === 'number' ? s.rpe : undefined,
+          })),
+      })).filter((ex: any) => ex.sets.length > 0);
+
+      if (mapped.length === 0) {
+        Alert.alert('Нечего сохранять', 'В тренировке нет рабочих подходов.');
+        setSavingRoutine(false);
+        return;
+      }
+
+      const created = await workoutService.createRoutine({ name, exercises: mapped });
+      addRoutine(created);
+      setRoutineSavedId(created.id);
+      haptic.success();
+      setShowSaveRoutine(false);
+    } catch {
+      haptic.error();
+      Alert.alert('Не удалось сохранить', 'Проверь соединение и попробуй снова.');
+    } finally {
+      setSavingRoutine(false);
+    }
+  };
+
   if (!workout) {
     return null;
   }
@@ -167,6 +238,38 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
         <FadeIn delay={620}><WorkoutRatingCard workout={workout} /></FadeIn>
         <FadeIn delay={640}><SessionNoteCard workout={workout} /></FadeIn>
 
+        <FadeIn delay={645}>
+          <Card style={{ marginBottom: spacing.md, borderLeftWidth: 3, borderLeftColor: colors.primary }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1, marginRight: spacing.md }}>
+                <Text style={[typography.bodySemibold, { color: colors.text }]}>
+                  {routineSavedId ? 'Сохранено как рутина' : 'Сохранить как рутину'}
+                </Text>
+                <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
+                  {routineSavedId
+                    ? 'Запускай из «Мои рутины» — сервер сам будет прибавлять вес.'
+                    : 'Следующий раз запустишь в один тап, с авто-прогрессией +2.5 кг.'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={routineSavedId ? () => navigation.navigate('Routines') : openSaveRoutineModal}
+                style={{
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 8,
+                  borderRadius: borderRadius.md,
+                  backgroundColor: routineSavedId ? colors.success + '18' : colors.primary + '18',
+                  borderWidth: 1,
+                  borderColor: routineSavedId ? colors.success + '60' : colors.primary + '60',
+                }}
+              >
+                <Text style={[typography.captionMedium, { color: routineSavedId ? colors.success : colors.primary, fontWeight: '700' }]}>
+                  {routineSavedId ? 'Открыть' : 'Сохранить'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+        </FadeIn>
+
         <FadeIn delay={650}>
           <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.huge }}>
             <Button title="Поделиться" variant="outline" onPress={handleShare} style={{ flex: 1 }} />
@@ -184,6 +287,47 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
         />
       </ScrollView>
       {newPRs.length > 0 && <PRCelebration />}
+
+      <Modal visible={showSaveRoutine} transparent animationType="fade" onRequestClose={() => !savingRoutine && setShowSaveRoutine(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>
+              Название рутины
+            </Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+              Например «Грудь A» или «PPL — толкай». Сохранится на сервер, ты найдёшь её в «Мои рутины».
+            </Text>
+            <TextInput
+              value={routineName}
+              onChangeText={setRoutineName}
+              placeholder="Название"
+              placeholderTextColor={colors.inputPlaceholder}
+              maxLength={80}
+              autoFocus
+              style={[styles.modalInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+              editable={!savingRoutine}
+            />
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+              <Button
+                title="Отмена"
+                variant="outline"
+                onPress={() => { if (!savingRoutine) setShowSaveRoutine(false); }}
+                style={{ flex: 1 }}
+              />
+              {savingRoutine ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : (
+                <Button title="Сохранить" onPress={handleSaveRoutine} style={{ flex: 1 }} />
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 };
@@ -192,4 +336,21 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   trophySection: { alignItems: 'center', marginBottom: spacing.xxl },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modalCard: {
+    padding: spacing.xl,
+    borderRadius: 16,
+  },
+  modalInput: {
+    height: 48,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    fontSize: 16,
+  },
 });
