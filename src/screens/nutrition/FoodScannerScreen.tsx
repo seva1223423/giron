@@ -465,8 +465,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     const totalCal = Math.round(recognizedItems.reduce((s, i) => s + i.calories, 0));
     const totalProt = Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10;
     const ts = Date.now();
+    // photoUrl is intentionally not set: the image picker gives us a file:// URI
+    // that won't survive an app reinstall, the server only accepts HTTPS URLs (so it
+    // never syncs up), and no UI component actually renders the meal's own image
+    // right now. Storing the URI locally would only produce orphaned references.
     const meal: Meal = {
-      id: `meal-${ts}-${Math.random().toString(36).slice(2, 7)}`, type: mealType, items: recognizedItems, photoUrl: imageUri || undefined,
+      id: `meal-${ts}-${Math.random().toString(36).slice(2, 7)}`, type: mealType, items: recognizedItems,
       totalCalories: totalCal, totalProtein: totalProt,
       totalFats: Math.round(recognizedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10,
       totalCarbs: Math.round(recognizedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10,

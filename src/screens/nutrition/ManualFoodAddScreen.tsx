@@ -45,15 +45,41 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
     haptic.medium();
     const ts = Date.now();
     const rid = Math.random().toString(36).slice(2, 7);
+    // Sanity caps — anything above these is almost certainly a typo. Without them
+    // a single slip on the numpad (e.g. 99999 cal) trashes the daily totals and
+    // every dependent visualization for that day.
+    const MAX_CALORIES = 10000;
+    const MAX_PROTEIN_G = 500;
+    const MAX_FATS_G = 500;
+    const MAX_CARBS_G = 1000;
+    const MAX_WEIGHT_G = 5000;
     let item: NutritionItem;
     if (tab === 'search' && selectedFood && computedNutrition) {
       const parsedW = Math.max(1, Math.round(parseFloat(weightGrams.replace(',', '.')) || 100));
+      if (parsedW > MAX_WEIGHT_G) {
+        Alert.alert('Слишком большой вес', `Вес порции не может быть больше ${MAX_WEIGHT_G} г.`);
+        return;
+      }
       item = { id: `item-${ts}-${rid}`, name: `${selectedFood.name} (${parsedW}г)`, ...computedNutrition, weightGrams: parsedW };
     } else if (tab === 'custom') {
       if (!custom.name.trim()) { Alert.alert('Укажи название продукта'); return; }
       const parsedCal = Math.round(parseFloat(custom.calories.replace(',', '.')) || 0);
       if (!custom.calories.trim() || isNaN(parsedCal) || parsedCal <= 0) { Alert.alert('Укажи калорийность (больше 0)'); return; }
-      item = { id: `item-${ts}-${rid}`, name: custom.name.trim(), calories: parsedCal, protein: Math.round(Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0) * 10) / 10, fats: Math.round(Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0) * 10) / 10, carbs: Math.round(Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0) * 10) / 10, weightGrams: 100 };
+      if (parsedCal > MAX_CALORIES) {
+        Alert.alert('Слишком много калорий', `Калорийность не может быть больше ${MAX_CALORIES} ккал за одну порцию. Проверь значение.`);
+        return;
+      }
+      const protein = Math.round(Math.max(0, parseFloat(custom.protein.replace(',', '.')) || 0) * 10) / 10;
+      const fats = Math.round(Math.max(0, parseFloat(custom.fats.replace(',', '.')) || 0) * 10) / 10;
+      const carbs = Math.round(Math.max(0, parseFloat(custom.carbs.replace(',', '.')) || 0) * 10) / 10;
+      if (protein > MAX_PROTEIN_G || fats > MAX_FATS_G || carbs > MAX_CARBS_G) {
+        Alert.alert(
+          'Слишком большие значения',
+          `Белки ≤ ${MAX_PROTEIN_G} г, жиры ≤ ${MAX_FATS_G} г, углеводы ≤ ${MAX_CARBS_G} г. Проверь данные.`,
+        );
+        return;
+      }
+      item = { id: `item-${ts}-${rid}`, name: custom.name.trim(), calories: parsedCal, protein, fats, carbs, weightGrams: 100 };
     } else {
       Alert.alert('Выбери продукт из списка или введи данные вручную');
       return;
