@@ -801,6 +801,41 @@ router.put('/routines/:id', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+// Duplicate routine — creates an identical copy with "(копия)" suffix
+router.post('/routines/:id/duplicate', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const { id } = req.params as { id: string };
+    const source = await prisma.routine.findUnique({
+      where: { id },
+      include: { exercises: { include: { sets: { orderBy: { setNumber: 'asc' } } }, orderBy: { order: 'asc' } } },
+    });
+    if (!source || source.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
+
+    const copy = await prisma.routine.create({
+      data: {
+        name: `${source.name} (копия)`,
+        description: source.description,
+        userId: req.userId!,
+        exercises: {
+          create: source.exercises.map((ex) => ({
+            order: ex.order,
+            restSeconds: ex.restSeconds,
+            notes: ex.notes,
+            exerciseId: ex.exerciseId,
+            sets: { create: ex.sets.map((s) => ({ setNumber: s.setNumber, type: s.type, reps: s.reps, weight: s.weight, rpe: s.rpe })) },
+          })),
+        },
+      },
+      include: { exercises: { include: { exercise: true, sets: { orderBy: { setNumber: 'asc' } } }, orderBy: { order: 'asc' } } },
+    });
+    res.status(201).json(copy);
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка дублирования рутины' });
+  }
+});
+
 // Rename / patch routine (name + description only — use PUT for full exercise replacement)
 router.patch('/routines/:id', authenticate, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
