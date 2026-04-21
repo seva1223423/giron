@@ -70,6 +70,54 @@ _Нет активных незаконченных задач._
 
 ---
 
+## Видео-подсистема упражнений
+
+Отдельный pipeline для демонстрационных видео всех упражнений:
+
+- **Рендер-пути (legacy, оставлены как fallback):** `scripts/blender/` — Python-скрипты для Blender, процедурный stick-figure + Mixamo Xbot. Keyframes в `exercise-animations.json` (генерируется `generate-animations.mjs` из паттернов движений). Не используется в продакшне — тяжело на сборку, результат схематичный.
+- **Основной путь (продакшен):** Wikimedia Commons → ffmpeg → GitHub Raw.
+  1. `scripts/fetch-exercise-videos-wikimedia.mjs` — без API-ключа, с de-dup по URL, token-overlap scoring, OFF_TOPIC blocklist. Сохраняет `videos-manifest.json` прогрессивно (для CC-BY attribution).
+  2. `scripts/normalize-exercise-videos.mjs` — ffmpeg через `imageio-ffmpeg` pip-пакет: 854×480 H.264, 8 сек, silent AAC, +faststart, JPG-постер с 1-й секунды. Каждое видео ~400 KB.
+  3. Публикация в отдельный репо `seva1223423/iron-gym-media` (public), отдаётся через `raw.githubusercontent.com`.
+- **Whitelist:** 32 упражнения (`scripts/whitelist-verified.json` / `src/config/store.ts` → `VERIFIED_INLINE_VIDEO_IDS`) прошли визуальное QA. Остальные 79 падают на YouTube-fallback без 404-запроса.
+- **Хостинг:** `EXPO_PUBLIC_MEDIA_URL` в `eas.json` профилях (rustore/play/appstore). Сейчас = GitHub raw. Смена на Yandex Object Storage / Cloudflare R2 — одна строчка в env, файлы те же.
+- **Клиентские компоненты:**
+  - `src/screens/workouts/exercise/ExerciseInlineVideo.tsx` — expo-video wrapper. Autoplay muted + loop, poster overlay до первого кадра, `paused` prop для external pause, proper player release в cleanup.
+  - `ExerciseVideoCard` — авто-играющая карточка в деталях упражнения. Тап → fullscreen modal.
+  - `ExerciseVideoModal` — fullscreen с `nativeControls=true` (OS-native scrubber + rotation/fullscreen).
+  - Thumbnails добавлены в: ExercisesTab, ProgramDayCard, WorkoutSummary ExercisesCard, TodayPlanCard (overlapping stack для плана на сегодня), ExerciseNavBar в ActiveWorkoutScreen.
+  - `Image.prefetch` в ExercisesTab — постеры прогреваются сразу после загрузки списка.
+
+## Регуляторика РФ (для RuStore)
+
+- `docs/privacy.html` — Политика под 152-ФЗ + GDPR, с плейсхолдерами под реквизиты ИП.
+- `docs/terms.html` — Пользовательское соглашение с медицинским дисклеймером.
+- `docs/LEGAL_RF_CHECKLIST.md` — чеклист: ИП → уведомление РКН → миграция БД на Yandex Cloud → ЮKassa → RuStore publisher.
+- Settings → новая секция "Правовая информация" со ссылками и mailto.
+- RegisterScreen → consent-строка под кнопкой.
+- Возрастной гейт 14+ в onboarding (BodyStep + OnboardingScreen).
+- AI-чат → постоянный медицинский дисклеймер в ChatHeader.
+- RevenueCat удалён — для РФ не работает; оставлен только ЮKassa.
+- Feature-flag `EXPO_PUBLIC_STORE` (`rustore|play|appstore|universal`) в `src/config/store.ts` — Google OAuth/YouTube/Apple IAP гейтятся per-store.
+
+## Безопасность/производительность (hardening прошедшего аудита)
+
+- `/user/2fa/setup` требует currentPassword при наличии passwordHash.
+- `/user/profile` — явный `select` вместо `include + as any`.
+- `/auth/forgot-password` fire-and-forget SMTP (timing enum fix).
+- `/auth/resend-verification` унифицированный ответ.
+- `/support/tickets/:id/assign` — проверка роли assignee.
+- VK/Yandex OAuth fetch с `AbortSignal.timeout(5000)`.
+- `recordPasswordHistory` — raw SQL DELETE ... NOT IN вместо fetch+delete.
+- `admin.ts /analytics/*` — groupBy(timestamp) заменено на DATE_TRUNC raw SQL.
+- `admin.ts /analytics/segments` — кэш 5 мин через adminStatsCache.
+- `/user/export` — полный дамп данных (152-ФЗ право на переносимость).
+- `workout.ts /programs /history` — `select` на Exercise relation (ответы в разы меньше).
+- Push-уведомления SUSPICIOUS_LOGIN — убран raw IP из body.
+- Клиент `api.ts`: timeout на refresh; `chatStream` читает токен из SecureStore; useWorkoutStore rollback не клобберит новый optimistic update.
+
+---
+
 ## Идеи на будущее
 
 ### Средний приоритет
