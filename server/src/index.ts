@@ -47,8 +47,20 @@ if (process.env.TRUST_PROXY === 'true') {
   app.set('trust proxy', 1);
 }
 
-// Middleware
-app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — API-only server
+// Middleware — strict security headers. We're an API-only server (no HTML rendering),
+// so default-src 'none' blocks every resource class; the handful of response bodies
+// that are text/plain or application/json need no permissions to render.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // mobile clients don't need CORP/COEP negotiation
+}));
 
 // Restrict CORS — allow Expo Go, production app, and local dev only
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
@@ -151,11 +163,27 @@ const passwordResetRateLimiter = rateLimit({
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
 });
 
+/** Account-existence probes (check-email / check-phone) — stricter than the
+ * generic auth limiter to slow mass enumeration. The UI login picker only needs
+ * these once per form submit, so 15 per 15 minutes is plenty for real users. */
+const enumRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов. Подождите 15 минут.' },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '127.0.0.1'),
+});
+
 // Routes
 app.use('/api/auth/totp-verify', totpRateLimiter);
 app.use('/api/auth/forgot-password', passwordResetRateLimiter);
 app.use('/api/auth/reset-password', passwordResetRateLimiter);
 app.use('/api/auth/reset-password-by-phone', passwordResetRateLimiter);
+// Account-enumeration probes — must be declared BEFORE the general authRateLimiter
+// below so both limiters apply (enum is stricter; auth is a safety net).
+app.use('/api/auth/check-email', enumRateLimiter);
+app.use('/api/auth/check-phone', enumRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
 // Apply strict TOTP rate limiter to 2FA code-accepting user endpoints
 app.use('/api/user/2fa', totpRateLimiter);

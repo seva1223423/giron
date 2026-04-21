@@ -74,8 +74,7 @@ _Нет активных незаконченных задач._
 
 Отдельный pipeline для демонстрационных видео всех упражнений:
 
-- **Рендер-пути (legacy, оставлены как fallback):** `scripts/blender/` — Python-скрипты для Blender, процедурный stick-figure + Mixamo Xbot. Keyframes в `exercise-animations.json` (генерируется `generate-animations.mjs` из паттернов движений). Не используется в продакшне — тяжело на сборку, результат схематичный.
-- **Основной путь (продакшен):** Wikimedia Commons → ffmpeg → bundled в APK.
+- **Пайплайн:** Wikimedia Commons → ffmpeg → bundled в APK.
   1. `scripts/fetch-exercise-videos-wikimedia.mjs` — без API-ключа, с de-dup по URL, token-overlap scoring, OFF_TOPIC blocklist. Сохраняет `videos-manifest.json` прогрессивно (для CC-BY attribution).
   2. `scripts/normalize-exercise-videos.mjs` — ffmpeg через `imageio-ffmpeg` pip-пакет: 854×480 H.264, 8 сек, silent AAC, +faststart, JPG-постер с 1-й секунды. Каждое видео ~300 KB.
   3. Файлы копируются в `assets/exercise-videos/` — bundled в APK. Отдельного медиа-репо больше нет: один репозиторий для кода и ассетов. Ранее использовался `seva1223423/iron-gym-media` с `raw.githubusercontent.com`, сейчас не нужен.
