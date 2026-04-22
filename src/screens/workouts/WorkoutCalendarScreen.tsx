@@ -121,21 +121,30 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Статистика {MONTH_NAMES[viewMonth].toLowerCase()}</Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.primary, fontSize: 32 }]}>{monthStats.totalWorkouts}</Text>
+              <Text style={[typography.number, { color: colors.primary, fontSize: 28 }]}>{monthStats.totalWorkouts}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>тренировок</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
             <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.accent, fontSize: 32 }]}>
+              <Text style={[typography.number, { color: colors.accent, fontSize: 28 }]}>
                 {monthStats.totalVolume >= 1000 ? `${(monthStats.totalVolume / 1000).toFixed(1)}т` : `${monthStats.totalVolume}`}
               </Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>{monthStats.totalVolume >= 1000 ? 'тоннаж' : 'кг тоннаж'}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
             <View style={styles.statItem}>
-              <Text style={[typography.number, { color: colors.success, fontSize: 32 }]}>{formatDuration(monthStats.totalDuration)}</Text>
+              <Text style={[typography.number, { color: colors.success, fontSize: 28 }]}>{formatDuration(monthStats.totalDuration)}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>в зале</Text>
             </View>
+            {monthStats.totalPRs > 0 && (
+              <>
+                <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
+                <View style={styles.statItem}>
+                  <Text style={[typography.number, { color: colors.warning, fontSize: 28 }]}>{monthStats.totalPRs}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>PR</Text>
+                </View>
+              </>
+            )}
           </View>
         </Card>
       </FadeIn>
@@ -150,6 +159,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
               const totalSets = w.exercises?.reduce((s: number, e: any) => s + (e.sets?.filter((st: any) => st.completed).length || 0), 0) || 0;
               const totalVol = w.exercises?.reduce((s: number, e: any) =>
                 s + (e.sets?.reduce((ss: number, st: any) => ss + (st.completed && st.weight && st.reps ? st.weight * st.reps : 0), 0) || 0), 0) || 0;
+              const routineName = w.routineId ? routines.find((r) => r.id === w.routineId)?.name : undefined;
               return (
                 <Card key={`${dateStr}-${wi}`} style={{ marginBottom: spacing.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
@@ -159,6 +169,9 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name || 'Тренировка'}</Text>
+                      {routineName ? (
+                        <Text style={[typography.caption, { color: colors.primary, marginTop: 1 }]} numberOfLines={1}>◈ {routineName}</Text>
+                      ) : null}
                       <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>
                         {totalSets} подходов · {totalVol > 0 ? `${Math.round(totalVol)} кг` : '—'}
                         {w.durationMinutes ? ` · ${formatDuration(w.durationMinutes)}` : ''}
