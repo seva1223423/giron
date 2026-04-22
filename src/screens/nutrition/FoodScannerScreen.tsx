@@ -969,23 +969,53 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const handleSave = () => {
     if (recognizedItems.length === 0) return;
-    // Duplicate check — if today's log already has a meal of the same type
-    // whose first item matches, ask before re-saving. Users occasionally
-    // tap "Сохранить" twice or forget they already logged; this catches it.
-    if (maybeDuplicateTodayMeal) {
-      const prevCal = Math.round(maybeDuplicateTodayMeal.totalCalories);
+
+    // If the AI returned implausible values, ask the user to confirm before
+    // logging — flat-out blocking save would be too patronising, but they
+    // shouldn't be able to dismiss the warning banner without acknowledgment.
+    if (sanityFlags.length > 0) {
+      const flagText = [
+        sanityFlags.includes('kcal_per_100g') ? 'высокая калорийность на 100г' : null,
+        sanityFlags.includes('kcal_per_item') ? 'крупная позиция' : null,
+        sanityFlags.includes('total_kcal') ? 'большая суммарная калорийность' : null,
+      ].filter(Boolean).join(', ');
       Alert.alert(
-        'Похожий приём уже есть',
-        `Сегодня уже записан «${maybeDuplicateTodayMeal.items[0]?.name}» на ${prevCal} ккал. Записать ещё раз?`,
+        'Подозрительные значения',
+        `Обнаружено: ${flagText}. Проверь веса порций перед сохранением. Записать как есть?`,
         [
-          { text: 'Отмена', style: 'cancel' },
-          { text: 'Да, записать', onPress: doSave },
+          { text: 'Проверить', style: 'cancel' },
+          { text: 'Да, записать', onPress: () => maybeDuplicateTodayMeal ? confirmAndSave() : doSave() },
         ],
       );
       haptic.warning();
       return;
     }
+
+    if (maybeDuplicateTodayMeal) {
+      confirmAndSave();
+      return;
+    }
     doSave();
+  };
+
+  const confirmAndSave = () => {
+    if (!maybeDuplicateTodayMeal) {
+      doSave();
+      return;
+    }
+    // Duplicate check — if today's log already has a meal of the same type
+    // whose first item matches, ask before re-saving. Users occasionally
+    // tap "Сохранить" twice or forget they already logged; this catches it.
+    const prevCal = Math.round(maybeDuplicateTodayMeal.totalCalories);
+    Alert.alert(
+      'Похожий приём уже есть',
+      `Сегодня уже записан «${maybeDuplicateTodayMeal.items[0]?.name}» на ${prevCal} ккал. Записать ещё раз?`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Да, записать', onPress: doSave },
+      ],
+    );
+    haptic.warning();
   };
 
   const doSave = () => {
