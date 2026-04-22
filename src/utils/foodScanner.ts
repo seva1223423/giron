@@ -208,3 +208,105 @@ export function defaultMealType(now: Date = new Date()): MealType {
   if (h < 20) return 'dinner';
   return 'snack';
 }
+
+// ─── Typical portion from history ────────────────────────────────────────────
+//
+// If the user has logged "куриная грудка" five times in the last month with
+// weights {150, 150, 160, 150, 140}, the AI's per-image guess of 100g is
+// almost certainly too low for THIS user. Surfacing the median of past
+// portions as a one-tap suggestion cuts the scan-edit-save loop from three
+// taps to one.
+//
+// We use median (not mean) so a single outlier meal (family gathering,
+// restaurant doubling) doesn't pull the suggestion away from the user's
+// typical serving.
+
+export interface HistoricalMeal {
+  items: Array<{ name: string; weightGrams: number }>;
+}
+
+/** Median of a non-empty numeric array. Returns 0 for empty input. */
+export function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+/**
+ * Build a "user's typical portion in grams" lookup from meal history.
+ * Keys are normalized names (see `normalizeFoodName`), values are median
+ * weight observations. Only items with ≥ `minSamples` samples are included
+ * to avoid presenting a one-shot outlier as the user's "typical" serving.
+ */
+export function computeTypicalPortions(
+  meals: HistoricalMeal[],
+  minSamples = 2,
+): Map<string, number> {
+  const groups = new Map<string, number[]>();
+  for (const meal of meals) {
+    for (const item of meal.items) {
+      const key = normalizeFoodName(item.name);
+      if (!key) continue;
+      const w = item.weightGrams;
+      if (typeof w !== 'number' || !isFinite(w) || w <= 0) continue;
+      const arr = groups.get(key) ?? [];
+      arr.push(w);
+      groups.set(key, arr);
+    }
+  }
+  const out = new Map<string, number>();
+  for (const [key, weights] of groups) {
+    if (weights.length < minSamples) continue;
+    out.set(key, Math.round(median(weights)));
+  }
+  return out;
+}
+
+/** Lookup the user's typical portion for a food name (normalized match). */
+export function typicalPortionFor(
+  typical: Map<string, number>,
+  name: string,
+): number | undefined {
+  return typical.get(normalizeFoodName(name));
+}
+
+// ─── Draft autosave ───────────────────────────────────────────────────────────
+//
+// The scanner screen builds up a lot of in-memory state (AI-recognised items,
+// bases, image, meal type, flags) that used to evaporate if the user backed
+// out, backgrounded the app, or the process was killed — any half-edited
+// scan was gone for good. These helpers gate a draft through AsyncStorage
+// so the next mount can offer "continue where you left off".
+//
+// Expiry: 2h. If you scanned lunch and didn't come back for half a day, the
+// meal-type default has shifted anyway and the draft is stale.
+
+export const DRAFT_TTL_MS = 2 * 60 * 60 * 1000;
+
+/** Serializable draft state. Kept deliberately minimal — only what we need
+ *  to rehydrate the recognised-items list + meal-type choice. The image
+ *  URI is local-file only and intentionally NOT saved: the picker's cache
+ *  dir gets cleaned between sessions and a dead URI would just show a
+ *  broken thumbnail. */
+export interface ScannerDraft {
+  mealType: MealType;
+  isBarcodeResult: boolean;
+  items: Array<{
+    name: string;
+    calories: number;
+    protein: number;
+    fats: number;
+    carbs: number;
+    weightGrams: number;
+    confidence?: number;
+  }>;
+  savedAt: number;
+}
+
+export function isDraftFresh(draft: ScannerDraft | null | undefined): boolean {
+  if (!draft) return false;
+  return Date.now() - draft.savedAt <= DRAFT_TTL_MS;
+}

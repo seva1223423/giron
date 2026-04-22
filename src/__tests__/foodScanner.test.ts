@@ -14,9 +14,15 @@ import {
   findSavedFoodMatch,
   normalizeFoodName,
   buildBarcodeDisplayName,
+  median,
+  computeTypicalPortions,
+  typicalPortionFor,
+  isDraftFresh,
+  DRAFT_TTL_MS,
   SANITY_MAX_KCAL_PER_100G,
   SANITY_MAX_KCAL_PER_ITEM,
   SANITY_MAX_TOTAL_KCAL,
+  type ScannerDraft,
 } from '../utils/foodScanner';
 
 // ─── fingerprintBase64 ────────────────────────────────────────────────────────
@@ -339,6 +345,109 @@ describe('buildBarcodeDisplayName', () => {
     expect(buildBarcodeDisplayName({
       product_name: '  Milk     Farm  ',
     })).toBe('Milk Farm');
+  });
+});
+
+// ─── median ───────────────────────────────────────────────────────────────────
+
+describe('median', () => {
+  test('empty array → 0', () => {
+    expect(median([])).toBe(0);
+  });
+
+  test('single value', () => {
+    expect(median([42])).toBe(42);
+  });
+
+  test('odd-length array returns middle element', () => {
+    expect(median([1, 2, 3, 4, 5])).toBe(3);
+    expect(median([5, 1, 3, 2, 4])).toBe(3); // unsorted input
+  });
+
+  test('even-length array averages the two middles', () => {
+    expect(median([1, 2, 3, 4])).toBe(2.5);
+    expect(median([4, 2, 1, 3])).toBe(2.5);
+  });
+
+  test('robust against a single outlier (vs mean)', () => {
+    // mean would be 210, median 150 — proves that an outlier family-dinner
+    // portion doesn't pull the suggestion away from the user's typical.
+    expect(median([150, 150, 160, 150, 440])).toBe(150);
+  });
+});
+
+// ─── computeTypicalPortions / typicalPortionFor ───────────────────────────────
+
+describe('computeTypicalPortions', () => {
+  const meal = (items: Array<{ name: string; weightGrams: number }>) => ({ items });
+
+  test('returns empty map for empty history', () => {
+    expect(computeTypicalPortions([]).size).toBe(0);
+  });
+
+  test('requires minSamples (default 2) observations per food', () => {
+    const m = computeTypicalPortions([meal([{ name: 'Рис', weightGrams: 150 }])]);
+    expect(m.size).toBe(0);
+  });
+
+  test('groups items by normalized name across meals and returns median', () => {
+    const m = computeTypicalPortions([
+      meal([{ name: 'Куриная грудка', weightGrams: 150 }]),
+      meal([{ name: 'куриная  грудка', weightGrams: 160 }]),
+      meal([{ name: 'Куриная грудка (200г)', weightGrams: 200 }]),
+    ]);
+    expect(m.get('куриная грудка')).toBe(160); // median of 150, 160, 200
+  });
+
+  test('ignores zero / negative / non-finite weights', () => {
+    const m = computeTypicalPortions([
+      meal([{ name: 'Рис', weightGrams: 0 }]),
+      meal([{ name: 'Рис', weightGrams: -100 }]),
+      meal([{ name: 'Рис', weightGrams: NaN }]),
+    ]);
+    expect(m.size).toBe(0);
+  });
+
+  test('custom minSamples can be lowered for sparse users', () => {
+    const m = computeTypicalPortions([meal([{ name: 'Творог', weightGrams: 200 }])], 1);
+    expect(m.get('творог')).toBe(200);
+  });
+});
+
+describe('typicalPortionFor', () => {
+  test('returns the median for a known normalized name', () => {
+    const map = new Map([['куриная грудка', 150]]);
+    expect(typicalPortionFor(map, 'Куриная грудка (100г)')).toBe(150);
+  });
+
+  test('returns undefined for unknown food', () => {
+    expect(typicalPortionFor(new Map(), 'пицца')).toBeUndefined();
+  });
+});
+
+// ─── isDraftFresh ─────────────────────────────────────────────────────────────
+
+describe('isDraftFresh', () => {
+  const mkDraft = (ageMs: number): ScannerDraft => ({
+    mealType: 'lunch',
+    isBarcodeResult: false,
+    items: [{ name: 'a', calories: 1, protein: 1, fats: 1, carbs: 1, weightGrams: 100 }],
+    savedAt: Date.now() - ageMs,
+  });
+
+  test('null / undefined → false', () => {
+    expect(isDraftFresh(null)).toBe(false);
+    expect(isDraftFresh(undefined)).toBe(false);
+  });
+
+  test('draft within TTL → true', () => {
+    expect(isDraftFresh(mkDraft(0))).toBe(true);
+    expect(isDraftFresh(mkDraft(DRAFT_TTL_MS - 1000))).toBe(true);
+  });
+
+  test('draft older than TTL → false', () => {
+    expect(isDraftFresh(mkDraft(DRAFT_TTL_MS + 1))).toBe(false);
+    expect(isDraftFresh(mkDraft(7 * 24 * 60 * 60 * 1000))).toBe(false);
   });
 });
 

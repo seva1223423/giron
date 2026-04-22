@@ -23,7 +23,12 @@ import {
   defaultMealType,
   findSavedFoodMatch,
   buildBarcodeDisplayName,
+  isDraftFresh,
+  DRAFT_TTL_MS,
+  computeTypicalPortions,
+  typicalPortionFor,
   type SanityFlag,
+  type ScannerDraft,
 } from '../../utils/foodScanner';
 
 const todayDate = () => localDateStr(new Date());
@@ -82,6 +87,41 @@ async function loadRecentScans(): Promise<RecentScan[]> {
     const raw = await AsyncStorage.getItem(RECENT_SCANS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
+}
+
+// ─── Draft autosave (AsyncStorage) ───────────────────────────────────────────
+
+const DRAFT_KEY = 'iron_gym_scanner_draft';
+
+async function loadDraft(): Promise<ScannerDraft | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed: ScannerDraft = JSON.parse(raw);
+    if (!isDraftFresh(parsed)) {
+      AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function saveDraft(draft: ScannerDraft): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* non-fatal — the user still has the in-memory state */
+  }
+}
+
+async function clearDraft(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // ─── AI scan result cache (AsyncStorage wrapper around the utility helpers) ───
@@ -177,6 +217,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const dayLog = getDayLog(today);
   const alreadyEaten = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
 
+  // Median weight per food from the last ~30 days of meals. Feeds the
+  // per-item "обычно ты ешь N г" hint in RecognizedItemCard.
+  const typicalPortions = React.useMemo(() => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const days = Object.values(dailyLog)
+      .filter((d: any) => {
+        const ts = new Date(d.date + 'T00:00:00').getTime();
+        return !isNaN(ts) && ts >= cutoff;
+      });
+    const meals = days.flatMap((d: any) => d.meals || []);
+    return computeTypicalPortions(meals);
+  }, [dailyLog]);
+
   /** Most recent meals from today/yesterday that can be one-tap repeated.
    *  Dedupes by first-item name so three logs of "куриная грудка" collapse
    *  to a single chip. Caps at 3 to keep the empty-state card tidy. */
@@ -267,8 +320,68 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   useEffect(() => {
     loadRecentScans().then(setRecentScans);
+
+    // Offer to restore an abandoned scan if the user was mid-editing when
+    // they backgrounded / killed the app. Kept deliberately non-modal: an
+    // Alert with Restore / Discard so a single tap either resumes or cleans
+    // the slate for a fresh scan.
+    loadDraft().then((draft) => {
+      if (!draft || draft.items.length === 0) return;
+      const firstName = draft.items[0]?.name ?? 'Приём пищи';
+      const more = draft.items.length > 1 ? ` +${draft.items.length - 1}` : '';
+      const totalCal = Math.round(draft.items.reduce((s, i) => s + (i.calories || 0), 0));
+      Alert.alert(
+        'Продолжить прошлое сканирование?',
+        `«${firstName}${more}» — ${totalCal} ккал. Было сохранено как черновик.`,
+        [
+          {
+            text: 'Сбросить',
+            style: 'destructive',
+            onPress: () => { clearDraft().catch(() => {}); haptic.light(); },
+          },
+          {
+            text: 'Продолжить',
+            onPress: () => {
+              haptic.success();
+              // Re-use the same builder path as the AI cache hit so all the
+              // derived state (bases, totalWeight, sanity flags) gets recomputed.
+              applyAIItems(draft.items);
+              setMealType(draft.mealType);
+              setIsBarcodeResult(draft.isBarcodeResult);
+            },
+          },
+        ],
+      );
+    });
+
     return () => { abortRef.current?.abort(); lastBase64Ref.current = ''; };
   }, []);
+
+  // Persist the current scan as a draft whenever recognisedItems changes.
+  // Debounced indirectly by React's batching — every state-changing edit
+  // writes once. On an empty list we clear the draft so the next mount
+  // doesn't offer to restore nothing.
+  useEffect(() => {
+    if (recognizedItems.length === 0) {
+      clearDraft().catch(() => {});
+      return;
+    }
+    const draft: ScannerDraft = {
+      mealType,
+      isBarcodeResult,
+      items: recognizedItems.map((i) => ({
+        name: i.name,
+        calories: i.calories,
+        protein: i.protein,
+        fats: i.fats,
+        carbs: i.carbs,
+        weightGrams: i.weightGrams,
+        ...(i.confidence != null ? { confidence: i.confidence } : {}),
+      })),
+      savedAt: Date.now(),
+    };
+    saveDraft(draft).catch(() => {});
+  }, [recognizedItems, mealType, isBarcodeResult]);
 
   // ─── AI photo analysis ──────────────────────────────────────────────────────
 
@@ -669,6 +782,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     };
     // Compute date at save time — handles midnight-boundary edge case
     addMeal(localDateStr(new Date()), meal);
+    // Draft has served its purpose — clear before leaving to prevent the
+    // next mount from offering to restore already-saved data.
+    clearDraft().catch(() => {});
     const calTarget = dayLog.targetCalories || 2000;
     const protTarget = dayLog.targetProtein || 150;
     const totalProteinSoFar = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0) + totalProt;
@@ -950,6 +1066,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                   onWeightChange={updateItemWeight}
                   onRemove={removeItem}
                   onRename={renameItem}
+                  typicalWeight={typicalPortionFor(typicalPortions, item.name)}
                 />
               </FadeIn>
             ))}
