@@ -43,6 +43,18 @@ grep "模型\|models\|модел" "C:\Users\sevka\Desktop\1223\work\iron-gym\CLA
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" | wc -l
 ```
 
+**Check command count:**
+```bash
+ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\commands\" | wc -l
+```
+Expected: 13 commands (perf-profile, db-query, ai-validate, add-tool, db-model, code-review, audit-all, new-screen, premium-feature, release-prep, sync-memory, test-store, test-route).
+
+**Check knowledge module count in ai.ts:**
+```bash
+grep -c "name: '" "C:\Users\sevka\Desktop\1223\work\iron-gym\server\src\routes\ai.ts"
+```
+Expected: 25 knowledge modules. Also check `ai-coach.md` documents the same count.
+
 **Check test counts (client suites and server suites):**
 ```bash
 # Client test suites (expected: 29 suites, ~512 tests)
@@ -74,6 +86,8 @@ MEMORY SYNC REPORT:
     - Project path: [CORRECT / STALE — current value: X, actual: Y]
     - Model count in CLAUDE.md: [X in CLAUDE.md, Y in schema.prisma — DRIFT / MATCH]
     - Agent count: [X agents found]
+    - Command count: [X found vs 13 expected — MATCH / DRIFT]
+    - Knowledge module count: [X in ai.ts, Y in ai-coach.md — MATCH / DRIFT]
     - docs.md stale path: [FOUND at line X / CLEAN]
     - Client test suites: [X actual vs Y in CLAUDE.md — MATCH / DRIFT]
     - Server test suites: [X actual vs Y in CLAUDE.md — MATCH / DRIFT]

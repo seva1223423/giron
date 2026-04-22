@@ -170,7 +170,25 @@ jest.mock('../db', () => ({
     refreshToken: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn(), updateMany: jest.fn() },
     subscription: { findUnique: jest.fn().mockResolvedValue(null) },
     // Add every model your test touches
+    // IMPORTANT: paginated endpoints call both findMany AND count — add count: jest.fn()
   },
+}));
+
+// Step 2b: For routes that use MemCache (workout.ts, admin.ts, news.ts):
+// MemCache is instantiated with `new MemCache(n)` at module level.
+// Mock must export the class constructor or tests crash with "MemCache is not a constructor".
+jest.mock('../utils/memCache', () => {
+  const mc = { get: jest.fn().mockReturnValue(null), set: jest.fn(), delete: jest.fn(), clear: jest.fn(), prune: jest.fn() };
+  class MemCache { get = mc.get; set = mc.set; delete = mc.delete; clear = mc.clear; prune = mc.prune; }
+  return { MemCache, adminStatsCache: mc, newsCache: mc, foodVisionCache: mc };
+});
+
+// Step 2c: activityTracker mock — authenticate middleware calls recordActivity(userId).
+// Missing this = "recordActivity is not a function" on every authenticated request.
+jest.mock('../utils/activityTracker', () => ({
+  getActiveUsersCount: jest.fn().mockReturnValue(0),
+  getActiveUserIds: jest.fn().mockReturnValue(new Set()),
+  recordActivity: jest.fn(),
 }));
 
 // Step 3: ONLY NOW import app
@@ -182,6 +200,17 @@ import { prisma } from '../db';
 // Helper: build test JWT
 const makeToken = (userId = 'u-test', role = 'USER') =>
   jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+```
+
+**beforeEach pattern — re-mock after clearAllMocks:**
+```typescript
+beforeEach(() => {
+  jest.clearAllMocks();
+  // IMPORTANT: clearAllMocks() wipes mockResolvedValue set in the factory above.
+  // Re-mock any persistent defaults here or tests that run after others will get undefined:
+  (prisma.model.findMany as jest.Mock).mockResolvedValue([]);
+  (prisma.model.count as jest.Mock).mockResolvedValue(0);
+});
 ```
 
 Test structure:

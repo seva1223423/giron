@@ -30,10 +30,19 @@ RESULT:
 - AI response cache — LRU 4h TTL, max 200 entries — in `ai.ts` near top of file
 
 **Known Bottlenecks (already documented):**
-1. AI analytics context: `buildAnalyticsContext(userId)` — ~180 parallel DB queries per AI message
-2. Leaderboard SQL: 4-CTE query touching all Workout+WorkoutSet for active users
-3. TF-IDF knowledge selection: O(n) score across all 25 modules per AI message
+1. AI analytics context: `buildAnalyticsContext(userId)` — ~180 parallel DB queries per AI message. Fix: cache per-user with 60s TTL or make lazy per-intent.
+2. Leaderboard SQL: 4-CTE query touching all Workout+WorkoutSet for active users. Cache TTL: 15 min.
+3. TF-IDF knowledge selection: O(n) score across all 25 modules per AI message.
 4. ~~Exercise list: `take: 500` hardcoded, returns full `instructions[]` array~~ — RESOLVED: `GET /exercises` now uses `EXERCISE_LIST_SELECT` (strips `instructions[]`, `description`, `videoUrl`, `imageUrl`). Payload reduced ~70%.
+5. `exercisesCache` (1h TTL) not invalidated on exercise update — stale data risk, not a latency issue.
+
+**Estimated endpoint latencies (Neon Frankfurt from Render Oregon, no cache):**
+- `GET /exercises` with cache hit: ~2ms
+- `GET /exercises` cache miss: ~180ms (Neon round-trip)
+- `GET /workouts/leaderboard` cache hit: ~5ms
+- `GET /workouts/leaderboard` cache miss: ~400ms (4-CTE query)
+- `POST /ai/chat` first message (cold analytics): ~2s (180 parallel queries + Mistral ~1s)
+- `POST /ai/chat` cached response (generic question): ~50ms
 
 ## Audit Checklist
 

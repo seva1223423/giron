@@ -112,7 +112,24 @@ When auditing any file, check every item:
 **1. No per-user rate limit on AI — only per-IP**
 - Location: `server/src/index.ts` (aiRateLimiter) + `server/src/routes/ai.ts`
 - Risk: attacker with multiple accounts from same IP bypasses AI quota
-- Fix: track userId → requestCount in-memory (Map + TTL), check in route handler
+- Fix: add in-memory Map to `ai.ts` route handler (example):
+  ```typescript
+  // At module level in ai.ts:
+  const perUserAiRequests = new Map<string, { count: number; resetAt: number }>();
+  const PER_USER_AI_LIMIT = 120; // per minute, much higher than free-user daily
+  const PER_USER_AI_WINDOW_MS = 60_000;
+
+  // In the /chat route handler, before Mistral call:
+  const now = Date.now();
+  const userBucket = perUserAiRequests.get(req.userId!) ?? { count: 0, resetAt: now + PER_USER_AI_WINDOW_MS };
+  if (now > userBucket.resetAt) { userBucket.count = 0; userBucket.resetAt = now + PER_USER_AI_WINDOW_MS; }
+  if (userBucket.count >= PER_USER_AI_LIMIT) {
+    return res.status(429).json({ error: 'Слишком много запросов, попробуйте через минуту' });
+  }
+  userBucket.count++;
+  perUserAiRequests.set(req.userId!, userBucket);
+  ```
+  Note: this is separate from the daily subscription limit (10 msgs/day for free users). This caps abuse by premium users too.
 
 **2. AsyncStorage stores fitness data unencrypted**
 - Location: `src/store/useNutritionStore.ts`, `useWorkoutStore.ts`, `useMeasurementStore.ts`, `useSleepStore.ts`

@@ -109,19 +109,40 @@ grep -n "health\|/ping\|SELECT 1\|queryRaw" C:/Users/sevka/Desktop/1223/work/iro
 
 **WARN if:** health endpoint only returns `{ status: 'ok' }` without DB ping.
 
+## Section 9 — Agent Documentation Freshness
+
+```bash
+# Check test baselines in tests.md match what's documented in CLAUDE.md
+grep -n "суитов\|suites\|тестов\|tests" C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/agents/tests.md | head -5
+grep -n "суитов\|suites\|тестов\|tests" C:/Users/sevka/Desktop/1223/work/iron-gym/CLAUDE.md | head -5
+
+# Check command count
+ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/commands/ | wc -l
+
+# Check agent count
+ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/agents/ | wc -l
+
+# Check for stale Old path in any agent file
+grep -rn "sevka/Projects/iron-gym" C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/ 2>/dev/null
+```
+
+**WARN if:** test count in `tests.md` differs from `CLAUDE.md` — both must be updated together.
+**WARN if:** stale path found — the correct path is `C:/Users/sevka/Desktop/1223/work/iron-gym`.
+
 ## Final Report
 
 ```
 RELEASE READINESS REPORT
 ━━━━━━━━━━━━━━━━━━━━━━━━
-Section 1 — TypeScript:    [PASS / BLOCKER: X errors]
-Section 2 — Tests:         [PASS / BLOCKER: X server failures, Y client failures]
-Section 3 — Schema drift:  [PASS / WARN: schema changed, db push needed]
-Section 4 — Navigation:    [PASS / BLOCKER: missing screens]
-Section 5 — Security:      [PASS / BLOCKER: unprotected routes]
-Section 6 — Env vars:      [PASS / BLOCKER: missing vars]
-Section 7 — Git state:     [PASS / BLOCKER: uncommitted changes]
-Section 8 — Health check:  [PASS / WARN: shallow health check]
+Section 1 — TypeScript:      [PASS / BLOCKER: X errors]
+Section 2 — Tests:           [PASS / BLOCKER: X server failures, Y client failures]
+Section 3 — Schema drift:    [PASS / WARN: schema changed, db push needed]
+Section 4 — Navigation:      [PASS / BLOCKER: missing screens]
+Section 5 — Security:        [PASS / BLOCKER: unprotected routes]
+Section 6 — Env vars:        [PASS / BLOCKER: missing vars]
+Section 7 — Git state:       [PASS / BLOCKER: uncommitted changes]
+Section 8 — Health check:    [PASS / WARN: shallow health check]
+Section 9 — Agent docs:      [PASS / WARN: test count drift, stale path]
 
 VERDICT: [READY TO DEPLOY / BLOCKED — fix X items first]
 
