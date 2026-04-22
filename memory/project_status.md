@@ -28,6 +28,7 @@ type: project
 - SecurityEvent логирование
 
 ### Сервер — фичи
+- **Routines API (2026-04)** — routineId FK on Workout (SetNull on delete), PUT /routines/:id, POST /routines/:id/start с progressive overload (+2.5кг), GET /routines/:id/history; P2003 graceful fallback in POST /sync; 263 server tests (11 suites)
 - **Trainer API** — CRUD клиентов + сессий
 - **Autosave endpoint** `POST /workouts/:id/autosave` — каждые 30s
 - **Zod валидация** на всех маршрутах
@@ -38,6 +39,7 @@ type: project
 - **Cardio** — CRUD кардио-сессий
 
 ### Клиент — фичи
+- **Routines UI (2026-04)** — RoutineDetailScreen: estimated duration stat, exercise reorder (▲▼ in edit mode), exercise picker modal (add exercises from library), optimistic remove/reorder with rollback; RoutinesListScreen: sort by last used; QuickStartTab: "Мои рутины" horizontal scroll + "All →" link; HomeScreen: fixed stale navigation target WorkoutsTab→WorkoutsList
 - **useTrainerStore** — оптимистичные обновления + rollback
 - **Autosave тренировки**
 - **Admin screens** (11 экранов): Dashboard, Analytics, Announcements, Logs, SecurityEvents, Subscriptions, Support, Ticket, UserDetail, Users
@@ -66,7 +68,7 @@ type: project
 
 ## В процессе (незаконченное)
 
-_Нет активных незаконченных задач._
+**`npx prisma db push` (производственная БД)** — схема уже обновлена в репо (routineId FK на Workout), но push на Neon (production DATABASE_URL) ещё не выполнен. Без этого GET /routines/:id/history и progressive overload возвращают пустые результаты. Команда: `cd server && npx prisma db push` с production DATABASE_URL в .env.
 
 ---
 
