@@ -180,8 +180,8 @@ These events should always be logged at appropriate level:
 
 - **Per-user AI rate limit** — also flagged by `security.md`. Fixing it requires both a server code change (rate limit by `req.userId` instead of IP) AND a subscription check (free users get 10/day, premium get unlimited). Coordinate with `backend` agent for implementation.
 - **AI analytics context ~180 queries** — also a concern for `performance.md`. Monitoring should alert if analytics context build exceeds 2s. Performance should optimize the query count. `ai-coach` agent implements the fix.
-- **Admin audit log** — also flagged by `compliance.md`. Every admin mutation must write to `AdminLog` (monitoring gap: no alerting if admin log write fails). Coordinate with `backend` agent to wrap admin mutations in `$transaction` with log write.
-- **Subscription limit race condition** — if two concurrent AI requests both pass the daily limit check, the user gets 2 free messages for the price of 1. Fix: atomic increment in Prisma (`$executeRaw UPDATE ... WHERE count < limit RETURNING count`) or a Redis counter. Coordinate with `backend` agent.
+- **Admin audit log** — ~~also flagged by `compliance.md`~~ **RESOLVED** as of 2026-04-22: `admin.ts` writes to `AdminLog` on 20+ mutation paths (ban, subscription activate, announcement, data deletion). Full audit trail confirmed.
+- ~~**Subscription limit race condition**~~ — **RESOLVED** as of 2026-04-22: `ai.ts` uses a two-level check: fast non-atomic early exit (saves API call), plus atomic transactional re-check inside `$transaction` at message persist time — concurrent bypass is blocked.
 - **Health check depth** — shallow health check (no DB ping) means Render deploys succeed even if DB is unreachable. Coordinate with `deployment` agent which also checks the health endpoint configuration.
 
 Note: `monitoring` flags observability gaps; the implementing agent (backend, ai-coach, etc.) fixes them.
