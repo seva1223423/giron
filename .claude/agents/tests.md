@@ -18,7 +18,8 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 13 suites, 285 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 14 suites, 308 tests)
+  nutrition.test.ts             — POST/GET/PATCH/DELETE meals; macro calc, IDOR isolation, ownership checks (23 tests)
   user.test.ts                  — GET/PATCH profile, PATCH nutrition-targets, POST weight; req.userId isolation (17 tests)
   ai_security.test.ts           — AI tool userId isolation, daily quota gating (5 tests)
   auth.test.ts                  — login, register, refresh token, ban, 2FA
@@ -80,7 +81,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 285 server tests pass (13 suites), 448 client tests pass (25 suites).
+**Expected baseline:** 308 server tests pass (14 suites), 448 client tests pass (25 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
@@ -461,4 +462,4 @@ describe('useSubscriptionStore', () => {
 - **New route needs tests** → `backend` agent implements the route; `tests` agent writes the test file. When spawning `tests` agent, provide: route path, HTTP method, Prisma models touched, expected status codes (200/201/400/401/404/402).
 - **Failing test due to store shape change** → `frontend` agent changed a Zustand store shape without bumping `version` or updating `partialize`. Tests can simulate this by calling `setState` with old shape in `beforeEach`.
 - **Coverage gaps** → `security` agent audits routes; `tests` agent writes the missing test cases. If `security` flags "no test for 403 on ownership check", spawn `tests` agent with that specific case.
-- **Test count reference** — as of 2026-04-22: 285 server tests (13 suites), 448 client tests (25 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.
+- **Test count reference** — as of 2026-04-22: 308 server tests (14 suites), 448 client tests (25 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.
