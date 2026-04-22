@@ -9,7 +9,7 @@ import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
 import * as Notifications from 'expo-notifications';
 import { requestNotificationPermissions, registerPushTokenWithServer } from '../services/notificationService';
-import { ErrorBoundary } from '../components';
+import { ErrorBoundary, Icon } from '../components';
 
 // Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -89,19 +89,52 @@ const TAB_ICONS: Record<string, string> = {
   ProfileTab: '○',
 };
 
-// Tab icon component
-const TabIcon: React.FC<{ label: string; icon: string; focused: boolean }> = ({ label, icon, focused }) => {
+/**
+ * Premium tab-bar tile per Direction A design (TabBar in primitives.jsx).
+ *
+ *  - SVG icon from the shared Icon set (no more unicode glyphs)
+ *  - Active: gold icon + gold label (no bg tile — the floating bar
+ *    itself provides the containment)
+ *  - Inactive: textSub grey, same size
+ *  - Center "ai" variant: gold-filled 56pt rounded-square pill raised
+ *    a few pixels above the other tabs, so the AI tab reads as the
+ *    app's signature action no matter what else changes
+ *
+ * The TabBar background (translucent, rounded, floating) is set on
+ * screenOptions.tabBarStyle — this component only handles the tile
+ * itself.
+ */
+import type { IconName as IconSetName } from '../components';
+const TabIcon: React.FC<{ label: string; iconName: IconSetName; focused: boolean; center?: boolean }> = ({ label, iconName, focused, center }) => {
   const { colors } = useThemeStore();
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4 }}>
-      <View style={{
-        width: 28, height: 28, borderRadius: 8,
-        backgroundColor: focused ? colors.tabBarActive + '15' : 'transparent',
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Text style={{ fontSize: 18, fontWeight: '600', color: focused ? colors.tabBarActive : colors.tabBarInactive }}>{icon}</Text>
+
+  if (center) {
+    return (
+      <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: -8 }}>
+        <View style={{
+          width: 56,
+          height: 56,
+          borderRadius: 20,
+          backgroundColor: colors.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.33,
+          shadowRadius: 20,
+          elevation: 8,
+        }}>
+          <Icon name={iconName} size={26} color={colors.textInverse} strokeWidth={2} />
+        </View>
       </View>
-      <Text style={[typography.tabLabel, { fontSize: 10, color: focused ? colors.tabBarActive : colors.tabBarInactive, marginTop: 2, marginBottom: 2 }]}>
+    );
+  }
+
+  const color = focused ? colors.tabBarActive : colors.tabBarInactive;
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4, gap: 3 }}>
+      <Icon name={iconName} size={22} color={color} />
+      <Text style={[typography.tabLabel, { fontSize: 10, color, fontWeight: '600', letterSpacing: 0.2 }]}>
         {label}
       </Text>
     </View>
@@ -228,13 +261,16 @@ function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
+        // Translucent premium tab bar per Direction A — same alpha and
+        // blur treatment the design export spec'd on the primitives
+        // TabBar. Border top gives it a faint edge against content.
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.tabBarBorder,
           borderTopWidth: 1,
-          height: 85,
+          height: 88,
           paddingBottom: Math.max(insets.bottom, 8),
-          paddingTop: 8,
+          paddingTop: 10,
         },
         tabBarShowLabel: false,
       }}
@@ -243,42 +279,51 @@ function MainTabs() {
         name="HomeTab"
         component={HomeScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="◉" label="Главная" focused={focused} />,
+          tabBarAccessibilityLabel: 'Главная',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="home" label="Главная" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="WorkoutsTab"
         component={WorkoutsStackNavigator}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="◎" label="Тренировки" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="NutritionTab"
-        component={NutritionStackNavigator}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="◑" label="Питание" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="ProgressTab"
-        component={ProgressScreen}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="◧" label="Прогресс" focused={focused} />,
+          tabBarAccessibilityLabel: 'Тренировки',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="dumbbell" label="Тренировки" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="AITab"
         component={AIChatScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="◈" label="ИИ" focused={focused} />,
+          // Центральная золотая кнопка-акцент. Signature element — stays
+          // visually dominant regardless of active state so the user
+          // always sees the AI coach as the app's core.
+          tabBarAccessibilityLabel: 'ИИ-тренер',
+          tabBarIcon: () => <TabIcon iconName="spark" label="ИИ" focused center />,
+        }}
+      />
+      <Tab.Screen
+        name="NutritionTab"
+        component={NutritionStackNavigator}
+        options={{
+          tabBarAccessibilityLabel: 'Питание',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="apple" label="Питание" focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="ProgressTab"
+        component={ProgressScreen}
+        options={{
+          tabBarAccessibilityLabel: 'Прогресс',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="chart" label="Прогресс" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="○" label="Профиль" focused={focused} />,
+          tabBarAccessibilityLabel: 'Профиль',
+          tabBarIcon: ({ focused }) => <TabIcon iconName="user" label="Профиль" focused={focused} />,
         }}
       />
     </Tab.Navigator>
