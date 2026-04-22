@@ -60,13 +60,17 @@ const PRO_FEATURES: Array<{ icon: IconName; title: string; subtitle: string }> =
   },
 ];
 
-// Pricing from the design: annual 2990₽ (effective 249₽/mo), monthly
-// 569₽. Was 6788₽ annual without discount (−56%).
-const PRICE_YEAR_RUB = 2990;
-const PRICE_YEAR_OLD_RUB = 6788;
-const PRICE_MONTH_RUB = 569;
-const PRICE_YEAR_MONTHLY_EFFECTIVE_RUB = Math.round(PRICE_YEAR_RUB / 12);
-const ANNUAL_DISCOUNT_PCT = Math.round(100 - (PRICE_YEAR_RUB / PRICE_YEAR_OLD_RUB) * 100);
+// Pricing + CTA copy live in utils/paywall so they can be unit-tested
+// and shared with any future paywall surface (e.g. settings screen).
+import {
+  PRICE_YEAR_RUB,
+  PRICE_YEAR_OLD_RUB,
+  PRICE_MONTH_RUB,
+  PRICE_YEAR_MONTHLY_EFFECTIVE_RUB,
+  ANNUAL_DISCOUNT_PCT,
+  buildPaywallCtaTitle,
+  buildPaywallCtaFineprint,
+} from '../utils/paywall';
 
 /**
  * Premium paywall sheet — pixel copy of the Claude Design handoff
@@ -100,15 +104,9 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
     }
   };
 
-  const selectedPrice = selectedPlan === 'year' ? PRICE_YEAR_RUB : PRICE_MONTH_RUB;
-  const ctaTitle = trialUsed
-    ? `Оформить за ${selectedPrice.toLocaleString('ru-RU')} ₽`
-    : 'Начать 7 дней бесплатно';
-  const ctaFineprint = trialUsed
-    ? 'Отмена в любой момент'
-    : selectedPlan === 'year'
-    ? `Далее ${PRICE_YEAR_RUB.toLocaleString('ru-RU')} ₽ / год · можно отменить в любой момент`
-    : `Далее ${PRICE_MONTH_RUB.toLocaleString('ru-RU')} ₽ / мес · можно отменить в любой момент`;
+  // CTA title + fine-print derived from the shared paywall util.
+  const ctaTitle = buildPaywallCtaTitle(selectedPlan, trialUsed);
+  const ctaFineprint = buildPaywallCtaFineprint(selectedPlan, trialUsed);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
