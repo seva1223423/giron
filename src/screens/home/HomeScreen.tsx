@@ -16,6 +16,7 @@ import {
   LastWorkoutCard, NutritionCard, WaterCard,
   RecoveryScoreCard, TodaySummaryCard, StepsCard,
   StreakWarningCard, MuscleReadinessCard,
+  AICoachCard, RingStatsCard, StreakPRGrid, WeekPlanStrip, QuickActionsGrid,
 } from './components';
 import { Text, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography } from '../../theme';
@@ -407,92 +408,166 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ── СЕГОДНЯ ──────────────────────────────── */}
-      <FadeIn delay={60}>
-        <TodaySummaryCard navigation={navigation} />
-      </FadeIn>
+      {/* ═══════════════════════════════════════════════════════════
+          Direction A Premium home — pixel copy of the Claude Design
+          handoff bundle (Home screen, variation-a-1.jsx). Renders the
+          hero stack: AI coach card → ring + macro bars → streak / PR
+          grid → week plan strip → quick actions. Everything below is
+          store-driven so the visual copy stays accurate to current
+          state.
+          ═══════════════════════════════════════════════════════════ */}
 
-      <FadeIn delay={100}>
-        <WorkoutStatusCard navigation={navigation} />
-      </FadeIn>
+      {/* 1. AI coach hero — prefers the workout recommendation copy
+             (it's the most specific signal). Rest-day recommendation is
+             used when the plan says "rest", and we fall back to a
+             generic nudge if neither is available. */}
+      {!activeWorkout && (() => {
+        const headline = workoutRecommendation?.name
+          ? `${workoutRecommendation.name} · ${workoutRecommendation.daysLabel ?? ''}`.trim()
+          : restDayRecommendation?.tip
+          ?? 'Готов начать — выбери тренировку или попроси ИИ составить план';
+        return (
+          <FadeIn delay={60}>
+            <AICoachCard
+              navigation={navigation}
+              recommendation={headline}
+              onPressCta={handleStartPlannedWorkout}
+              onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
+            />
+          </FadeIn>
+        );
+      })()}
 
-      {!activeWorkout && todayPlan && todayPlan.type !== 'cardio' && (
-        <FadeIn delay={140}>
-          <TodayPlanCard todayPlan={todayPlan} onStart={handleStartPlannedWorkout} />
-        </FadeIn>
-      )}
+      {/* 2. Ring stats — daily percentage ring + 3 progress rows.
+             Calories + protein come from today's nutrition log; the
+             third row mirrors the design's "Шаги" line by showing a
+             static target for now (wired to the pedometer hook later). */}
+      {(() => {
+        const calTarget = dayLog.targetCalories || 2400;
+        const calNow = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
+        const protTarget = dayLog.targetProtein || 160;
+        const protNow = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0);
+        const dayProgress = calTarget > 0 ? calNow / calTarget : 0;
+        return (
+          <FadeIn delay={120}>
+            <RingStatsCard
+              dayProgress={dayProgress}
+              rows={[
+                {
+                  label: 'Калории',
+                  value: `${Math.round(calNow).toLocaleString('ru-RU')} / ${calTarget.toLocaleString('ru-RU')}`,
+                  progress: calNow / Math.max(1, calTarget),
+                  color: colors.calories,
+                },
+                {
+                  label: 'Белок',
+                  value: `${Math.round(protNow)} / ${protTarget} г`,
+                  progress: protNow / Math.max(1, protTarget),
+                  color: colors.primary,
+                },
+                {
+                  label: 'Тренировки/нед.',
+                  value: `${weekWorkoutsCount} / 4`,
+                  progress: weekWorkoutsCount / 4,
+                  color: colors.carbs,
+                },
+              ]}
+            />
+          </FadeIn>
+        );
+      })()}
 
-      {!activeWorkout && todayPlan?.type === 'cardio' && (
-        <FadeIn delay={140}>
-          <Card style={{ marginBottom: spacing.lg }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginBottom: spacing.sm }}>{todayPlan.emoji}</Text>
-            <Text style={[typography.h4, { color: colors.text }]}>{todayPlan.name}</Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>Запланировано на сегодня</Text>
-            <Button title="Открыть кардио" onPress={() => navigation.navigate('WorkoutsTab', { screen: 'Cardio' })} fullWidth />
-          </Card>
-        </FadeIn>
-      )}
+      {/* 3. Streak + PR side-by-side grid. Weekly dots look at the
+             last 7 calendar days; PR picks the heaviest completed set
+             across all history. */}
+      {(() => {
+        const now = new Date();
+        const weekDots: (0 | 1)[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(d.getDate() - i);
+          const ds = d.toISOString().split('T')[0];
+          const hit = workoutHistory.some(
+            (w) => w.completedAt && w.completedAt.startsWith(ds),
+          );
+          weekDots.push(hit ? 1 : 0);
+        }
+        let prKg = 0;
+        let prLabel = 'Ещё нет PR';
+        for (const w of workoutHistory) {
+          for (const we of w.exercises ?? []) {
+            for (const s of we.sets ?? []) {
+              if (s.completed && (s.weight ?? 0) > prKg) {
+                prKg = s.weight ?? 0;
+                prLabel = we.exercise?.name ?? 'Рекорд';
+              }
+            }
+          }
+        }
+        return (
+          <FadeIn delay={180}>
+            <StreakPRGrid
+              streakDays={streak}
+              weekDots={weekDots}
+              prKg={prKg}
+              prLabel={prLabel}
+            />
+          </FadeIn>
+        );
+      })()}
 
-      {!activeWorkout && (
-        <FadeIn delay={150}>
-          <RecommendationCard
-            restDayRecommendation={restDayRecommendation}
-            workoutRecommendation={workoutRecommendation}
-            activeProgram={activeProgram}
-            haptic={haptic}
-            navigation={navigation}
-          />
-        </FadeIn>
-      )}
+      {/* 4. Week plan strip — weekPlan is keyed by dow (0=Mon..6=Sun),
+             not an array. We iterate 0..6 explicitly so the strip
+             renders all 7 cards even on days with null entries. */}
+      {(() => {
+        const dayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        const dowIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+        const days = [0, 1, 2, 3, 4, 5, 6].map((i) => {
+          const p = weekPlan[i] ?? null;
+          return {
+            dayLabel: dayLabels[i] ?? '',
+            title: i === dowIdx ? 'Сегодня' : (p?.name ?? 'Отдых'),
+            active: i === dowIdx,
+            done: i < dowIdx && workoutHistory.some((w) => {
+              if (!w.completedAt) return false;
+              const wd = new Date(w.completedAt);
+              const wdow = (() => { const x = wd.getDay(); return x === 0 ? 6 : x - 1; })();
+              return wdow === i;
+            }),
+          };
+        });
+        return (
+          <FadeIn delay={240}>
+            <WeekPlanStrip
+              days={days}
+              onPressAll={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
+              onPressDay={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
+            />
+          </FadeIn>
+        );
+      })()}
 
-      {/* Streak-at-risk warning — only when the user has a streak going but
-          hasn't trained today. Keeps the nag targeted instead of noisy. */}
-      {!activeWorkout && streak >= 2 && daysSinceLastWorkout !== null && daysSinceLastWorkout >= 1 && (
-        <FadeIn delay={160}>
-          <StreakWarningCard streak={streak} navigation={navigation} />
-        </FadeIn>
-      )}
-
-      {/* ── ТРЕНИРОВКИ ─────────────────────────── */}
-      <SectionDivider label="ТРЕНИРОВКИ" colors={colors} />
-
-      <RecoveryScoreCard />
-
-      {workoutHistory.length > 0 && (
-        <FadeIn delay={200}>
-          <MuscleReadinessCard workoutHistory={workoutHistory} />
-        </FadeIn>
-      )}
-
-      {isLoadingHistory && workoutHistory.length === 0 && (
-        <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-          <ActivityIndicator size="small" color={colors.primary} />
-        </View>
-      )}
-
-      {lastWorkout && daysSinceLastWorkout !== null && daysSinceLastWorkout <= 7 && (
-        <FadeIn delay={175}>
-          <LastWorkoutCard
-            lastWorkout={lastWorkout}
-            daysSinceLastWorkout={daysSinceLastWorkout}
-            activeWorkout={activeWorkout}
-            onRepeat={handleRepeatWorkout}
-          />
-        </FadeIn>
-      )}
-
-      {/* ── ПИТАНИЕ ────────────────────────────── */}
-      <SectionDivider label="ПИТАНИЕ" colors={colors} />
-
+      {/* 5. Quick actions — scanner + weight log. One-tap entries to
+             the two highest-velocity tasks (matches the design's 2-up
+             layout exactly). */}
       <FadeIn delay={300}>
-        <NutritionCard dayLog={dayLog} navigation={navigation} />
+        <QuickActionsGrid
+          actions={[
+            {
+              icon: '◫',
+              label: 'Сканировать еду',
+              subtitle: 'ИИ определит КБЖУ',
+              onPress: () => navigation.navigate('NutritionTab', { screen: 'FoodScanner' }),
+            },
+            {
+              icon: '△',
+              label: 'Добавить вес',
+              subtitle: 'Утреннее взвешивание',
+              onPress: () => navigation.navigate('ProgressTab'),
+            },
+          ]}
+        />
       </FadeIn>
-
-      <FadeIn delay={320}>
-        <WaterCard dayLog={dayLog} today={today} />
-      </FadeIn>
-
-      <StepsCard />
     </ScrollView>
 
     {/* Floating "Start workout" button — shown when no active workout */}
