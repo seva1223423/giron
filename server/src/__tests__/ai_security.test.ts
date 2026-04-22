@@ -307,3 +307,75 @@ describe('BUG-AI-002 — 402 returned before AI API call when daily quota exceed
     expect(chat).not.toHaveBeenCalled();
   });
 });
+
+// ─── BUG-AI-003: Per-user per-minute rate limit ───────────────────────────────
+
+describe('BUG-AI-003 — per-user per-minute rate limit returns 429 on burst', () => {
+  it('returns 429 after 30 requests within 1 minute for same userId', async () => {
+    // Use a unique userId — the bucket is keyed by userId and persists in the module
+    // singleton. Using a fresh userId ensures no contamination from other tests.
+    const burstUserId = `u-rate-limit-burst-${Date.now()}`;
+    const token = makeToken(burstUserId);
+
+    // Make 30 requests — they may fail at the AI call (500) since chat() is not
+    // mocked for all cases, but the per-user bucket increments BEFORE the AI call.
+    // So the bucket fills up regardless of whether each individual request succeeds.
+    const requests = Array.from({ length: 30 }, () =>
+      request(app)
+        .post('/api/ai/chat')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ message: 'burst test', history: [] })
+    );
+    await Promise.all(requests);
+
+    // The 31st request must be blocked by the per-user rate limit
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'this should be blocked', history: [] });
+
+    expect(res.status).toBe(429);
+    expect(res.body.error).toMatch(/слишком много запросов/i);
+
+    // The AI service must NOT be called on the rate-limited request
+    const callsBefore = (chat as jest.Mock).mock.calls.length;
+    const resAfter = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'still blocked', history: [] });
+    expect(resAfter.status).toBe(429);
+    expect((chat as jest.Mock).mock.calls.length).toBe(callsBefore); // no additional AI calls
+  }, 30_000); // generous timeout: 31 requests × ~50ms each = ~1.5s, padded to 30s
+
+  it('different users have independent rate limit buckets', async () => {
+    // User A consumes all their requests
+    const userA = `u-rate-a-${Date.now()}`;
+    const userB = `u-rate-b-${Date.now()}`;
+    const tokenA = makeToken(userA);
+    const tokenB = makeToken(userB);
+
+    // Exhaust user A's bucket
+    const exhaustA = Array.from({ length: 30 }, () =>
+      request(app)
+        .post('/api/ai/chat')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ message: 'from A', history: [] })
+    );
+    await Promise.all(exhaustA);
+
+    // User A is blocked
+    const resA = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ message: 'A blocked', history: [] });
+    expect(resA.status).toBe(429);
+
+    // User B is NOT blocked (fresh bucket)
+    const resB = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ message: 'B not blocked', history: [] });
+    // B should not get 429 (may get 200 or 500 due to unset mocks, but not rate limited)
+    expect(resB.status).not.toBe(429);
+  }, 30_000);
+});
