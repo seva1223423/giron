@@ -28,7 +28,8 @@ type: project
 - SecurityEvent логирование
 
 ### Сервер — фичи
-- **Routines API (2026-04)** — routineId FK on Workout (SetNull on delete), PUT /routines/:id, POST /routines/:id/start с progressive overload (+2.5кг), GET /routines/:id/history; P2003 graceful fallback in POST /sync; 263 server tests (11 suites)
+- **Routines API (2026-04)** — routineId FK on Workout (SetNull on delete), PUT /routines/:id, POST /routines/:id/start с progressive overload (+2.5кг), GET /routines/:id/history; P2003 graceful fallback in POST /sync
+- **Test suite (2026-04)** — 19 server integration suites (410 tests, все 11 маршрутов покрыты), 29 client unit suites (512 tests, все 13 Zustand-сторов покрыты)
 - **Trainer API** — CRUD клиентов + сессий
 - **Autosave endpoint** `POST /workouts/:id/autosave` — каждые 30s
 - **Zod валидация** на всех маршрутах
