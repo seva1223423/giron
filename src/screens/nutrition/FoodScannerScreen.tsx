@@ -1529,19 +1529,67 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
             {/* Header row: "Распознано:" + per-state actions.
                 - Count pill so the user sees item count at a glance.
+                - "Неуверенные: N" removes all items with confidence < 0.5
+                  (or missing confidence). Shown only when 2+ such items
+                  exist — one low-conf item is quicker to delete via the ✕
+                  on its card.
                 - "Очистить" clears the list in one shot when it got unwieldy
-                  (3+ items). Before that, per-item ✕ is faster. Undo stays
-                  available through the single-item lastRemoved row — we
-                  don't try to undo bulk clear (too much state to restore). */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+                  (3+ items). Undo stays available through the single-item
+                  lastRemoved row; bulk clear has no undo (too much state). */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: spacing.sm }}>
               <Text style={[typography.h4, { color: colors.text, flex: 1 }]}>Распознано:</Text>
               {recognizedItems.length > 0 && (
-                <View style={{ paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: colors.primary + '18', marginRight: spacing.sm }}>
+                <View style={{ paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: colors.primary + '18' }}>
                   <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 11, fontWeight: '700' }]}>
                     {recognizedItems.length}
                   </Text>
                 </View>
               )}
+              {(() => {
+                const lowConfItems = recognizedItems.filter((i) => (i.confidence ?? 0) < 0.5);
+                if (lowConfItems.length < 2) return null;
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        'Удалить неуверенные?',
+                        `${lowConfItems.length} позиций с низкой уверенностью AI будут удалены. Откройте карточку, чтобы проверить конкретные позиции.`,
+                        [
+                          { text: 'Отмена', style: 'cancel' },
+                          {
+                            text: 'Удалить',
+                            style: 'destructive',
+                            onPress: () => {
+                              haptic.warning();
+                              const keptIds = new Set(
+                                recognizedItems
+                                  .filter((i) => (i.confidence ?? 0) >= 0.5)
+                                  .map((i) => i.id),
+                              );
+                              setRecognizedItems((prev) => prev.filter((i) => keptIds.has(i.id)));
+                              setItemBases((prev) => {
+                                const next: typeof prev = {};
+                                for (const id of Object.keys(prev)) {
+                                  if (keptIds.has(id)) next[id] = prev[id];
+                                }
+                                return next;
+                              });
+                            },
+                          },
+                        ],
+                      );
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                    accessibilityLabel={`Удалить ${lowConfItems.length} позиций с низкой уверенностью AI`}
+                    accessibilityHint="Оставит только позиции, в которых AI уверен"
+                    accessibilityRole="button"
+                  >
+                    <Text style={[typography.captionMedium, { color: colors.warning, fontWeight: '700' }]}>
+                      Неуверенные: {lowConfItems.length}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
               {recognizedItems.length >= 3 && (
                 <TouchableOpacity
                   onPress={() => {
@@ -1564,7 +1612,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                       ],
                     );
                   }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   accessibilityLabel={`Очистить все ${recognizedItems.length} распознанных позиций`}
                   accessibilityHint="Список опустеет. Действие нельзя отменить."
                   accessibilityRole="button"
