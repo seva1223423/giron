@@ -119,7 +119,7 @@ type: project
 - Клиент `api.ts`: timeout на refresh; `chatStream` читает токен из SecureStore; useWorkoutStore rollback не клобберит новый optimistic update.
 - **Per-user AI rate limit (2026-04-22)** — `perUserAiBuckets` Map в `server/src/routes/ai.ts`. Лимит 30 req/min на userId (дополнительно к дневному лимиту 10 msgs/day для free users). Bucket prune через `.unref()` interval. 2 regression теста в `ai_security.test.ts` (BUG-AI-003).
 - **Agent system improvements (2026-04-22)** — 2 новых команды (`test-store.md`, `test-route.md`) для scaffolding тестов; улучшены `monitoring.md` (cache invalidation table), `data-integrity.md` (offline ID upgrade pattern), `backend.md` (mock patterns), `security.md` (fix examples), `performance.md` (latency benchmarks), `release-prep.md` (Section 9), `audit-all.md` (Phase 1 extended), `sync-memory.md` (command/knowledge checks).
-- **Validation test expansion (2026-04-22)** — `validation.test.ts` grown to 115 tests (was 43): cardio Zod schema (30 tests, replaced 4 manual checks), body measurements (11 tests), sleep/bedtime (14 tests), profile update (15 tests), nutrition targets (9 tests). `cardio.test.ts` +7 boundary integration tests. Total server: 491 tests.
+- **Validation test expansion (2026-04-22)** — `validation.test.ts` grown to 134 tests (was 43): cardio Zod schema (30 tests, replaced 4 manual checks), body measurements (11 tests), sleep/bedtime (14 tests), profile update (15 tests), nutrition targets (9 tests), routines (19 tests: exercise order max 49, sets per exercise max 30, RPE 1-10, restSeconds max 600, notes max 500). `cardio.test.ts` +7 boundary integration tests. Total server: 510 tests.
 
 ---
 

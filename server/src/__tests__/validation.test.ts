@@ -49,6 +49,24 @@ const createProgramSchema = z.object({
   durationWeeks: z.number().int().min(1).max(52).optional(),
 });
 
+const createRoutineSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  exercises: z.array(z.object({
+    exerciseId: z.string().min(1).max(100),
+    order: z.number().int().min(0).max(49),
+    restSeconds: z.number().int().min(0).max(600).optional(),
+    notes: z.string().max(500).optional(),
+    sets: z.array(z.object({
+      setNumber: z.number().int().min(1).max(30),
+      type: z.string().max(50).optional(),
+      reps: z.number().int().min(0).max(999).optional(),
+      weight: z.number().min(0).max(2000).optional(),
+      rpe: z.number().min(1).max(10).optional(),
+    })).min(1).max(30),
+  })).min(1).max(30),
+});
+
 const measurementSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z'))),
   chest: z.number().finite().min(0).max(300).optional().nullable(),
@@ -404,6 +422,126 @@ describe('Validation Schemas', () => {
     it('should reject empty goal', () => {
       const result = createProgramSchema.safeParse({ ...validProgram, goal: '' });
       expect(result.success).toBe(false);
+    });
+  });
+
+  // ─── Routine Validation ────────────────────────────────────────────────
+
+  describe('Routine validation (createRoutineSchema)', () => {
+    const validExercise = {
+      exerciseId: 'ex-1',
+      order: 0,
+      sets: [{ setNumber: 1, reps: 10, weight: 60 }],
+    };
+
+    const validRoutine = {
+      name: 'Push Day',
+      exercises: [validExercise],
+    };
+
+    it('should accept valid routine', () => {
+      expect(createRoutineSchema.safeParse(validRoutine).success).toBe(true);
+    });
+
+    it('should reject empty exercises array', () => {
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [] }).success).toBe(false);
+    });
+
+    it('should reject exercises exceeding 30', () => {
+      const tooMany = Array.from({ length: 31 }, (_, i) => ({
+        ...validExercise, exerciseId: `ex-${i}`, order: i,
+      }));
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: tooMany }).success).toBe(false);
+    });
+
+    it('should reject name longer than 200 chars', () => {
+      expect(createRoutineSchema.safeParse({ ...validRoutine, name: 'A'.repeat(201) }).success).toBe(false);
+    });
+
+    it('should reject empty name', () => {
+      expect(createRoutineSchema.safeParse({ ...validRoutine, name: '' }).success).toBe(false);
+    });
+
+    it('should reject description exceeding 2000 chars', () => {
+      expect(createRoutineSchema.safeParse({ ...validRoutine, description: 'X'.repeat(2001) }).success).toBe(false);
+    });
+
+    it('should reject exercise order > 49', () => {
+      const badOrderEx = { ...validExercise, order: 50 };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [badOrderEx] }).success).toBe(false);
+    });
+
+    it('should accept exercise order = 49 (boundary max)', () => {
+      const borderEx = { ...validExercise, order: 49 };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [borderEx] }).success).toBe(true);
+    });
+
+    it('should reject restSeconds > 600', () => {
+      const badRest = { ...validExercise, restSeconds: 601 };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [badRest] }).success).toBe(false);
+    });
+
+    it('should accept restSeconds = 600 (boundary max)', () => {
+      const maxRest = { ...validExercise, restSeconds: 600 };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [maxRest] }).success).toBe(true);
+    });
+
+    it('should reject sets exceeding 30 per exercise', () => {
+      const tooManySets = Array.from({ length: 31 }, (_, i) => ({ setNumber: i + 1 }));
+      const badEx = { ...validExercise, sets: tooManySets };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [badEx] }).success).toBe(false);
+    });
+
+    it('should reject empty sets array on exercise', () => {
+      const noSets = { ...validExercise, sets: [] };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [noSets] }).success).toBe(false);
+    });
+
+    it('should reject setNumber > 30', () => {
+      const badSet = { ...validExercise, sets: [{ setNumber: 31 }] };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [badSet] }).success).toBe(false);
+    });
+
+    it('should reject setNumber < 1', () => {
+      const badSet = { ...validExercise, sets: [{ setNumber: 0 }] };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [badSet] }).success).toBe(false);
+    });
+
+    it('should reject rpe < 1', () => {
+      const badRpe = { ...validExercise, sets: [{ setNumber: 1, rpe: 0 }] };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [badRpe] }).success).toBe(false);
+    });
+
+    it('should reject rpe > 10', () => {
+      const badRpe = { ...validExercise, sets: [{ setNumber: 1, rpe: 11 }] };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [badRpe] }).success).toBe(false);
+    });
+
+    it('should accept rpe boundary values 1 and 10', () => {
+      const minRpe = { ...validExercise, sets: [{ setNumber: 1, rpe: 1 }] };
+      const maxRpe = { ...validExercise, sets: [{ setNumber: 1, rpe: 10 }] };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [minRpe] }).success).toBe(true);
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [maxRpe] }).success).toBe(true);
+    });
+
+    it('should reject notes exceeding 500 chars', () => {
+      const longNotes = { ...validExercise, notes: 'N'.repeat(501) };
+      expect(createRoutineSchema.safeParse({ ...validRoutine, exercises: [longNotes] }).success).toBe(false);
+    });
+
+    it('should accept full valid routine with multiple exercises and sets', () => {
+      const fullRoutine = {
+        name: 'Full Body',
+        description: 'Complete workout',
+        exercises: [
+          { exerciseId: 'squat', order: 0, restSeconds: 120, notes: 'Focus on form', sets: [
+            { setNumber: 1, type: 'normal', reps: 5, weight: 100, rpe: 8 },
+            { setNumber: 2, reps: 5, weight: 100 },
+          ]},
+          { exerciseId: 'bench', order: 1, sets: [{ setNumber: 1, reps: 8, weight: 80 }] },
+        ],
+      };
+      expect(createRoutineSchema.safeParse(fullRoutine).success).toBe(true);
     });
   });
 
