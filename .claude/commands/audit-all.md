@@ -23,7 +23,7 @@ ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/commands/ | wc -l
 # Server route sizes
 wc -l C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/routes/*.ts
 
-# Server test suite count (expected: 19 suites, 652 tests)
+# Server test suite count (expected: 19 suites, 662 tests)
 ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/__tests__/*.test.ts | wc -l
 
 # Client test suite count (expected: 29 suites, 555 tests)

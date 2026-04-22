@@ -18,7 +18,7 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 652 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 662 tests)
   cardio.test.ts                — GET/POST/DELETE cardio sessions; type enum validation, all Zod boundary conditions, IDOR isolation (22 tests)
   nutrition.test.ts             — POST/GET/PATCH/DELETE meals; macro calc, IDOR isolation, ownership checks (23 tests)
   trainer.test.ts               — GET/POST/DELETE/PATCH trainer clients+sessions; requireTrainerRole, sub access, IDOR isolation (37 tests)
@@ -27,7 +27,7 @@ server/src/__tests__/           — server integration tests (Jest + Supertest, 
   workout.test.ts               — programs CRUD, GET /history, GET /exercises, POST /start, POST /sync, POST /:id/complete, POST /:id/autosave, GET /leaderboard, routines CRUD; IDOR + userId isolation (56 tests)
   user.test.ts                  — GET/PATCH profile, PATCH nutrition-targets, POST weight, measurements, sleep, trusted-devices; req.userId isolation (37 tests)
   ai_security.test.ts           — AI tool userId isolation, daily quota gating, per-user rate limit (7 tests)
-  auth.test.ts                  — login, register, refresh token, ban, 2FA
+  auth.test.ts                  — login, register, refresh, forgot/reset-password, logout, check-email, check-phone, verify-email, resend-verification (45 tests)
   otp.test.ts                   — OTP flows, forgot/reset password, brute-force lockout
   webhook.test.ts               — RevenueCat, YuKassa, generic webhook signature verification
   subscription_gating.test.ts   — history/measurements/leaderboard gating by sub status
