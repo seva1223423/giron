@@ -50,20 +50,28 @@ const RecognizedItemCardImpl: React.FC<Props> = ({ item, base, onWeightChange, o
   const [editingName, setEditingName] = React.useState(false);
   const [nameDraft, setNameDraft] = React.useState(item.name);
 
-  /** Prefix-matching suggestions from the user's saved foods. Shown below the
-   *  rename input; tapping one commits the suggested name immediately. Shows
-   *  max 5 suggestions to keep the UI compact. Case-insensitive. */
+  /** Suggestions from the user's saved foods. Shown below the rename input;
+   *  tapping one commits the suggested name immediately. Max 5 suggestions
+   *  to keep the UI compact. Case-insensitive.
+   *
+   *  Ranking: prefix matches first (starts-with), then substring matches.
+   *  "курица" typed should surface "куриная грудка" before "шашлык куриный".
+   *  Within each tier, alphabetical order for stability. */
   const nameSuggestions = React.useMemo(() => {
     if (!editingName) return [];
     const q = nameDraft.trim().toLowerCase();
     if (q.length < 1) return [];
-    return savedFoods
-      .filter((f) => {
+    const matches = savedFoods
+      .map((f) => {
         const n = f.name.toLowerCase();
-        if (n === q) return false; // already matches current
-        return n.includes(q);
+        if (n === q) return null; // already matches current
+        if (n.startsWith(q)) return { food: f, score: 0 };
+        if (n.includes(q)) return { food: f, score: 1 };
+        return null;
       })
-      .slice(0, 5);
+      .filter((x): x is { food: (typeof savedFoods)[number]; score: number } => x != null);
+    matches.sort((a, b) => a.score - b.score || a.food.name.localeCompare(b.food.name, 'ru'));
+    return matches.slice(0, 5).map((m) => m.food);
   }, [editingName, nameDraft, savedFoods]);
 
   // Sync draft when item.weightGrams changes externally (e.g. preset tap)
