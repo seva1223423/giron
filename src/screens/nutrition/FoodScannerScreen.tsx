@@ -90,6 +90,25 @@ async function loadRecentScans(): Promise<RecentScan[]> {
   } catch { return []; }
 }
 
+// ─── First-launch onboarding hint ────────────────────────────────────────────
+
+const ONBOARDING_KEY = 'iron_gym_scanner_onboarded';
+
+async function isOnboarded(): Promise<boolean> {
+  try {
+    const v = await AsyncStorage.getItem(ONBOARDING_KEY);
+    return v === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function markOnboarded(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ONBOARDING_KEY, '1');
+  } catch { /* non-fatal */ }
+}
+
 // ─── Draft autosave (AsyncStorage) ───────────────────────────────────────────
 
 const DRAFT_KEY = 'iron_gym_scanner_draft';
@@ -339,6 +358,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [textModalOpen, setTextModalOpen] = useState(false);
   const [textDescription, setTextDescription] = useState('');
   const [textLoading, setTextLoading] = useState(false);
+  // First-launch onboarding tip — explains the 3 input methods. Dismissed
+  // once and never shown again. Loaded async; default false → no flash.
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastBase64Ref = useRef<string>('');
@@ -358,6 +380,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   useEffect(() => {
     loadRecentScans().then(setRecentScans);
+    isOnboarded().then((done) => { if (!done) setShowOnboarding(true); });
 
     // Hydrate mealType from the user's last-saved choice when it lines up
     // with the current hour (within ±2h). Falls back to the time-of-day
@@ -1075,6 +1098,34 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             </Text>
           </View>
         </View>
+
+        {/* First-launch tip — three-method primer, dismissable. Persists
+            via AsyncStorage so it never re-appears once the user gets it. */}
+        {showOnboarding && !imageUri && recognizedItems.length === 0 && (
+          <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.primary, backgroundColor: colors.primary + '08' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+              <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}>
+                Три способа записать еду
+              </Text>
+              <TouchableOpacity
+                onPress={() => { haptic.light(); setShowOnboarding(false); markOnboarded().catch(() => {}); }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Скрыть подсказку"
+                accessibilityRole="button"
+              >
+                <Text style={{ fontSize: 16, color: colors.textTertiary }}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={[typography.small, { color: colors.textSecondary, lineHeight: 20 }]}>
+              <Text style={{ fontWeight: '700' }}>📸 Фото</Text> — AI определит продукты на тарелке.{'\n'}
+              <Text style={{ fontWeight: '700' }}>📦 Штрих-код</Text> — для упакованных продуктов из магазина.{'\n'}
+              <Text style={{ fontWeight: '700' }}>📝 Текст</Text> — если знаешь название и вес.
+            </Text>
+            <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.sm }]}>
+              Все три способа учитывают твою дневную норму КБЖУ — после сохранения увидишь сколько осталось до цели.
+            </Text>
+          </Card>
+        )}
 
         {/* Photo or empty-state card */}
         {imageUri ? (
