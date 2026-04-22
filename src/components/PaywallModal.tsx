@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,12 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useThemeStore } from '../store';
 import { useSubscriptionStore, FREE_LIMITS } from '../store/useSubscriptionStore';
+import { useHaptic } from '../hooks/useHaptic';
 import { typography } from '../theme';
 import { spacing, borderRadius } from '../theme/spacing';
-import { Button } from './Button';
 
 interface PaywallModalProps {
   visible: boolean;
@@ -22,53 +22,60 @@ interface PaywallModalProps {
   navigation?: any;
 }
 
-const REASON_CONFIGS = {
-  ai_limit: {
-    icon: 'IC',
-    title: 'Лимит Iron Coach исчерпан',
-    subtitle: `${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений в день для бесплатного плана`,
-    ctaTitle: 'Безлимитный AI за 299₽/мес',
-  },
-  food_scan_limit: {
-    icon: 'SC',
-    title: 'Лимит сканов исчерпан',
-    subtitle: `${FREE_LIMITS.FOOD_SCANS_PER_DAY} сканов в день для бесплатного плана`,
-    ctaTitle: 'Безлимитные сканы за 299₽/мес',
-  },
-  feature: {
-    icon: 'PR',
-    title: 'Функция Pro',
-    subtitle: 'Это функция Iron Gym Pro',
-    ctaTitle: 'Открыть Pro за 299₽/мес',
-  },
-  programs_limit: {
-    icon: 'PG',
-    title: '3 программы бесплатно',
-    subtitle: 'Подключи Pro и открой все 22 готовые программы тренировок',
-    ctaTitle: 'Все программы за 299₽/мес',
-  },
-  history_limit: {
-    icon: 'HT',
-    title: 'История ограничена',
-    subtitle: 'Бесплатный план хранит последние 10 тренировок. Про — без ограничений',
-    ctaTitle: 'Полная история за 299₽/мес',
-  },
-  leaderboard: {
-    icon: '◈',
-    title: 'Клубный лидерборд',
-    subtitle: 'Соревнуйся с участниками Iron Gym по силовым показателям — только Pro',
-    ctaTitle: 'Открыть лидерборд за 299₽/мес',
-  },
+/** Reason-specific eyebrow shown above the hero headline. Kept short
+ *  so the main "Полный доступ..." copy stays the focal point. */
+const REASON_EYEBROW: Record<PaywallModalProps['reason'], string> = {
+  ai_limit: `Лимит ${FREE_LIMITS.AI_MESSAGES_PER_DAY} AI/день исчерпан`,
+  food_scan_limit: `Лимит ${FREE_LIMITS.FOOD_SCANS_PER_DAY} сканов/день исчерпан`,
+  feature: 'Функция доступна в Pro',
+  programs_limit: '3 программы бесплатно',
+  history_limit: 'История ограничена',
+  leaderboard: 'Клубный лидерборд',
 };
 
-const PRO_PERKS = [
-  { icon: '◈', text: 'Iron Coach без ограничений' },
-  { icon: '◎', text: 'Безлимитный сканер КБЖУ' },
-  { icon: '◧', text: 'Расширенная аналитика' },
-  { icon: '◫', text: '20+ готовых программ' },
-  { icon: '◉', text: 'Клубный лидерборд' },
+/** Value props shown in the feature list — matches the design's 4-row
+ *  layout (spark / camera / dumbbell / chart icons with check on right). */
+const PRO_FEATURES: Array<{ icon: string; title: string; subtitle: string }> = [
+  {
+    icon: '✦',
+    title: 'Безлимитный ИИ‑тренер',
+    subtitle: `Было ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений в день`,
+  },
+  {
+    icon: '◫',
+    title: 'Сканер еды по фото',
+    subtitle: 'Точный КБЖУ за 3 секунды',
+  },
+  {
+    icon: '◇',
+    title: 'Все программы',
+    subtitle: '50+ профессиональных',
+  },
+  {
+    icon: '◈',
+    title: 'Глубокая аналитика',
+    subtitle: 'Тренды, PR, прогнозы',
+  },
 ];
 
+// Pricing from the design: annual 2990₽ (effective 249₽/mo), monthly
+// 569₽. Was 6788₽ annual without discount (−56%).
+const PRICE_YEAR_RUB = 2990;
+const PRICE_YEAR_OLD_RUB = 6788;
+const PRICE_MONTH_RUB = 569;
+const PRICE_YEAR_MONTHLY_EFFECTIVE_RUB = Math.round(PRICE_YEAR_RUB / 12);
+const ANNUAL_DISCOUNT_PCT = Math.round(100 - (PRICE_YEAR_RUB / PRICE_YEAR_OLD_RUB) * 100);
+
+/**
+ * Premium paywall sheet — pixel copy of the Claude Design handoff
+ * (variation-a-3.jsx → A_Paywall). Sits on a warm graphite sheet with
+ * a gold radial glow at the top, IRON · PRO logo mark, hero headline
+ * with gold italic word, 4-row feature list, annual/monthly plan toggle,
+ * Russian payment method strip, and tall 58pt gold CTA.
+ *
+ * The annual plan is pre-selected (matches design) and shows the
+ * strike-through old price + "ВЫГОДА −56%" gold chip badge.
+ */
 export const PaywallModal: React.FC<PaywallModalProps> = ({
   visible,
   onClose,
@@ -78,92 +85,323 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
 }) => {
   const { colors } = useThemeStore();
   const { trialUsed } = useSubscriptionStore();
-  const config = REASON_CONFIGS[reason];
+  const haptic = useHaptic();
+  // Plan selection — design opens with annual highlighted; user can tap
+  // the monthly card to switch the primary CTA target.
+  const [selectedPlan, setSelectedPlan] = useState<'year' | 'month'>('year');
 
-  const handleOpenSubscription = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const handleSubscribe = () => {
+    haptic.medium();
     onClose();
     if (navigation) {
-      navigation.navigate('Subscription');
+      navigation.navigate('Subscription', { preselect: selectedPlan });
     }
   };
 
+  const selectedPrice = selectedPlan === 'year' ? PRICE_YEAR_RUB : PRICE_MONTH_RUB;
+  const ctaTitle = trialUsed
+    ? `Оформить за ${selectedPrice.toLocaleString('ru-RU')} ₽`
+    : 'Начать 7 дней бесплатно';
+  const ctaFineprint = trialUsed
+    ? 'Отмена в любой момент'
+    : selectedPlan === 'year'
+    ? `Далее ${PRICE_YEAR_RUB.toLocaleString('ru-RU')} ₽ / год · можно отменить в любой момент`
+    : `Далее ${PRICE_MONTH_RUB.toLocaleString('ru-RU')} ₽ / мес · можно отменить в любой момент`;
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity
         style={styles.backdrop}
         activeOpacity={1}
         onPress={onClose}
+        accessibilityLabel="Закрыть подписку"
       />
-      <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+      <View style={[styles.sheet, { backgroundColor: colors.background }]}>
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
+        {/* Radial gold glow at the top — design spec. SVG absolute
+            behind the content so the glow reads as ambient warmth. */}
+        <Svg
+          width="100%"
+          height={360}
+          style={styles.glow}
+          pointerEvents="none"
+          preserveAspectRatio="none"
+        >
+          <Defs>
+            <RadialGradient id="paywallGlow" cx="50%" cy="0%" rx="75%" ry="70%">
+              <Stop offset="0" stopColor={colors.primary} stopOpacity={0.28} />
+              <Stop offset="1" stopColor={colors.primary} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#paywallGlow)" />
+        </Svg>
+
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={[styles.iconCircle, { backgroundColor: colors.accent + '18' }]}>
-              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.accent }}>{config.icon}</Text>
+          {/* Header row — logo/brand on left, close X on right */}
+          <View style={styles.headerRow}>
+            <View style={styles.brand}>
+              <Text style={[styles.brandGlyph, { color: colors.primary }]}>◈</Text>
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: 12,
+                  fontWeight: '600',
+                  letterSpacing: 3,
+                }}
+              >
+                IRON · PRO
+              </Text>
             </View>
-            <Text style={[typography.h3, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>
-              {featureName ?? config.title}
-            </Text>
-            <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
-              {config.subtitle}
-            </Text>
+            <TouchableOpacity
+              onPress={() => { haptic.light(); onClose(); }}
+              accessibilityLabel="Закрыть"
+              accessibilityRole="button"
+              style={[
+                styles.closeBtn,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>✕</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Perks */}
-          <View style={[styles.perksContainer, { backgroundColor: colors.background, borderRadius: borderRadius.xl }]}>
-            {PRO_PERKS.map((perk, i) => (
+          {/* Eyebrow: meta uppercase either the reason the paywall fired
+              OR the trial badge "7 ДНЕЙ БЕСПЛАТНО" for trial-eligible users. */}
+          <Text
+            style={[
+              typography.metaLabel,
+              {
+                color: colors.primary,
+                textTransform: 'uppercase',
+                marginTop: spacing.lg,
+              },
+            ]}
+          >
+            {trialUsed ? REASON_EYEBROW[reason] : '7 дней бесплатно'}
+          </Text>
+
+          {/* Hero headline. The middle word ("персональному") is gold + italic
+              to match the design's typographic accent. featureName override
+              keeps the paywall targeted when triggered by a specific screen. */}
+          <Text
+            style={[
+              typography.h1,
+              { color: colors.text, fontSize: 40, lineHeight: 42, marginTop: 14 },
+            ]}
+          >
+            Полный доступ{'\n'}к{' '}
+            <Text
+              style={{
+                color: colors.primary,
+                fontStyle: 'italic',
+                fontWeight: '500',
+              }}
+            >
+              персональному
+            </Text>
+            {'\n'}тренеру.
+          </Text>
+          <Text
+            style={[
+              typography.small,
+              { color: colors.textSecondary, marginTop: 14, lineHeight: 20 },
+            ]}
+          >
+            {featureName
+              ?? 'Безлимитный ИИ, программы под вас, анализ фото еды, углублённая аналитика.'}
+          </Text>
+
+          {/* Feature rows */}
+          <View style={{ marginTop: spacing.xl }}>
+            {PRO_FEATURES.map((f, i) => (
               <View
                 key={i}
                 style={[
-                  styles.perkRow,
-                  i < PRO_PERKS.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.divider },
+                  styles.featureRow,
+                  i < PRO_FEATURES.length - 1 && {
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                  },
                 ]}
               >
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{perk.icon}</Text>
-                <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={2}>{perk.text}</Text>
-                <Text style={{ color: colors.success, fontSize: 16 }}>✓</Text>
+                <View
+                  style={[
+                    styles.featureIconTile,
+                    { backgroundColor: colors.primary + '18' },
+                  ]}
+                >
+                  <Text style={{ color: colors.primary, fontSize: 16 }}>{f.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                    {f.title}
+                  </Text>
+                  <Text
+                    style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
+                  >
+                    {f.subtitle}
+                  </Text>
+                </View>
+                <Text
+                  style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}
+                >
+                  ✓
+                </Text>
               </View>
             ))}
           </View>
 
-          {/* Pricing */}
-          <View style={styles.pricingRow}>
-            <View style={[styles.pricingCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Text style={[typography.captionMedium, { color: colors.textSecondary }]}>МЕСЯЦ</Text>
-              <Text style={[typography.h3, { color: colors.text }]}>299₽</Text>
-            </View>
-            <View style={[styles.pricingCard, styles.pricingCardAccent, { backgroundColor: colors.accent, borderColor: colors.accent }]}>
-              <View style={[styles.badgeChip, { backgroundColor: '#fff' }]}>
-                <Text style={[typography.caption, { color: colors.accent, fontWeight: '800', fontSize: 9 }]}>СКИДКА 44%</Text>
+          {/* Plan cards. Annual has the gold border + "Выгода −56%" badge
+              + strike-through old price. Monthly is the quieter option. */}
+          <View style={{ marginTop: spacing.lg, gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); setSelectedPlan('year'); }}
+              activeOpacity={0.9}
+              accessibilityLabel={`Годовая подписка ${PRICE_YEAR_RUB} рублей, выгода ${ANNUAL_DISCOUNT_PCT} процентов`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedPlan === 'year' }}
+              style={[
+                styles.planCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: selectedPlan === 'year' ? colors.primary : colors.border,
+                  borderWidth: selectedPlan === 'year' ? 2 : 1,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.planBadge,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: 10,
+                    fontWeight: '700',
+                    letterSpacing: 0.5,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Выгода −{ANNUAL_DISCOUNT_PCT}%
+                </Text>
               </View>
-              <Text style={[typography.captionMedium, { color: 'rgba(255,255,255,0.75)' }]}>ГОД</Text>
-              <Text style={[typography.h3, { color: '#fff' }]}>1 990₽</Text>
-              <Text style={[typography.caption, { color: 'rgba(255,255,255,0.7)' }]}>~166₽/мес</Text>
-            </View>
+              <View style={styles.planRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>Год</Text>
+                  <Text
+                    style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
+                  >
+                    {PRICE_YEAR_MONTHLY_EFFECTIVE_RUB} ₽ / мес · списание раз в год
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[typography.h3, { color: colors.text }]}>
+                    {PRICE_YEAR_RUB.toLocaleString('ru-RU')} ₽
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      fontSize: 11,
+                      textDecorationLine: 'line-through',
+                    }}
+                  >
+                    {PRICE_YEAR_OLD_RUB.toLocaleString('ru-RU')} ₽
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); setSelectedPlan('month'); }}
+              activeOpacity={0.9}
+              accessibilityLabel={`Месячная подписка ${PRICE_MONTH_RUB} рублей`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedPlan === 'month' }}
+              style={[
+                styles.planCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: selectedPlan === 'month' ? colors.primary : colors.border,
+                  borderWidth: selectedPlan === 'month' ? 2 : 1,
+                  paddingTop: spacing.lg,
+                },
+              ]}
+            >
+              <View style={styles.planRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>Месяц</Text>
+                  <Text
+                    style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
+                  >
+                    Отмена в любой момент
+                  </Text>
+                </View>
+                <Text style={[typography.h3, { color: colors.text }]}>
+                  {PRICE_MONTH_RUB} ₽
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
 
-          {/* CTA */}
-          <Button
-            title={trialUsed ? config.ctaTitle : 'Начать бесплатный период — 7 дней'}
-            onPress={handleOpenSubscription}
-            fullWidth
-            style={{ marginTop: spacing.lg }}
-          />
-          {!trialUsed && (
-            <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.sm }]}>
-              Затем от 166₽/мес · Отмена в любой момент
-            </Text>
-          )}
+          {/* Payment methods strip — design lists these explicitly as
+              trust signals for the Russian market. */}
+          <View style={styles.paymentRow}>
+            <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>ЮKassa</Text>
+            <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>·</Text>
+            <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>СБП</Text>
+            <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>·</Text>
+            <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>МИР</Text>
+            <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>·</Text>
+            <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>Apple Pay</Text>
+          </View>
 
-          <TouchableOpacity onPress={onClose} style={styles.skipBtn}>
+          {/* CTA — tall gold pill with dark text. 58pt per design spec. */}
+          <TouchableOpacity
+            onPress={handleSubscribe}
+            activeOpacity={0.9}
+            accessibilityLabel={ctaTitle}
+            accessibilityRole="button"
+            style={[styles.cta, { backgroundColor: colors.primary }]}
+          >
+            <Text
+              style={{
+                color: colors.textInverse,
+                fontSize: 16,
+                fontWeight: '600',
+              }}
+            >
+              {ctaTitle}
+            </Text>
+            <Text
+              style={{
+                color: colors.textInverse,
+                fontSize: 18,
+                fontWeight: '700',
+                marginLeft: 8,
+              }}
+            >
+              →
+            </Text>
+          </TouchableOpacity>
+
+          <Text
+            style={[
+              typography.caption,
+              { color: colors.textTertiary, textAlign: 'center', marginTop: 10 },
+            ]}
+          >
+            {ctaFineprint}
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => { haptic.light(); onClose(); }}
+            style={styles.skipBtn}
+            accessibilityLabel="Не сейчас"
+            accessibilityRole="button"
+          >
             <Text style={[typography.small, { color: colors.textSecondary }]}>Не сейчас</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -173,16 +411,14 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: 20,
     paddingBottom: spacing.huge,
-    maxHeight: '85%',
+    maxHeight: '92%',
+    overflow: 'hidden',
   },
   handle: {
     width: 40,
@@ -192,50 +428,78 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
-  header: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
+  glow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  brandGlyph: { fontSize: 20, fontWeight: '700' },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  perksContainer: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  perkRow: {
+  featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
+    gap: 12,
+    paddingVertical: 12,
   },
-  pricingRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-    flexWrap: 'wrap',
-  },
-  pricingCard: {
-    flex: 1,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1.5,
-    padding: spacing.lg,
+  featureIconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  pricingCardAccent: {
-    paddingTop: spacing.xl + 4,
+  planCard: {
+    padding: 16,
+    borderRadius: 18,
     position: 'relative',
   },
-  badgeChip: {
+  planBadge: {
     position: 'absolute',
     top: -10,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: borderRadius.sm,
+    right: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    zIndex: 1,
+  },
+  planRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: spacing.lg,
+  },
+  paymentLabel: {
+    fontSize: 11,
+    letterSpacing: 0.5,
+    fontWeight: '500',
+  },
+  cta: {
+    height: 58,
+    borderRadius: 20,
+    marginTop: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skipBtn: {
     alignItems: 'center',
