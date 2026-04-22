@@ -46,10 +46,11 @@ import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
 import { Button, Card, FadeIn } from '../../components';
+import { getApiError } from '../../services';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-// import { PaywallModal } from '../../components';  // uncomment if premium-gated
-// import { useSubscriptionStore } from '../../store'; // uncomment if premium-gated
+// import { PaywallModal } from '../../components';       // uncomment if premium-gated
+// import { useSubscriptionStore } from '../../store';    // uncomment if premium-gated
 
 export const <ScreenName>Screen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const safeTop = useSafeTop();
@@ -69,8 +70,8 @@ export const <ScreenName>Screen: React.FC<{ route: any; navigation: any }> = ({ 
     setError(null);
     try {
       // TODO: fetch data here
-    } catch {
-      setError('Не удалось загрузить данные. Проверь соединение.');
+    } catch (err) {
+      setError(getApiError(err).message); // never use err.message directly
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -130,7 +131,10 @@ export const <ScreenName>Screen: React.FC<{ route: any; navigation: any }> = ({ 
         </FadeIn>
       </ScrollView>
 
-      {/* <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="<feature>" navigation={navigation} /> */}
+      {/* <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)}
+                    reason="feature" navigation={navigation} /> */}
+      {/* reason options: "feature" | "ai_limit" | "food_scan_limit" |
+                         "programs_limit" | "history_limit" | "leaderboard" */}
     </View>
   );
 };
