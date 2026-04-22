@@ -219,6 +219,89 @@ export function findDuplicateNames<T extends { name: string }>(items: T[]): Set<
   return dups;
 }
 
+/** Per-item macro base (kcal + macros per 100g). Keyed by item id in the
+ *  scanner's itemBases map. */
+export interface MacroBase {
+  cal: number;
+  prot: number;
+  fats: number;
+  carbs: number;
+}
+
+/** Merge duplicate-named items in a scanner recognized-items list.
+ *
+ *  For each group of items with the same normalized name:
+ *  - Keep the first (preserves any user rename / confidence edits there).
+ *  - Sum all weights into the kept item.
+ *  - Recompute calories / macros from the kept item's base (per-100g) so
+ *    the merged total is self-consistent with the per-100g view.
+ *  - Drop all others and prune their entries from `bases`.
+ *
+ *  Items with empty names are left alone (we can't group what we can't
+ *  identify). If no duplicates exist, returns the original arrays
+ *  unchanged.
+ *
+ *  Pure function — callers own the state updates. Extracted here so the
+ *  logic can be tested without rendering FoodScannerScreen.
+ */
+export function mergeDuplicateItems<T extends { id: string; name: string; weightGrams: number; calories: number; protein: number; fats: number; carbs: number }>(
+  items: T[],
+  bases: Record<string, MacroBase | undefined>,
+): { items: T[]; bases: Record<string, MacroBase>; mergedCount: number } {
+  const seen = new Map<string, string>(); // normKey → kept item id
+  const extra = new Map<string, number>(); // kept id → summed extra grams
+  for (const item of items) {
+    const key = normalizeFoodName(item.name);
+    if (!key) continue;
+    const kept = seen.get(key);
+    if (kept == null) seen.set(key, item.id);
+    else extra.set(kept, (extra.get(kept) ?? 0) + (item.weightGrams || 0));
+  }
+
+  if (extra.size === 0) {
+    // No duplicates — return originals. Bases unchanged (pass-through).
+    const cleanBases: Record<string, MacroBase> = {};
+    for (const [id, b] of Object.entries(bases)) if (b) cleanBases[id] = b;
+    return { items, bases: cleanBases, mergedCount: 0 };
+  }
+
+  const keptIds = new Set(seen.values());
+  const mergedCount = items.filter((item) => {
+    const key = normalizeFoodName(item.name);
+    return key && !keptIds.has(item.id);
+  }).length;
+
+  const nextItems = items
+    .filter((item) => {
+      const key = normalizeFoodName(item.name);
+      if (!key) return true; // keep nameless items as-is
+      return keptIds.has(item.id);
+    })
+    .map((item) => {
+      const addG = extra.get(item.id);
+      if (!addG) return item;
+      const newW = (item.weightGrams || 0) + addG;
+      const base = bases[item.id];
+      if (!base) return { ...item, weightGrams: newW };
+      return {
+        ...item,
+        weightGrams: newW,
+        calories: Math.round((base.cal * newW) / 100),
+        protein: Math.round(((base.prot * newW) / 100) * 10) / 10,
+        fats: Math.round(((base.fats * newW) / 100) * 10) / 10,
+        carbs: Math.round(((base.carbs * newW) / 100) * 10) / 10,
+      };
+    });
+
+  const nextBases: Record<string, MacroBase> = {};
+  for (const item of nextItems) {
+    const b = bases[item.id];
+    if (b) nextBases[item.id] = b;
+  }
+
+  return { items: nextItems, bases: nextBases, mergedCount };
+}
+
 // ─── Meal-type default (time-of-day heuristic) ────────────────────────────────
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';

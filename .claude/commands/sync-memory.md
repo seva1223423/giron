@@ -71,7 +71,7 @@ MEMORY SYNC REPORT:
 If stale facts found in files:
 
 **Fix docs.md agent old path:**
-Replace `C:/Users/sevka/Desktop/1223/work/iron-gym` with `C:/Users/sevka/Desktop/1223/work/iron-gym` in `.claude/agents/docs.md`.
+Replace `C:/Users/sevka/Projects/iron-gym` with `C:/Users/sevka/Desktop/1223/work/iron-gym` in `.claude/agents/docs.md`.
 
 **Fix CLAUDE.md model count:**
 Read `server/prisma/schema.prisma`, count `^model ` lines, update CLAUDE.md to match.

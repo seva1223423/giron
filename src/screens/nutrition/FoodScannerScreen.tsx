@@ -24,6 +24,7 @@ import {
   defaultMealType,
   findSavedFoodMatch,
   findDuplicateNames,
+  mergeDuplicateItems,
   normalizeFoodName,
   buildBarcodeDisplayName,
   isDraftFresh,
@@ -1027,60 +1028,17 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setRecognizedItems((prev) => prev.map((i) => (i.id === id ? { ...i, name: trimmed } : i)));
   }, []);
 
-  /** Merge duplicate-name items into one each. For every group of items that
-   *  share a normalized name:
-   *   - Keep the first (so the user's per-item edits like rename / confidence
-   *     badge are preserved where they made them first).
-   *   - Sum all weights; recompute macros from the kept item's base (per-100g).
-   *   - Drop the rest and their bases.
+  /** Merge duplicate-name items in the recognized list — delegates to the
+   *  pure `mergeDuplicateItems` in utils/foodScanner so the logic is unit-
+   *  testable without mounting the component. No-op if nothing to merge.
    *
-   *  We don't auto-merge on detection — the warning banner calls this
-   *  explicitly. No undo: confirming via Alert prevents accidental taps.
-   *  Items with empty/whitespace names are left alone (we can't group them). */
+   *  Not auto-invoked on detection: the warning banner calls this explicitly,
+   *  so users with two legitimate portions of the same food (e.g. 2 yogurts)
+   *  aren't silently collapsed. */
   const mergeDuplicates = useCallback(() => {
-    // Compute the whole transform from the currently-known arrays, then commit
-    // both state updates in lockstep. Avoids the nested-functional-setState
-    // trap where we'd race with two independent React updates.
-    const seen = new Map<string, string>(); // normKey → kept item id
-    const extra = new Map<string, number>(); // kept id → summed extra grams
-    for (const item of recognizedItems) {
-      const key = normalizeFoodName(item.name);
-      if (!key) continue;
-      const kept = seen.get(key);
-      if (kept == null) seen.set(key, item.id);
-      else extra.set(kept, (extra.get(kept) ?? 0) + (item.weightGrams || 0));
-    }
-    if (extra.size === 0) return; // nothing to merge
-
-    const keptIds = new Set(seen.values());
-    const nextItems = recognizedItems
-      .filter((item) => {
-        const key = normalizeFoodName(item.name);
-        if (!key) return true; // keep nameless items as-is
-        return keptIds.has(item.id);
-      })
-      .map((item) => {
-        const addG = extra.get(item.id);
-        if (!addG) return item;
-        const newW = (item.weightGrams || 0) + addG;
-        const base = itemBases[item.id];
-        if (!base) return { ...item, weightGrams: newW };
-        return {
-          ...item,
-          weightGrams: newW,
-          calories: Math.round((base.cal * newW) / 100),
-          protein: Math.round(((base.prot * newW) / 100) * 10) / 10,
-          fats: Math.round(((base.fats * newW) / 100) * 10) / 10,
-          carbs: Math.round(((base.carbs * newW) / 100) * 10) / 10,
-        };
-      });
-
-    // Drop bases for removed items
-    const nextBases: typeof itemBases = {};
-    for (const item of nextItems) {
-      if (itemBases[item.id]) nextBases[item.id] = itemBases[item.id];
-    }
-
+    const { items: nextItems, bases: nextBases, mergedCount } =
+      mergeDuplicateItems(recognizedItems, itemBases);
+    if (mergedCount === 0) return;
     setRecognizedItems(nextItems);
     setItemBases(nextBases);
     haptic.success();
