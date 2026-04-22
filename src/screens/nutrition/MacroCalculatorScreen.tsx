@@ -7,22 +7,23 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { MacroResultCard } from './macro';
 import { localDateStr } from '../../utils/date';
-import { isFemale, normalizeGender } from '../../utils/gender';
+import { normalizeGender } from '../../utils/gender';
+import { calcMacros, type ActivityKey, type GoalKey } from '../../utils/macros';
 
-const ACTIVITY_LEVELS = [
-  { key: 'sedentary', label: 'Малоподвижный', desc: 'Офис, нет спорта', multiplier: 1.2 },
-  { key: 'light', label: 'Лёгкая активность', desc: '1–2 тренировки/нед', multiplier: 1.375 },
-  { key: 'moderate', label: 'Умеренная активность', desc: '3–5 тренировок/нед', multiplier: 1.55 },
-  { key: 'high', label: 'Высокая активность', desc: '6–7 тренировок/нед', multiplier: 1.725 },
-  { key: 'extreme', label: 'Экстремальная', desc: '2 раза в день / физ. труд', multiplier: 1.9 },
+const ACTIVITY_LEVELS: { key: ActivityKey; label: string; desc: string }[] = [
+  { key: 'sedentary', label: 'Малоподвижный', desc: 'Офис, нет спорта' },
+  { key: 'light', label: 'Лёгкая активность', desc: '1–2 тренировки/нед' },
+  { key: 'moderate', label: 'Умеренная активность', desc: '3–5 тренировок/нед' },
+  { key: 'high', label: 'Высокая активность', desc: '6–7 тренировок/нед' },
+  { key: 'extreme', label: 'Экстремальная', desc: '2 раза в день / физ. труд' },
 ];
 
-const GOALS = [
-  { key: 'weight_loss_fast', label: 'Быстрое похудение', desc: '-0.7–1 кг/нед', calDelta: -700 },
-  { key: 'weight_loss', label: 'Похудение', desc: '-0.3–0.5 кг/нед', calDelta: -400 },
-  { key: 'recomp', label: 'Рекомпозиция', desc: 'Поддержание + сила', calDelta: 0 },
-  { key: 'muscle_gain', label: 'Набор массы', desc: '+0.3–0.5 кг/нед', calDelta: 400 },
-  { key: 'mass', label: 'Быстрый набор', desc: '+0.7–1 кг/нед', calDelta: 700 },
+const GOALS: { key: GoalKey; label: string; desc: string }[] = [
+  { key: 'weight_loss_fast', label: 'Быстрое похудение', desc: '-0.7–1 кг/нед' },
+  { key: 'weight_loss', label: 'Похудение', desc: '-0.3–0.5 кг/нед' },
+  { key: 'recomp', label: 'Рекомпозиция', desc: 'Поддержание + сила' },
+  { key: 'muscle_gain', label: 'Набор массы', desc: '+0.3–0.5 кг/нед' },
+  { key: 'mass', label: 'Быстрый набор', desc: '+0.7–1 кг/нед' },
 ];
 
 const InputField: React.FC<{ label: string; unit: string; value: string; onChange: (v: string) => void; colors: any }> = ({ label, unit, value, onChange, colors }) => (
@@ -46,23 +47,14 @@ export const MacroCalculatorScreen: React.FC<{ navigation: any }> = ({ navigatio
   const [age, setAge] = useState(userAge ? String(userAge) : '28');
   const [weight, setWeight] = useState(user?.weightKg ? String(user.weightKg) : '80');
   const [height, setHeight] = useState(user?.heightCm ? String(user.heightCm) : '175');
-  const [activityLevel, setActivityLevel] = useState('moderate');
-  const [goal, setGoal] = useState('muscle_gain');
+  const [activityLevel, setActivityLevel] = useState<ActivityKey>('moderate');
+  const [goal, setGoal] = useState<GoalKey>('muscle_gain');
 
   const result = useMemo(() => {
     const w = parseFloat(weight.replace(',', '.')) || 80;
     const h = parseFloat(height.replace(',', '.')) || 175;
     const a = parseFloat(age.replace(',', '.')) || 28;
-    const bmr = gender === 'female' ? 10 * w + 6.25 * h - 5 * a - 161 : 10 * w + 6.25 * h - 5 * a + 5;
-    const actInfo = ACTIVITY_LEVELS.find((x) => x.key === activityLevel) ?? ACTIVITY_LEVELS[2];
-    const tdee = Math.round(bmr * actInfo.multiplier);
-    const goalInfo = GOALS.find((x) => x.key === goal) ?? GOALS[2];
-    const targetCal = Math.max(1200, tdee + goalInfo.calDelta);
-    const proteinPerKg = goal === 'mass' || goal === 'muscle_gain' ? 2.2 : goal === 'recomp' ? 2.0 : 1.8;
-    const protein = Math.round(w * proteinPerKg);
-    const fats = Math.round((targetCal * 0.25) / 9);
-    const carbs = Math.max(50, Math.round((targetCal - protein * 4 - fats * 9) / 4));
-    return { bmr: Math.round(bmr), tdee, targetCal, protein, fats, carbs, proteinPerKg };
+    return calcMacros(w, h, a, gender === 'female', activityLevel, goal);
   }, [gender, age, weight, height, activityLevel, goal]);
 
   const handleApply = () => {
