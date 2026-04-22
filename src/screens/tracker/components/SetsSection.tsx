@@ -7,6 +7,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Workout, WorkoutExercise } from '../../../types';
 import { SetRow } from './SetRow';
+import { CurrentSetHero } from './CurrentSetHero';
 
 
 interface PreviousSets {
@@ -179,6 +180,21 @@ export const SetsSection: React.FC<Props> = ({
             {'↩ Копировать из прошлого раза'}
           </Text>
         </AnimatedPressable>
+      )}
+
+      {/* Gold hero card — pixel copy of the Direction A active-set hero.
+          Shows the next uncomplete set with 40pt numbers (Вес / Повт /
+          RPE), an RPE scale, and a "прошлый: Wxreps" reference. Read-
+          only; tap scrolls into the editable SetRow list below. */}
+      {currentExercise.sets.length > 0 && (
+        <CurrentSetHero
+          exercise={currentExercise}
+          previousSet={(() => {
+            const uncompleteIdx = currentExercise.sets.findIndex((s) => !s.completed);
+            const liveIdx = uncompleteIdx >= 0 ? uncompleteIdx : currentExercise.sets.length - 1;
+            return previousSets?.sets[liveIdx] ?? null;
+          })()}
+        />
       )}
 
       {/* Table header — columns must mirror SetRow layout exactly */}

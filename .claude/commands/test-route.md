@@ -321,7 +321,7 @@ All tests must pass before reporting done. Common failures and fixes:
 
 After all tests pass, update counts in CLAUDE.md and `.claude/agents/tests.md`:
 - Increment server suite count (was 19, now 20)
-- Increment server test count (was 700, add new count)
+- Increment server test count (was 719, add new count)
 - Add file entry to the `server/src/__tests__/` list in `tests.md`
 
 ## Step 6 — Report
