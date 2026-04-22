@@ -1084,14 +1084,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
   }, []);
 
-  // Tick the undo countdown once/sec, but only while there's an active
-  // snapshot — no interval when the undo row is hidden.
+  // Tick the undo countdown once/sec while either undo state is active —
+  // single interval covers both the per-item row and the bulk row so we
+  // don't stack two timers.
   useEffect(() => {
-    if (!lastCleared) return undefined;
+    if (!lastCleared && !lastRemoved) return undefined;
     setUndoTick(Date.now());
     const id = setInterval(() => setUndoTick(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [lastCleared]);
+  }, [lastCleared, lastRemoved]);
 
   // Live elapsed-seconds counter for the AI analysis loading state.
   // Resets to 0 on each `loading → true` transition. Gated on `loading`
@@ -2113,22 +2114,28 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               );
             })()}
 
-            {/* Undo last removal — auto-dismisses after 6s */}
-            {lastRemoved && (
-              <View style={[styles.undoRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]} numberOfLines={1}>
-                  Удалено: {lastRemoved.item.name}
-                </Text>
-                <TouchableOpacity
-                  onPress={undoRemove}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel={`Восстановить ${lastRemoved.item.name}`}
-                  accessibilityRole="button"
-                >
-                  <Text style={[typography.captionMedium, { color: colors.primary, fontWeight: '700' }]}>Отменить</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            {/* Undo last removal — auto-dismisses after 6s. Countdown is
+                derived from expiresAt the same way as the bulk row. */}
+            {lastRemoved && (() => {
+              const remaining = Math.max(0, Math.ceil((lastRemoved.expiresAt - undoTick) / 1000));
+              return (
+                <View style={[styles.undoRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]} numberOfLines={1}>
+                    Удалено: {lastRemoved.item.name}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={undoRemove}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={`Восстановить ${lastRemoved.item.name}. Осталось ${remaining} секунд.`}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[typography.captionMedium, { color: colors.primary, fontWeight: '700' }]}>
+                      Отменить {remaining > 0 ? `· ${remaining}с` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
 
             {/* Totals */}
             <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
