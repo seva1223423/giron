@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useThemeStore } from '../../../store';
-import { FadeIn } from '../../../components';
+import { FadeIn, Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { ChatMessage } from '../../../types';
@@ -62,9 +62,7 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
               accessibilityLabel={isSpeaking ? 'Выключить озвучку' : 'Озвучить сообщение'}
               accessibilityRole="button"
             >
-              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>
-                {isSpeaking ? '◼' : '◁'}
-              </Text>
+              <Icon name={isSpeaking ? 'pause' : 'play'} size={12} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>
