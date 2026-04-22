@@ -42,7 +42,7 @@ server/src/__tests__/           — server integration tests (Jest + Supertest, 
   __mocks__/
     expo-server-sdk.ts          — mock for push notification SDK
 
-src/__tests__/                  — client store unit tests (Jest, 29 suites, 542 tests)
+src/__tests__/                  — client store unit tests (Jest, 29 suites, 555 tests)
   workoutStore.test.ts          — 100+ tests: PR detection, superset, history merge
   workoutBugs.test.ts           — regression tests for known workout store bugs; clientId dedup, FIFO pending sync
   nutritionStore.test.ts        — meal CRUD, cleanup, merge with server data
@@ -90,7 +90,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 532 server tests pass (19 suites), 542 client tests pass (29 suites).
+**Expected baseline:** 532 server tests pass (19 suites), 555 client tests pass (29 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
