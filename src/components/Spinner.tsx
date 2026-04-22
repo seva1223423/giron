@@ -5,6 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
 import { useThemeStore } from '../store';
@@ -38,6 +39,10 @@ export const Spinner: React.FC<Props> = ({ size = 24, color }) => {
       -1,
       false,
     );
+    // Cancel on unmount so the worklet stops running and the shared
+    // value can be garbage collected cleanly. Without this, reanimated
+    // warns in dev when unmounting a spinning spinner.
+    return () => cancelAnimation(rotation);
   }, [rotation]);
 
   const style = useAnimatedStyle(() => ({
