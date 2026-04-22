@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useThemeStore, useNutritionStore, useSubscriptionStore, FREE_LIMITS } from '../../store';
+import { useThemeStore, useNutritionStore, useSubscriptionStore, useConnectionStore, FREE_LIMITS } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useHaptic } from '../../hooks/useHaptic';
 import { Button, Card, PaywallModal, FadeIn } from '../../components';
@@ -265,6 +265,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { addMeal, getDayLog, savedFoods, dailyLog } = useNutritionStore();
+  const isOnline = useConnectionStore((s) => s.isOnline);
   const today = todayDate();
   const dayLog = getDayLog(today);
   const alreadyEaten = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
@@ -637,6 +638,18 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const pickImage = async (useCamera: boolean) => {
     haptic.selection();
     if (foodScansLeft() === 0 && !isPremiumActive()) { setShowPaywall(true); haptic.warning(); return; }
+    // Offline short-circuit — without network, the AI call will hang for
+    // 60s before axios gives up. Bail early with a clear error so the user
+    // knows what to do. Barcode scans still use the full pickImage path
+    // indirectly only for retake, but camera-open logic is handled separately.
+    if (!isOnline) {
+      haptic.warning();
+      Alert.alert(
+        'Нет соединения',
+        'Для AI-анализа фото нужен интернет. Попробуй штрих-код — некоторые продукты есть в локальном кеше, или добавь еду через «+ Сохранённые».',
+      );
+      return;
+    }
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -694,6 +707,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       setTextModalOpen(false);
       setShowPaywall(true);
       haptic.warning();
+      return;
+    }
+    // Text path is an AI call too — same offline rule as pickImage.
+    if (!isOnline) {
+      haptic.warning();
+      setError('Нет соединения. Описание отправится в AI, когда появится интернет.');
+      setTextModalOpen(false);
       return;
     }
     setTextLoading(true);
@@ -1159,6 +1179,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             </Text>
           </View>
         </View>
+
+        {/* Offline banner — AI photo / text analysis and OFF API barcode
+            lookups all need network. Cached barcode lookups (30d TTL) and
+            the manual-add panel still work, so we tell the user exactly
+            what'll work right now. isOnline flips to false from axios'
+            interceptor on any ERR_NETWORK response. */}
+        {!isOnline && (
+          <View style={{ flexDirection: 'row', padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.warning + '15', borderWidth: 1, borderColor: colors.warning + '40', marginBottom: spacing.lg }}>
+            <Text style={{ fontSize: 18, marginRight: spacing.sm }}>📡</Text>
+            <Text style={[typography.small, { color: colors.warning, flex: 1 }]}>
+              Нет соединения. AI-анализ и поиск штрих-кодов по базе временно недоступны — но уже отсканированные штрих-коды и список «+ Сохранённые» работают из кеша.
+            </Text>
+          </View>
+        )}
 
         {/* First-launch tip — three-method primer, dismissable. Persists
             via AsyncStorage so it never re-appears once the user gets it. */}
