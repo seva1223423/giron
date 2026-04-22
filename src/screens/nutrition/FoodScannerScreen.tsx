@@ -977,6 +977,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [lastRemoved, setLastRemoved] = useState<{ item: NutritionItem; base: { cal: number; prot: number; fats: number; carbs: number } | undefined; expiresAt: number } | null>(null);
   const lastRemovedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** Bulk-clear undo snapshot. Distinct from lastRemoved because:
+   *  - It holds every item + every base (not just one pair)
+   *  - It has a longer TTL (10s) — bulk clear is scarier, more room to
+   *    realize the mistake
+   *  - The undo row formatting is different ("Очищено N позиций. Отменить")
+   *  Set by the "Очистить" confirm handler; cleared by the timer, by
+   *  undo, or whenever a new bulk-clear runs. */
+  const [lastCleared, setLastCleared] = useState<{
+    items: NutritionItem[];
+    bases: Record<string, { cal: number; prot: number; fats: number; carbs: number }>;
+    expiresAt: number;
+  } | null>(null);
+  const lastClearedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const removeItem = useCallback((id: string) => {
     haptic.medium();
     const removed = recognizedItems.find((i) => i.id === id);
@@ -1000,9 +1014,35 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setLastRemoved(null);
   }, [lastRemoved, haptic]);
 
-  // Cleanup the undo timer on unmount so we don't leak a setTimeout.
+  /** Bulk-clear with undo snapshot. Called from the "Очистить" Alert confirm
+   *  branch. Saves both arrays, sets a 10s auto-clear, wipes state. */
+  const clearAllItems = useCallback(() => {
+    const snapshot = {
+      items: recognizedItems,
+      bases: { ...itemBases },
+      expiresAt: Date.now() + 10_000,
+    };
+    haptic.warning();
+    setRecognizedItems([]);
+    setItemBases({});
+    setLastCleared(snapshot);
+    if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
+    lastClearedTimerRef.current = setTimeout(() => setLastCleared(null), 10_000);
+  }, [recognizedItems, itemBases, haptic]);
+
+  const undoClear = useCallback(() => {
+    if (!lastCleared) return;
+    haptic.success();
+    if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
+    setRecognizedItems(lastCleared.items);
+    setItemBases(lastCleared.bases);
+    setLastCleared(null);
+  }, [lastCleared, haptic]);
+
+  // Cleanup the undo timers on unmount so we don't leak setTimeouts.
   useEffect(() => () => {
     if (lastRemovedTimerRef.current) clearTimeout(lastRemovedTimerRef.current);
+    if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
   }, []);
 
   // Live elapsed-seconds counter for the AI analysis loading state.
@@ -1225,6 +1265,26 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <Text style={[typography.small, { color: colors.warning, flex: 1 }]}>
               Нет соединения. AI-анализ и поиск штрих-кодов по базе временно недоступны — но уже отсканированные штрих-коды и список «+ Сохранённые» работают из кеша.
             </Text>
+          </View>
+        )}
+
+        {/* Bulk-clear undo snapshot — distinct from the per-item undo row
+            (which shows inside the items block). Sits near the top so it's
+            obvious the list wasn't lost. Auto-dismisses after 10s via the
+            setTimeout in clearAllItems. */}
+        {lastCleared && (
+          <View style={[styles.undoRow, { backgroundColor: colors.warning + '15', borderColor: colors.warning + '40', marginBottom: spacing.md }]}>
+            <Text style={[typography.caption, { color: colors.warning, flex: 1 }]} numberOfLines={1}>
+              Очищено {lastCleared.items.length} {lastCleared.items.length === 1 ? 'позиция' : 'позиций'}
+            </Text>
+            <TouchableOpacity
+              onPress={undoClear}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={`Восстановить ${lastCleared.items.length} очищенных позиций`}
+              accessibilityRole="button"
+            >
+              <Text style={[typography.captionMedium, { color: colors.warning, fontWeight: '700' }]}>Отменить</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1774,28 +1834,21 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               {recognizedItems.length >= 3 && (
                 <TouchableOpacity
                   onPress={() => {
-                    // Confirm because bulk-clear can't be undone and fingers
-                    // slip. Single-item delete does have undo (lastRemoved).
+                    // Confirm before bulk-clear — fingers slip. Snapshot-undo
+                    // is available for 10s after, but the user shouldn't rely
+                    // on it for every tap.
                     Alert.alert(
                       'Очистить список?',
-                      `Будут удалены все ${recognizedItems.length} позиций.`,
+                      `Будут удалены все ${recognizedItems.length} позиций. Восстановить можно будет 10 секунд.`,
                       [
                         { text: 'Отмена', style: 'cancel' },
-                        {
-                          text: 'Очистить',
-                          style: 'destructive',
-                          onPress: () => {
-                            haptic.warning();
-                            setRecognizedItems([]);
-                            setItemBases({});
-                          },
-                        },
+                        { text: 'Очистить', style: 'destructive', onPress: clearAllItems },
                       ],
                     );
                   }}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   accessibilityLabel={`Очистить все ${recognizedItems.length} распознанных позиций`}
-                  accessibilityHint="Список опустеет. Действие нельзя отменить."
+                  accessibilityHint="Список опустеет. После очистки будет 10 секунд на отмену."
                   accessibilityRole="button"
                 >
                   <Text style={[typography.captionMedium, { color: colors.error, fontWeight: '700' }]}>Очистить</Text>
