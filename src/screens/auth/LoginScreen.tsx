@@ -3,22 +3,20 @@ import {
   View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform,
   ScrollView, ActivityIndicator, TextInput,
 } from 'react-native';
-import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useThemeStore, useAuthStore } from '../../store';
-import { Button, Input } from '../../components';
+import { Button, Input, GoogleAuthButton } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { authService } from '../../services/authService';
 import { features } from '../../config/store';
 
-WebBrowser.maybeCompleteAuthSession();
-
-const GOOGLE_CLIENT_ID_WEB = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
-const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
-const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID;
-const googleConfigured = !!(GOOGLE_CLIENT_ID_WEB || GOOGLE_CLIENT_ID_IOS || GOOGLE_CLIENT_ID_ANDROID);
+const googleConfigured = !!(
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID
+);
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 
@@ -40,7 +38,7 @@ function formatPhoneDisplay(digits: string): string {
 
 export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
-  const { login, loginWithGoogle, loginByPhone, loginWithTotp, loginWithYandex, isLoading, error, clearError } = useAuthStore();
+  const { login, loginByPhone, loginWithTotp, loginWithYandex, isLoading, error, clearError } = useAuthStore();
 
   const [tab, setTab] = useState<LoginTab>('email');
   const [showTotpInput, setShowTotpInput] = useState(false);
@@ -66,33 +64,8 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   // Shared
   const [localError, setLocalError] = useState('');
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [vkLoading, setVkLoading] = useState(false);
   const [yandexLoading, setYandexLoading] = useState(false);
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: GOOGLE_CLIENT_ID_WEB,
-    iosClientId: GOOGLE_CLIENT_ID_IOS,
-    androidClientId: GOOGLE_CLIENT_ID_ANDROID,
-    scopes: ['openid', 'profile', 'email'],
-  });
-
-  // Google OAuth response handler
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.authentication?.idToken;
-      if (idToken) {
-        setGoogleLoading(true);
-        loginWithGoogle(idToken)
-          .catch((e) => setLocalError(e?.response?.data?.error || 'Ошибка входа через Google'))
-          .finally(() => setGoogleLoading(false));
-      } else {
-        setLocalError('Не удалось получить токен от Google');
-      }
-    } else if (response?.type === 'error') {
-      setLocalError('Ошибка авторизации через Google');
-    }
-  }, [response]);
 
   // Countdown timer cleanup
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
@@ -249,12 +222,6 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  const handleGooglePress = async () => {
-    if (!googleConfigured) { setLocalError('Google OAuth не настроен'); return; }
-    clearErrors();
-    await promptAsync();
-  };
-
   const handleVkPress = async () => {
     if (!VK_APP_ID) { setLocalError('VK OAuth не настроен (нужен EXPO_PUBLIC_VK_APP_ID)'); return; }
     clearErrors();
@@ -309,7 +276,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   const displayError = localError || error;
-  const anyLoading = isLoading || googleLoading || otpSending || vkLoading || yandexLoading;
+  const anyLoading = isLoading || otpSending || vkLoading || yandexLoading;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -562,18 +529,8 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
             </View>
 
-            {features.googleOAuth && (
-              <TouchableOpacity
-                onPress={handleGooglePress}
-                disabled={anyLoading || !request}
-                style={[styles.socialBtn, { borderColor: colors.border, backgroundColor: colors.surface }, (anyLoading || !request) && { opacity: 0.5 }]}
-              >
-                {googleLoading
-                  ? <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
-                  : <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
-                }
-                <Text style={[typography.bodySemibold, { color: colors.text }]}>Войти через Google</Text>
-              </TouchableOpacity>
+            {features.googleOAuth && googleConfigured && (
+              <GoogleAuthButton onError={setLocalError} disabled={anyLoading} />
             )}
 
             <TouchableOpacity
