@@ -39,18 +39,18 @@ Schema file: `server/prisma/schema.prisma`
 ```prisma
 model User {
   id               String    @id @default(cuid())
-  email            String?   @unique
+  email            String    @unique  // NOT optional
   phone            String?   @unique
   passwordHash     String?
-  firstName        String?
+  firstName        String             // NOT optional
   lastName         String?
-  gender           String?        // MALE | FEMALE | OTHER
-  birthDate        DateTime?
+  gender           Gender?            // MALE | FEMALE (enum Gender)
+  dateOfBirth      DateTime?
   weightKg         Float?
   heightCm         Float?
-  goal             String?        // weight_loss | muscle_gain | maintenance | endurance | general_fitness
-  fitnessLevel     String?        // beginner | intermediate | advanced
-  role             String    @default("USER")  // USER | ADMIN | STAFF | TRAINER
+  goal             TrainingGoal?      // WEIGHT_LOSS | MUSCLE_GAIN | STRENGTH | ENDURANCE | FLEXIBILITY | GENERAL_FITNESS
+  fitnessLevel     FitnessLevel?      // BEGINNER | INTERMEDIATE | ADVANCED | EXPERT
+  role             UserRole  @default(CLIENT)  // GUEST | VISITOR | CLIENT | TRAINER | SUPPORT | ADMIN
   isBanned         Boolean   @default(false)
   banReason        String?
   adminNote        String?        // internal admin notes, not shown to user
