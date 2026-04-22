@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { typography } from '../../../theme';
+import { Icon, type IconName } from '../../../components';
 import { spacing } from '../../../theme/spacing';
 
 interface Action {
-  /** Emoji or glyph for the icon tile. Kept simple so we don't need an icon lib. */
-  icon: string;
+  /** Icon name from the shared Icon set (24pt stroke). */
+  icon: IconName;
   label: string;
   subtitle: string;
   onPress: () => void;
@@ -29,6 +29,7 @@ interface Props {
  *
  * Accepts an array so callers can pass any 2 (or more) relevant actions
  * — the design shows exactly two but the grid auto-flows to 2 per row.
+ * Icons are SVG from the shared Icon set so they stay sharp on any DPR.
  */
 export const QuickActionsGrid: React.FC<Props> = ({ actions }) => {
   const { colors } = useThemeStore();
@@ -70,7 +71,7 @@ export const QuickActionsGrid: React.FC<Props> = ({ actions }) => {
               marginBottom: 10,
             }}
           >
-            <Text style={{ color: colors.primary, fontSize: 16 }}>{a.icon}</Text>
+            <Icon name={a.icon} size={16} color={colors.primary} />
           </View>
           <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
             {a.label}

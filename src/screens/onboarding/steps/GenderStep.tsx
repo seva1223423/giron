@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeStore } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Gender } from '../../../types';
@@ -70,7 +71,7 @@ export const GenderStep: React.FC<Props> = ({ gender, onSelect }) => {
             justifyContent: 'center',
           }}
         >
-          <Text style={{ color: colors.textInverse, fontSize: 22, fontWeight: '700' }}>✦</Text>
+          <Icon name="spark" size={22} color={colors.textInverse} strokeWidth={2.2} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
@@ -80,7 +81,7 @@ export const GenderStep: React.FC<Props> = ({ gender, onSelect }) => {
             Составит программу за 30 секунд
           </Text>
         </View>
-        <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '700' }}>→</Text>
+        <Icon name="arrow" size={18} color={colors.primary} strokeWidth={2.2} />
       </View>
 
       <Text
