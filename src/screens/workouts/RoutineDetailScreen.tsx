@@ -10,7 +10,7 @@ import { Button, Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { workoutService } from '../../services';
-import type { RoutineStartPayload, RoutineHistoryEntry } from '../../types';
+import type { RoutineExercise, RoutineStartPayload, RoutineHistoryEntry } from '../../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -214,7 +214,7 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   }, [renameValue, routine, updateRoutineName, haptic]);
 
   // Shared helper — takes a new ordered exercise list, sends to server optimistically
-  const saveExerciseOrder = useCallback(async (newExercises: typeof routine extends undefined ? never : NonNullable<typeof routine>['exercises']) => {
+  const saveExerciseOrder = useCallback(async (newExercises: RoutineExercise[]) => {
     if (!routine) return;
     setSavingEdit(true);
     const snapshot = routine;
@@ -429,14 +429,32 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                   )}
                 </View>
                 {editMode && (
-                  <TouchableOpacity
-                    onPress={() => handleRemoveExercise(i)}
-                    disabled={savingEdit}
-                    style={[styles.deleteBtn, { borderColor: colors.error + '50', marginLeft: spacing.sm }]}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    {savingEdit ? <ActivityIndicator size="small" color={colors.error} /> : <Text style={{ color: colors.error }}>×</Text>}
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: spacing.xs, marginLeft: spacing.sm }}>
+                    <TouchableOpacity
+                      onPress={() => handleMoveExercise(i, 'up')}
+                      disabled={savingEdit || i === 0}
+                      style={[styles.moveBtn, { borderColor: colors.border, opacity: i === 0 ? 0.3 : 1 }]}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>▲</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleMoveExercise(i, 'down')}
+                      disabled={savingEdit || i === routine.exercises.length - 1}
+                      style={[styles.moveBtn, { borderColor: colors.border, opacity: i === routine.exercises.length - 1 ? 0.3 : 1 }]}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>▼</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveExercise(i)}
+                      disabled={savingEdit}
+                      style={[styles.deleteBtn, { borderColor: colors.error + '50' }]}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      {savingEdit ? <ActivityIndicator size="small" color={colors.error} /> : <Text style={{ color: colors.error }}>×</Text>}
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
 
@@ -620,6 +638,10 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     width: 28, height: 28, borderRadius: 14,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  },
+  moveBtn: {
+    width: 26, height: 26, borderRadius: 6,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
 });
