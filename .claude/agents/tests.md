@@ -18,7 +18,8 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 11 suites, 263 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 12 suites, 268 tests)
+  ai_security.test.ts           — AI tool userId isolation, daily quota gating (5 tests)
   auth.test.ts                  — login, register, refresh token, ban, 2FA
   otp.test.ts                   — OTP flows, forgot/reset password, brute-force lockout
   webhook.test.ts               — RevenueCat, YuKassa, generic webhook signature verification
@@ -78,7 +79,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 263 server tests pass (11 suites), 442 client tests pass (25 suites).
+**Expected baseline:** 268 server tests pass (12 suites), 442 client tests pass (25 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
@@ -439,7 +440,7 @@ describe('useSubscriptionStore', () => {
    test('merge keeps local deletions over server data', async () => { ... });
    ```
 
-3. **AI tool userId isolation** — AI `log_body_weight` must write to `req.userId`, not any parsed value (test above)
+~~3. **AI tool userId isolation**~~ — **DONE** in `ai_security.test.ts` (BUG-AI-001, 2 tests)
 
 4. **Offline → online sync order** — pendingSync items dispatched in insertion order:
    ```typescript
