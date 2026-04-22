@@ -9,7 +9,7 @@ import { Button, FadeIn, Card } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements, getNewlyUnlocked } from '../../utils/achievements';
-import { localDateStr } from '../../utils/date';
+import { computeStreak } from '../../utils/date';
 import { scheduleStreakRiskNotification } from '../../services/notificationService';
 import { workoutService } from '../../services';
 import {
@@ -77,22 +77,10 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   const newAchievements = useMemo(() => {
     if (!workout) return [];
     const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => (d.meals?.length ?? 0) > 0).length;
-    const sortedDates = workoutHistory
-      .filter((w) => w.completedAt)
-      .map((w) => localDateStr(new Date(w.completedAt!)))
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort()
-      .reverse();
-    let streak = 0;
-    const today = new Date();
-    for (let i = 0; i < sortedDates.length; i++) {
-      const expected = new Date(today);
-      expected.setDate(today.getDate() - i);
-      if (sortedDates[i] === localDateStr(expected)) streak++;
-      else break;
-    }
+    const streak = computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]);
     const prevHistory = workoutHistory.filter((w) => w.id !== workout.id);
-    const prevAchievements = computeAchievements({ workoutHistory: prevHistory, nutritionDaysLogged, currentStreak: Math.max(0, streak - 1) });
+    const prevStreak = computeStreak(prevHistory.map((w) => w.completedAt).filter(Boolean) as string[]);
+    const prevAchievements = computeAchievements({ workoutHistory: prevHistory, nutritionDaysLogged, currentStreak: prevStreak });
     const prevUnlockedIds = prevAchievements.filter((a) => a.unlocked).map((a) => a.id);
     const currentAchievements = computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak: streak });
     return getNewlyUnlocked(prevUnlockedIds, currentAchievements);
