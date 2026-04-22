@@ -25,7 +25,7 @@ Use `Grep` to find exact locations. Key search terms:
 | Mood detection | `MOOD_PATTERNS\|detectMood\|moodDirective` |
 | Knowledge modules array | `KNOWLEDGE_MODULES\|const.*modules.*=` |
 | TF-IDF selector function | `selectKnowledgeModules\|scoreModule` |
-| Analytics context builder | `buildAnalyticsContext\|analyticsBlocks\|Promise.all` |
+| Analytics context builder | `_t0ContextPrimary\|_t0ContextSecondary\|Promise.all` (two parallel blocks: primary ~line 2880, secondary ~line 3470) |
 | AIMemory loading | `userMemoriesBlock\|aIMemory.findMany` |
 | Tool definitions array | `const TOOLS.*DeepSeekTool\|type.*DeepSeekTool` |
 | Tool executor function | `executeTool\|async.*executeTool` |
@@ -42,7 +42,7 @@ Use `Grep` to find exact locations. Key search terms:
 POST /api/ai/chat
   1. classifyIntent(message)         → one of 10 intent types
   2. detectMood(message)             → directive string or null
-  3. buildAnalyticsContext(userId)   → ~180 data points via Promise.all
+  3. buildAnalyticsContext(userId)   → ~180 data points via two Promise.all blocks; timing alerts at 2000ms
   4. selectKnowledgeModules(message, intent) → top 2-3 of 25 modules
   5. loadAIMemory(userId)            → allergy/preference/injury facts
   6. assembleSystemPrompt(...)       → persona + context + knowledge + mood

@@ -197,9 +197,13 @@ import jwt from 'jsonwebtoken';
 import { app } from '../index';
 import { prisma } from '../db';
 
-// Helper: build test JWT
+// Helper: build test JWT — MUST include issuer+audience (auth middleware verifies both)
 const makeToken = (userId = 'u-test', role = 'USER') =>
-  jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+  jwt.sign({ userId, role }, process.env.JWT_SECRET!, {
+    expiresIn: '1h',
+    issuer: 'irongym-api',
+    audience: 'irongym-app',
+  });
 ```
 
 **beforeEach pattern — re-mock after clearAllMocks:**

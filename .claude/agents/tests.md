@@ -157,9 +157,13 @@ import jwt from 'jsonwebtoken';
 import { app } from '../index';
 import { prisma } from '../db';
 
-// Helper: build test JWT
+// Helper: build test JWT — MUST include issuer+audience (auth middleware verifies both)
 const makeToken = (userId = 'u-test', role = 'USER') =>
-  jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+  jwt.sign({ userId, role }, process.env.JWT_SECRET!, {
+    expiresIn: '1h',
+    issuer: 'irongym-api',
+    audience: 'irongym-app',
+  });
 ```
 
 ## Full Server Test Pattern — All 4 Cases Every Route
@@ -168,7 +172,11 @@ const makeToken = (userId = 'u-test', role = 'USER') =>
 describe('POST /api/workouts/history', () => {
   const userId = 'user-test-123';
   const makeToken = (id = userId, role = 'USER') =>
-    jwt.sign({ userId: id, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+    jwt.sign({ userId: id, role }, process.env.JWT_SECRET!, {
+      expiresIn: '1h',
+      issuer: 'irongym-api',
+      audience: 'irongym-app',
+    });
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -238,7 +246,9 @@ Use this to test any subscription-gated endpoint:
 ```typescript
 describe('Subscription gating — GET /api/workouts/leaderboard', () => {
   const userId = 'u-free';
-  const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+  const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, {
+    expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -279,7 +289,9 @@ Tests that when AI calls a tool, the correct Prisma mutation happens:
 ```typescript
 describe('AI tool execution', () => {
   const userId = 'u-ai-test';
-  const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+  const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, {
+    expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -477,7 +489,7 @@ describe('useSubscriptionStore', () => {
 | `MemCache is not a constructor` | memCache mock missing class export | Use the MemCache class mock pattern (Step 3 in boilerplate above) |
 | Test passes alone but 500s in full suite | `clearAllMocks()` wipes `mockResolvedValue` set in mock factory | Re-mock persistent fallback values (e.g. `findMany`, `count`) in `beforeEach` after `clearAllMocks()` |
 | State bleeds between tests | No `setState` reset in beforeEach | Reset all relevant store fields in `beforeEach` |
-| `JWT invalid` | Secret not set | `setup.ts` sets `JWT_SECRET` — check it's imported |
+| `JWT invalid` | Secret not set, or missing issuer/audience | `setup.ts` sets `JWT_SECRET`. Also add `issuer: 'irongym-api', audience: 'irongym-app'` to `jwt.sign()` — middleware verifies both |
 | Test hangs after pass | Open handles | Use `--forceExit`; look for uncleared `setInterval` |
 | `analyzeImage is not a function` | deepseekAI not mocked | Add `jest.mock('../services/deepseekAI', ...)` before app import |
 | `isValidId returns false` for `r-1` style IDs | CUID regex `/^c[a-z0-9]{20,30}$/` in workout.ts | Use CUID-format mock IDs, e.g. `croutine00000000000000001` |
