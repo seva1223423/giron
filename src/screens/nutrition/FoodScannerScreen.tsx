@@ -463,6 +463,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     return [...savedFoods, ...dbFoods];
   }, [savedFoods]);
 
+  /** When true, the next analyzeFood result will APPEND to existing
+   *  recognizedItems instead of replacing them. Used by the "+ Ещё фото"
+   *  flow for compound meals (soup + main + bread photographed separately). */
+  const appendNextRef = useRef(false);
+
   const applyAIItems = (rawItems: CachedAIResult['items']) => {
     const items: NutritionItem[] = rawItems.map((raw, index) => {
       // Prefer user's saved macros first, then the built-in FOOD_DB — both
@@ -490,17 +495,32 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         confidence: raw.confidence,
       };
     });
-    const bases: typeof itemBases = {};
+    const newBases: typeof itemBases = {};
     items.forEach((item) => {
       const w = item.weightGrams || 100;
-      bases[item.id] = {
+      newBases[item.id] = {
         cal: (item.calories / w) * 100,
         prot: (item.protein / w) * 100,
         fats: (item.fats / w) * 100,
         carbs: (item.carbs / w) * 100,
       };
     });
-    setItemBases(bases);
+
+    // Append mode (multi-photo compound meals) — merge with existing items
+    // instead of replacing. The combined list is then re-flagged so the
+    // sanity check sees the full combined macros.
+    if (appendNextRef.current) {
+      appendNextRef.current = false;
+      const merged = [...recognizedItems, ...items];
+      setItemBases({ ...itemBases, ...newBases });
+      setRecognizedItems(merged);
+      setIsBarcodeResult(false);
+      setSanityFlags(flagSanity(merged));
+      setTotalWeightDraft(String(merged.reduce((s, i) => s + (i.weightGrams || 0), 0)));
+      return items;
+    }
+
+    setItemBases(newBases);
     setRecognizedItems(items);
     setIsBarcodeResult(false);
     setSanityFlags(flagSanity(items));
@@ -1349,15 +1369,27 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               </View>
             )}
 
-            {/* Add saved food panel */}
-            <TouchableOpacity
-              onPress={() => setShowAddPanel((v) => !v)}
-              style={[styles.addMoreBtn, { borderColor: showAddPanel ? colors.primary : colors.border, backgroundColor: colors.surface }]}
-            >
-              <Text style={[typography.smallMedium, { color: showAddPanel ? colors.primary : colors.textSecondary }]}>
-                {showAddPanel ? '− Свернуть' : '+ Добавить продукт'}
-              </Text>
-            </TouchableOpacity>
+            {/* "+ Ещё фото" — multi-photo flow for compound meals (e.g. soup
+                + main + bread photographed separately). Sets appendNextRef
+                so the next analyzeFood call merges into existing items. */}
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+              <TouchableOpacity
+                onPress={() => { haptic.selection(); appendNextRef.current = true; pickImage(true); }}
+                style={[styles.addMoreBtn, { flex: 1, borderColor: colors.border, backgroundColor: colors.surface }]}
+                accessibilityLabel="Добавить ещё фото к этому приёму"
+                accessibilityHint="Распознанные позиции добавятся к текущим"
+              >
+                <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>+ Ещё фото</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowAddPanel((v) => !v)}
+                style={[styles.addMoreBtn, { flex: 1, borderColor: showAddPanel ? colors.primary : colors.border, backgroundColor: colors.surface }]}
+              >
+                <Text style={[typography.smallMedium, { color: showAddPanel ? colors.primary : colors.textSecondary }]}>
+                  {showAddPanel ? '− Свернуть' : '+ Сохранённые'}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {showAddPanel && (
               <Card style={{ marginBottom: spacing.md }}>
