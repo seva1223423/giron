@@ -1590,6 +1590,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               <TouchableOpacity
                 onPress={() => { haptic.selection(); setNotFound(false); pickImage(true); }}
                 style={[styles.fallbackRow, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}
+                accessibilityLabel="Сфотографировать этикетку продукта"
+                accessibilityHint="AI считает КБЖУ прямо с таблицы пищевой ценности"
+                accessibilityRole="button"
               >
                 <Text style={{ fontSize: 24 }}>📸</Text>
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -1600,6 +1603,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               <TouchableOpacity
                 onPress={() => { haptic.selection(); setNotFound(false); setTextModalOpen(true); }}
                 style={[styles.fallbackRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                accessibilityLabel="Описать продукт текстом"
+                accessibilityHint="Введите название и вес — AI посчитает КБЖУ"
+                accessibilityRole="button"
               >
                 <Text style={{ fontSize: 24 }}>📝</Text>
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -1610,6 +1616,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               <TouchableOpacity
                 onPress={() => { haptic.selection(); navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() }); }}
                 style={[styles.fallbackRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                accessibilityLabel="Ввести КБЖУ вручную"
+                accessibilityHint="Откроет полную форму с белками, жирами и углеводами"
+                accessibilityRole="button"
               >
                 <Text style={{ fontSize: 24 }}>✎</Text>
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -1618,7 +1627,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 </View>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: spacing.sm, marginTop: spacing.sm }} onPress={() => { haptic.selection(); setNotFound(false); setBarcodeScanned(false); setShowBarcodeScanner(true); }}>
+            <TouchableOpacity
+              style={{ alignItems: 'center', paddingVertical: spacing.sm, marginTop: spacing.sm }}
+              onPress={() => { haptic.selection(); setNotFound(false); setBarcodeScanned(false); setShowBarcodeScanner(true); }}
+              accessibilityLabel="Сканировать другой штрих-код"
+              accessibilityRole="button"
+            >
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Сканировать другой код</Text>
             </TouchableOpacity>
           </Card>
