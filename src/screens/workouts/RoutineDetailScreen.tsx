@@ -126,7 +126,7 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { routines, activeWorkout, removeRoutine, updateRoutineName, replaceRoutine, duplicateRoutine, startWorkoutFromRoutine, fetchRoutines } = useWorkoutStore();
+  const { routines, activeWorkout, removeRoutine, updateRoutineName, replaceRoutine, duplicateRoutine, startWorkoutFromRoutine } = useWorkoutStore();
 
   const routine = routines.find((r) => r.id === routineId);
 
