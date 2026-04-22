@@ -301,6 +301,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [sanityFlags, setSanityFlags] = useState<SanityFlag[]>([]);
   // Whether the last AI result came from local cache (hint to the user + no credit burned)
   const [cachedResult, setCachedResult] = useState(false);
+  // Text-description fallback — type what you ate instead of taking a photo
+  const [textModalOpen, setTextModalOpen] = useState(false);
+  const [textDescription, setTextDescription] = useState('');
+  const [textLoading, setTextLoading] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastBase64Ref = useRef<string>('');
@@ -552,6 +556,56 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   // ─── Barcode ────────────────────────────────────────────────────────────────
+
+  const analyzeByText = async () => {
+    const desc = textDescription.trim();
+    if (desc.length < 3) {
+      haptic.warning();
+      return;
+    }
+    if (!isPremiumActive() && foodScansLeft() === 0) {
+      setTextModalOpen(false);
+      setShowPaywall(true);
+      haptic.warning();
+      return;
+    }
+    setTextLoading(true);
+    setError('');
+    setSanityFlags([]);
+    try {
+      const result = await aiService.analyzeFoodText(desc);
+      // Same shape as /analyze-food — reuse applyAIItems so all the derived
+      // state (bases, totalWeight, sanity flags) gets computed the same way.
+      const items = applyAIItems(result.items);
+      if (items.length === 0) {
+        setError('Не удалось распознать продукты из описания. Попробуй конкретнее.');
+        haptic.warning();
+      } else {
+        setTextModalOpen(false);
+        setTextDescription('');
+        setImageUri(null); // no photo — we came from text path
+        haptic.success();
+        // Count a scan for the free-plan quota (server already logs one).
+        if (!isPremiumActive()) consumeFoodScan();
+      }
+    } catch (e: any) {
+      if (e?.response?.status === 402) {
+        setTextModalOpen(false);
+        setShowPaywall(true);
+        haptic.warning();
+      } else if (e?.suggestion) {
+        setError(e.suggestion);
+        setErrorRetryable(e?.retryable !== false);
+        haptic.error();
+      } else {
+        setError(getApiError(e).message);
+        setErrorRetryable(true);
+        haptic.error();
+      }
+    } finally {
+      setTextLoading(false);
+    }
+  };
 
   const openBarcodeScanner = async () => {
     haptic.selection();
@@ -862,6 +916,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 <Text style={[typography.caption, { color: colors.textSecondary }]}>Для упакованных продуктов</Text>
               </View>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); setTextModalOpen(true); }}
+              style={[styles.barcodeBtn, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: spacing.sm }]}
+            >
+              <Text style={{ fontSize: 22 }}>📝</Text>
+              <View style={{ marginLeft: spacing.sm }}>
+                <Text style={[typography.smallMedium, { color: colors.text }]}>Описать текстом</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>«150г куриной грудки и 200г риса»</Text>
+              </View>
+            </TouchableOpacity>
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
               <TextInput
                 style={[styles.manualInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text, flex: 1 }]}
@@ -976,21 +1040,30 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 style={{ marginTop: spacing.md }}
               />
             )}
-            {/* If the AI failed to recognise food, offer an immediate barcode
-                fallback — much more reliable for packaged products. */}
+            {/* If the AI failed to recognise food, offer three direct
+                fallbacks — text describe (fastest), barcode (for packaged
+                products), and the manual full-form screen. */}
             {!loading && (
-              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Button
+                    title="📝 Текстом"
+                    variant="outline"
+                    onPress={() => { haptic.selection(); setError(''); setImageUri(null); setTextModalOpen(true); }}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    title="📦 Штрих-код"
+                    variant="outline"
+                    onPress={() => { setError(''); setImageUri(null); openBarcodeScanner(); }}
+                    style={{ flex: 1 }}
+                  />
+                </View>
                 <Button
-                  title="📦 Штрих-код"
-                  variant="outline"
-                  onPress={() => { setError(''); setImageUri(null); openBarcodeScanner(); }}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  title="Вручную"
+                  title="Добавить вручную"
                   variant="outline"
                   onPress={() => { setError(''); setImageUri(null); navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() }); }}
-                  style={{ flex: 1 }}
+                  fullWidth
                 />
               </View>
             )}
@@ -1192,6 +1265,50 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         onScan={handleBarcodeScan}
       />
 
+      {/* Text-description fallback — when a photo isn't practical (dark
+          restaurant, already eaten, remembered meal) or when the vision
+          path keeps failing, the user can type what they ate and get the
+          same item-list response. Same daily quota, same cache. */}
+      <Modal visible={textModalOpen} transparent animationType="fade" onRequestClose={() => !textLoading && setTextModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.textModalCard, { backgroundColor: colors.surface }]}>
+            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>
+              Описать еду текстом
+            </Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.md }]}>
+              Например: «гречка 150г с курицей 200г и салатом из помидоров». Укажи
+              примерный вес — так точнее.
+            </Text>
+            <TextInput
+              value={textDescription}
+              onChangeText={setTextDescription}
+              placeholder="Что ты ел? С примерным весом..."
+              placeholderTextColor={colors.inputPlaceholder}
+              style={[styles.textArea, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+              multiline
+              autoFocus
+              maxLength={2000}
+              editable={!textLoading}
+            />
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+              <Button
+                title="Отмена"
+                variant="outline"
+                onPress={() => { if (!textLoading) { setTextModalOpen(false); setTextDescription(''); } }}
+                style={{ flex: 1 }}
+              />
+              {textLoading ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : (
+                <Button title="Распознать" onPress={analyzeByText} style={{ flex: 1 }} />
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Full-screen image preview — tap the thumbnail to inspect what you
           actually photographed before trusting the AI's identification. */}
       <Modal visible={imagePreviewOpen} transparent animationType="fade" onRequestClose={() => setImagePreviewOpen(false)}>
@@ -1281,5 +1398,24 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'ios' ? 42 : 24,
     color: 'rgba(255,255,255,0.6)',
     fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  textModalCard: {
+    padding: spacing.xl,
+    borderRadius: 16,
+  },
+  textArea: {
+    minHeight: 110,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 15,
+    textAlignVertical: 'top',
   },
 });

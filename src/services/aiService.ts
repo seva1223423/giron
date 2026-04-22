@@ -172,6 +172,27 @@ export const aiService = {
     }
   },
 
+  /** Parse a free-text meal description into KBJU-annotated FoodItem[].
+   *  Shares the daily scan quota with /analyze-food on the server. Errors
+   *  surface with the same { suggestion, retryable } shape as the vision
+   *  path so callers can reuse UI error cards unchanged. */
+  async analyzeFoodText(description: string, signal?: AbortSignal): Promise<FoodAnalysisResult> {
+    try {
+      const { data } = await api.post('/ai/analyze-food-text', { description }, { signal });
+      return data;
+    } catch (e: any) {
+      if (e?.response?.status === 422) {
+        const payload = e.response.data ?? {};
+        const err: any = new Error(payload.error || 'Не удалось распознать описание');
+        err.suggestion = payload.suggestion ?? null;
+        err.retryable = payload.retryable ?? true;
+        err.status = 422;
+        throw err;
+      }
+      throw e;
+    }
+  },
+
   async getChatHistory(limit = 100, page = 1): Promise<{ messages: ChatMessage[]; total: number; pages: number }> {
     const { data } = await api.get('/ai/history', { params: { limit, page } });
     if (Array.isArray(data)) {
