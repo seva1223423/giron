@@ -38,7 +38,8 @@ interface Props {
 export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { activeWorkout } = useWorkoutStore();
+  const { activeWorkout, routines } = useWorkoutStore();
+  const routineName = workout.routineId ? routines.find((r) => r.id === workout.routineId)?.name : undefined;
 
   const exercises = workout.exercises ?? [];
   const completedSets = exercises.reduce((s: number, e: any) => s + (e.sets ?? []).filter((set: any) => set.completed).length, 0);
@@ -70,6 +71,11 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
             <Text style={[typography.small, { color: colors.textSecondary, marginTop: 2 }]}>
               {formatDate(workout.completedAt || workout.startedAt || '')}
             </Text>
+            {routineName ? (
+              <Text style={[typography.caption, { color: colors.primary, marginTop: 2 }]} numberOfLines={1}>
+                ◈ {routineName}
+              </Text>
+            ) : null}
             {muscles.length > 0 && (
               <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
                 {muscles.map((m) => (
