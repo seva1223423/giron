@@ -2028,20 +2028,44 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               autoFocus
               maxLength={2000}
               editable={!textLoading}
+              accessibilityLabel="Описание еды"
+              accessibilityHint="Напишите что ели и примерный вес"
             />
+            {/* Character count + short-description hint. Turns warning if
+                under 3 chars (which would fail the analyzeByText guard)
+                or approaching maxLength. */}
+            <Text style={[typography.caption, {
+              color: textDescription.length < 3 || textDescription.length >= 1900
+                ? colors.warning
+                : colors.textTertiary,
+              textAlign: 'right',
+              marginTop: spacing.xs,
+            }]}>
+              {textDescription.length < 3
+                ? 'Напиши хотя бы несколько слов с весом'
+                : `${textDescription.length} / 2000`}
+            </Text>
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
               <Button
                 title="Отмена"
                 variant="outline"
                 onPress={() => { if (!textLoading) { setTextModalOpen(false); setTextDescription(''); } }}
                 style={{ flex: 1 }}
+                accessibilityLabel="Отменить и закрыть"
               />
               {textLoading ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                   <ActivityIndicator size="small" color={colors.primary} />
                 </View>
               ) : (
-                <Button title="Распознать" onPress={analyzeByText} style={{ flex: 1 }} />
+                <Button
+                  title="Распознать"
+                  onPress={analyzeByText}
+                  disabled={textDescription.trim().length < 3}
+                  style={{ flex: 1 }}
+                  accessibilityLabel="Распознать описание с помощью AI"
+                  accessibilityHint={textDescription.trim().length < 3 ? 'Введите описание длиннее 3 символов' : undefined}
+                />
               )}
             </View>
           </View>
