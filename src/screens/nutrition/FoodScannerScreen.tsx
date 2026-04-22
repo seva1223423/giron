@@ -1623,6 +1623,44 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           </Card>
         )}
 
+        {/* Empty-items-with-image hint — bulk-clear or deleting every item
+            while an image is still mounted leaves the user in a dead state:
+            image at top, nothing below. Offer clear next actions so they
+            don't feel stuck. Only shows when not loading (AI call in progress
+            will populate items) and not in barcode-not-found state. */}
+        {imageUri && !loading && recognizedItems.length === 0 && !error && !notFound && (
+          <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.lg }}>
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.md }]}>
+              Список пуст. Что дальше?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' }}>
+              <Button
+                title="Переснять"
+                variant="outline"
+                onPress={() => {
+                  haptic.light();
+                  abortRef.current?.abort();
+                  setImageUri(null);
+                  setIsBarcodeResult(false);
+                  setSanityFlags([]);
+                  setCachedResult(false);
+                  setTotalWeightDraft('');
+                  lastBase64Ref.current = '';
+                  setError('');
+                }}
+                style={{ flex: 1 }}
+                accessibilityLabel="Убрать фото и вернуться к выбору"
+              />
+              <Button
+                title="Вручную"
+                onPress={() => { haptic.selection(); navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() }); }}
+                style={{ flex: 1 }}
+                accessibilityLabel="Перейти к ручному добавлению еды"
+              />
+            </View>
+          </Card>
+        )}
+
         {/* Recognized items */}
         {recognizedItems.length > 0 && (
           <>
