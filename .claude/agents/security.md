@@ -38,10 +38,18 @@ RESULT:
 ### Rate Limiting (express-rate-limit, per-IP)
 - Auth endpoints: 20 req / 15 min (`authRateLimiter`)
 - TOTP verify: 5 req / 5 min (`totpRateLimiter`)
-- Password reset: 5 req / 1 hour (`passwordResetRateLimiter`)
+- Password reset: 5 req / 1 hour per IP (`passwordResetRateLimiter`) + 5 min per email (token cooldown check)
 - AI endpoints: 60 req / min (`aiRateLimiter`)
 - User endpoints: 200 req / min (`userRateLimiter`)
 - Admin endpoints: 30 req / 15 min (`adminRateLimiter`)
+
+### Body Size Limits
+- `POST /api/ai/analyze-food` → 10mb (base64 food photos)
+- All other endpoints → 10kb (explicit `express.json({ limit: '10kb' })`)
+
+### Admin Audit Trail
+- Every admin mutation writes to `AdminLog` (ban, subscription change, announcement, data deletion, etc.)
+- Full audit log available at `GET /api/admin/logs` (paginated, with CSV export)
 
 ### Input Validation
 - All routes: Zod schema validation before any DB access
@@ -111,24 +119,19 @@ When auditing any file, check every item:
 - Risk: readable on rooted/jailbroken devices
 - Fix: wrap persist storage with `expo-secure-store` or `react-native-encrypted-storage`
 
-**3. No audit log for admin mutations**
-- Location: `server/src/routes/admin.ts`
-- Risk: admin can ban users, activate subscriptions, delete data — no trail
-- Fix: `SecurityEvent` record for every admin mutation with `action: 'ADMIN_BAN_USER'` etc.
+~~**3. No audit log for admin mutations**~~ — **RESOLVED** as of 2026-04-22
+- `server/src/routes/admin.ts` has `prisma.adminLog.create` on 20+ mutation paths (ban, subscription activate, announcement, data deletion, etc.). Full audit trail exists via the `AdminLog` model.
 
 ### MEDIUM
-**4. TOTP grace window ±90s (standard is ±30s)**
-- Location: `server/src/routes/auth.ts` — TOTP verification section
-- Risk: longer replay window
+~~**4. TOTP grace window ±90s**~~ — **NOT A VULNERABILITY** (clarified 2026-04-22)
+- `window: 1` with `period: 30` is the RFC 6238 recommended tolerance for clock drift. Accepts T-1, T0, T+1 periods = 90s total. This is standard practice; `window: 0` (30s only) causes real usability failures on devices with minor clock skew.
+- Replay protection is enforced separately: `UsedTotpCode` records codes for 90s post-use — a replayed code is rejected even within the window.
 
-**5. Password reset not rate-limited per-email (only per-IP)**
-- Location: `server/src/routes/auth.ts` — forgot-password handler
-- Fix: check if unused reset token < 5min old exists for this email; return "email sent" without creating new
+~~**5. Password reset not rate-limited per-email**~~ — **RESOLVED** as of 2026-04-22
+- `server/src/routes/auth.ts` line 1204: checks for `passwordResetToken` < 5min old before creating a new one; returns the same "email sent" message to avoid rate-limit leakage.
 
-**6. No body size limit on non-AI endpoints**
-- Location: `server/src/index.ts` — body-parser config
-- Current: Express default 100kb applies everywhere, but should be explicit
-- Fix: `express.json({ limit: '10kb' })` globally; `express.json({ limit: '10mb' })` only for `/api/ai/analyze-food`
+~~**6. No body size limit on non-AI endpoints**~~ — **RESOLVED** as of 2026-04-22
+- `server/src/index.ts` lines 80-85: `POST /api/ai/analyze-food` → 10mb; all other endpoints → 10kb (explicit `express.json({ limit: '10kb' })`).
 
 ### LOW
 **7. JWT secret rotation unsupported**
