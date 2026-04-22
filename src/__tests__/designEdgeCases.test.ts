@@ -15,6 +15,7 @@ import {
   rpeFillRatio,
   buildSetEyebrow,
 } from '../screens/tracker/components/heroLogic';
+import { clampProgress, normalizeWeekDots, pluralizeDaysRu } from '../utils/layout';
 import { formatDateMetaRu } from '../utils/date';
 import type { WorkoutExercise, WorkoutSet } from '../types';
 
@@ -46,6 +47,134 @@ describe('Empty-data handling across design components', () => {
     const live = findLiveSet(sets);
     expect(live?.index).toBe(50);
     expect(live?.set.id).toBe('s50');
+  });
+});
+
+// ─── clampProgress — ring/bar safety ────────────────────────────────────────
+
+describe('clampProgress (Ring + Bar guard)', () => {
+  test('passes through valid 0..1', () => {
+    expect(clampProgress(0)).toBe(0);
+    expect(clampProgress(0.25)).toBe(0.25);
+    expect(clampProgress(0.5)).toBe(0.5);
+    expect(clampProgress(0.99)).toBe(0.99);
+    expect(clampProgress(1)).toBe(1);
+  });
+
+  test('NaN → 0 (no silent SVG break)', () => {
+    expect(clampProgress(NaN)).toBe(0);
+  });
+
+  test('Infinity → 0 (not 1 — safer default)', () => {
+    expect(clampProgress(Infinity)).toBe(0);
+    expect(clampProgress(-Infinity)).toBe(0);
+  });
+
+  test('negative values → 0', () => {
+    expect(clampProgress(-0.1)).toBe(0);
+    expect(clampProgress(-999)).toBe(0);
+  });
+
+  test('>1 values → 1', () => {
+    expect(clampProgress(1.0001)).toBe(1);
+    expect(clampProgress(42)).toBe(1);
+    expect(clampProgress(Number.MAX_SAFE_INTEGER)).toBe(1);
+  });
+
+  test('boundary 0.0 and 1.0 exact', () => {
+    expect(clampProgress(0)).toBe(0);
+    expect(clampProgress(1)).toBe(1);
+    expect(clampProgress(-0)).toBe(-0); // minus-zero still 0 by ===
+  });
+});
+
+// ─── normalizeWeekDots — StreakPRGrid guard ─────────────────────────────────
+
+describe('normalizeWeekDots', () => {
+  test('exact 7 cells passes through', () => {
+    expect(normalizeWeekDots([1, 1, 0, 1, 1, 1, 0])).toEqual([1, 1, 0, 1, 1, 1, 0]);
+  });
+
+  test('null / undefined / non-array → all zeros', () => {
+    expect(normalizeWeekDots(null)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(normalizeWeekDots(undefined)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(normalizeWeekDots('string')).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(normalizeWeekDots({})).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(normalizeWeekDots(42)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  });
+
+  test('empty array → all zeros', () => {
+    expect(normalizeWeekDots([])).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  });
+
+  test('shorter array pads from the start (older days zero)', () => {
+    expect(normalizeWeekDots([1, 1, 1])).toEqual([0, 0, 0, 0, 1, 1, 1]);
+    expect(normalizeWeekDots([1])).toEqual([0, 0, 0, 0, 0, 0, 1]);
+  });
+
+  test('longer array slices to last 7 (most recent week)', () => {
+    expect(normalizeWeekDots([1, 1, 1, 1, 1, 1, 1, 0])).toEqual([1, 1, 1, 1, 1, 1, 0]);
+    expect(normalizeWeekDots([1, 1, 1, 1, 1, 1, 1, 1, 1, 0])).toEqual([1, 1, 1, 1, 1, 1, 0]);
+  });
+
+  test('non-binary entries coerce to 0|1', () => {
+    // Truthy but not === 1 → 0 (strict guard)
+    expect(normalizeWeekDots([true, 'yes', 2, NaN, 0, 1, null])).toEqual([0, 0, 0, 0, 0, 1, 0]);
+  });
+});
+
+// ─── pluralizeDaysRu — Russian streak plurals ───────────────────────────────
+
+describe('pluralizeDaysRu', () => {
+  test('0 → "дней"', () => {
+    expect(pluralizeDaysRu(0)).toBe('дней');
+  });
+
+  test('1 → "день"', () => {
+    expect(pluralizeDaysRu(1)).toBe('день');
+  });
+
+  test('2, 3, 4 → "дня"', () => {
+    expect(pluralizeDaysRu(2)).toBe('дня');
+    expect(pluralizeDaysRu(3)).toBe('дня');
+    expect(pluralizeDaysRu(4)).toBe('дня');
+  });
+
+  test('5..20 → "дней"', () => {
+    expect(pluralizeDaysRu(5)).toBe('дней');
+    expect(pluralizeDaysRu(10)).toBe('дней');
+    expect(pluralizeDaysRu(20)).toBe('дней');
+  });
+
+  test('11, 12, 13, 14 are special — always "дней" (not "день/дня")', () => {
+    // 11/12/13/14 break the mod10 rule; Russian treats teens as "дней"
+    expect(pluralizeDaysRu(11)).toBe('дней');
+    expect(pluralizeDaysRu(12)).toBe('дней');
+    expect(pluralizeDaysRu(13)).toBe('дней');
+    expect(pluralizeDaysRu(14)).toBe('дней');
+  });
+
+  test('21, 31, 41 → "день" (mod10 == 1, mod100 != 11)', () => {
+    expect(pluralizeDaysRu(21)).toBe('день');
+    expect(pluralizeDaysRu(31)).toBe('день');
+    expect(pluralizeDaysRu(101)).toBe('день');
+  });
+
+  test('22, 23, 24 → "дня"', () => {
+    expect(pluralizeDaysRu(22)).toBe('дня');
+    expect(pluralizeDaysRu(33)).toBe('дня');
+    expect(pluralizeDaysRu(104)).toBe('дня');
+  });
+
+  test('25, 47, 100 → "дней"', () => {
+    expect(pluralizeDaysRu(25)).toBe('дней');
+    expect(pluralizeDaysRu(47)).toBe('дней');
+    expect(pluralizeDaysRu(100)).toBe('дней');
+  });
+
+  test('negative values use absolute value', () => {
+    expect(pluralizeDaysRu(-1)).toBe('день');
+    expect(pluralizeDaysRu(-21)).toBe('день');
   });
 });
 

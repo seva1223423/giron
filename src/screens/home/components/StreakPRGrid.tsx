@@ -4,6 +4,7 @@ import { useThemeStore } from '../../../store';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
+import { normalizeWeekDots, pluralizeDaysRu } from '../../../utils/layout';
 
 interface Props {
   /** Current streak in days. */
@@ -40,7 +41,13 @@ export const StreakPRGrid: React.FC<Props> = ({
 }) => {
   const { colors } = useThemeStore();
 
-  const dayLabel = streakDays === 1 ? 'день' : streakDays >= 2 && streakDays <= 4 ? 'дня' : 'дней';
+  // Defensive clamps: a negative streak or weird PR shouldn't crash the UI.
+  const safeStreakDays = Number.isFinite(streakDays) && streakDays >= 0 ? Math.floor(streakDays) : 0;
+  const safePrKg = Number.isFinite(prKg) && prKg >= 0 ? prKg : 0;
+  // Normalize to exactly 7 dots — pads / slices / coerces non-binary.
+  const safeDots = normalizeWeekDots(weekDots);
+  // Russian plural handles 11-14 correctly (e.g. 11 дней, not 11 день).
+  const dayLabel = pluralizeDaysRu(safeStreakDays);
 
   return (
     <View style={{ flexDirection: 'row', gap: 12, marginBottom: spacing.lg }}>
@@ -76,7 +83,7 @@ export const StreakPRGrid: React.FC<Props> = ({
               { color: colors.text, fontSize: 42, lineHeight: 42 },
             ]}
           >
-            {streakDays}
+            {safeStreakDays}
           </Text>
           <Text
             style={{ color: colors.textSecondary, fontSize: 16, marginLeft: 6 }}
@@ -87,7 +94,7 @@ export const StreakPRGrid: React.FC<Props> = ({
         {/* 7-bar week strip. Filled bars get gold, missed bars get a dim
             translucent fill so the user still sees what's missing. */}
         <View style={{ flexDirection: 'row', gap: 3, marginTop: 12 }}>
-          {weekDots.map((d, i) => (
+          {safeDots.map((d, i) => (
             <View
               key={i}
               style={{
@@ -129,7 +136,7 @@ export const StreakPRGrid: React.FC<Props> = ({
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
           <Text style={[typography.h2, { color: colors.text, fontSize: 28 }]}>
-            {prKg}
+            {safePrKg}
           </Text>
           <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 4 }}>
             кг
