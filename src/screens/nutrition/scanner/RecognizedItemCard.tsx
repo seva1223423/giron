@@ -45,6 +45,22 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
   const [editingName, setEditingName] = React.useState(false);
   const [nameDraft, setNameDraft] = React.useState(item.name);
 
+  /** Prefix-matching suggestions from the user's saved foods. Shown below the
+   *  rename input; tapping one commits the suggested name immediately. Shows
+   *  max 5 suggestions to keep the UI compact. Case-insensitive. */
+  const nameSuggestions = React.useMemo(() => {
+    if (!editingName) return [];
+    const q = nameDraft.trim().toLowerCase();
+    if (q.length < 1) return [];
+    return savedFoods
+      .filter((f) => {
+        const n = f.name.toLowerCase();
+        if (n === q) return false; // already matches current
+        return n.includes(q);
+      })
+      .slice(0, 5);
+  }, [editingName, nameDraft, savedFoods]);
+
   // Sync draft when item.weightGrams changes externally (e.g. preset tap)
   React.useEffect(() => {
     setWeightDraft(item.weightGrams?.toString() ?? '100');
@@ -104,16 +120,18 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
         {/* Confidence dot — tap-target covers the icon so VO users still read name */}
         <View style={[styles.confDot, { backgroundColor: confColor }]} />
         {editingName ? (
-          <TextInput
-            style={[styles.nameInput, { color: colors.text, borderColor: colors.primary }]}
-            value={nameDraft}
-            onChangeText={setNameDraft}
-            onBlur={commitName}
-            onSubmitEditing={commitName}
-            autoFocus
-            maxLength={100}
-            returnKeyType="done"
-          />
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={[styles.nameInput, { color: colors.text, borderColor: colors.primary }]}
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              onBlur={commitName}
+              onSubmitEditing={commitName}
+              autoFocus
+              maxLength={100}
+              returnKeyType="done"
+            />
+          </View>
         ) : (
           <TouchableOpacity
             style={{ flex: 1 }}
@@ -153,6 +171,36 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
           </View>
         </View>
       </View>
+
+      {/* Autocomplete suggestions from saved foods — shown only while the
+          user is editing the name AND has typed at least one character.
+          Tapping a suggestion commits it through the rename path so
+          downstream savedFoods-match logic can run (user's saved macros
+          override AI's estimates). */}
+      {editingName && nameSuggestions.length > 0 && (
+        <View style={[styles.suggestionList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {nameSuggestions.map((s) => (
+            <TouchableOpacity
+              key={s.id}
+              onPress={() => {
+                haptic.selection();
+                setNameDraft(s.name);
+                if (onRename) onRename(item.id, s.name);
+                setEditingName(false);
+              }}
+              style={[styles.suggestionRow, { borderBottomColor: colors.divider }]}
+              accessibilityLabel={`Выбрать ${s.name}`}
+            >
+              <Text style={[typography.smallMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+                {s.name}
+              </Text>
+              <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                {s.calories} ккал/100г
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {base && (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs, gap: spacing.sm }}>
@@ -244,5 +292,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignSelf: 'flex-start',
     marginBottom: spacing.sm,
+  },
+  suggestionList: {
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: spacing.sm,
   },
 });

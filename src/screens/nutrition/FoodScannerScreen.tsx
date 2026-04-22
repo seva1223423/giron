@@ -1085,18 +1085,49 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           </Card>
         )}
 
-        {/* Barcode not found */}
+        {/* Barcode not found — 3-way fallback: photograph the label, describe
+            in text, or open the full manual-add form. Nutrition-label photos
+            use the same /analyze-food endpoint (prompt rule 9 already handles
+            extracting KBJU straight from visible labels). */}
         {notFound && (
           <Card style={{ marginTop: spacing.lg }}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Продукт не найден</Text>
             <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md }]}>
-              Штрих-код {lastBarcode} не найден в базе данных. Можно распознать по фото или добавить вручную.
+              Штрих-код {lastBarcode} не в базе OpenFoodFacts. Выбери самый быстрый для тебя способ:
             </Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-              <Button title="📷 Фото" onPress={() => { setNotFound(false); pickImage(true); }} style={{ flex: 1 }} />
-              <Button title="Вручную" variant="outline" onPress={() => navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() })} style={{ flex: 1 }} />
+            <View style={{ gap: spacing.sm }}>
+              <TouchableOpacity
+                onPress={() => { haptic.selection(); setNotFound(false); pickImage(true); }}
+                style={[styles.fallbackRow, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}
+              >
+                <Text style={{ fontSize: 24 }}>📸</Text>
+                <View style={{ flex: 1, marginLeft: spacing.md }}>
+                  <Text style={[typography.smallMedium, { color: colors.text }]}>Сфотографировать этикетку</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>AI считает КБЖУ прямо с таблицы питательной ценности</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { haptic.selection(); setNotFound(false); setTextModalOpen(true); }}
+                style={[styles.fallbackRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <Text style={{ fontSize: 24 }}>📝</Text>
+                <View style={{ flex: 1, marginLeft: spacing.md }}>
+                  <Text style={[typography.smallMedium, { color: colors.text }]}>Описать текстом</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>Если знаешь название и вес</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { haptic.selection(); navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() }); }}
+                style={[styles.fallbackRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <Text style={{ fontSize: 24 }}>✎</Text>
+                <View style={{ flex: 1, marginLeft: spacing.md }}>
+                  <Text style={[typography.smallMedium, { color: colors.text }]}>Ввести КБЖУ вручную</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>Полная форма с белками/жирами/углеводами</Text>
+                </View>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: spacing.sm }} onPress={() => { setNotFound(false); setBarcodeScanned(false); setShowBarcodeScanner(true); }}>
+            <TouchableOpacity style={{ alignItems: 'center', paddingVertical: spacing.sm, marginTop: spacing.sm }} onPress={() => { haptic.selection(); setNotFound(false); setBarcodeScanned(false); setShowBarcodeScanner(true); }}>
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Сканировать другой код</Text>
             </TouchableOpacity>
           </Card>
@@ -1417,5 +1448,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     fontSize: 15,
     textAlignVertical: 'top',
+  },
+  fallbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
   },
 });

@@ -434,3 +434,11 @@ describe('useSubscriptionStore', () => {
 | `JWT invalid` | Secret not set | `setup.ts` sets `JWT_SECRET` — check it's imported |
 | Test hangs after pass | Open handles | Use `--forceExit`; look for uncleared `setInterval` |
 | `analyzeImage is not a function` | deepseekAI not mocked | Add `jest.mock('../services/deepseekAI', ...)` before app import |
+| `isValidId returns false` for `r-1` style IDs | CUID regex `/^c[a-z0-9]{20,30}$/` in workout.ts | Use CUID-format mock IDs, e.g. `croutine00000000000000001` |
+
+## See Also (Cross-Agent Coordination)
+
+- **New route needs tests** → `backend` agent implements the route; `tests` agent writes the test file. When spawning `tests` agent, provide: route path, HTTP method, Prisma models touched, expected status codes (200/201/400/401/404/402).
+- **Failing test due to store shape change** → `frontend` agent changed a Zustand store shape without bumping `version` or updating `partialize`. Tests can simulate this by calling `setState` with old shape in `beforeEach`.
+- **Coverage gaps** → `security` agent audits routes; `tests` agent writes the missing test cases. If `security` flags "no test for 403 on ownership check", spawn `tests` agent with that specific case.
+- **Test count reference** — as of 2026-04-22: 227 server tests (10 suites). Before adding a new test suite, confirm the file doesn't already exist in `server/src/__tests__/`.
