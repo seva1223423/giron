@@ -2149,24 +2149,46 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               );
             })()}
 
-            {/* Totals */}
-            <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
+            {/* Totals — gold premium card per Direction A scanner design.
+                Dark text on gold fill matches the "live KBZU update" card
+                from the correction step (upgraded-a.jsx). Confidence
+                warning stays visible but with low-opacity dark text so
+                it doesn't clash on the gold. */}
+            <View
+              style={{
+                marginBottom: spacing.lg,
+                backgroundColor: colors.primary,
+                borderRadius: borderRadius.lg,
+                padding: spacing.lg,
+              }}
+            >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                <Text style={[typography.bodySemibold, { color: colors.text }]}>Итого:</Text>
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: 10,
+                    fontWeight: '600',
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                    opacity: 0.7,
+                  }}
+                >
+                  Итого
+                </Text>
                 {recognizedItems.some((i) => i.confidence == null || i.confidence < 0.75) && (
-                  <Text style={[typography.caption, { color: colors.warning }]}>~ приблизительно</Text>
+                  <Text style={[typography.caption, { color: colors.textInverse, opacity: 0.7 }]}>~ приблизительно</Text>
                 )}
               </View>
               <View style={styles.nutritionRow}>
                 {[
-                  { label: 'ккал', value: String(Math.round(recognizedItems.reduce((s, i) => s + i.calories, 0))), color: colors.calories },
-                  { label: 'белки', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10}г`, color: colors.protein },
-                  { label: 'жиры', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10}г`, color: colors.fats },
-                  { label: 'углев.', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10}г`, color: colors.carbs },
-                ].map(({ label, value, color }) => (
+                  { label: 'ккал', value: String(Math.round(recognizedItems.reduce((s, i) => s + i.calories, 0))) },
+                  { label: 'белки', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10}г` },
+                  { label: 'жиры', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.fats, 0) * 10) / 10}г` },
+                  { label: 'углев.', value: `${Math.round(recognizedItems.reduce((s, i) => s + i.carbs, 0) * 10) / 10}г` },
+                ].map(({ label, value }) => (
                   <View key={label} style={{ alignItems: 'center' }}>
-                    <Text style={[typography.numberSmall, { color }]}>{value}</Text>
-                    <Text style={[typography.caption, { color: colors.textSecondary }]}>{label}</Text>
+                    <Text style={[typography.numberSmall, { color: colors.textInverse }]}>{value}</Text>
+                    <Text style={{ color: colors.textInverse, opacity: 0.6, fontSize: 11, fontWeight: '500', marginTop: 2 }}>{label}</Text>
                   </View>
                 ))}
               </View>
@@ -2187,18 +2209,21 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 const pctC = Math.max(0, 100 - pctP - pctF); // ensure they sum to 100
                 return (
                   <View style={{ marginTop: spacing.md }}>
-                    <View style={[styles.macroBar, { backgroundColor: colors.border }]}>
-                      <View style={{ width: `${pctP}%`, height: '100%', backgroundColor: colors.protein }} />
-                      <View style={{ width: `${pctF}%`, height: '100%', backgroundColor: colors.fats }} />
-                      <View style={{ width: `${pctC}%`, height: '100%', backgroundColor: colors.carbs }} />
+                    <View style={[styles.macroBar, { backgroundColor: 'rgba(0,0,0,0.12)' }]}>
+                      {/* Macro bar sits inside the gold card now — use
+                          darker translucent fills so it reads against the
+                          gold instead of the original dark-mode tints. */}
+                      <View style={{ width: `${pctP}%`, height: '100%', backgroundColor: 'rgba(0,0,0,0.5)' }} />
+                      <View style={{ width: `${pctF}%`, height: '100%', backgroundColor: 'rgba(0,0,0,0.32)' }} />
+                      <View style={{ width: `${pctC}%`, height: '100%', backgroundColor: 'rgba(0,0,0,0.18)' }} />
                     </View>
-                    <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 4, textAlign: 'center' }]}>
+                    <Text style={{ color: colors.textInverse, opacity: 0.65, fontSize: 11, marginTop: 4, textAlign: 'center', fontWeight: '500' }}>
                       Б {pctP}% · Ж {pctF}% · У {pctC}%
                     </Text>
                   </View>
                 );
               })()}
-            </Card>
+            </View>
 
             {/* Remaining calories indicator + "scale to fit" action when over */}
             {dayLog.targetCalories > 0 && (() => {
