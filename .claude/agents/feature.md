@@ -427,7 +427,7 @@ All three must be clean before reporting success.
 
 When implementing a feature, these agents handle specific concerns:
 - **Schema changes** → also spawn `database` agent to verify indexes, cascade rules, and run `prisma db push`
-- **New premium gate** → use `/premium-feature` command: 5-layer checklist (server → client → store → paywall UI → test)
+- **New premium gate** → 5-layer checklist: (1) server `getSubStatus` → 402, (2) client `isPremiumActive()` gate, (3) subscription store state, (4) `PaywallModal` render, (5) test 402 path
 - **New admin action** → `compliance` agent: needs `AdminLog` write in `$transaction`; `security` agent: needs `authenticate` + `requireAdmin`
 - **Tests** → spawn `tests` agent to write server integration tests after feature is complete
 - **AI tools** → `ai-coach` agent handles AI tool registration (26 tools currently in `server/src/routes/ai.ts`)
