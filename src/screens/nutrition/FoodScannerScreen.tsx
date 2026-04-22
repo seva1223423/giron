@@ -1620,13 +1620,17 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {/* Recognized items */}
         {recognizedItems.length > 0 && (
           <>
-            {/* Meal type selector */}
-            <View style={styles.mealTypeRow}>
+            {/* Meal type selector — haptic feedback + a11y labels + tab role
+                so VO announces "Selected" for the active one. */}
+            <View style={styles.mealTypeRow} accessibilityRole="tablist">
               {MEAL_TYPES.map((mt) => (
                 <TouchableOpacity
                   key={mt.key}
-                  onPress={() => setMealType(mt.key)}
+                  onPress={() => { haptic.selection(); setMealType(mt.key); }}
                   style={[styles.mealTypeBtn, { backgroundColor: mealType === mt.key ? colors.primary : colors.surface, borderColor: mealType === mt.key ? colors.primary : colors.border }]}
+                  accessibilityLabel={`Тип приёма: ${mt.label.toLowerCase()}`}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: mealType === mt.key }}
                 >
                   <Text style={[typography.captionMedium, { color: mealType === mt.key ? '#FFF' : colors.text }]}>{mt.label}</Text>
                 </TouchableOpacity>
