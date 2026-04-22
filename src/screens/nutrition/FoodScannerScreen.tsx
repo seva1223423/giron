@@ -863,11 +863,40 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     ));
   }, [itemBases]);
 
+  /** Single-slot undo cache for the most recently removed item. Surfaced as
+   *  a "Удалено: X. Отменить" row below the items list for ~6 seconds. We
+   *  could remember a longer history but Alert noise / UI clutter aren't
+   *  worth it — accidental delete is the use case, not undo-stacking. */
+  const [lastRemoved, setLastRemoved] = useState<{ item: NutritionItem; base: { cal: number; prot: number; fats: number; carbs: number } | undefined; expiresAt: number } | null>(null);
+  const lastRemovedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const removeItem = useCallback((id: string) => {
     haptic.medium();
+    const removed = recognizedItems.find((i) => i.id === id);
+    const removedBase = itemBases[id];
     setRecognizedItems((prev) => prev.filter((item) => item.id !== id));
     setItemBases((prev) => { const next = { ...prev }; delete next[id]; return next; });
-  }, [haptic]);
+    if (removed) {
+      setLastRemoved({ item: removed, base: removedBase, expiresAt: Date.now() + 6000 });
+      if (lastRemovedTimerRef.current) clearTimeout(lastRemovedTimerRef.current);
+      lastRemovedTimerRef.current = setTimeout(() => setLastRemoved(null), 6000);
+    }
+  }, [haptic, recognizedItems, itemBases]);
+
+  const undoRemove = useCallback(() => {
+    if (!lastRemoved) return;
+    haptic.success();
+    if (lastRemovedTimerRef.current) clearTimeout(lastRemovedTimerRef.current);
+    const { item, base } = lastRemoved;
+    setRecognizedItems((prev) => [...prev, item]);
+    if (base) setItemBases((prev) => ({ ...prev, [item.id]: base }));
+    setLastRemoved(null);
+  }, [lastRemoved, haptic]);
+
+  // Cleanup the undo timer on unmount so we don't leak a setTimeout.
+  useEffect(() => () => {
+    if (lastRemovedTimerRef.current) clearTimeout(lastRemovedTimerRef.current);
+  }, []);
 
   /** Rename a recognized item — lets the user correct AI misidentifications
    *  (e.g. AI said "рис", user knows it's actually "плов"). */
@@ -1503,6 +1532,23 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               );
             })()}
 
+            {/* Undo last removal — auto-dismisses after 6s */}
+            {lastRemoved && (
+              <View style={[styles.undoRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]} numberOfLines={1}>
+                  Удалено: {lastRemoved.item.name}
+                </Text>
+                <TouchableOpacity
+                  onPress={undoRemove}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={`Восстановить ${lastRemoved.item.name}`}
+                  accessibilityRole="button"
+                >
+                  <Text style={[typography.captionMedium, { color: colors.primary, fontWeight: '700' }]}>Отменить</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Totals */}
             <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
@@ -1762,5 +1808,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: 'hidden',
     flexDirection: 'row',
+  },
+  undoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    gap: spacing.md,
   },
 });
