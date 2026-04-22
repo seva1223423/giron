@@ -18,14 +18,14 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 609 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 619 tests)
   cardio.test.ts                — GET/POST/DELETE cardio sessions; type enum validation, all Zod boundary conditions, IDOR isolation (22 tests)
   nutrition.test.ts             — POST/GET/PATCH/DELETE meals; macro calc, IDOR isolation, ownership checks (23 tests)
-  trainer.test.ts               — GET/POST/DELETE trainer clients; requireTrainerRole, sub access, IDOR isolation (15 tests)
+  trainer.test.ts               — GET/POST/DELETE/PATCH trainer clients+sessions; requireTrainerRole, sub access, IDOR isolation (37 tests)
   support.test.ts               — ticket CRUD, message posting, close, staff GET/all; IDOR + rate limit (25 tests)
-  admin.test.ts                 — ADMIN auth gating, ban/unban, role change, unlock, GET /users; self-protect guards (23 tests)
-  workout.test.ts               — programs CRUD, GET /history (paginated), GET /exercises; IDOR + userId isolation (23 tests)
-  user.test.ts                  — GET/PATCH profile, PATCH nutrition-targets, POST weight; req.userId isolation (17 tests)
+  admin.test.ts                 — ADMIN auth gating, ban/unban, role change, unlock, GET /users, announcements CRUD; self-protect guards (47 tests)
+  workout.test.ts               — programs CRUD, GET /history (paginated), GET /exercises, POST /start, POST /sync; IDOR + userId isolation (33 tests)
+  user.test.ts                  — GET/PATCH profile, PATCH nutrition-targets, POST weight, measurements, sleep, trusted-devices; req.userId isolation (37 tests)
   ai_security.test.ts           — AI tool userId isolation, daily quota gating, per-user rate limit (7 tests)
   auth.test.ts                  — login, register, refresh token, ban, 2FA
   otp.test.ts                   — OTP flows, forgot/reset password, brute-force lockout

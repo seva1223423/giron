@@ -32,6 +32,7 @@ jest.mock('../db', () => ({
     subscription: { findUnique: jest.fn().mockResolvedValue(null) },
     program: {
       findMany: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -40,6 +41,7 @@ jest.mock('../db', () => ({
     },
     workout: {
       findMany: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -121,6 +123,8 @@ beforeEach(() => {
   (prisma.exercise.findMany as jest.Mock).mockResolvedValue([]);
   // history endpoint uses both findMany AND count
   (prisma.workout.count as jest.Mock).mockResolvedValue(0);
+  (prisma.workout.findFirst as jest.Mock).mockResolvedValue(null);
+  (prisma.program.findFirst as jest.Mock).mockResolvedValue(null);
 });
 
 // ─── GET /api/workouts/programs ────────────────────────────────────────────────
@@ -382,5 +386,148 @@ describe('GET /api/workouts/exercises', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].name).toBe('Жим лёжа');
+  });
+});
+
+// ─── POST /api/workouts/start ─────────────────────────────────────────────────
+
+describe('POST /api/workouts/start', () => {
+  const validPayload = {
+    name: 'Утренняя тренировка',
+    exercises: [
+      {
+        exerciseId: 'ex-bench-press',
+        restSeconds: 90,
+        sets: [{ type: 'normal', reps: 8, weight: 80 }],
+      },
+    ],
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/workouts/start').send(validPayload);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when name is missing', async () => {
+    const res = await request(app)
+      .post('/api/workouts/start')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ exercises: validPayload.exercises });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when exercises array is empty', async () => {
+    const res = await request(app)
+      .post('/api/workouts/start')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ name: 'Test', exercises: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when exercise has no sets', async () => {
+    const res = await request(app)
+      .post('/api/workouts/start')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ name: 'Test', exercises: [{ exerciseId: 'ex-1', sets: [] }] });
+    expect(res.status).toBe(400);
+  });
+
+  it('201 creates workout with userId from JWT', async () => {
+    const newWorkout = {
+      id: 'cwkt00000000000000001',
+      name: 'Утренняя тренировка',
+      userId: 'u-test',
+      startedAt: new Date().toISOString(),
+      completedAt: null,
+      exercises: [],
+    };
+    (prisma.workout.create as jest.Mock).mockResolvedValueOnce(newWorkout);
+
+    const res = await request(app)
+      .post('/api/workouts/start')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validPayload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.name).toBe('Утренняя тренировка');
+
+    const createCalls = (prisma.workout.create as jest.Mock).mock.calls;
+    expect(createCalls[0][0].data.userId).toBe('u-test');
+  });
+
+  it('400 when exerciseId does not exist in DB (P2003 FK violation)', async () => {
+    const fkError = new Error('Foreign key constraint') as any;
+    fkError.code = 'P2003';
+    (prisma.workout.create as jest.Mock).mockRejectedValueOnce(fkError);
+
+    const res = await request(app)
+      .post('/api/workouts/start')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validPayload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('упражнений');
+  });
+});
+
+// ─── POST /api/workouts/sync ──────────────────────────────────────────────────
+
+describe('POST /api/workouts/sync', () => {
+  const validSync = {
+    name: 'Готовая тренировка',
+    completedAt: new Date().toISOString(),
+    startedAt: new Date().toISOString(),
+    durationMinutes: 60,
+    totalVolume: 3000,
+    exercises: [
+      {
+        exerciseId: 'ex-bench-press',
+        sets: [{ type: 'normal', reps: 8, weight: 80, completed: true }],
+      },
+    ],
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/workouts/sync').send(validSync);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when exercises array is empty', async () => {
+    const res = await request(app)
+      .post('/api/workouts/sync')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validSync, exercises: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it('200 returns existing workout when same clientId is synced twice (idempotency)', async () => {
+    const existingWorkout = { id: 'cwkt-existing', clientId: 'client-abc', userId: 'u-test', name: 'Already synced' };
+    (prisma.workout.findFirst as jest.Mock).mockResolvedValueOnce(existingWorkout); // idempotency lookup
+
+    const res = await request(app)
+      .post('/api/workouts/sync')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validSync, clientId: 'client-abc' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe('cwkt-existing');
+    // workout.create should NOT have been called — idempotent short-circuit
+    expect(prisma.workout.create as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: idempotency lookup scopes clientId by req.userId', async () => {
+    (prisma.workout.findFirst as jest.Mock).mockResolvedValueOnce(null); // no existing
+    const newWorkout = { id: 'cwkt-new', userId: 'u-test', name: 'New sync', exercises: [] };
+    (prisma.workout.create as jest.Mock).mockResolvedValueOnce(newWorkout);
+    (prisma.program.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .set('Authorization', `Bearer ${makeToken('u-test')}`)
+      .send({ ...validSync, clientId: 'client-xyz' });
+
+    const findFirstCalls = (prisma.workout.findFirst as jest.Mock).mock.calls;
+    expect(findFirstCalls[0][0].where.userId).toBe('u-test');
+    expect(findFirstCalls[0][0].where.clientId).toBe('client-xyz');
   });
 });
