@@ -278,7 +278,7 @@ All tests must pass before reporting done. If any fail, fix them.
 
 After all tests pass, update the baseline count in CLAUDE.md and `.claude/agents/tests.md`:
 - Increment client suite count (was 29, now 30)
-- Increment test count (was 512, add new count)
+- Increment test count (was 542, add new count)
 - Add file entry to the `src/__tests__/` list in `tests.md`
 
 ## Step 7 — Report

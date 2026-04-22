@@ -27,6 +27,8 @@ jest.mock('../services', () => ({
     updateRoutine: jest.fn(() => Promise.resolve()),
     deleteRoutine: jest.fn(() => Promise.resolve()),
     prepareRoutineWorkout: jest.fn(() => Promise.resolve()),
+    renameRoutine: jest.fn(() => Promise.resolve()),
+    duplicateRoutine: jest.fn(() => Promise.resolve()),
   },
 }));
 
@@ -202,5 +204,137 @@ describe('useWorkoutStore — Routines slice', () => {
     const result = await useWorkoutStore.getState().startWorkoutFromRoutine('r-1');
     expect(result).toBeNull();
     expect(useWorkoutStore.getState().activeWorkout).toBeNull();
+  });
+});
+
+// ─── replaceRoutine ───────────────────────────────────────────────────────────
+
+describe('useWorkoutStore — replaceRoutine', () => {
+  beforeEach(() => {
+    reset();
+    jest.clearAllMocks();
+  });
+
+  test('replaces a routine in-place by id', () => {
+    const original = makeRoutine('r-1', 'Push A');
+    const updated  = { ...makeRoutine('r-1', 'Push A v2'), description: 'updated' };
+    useWorkoutStore.setState({ routines: [original, makeRoutine('r-2', 'Pull A')] } as any);
+
+    useWorkoutStore.getState().replaceRoutine(updated as any);
+
+    const routines = useWorkoutStore.getState().routines;
+    expect(routines).toHaveLength(2);
+    expect(routines[0].name).toBe('Push A v2');
+    expect(routines[1].id).toBe('r-2'); // unaffected
+  });
+
+  test('does not modify the list when id is not found', () => {
+    const r = makeRoutine('r-1', 'Push A');
+    useWorkoutStore.setState({ routines: [r] } as any);
+
+    useWorkoutStore.getState().replaceRoutine(makeRoutine('r-999', 'Ghost') as any);
+
+    // r-999 not in list → no change
+    expect(useWorkoutStore.getState().routines).toHaveLength(1);
+    expect(useWorkoutStore.getState().routines[0].name).toBe('Push A');
+  });
+
+  test('preserves order when replacing middle element', () => {
+    useWorkoutStore.setState({
+      routines: [makeRoutine('r-1'), makeRoutine('r-2', 'Middle'), makeRoutine('r-3')],
+    } as any);
+
+    useWorkoutStore.getState().replaceRoutine(makeRoutine('r-2', 'Middle Updated') as any);
+
+    const routines = useWorkoutStore.getState().routines;
+    expect(routines[0].id).toBe('r-1');
+    expect(routines[1].name).toBe('Middle Updated');
+    expect(routines[2].id).toBe('r-3');
+  });
+});
+
+// ─── updateRoutineName ────────────────────────────────────────────────────────
+
+describe('useWorkoutStore — updateRoutineName', () => {
+  beforeEach(() => {
+    reset();
+    jest.clearAllMocks();
+  });
+
+  test('applies optimistic rename immediately (before server confirms)', async () => {
+    const { workoutService } = require('../services');
+    // Delay the server response so we can inspect state before it settles
+    workoutService.renameRoutine.mockResolvedValueOnce(undefined);
+
+    useWorkoutStore.setState({ routines: [makeRoutine('r-1', 'Old Name')] } as any);
+
+    // Fire-and-forget call pattern — optimistic update is synchronous
+    useWorkoutStore.getState().updateRoutineName('r-1', 'New Name');
+
+    // Inspect immediately (before any await)
+    expect(useWorkoutStore.getState().routines[0].name).toBe('New Name');
+  });
+
+  test('reverts name on server failure', async () => {
+    const { workoutService } = require('../services');
+    workoutService.renameRoutine.mockRejectedValueOnce(new Error('500'));
+
+    useWorkoutStore.setState({ routines: [makeRoutine('r-1', 'Original')] } as any);
+
+    await useWorkoutStore.getState().updateRoutineName('r-1', 'Attempted');
+    // Allow the fire-and-forget .catch handler to run
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(useWorkoutStore.getState().routines[0].name).toBe('Original');
+  });
+
+  test('updates optional description when provided', async () => {
+    const { workoutService } = require('../services');
+    workoutService.renameRoutine.mockResolvedValueOnce(undefined);
+
+    useWorkoutStore.setState({ routines: [makeRoutine('r-1', 'Push A')] } as any);
+    useWorkoutStore.getState().updateRoutineName('r-1', 'Push A', 'Chest-focused session');
+
+    const r = useWorkoutStore.getState().routines[0];
+    expect(r.name).toBe('Push A');
+    expect((r as any).description).toBe('Chest-focused session');
+  });
+});
+
+// ─── duplicateRoutine ─────────────────────────────────────────────────────────
+
+describe('useWorkoutStore — duplicateRoutine', () => {
+  beforeEach(() => {
+    reset();
+    jest.clearAllMocks();
+  });
+
+  test('prepends copy returned by server to the list', async () => {
+    const { workoutService } = require('../services');
+    const copy = makeRoutine('r-copy', 'Push A (copy)');
+    workoutService.duplicateRoutine.mockResolvedValueOnce(copy);
+
+    useWorkoutStore.setState({ routines: [makeRoutine('r-1', 'Push A')] } as any);
+
+    const result = await useWorkoutStore.getState().duplicateRoutine('r-1');
+
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe('r-copy');
+    const routines = useWorkoutStore.getState().routines;
+    expect(routines).toHaveLength(2);
+    expect(routines[0].id).toBe('r-copy'); // prepended
+    expect(routines[1].id).toBe('r-1');    // original still there
+  });
+
+  test('returns null and does not modify state on server error', async () => {
+    const { workoutService } = require('../services');
+    workoutService.duplicateRoutine.mockRejectedValueOnce(new Error('500'));
+
+    useWorkoutStore.setState({ routines: [makeRoutine('r-1', 'Push A')] } as any);
+
+    const result = await useWorkoutStore.getState().duplicateRoutine('r-1');
+
+    expect(result).toBeNull();
+    expect(useWorkoutStore.getState().routines).toHaveLength(1); // unchanged
   });
 });
