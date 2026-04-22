@@ -977,17 +977,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [lastRemoved, setLastRemoved] = useState<{ item: NutritionItem; base: { cal: number; prot: number; fats: number; carbs: number } | undefined; expiresAt: number } | null>(null);
   const lastRemovedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Bulk-clear undo snapshot. Distinct from lastRemoved because:
+  /** Bulk-action undo snapshot. Distinct from lastRemoved because:
    *  - It holds every item + every base (not just one pair)
-   *  - It has a longer TTL (10s) — bulk clear is scarier, more room to
+   *  - It has a longer TTL (10s) — bulk ops are scarier, more room to
    *    realize the mistake
-   *  - The undo row formatting is different ("Очищено N позиций. Отменить")
-   *  Set by the "Очистить" confirm handler; cleared by the timer, by
-   *  undo, or whenever a new bulk-clear runs. */
+   *  - Label varies per op ("Очищено" / "Удалены неуверенные" / "Объединены")
+   *    so the undo row is self-describing.
+   *  Set by any bulk-op handler; cleared by the timer, by undo, or
+   *  whenever a new bulk op runs. */
   const [lastCleared, setLastCleared] = useState<{
     items: NutritionItem[];
     bases: Record<string, { cal: number; prot: number; fats: number; carbs: number }>;
     expiresAt: number;
+    label: string;
   } | null>(null);
   const lastClearedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1014,21 +1016,29 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setLastRemoved(null);
   }, [lastRemoved, haptic]);
 
-  /** Bulk-clear with undo snapshot. Called from the "Очистить" Alert confirm
-   *  branch. Saves both arrays, sets a 10s auto-clear, wipes state. */
-  const clearAllItems = useCallback(() => {
+  /** Save a pre-mutation snapshot into the bulk-undo slot and schedule
+   *  its auto-dismiss. Centralised so every bulk op (clear / low-conf /
+   *  merge) produces consistent state + timer lifecycle. */
+  const stashSnapshot = useCallback((label: string) => {
     const snapshot = {
       items: recognizedItems,
       bases: { ...itemBases },
       expiresAt: Date.now() + 10_000,
+      label,
     };
-    haptic.warning();
-    setRecognizedItems([]);
-    setItemBases({});
     setLastCleared(snapshot);
     if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
     lastClearedTimerRef.current = setTimeout(() => setLastCleared(null), 10_000);
-  }, [recognizedItems, itemBases, haptic]);
+  }, [recognizedItems, itemBases]);
+
+  /** Bulk-clear with undo snapshot. Called from the "Очистить" Alert confirm
+   *  branch. Saves both arrays, sets a 10s auto-clear, wipes state. */
+  const clearAllItems = useCallback(() => {
+    stashSnapshot(`Очищено ${recognizedItems.length} ${recognizedItems.length === 1 ? 'позиция' : 'позиций'}`);
+    haptic.warning();
+    setRecognizedItems([]);
+    setItemBases({});
+  }, [recognizedItems, stashSnapshot, haptic]);
 
   /** Bulk-remove only the low-confidence items (conf < 0.5 / missing). Uses
    *  the same snapshot undo slot as clearAllItems — if the user realises
@@ -1037,11 +1047,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
    *  stayed around; setRecognizedItems replaces, so they're briefly set
    *  anew — this is fine, React diffs by id). */
   const removeLowConfidenceItems = useCallback(() => {
-    const snapshot = {
-      items: recognizedItems,
-      bases: { ...itemBases },
-      expiresAt: Date.now() + 10_000,
-    };
+    const lowCount = recognizedItems.filter((i) => (i.confidence ?? 0) < 0.5).length;
+    stashSnapshot(`Удалено ${lowCount} неуверенных`);
     haptic.warning();
     const keptIds = new Set(
       recognizedItems.filter((i) => (i.confidence ?? 0) >= 0.5).map((i) => i.id),
@@ -1054,10 +1061,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       }
       return next;
     });
-    setLastCleared(snapshot);
-    if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
-    lastClearedTimerRef.current = setTimeout(() => setLastCleared(null), 10_000);
-  }, [recognizedItems, itemBases, haptic]);
+  }, [recognizedItems, itemBases, stashSnapshot, haptic]);
 
   const undoClear = useCallback(() => {
     if (!lastCleared) return;
@@ -1100,6 +1104,8 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   /** Merge duplicate-name items in the recognized list — delegates to the
    *  pure `mergeDuplicateItems` in utils/foodScanner so the logic is unit-
    *  testable without mounting the component. No-op if nothing to merge.
+   *  Uses the same 10s snapshot-undo slot as bulk clear so the user can
+   *  restore the pre-merge list if the merge looked wrong in the totals.
    *
    *  Not auto-invoked on detection: the warning banner calls this explicitly,
    *  so users with two legitimate portions of the same food (e.g. 2 yogurts)
@@ -1108,10 +1114,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     const { items: nextItems, bases: nextBases, mergedCount } =
       mergeDuplicateItems(recognizedItems, itemBases);
     if (mergedCount === 0) return;
+    stashSnapshot(`Объединено дубликатов: ${mergedCount}`);
     setRecognizedItems(nextItems);
     setItemBases(nextBases);
     haptic.success();
-  }, [recognizedItems, itemBases, haptic]);
+  }, [recognizedItems, itemBases, stashSnapshot, haptic]);
 
   /** Scale all items proportionally so the combined weight equals `totalG`.
    *  Use case: AI guessed the plate was 350g, but scale says 500g — one tap
@@ -1297,19 +1304,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           </View>
         )}
 
-        {/* Bulk-clear undo snapshot — distinct from the per-item undo row
+        {/* Bulk-action undo snapshot — distinct from the per-item undo row
             (which shows inside the items block). Sits near the top so it's
             obvious the list wasn't lost. Auto-dismisses after 10s via the
-            setTimeout in clearAllItems. */}
+            setTimeout in stashSnapshot. Label varies per op (clear / low-
+            conf / merge) so the user knows what they're about to restore. */}
         {lastCleared && (
           <View style={[styles.undoRow, { backgroundColor: colors.warning + '15', borderColor: colors.warning + '40', marginBottom: spacing.md }]}>
             <Text style={[typography.caption, { color: colors.warning, flex: 1 }]} numberOfLines={1}>
-              Очищено {lastCleared.items.length} {lastCleared.items.length === 1 ? 'позиция' : 'позиций'}
+              {lastCleared.label}
             </Text>
             <TouchableOpacity
               onPress={undoClear}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={`Восстановить ${lastCleared.items.length} очищенных позиций`}
+              accessibilityLabel={`Отменить: ${lastCleared.label}`}
               accessibilityRole="button"
             >
               <Text style={[typography.captionMedium, { color: colors.warning, fontWeight: '700' }]}>Отменить</Text>
