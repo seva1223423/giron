@@ -258,7 +258,7 @@ Find `MOOD_PATTERNS`. 5 moods add directives to system prompt:
 
 ```bash
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx tsc --noEmit
-# ai.ts is 82k lines — type errors can hide in complex generics
+# ai.ts is 84k lines — type errors can hide in complex generics
 # Must be completely clean before reporting done
 ```
 

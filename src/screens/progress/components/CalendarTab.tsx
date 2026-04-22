@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { FadeIn } from '../../../components';
@@ -20,7 +20,8 @@ interface CalendarTabProps {
   workoutHistory: Workout[];
 }
 
-function getCalendarData(monthDate: Date, workoutHistory: Workout[]) {
+// Accepts a pre-built Set for O(1) per-cell lookup instead of O(n) .some()
+function getCalendarData(monthDate: Date, completedDateSet: Set<string>) {
   const now = new Date();
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
@@ -36,7 +37,7 @@ function getCalendarData(monthDate: Date, workoutHistory: Workout[]) {
 
   for (let d = 1; d <= lastDay.getDate(); d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const hasWorkout = workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr);
+    const hasWorkout = completedDateSet.has(dateStr);
     const isToday = d === now.getDate() && month === now.getMonth() && year === now.getFullYear();
     days.push({ date: d, dateStr, hasWorkout, isToday });
   }
@@ -56,7 +57,16 @@ export const CalendarTab: React.FC<CalendarTabProps> = ({ colors, workoutHistory
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  const calDays = getCalendarData(calendarMonth, workoutHistory);
+  // Build Set once per workoutHistory change; getCalendarData uses O(1) lookups
+  const completedDateSet = useMemo(
+    () => new Set(workoutHistory.flatMap((w) => w.completedAt ? [localDateStr(new Date(w.completedAt))] : [])),
+    [workoutHistory],
+  );
+
+  const calDays = useMemo(
+    () => getCalendarData(calendarMonth, completedDateSet),
+    [calendarMonth, completedDateSet],
+  );
   const monthStr = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`;
   const monthWorkouts = workoutHistory.filter((w) => w.completedAt && localDateStr(new Date(w.completedAt)).startsWith(monthStr));
   const selectedDayWorkouts = selectedDay
