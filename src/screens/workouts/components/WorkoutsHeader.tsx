@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore } from '../../../store';
+import { Icon, type IconName } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -10,16 +11,31 @@ interface Props {
   navigation: any;
 }
 
-const SHORTCUTS = [
-  { label: 'История', icon: '◧', screen: 'WorkoutHistory' },
-  { label: 'Рутины', icon: '◉', screen: 'Routines' },
-  { label: 'Кардио', icon: '◑', screen: 'Cardio' },
-  { label: 'Рекорды', icon: '◉', screen: 'PersonalRecords' },
-  { label: 'Неделя', icon: '◫', screen: 'WeeklyPlan' },
-  { label: '1ПМ', icon: '◎', screen: 'OneRMCalculator' },
-  { label: 'Блины', icon: '◈', screen: 'PlateCalculator' },
-] as const;
+/** Shortcut pills — the horizontal row under the title. Each maps an
+ *  Icon name (from the shared set) to a Workouts-stack screen target. */
+const SHORTCUTS: Array<{ label: string; icon: IconName; screen: string }> = [
+  { label: 'История', icon: 'chart', screen: 'WorkoutHistory' },
+  { label: 'Рутины', icon: 'grid', screen: 'Routines' },
+  { label: 'Кардио', icon: 'heart', screen: 'Cardio' },
+  { label: 'Рекорды', icon: 'trophy', screen: 'PersonalRecords' },
+  { label: 'Неделя', icon: 'timer', screen: 'WeeklyPlan' },
+  { label: '1ПМ', icon: 'target', screen: 'OneRMCalculator' },
+  { label: 'Блины', icon: 'dumbbell', screen: 'PlateCalculator' },
+];
 
+/**
+ * Workouts screen header — pixel-ish copy of A_Workouts. Per the
+ * Direction A design:
+ *
+ *   ── Title row ──────────────────────────── + (gold +)
+ *   ИСТОРИЯ | РУТИНЫ | КАРДИО | РЕКОРДЫ | ... (pill row)
+ *   ────────────────────────────────────────
+ *   Tabs below (handled by WorkoutsTabBar)
+ *
+ * Glyphs migrated from raw unicode (◧ ◉ ◑ ◎ ◈) to SVG icons from the
+ * shared set; pills lose the decorative `fontWeight: 700` on the glyph
+ * since the icon provides its own weight.
+ */
 export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
@@ -32,10 +48,23 @@ export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
         <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
         <TouchableOpacity
           onPress={() => { haptic.selection(); navigation.navigate('CustomWorkout'); }}
-          style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 14,
+            backgroundColor: colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.25,
+            shadowRadius: 12,
+          }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Новая свободная тренировка"
+          accessibilityRole="button"
         >
-          <Text style={{ fontSize: 20, fontWeight: '700', color: '#FFF', lineHeight: 24 }}>+</Text>
+          <Icon name="plus" size={20} color={colors.textInverse} strokeWidth={2.4} />
         </TouchableOpacity>
       </View>
 
@@ -49,16 +78,20 @@ export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity
             key={s.screen}
             onPress={() => { haptic.selection(); navigation.navigate(s.screen); }}
+            accessibilityLabel={s.label}
+            accessibilityRole="button"
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: 5,
-              paddingVertical: 6, paddingHorizontal: spacing.md,
+              flexDirection: 'row', alignItems: 'center', gap: 6,
+              paddingVertical: 7, paddingHorizontal: spacing.md,
               borderRadius: borderRadius.full,
               backgroundColor: colors.surface,
               borderWidth: 1, borderColor: colors.border,
             }}
           >
-            <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>{s.icon}</Text>
-            <Text style={[typography.small, { color: colors.textSecondary, fontWeight: '600' }]}>{s.label}</Text>
+            <Icon name={s.icon} size={14} color={colors.primary} />
+            <Text style={[typography.small, { color: colors.textSecondary, fontWeight: '600' }]}>
+              {s.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>

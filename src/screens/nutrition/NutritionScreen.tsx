@@ -5,7 +5,7 @@ import { useSafeTop } from '../../hooks/useSafeTop';
 import { useAchievementCheck } from '../../hooks/useAchievementCheck';
 import { useThemeStore, useNutritionStore } from '../../store';
 import type { Achievement } from '../../utils/achievements';
-import { Button, Tooltip } from '../../components';
+import { Button, Tooltip, Icon } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { NutritionItem } from '../../types';
@@ -113,6 +113,7 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         onPress={handlePhotoScan}
         fullWidth
         size="lg"
+        icon={<Icon name="camera" size={20} color={colors.textInverse} strokeWidth={2} />}
         style={{ marginBottom: spacing.lg }}
         accessibilityLabel="Сканировать еду по фото или штрих-коду"
         accessibilityHint="Откроет камеру для AI-анализа продуктов"
