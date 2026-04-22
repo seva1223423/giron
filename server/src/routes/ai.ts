@@ -53,6 +53,24 @@ const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 const CACHE_MAX_SIZE = 200;
 const CACHEABLE_INTENTS = new Set(['technique_question', 'general']);
 
+// ─── Per-user per-minute rate limit ─────────────────────────────────────────
+// Separate from the daily subscription limit (10 msgs/day free).
+// This caps abusive burst behaviour for any user (free or paid): max 30 requests/minute.
+// Uses a simple sliding-window bucket in-memory — resets when the window expires.
+interface PerUserBucket { count: number; resetAt: number }
+const perUserAiBuckets = new Map<string, PerUserBucket>();
+const PER_USER_AI_LIMIT_PER_MIN = 30;
+const PER_USER_AI_WINDOW_MS = 60_000; // 1 minute
+
+// Prune stale buckets every 5 minutes to avoid memory leak on high-traffic instances
+// .unref() prevents this timer from keeping the Node.js process alive in tests
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, bucket] of perUserAiBuckets) {
+    if (now > bucket.resetAt) perUserAiBuckets.delete(uid);
+  }
+}, 5 * 60 * 1000).unref();
+
 // Proactive TTL sweep every hour — evicts stale entries even if never re-read.
 // Prevents up to 200 stale entries accumulating in memory between cache hits.
 setInterval(() => {
@@ -2805,6 +2823,18 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     // Fast early exit (non-atomic) — the atomic check+save happens below at message persist time
     if (!isPaidSub && todayCountPre >= AI_FREE_DAILY_LIMIT) {
       return res.status(402).json({ error: 'Достигнут дневной лимит сообщений для бесплатного плана. Оформите подписку для неограниченного доступа.', code: 'DAILY_LIMIT_EXCEEDED' });
+    }
+
+    // Per-user per-minute rate limit — prevents burst abuse by any user (paid or free)
+    {
+      const now = Date.now();
+      const bucket = perUserAiBuckets.get(userId) ?? { count: 0, resetAt: now + PER_USER_AI_WINDOW_MS };
+      if (now > bucket.resetAt) { bucket.count = 0; bucket.resetAt = now + PER_USER_AI_WINDOW_MS; }
+      if (bucket.count >= PER_USER_AI_LIMIT_PER_MIN) {
+        return res.status(429).json({ error: 'Слишком много запросов. Подождите минуту и попробуйте снова.' });
+      }
+      bucket.count++;
+      perUserAiBuckets.set(userId, bucket);
     }
 
     // Set SSE headers after quota check — prevents sending JSON error over an open SSE stream

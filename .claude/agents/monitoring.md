@@ -208,9 +208,7 @@ These events should always be logged at appropriate level:
 These gaps are documented but not yet fixed. Reference them during audits:
 
 **HIGH**
-1. **No per-user AI rate limit** — `aiRateLimiter` is per-IP only. Multiple accounts from one IP bypass it.
-   - Location: `server/src/index.ts` (limiter def) + `server/src/routes/ai.ts` (where to add per-userId check)
-   - Fix: add `Map<userId, { count, resetAt }>` in-memory counter checked in the route handler
+~~1. **No per-user AI rate limit**~~ — **RESOLVED** as of 2026-04-22: `perUserAiBuckets` Map added to `server/src/routes/ai.ts`. Limit: 30 req/min per userId. Pruned with `.unref()` interval.
 
 **MEDIUM**
 2. **`exercisesCache` not invalidated on exercise update** — 1-hour TTL, no `cache.delete` on write

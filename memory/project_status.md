@@ -117,6 +117,8 @@ type: project
 - `workout.ts /programs /history` — `select` на Exercise relation (ответы в разы меньше).
 - Push-уведомления SUSPICIOUS_LOGIN — убран raw IP из body.
 - Клиент `api.ts`: timeout на refresh; `chatStream` читает токен из SecureStore; useWorkoutStore rollback не клобберит новый optimistic update.
+- **Per-user AI rate limit (2026-04-22)** — `perUserAiBuckets` Map в `server/src/routes/ai.ts`. Лимит 30 req/min на userId (дополнительно к дневному лимиту 10 msgs/day для free users). Bucket prune через `.unref()` interval. 2 regression теста в `ai_security.test.ts` (BUG-AI-003).
+- **Agent system improvements (2026-04-22)** — 2 новых команды (`test-store.md`, `test-route.md`) для scaffolding тестов; улучшены `monitoring.md` (cache invalidation table), `data-integrity.md` (offline ID upgrade pattern), `backend.md` (mock patterns), `security.md` (fix examples), `performance.md` (latency benchmarks), `release-prep.md` (Section 9), `audit-all.md` (Phase 1 extended), `sync-memory.md` (command/knowledge checks).
 
 ---
 
