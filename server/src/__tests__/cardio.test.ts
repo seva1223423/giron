@@ -186,6 +186,73 @@ describe('POST /api/cardio', () => {
     expect(res.status).toBe(201);
   });
 
+  it('400 when durationMinutes exceeds 1440 (24h max)', async () => {
+    const res = await request(app)
+      .post('/api/cardio')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, durationMinutes: 1441 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('201 accepts durationMinutes = 1440 (boundary max)', async () => {
+    (prisma.cardioSession.create as jest.Mock).mockResolvedValueOnce({
+      ...sampleSession, durationMinutes: 1440,
+    });
+
+    const res = await request(app)
+      .post('/api/cardio')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, durationMinutes: 1440 });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('400 when avgHeartRate exceeds 250 (max)', async () => {
+    const res = await request(app)
+      .post('/api/cardio')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, avgHeartRate: 251 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when distanceKm exceeds 500 (max)', async () => {
+    const res = await request(app)
+      .post('/api/cardio')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, distanceKm: 501 });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when notes exceed 2000 chars', async () => {
+    const res = await request(app)
+      .post('/api/cardio')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, notes: 'N'.repeat(2001) });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when date is before 2000-01-01', async () => {
+    const res = await request(app)
+      .post('/api/cardio')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, date: '1999-12-31' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when date format is invalid', async () => {
+    const res = await request(app)
+      .post('/api/cardio')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validPayload, date: 'April 20 2026' });
+
+    expect(res.status).toBe(400);
+  });
+
   it('SECURITY: create uses req.userId from JWT, not body-supplied userId', async () => {
     (prisma.cardioSession.create as jest.Mock).mockResolvedValueOnce(sampleSession);
 

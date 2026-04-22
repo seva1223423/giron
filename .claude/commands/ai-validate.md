@@ -101,6 +101,25 @@ Verify:
 - Premium users correctly bypass the limit
 - `FoodScanLog` count check in `server/src/routes/nutrition.ts` (5 scans/day)
 
+### 7b. Per-User Per-Minute Rate Limit (implemented 2026-04-22)
+
+```bash
+grep -n "perUserAiBuckets\|PER_USER_AI_LIMIT\|PER_USER_AI_WINDOW\|resetAt\|bucket" server/src/routes/ai.ts | head -20
+```
+
+Verify:
+- `perUserAiBuckets` is a `Map<string, { count: number; resetAt: number }>` at module level
+- Limit is 30 req/min per `userId` (keyed on `req.userId` from JWT — NOT body userId to prevent IDOR)
+- Check occurs AFTER daily limit check and BEFORE SSE headers are sent (so 429 is JSON, not mid-stream)
+- On bucket exhaustion → `429 { error: '...' }` (not 500 or silent failure)
+- Prune interval uses `.unref()` to prevent keeping Jest (and the process) alive unnecessarily
+- Regression tests: `server/src/__tests__/ai_security.test.ts` — describe block "BUG-AI-003"
+
+```bash
+# Verify regression tests exist for per-user rate limit
+grep -n "BUG-AI-003\|perUserAiBuckets\|rate.*limit.*burst\|30.*parallel" server/src/__tests__/ai_security.test.ts
+```
+
 ### 8. buildAnalyticsContext Performance Gate
 
 ```bash
@@ -122,7 +141,8 @@ AI VALIDATION RESULT:
 - Cache: [configured correctly / issues]
 - Disclaimer: [PRESENT / MISSING — file:line]
 - Fallback chain: [complete / gaps at file:line]
-- Rate limit: [enforced before API call / MISSING]
+- Daily rate limit: [enforced before API call / MISSING]
+- Per-user 30 req/min limit: [present with .unref() prune / MISSING / keyed correctly on JWT userId]
 - Analytics context: [guarded / called on all intents — RISK]
 - Overall status: PASS / FAIL
 - Issues to fix: [specific changes with file:line]

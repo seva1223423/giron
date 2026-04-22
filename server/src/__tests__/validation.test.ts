@@ -49,6 +49,59 @@ const createProgramSchema = z.object({
   durationWeeks: z.number().int().min(1).max(52).optional(),
 });
 
+const measurementSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z'))),
+  chest: z.number().finite().min(0).max(300).optional().nullable(),
+  waist: z.number().finite().min(0).max(300).optional().nullable(),
+  hips: z.number().finite().min(0).max(300).optional().nullable(),
+  bicep: z.number().finite().min(0).max(100).optional().nullable(),
+  thigh: z.number().finite().min(0).max(200).optional().nullable(),
+  calf: z.number().finite().min(0).max(100).optional().nullable(),
+  neck: z.number().finite().min(0).max(100).optional().nullable(),
+});
+
+const sleepSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z'))),
+  bedtime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  wakeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  durationHours: z.number().finite().min(0).max(24),
+  quality: z.number().int().finite().min(1).max(5).optional().nullable(),
+});
+
+const profileUpdateSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().max(100).optional(),
+  gender: z.string().transform(v => v.toUpperCase()).pipe(z.enum(['MALE', 'FEMALE'])).optional(),
+  heightCm: z.number().finite().min(50).max(300).optional(),
+  weightKg: z.number().finite().min(20).max(400).optional(),
+  goal: z.enum(['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS']).optional(),
+  level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
+  trainingExperienceYears: z.number().int().finite().min(0).max(80).optional(),
+  avatarUrl: z.string().url().max(2048).refine((u) => u.startsWith('https://')).optional(),
+});
+
+const nutritionTargetsSchema = z.object({
+  calories: z.number().finite().min(500).max(10000).optional(),
+  protein: z.number().finite().min(0).max(500).optional(),
+  fats: z.number().finite().min(0).max(500).optional(),
+  carbs: z.number().finite().min(0).max(1000).optional(),
+});
+
+const cardioSchema = z.object({
+  type: z.enum(['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other']),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => {
+    const parsed = new Date(d + 'T00:00:00Z');
+    const minDate = new Date('2000-01-01T00:00:00Z');
+    const maxDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return !isNaN(parsed.getTime()) && parsed >= minDate && parsed <= maxDate;
+  }),
+  durationMinutes: z.number().int().finite().min(1).max(1440),
+  distanceKm: z.number().finite().min(0).max(500).optional().nullable(),
+  caloriesBurned: z.number().int().finite().min(0).max(50000).optional().nullable(),
+  avgHeartRate: z.number().int().finite().min(30).max(250).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+
 const startWorkoutSchema = z.object({
   name: z.string().min(1).max(200),
   exercises: z.array(z.object({
@@ -354,33 +407,383 @@ describe('Validation Schemas', () => {
     });
   });
 
-  // ─── Cardio Validation (basic, done at handler level) ──────────────────
+  // ─── Cardio Validation (Zod schema from cardio.ts) ───────────────────
 
-  describe('Cardio input validation (manual checks)', () => {
-    // Cardio route does manual validation, not zod. Test the logic.
+  describe('Cardio validation (cardioSchema)', () => {
+    const validCardio = {
+      type: 'running' as const,
+      date: '2026-04-20',
+      durationMinutes: 30,
+    };
 
-    it('should require type field', () => {
-      const body: Record<string, any> = { date: '2026-04-01', durationMinutes: 30 };
-      const hasType = !!body.type;
-      expect(hasType).toBe(false);
+    // ── type enum ──────────────────────────────────────────────────────
+
+    it('should accept all valid type values', () => {
+      const types = ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'];
+      for (const type of types) {
+        expect(cardioSchema.safeParse({ ...validCardio, type }).success).toBe(true);
+      }
     });
 
-    it('should require date field', () => {
-      const body: Record<string, any> = { type: 'running', durationMinutes: 30 };
-      const hasDate = !!body.date;
-      expect(hasDate).toBe(false);
+    it('should reject invalid type (yoga)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, type: 'yoga' }).success).toBe(false);
     });
 
-    it('should require durationMinutes field', () => {
-      const body: Record<string, any> = { type: 'running', date: '2026-04-01' };
-      const hasDuration = !!body.durationMinutes;
-      expect(hasDuration).toBe(false);
+    it('should reject invalid type (empty string)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, type: '' }).success).toBe(false);
     });
 
-    it('should accept valid cardio input', () => {
-      const body: Record<string, any> = { type: 'running', date: '2026-04-01', durationMinutes: 45 };
-      const valid = !!(body.type && body.date && body.durationMinutes);
-      expect(valid).toBe(true);
+    // ── durationMinutes boundaries ──────────────────────────────────────
+
+    it('should reject durationMinutes = 0 (min is 1)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, durationMinutes: 0 }).success).toBe(false);
+    });
+
+    it('should accept durationMinutes = 1 (boundary min)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, durationMinutes: 1 }).success).toBe(true);
+    });
+
+    it('should accept durationMinutes = 1440 (boundary max, 24h)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, durationMinutes: 1440 }).success).toBe(true);
+    });
+
+    it('should reject durationMinutes = 1441 (exceeds 24h)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, durationMinutes: 1441 }).success).toBe(false);
+    });
+
+    it('should reject non-integer durationMinutes', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, durationMinutes: 30.5 }).success).toBe(false);
+    });
+
+    // ── avgHeartRate boundaries ─────────────────────────────────────────
+
+    it('should reject avgHeartRate = 29 (below min 30)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, avgHeartRate: 29 }).success).toBe(false);
+    });
+
+    it('should accept avgHeartRate = 30 (boundary min)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, avgHeartRate: 30 }).success).toBe(true);
+    });
+
+    it('should accept avgHeartRate = 250 (boundary max)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, avgHeartRate: 250 }).success).toBe(true);
+    });
+
+    it('should reject avgHeartRate = 251 (exceeds max 250)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, avgHeartRate: 251 }).success).toBe(false);
+    });
+
+    it('should accept null avgHeartRate (optional)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, avgHeartRate: null }).success).toBe(true);
+    });
+
+    // ── distanceKm boundaries ───────────────────────────────────────────
+
+    it('should accept distanceKm = 0 (min)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, distanceKm: 0 }).success).toBe(true);
+    });
+
+    it('should accept distanceKm = 500 (boundary max)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, distanceKm: 500 }).success).toBe(true);
+    });
+
+    it('should reject distanceKm = 501 (exceeds max)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, distanceKm: 501 }).success).toBe(false);
+    });
+
+    it('should reject negative distanceKm', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, distanceKm: -1 }).success).toBe(false);
+    });
+
+    // ── caloriesBurned boundaries ───────────────────────────────────────
+
+    it('should accept caloriesBurned = 0', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, caloriesBurned: 0 }).success).toBe(true);
+    });
+
+    it('should accept caloriesBurned = 50000 (boundary max)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, caloriesBurned: 50000 }).success).toBe(true);
+    });
+
+    it('should reject caloriesBurned = 50001', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, caloriesBurned: 50001 }).success).toBe(false);
+    });
+
+    it('should reject negative caloriesBurned', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, caloriesBurned: -10 }).success).toBe(false);
+    });
+
+    // ── notes boundaries ────────────────────────────────────────────────
+
+    it('should accept notes at exactly 2000 chars', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, notes: 'A'.repeat(2000) }).success).toBe(true);
+    });
+
+    it('should reject notes exceeding 2000 chars', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, notes: 'A'.repeat(2001) }).success).toBe(false);
+    });
+
+    it('should accept null notes (optional)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, notes: null }).success).toBe(true);
+    });
+
+    // ── date validation ─────────────────────────────────────────────────
+
+    it('should reject date before 2000-01-01', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, date: '1999-12-31' }).success).toBe(false);
+    });
+
+    it('should accept date at minimum boundary 2000-01-01', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, date: '2000-01-01' }).success).toBe(true);
+    });
+
+    it('should reject date with invalid format', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, date: '20-04-2026' }).success).toBe(false);
+    });
+
+    it('should reject date with invalid format (no separators)', () => {
+      expect(cardioSchema.safeParse({ ...validCardio, date: '20260420' }).success).toBe(false);
+    });
+
+    // ── full valid payload ──────────────────────────────────────────────
+
+    it('should accept full valid payload with all optional fields', () => {
+      expect(cardioSchema.safeParse({
+        type: 'cycling',
+        date: '2026-04-20',
+        durationMinutes: 60,
+        distanceKm: 25.5,
+        caloriesBurned: 500,
+        avgHeartRate: 145,
+        notes: 'Morning ride',
+      }).success).toBe(true);
+    });
+
+    it('should accept minimal payload (only required fields)', () => {
+      expect(cardioSchema.safeParse({
+        type: 'hiit',
+        date: '2026-04-20',
+        durationMinutes: 20,
+      }).success).toBe(true);
+    });
+  });
+
+  // ─── Body Measurements Validation ─────────────────────────────────────
+
+  describe('Body measurements validation (measurementSchema)', () => {
+    const validMeasurement = { date: '2026-04-20', chest: 100, waist: 80, hips: 95 };
+
+    it('should accept valid measurement entry', () => {
+      expect(measurementSchema.safeParse(validMeasurement).success).toBe(true);
+    });
+
+    it('should accept minimal entry (date only, all measurements null)', () => {
+      expect(measurementSchema.safeParse({ date: '2026-04-20' }).success).toBe(true);
+    });
+
+    it('should reject invalid date format', () => {
+      expect(measurementSchema.safeParse({ ...validMeasurement, date: '2026/04/20' }).success).toBe(false);
+    });
+
+    it('should reject chest > 300 (max)', () => {
+      expect(measurementSchema.safeParse({ ...validMeasurement, chest: 301 }).success).toBe(false);
+    });
+
+    it('should accept chest = 300 (boundary max)', () => {
+      expect(measurementSchema.safeParse({ ...validMeasurement, chest: 300 }).success).toBe(true);
+    });
+
+    it('should reject waist < 0', () => {
+      expect(measurementSchema.safeParse({ ...validMeasurement, waist: -1 }).success).toBe(false);
+    });
+
+    it('should reject bicep > 100 (max)', () => {
+      expect(measurementSchema.safeParse({ ...validMeasurement, bicep: 101 }).success).toBe(false);
+    });
+
+    it('should accept bicep = 100 (boundary max)', () => {
+      expect(measurementSchema.safeParse({ ...validMeasurement, bicep: 100 }).success).toBe(true);
+    });
+
+    it('should reject thigh > 200 (max)', () => {
+      expect(measurementSchema.safeParse({ ...validMeasurement, thigh: 201 }).success).toBe(false);
+    });
+
+    it('should accept null for any optional measurement', () => {
+      expect(measurementSchema.safeParse({ date: '2026-04-20', bicep: null, calf: null }).success).toBe(true);
+    });
+  });
+
+  // ─── Sleep Validation ──────────────────────────────────────────────────
+
+  describe('Sleep validation (sleepSchema)', () => {
+    const validSleep = {
+      date: '2026-04-20',
+      bedtime: '22:30',
+      wakeTime: '06:30',
+      durationHours: 8,
+    };
+
+    it('should accept valid sleep entry', () => {
+      expect(sleepSchema.safeParse(validSleep).success).toBe(true);
+    });
+
+    it('should reject invalid bedtime format (AM/PM instead of 24h)', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, bedtime: '10:30 PM' }).success).toBe(false);
+    });
+
+    it('should reject invalid bedtime hour (24:00)', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, bedtime: '24:00' }).success).toBe(false);
+    });
+
+    it('should accept boundary bedtime 23:59', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, bedtime: '23:59' }).success).toBe(true);
+    });
+
+    it('should accept boundary bedtime 00:00', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, bedtime: '00:00' }).success).toBe(true);
+    });
+
+    it('should reject durationHours > 24', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, durationHours: 25 }).success).toBe(false);
+    });
+
+    it('should accept durationHours = 24 (boundary max)', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, durationHours: 24 }).success).toBe(true);
+    });
+
+    it('should accept durationHours = 0 (boundary min)', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, durationHours: 0 }).success).toBe(true);
+    });
+
+    it('should reject quality < 1', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, quality: 0 }).success).toBe(false);
+    });
+
+    it('should accept quality = 1 (boundary min)', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, quality: 1 }).success).toBe(true);
+    });
+
+    it('should reject quality > 5', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, quality: 6 }).success).toBe(false);
+    });
+
+    it('should accept quality = 5 (boundary max)', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, quality: 5 }).success).toBe(true);
+    });
+
+    it('should accept null quality (optional)', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, quality: null }).success).toBe(true);
+    });
+
+    it('should reject non-integer quality', () => {
+      expect(sleepSchema.safeParse({ ...validSleep, quality: 3.5 }).success).toBe(false);
+    });
+  });
+
+  // ─── Profile Update Validation ─────────────────────────────────────────
+
+  describe('Profile update validation (profileUpdateSchema)', () => {
+    it('should accept empty object (all fields optional)', () => {
+      expect(profileUpdateSchema.safeParse({}).success).toBe(true);
+    });
+
+    it('should reject heightCm < 50', () => {
+      expect(profileUpdateSchema.safeParse({ heightCm: 49 }).success).toBe(false);
+    });
+
+    it('should accept heightCm = 50 (boundary min)', () => {
+      expect(profileUpdateSchema.safeParse({ heightCm: 50 }).success).toBe(true);
+    });
+
+    it('should reject heightCm > 300', () => {
+      expect(profileUpdateSchema.safeParse({ heightCm: 301 }).success).toBe(false);
+    });
+
+    it('should accept heightCm = 300 (boundary max)', () => {
+      expect(profileUpdateSchema.safeParse({ heightCm: 300 }).success).toBe(true);
+    });
+
+    it('should reject trainingExperienceYears > 80', () => {
+      expect(profileUpdateSchema.safeParse({ trainingExperienceYears: 81 }).success).toBe(false);
+    });
+
+    it('should accept trainingExperienceYears = 0 (boundary min)', () => {
+      expect(profileUpdateSchema.safeParse({ trainingExperienceYears: 0 }).success).toBe(true);
+    });
+
+    it('should accept valid gender (case-insensitive — male → MALE)', () => {
+      expect(profileUpdateSchema.safeParse({ gender: 'male' }).success).toBe(true);
+    });
+
+    it('should reject invalid gender', () => {
+      expect(profileUpdateSchema.safeParse({ gender: 'other' }).success).toBe(false);
+    });
+
+    it('should reject avatarUrl with http (must be https)', () => {
+      expect(profileUpdateSchema.safeParse({ avatarUrl: 'http://example.com/avatar.jpg' }).success).toBe(false);
+    });
+
+    it('should accept avatarUrl with https', () => {
+      expect(profileUpdateSchema.safeParse({ avatarUrl: 'https://cdn.example.com/avatar.jpg' }).success).toBe(true);
+    });
+
+    it('should accept all valid goal enum values', () => {
+      const goals = ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'];
+      for (const goal of goals) {
+        expect(profileUpdateSchema.safeParse({ goal }).success).toBe(true);
+      }
+    });
+
+    it('should reject invalid goal', () => {
+      expect(profileUpdateSchema.safeParse({ goal: 'BULK' }).success).toBe(false);
+    });
+
+    it('should accept all valid level enum values', () => {
+      const levels = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
+      for (const level of levels) {
+        expect(profileUpdateSchema.safeParse({ level }).success).toBe(true);
+      }
+    });
+  });
+
+  // ─── Nutrition Targets Validation ──────────────────────────────────────
+
+  describe('Nutrition targets validation (nutritionTargetsSchema)', () => {
+    it('should accept valid targets', () => {
+      expect(nutritionTargetsSchema.safeParse({ calories: 2000, protein: 150, fats: 60, carbs: 250 }).success).toBe(true);
+    });
+
+    it('should accept empty object (all optional)', () => {
+      expect(nutritionTargetsSchema.safeParse({}).success).toBe(true);
+    });
+
+    it('should reject calories < 500 (implausible minimum)', () => {
+      expect(nutritionTargetsSchema.safeParse({ calories: 499 }).success).toBe(false);
+    });
+
+    it('should accept calories = 500 (boundary min)', () => {
+      expect(nutritionTargetsSchema.safeParse({ calories: 500 }).success).toBe(true);
+    });
+
+    it('should reject calories > 10000', () => {
+      expect(nutritionTargetsSchema.safeParse({ calories: 10001 }).success).toBe(false);
+    });
+
+    it('should accept calories = 10000 (boundary max)', () => {
+      expect(nutritionTargetsSchema.safeParse({ calories: 10000 }).success).toBe(true);
+    });
+
+    it('should reject protein > 500', () => {
+      expect(nutritionTargetsSchema.safeParse({ protein: 501 }).success).toBe(false);
+    });
+
+    it('should reject carbs > 1000', () => {
+      expect(nutritionTargetsSchema.safeParse({ carbs: 1001 }).success).toBe(false);
+    });
+
+    it('should reject negative fats', () => {
+      expect(nutritionTargetsSchema.safeParse({ fats: -1 }).success).toBe(false);
     });
   });
 });

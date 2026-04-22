@@ -18,8 +18,8 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 412 tests)
-  cardio.test.ts                — GET/POST/DELETE cardio sessions; type enum validation, IDOR isolation (16 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 491 tests)
+  cardio.test.ts                — GET/POST/DELETE cardio sessions; type enum validation, all Zod boundary conditions, IDOR isolation (22 tests)
   nutrition.test.ts             — POST/GET/PATCH/DELETE meals; macro calc, IDOR isolation, ownership checks (23 tests)
   trainer.test.ts               — GET/POST/DELETE trainer clients; requireTrainerRole, sub access, IDOR isolation (15 tests)
   support.test.ts               — ticket CRUD, message posting, close, staff GET/all; IDOR + rate limit (25 tests)
@@ -37,7 +37,7 @@ server/src/__tests__/           — server integration tests (Jest + Supertest, 
   leaderboard.test.ts           — top-100 est1RM leaderboard endpoint
   middleware.test.ts            — auth middleware: missing token, expired token, wrong issuer
   news.test.ts                  — RSS fetch, save/unsave, auto-categorization
-  validation.test.ts            — Zod validation edge cases across routes
+  validation.test.ts            — Zod schema boundary tests: meal, weight, registration, workout, program, cardio, body measurements, sleep/bedtime, profile update, nutrition targets (115 tests)
   setup.ts                      — JWT secrets + env vars (runs before every test)
   __mocks__/
     expo-server-sdk.ts          — mock for push notification SDK
@@ -90,7 +90,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 412 server tests pass (19 suites), 512 client tests pass (29 suites).
+**Expected baseline:** 491 server tests pass (19 suites), 512 client tests pass (29 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
@@ -487,4 +487,4 @@ describe('useSubscriptionStore', () => {
 - **New route needs tests** → `backend` agent implements the route; `tests` agent writes the test file. When spawning `tests` agent, provide: route path, HTTP method, Prisma models touched, expected status codes (200/201/400/401/404/402).
 - **Failing test due to store shape change** → `frontend` agent changed a Zustand store shape without bumping `version` or updating `partialize`. Tests can simulate this by calling `setState` with old shape in `beforeEach`.
 - **Coverage gaps** → `security` agent audits routes; `tests` agent writes the missing test cases. If `security` flags "no test for 403 on ownership check", spawn `tests` agent with that specific case.
-- **Test count reference** — as of 2026-04-22: 412 server tests (19 suites), 512 client tests (29 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.
+- **Test count reference** — as of 2026-04-22: 491 server tests (19 suites), 512 client tests (29 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.
