@@ -7,7 +7,7 @@ import { useSleepStore } from '../../store/useSleepStore';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
-import { localDateStr } from '../../utils/date';
+import { computeStreak } from '../../utils/date';
 import {
   OverviewTab,
   RecordsTab,
@@ -34,21 +34,9 @@ export const ProgressScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     syncSleep().catch(() => {});
   }, []);
 
-  const streak = useMemo(() => {
-    if (workoutHistory.length === 0) return 0;
-    let s = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 365; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = localDateStr(date);
-      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr)) {
-        s++;
-      } else if (i > 0) break;
-    }
-    return s;
-  }, [workoutHistory]);
+  const streak = useMemo(() =>
+    computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]),
+  [workoutHistory]);
 
   const nutritionDaysLogged = useMemo(() =>
     Object.values(dailyLog).filter((d) => (d.meals?.length ?? 0) > 0).length,
