@@ -12,6 +12,7 @@ import {
   parseServingGrams,
   defaultMealType,
   findSavedFoodMatch,
+  findDuplicateNames,
   normalizeFoodName,
   buildBarcodeDisplayName,
   median,
@@ -275,6 +276,50 @@ describe('findSavedFoodMatch', () => {
     // "яблоко" vs "яблочное пюре" — macros differ, we want strict matching
     expect(findSavedFoodMatch(savedFoods, 'яблочное')).toBeUndefined();
     expect(findSavedFoodMatch(savedFoods, 'яблок')).toBeUndefined();
+  });
+});
+
+// ─── findDuplicateNames ───────────────────────────────────────────────────────
+
+describe('findDuplicateNames', () => {
+  test('returns empty set when no duplicates', () => {
+    const dups = findDuplicateNames([{ name: 'Яблоко' }, { name: 'Рис' }, { name: 'Курица' }]);
+    expect(dups.size).toBe(0);
+  });
+
+  test('detects exact duplicates (same casing)', () => {
+    const dups = findDuplicateNames([{ name: 'Яблоко' }, { name: 'Яблоко' }]);
+    expect(dups.has('яблоко')).toBe(true);
+    expect(dups.size).toBe(1);
+  });
+
+  test('normalizes case and weight suffix when detecting duplicates', () => {
+    const dups = findDuplicateNames([
+      { name: 'Яблоко' },
+      { name: 'яблоко (100г)' },
+      { name: 'ЯБЛОКО' },
+    ]);
+    expect(dups.has('яблоко')).toBe(true);
+    expect(dups.size).toBe(1);
+  });
+
+  test('skips empty / whitespace-only names', () => {
+    const dups = findDuplicateNames([{ name: '' }, { name: '   ' }, { name: 'Курица' }]);
+    expect(dups.size).toBe(0);
+  });
+
+  test('handles mixed duplicates + uniques', () => {
+    const dups = findDuplicateNames([
+      { name: 'Яблоко' },
+      { name: 'яблоко' },
+      { name: 'Курица' },
+      { name: 'Рис' },
+      { name: 'рис (200г)' },
+    ]);
+    expect(dups.size).toBe(2);
+    expect(dups.has('яблоко')).toBe(true);
+    expect(dups.has('рис')).toBe(true);
+    expect(dups.has('курица')).toBe(false);
   });
 });
 
