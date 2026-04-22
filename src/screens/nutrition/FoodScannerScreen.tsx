@@ -1576,7 +1576,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               ⚠ Подозрительные значения
             </Text>
             <Text style={[typography.caption, { color: colors.textSecondary, lineHeight: 17 }]}>
-              {sanityFlags.includes('kcal_per_100g') && 'Калорийность на 100г слишком высокая (&gt;900 ккал). '}
+              {sanityFlags.includes('kcal_per_100g') && 'Калорийность на 100г слишком высокая (>900 ккал). '}
               {sanityFlags.includes('kcal_per_item') && 'Один из продуктов содержит слишком много калорий. '}
               {sanityFlags.includes('total_kcal') && 'Суммарно больше 5000 ккал. '}
               Проверь названия и вес порций перед сохранением.
