@@ -1697,15 +1697,51 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               })()}
             </Card>
 
-            {/* Remaining calories indicator */}
+            {/* Remaining calories indicator + "scale to fit" action when over */}
             {dayLog.targetCalories > 0 && (() => {
               const afterMeal = Math.round(alreadyEaten + totalCal);
               const remaining = dayLog.targetCalories - afterMeal;
+              const overBy = remaining < 0 ? Math.abs(remaining) : 0;
+              const remainingBudget = Math.max(0, dayLog.targetCalories - alreadyEaten);
               return (
                 <View style={[{ padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.lg }, { backgroundColor: remaining >= 0 ? colors.success + '15' : colors.error + '15' }]}>
                   <Text style={[typography.small, { color: remaining >= 0 ? colors.success : colors.error }]}>
-                    После этого приёма: {afterMeal} / {dayLog.targetCalories} ккал ({remaining >= 0 ? `остаток ${remaining}` : `превышение ${Math.abs(remaining)}`} ккал)
+                    После этого приёма: {afterMeal} / {dayLog.targetCalories} ккал ({remaining >= 0 ? `остаток ${remaining}` : `превышение ${overBy}`} ккал)
                   </Text>
+                  {/* "Scale to fit" only appears when (a) we're over budget,
+                      (b) there's a positive remaining budget to scale into,
+                      and (c) the current total > 0 so we can compute a ratio. */}
+                  {overBy > 0 && remainingBudget > 0 && totalCal > 0 && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        haptic.medium();
+                        // Scale every item's weight by the same factor so its
+                        // sum lands on remainingBudget. Reuses applyAIItems'
+                        // base-driven recalc by going through state directly.
+                        const factor = remainingBudget / totalCal;
+                        setRecognizedItems((prev) => prev.map((item) => {
+                          const base = itemBases[item.id];
+                          const newW = Math.max(1, Math.round((item.weightGrams || 0) * factor));
+                          if (!base) return { ...item, weightGrams: newW };
+                          return {
+                            ...item,
+                            weightGrams: newW,
+                            calories: Math.round((base.cal * newW) / 100),
+                            protein: Math.round(((base.prot * newW) / 100) * 10) / 10,
+                            fats: Math.round(((base.fats * newW) / 100) * 10) / 10,
+                            carbs: Math.round(((base.carbs * newW) / 100) * 10) / 10,
+                          };
+                        }));
+                      }}
+                      style={{ marginTop: spacing.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.error + '60', alignSelf: 'flex-start' }}
+                      accessibilityLabel={`Уменьшить порции под остаток ${remainingBudget} калорий`}
+                      accessibilityHint="Все веса умножатся пропорционально"
+                    >
+                      <Text style={[typography.captionMedium, { color: colors.error, fontWeight: '700' }]}>
+                        Подогнать под остаток ({remainingBudget} ккал)
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })()}
