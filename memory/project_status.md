@@ -29,7 +29,7 @@ type: project
 
 ### Сервер — фичи
 - **Routines API (2026-04)** — routineId FK on Workout (SetNull on delete), PUT /routines/:id, POST /routines/:id/start с progressive overload (+2.5кг), GET /routines/:id/history; P2003 graceful fallback in POST /sync
-- **Test suite (2026-04)** — 19 server integration suites (410 tests, все 11 маршрутов покрыты), 29 client unit suites (512 tests, все 13 Zustand-сторов покрыты)
+- **Test suite (2026-04)** — 19 server integration suites (445 tests, все 11 маршрутов покрыты), 29 client unit suites (512 tests, все 13 Zustand-сторов покрыты)
 - **Trainer API** — CRUD клиентов + сессий
 - **Autosave endpoint** `POST /workouts/:id/autosave` — каждые 30s
 - **Zod валидация** на всех маршрутах
@@ -119,6 +119,7 @@ type: project
 - Клиент `api.ts`: timeout на refresh; `chatStream` читает токен из SecureStore; useWorkoutStore rollback не клобберит новый optimistic update.
 - **Per-user AI rate limit (2026-04-22)** — `perUserAiBuckets` Map в `server/src/routes/ai.ts`. Лимит 30 req/min на userId (дополнительно к дневному лимиту 10 msgs/day для free users). Bucket prune через `.unref()` interval. 2 regression теста в `ai_security.test.ts` (BUG-AI-003).
 - **Agent system improvements (2026-04-22)** — 2 новых команды (`test-store.md`, `test-route.md`) для scaffolding тестов; улучшены `monitoring.md` (cache invalidation table), `data-integrity.md` (offline ID upgrade pattern), `backend.md` (mock patterns), `security.md` (fix examples), `performance.md` (latency benchmarks), `release-prep.md` (Section 9), `audit-all.md` (Phase 1 extended), `sync-memory.md` (command/knowledge checks).
+- **Validation test expansion (2026-04-22)** — `validation.test.ts` grown to 115 tests (was 43): cardio Zod schema (30 tests, replaced 4 manual checks), body measurements (11 tests), sleep/bedtime (14 tests), profile update (15 tests), nutrition targets (9 tests). `cardio.test.ts` +7 boundary integration tests. Total server: 491 tests.
 
 ---
 
