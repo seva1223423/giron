@@ -10,18 +10,24 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
+/** Set-type chip colors aligned with Direction A design palette.
+ *  - Normal working sets use the champagne gold (brand primary).
+ *  - Warmup uses warm amber (warning token equivalent).
+ *  - Dropset uses terracotta red — reads as "more intense" vs normal. */
 const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  normal:  { label: 'РАБ',  color: '#9E9E9E' },
-  warmup:  { label: 'РАЗМ', color: '#FF9800' },
-  dropset: { label: 'ДРОП', color: '#9C27B0' },
+  normal:  { label: 'РАБ',  color: '#D4B07A' }, // champagne gold
+  warmup:  { label: 'РАЗМ', color: '#E8A36A' }, // warm amber
+  dropset: { label: 'ДРОП', color: '#E07A6B' }, // terracotta
 };
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
+/** RPE scale colors — sage → amber → terracotta → crimson, matching
+ *  the Direction A macro palette rather than the old neon spec. */
 function rpeColor(rpe: number): string {
-  if (rpe <= 7) return '#3BC46E';
-  if (rpe <= 8) return '#F0A832';
-  if (rpe <= 9) return '#F06432';
-  return '#E8364F';
+  if (rpe <= 7) return '#9AC28C';  // sage (good)
+  if (rpe <= 8) return '#E8A36A';  // amber (warn)
+  if (rpe <= 9) return '#E07A6B';  // terracotta (danger)
+  return '#B35647';                // deep terracotta (near failure)
 }
 
 interface Props {
