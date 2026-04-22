@@ -36,13 +36,15 @@ Spawn ALL of the following agents in parallel. Each agent is in `.claude/agents/
 | `compliance` | 152-ФЗ, GDPR, AI disclaimer, payment legality |
 | `deployment` | Render config, env vars, schema drift, health check |
 | `monitoring` | Logs, error handling, rate limits, subscription enforcement |
+| `tests` | Missing test coverage, stale assertions, test count drift |
+| `docs` | Stale CLAUDE.md counts, broken file paths, out-of-date README |
 
 Pass each agent this context:
 - Project path: `C:/Users/sevka/Desktop/1223/work/iron-gym`
 - Focus area: `$ARGUMENTS` (or "comprehensive" if not specified)
 - Known model count: [from Phase 1]
 
-Wait for all 6 agents to complete before proceeding.
+Wait for all 8 agents to complete before proceeding.
 
 ## Phase 3 — Compile Unified Report
 
@@ -58,7 +60,7 @@ After all agents complete, deduplicate their findings:
 UNIFIED AUDIT REPORT — Iron Gym
 Date: [today]
 Focus: [argument or "comprehensive"]
-Agents run: 6/6
+Agents run: 8/8
 
 ══════════════════════════════════════════
 CRITICAL (address before next deploy)
@@ -98,3 +100,5 @@ When compiling, apply these known coordination rules:
 - `security` + `monitoring`: per-user rate limit is flagged by both — one entry, two agents
 - `deployment` + `compliance`: privacy.html must be both deployed AND accessible in-app
 - `data-integrity` + `database`: cascade rules — data-integrity finds gaps, database agent fixes
+- `tests` + `docs`: test count drift → docs updates CLAUDE.md count, tests adds missing suite
+- `docs` + `deployment`: stale version numbers or route sizes in CLAUDE.md → docs fixes, deployment confirms deploy
