@@ -144,8 +144,15 @@ const RecognizedItemCardImpl: React.FC<Props> = ({ item, base, onWeightChange, o
         </View>
       )}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-        {/* Confidence dot — tap-target covers the icon so VO users still read name */}
-        <View style={[styles.confDot, { backgroundColor: confColor }]} />
+        {/* Confidence dot — colored pill gated by the 3-bucket rule in
+            confidenceBucket(). VO announces "Высокая / средняя / низкая
+            уверенность AI" so the color isn't the sole signal. */}
+        <View
+          style={[styles.confDot, { backgroundColor: confColor }]}
+          accessible
+          accessibilityLabel={`AI уверенность: ${bucket === 'high' ? 'высокая' : bucket === 'medium' ? 'средняя' : 'низкая'}`}
+          accessibilityRole="image"
+        />
         {editingName ? (
           <View style={{ flex: 1 }}>
             <TextInput
