@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeStore, useSubscriptionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -11,10 +11,19 @@ interface Props { workout: Workout }
 
 export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
   const { colors } = useThemeStore();
+  const { canSendAiMessage, consumeAiMessage } = useSubscriptionStore();
   const [insights, setInsights] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [limited, setLimited] = useState(false);
 
   useEffect(() => {
+    if (!canSendAiMessage()) {
+      setLimited(true);
+      setLoading(false);
+      return;
+    }
+    consumeAiMessage();
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25000);
 
@@ -42,9 +51,10 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
     })();
 
     return () => { clearTimeout(timeout); controller.abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout.id]);
 
-  if (!loading && !insights) return null;
+  if (!loading && !insights && !limited) return null;
 
   return (
     <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
@@ -57,6 +67,10 @@ export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
           <ActivityIndicator size="small" color={colors.primary} />
           <Text style={[typography.small, { color: colors.textSecondary }]}>Анализирую тренировку...</Text>
         </View>
+      ) : limited ? (
+        <Text style={[typography.small, { color: colors.textSecondary, lineHeight: 20 }]}>
+          Лимит ИИ-сообщений на сегодня исчерпан. Обнови до Premium чтобы получать анализ каждой тренировки.
+        </Text>
       ) : (
         <Text style={[typography.body, { color: colors.text, lineHeight: 22 }]}>{insights}</Text>
       )}

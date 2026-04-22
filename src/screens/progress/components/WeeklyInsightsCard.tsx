@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
-import { Card, FadeIn } from '../../../components';
+import { Card, FadeIn, PaywallModal } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { aiService } from '../../../services';
-import { useNutritionStore, useCardioStore } from '../../../store';
+import { useNutritionStore, useCardioStore, useSubscriptionStore } from '../../../store';
 import { useSleepStore } from '../../../store/useSleepStore';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { localDateStr } from '../../../utils/date';
@@ -20,10 +20,12 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
   const { getDayLog, defaultTargets } = useNutritionStore();
   const { getWeekSessions } = useCardioStore();
   const { getLastEntries } = useSleepStore();
+  const { canSendAiMessage, consumeAiMessage } = useSubscriptionStore();
 
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Animated dots for loading indicator
   const [dotCount, setDotCount] = useState(1);
@@ -55,6 +57,11 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
 
   const generate = async () => {
     haptic.medium();
+    if (!canSendAiMessage()) {
+      setShowPaywall(true);
+      return;
+    }
+    consumeAiMessage();
     setLoading(true);
     setError(false);
 
@@ -96,6 +103,7 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
   };
 
   return (
+    <>
     <FadeIn delay={550}>
       <Card style={{ marginTop: spacing.lg }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: insight ? spacing.md : 0 }}>
@@ -141,5 +149,7 @@ export const WeeklyInsightsCard: React.FC<Props> = ({ colors, workoutHistory }) 
         )}
       </Card>
     </FadeIn>
+    <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="ai_limit" />
+    </>
   );
 };

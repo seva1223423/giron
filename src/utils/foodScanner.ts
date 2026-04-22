@@ -233,6 +233,9 @@ export interface MacroBase {
  *  For each group of items with the same normalized name:
  *  - Keep the first (preserves any user rename / confidence edits there).
  *  - Sum all weights into the kept item.
+ *  - Take the max confidence across the group (so merging a high-conf
+ *    item with a low-conf duplicate doesn't drag the merged card's
+ *    confidence dot back to red).
  *  - Recompute calories / macros from the kept item's base (per-100g) so
  *    the merged total is self-consistent with the per-100g view.
  *  - Drop all others and prune their entries from `bases`.
@@ -244,18 +247,26 @@ export interface MacroBase {
  *  Pure function — callers own the state updates. Extracted here so the
  *  logic can be tested without rendering FoodScannerScreen.
  */
-export function mergeDuplicateItems<T extends { id: string; name: string; weightGrams: number; calories: number; protein: number; fats: number; carbs: number }>(
+export function mergeDuplicateItems<T extends { id: string; name: string; weightGrams: number; calories: number; protein: number; fats: number; carbs: number; confidence?: number }>(
   items: T[],
   bases: Record<string, MacroBase | undefined>,
 ): { items: T[]; bases: Record<string, MacroBase>; mergedCount: number } {
   const seen = new Map<string, string>(); // normKey → kept item id
   const extra = new Map<string, number>(); // kept id → summed extra grams
+  const maxConf = new Map<string, number>(); // kept id → highest conf across group
   for (const item of items) {
     const key = normalizeFoodName(item.name);
     if (!key) continue;
     const kept = seen.get(key);
-    if (kept == null) seen.set(key, item.id);
-    else extra.set(kept, (extra.get(kept) ?? 0) + (item.weightGrams || 0));
+    const conf = item.confidence ?? 0;
+    if (kept == null) {
+      seen.set(key, item.id);
+      if (item.confidence != null) maxConf.set(item.id, conf);
+    } else {
+      extra.set(kept, (extra.get(kept) ?? 0) + (item.weightGrams || 0));
+      const prevMax = maxConf.get(kept) ?? 0;
+      if (conf > prevMax) maxConf.set(kept, conf);
+    }
   }
 
   if (extra.size === 0) {
@@ -279,12 +290,18 @@ export function mergeDuplicateItems<T extends { id: string; name: string; weight
     })
     .map((item) => {
       const addG = extra.get(item.id);
-      if (!addG) return item;
-      const newW = (item.weightGrams || 0) + addG;
-      const base = bases[item.id];
-      if (!base) return { ...item, weightGrams: newW };
+      // Always apply the max-conf promotion for the kept item, even if no
+      // extra weight got added (defensive — keeps the rule simple).
+      const conf = maxConf.get(item.id);
+      const withConf = conf != null && conf > (item.confidence ?? 0)
+        ? { ...item, confidence: conf }
+        : item;
+      if (!addG) return withConf;
+      const newW = (withConf.weightGrams || 0) + addG;
+      const base = bases[withConf.id];
+      if (!base) return { ...withConf, weightGrams: newW };
       return {
-        ...item,
+        ...withConf,
         weightGrams: newW,
         calories: Math.round((base.cal * newW) / 100),
         protein: Math.round(((base.prot * newW) / 100) * 10) / 10,
