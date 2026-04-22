@@ -353,7 +353,11 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   }
 
   const totalSets = routine.exercises.reduce((s, e) => s + e.sets.length, 0);
-  const createdDate = new Date(routine.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const createdDate = new Date(routine.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  const lastUsed = history.length > 0 ? history[0].completedAt : null;
+  const lastUsedDate = lastUsed
+    ? new Date(lastUsed).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    : null;
 
   // Estimated duration: ~45s per working set + rest time between sets + 60s transition per exercise
   const estimatedMinutes = Math.round(
@@ -399,8 +403,12 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>создана</Text>
-              <Text style={[typography.captionMedium, { color: colors.text }]}>{createdDate}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {lastUsedDate ? 'последний раз' : 'создана'}
+              </Text>
+              <Text style={[typography.captionMedium, { color: lastUsedDate ? colors.primary : colors.text }]}>
+                {lastUsedDate ?? createdDate}
+              </Text>
             </View>
           </View>
         </FadeIn>
