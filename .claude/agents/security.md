@@ -33,7 +33,7 @@ RESULT:
 - Trusted device tokens (`TrustedDevice` model, `deviceToken` field)
 - OAuth CSRF protection: `state` param on Google/VK/Yandex flows
 - Password history: last N passwords blocked on reset (`PasswordHistory` model)
-- Strong password Zod validation: min 8, uppercase + lowercase + digit + special char
+- Strong password Zod validation: min 8, max 128, uppercase + lowercase + digit (no special char required — intentional to reduce friction)
 
 ### Rate Limiting (express-rate-limit, per-IP)
 - Auth endpoints: 20 req / 15 min (`authRateLimiter`)
@@ -207,7 +207,7 @@ When auditing, verify: `server/.env` is in `.gitignore` and none of these appear
 ## See Also (Cross-Agent Coordination)
 
 - **Admin actions** — also check `compliance.md`: every admin mutation (ban, delete user, send announcement) must write to `AdminLog`. Security flags the IDOR risk; compliance flags the audit trail gap.
-- **Per-user AI rate limit** — also flagged by `monitoring.md` (no per-user limit, only per-IP). Fix requires both: server code change (monitoring covers implementation guidance) and subscription limit check (subscription route).
+~~**Per-user AI rate limit**~~ — **RESOLVED** 2026-04-22: `perUserAiBuckets` Map in `server/src/routes/ai.ts` limits 30 req/min per userId (in addition to per-IP limit). No open gap.
 - **Subscription gating** — also covered by `feature.md` Layer 4 and `frontend.md`. If server gate is present but client gate is missing, use `/premium-feature` command for full 5-layer checklist.
 - **Data residency (152-ФЗ)** — overlap with `compliance.md`. Security handles the technical transport security; compliance handles the legal data location requirement. Both must be satisfied.
 - **Missing index + WHERE filter** — if security finds an IDOR risk that requires adding `userId` to `where:`, also check `performance.md` (index needed) and spawn `database` agent to add `@@index([userId])`.

@@ -2860,6 +2860,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     // Fetch all user context data in parallel — 16 independent queries
     // (aiMemoryCount derived from userMemories.length after secondary block)
     // (weekMealsForCalories replaced by weekMeals which has all columns)
+    const _t0ContextPrimary = Date.now();
     const [
       user,
       history,
@@ -2970,6 +2971,8 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         take: 200,
       }),
     ]);
+    const _primaryContextMs = Date.now() - _t0ContextPrimary;
+    if (_primaryContextMs > 2000) logger.warn(`[AI] Primary context fetch slow: ${_primaryContextMs}ms (userId: ${userId})`);
 
     const weekPlanIdToName = new Map<string, string>();
     weekPlanExercisesRaw.forEach((ex) => weekPlanIdToName.set(ex.id, ex.name));
@@ -3456,6 +3459,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
 
     // ─── Context Engine + Gamification + secondary DB queries: all in one parallel block ──────
+    const _t0ContextSecondary = Date.now();
     const todayStartDate = new Date(`${todayDate}T00:00:00.000Z`);
     const todayEndDate = new Date(`${todayDate}T23:59:59.999Z`);
     const [
@@ -3525,6 +3529,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         include: { exercises: { include: { exercise: { select: { primaryMuscles: true } } } } },
       }),
     ]);
+    const _secondaryContextMs = Date.now() - _t0ContextSecondary;
+    if (_secondaryContextMs > 2000) logger.warn(`[AI] Secondary context fetch slow: ${_secondaryContextMs}ms (userId: ${userId})`);
+
     const gamificationContext = buildGamificationContext(gamification);
 
     // ─── Block 12: Exercise substitution for injuries ──────

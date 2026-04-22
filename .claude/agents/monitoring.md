@@ -208,9 +208,7 @@ These gaps are documented but not yet fixed. Reference them during audits:
 ~~2. **`exercisesCache` not invalidated on exercise update**~~ — **NOT APPLICABLE**: no exercise mutation routes exist (confirmed 2026-04-22). Cache invalidation on re-seed is automatic via server restart.
 
 **MEDIUM**
-3. **Analytics context build (~180 queries) has no timeout alerting** — if it exceeds 2s, no metric is emitted
-   - Location: `server/src/routes/ai.ts` — `buildAnalyticsContext()`
-   - Fix: record duration of `Promise.all(...)` and log WARN if > 2000ms
+~~3. **Analytics context build (~180 queries) has no timeout alerting**~~ — **RESOLVED** as of 2026-04-22: `_t0ContextPrimary` and `_t0ContextSecondary` timestamps added around both parallel DB fetch blocks in `server/src/routes/ai.ts`. `logger.warn` fires if either block exceeds 2000ms (includes userId for correlation).
 
 4. **Subscription limit check is non-atomic at the fast-path level** — two concurrent requests both pass the early count check. The inner `$transaction` re-check blocks bypass, but the fast-path check still emits a wasted Mistral call for the second request.
    - Location: `server/src/routes/ai.ts` — daily limit check
@@ -219,7 +217,7 @@ These gaps are documented but not yet fixed. Reference them during audits:
 ## See Also (Cross-Agent Coordination)
 
 - ~~**Per-user AI rate limit**~~ — **RESOLVED** as of 2026-04-22: `perUserAiBuckets` Map in `server/src/routes/ai.ts`. 30 req/min per userId, check before SSE headers. Regression tests in `ai_security.test.ts` (BUG-AI-003).
-- **AI analytics context ~180 queries** — also a concern for `performance.md`. Monitoring should alert if analytics context build exceeds 2s. Performance should optimize the query count. `ai-coach` agent implements the fix.
+~~**AI analytics context ~180 queries**~~ — **RESOLVED** as of 2026-04-22: timing instrumentation added to both `Promise.all` blocks in `server/src/routes/ai.ts`. `logger.warn` fires if either exceeds 2000ms. Performance query optimization is a separate concern for `performance.md`.
 ~~**Health check depth**~~ — **RESOLVED** as of 2026-04-22: `/health` now pings DB and returns 503 if unreachable (`server/src/index.ts`). Render will mark service unhealthy correctly.
 - **Admin audit log** — ~~also flagged by `compliance.md`~~ **RESOLVED** as of 2026-04-22: `admin.ts` writes to `AdminLog` on 20+ mutation paths (ban, subscription activate, announcement, data deletion). Full audit trail confirmed.
 - ~~**Subscription limit race condition**~~ — **RESOLVED** as of 2026-04-22: `ai.ts` uses a two-level check: fast non-atomic early exit (saves API call), plus atomic transactional re-check inside `$transaction` at message persist time — concurrent bypass is blocked.

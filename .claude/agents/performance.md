@@ -30,7 +30,7 @@ RESULT:
 - AI response cache — LRU 4h TTL, max 200 entries — in `ai.ts` near top of file
 
 **Known Bottlenecks (already documented):**
-1. AI analytics context: `buildAnalyticsContext(userId)` — ~180 parallel DB queries per AI message. Fix: cache per-user with 60s TTL or make lazy per-intent.
+1. AI analytics context: two `Promise.all` blocks per AI message (~180 total DB queries). Timing instrumentation added 2026-04-22 — `logger.warn` fires if either block exceeds 2000ms (`server/src/routes/ai.ts`). Root cause unresolved: fix would be caching per-user with 60s TTL or lazy loading per-intent.
 2. Leaderboard SQL: 4-CTE query touching all Workout+WorkoutSet for active users. Cache TTL: 15 min.
 3. TF-IDF knowledge selection: O(n) score across all 25 modules per AI message.
 4. ~~Exercise list: `take: 500` hardcoded, returns full `instructions[]` array~~ — RESOLVED: `GET /exercises` now uses `EXERCISE_LIST_SELECT` (strips `instructions[]`, `description`, `videoUrl`, `imageUrl`). Payload reduced ~70%.
@@ -167,9 +167,9 @@ const items = await prisma.workout.findMany({ where: { userId } });
 ## See Also (Cross-Agent Coordination)
 
 - **Missing indexes** — spawn `database` agent to add `@@index` to schema + run `prisma db push`. Performance agent finds the gap; database agent implements the fix.
-- **Cache invalidation on model update** — `exercisesCache` (1h TTL) isn't invalidated when an Exercise is updated. If exercise data changes, the cache returns stale data. Flag this for the `monitoring` agent (no cache invalidation logging) and `backend` agent (needs cache.del on PUT /exercises).
+- ~~**Cache invalidation on model update**~~ — **NOT APPLICABLE**: `exercisesCache` is irrelevant because no exercise mutation routes exist (confirmed 2026-04-22). Exercises are seed-only; re-seeding restarts the server (clears cache). There is nothing to invalidate.
 - **Unbounded queries without pagination** — also a `data-integrity` concern (large response can OOM the server). Cross-reference with `monitoring` agent: is response time for these endpoints tracked?
-- **`buildAnalyticsContext` ~180 queries** — also flagged by `monitoring` (no timeout alerting). Fix requires `ai-coach` agent: either cache the context per-user with a short TTL, or make context build lazy (only for analytics_query intent).
+- ~~**`buildAnalyticsContext` ~180 queries — no timeout alerting**~~ — **PARTIALLY RESOLVED** 2026-04-22: timing instrumentation added (warn if > 2000ms). Underlying query count optimization is still open — `ai-coach` agent owns the fix: cache per-user with 60s TTL or lazy load by intent.
 - **Payload size** — heavy `include:` chains also affect client memory. Cross-reference with `frontend` agent: does the client store all returned data in Zustand? If yes, large payloads inflate AsyncStorage.
 
 When you find a bottleneck, note which agent should implement the fix.
