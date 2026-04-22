@@ -29,7 +29,7 @@ grep -rn "console\.log\|console\.error" C:/Users/sevka/Desktop/1223/work/iron-gy
 # Server integration tests (11 suites, ~263 tests)
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npm test -- --forceExit 2>&1 | tail -8
 
-# Client store unit tests (24 suites, ~425 tests)
+# Client store unit tests (25 suites, ~442 tests)
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && npm test -- --forceExit 2>&1 | tail -8
 ```
 
