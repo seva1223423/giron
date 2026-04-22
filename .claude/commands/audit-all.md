@@ -14,11 +14,20 @@ Before spawning agents, establish current baselines:
 # Model count
 grep -c "^model " C:/Users/sevka/Desktop/1223/work/iron-gym/server/prisma/schema.prisma
 
-# Agent count
+# Agent count (expected: 13)
 ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/agents/ | wc -l
+
+# Command count (expected: 13)
+ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/commands/ | wc -l
 
 # Server route sizes
 wc -l C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/routes/*.ts
+
+# Server test suite count (expected: 19 suites, 410 tests)
+ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/__tests__/*.test.ts | wc -l
+
+# Client test suite count (expected: 29 suites, 512 tests)
+ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/__tests__/*.test.ts | wc -l
 
 # Pending git changes
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && git status --short

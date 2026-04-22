@@ -92,6 +92,33 @@ grep -n "morgan\|request.*log\|req\.method\|req\.path\|access.*log" server/src/i
 
 Flag: without request logging (Morgan or equivalent), there's no way to diagnose production errors from logs alone. Every request should log: method, path, status code, duration.
 
+### 4b. Cache Invalidation Coverage
+
+```bash
+# Find all cache.set / cache.get calls
+grep -n "Cache\.set\|Cache\.get\|cache\.set\|cache\.get\|\.set(\|\.get(" server/src/routes/workout.ts server/src/routes/news.ts server/src/routes/ai.ts | head -30
+
+# Find cache delete / invalidation calls
+grep -n "Cache\.delete\|cache\.delete\|cache\.clear\|\.delete(" server/src/routes/ --include="*.ts" | head -20
+
+# Verify each cache has corresponding invalidation on mutation
+```
+
+Known caches and their invalidation status:
+
+| Cache | TTL | Key | Invalidated on write? |
+|-------|-----|-----|----------------------|
+| `leaderboardCache` (workout.ts) | 15 min | `'leaderboard'` | No — stale up to 15min after workout sync |
+| `exercisesCache` (workout.ts) | 1 hour | `'exercises'` | **NO — MISSING** — if exercise is updated/seeded, cache returns stale data for 1h |
+| AI `responseCache` (ai.ts) | 4 hours | message hash | Intentional — only for generic questions |
+
+Flag: `exercisesCache` has no invalidation on PUT/POST /exercises. If any exercise data changes (admin update, re-seed), users see stale exercise metadata for up to 1 hour.
+
+Expected fix: in any route that modifies an Exercise record, add:
+```typescript
+exercisesCache.delete('exercises');
+```
+
 ### 5. AI Fallback Chain Health
 
 ```bash
@@ -175,6 +202,28 @@ These events should always be logged at appropriate level:
 - Don't flag `console.log` in seed files or scripts — only in routes and services
 - Don't recommend removing the Ollama fallback — it's intentional for offline dev
 - Don't flag every missing metric — focus on actionable gaps that affect reliability or security
+
+## Current Known Monitoring Gaps
+
+These gaps are documented but not yet fixed. Reference them during audits:
+
+**HIGH**
+1. **No per-user AI rate limit** — `aiRateLimiter` is per-IP only. Multiple accounts from one IP bypass it.
+   - Location: `server/src/index.ts` (limiter def) + `server/src/routes/ai.ts` (where to add per-userId check)
+   - Fix: add `Map<userId, { count, resetAt }>` in-memory counter checked in the route handler
+
+**MEDIUM**
+2. **`exercisesCache` not invalidated on exercise update** — 1-hour TTL, no `cache.delete` on write
+   - Location: `server/src/routes/workout.ts` (GET /exercises sets cache; no corresponding invalidation)
+   - Fix: call `exercisesCache.delete('exercises')` in any route that mutates an Exercise
+
+3. **Analytics context build (~180 queries) has no timeout alerting** — if it exceeds 2s, no metric is emitted
+   - Location: `server/src/routes/ai.ts` — `buildAnalyticsContext()`
+   - Fix: record duration of `Promise.all(...)` and log WARN if > 2000ms
+
+4. **Subscription limit check is non-atomic at the fast-path level** — two concurrent requests both pass the early count check. The inner `$transaction` re-check blocks bypass, but the fast-path check still emits a wasted Mistral call for the second request.
+   - Location: `server/src/routes/ai.ts` — daily limit check
+   - Status: atomic re-check inside transaction exists; fast-path race is a performance waste, not a security hole
 
 ## See Also (Cross-Agent Coordination)
 

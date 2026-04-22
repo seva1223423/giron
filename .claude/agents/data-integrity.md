@@ -83,6 +83,46 @@ Flag:
 - `DateTime` in Prisma but `string` in client (fine if ISO, flag if Date object)
 - Missing fields in client type that server always returns
 
+### Offline ID Upgrade Patterns
+
+When a Zustand store uses offline-first IDs (e.g. `local-${Date.now()}` or `meas-${Date.now()}-${random}`), there must be a code path that **upgrades** the local ID to the server ID after a successful API call. Missing this upgrade = permanent ID mismatch between local state and server.
+
+```bash
+# Find stores that generate local IDs
+grep -rn "local-\${Date\|meas-\${Date\|meal-\${Date" src/store/ --include="*.ts"
+
+# Find stores that upgrade local IDs to server IDs
+grep -rn "server-\${date\|filter.*id.*local\|replace.*local" src/store/ --include="*.ts"
+```
+
+**Expected pattern (measurements store as reference):**
+```typescript
+// 1. Generate optimistic local ID
+const localId = `meas-${Date.now()}-${Math.random()}`;
+set((s) => ({ entries: [{ ...data, id: localId }, ...s.entries] }));
+
+// 2. Call server
+const saved = await userService.saveMeasurement(payload);
+
+// 3. Upgrade: replace localId with server ID in state
+set((s) => ({
+  entries: s.entries.map((e) =>
+    e.id === localId ? { ...e, id: `server-${payload.date}` } : e
+  ),
+}));
+```
+
+Flag: any store that generates `local-` IDs but has no ID-upgrade step after successful server call. Result: `removeItem('local-xxx')` no longer finds the item (it was renamed to `server-xxx`) → stale entry in state.
+
+**ID prefix conventions across stores:**
+| Store | Local prefix | Server ID format |
+|-------|-------------|-----------------|
+| `useCardioStore` | `local-${Date.now()}` | server cuid |
+| `useMeasurementsStore` | `meas-${Date.now()}-${random}` | `server-${date}` |
+| `useNutritionStore` | `meal-${Date.now()}` | server cuid |
+
+Flag any new store that deviates from these prefix conventions — the sync logic depends on prefix detection.
+
 ### Transaction Safety
 
 ```bash
