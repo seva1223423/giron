@@ -36,14 +36,18 @@ jest.mock('../db', () => ({
     },
     passwordResetToken: {
       findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     passwordHistory: {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({}),
-      deleteMany: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+    trustedDevice: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     subscription: {
       // Required by subscription.ts webhook stale-event guard — without it
@@ -67,9 +71,13 @@ jest.mock('../utils/logger', () => ({
   },
 }));
 
-// Mock email service
+// Mock email service — must include ALL named exports auth.ts imports
 jest.mock('../services/emailService', () => ({
   sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+  sendPasswordChangedAlert: jest.fn().mockResolvedValue(undefined),
+  sendOtpEmail: jest.fn().mockResolvedValue(undefined),
+  sendNewLoginAlert: jest.fn().mockResolvedValue(undefined),
+  sendEmailVerification: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock news refresh service (imported by index.ts)
@@ -98,6 +106,11 @@ describe('Auth Routes', () => {
     (mockPrisma.otpCode as any).findFirst.mockResolvedValue(null);
     (mockPrisma.passwordHistory.findMany as jest.Mock).mockResolvedValue([]);
     (mockPrisma.passwordHistory.create as jest.Mock).mockResolvedValue({});
+    (mockPrisma.passwordHistory.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+    (mockPrisma.passwordResetToken.findFirst as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.passwordResetToken.create as jest.Mock).mockResolvedValue({});
+    (mockPrisma.passwordResetToken.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     // Default user.update response covers login attempt increments / lockout resets
     (mockPrisma.user.update as jest.Mock).mockResolvedValue({ loginAttempts: 1, lockedUntil: null });
   });
@@ -463,6 +476,157 @@ describe('Auth Routes', () => {
         });
 
       expect(res.status).toBe(401);
+    });
+  });
+
+  // ─── Forgot Password ────────────────────────────────────────────────────────
+
+  describe('POST /api/auth/forgot-password', () => {
+    it('400 when email format is invalid', async () => {
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: 'not-an-email' });
+      expect(res.status).toBe(400);
+    });
+
+    it('200 with generic message when email is not registered (enumeration protection)', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: 'unknown@example.com' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('письмо отправлено');
+    });
+
+    it('200 with same message when recent token already exists (per-email rate limit)', async () => {
+      const user = { id: 'u-test', email: 'test@example.com' };
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce(user);
+      (mockPrisma.passwordResetToken.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: 'tok-1',
+        userId: user.id,
+        used: false,
+        createdAt: new Date(),
+      });
+
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: user.email });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('письмо отправлено');
+      // Must NOT create a new token when rate-limited
+      expect(mockPrisma.passwordResetToken.create as jest.Mock).not.toHaveBeenCalled();
+    });
+
+    it('200 creates reset token for valid registered email', async () => {
+      const user = { id: 'u-fresh', email: 'fresh@example.com' };
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce(user);
+      // No recent token — proceed to create
+      (mockPrisma.passwordResetToken.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: user.email });
+
+      expect(res.status).toBe(200);
+      expect(mockPrisma.passwordResetToken.create as jest.Mock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── Reset Password ─────────────────────────────────────────────────────────
+
+  describe('POST /api/auth/reset-password', () => {
+    it('400 when token is missing', async () => {
+      const res = await request(app)
+        .post('/api/auth/reset-password')
+        .send({ password: 'NewPass123' });
+      expect(res.status).toBe(400);
+    });
+
+    it('400 when password is too weak (no digit)', async () => {
+      const res = await request(app)
+        .post('/api/auth/reset-password')
+        .send({ token: 'sometoken', password: 'weakpassword' });
+      expect(res.status).toBe(400);
+    });
+
+    it('400 when token is invalid or already used', async () => {
+      (mockPrisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/reset-password')
+        .send({ token: 'invalid-token', password: 'NewPass1' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('недействительна');
+    });
+
+    it('400 when token is expired', async () => {
+      (mockPrisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 'tok-exp',
+        token: 'expired-token',
+        userId: 'u-test',
+        used: false,
+        expiresAt: new Date(Date.now() - 1000), // already expired
+        user: { id: 'u-test', email: 'test@example.com', emailVerified: true, passwordHash: null },
+      });
+
+      const res = await request(app)
+        .post('/api/auth/reset-password')
+        .send({ token: 'expired-token', password: 'NewPass1' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('200 resets password with valid token — marks token used, invalidates sessions', async () => {
+      const validToken = {
+        id: 'tok-valid',
+        token: 'abc123validtoken',
+        userId: 'u-reset',
+        used: false,
+        expiresAt: new Date(Date.now() + 3600_000), // 1 hour from now
+        user: { id: 'u-reset', email: 'reset@example.com', emailVerified: true, passwordHash: null },
+      };
+      (mockPrisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValueOnce(validToken);
+      // updateMany returns count=1 — token successfully consumed
+      (mockPrisma.passwordResetToken.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+      (mockPrisma.$transaction as jest.Mock).mockResolvedValueOnce([{}, { count: 1 }, { count: 1 }]);
+
+      const res = await request(app)
+        .post('/api/auth/reset-password')
+        .send({ token: 'abc123validtoken', password: 'NewPass1' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('изменён');
+    });
+  });
+
+  // ─── Logout ─────────────────────────────────────────────────────────────────
+
+  describe('POST /api/auth/logout', () => {
+    it('200 with no body (graceful — session already expired or client lost token)', async () => {
+      const res = await request(app)
+        .post('/api/auth/logout')
+        .send({});
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('Выход');
+    });
+
+    it('200 with refresh token — revokes only that token', async () => {
+      const fakeRefresh = jwt.sign({ userId: 'u-test' }, process.env.JWT_REFRESH_SECRET!, {
+        expiresIn: '30d',
+        issuer: 'irongym-api',
+        audience: 'irongym-app',
+      });
+
+      const res = await request(app)
+        .post('/api/auth/logout')
+        .send({ refreshToken: fakeRefresh });
+
+      expect(res.status).toBe(200);
+      expect(mockPrisma.refreshToken.updateMany as jest.Mock).toHaveBeenCalled();
     });
   });
 });
