@@ -64,11 +64,13 @@ describe('Line height accommodates font scaling', () => {
 
 describe('Tab-bar label at min + max scale', () => {
   test('10pt label at 0.85× scale still readable (>=8.5pt)', () => {
-    expect(typography.tabLabel.fontSize * MIN_SCALE).toBeGreaterThanOrEqual(8);
+    const size = typography.tabLabel.fontSize ?? 10;
+    expect(size * MIN_SCALE).toBeGreaterThanOrEqual(8);
   });
 
   test('10pt label at 1.5× is 15pt (fits in 88pt tall bar)', () => {
-    expect(typography.tabLabel.fontSize * MAX_SCALE).toBeLessThanOrEqual(30);
+    const size = typography.tabLabel.fontSize ?? 10;
+    expect(size * MAX_SCALE).toBeLessThanOrEqual(30);
   });
 });
 
