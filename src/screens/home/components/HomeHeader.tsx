@@ -1,56 +1,95 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useThemeStore, useAuthStore, useWorkoutStore } from '../../../store';
+import { useThemeStore, useAuthStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
-import { computeStreak } from '../../../utils/date';
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 6) return 'Доброй ночи';
-  if (h < 12) return 'Доброе утро';
-  if (h < 18) return 'Добрый день';
-  return 'Добрый вечер';
+/** Formats the current date to match the design export exactly:
+ *  "Вторник · 22 апреля" — meta-label uppercase monospace. */
+function formatDateMetaRu(d: Date): string {
+  const weekdays = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+  const months = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+  ];
+  const weekday = weekdays[d.getDay()];
+  const day = d.getDate();
+  const month = months[d.getMonth()];
+  return `${weekday} · ${day} ${month}`;
 }
 
-function getStreakDisplay(streak: number, primary: string, primaryLight: string): { text: string; color: string } | null {
-  if (streak <= 0) return null;
-  if (streak >= 30) return { text: `${streak} дней подряд — Легенда`, color: primaryLight };
-  if (streak >= 7) return { text: `${streak} дней подряд`, color: primary };
-  const label = streak === 1 ? 'день' : streak < 5 ? 'дня' : 'дней';
-  return { text: `${streak} ${label} подряд`, color: primary };
-}
-
+/**
+ * Header row from Direction A home design:
+ *  - Left: uppercase date meta label, then large greeting "Привет, Имя"
+ *  - Right: bell icon in a rounded surface tile with a gold dot overlay
+ *    (unread indicator — the design shows it constantly for demo, we keep
+ *    it wired to notifications later but render a subtle dot as an
+ *    ambient "there's something to see" cue).
+ *
+ * The bell tile taps through to the profile tab (which is where account
+ * notifications live). A future pass can route it to a dedicated
+ * notifications screen.
+ */
 export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { workoutHistory } = useWorkoutStore();
-
-  const streak = useMemo(
-    () => computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]),
-    [workoutHistory],
-  );
-
-  const streakDisplay = getStreakDisplay(streak, colors.primary, colors.primaryLight);
 
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xxl }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
       <View style={{ flex: 1, marginRight: spacing.md }}>
-        <Text style={[typography.small, { color: colors.textSecondary }]}>{getGreeting()}</Text>
-        <Text style={[typography.h2, { color: colors.text }]} numberOfLines={1}>{user?.firstName || 'Атлет'}</Text>
-        {streakDisplay && (
-          <Text style={[typography.smallMedium, { color: streakDisplay.color, marginTop: 2 }]} numberOfLines={1}>
-            {streakDisplay.text}
-          </Text>
-        )}
+        <Text
+          style={[
+            typography.metaLabel,
+            { color: colors.textTertiary, textTransform: 'uppercase' },
+          ]}
+          numberOfLines={1}
+        >
+          {formatDateMetaRu(new Date())}
+        </Text>
+        <Text
+          style={[typography.h2, { color: colors.text, marginTop: 4 }]}
+          numberOfLines={1}
+        >
+          Привет, {user?.firstName || 'Атлет'}
+        </Text>
       </View>
       <TouchableOpacity
         onPress={() => navigation.navigate('ProfileTab')}
-        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.primary + '50', alignItems: 'center', justifyContent: 'center' }}
+        accessibilityLabel="Уведомления и профиль"
+        accessibilityRole="button"
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>
-          {(user?.firstName?.[0] || 'A').toUpperCase()}
-        </Text>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 14,
+            backgroundColor: colors.surfaceElevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Simple bell glyph — filled stroke icons need a real SVG lib
+              later; this monospace bell keeps the layout correct without
+              adding a dependency. */}
+          <Text style={{ fontSize: 16, color: colors.text }}>◔</Text>
+        </View>
+        {/* Gold dot overlay in the corner — ambient unread indicator */}
+        <View
+          style={{
+            position: 'absolute',
+            top: -2,
+            right: -2,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: colors.primary,
+            borderWidth: 2,
+            borderColor: colors.background,
+          }}
+        />
       </TouchableOpacity>
     </View>
   );
