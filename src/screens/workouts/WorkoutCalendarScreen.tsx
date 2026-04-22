@@ -13,7 +13,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
   const haptic = useHaptic();
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
-  const { workoutHistory, weekPlan } = useWorkoutStore();
+  const { workoutHistory, weekPlan, routines } = useWorkoutStore();
 
   const today = new Date();
   const todayStr = toDateStr(today);
@@ -37,7 +37,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
   const planDays = useMemo(() => {
     const result = new Set<number>();
     Object.entries(weekPlan).forEach(([dow, entry]) => {
-      if (entry && entry.exercises.length > 0) result.add(Number(dow));
+      if (entry && (entry.exercises.length > 0 || entry.routineId)) result.add(Number(dow));
     });
     return result;
   }, [weekPlan]);
@@ -45,7 +45,7 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
   const days = useMemo(() => getDaysInMonth(viewYear, viewMonth), [viewYear, viewMonth]);
 
   const monthStats = useMemo(() => {
-    let totalWorkouts = 0, totalVolume = 0, totalDuration = 0;
+    let totalWorkouts = 0, totalVolume = 0, totalDuration = 0, totalPRs = 0;
     days.forEach((d) => {
       const ws = workoutsByDate.get(toDateStr(d));
       if (!ws) return;
@@ -53,13 +53,14 @@ export const WorkoutCalendarScreen: React.FC<{ navigation: any }> = ({ navigatio
       ws.forEach((w) => {
         totalDuration += w.durationMinutes || 0;
         w.exercises?.forEach((ex) => {
-          ex.sets?.forEach((s) => {
+          ex.sets?.forEach((s: any) => {
             if (s.completed && s.weight && s.reps) totalVolume += s.weight * s.reps;
+            if (s.isPR) totalPRs += 1;
           });
         });
       });
     });
-    return { totalWorkouts, totalVolume: Math.round(totalVolume), totalDuration };
+    return { totalWorkouts, totalVolume: Math.round(totalVolume), totalDuration, totalPRs };
   }, [days, workoutsByDate]);
 
   const goToPrevMonth = () => {
