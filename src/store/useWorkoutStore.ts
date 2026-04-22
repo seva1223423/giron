@@ -340,24 +340,26 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (setIndex < 0 || setIndex >= sets.length) return s;
         const completedSet = { ...sets[setIndex], ...data, completed: true };
 
-        // Detect PR: compute Epley 1RM and compare against history
+        // Detect PR: compute Epley 1RM and compare against history.
+        // Single-pass scan avoids the chain of flatMap + filter that creates
+        // O(W*E*S) intermediate arrays per set completion.
         const { weight, reps } = completedSet;
         if (weight && reps && weight > 0 && reps > 0 && completedSet.type !== 'warmup') {
           const newRM = weight * (1 + reps / 30);
           const exerciseId = exercise.exerciseId;
-          const historySets = s.workoutHistory
-            .filter((w) => w.id !== workout.id && w.completedAt)
-            .flatMap((w) => w.exercises)
-            .filter((e) => e.exerciseId === exerciseId)
-            .flatMap((e) => e.sets)
-            .filter((st) => st.completed && st.weight && st.reps && st.type !== 'warmup');
-          const historyBest = historySets.length > 0
-            ? historySets.reduce((best, st) => {
-                const rm = st.weight! * (1 + st.reps! / 30);
-                return rm > best ? rm : best;
-              }, 0)
-            : null;
-          completedSet.isPR = historyBest === null || newRM > historyBest;
+          let historyBest = -1;
+          for (const w of s.workoutHistory) {
+            if (w.id === workout.id || !w.completedAt) continue;
+            for (const ex of w.exercises) {
+              if (ex.exerciseId !== exerciseId) continue;
+              for (const st of ex.sets) {
+                if (!st.completed || !st.weight || !st.reps || st.type === 'warmup') continue;
+                const rm = st.weight * (1 + st.reps / 30);
+                if (rm > historyBest) historyBest = rm;
+              }
+            }
+          }
+          completedSet.isPR = historyBest < 0 || newRM > historyBest;
         }
 
         sets[setIndex] = completedSet;

@@ -23,13 +23,17 @@ grep -rn "console\.log\|console\.error" C:/Users/sevka/Desktop/1223/work/iron-gy
 
 **WARN if:** any console.log found.
 
-## Section 2 — Server Tests
+## Section 2 — Tests
 
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npm test -- --forceExit 2>&1 | tail -20
+# Server integration tests (11 suites, ~263 tests)
+cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npm test -- --forceExit 2>&1 | tail -8
+
+# Client store unit tests (22 suites, ~377 tests)
+cd C:/Users/sevka/Desktop/1223/work/iron-gym && npm test -- --forceExit 2>&1 | tail -8
 ```
 
-**BLOCKER if:** any test failures.
+**BLOCKER if:** any test failures in either suite.
 
 ## Section 3 — Schema Drift Check
 
@@ -110,7 +114,7 @@ grep -n "health\|/ping\|SELECT 1\|queryRaw" C:/Users/sevka/Desktop/1223/work/iro
 RELEASE READINESS REPORT
 ━━━━━━━━━━━━━━━━━━━━━━━━
 Section 1 — TypeScript:    [PASS / BLOCKER: X errors]
-Section 2 — Tests:         [PASS / BLOCKER: X failures]
+Section 2 — Tests:         [PASS / BLOCKER: X server failures, Y client failures]
 Section 3 — Schema drift:  [PASS / WARN: schema changed, db push needed]
 Section 4 — Navigation:    [PASS / BLOCKER: missing screens]
 Section 5 — Security:      [PASS / BLOCKER: unprotected routes]
