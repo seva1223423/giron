@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
+import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
 import { Card, Button, AnimatedPressable } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -281,37 +282,109 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Profile header ── */}
-      <View style={styles.profileHeader}>
-        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Text style={{ color: '#FFF', fontSize: 32, fontWeight: '800' }}>{(user?.firstName?.[0] || 'A').toUpperCase()}</Text>
-        </View>
-        <Text style={[typography.h2, { color: colors.text, marginTop: spacing.lg }]}>{user?.firstName} {user?.lastName}</Text>
-        <Text style={[typography.body, { color: colors.textSecondary }]}>{user?.email}</Text>
-        {daysWithUs !== null && (
-          <View style={{ backgroundColor: colors.primary + '15', borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: 3, marginTop: spacing.sm, borderWidth: 1, borderColor: colors.primary + '30' }}>
-            <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
-              С нами {daysWithUs} {daysWithUs === 1 ? 'день' : daysWithUs < 5 ? 'дня' : 'дней'}
-            </Text>
-          </View>
-        )}
-      </View>
+      {/* ═══════════════════════════════════════════════════════════
+          Direction A premium profile hero — gradient graphite→amber
+          card with avatar tile, name, subtitle (days with us / level),
+          IRON PRO chip, and 3 stat tiles below (Тренировок / Стрик /
+          Ачивок). Pixel copy of A_Profile.
+          ═══════════════════════════════════════════════════════════ */}
+      <View style={styles.heroCard}>
+        {/* Gradient background — same warm amber stack as AICoachCard */}
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+          <Defs>
+            <LinearGradient id="profileBg" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#1E1810" stopOpacity={1} />
+              <Stop offset="1" stopColor="#2A1F12" stopOpacity={1} />
+            </LinearGradient>
+            <RadialGradient id="profileGlow" cx="95%" cy="0%" rx="50%" ry="50%">
+              <Stop offset="0" stopColor={colors.primary} stopOpacity={0.2} />
+              <Stop offset="1" stopColor={colors.primary} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#profileBg)" />
+          <Rect width="100%" height="100%" fill="url(#profileGlow)" />
+        </Svg>
 
-      {/* ── Stats row ── */}
-      <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.statItem}>
-          <Text style={[typography.numberSmall, { color: colors.primary }]}>{workoutHistory.length}</Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>Тренировок</Text>
-        </View>
-        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.statItem}>
-          <Text style={[typography.numberSmall, { color: colors.primary }]}>{user?.weightKg || '—'}</Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>кг</Text>
-        </View>
-        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.statItem}>
-          <Text style={[typography.numberSmall, { color: colors.primary }]}>{unlockedAchievements.length}</Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>Ачивок</Text>
+        <View style={{ padding: 22, position: 'relative' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            {/* Gold avatar tile with dark initial */}
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 20,
+                backgroundColor: colors.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ color: colors.textInverse, fontSize: 28, fontWeight: '600' }}>
+                {(user?.firstName?.[0] || 'A').toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text
+                style={[typography.h3, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {user?.firstName || 'Атлет'} {user?.lastName ?? ''}
+              </Text>
+              <Text
+                style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
+                numberOfLines={1}
+              >
+                {daysWithUs !== null
+                  ? `С нами ${daysWithUs} ${daysWithUs === 1 ? 'день' : daysWithUs < 5 ? 'дня' : 'дней'}`
+                  : (user?.email ?? '—')}
+              </Text>
+              {useSubscriptionStore.getState().isPremiumActive() && (
+                <View
+                  style={{
+                    alignSelf: 'flex-start',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    marginTop: 8,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 999,
+                    backgroundColor: colors.primary,
+                  }}
+                >
+                  <Text style={{ color: colors.textInverse, fontSize: 11, fontWeight: '700' }}>◈</Text>
+                  <Text
+                    style={{
+                      color: colors.textInverse,
+                      fontSize: 11,
+                      fontWeight: '700',
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    IRON PRO
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* 3 stat tiles on translucent dark — stands out on the amber bg */}
+          <View style={styles.heroStats}>
+            {[
+              { label: 'Тренировок', value: String(workoutHistory.length) },
+              { label: 'Вес', value: user?.weightKg ? `${user.weightKg} кг` : '—' },
+              { label: 'Ачивок', value: `${unlockedAchievements.length}/20` },
+            ].map((s) => (
+              <View key={s.label} style={styles.heroStatTile}>
+                <Text style={[typography.h4, { color: colors.text }]}>{s.value}</Text>
+                <Text
+                  style={{ color: colors.textSecondary, fontSize: 10, marginTop: 2, letterSpacing: 0.5 }}
+                  numberOfLines={1}
+                >
+                  {s.label}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       </View>
 
@@ -660,8 +733,28 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
+  // Premium hero gradient card — replaces the old centered avatar block
+  heroCard: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    marginBottom: spacing.lg,
+  },
+  heroStats: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 20,
+  },
+  heroStatTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  // Legacy stats row, kept for callers that haven't migrated
   profileHeader: { alignItems: 'center', marginBottom: spacing.xl },
-  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: 'rgba(139,92,246,0.3)' },
+  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: 'rgba(212,176,122,0.3)' },
   statsRow: {
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
     borderRadius: borderRadius.lg, borderWidth: 1,
