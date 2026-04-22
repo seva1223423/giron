@@ -1030,6 +1030,35 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     lastClearedTimerRef.current = setTimeout(() => setLastCleared(null), 10_000);
   }, [recognizedItems, itemBases, haptic]);
 
+  /** Bulk-remove only the low-confidence items (conf < 0.5 / missing). Uses
+   *  the same snapshot undo slot as clearAllItems — if the user realises
+   *  they nuked a low-conf item they actually wanted, "Отменить" restores
+   *  the entire pre-remove list (which includes the high-conf items that
+   *  stayed around; setRecognizedItems replaces, so they're briefly set
+   *  anew — this is fine, React diffs by id). */
+  const removeLowConfidenceItems = useCallback(() => {
+    const snapshot = {
+      items: recognizedItems,
+      bases: { ...itemBases },
+      expiresAt: Date.now() + 10_000,
+    };
+    haptic.warning();
+    const keptIds = new Set(
+      recognizedItems.filter((i) => (i.confidence ?? 0) >= 0.5).map((i) => i.id),
+    );
+    setRecognizedItems(recognizedItems.filter((i) => keptIds.has(i.id)));
+    setItemBases(() => {
+      const next: typeof itemBases = {};
+      for (const [id, base] of Object.entries(itemBases)) {
+        if (keptIds.has(id) && base) next[id] = base;
+      }
+      return next;
+    });
+    setLastCleared(snapshot);
+    if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
+    lastClearedTimerRef.current = setTimeout(() => setLastCleared(null), 10_000);
+  }, [recognizedItems, itemBases, haptic]);
+
   const undoClear = useCallback(() => {
     if (!lastCleared) return;
     haptic.success();
@@ -1794,35 +1823,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                     onPress={() => {
                       Alert.alert(
                         'Удалить неуверенные?',
-                        `${lowConfItems.length} позиций с низкой уверенностью AI будут удалены. Откройте карточку, чтобы проверить конкретные позиции.`,
+                        `${lowConfItems.length} позиций с низкой уверенностью AI будут удалены. Восстановить можно будет 10 секунд.`,
                         [
                           { text: 'Отмена', style: 'cancel' },
-                          {
-                            text: 'Удалить',
-                            style: 'destructive',
-                            onPress: () => {
-                              haptic.warning();
-                              const keptIds = new Set(
-                                recognizedItems
-                                  .filter((i) => (i.confidence ?? 0) >= 0.5)
-                                  .map((i) => i.id),
-                              );
-                              setRecognizedItems((prev) => prev.filter((i) => keptIds.has(i.id)));
-                              setItemBases((prev) => {
-                                const next: typeof prev = {};
-                                for (const id of Object.keys(prev)) {
-                                  if (keptIds.has(id)) next[id] = prev[id];
-                                }
-                                return next;
-                              });
-                            },
-                          },
+                          { text: 'Удалить', style: 'destructive', onPress: removeLowConfidenceItems },
                         ],
                       );
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                     accessibilityLabel={`Удалить ${lowConfItems.length} позиций с низкой уверенностью AI`}
-                    accessibilityHint="Оставит только позиции, в которых AI уверен"
+                    accessibilityHint="Оставит только позиции, в которых AI уверен. 10 секунд на отмену."
                     accessibilityRole="button"
                   >
                     <Text style={[typography.captionMedium, { color: colors.warning, fontWeight: '700' }]}>
