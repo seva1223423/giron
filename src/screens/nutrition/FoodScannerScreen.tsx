@@ -876,7 +876,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {/* Photo or empty-state card */}
         {imageUri ? (
           <View style={styles.imageContainer}>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => { haptic.selection(); setImagePreviewOpen(true); }}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => { haptic.selection(); setImagePreviewOpen(true); }}
+              accessibilityLabel="Сфотографированная еда"
+              accessibilityHint="Нажмите чтобы увеличить фото"
+              accessibilityRole="imagebutton"
+            >
               <Image source={{ uri: imageUri }} style={[styles.image, { height: Math.min(250, screenHeight * 0.3) }]} />
               <View style={styles.zoomHint}>
                 <Text style={{ fontSize: 14, color: '#FFF' }}>⤢</Text>
@@ -892,6 +898,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <TouchableOpacity
               style={[styles.retakeBtn, { backgroundColor: colors.surface }]}
               onPress={() => { haptic.light(); abortRef.current?.abort(); setImageUri(null); setRecognizedItems([]); setItemBases({}); setLoading(false); setError(''); setIsBarcodeResult(false); setSanityFlags([]); setCachedResult(false); setTotalWeightDraft(''); lastBase64Ref.current = ''; }}
+              accessibilityLabel="Переснять фото"
+              accessibilityHint="Сбрасывает текущий результат и возвращает к выбору фото"
+              accessibilityRole="button"
             >
               <Text style={[typography.smallMedium, { color: colors.primary }]}>Переснять</Text>
             </TouchableOpacity>
@@ -906,10 +915,27 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               Совет: снимай тарелку сверху при хорошем освещении — чем лучше фото, тем точнее результат
             </Text>
             <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
-              <Button title="📷 Камера" onPress={() => pickImage(true)} style={{ flex: 1 }} />
-              <Button title="Галерея" variant="outline" onPress={() => pickImage(false)} style={{ flex: 1 }} />
+              <Button
+                title="📷 Камера"
+                onPress={() => pickImage(true)}
+                style={{ flex: 1 }}
+                accessibilityLabel="Сфотографировать еду камерой для анализа ИИ"
+              />
+              <Button
+                title="Галерея"
+                variant="outline"
+                onPress={() => pickImage(false)}
+                style={{ flex: 1 }}
+                accessibilityLabel="Выбрать фото еды из галереи для анализа ИИ"
+              />
             </View>
-            <TouchableOpacity onPress={openBarcodeScanner} style={[styles.barcodeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <TouchableOpacity
+              onPress={openBarcodeScanner}
+              style={[styles.barcodeBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              accessibilityLabel="Сканировать штрих-код"
+              accessibilityHint="Для упакованных продуктов — ищет в базе OpenFoodFacts"
+              accessibilityRole="button"
+            >
               <Text style={{ fontSize: 22 }}>📦</Text>
               <View style={{ marginLeft: spacing.sm }}>
                 <Text style={[typography.smallMedium, { color: colors.text }]}>Сканировать штрих-код</Text>
@@ -919,6 +945,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <TouchableOpacity
               onPress={() => { haptic.selection(); setTextModalOpen(true); }}
               style={[styles.barcodeBtn, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: spacing.sm }]}
+              accessibilityLabel="Описать еду текстом"
+              accessibilityHint="Введите что ели с весом, AI распарсит в КБЖУ"
+              accessibilityRole="button"
             >
               <Text style={{ fontSize: 22 }}>📝</Text>
               <View style={{ marginLeft: spacing.sm }}>
@@ -1014,7 +1043,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.md }]}>ИИ анализирует фото...</Text>
             <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Определяю продукты и рассчитываю КБЖУ</Text>
             <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Обычно 5–15 секунд</Text>
-            <TouchableOpacity onPress={cancelAnalysis} style={{ marginTop: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border }}>
+            <TouchableOpacity
+              onPress={cancelAnalysis}
+              style={{ marginTop: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border }}
+              accessibilityLabel="Отменить анализ"
+              accessibilityHint="Прерывает текущий запрос к AI"
+              accessibilityRole="button"
+            >
               <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>Отмена</Text>
             </TouchableOpacity>
           </Card>
@@ -1282,7 +1317,14 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               );
             })()}
 
-            <Button title="Сохранить в дневник" onPress={handleSave} fullWidth size="lg" />
+            <Button
+              title="Сохранить в дневник"
+              onPress={handleSave}
+              fullWidth
+              size="lg"
+              accessibilityLabel={`Сохранить ${recognizedItems.length} ${recognizedItems.length === 1 ? 'позицию' : 'позиции'} в дневник питания`}
+              accessibilityHint={`Всего ${Math.round(totalCal)} калорий`}
+            />
           </>
         )}
       </ScrollView>
