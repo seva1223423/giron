@@ -34,7 +34,7 @@ RESULT:
 2. Leaderboard SQL: 4-CTE query touching all Workout+WorkoutSet for active users. Cache TTL: 15 min.
 3. TF-IDF knowledge selection: O(n) score across all 25 modules per AI message.
 4. ~~Exercise list: `take: 500` hardcoded, returns full `instructions[]` array~~ — RESOLVED: `GET /exercises` now uses `EXERCISE_LIST_SELECT` (strips `instructions[]`, `description`, `videoUrl`, `imageUrl`). Payload reduced ~70%.
-5. `exercisesCache` (1h TTL) not invalidated on exercise update — stale data risk, not a latency issue.
+~~5. `exercisesCache` (1h TTL) not invalidated on exercise update~~ — **NOT APPLICABLE** (2026-04-22): no exercise mutation routes exist. Exercises are seed-only; re-seeding restarts the server, which clears in-memory cache automatically. Not a real gap.
 
 **Estimated endpoint latencies (Neon Frankfurt from Render Oregon, no cache):**
 - `GET /exercises` with cache hit: ~2ms

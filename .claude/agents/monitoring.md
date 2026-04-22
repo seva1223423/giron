@@ -109,15 +109,10 @@ Known caches and their invalidation status:
 | Cache | TTL | Key | Invalidated on write? |
 |-------|-----|-----|----------------------|
 | `leaderboardCache` (workout.ts) | 15 min | `'leaderboard'` | No — stale up to 15min after workout sync |
-| `exercisesCache` (workout.ts) | 1 hour | `'exercises'` | **NO — MISSING** — if exercise is updated/seeded, cache returns stale data for 1h |
+| `exercisesCache` (workout.ts) | 1 hour | `'exercises'` | N/A — no exercise mutation API routes; exercises are seed-only, so server restart (which kills in-memory cache) is required to change exercise data |
 | AI `responseCache` (ai.ts) | 4 hours | message hash | Intentional — only for generic questions |
 
-Flag: `exercisesCache` has no invalidation on PUT/POST /exercises. If any exercise data changes (admin update, re-seed), users see stale exercise metadata for up to 1 hour.
-
-Expected fix: in any route that modifies an Exercise record, add:
-```typescript
-exercisesCache.delete('exercises');
-```
+Note: `exercisesCache` has no invalidation — this is intentional and correct. There are NO exercise mutation API routes (confirmed 2026-04-22: `grep prisma.exercise.create/update/delete` returns no results in routes/). Exercises are seed-only; re-seeding requires `prisma db push + seed`, which restarts the Render server and kills all in-memory cache naturally.
 
 ### 5. AI Fallback Chain Health
 
@@ -210,11 +205,9 @@ These gaps are documented but not yet fixed. Reference them during audits:
 **HIGH**
 ~~1. **No per-user AI rate limit**~~ — **RESOLVED** as of 2026-04-22: `perUserAiBuckets` Map added to `server/src/routes/ai.ts`. Limit: 30 req/min per userId. Pruned with `.unref()` interval.
 
-**MEDIUM**
-2. **`exercisesCache` not invalidated on exercise update** — 1-hour TTL, no `cache.delete` on write
-   - Location: `server/src/routes/workout.ts` (GET /exercises sets cache; no corresponding invalidation)
-   - Fix: call `exercisesCache.delete('exercises')` in any route that mutates an Exercise
+~~2. **`exercisesCache` not invalidated on exercise update**~~ — **NOT APPLICABLE**: no exercise mutation routes exist (confirmed 2026-04-22). Cache invalidation on re-seed is automatic via server restart.
 
+**MEDIUM**
 3. **Analytics context build (~180 queries) has no timeout alerting** — if it exceeds 2s, no metric is emitted
    - Location: `server/src/routes/ai.ts` — `buildAnalyticsContext()`
    - Fix: record duration of `Promise.all(...)` and log WARN if > 2000ms
