@@ -39,6 +39,7 @@ jest.mock('../db', () => ({
     bodyMeasurement: {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({}),
+      upsert: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     sleepEntry: {
@@ -352,5 +353,223 @@ describe('POST /api/user/weight', () => {
     expect(args.where.userId_date.userId).toBe('u-test');
     expect(args.create.userId).toBe('u-test');
     expect(args.where.userId_date.userId).not.toBe('u-victim-456');
+  });
+});
+
+// ─── GET /api/user/weight ─────────────────────────────────────────────────────
+
+describe('GET /api/user/weight', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/user/weight');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns weight history sorted by date desc (max 90)', async () => {
+    const records = [
+      { id: 'bw-1', userId: 'u-test', weightKg: 82.5, date: new Date('2026-04-22') },
+      { id: 'bw-2', userId: 'u-test', weightKg: 81.0, date: new Date('2026-04-15') },
+    ];
+    (prisma.bodyWeight.findMany as jest.Mock).mockResolvedValueOnce(records);
+
+    const res = await request(app)
+      .get('/api/user/weight')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+  });
+});
+
+// ─── POST /api/user/measurements ─────────────────────────────────────────────
+
+describe('POST /api/user/measurements', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/user/measurements').send({ date: '2026-04-22', chest: 100 });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when date format is invalid', async () => {
+    const res = await request(app)
+      .post('/api/user/measurements')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ date: '22-04-2026', chest: 100 }); // wrong format
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when measurement value exceeds max (chest > 300)', async () => {
+    const res = await request(app)
+      .post('/api/user/measurements')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ date: '2026-04-22', chest: 999 }); // out of range
+    expect(res.status).toBe(400);
+  });
+
+  it('200 upserts measurement using req.userId', async () => {
+    const record = { id: 'm-1', userId: 'u-test', date: new Date('2026-04-22'), chest: 100 };
+    (prisma.bodyMeasurement.upsert as jest.Mock).mockResolvedValueOnce(record);
+
+    const res = await request(app)
+      .post('/api/user/measurements')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ date: '2026-04-22', chest: 100, waist: 80 });
+
+    expect(res.status).toBe(200);
+
+    const upsertCalls = (prisma.bodyMeasurement.upsert as jest.Mock).mock.calls;
+    expect(upsertCalls[0][0].create.userId).toBe('u-test');
+  });
+});
+
+// ─── GET /api/user/measurements ──────────────────────────────────────────────
+
+describe('GET /api/user/measurements', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/user/measurements');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns measurements (capped at FREE_MEASUREMENTS_LIMIT for free users)', async () => {
+    const records = [{ id: 'm-1', userId: 'u-test', date: '2026-04-22', chest: 100 }];
+    (prisma.bodyMeasurement.findMany as jest.Mock).mockResolvedValueOnce(records);
+
+    const res = await request(app)
+      .get('/api/user/measurements')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+
+    // Free user: findMany called with take=5 (FREE_MEASUREMENTS_LIMIT)
+    const findManyCalls = (prisma.bodyMeasurement.findMany as jest.Mock).mock.calls;
+    expect(findManyCalls[0][0].take).toBe(5);
+  });
+});
+
+// ─── POST /api/user/sleep ─────────────────────────────────────────────────────
+
+describe('POST /api/user/sleep', () => {
+  const validSleep = {
+    date: '2026-04-22',
+    bedtime: '22:30',
+    wakeTime: '07:00',
+    durationHours: 8.5,
+    quality: 4,
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/user/sleep').send(validSleep);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when bedtime format is invalid (not HH:MM)', async () => {
+    const res = await request(app)
+      .post('/api/user/sleep')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validSleep, bedtime: '10pm' }); // wrong format
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when durationHours exceeds maximum (24h)', async () => {
+    const res = await request(app)
+      .post('/api/user/sleep')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validSleep, durationHours: 25 });
+    expect(res.status).toBe(400);
+  });
+
+  it('200 upserts sleep entry with req.userId', async () => {
+    const entry = { id: 'sl-1', userId: 'u-test', ...validSleep };
+    (prisma.sleepEntry.upsert as jest.Mock).mockResolvedValueOnce(entry);
+
+    const res = await request(app)
+      .post('/api/user/sleep')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validSleep);
+
+    expect(res.status).toBe(200);
+    const upsertCalls = (prisma.sleepEntry.upsert as jest.Mock).mock.calls;
+    expect(upsertCalls[0][0].create.userId).toBe('u-test');
+  });
+});
+
+// ─── GET /api/user/sleep ──────────────────────────────────────────────────────
+
+describe('GET /api/user/sleep', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/user/sleep');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns sleep entries (last 90)', async () => {
+    const entries = [{ id: 'sl-1', userId: 'u-test', date: '2026-04-22', durationHours: 8 }];
+    (prisma.sleepEntry.findMany as jest.Mock).mockResolvedValueOnce(entries);
+
+    const res = await request(app)
+      .get('/api/user/sleep')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+  });
+});
+
+// ─── GET /api/user/trusted-devices ────────────────────────────────────────────
+
+describe('GET /api/user/trusted-devices', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/user/trusted-devices');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns list of trusted devices', async () => {
+    const devices = [
+      { id: 'dev-1', userId: 'u-test', name: 'iPhone 15', createdAt: new Date().toISOString() },
+    ];
+    (prisma.trustedDevice.findMany as jest.Mock).mockResolvedValueOnce(devices);
+
+    const res = await request(app)
+      .get('/api/user/trusted-devices')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].name).toBe('iPhone 15');
+  });
+});
+
+// ─── DELETE /api/user/measurements/:date ─────────────────────────────────────
+
+describe('DELETE /api/user/measurements/:date', () => {
+  it('401 without token', async () => {
+    const res = await request(app).delete('/api/user/measurements/2026-04-22');
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when date format is invalid', async () => {
+    const res = await request(app)
+      .delete('/api/user/measurements/not-a-date')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when no measurement exists for that date', async () => {
+    (prisma.bodyMeasurement.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+    const res = await request(app)
+      .delete('/api/user/measurements/2026-04-22')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('200 deletes measurement for the given date', async () => {
+    (prisma.bodyMeasurement.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    const res = await request(app)
+      .delete('/api/user/measurements/2026-04-22')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 });
