@@ -13,6 +13,7 @@ import {
   defaultMealType,
   findSavedFoodMatch,
   findDuplicateNames,
+  mergeDuplicateItems,
   normalizeFoodName,
   buildBarcodeDisplayName,
   median,
@@ -320,6 +321,127 @@ describe('findDuplicateNames', () => {
     expect(dups.has('яблоко')).toBe(true);
     expect(dups.has('рис')).toBe(true);
     expect(dups.has('курица')).toBe(false);
+  });
+});
+
+// ─── mergeDuplicateItems ──────────────────────────────────────────────────────
+
+describe('mergeDuplicateItems', () => {
+  const itemFactory = (id: string, name: string, weightGrams: number, calPer100: number = 100) => ({
+    id,
+    name,
+    weightGrams,
+    calories: Math.round((calPer100 * weightGrams) / 100),
+    protein: 1,
+    fats: 1,
+    carbs: 1,
+    confidence: 0.9 as number | undefined,
+  });
+
+  test('no duplicates — returns originals with mergedCount 0', () => {
+    const items = [itemFactory('a', 'Яблоко', 100), itemFactory('b', 'Рис', 200)];
+    const bases = {
+      a: { cal: 52, prot: 0.3, fats: 0.2, carbs: 14 },
+      b: { cal: 112, prot: 2.6, fats: 0.9, carbs: 22 },
+    };
+    const result = mergeDuplicateItems(items, bases);
+    expect(result.mergedCount).toBe(0);
+    expect(result.items).toBe(items); // referentially same array on no-op
+    expect(result.bases).toEqual(bases);
+  });
+
+  test('merges two duplicates — weights summed, macros recomputed from first base', () => {
+    const items = [
+      itemFactory('a', 'Яблоко', 150),
+      itemFactory('b', 'яблоко', 100),
+    ];
+    const bases = {
+      a: { cal: 52, prot: 0.3, fats: 0.2, carbs: 14 },
+      b: { cal: 52, prot: 0.3, fats: 0.2, carbs: 14 },
+    };
+    const result = mergeDuplicateItems(items, bases);
+    expect(result.mergedCount).toBe(1);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe('a');
+    expect(result.items[0].weightGrams).toBe(250);
+    // 52 kcal/100g × 250g = 130 kcal
+    expect(result.items[0].calories).toBe(130);
+    // Base for dropped id 'b' is pruned
+    expect(result.bases).toEqual({ a: bases.a });
+  });
+
+  test('three duplicates collapse into one', () => {
+    const items = [
+      itemFactory('a', 'Рис', 100),
+      itemFactory('b', 'Рис', 200),
+      itemFactory('c', 'рис (300г)', 50),
+    ];
+    const bases = {
+      a: { cal: 130, prot: 2.7, fats: 0.3, carbs: 28 },
+      b: { cal: 130, prot: 2.7, fats: 0.3, carbs: 28 },
+      c: { cal: 130, prot: 2.7, fats: 0.3, carbs: 28 },
+    };
+    const result = mergeDuplicateItems(items, bases);
+    expect(result.mergedCount).toBe(2);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].weightGrams).toBe(350);
+    // 130 × 350 / 100 = 455
+    expect(result.items[0].calories).toBe(455);
+  });
+
+  test('mixed duplicates + uniques keeps uniques untouched', () => {
+    const items = [
+      itemFactory('a', 'Яблоко', 100),
+      itemFactory('b', 'Рис', 200),
+      itemFactory('c', 'яблоко', 150),
+      itemFactory('d', 'Курица', 180),
+    ];
+    const bases = {
+      a: { cal: 52, prot: 0.3, fats: 0.2, carbs: 14 },
+      b: { cal: 112, prot: 2.6, fats: 0.9, carbs: 22 },
+      c: { cal: 52, prot: 0.3, fats: 0.2, carbs: 14 },
+      d: { cal: 165, prot: 31, fats: 3.6, carbs: 0 },
+    };
+    const result = mergeDuplicateItems(items, bases);
+    expect(result.mergedCount).toBe(1);
+    expect(result.items).toHaveLength(3);
+    const byId = Object.fromEntries(result.items.map((i) => [i.id, i]));
+    expect(byId.a.weightGrams).toBe(250); // 100 + 150
+    expect(byId.b.weightGrams).toBe(200);
+    expect(byId.d.weightGrams).toBe(180);
+    expect(byId.c).toBeUndefined();
+  });
+
+  test('items without a base fall through with weight-only merge', () => {
+    const items = [
+      itemFactory('a', 'Яблоко', 100),
+      itemFactory('b', 'яблоко', 50),
+    ];
+    const bases: Record<string, any> = {
+      // Intentionally no base for 'a' — expected to sum weight but leave
+      // the original cal/prot/fats/carbs untouched.
+    };
+    const result = mergeDuplicateItems(items, bases);
+    expect(result.mergedCount).toBe(1);
+    expect(result.items[0].weightGrams).toBe(150);
+    expect(result.items[0].calories).toBe(items[0].calories); // unchanged
+  });
+
+  test('empty-name items are left alone', () => {
+    const items = [
+      itemFactory('a', '', 100),
+      itemFactory('b', '', 100),
+      itemFactory('c', 'Рис', 200),
+    ];
+    const bases = {
+      a: { cal: 50, prot: 1, fats: 1, carbs: 1 },
+      b: { cal: 50, prot: 1, fats: 1, carbs: 1 },
+      c: { cal: 112, prot: 2.6, fats: 0.9, carbs: 22 },
+    };
+    const result = mergeDuplicateItems(items, bases);
+    // Empty names can't be grouped → no merges
+    expect(result.mergedCount).toBe(0);
+    expect(result.items).toHaveLength(3);
   });
 });
 
