@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import type { NewsArticle } from '../../../types';
@@ -147,7 +148,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
             accessibilityLabel="Поделиться статьёй"
             accessibilityRole="button"
           >
-            <Text style={{ color: colors.textSecondary, fontSize: 16 }}>↗</Text>
+            <Icon name="send" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => { haptic.selection(); onToggleSave(); }}
@@ -156,9 +157,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
             accessibilityRole="button"
             accessibilityState={{ selected: isSaved }}
           >
-            <Text style={{ color: isSaved ? colors.primary : colors.textSecondary, fontSize: 18 }}>
-              {isSaved ? '◆' : '◇'}
-            </Text>
+            <Icon name="bookmark" size={18} color={isSaved ? colors.primary : colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>

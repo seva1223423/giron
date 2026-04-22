@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore, useSubscriptionStore, FREE_LIMITS } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { AIMeta } from '../../../services';
@@ -73,7 +74,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
             </Defs>
             <Rect width="100%" height="100%" fill="url(#aiAvatarBg)" rx="14" ry="14" />
           </Svg>
-          <Text style={{ color: colors.textInverse, fontSize: 20, fontWeight: '700' }}>✦</Text>
+          <Icon name="spark" size={22} color={colors.textInverse} strokeWidth={2} />
         </View>
 
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -143,9 +144,12 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
             </View>
           )}
           {lastMeta?.streak != null && lastMeta.streak > 0 && (
-            <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
-              △ {lastMeta.streak} дн.
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="flame" size={12} color={colors.primary} />
+              <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+                {lastMeta.streak} дн.
+              </Text>
+            </View>
           )}
         </View>
       )}
