@@ -92,6 +92,20 @@ async function loadRecentScans(): Promise<RecentScan[]> {
   } catch { return []; }
 }
 
+/** Remove a barcode from the recent-scans list. Survives parallel writes
+ *  because we re-read before filtering. The barcode itself stays in the
+ *  BARCODE_CACHE_KEY 30d lookup cache — "remove from recents" is about
+ *  hiding an occasional mistake from the quick-access row, not purging
+ *  it from the OFF product cache. */
+async function removeRecentScan(barcode: string) {
+  try {
+    const raw = await AsyncStorage.getItem(RECENT_SCANS_KEY);
+    const scans: RecentScan[] = raw ? JSON.parse(raw) : [];
+    const filtered = scans.filter((s) => s.barcode !== barcode);
+    await AsyncStorage.setItem(RECENT_SCANS_KEY, JSON.stringify(filtered));
+  } catch {}
+}
+
 // ─── First-launch onboarding hint ────────────────────────────────────────────
 
 const ONBOARDING_KEY = 'iron_gym_scanner_onboarded';
@@ -1374,7 +1388,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               </View>
             )}
 
-            {/* Recent scans — quick re-use without camera */}
+            {/* Recent scans — quick re-use without camera. Long-press to
+                remove from the list (barcode stays in 30d cache so if
+                re-scanned, it still resolves offline / instantly). */}
             {recentScans.length > 0 && (
               <View style={{ alignSelf: 'stretch', marginTop: spacing.lg }}>
                 <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
@@ -1386,6 +1402,28 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                       <TouchableOpacity
                         key={scan.barcode}
                         onPress={() => applyBarcodeProduct(scan, scan.servingGrams)}
+                        onLongPress={() => {
+                          haptic.medium();
+                          Alert.alert(
+                            'Убрать из недавних?',
+                            `${scan.name} исчезнет из быстрого доступа. Штрих-код останется в кеше, если отсканируешь снова — найдётся мгновенно.`,
+                            [
+                              { text: 'Отмена', style: 'cancel' },
+                              {
+                                text: 'Убрать',
+                                style: 'destructive',
+                                onPress: async () => {
+                                  await removeRecentScan(scan.barcode);
+                                  loadRecentScans().then(setRecentScans);
+                                },
+                              },
+                            ],
+                          );
+                        }}
+                        accessibilityLabel={`Применить сохранённый скан ${scan.name}, ${scan.cal} калорий на 100 грамм`}
+                        accessibilityHint="Долгое нажатие чтобы убрать из списка"
+                        accessibilityRole="button"
+                        delayLongPress={400}
                         style={[styles.recentChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
                       >
                         <Text style={[typography.captionMedium, { color: colors.text }]} numberOfLines={1}>
