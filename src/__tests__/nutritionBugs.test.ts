@@ -264,6 +264,75 @@ describe('saveFoodItem deduplication', () => {
   });
 });
 
+describe('syncMealsFromServer — server-synced meal no-duplicate', () => {
+  test('BUG FIX: no duplicate when local state already has the server-synced meal (UUID ID)', async () => {
+    // Scenario: user adds meal → temp ID 'meal-xxx' → API confirms → ID replaced with UUID
+    // Local state now has the meal with UUID 'uuid-confirmed-1'.
+    // On next sync, server returns the same meal. Since it doesn't start with 'meal-',
+    // it's excluded from localOnly → merged result has exactly 1 copy.
+
+    const confirmedMeal = {
+      id: 'uuid-confirmed-1', type: 'breakfast' as const,
+      totalCalories: 500, totalProtein: 35, totalFats: 20, totalCarbs: 55,
+      items: [], createdAt: '2026-04-10T08:00:00.000Z',
+    };
+    useNutritionStore.setState({
+      dailyLog: {
+        '2026-04-10': {
+          date: '2026-04-10',
+          meals: [confirmedMeal], // already synced — has UUID ID
+          waterMl: 0,
+          targetCalories: 2000, targetProtein: 150, targetFats: 70, targetCarbs: 250, waterTargetMl: 2500,
+        },
+      },
+    });
+
+    const { nutritionService } = require('../services');
+    // Server also returns the same meal
+    nutritionService.getMealsByDate.mockResolvedValueOnce([confirmedMeal]);
+
+    await useNutritionStore.getState().syncMealsFromServer('2026-04-10');
+
+    const dayLog = useNutritionStore.getState().getDayLog('2026-04-10');
+    // Must be exactly 1 — not 2 (no duplication from server response + local state)
+    expect(dayLog.meals.length).toBe(1);
+    expect(dayLog.meals[0].id).toBe('uuid-confirmed-1');
+  });
+
+  test('KNOWN LIMITATION: deleted server meal resurfaces after sync if server still has it', async () => {
+    // If the user deleted a meal while offline, the delete API call was not sent.
+    // On reconnect, syncMealsFromServer sees the meal on the server and includes it
+    // in the merge. This is expected current behavior — a proper fix would require
+    // an offline delete queue (tracked in tests.md as gap #2, TODO).
+
+    useNutritionStore.setState({
+      dailyLog: {
+        '2026-04-10': {
+          date: '2026-04-10',
+          meals: [], // user deleted the meal locally while offline
+          waterMl: 0,
+          targetCalories: 2000, targetProtein: 150, targetFats: 70, targetCarbs: 250, waterTargetMl: 2500,
+        },
+      },
+    });
+
+    const serverMeal = {
+      id: 'uuid-not-yet-deleted', type: 'lunch' as const,
+      totalCalories: 400, totalProtein: 30, totalFats: 15, totalCarbs: 45,
+      items: [], createdAt: '2026-04-10T12:00:00.000Z',
+    };
+    const { nutritionService } = require('../services');
+    nutritionService.getMealsByDate.mockResolvedValueOnce([serverMeal]);
+
+    await useNutritionStore.getState().syncMealsFromServer('2026-04-10');
+
+    // Current behavior: server meal reappears (server always wins in the merge)
+    const dayLog = useNutritionStore.getState().getDayLog('2026-04-10');
+    expect(dayLog.meals.length).toBe(1);
+    expect(dayLog.meals[0].id).toBe('uuid-not-yet-deleted');
+  });
+});
+
 describe('cleanupOldLogs', () => {
   test('removes logs older than keepDays', () => {
     const today = new Date();
