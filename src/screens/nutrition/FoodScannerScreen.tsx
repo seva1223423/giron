@@ -2238,12 +2238,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             })()}
 
             <Button
-              title="Сохранить в дневник"
+              title={`Сохранить · ${Math.round(totalCal)} ккал`}
               onPress={handleSave}
               fullWidth
               size="lg"
-              accessibilityLabel={`Сохранить ${recognizedItems.length} ${recognizedItems.length === 1 ? 'позицию' : 'позиции'} в дневник питания`}
-              accessibilityHint={`Всего ${Math.round(totalCal)} калорий`}
+              accessibilityLabel={`Сохранить ${recognizedItems.length} ${recognizedItems.length === 1 ? 'позицию' : 'позиции'} в дневник питания, всего ${Math.round(totalCal)} калорий`}
+              accessibilityHint="Запишет этот приём в дневник и вернёт на экран питания"
             />
           </>
         )}
