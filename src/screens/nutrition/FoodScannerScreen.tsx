@@ -992,6 +992,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     label: string;
   } | null>(null);
   const lastClearedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Timestamp that ticks once/sec while lastCleared is active, so the undo
+   *  row's countdown ("Отменить · 7с") refreshes without forcing a bigger
+   *  component re-render on every tick. Kept as a Date.now() snapshot
+   *  rather than a counter so the `remaining` math stays pure + robust
+   *  against background/foreground transitions. */
+  const [undoTick, setUndoTick] = useState(Date.now());
 
   const removeItem = useCallback((id: string) => {
     haptic.medium();
@@ -1077,6 +1083,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     if (lastRemovedTimerRef.current) clearTimeout(lastRemovedTimerRef.current);
     if (lastClearedTimerRef.current) clearTimeout(lastClearedTimerRef.current);
   }, []);
+
+  // Tick the undo countdown once/sec, but only while there's an active
+  // snapshot — no interval when the undo row is hidden.
+  useEffect(() => {
+    if (!lastCleared) return undefined;
+    setUndoTick(Date.now());
+    const id = setInterval(() => setUndoTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [lastCleared]);
 
   // Live elapsed-seconds counter for the AI analysis loading state.
   // Resets to 0 on each `loading → true` transition. Gated on `loading`
@@ -1308,22 +1323,29 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             (which shows inside the items block). Sits near the top so it's
             obvious the list wasn't lost. Auto-dismisses after 10s via the
             setTimeout in stashSnapshot. Label varies per op (clear / low-
-            conf / merge) so the user knows what they're about to restore. */}
-        {lastCleared && (
-          <View style={[styles.undoRow, { backgroundColor: colors.warning + '15', borderColor: colors.warning + '40', marginBottom: spacing.md }]}>
-            <Text style={[typography.caption, { color: colors.warning, flex: 1 }]} numberOfLines={1}>
-              {lastCleared.label}
-            </Text>
-            <TouchableOpacity
-              onPress={undoClear}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={`Отменить: ${lastCleared.label}`}
-              accessibilityRole="button"
-            >
-              <Text style={[typography.captionMedium, { color: colors.warning, fontWeight: '700' }]}>Отменить</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            conf / merge) so the user knows what they're about to restore.
+            Countdown is derived from expiresAt via the ticker effect that
+            updates `undoTick` once/sec. */}
+        {lastCleared && (() => {
+          const remaining = Math.max(0, Math.ceil((lastCleared.expiresAt - undoTick) / 1000));
+          return (
+            <View style={[styles.undoRow, { backgroundColor: colors.warning + '15', borderColor: colors.warning + '40', marginBottom: spacing.md }]}>
+              <Text style={[typography.caption, { color: colors.warning, flex: 1 }]} numberOfLines={1}>
+                {lastCleared.label}
+              </Text>
+              <TouchableOpacity
+                onPress={undoClear}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={`Отменить: ${lastCleared.label}. Осталось ${remaining} секунд.`}
+                accessibilityRole="button"
+              >
+                <Text style={[typography.captionMedium, { color: colors.warning, fontWeight: '700' }]}>
+                  Отменить {remaining > 0 ? `· ${remaining}с` : ''}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
 
         {/* First-launch tip — three-method primer, dismissable. Persists
             via AsyncStorage so it never re-appears once the user gets it. */}
