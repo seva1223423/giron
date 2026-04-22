@@ -428,26 +428,80 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         <ProfileRow label="Стаж" value={user?.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'Не указан'} colors={colors} isLast />
       </Card>
 
-      {/* ── Section: Достижения ── */}
-      {unlockedAchievements.length > 0 && (
+      {/* ── Section: Achievements (horizontal strip per Direction A) ──
+             Pixel copy of A_Profile's strip: 6 tiles wide, unlocked
+             get gold icon bg + surface fill, locked get border-only
+             + 35% opacity. "Все N →" link on the right. */}
+      {achievements.length > 0 && (
         <>
-          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ДОСТИЖЕНИЯ</Text>
-          <Card style={{ marginBottom: spacing.lg }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-              <Text style={[typography.h4, { color: colors.text }]}>{unlockedAchievements.length} из {achievements.length}</Text>
-              <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('ProgressTab' as any); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={[typography.smallMedium, { color: colors.primary }]}>Все →</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-              {unlockedAchievements.slice(0, 4).map((ach) => (
-                <View key={ach.id} style={{ alignItems: 'center', flex: 1, minWidth: '22%' }}>
-                  <Text style={{ fontSize: 24 }}>{ach.emoji}</Text>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textSecondary, marginTop: 2, textAlign: 'center' }} numberOfLines={2}>{ach.title}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 }}>
+            <Text style={[typography.h4, { color: colors.text }]}>Ачивки</Text>
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); navigation.navigate('ProgressTab' as any); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={`Открыть все ${achievements.length} достижений`}
+              accessibilityRole="button"
+            >
+              <Text style={[typography.smallMedium, { color: colors.primary, fontWeight: '500' }]}>
+                Все {achievements.length} →
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 2, paddingBottom: 2 }}
+            style={{ marginBottom: spacing.lg }}
+          >
+            {achievements.slice(0, 12).map((ach) => {
+              const unlocked = unlockedAchievements.some((u) => u.id === ach.id);
+              return (
+                <View
+                  key={ach.id}
+                  style={{
+                    width: 88,
+                    aspectRatio: 1 / 1.1,
+                    borderRadius: 18,
+                    backgroundColor: unlocked ? colors.surface : 'transparent',
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    opacity: unlocked ? 1 : 0.35,
+                  }}
+                  accessibilityLabel={`${ach.title}${unlocked ? ', получено' : ', закрыто'}`}
+                >
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 14,
+                      backgroundColor: unlocked ? colors.primary + '18' : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 22, color: unlocked ? colors.primary : colors.textTertiary }}>
+                      {ach.emoji}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      color: unlocked ? colors.text : colors.textTertiary,
+                      fontWeight: '600',
+                      textAlign: 'center',
+                      paddingHorizontal: 4,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {unlocked ? 'Получено' : 'Закрыто'}
+                  </Text>
                 </View>
-              ))}
-            </View>
-          </Card>
+              );
+            })}
+          </ScrollView>
         </>
       )}
 
