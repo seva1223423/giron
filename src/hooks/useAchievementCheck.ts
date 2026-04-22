@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useWorkoutStore, useNutritionStore } from '../store';
 import { computeAchievements, getNewlyUnlocked, Achievement } from '../utils/achievements';
-import { localDateStr } from '../utils/date';
+import { computeStreak } from '../utils/date';
 
 /**
  * Checks for newly unlocked achievements whenever meals or workoutHistory change.
@@ -17,21 +17,7 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
 
   const nutritionDaysLogged = Object.values(dailyLog).filter((d: any) => (d.meals?.length ?? 0) > 0).length;
 
-  // Approximate streak from workoutHistory
-  const streak = (() => {
-    if (workoutHistory.length === 0) return 0;
-    let s = 0;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const ds = localDateStr(d);
-      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === ds)) s++;
-      else if (i > 0) break;
-    }
-    return s;
-  })();
+  const streak = computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]);
 
   useEffect(() => {
     const current = computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak: streak });
