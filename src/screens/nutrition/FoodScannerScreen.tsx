@@ -1345,15 +1345,29 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 maxLength={14}
                 returnKeyType="search"
                 onSubmitEditing={() => { if (manualDigits.length >= 8) handleBarcodeScan(manualDigits); }}
+                accessibilityLabel="Штрих-код вручную"
+                accessibilityHint="Введите 8–14 цифр если камера не справляется"
               />
               <TouchableOpacity
                 onPress={() => { if (manualDigits.length >= 8 && !barcodeLoading) handleBarcodeScan(manualDigits); }}
                 disabled={manualDigits.length < 8 || barcodeLoading}
                 style={{ paddingHorizontal: spacing.lg, justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: manualDigits.length >= 8 ? colors.primary : colors.border }}
+                accessibilityLabel="Найти продукт по введённому штрих-коду"
+                accessibilityHint={manualDigits.length < 8 ? 'Кнопка станет активной после 8 цифр' : undefined}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: manualDigits.length < 8 || barcodeLoading }}
               >
                 {barcodeLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>}
               </TouchableOpacity>
             </View>
+            {/* Helper text under the row — tells the user the expected format
+                and length. Visible only when they've started typing to
+                avoid pre-emptive clutter on the empty state. */}
+            {manualBarcode.length > 0 && manualBarcode.length < 8 && (
+              <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
+                Осталось ввести ещё {8 - manualDigits.length} {manualDigits.length === 7 ? 'цифру' : 'цифр'}
+              </Text>
+            )}
 
             {/* Repeat a recent meal — fastest possible path for habitual eaters.
                 Takes a meal from today/yesterday and re-seeds the recognised-items
@@ -1373,6 +1387,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                           key={meal.id}
                           onPress={() => repeatMeal(meal)}
                           style={[styles.recentChip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                          accessibilityLabel={`Повторить приём: ${firstName}${meal.items.length > 1 ? ` и ещё ${meal.items.length - 1}` : ''}, ${Math.round(meal.totalCalories)} калорий`}
+                          accessibilityHint="Подставит тот же список продуктов для сохранения сегодня"
+                          accessibilityRole="button"
                         >
                           <Text style={[typography.captionMedium, { color: colors.text }]} numberOfLines={1}>
                             {firstName.length > 20 ? firstName.slice(0, 18) + '…' : firstName}{more}
