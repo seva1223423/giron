@@ -51,6 +51,9 @@ src/
     date.ts          — todayDateStr, localDateStr, computeStreak, getPastDates, getMonday
     startWorkoutSafe.ts — guards against overwriting active workout; shows Alert if active
     achievements.ts  — computeAchievements(workoutHistory, nutritionDaysLogged, currentStreak)
+    gender.ts        — normalizeGender('MALE'→'male'), isFemale, isMale (server enum → lowercase)
+    macros.ts        — calcBMR, calcTDEE, calcMacros(w,h,a,female,activity,goal): full Mifflin-St Jeor pipeline
+    plates.ts        — calculatePlates(targetKg, barbellKg): Map<size,count>; totalLoadedWeight; PLATE_SIZES
 ```
 
 ## Screen Template
