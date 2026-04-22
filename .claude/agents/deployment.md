@@ -188,7 +188,7 @@ Flag any deviation from this order in recent commits.
 ## See Also (Cross-Agent Coordination)
 
 - **Schema drift (prisma db push not run)** → `data-integrity` agent also flags orphaned records when schema and DB are out of sync. `compliance` agent flags it as a data residency risk if the wrong DB URL is used. After schema changes: verify `npx prisma db push` ran with PROD `DATABASE_URL` before deploying server code that writes the new field.
-- **Health endpoint depth (shallow check)** → `monitoring` agent also flags this. Coordinate: monitoring flags what to measure; deployment agent verifies the `/health` route returns `503` when DB is unreachable (not just `200 { status: 'ok' }`).
+~~**Health endpoint depth (shallow check)**~~ — **RESOLVED** as of 2026-04-22: `GET /health` now calls `prisma.$queryRaw\`SELECT 1\`` and returns `503 { db: 'unreachable' }` when DB is down. Render will correctly route away from unhealthy instances.
 - **CI gates (server-tests.yml + client-tests.yml)** → also checked by `release-prep` command (Section 2). If CI is broken, release-prep will catch it. Coordinate: deployment verifies CI config is correct; release-prep runs both gate tests before a deploy.
 - **EAS build client URL** → if `EXPO_PUBLIC_API_URL` isn't set, client silently calls `localhost:3001` in production. Also a `frontend` concern: `src/services/api.ts` uses this env var. Coordinate: deployment flags the gap; frontend agent fixes the fallback.
 - **Node.js version mismatch** → if `engines.node` in `server/package.json` differs from the Node version in CI (`.github/workflows/server-tests.yml`) or Render dashboard, tests pass but prod fails. Deployment agent checks this; `tests` agent can verify locally.

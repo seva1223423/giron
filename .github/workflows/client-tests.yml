@@ -42,7 +42,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run store unit tests
-        # 25 suites (~442 tests). All use mocked AsyncStorage + mocked services.
+        # 29 suites (~512 tests). All use mocked AsyncStorage + mocked services.
         # No device or Expo runtime needed — jest-expo preset handles RN mocking.
         run: npm test -- --no-coverage --forceExit
         env:
