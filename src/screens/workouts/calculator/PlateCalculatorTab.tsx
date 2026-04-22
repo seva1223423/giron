@@ -5,8 +5,8 @@ import { useThemeStore } from '../../../store';
 import { Card, Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
+import { calculatePlates, PLATE_SIZES } from '../../../utils/plates';
 
-const PLATE_SIZES = [25, 20, 15, 10, 5, 2.5, 1.25];
 const PLATE_COLORS: Record<number, string> = {
   25: '#E8364F', 20: '#3B6BF0', 15: '#F0F032', 10: '#3BC46E',
   5: '#F0F032', 2.5: '#E8364F', 1.25: '#C0C0C0',
@@ -19,21 +19,6 @@ const BARBELL_OPTIONS = [
   { label: 'EZ-гриф', weight: 10, description: '~10 кг' },
   { label: 'Гантель', weight: 0, description: 'Без грифа' },
 ];
-
-function calculatePlates(target: number, barbell: number): Map<number, number> {
-  const platesWeight = (target - barbell) / 2;
-  const result = new Map<number, number>();
-  if (platesWeight <= 0) return result;
-  let remaining = platesWeight;
-  for (const plate of PLATE_SIZES) {
-    const count = Math.floor(remaining / plate);
-    if (count > 0) {
-      result.set(plate, count);
-      remaining = Math.round((remaining - count * plate) * 100) / 100;
-    }
-  }
-  return result;
-}
 
 const PlateVisual: React.FC<{ plates: Map<number, number> }> = ({ plates }) => {
   const { colors } = useThemeStore();
