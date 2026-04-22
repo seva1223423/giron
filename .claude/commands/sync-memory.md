@@ -45,10 +45,10 @@ ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" | wc -l
 
 **Check test counts (client suites and server suites):**
 ```bash
-# Client test suites (expected: 25 suites, ~442 tests)
+# Client test suites (expected: 25 suites, ~448 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\src\__tests__\" | wc -l
 
-# Server test suites (expected: 11 suites, ~263 tests)
+# Server test suites (expected: 13 suites, ~285 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\server\src\__tests__\" | grep "\.test\.ts$" | wc -l
 ```
 
