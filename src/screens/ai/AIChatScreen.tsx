@@ -12,6 +12,7 @@ import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionSer
 import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
+  SuggestionChips,
 } from './components';
 import { localDateStr } from '../../utils/date';
 
@@ -378,6 +379,21 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
         {isTyping && <TypingIndicator />}
       </ScrollView>
+
+      {/* Compact suggestion chips from the Direction A design (A_AI) —
+          horizontal scroll row just above the input bar, always visible
+          once the user has a few messages in. Feeds 3 contextual
+          prompts; falls back to the default dynamic prompts. */}
+      {messages.length > 1 && (
+        <SuggestionChips
+          prompts={
+            (dynamicPrompts.length >= 3 ? dynamicPrompts : allPrompts)
+              .slice(0, 3)
+              .map((p) => p.text)
+          }
+          onSend={sendMessage}
+        />
+      )}
 
       <ActionsBar actions={lastActions} />
       <CelebrationBar celebration={celebration} />

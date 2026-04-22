@@ -5,5 +5,6 @@ export { TypingIndicator } from './TypingIndicator';
 export { ActionsBar } from './ActionsBar';
 export { CelebrationBar } from './CelebrationBar';
 export { ChatInputBar } from './ChatInputBar';
+export { SuggestionChips } from './SuggestionChips';
 export { UndoToast } from './UndoToast';
 export { useDynamicPrompts } from './useDynamicPrompts';
