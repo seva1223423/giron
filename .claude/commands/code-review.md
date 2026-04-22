@@ -16,8 +16,8 @@ git diff --cached
 
 ### Auth & Authorization
 - Every route that accesses user data has `authenticate` middleware (the function is `authenticate` in `server/src/middleware/auth.ts`, not `authenticateToken`)
-- Routes that modify another user's data check `req.user.id === resource.userId`
-- Admin routes check `req.user.role === 'admin'`
+- Routes that modify another user's data check `item.userId !== req.userId` before update/delete
+- Admin routes use `requireAdmin` middleware from `server/src/middleware/auth.ts` — do NOT check `req.user.role === 'admin'` manually; the middleware sets `req.userRole` (note: `userRole`, not `user.role`)
 - No JWT secret hardcoded (must be `process.env.JWT_SECRET`)
 
 ### Input Validation
