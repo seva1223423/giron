@@ -7,7 +7,7 @@ import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
 import { foodVisionCache } from '../utils/memCache';
-import { parseFoodResponse, validateFoodItems, type FoodItem as FoodVisionItem } from '../utils/foodVision';
+import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -81370,7 +81370,8 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
       ? Math.round(validated.reduce((s, i) => s + (i.confidence ?? 0.8), 0) / validated.length * 100) / 100
       : null;
 
-    const responsePayload = { items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence };
+    const sanityFlags = flagSanity(validated);
+    const responsePayload = { items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence, sanityFlags };
     // Cache for 24h under (userId, fingerprint) — next repeat-scan by the
     // same user on any device returns instantly without a Mistral call.
     foodVisionCache.set(cacheKey, responsePayload, 24 * 60 * 60 * 1000);
@@ -81487,7 +81488,8 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
       ? Math.round(validated.reduce((s, i) => s + (i.confidence ?? 0.8), 0) / validated.length * 100) / 100
       : null;
 
-    const responsePayload = { items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence };
+    const sanityFlags = flagSanity(validated);
+    const responsePayload = { items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence, sanityFlags };
     foodVisionCache.set(cacheKey, responsePayload, 24 * 60 * 60 * 1000);
     res.setHeader('X-Cache', 'MISS');
     return res.json(responsePayload);

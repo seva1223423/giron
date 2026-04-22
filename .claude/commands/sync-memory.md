@@ -43,12 +43,12 @@ grep "模型\|models\|модел" "C:\Users\sevka\Desktop\1223\work\iron-gym\CLA
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" | wc -l
 ```
 
-**Check docs.md agent for stale paths:**
+**Check ALL agents for stale paths:**
 ```bash
-grep -n "Projects/iron-gym\|sevka/Projects" "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\docs.md" 2>/dev/null
+grep -rn "Projects/iron-gym\|sevka/Projects" "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" 2>/dev/null
 ```
 
-Flag: `C:/Users/sevka/Projects/iron-gym` is the OLD path — should be `C:/Users/sevka/Desktop/1223/work/iron-gym`.
+Flag: `C:/Users/sevka/Projects/iron-gym` is the OLD path — should be `C:/Users/sevka/Desktop/1223/work/iron-gym`. If any agent file contains the old path, fix it.
 
 ### 4. Report drift
 

@@ -155,3 +155,40 @@ export function validateFoodItems(items: FoodItem[]): FoodItem[] {
     };
   });
 }
+
+// ─── Sanity check on validated output ─────────────────────────────────────────
+//
+// Even after clamping and reconciliation, an AI response can still look
+// physically implausible (wrong scale estimation, mis-identified high-cal
+// ingredient, total that's a full day's calories). Flag these so the
+// client can draw attention to them without blocking save.
+
+export const SANITY_MAX_KCAL_PER_100G = 900;  // oils ~884, nothing edible beats this
+export const SANITY_MAX_KCAL_PER_ITEM = 2500; // a whole pizza ~2500
+export const SANITY_MAX_TOTAL_KCAL = 5000;    // a whole day in one meal is suspect
+
+export type SanityFlag = 'kcal_per_100g' | 'kcal_per_item' | 'total_kcal';
+
+/** Flag implausible macro values on a validated FoodItem[].
+ *  Same thresholds as src/utils/foodScanner.ts on the client — intentionally
+ *  duplicated rather than imported to avoid coupling client and server code. */
+export function flagSanity(items: Pick<FoodItem, 'calories' | 'weightGrams'>[]): SanityFlag[] {
+  const flags: SanityFlag[] = [];
+  if (items.length === 0) return flags;
+
+  const total = items.reduce((s, i) => s + (i.calories || 0), 0);
+  if (total > SANITY_MAX_TOTAL_KCAL) flags.push('total_kcal');
+
+  for (const item of items) {
+    const w = item.weightGrams || 0;
+    if (w <= 0) continue;
+    const per100 = (item.calories / w) * 100;
+    if (per100 > SANITY_MAX_KCAL_PER_100G) { flags.push('kcal_per_100g'); break; }
+  }
+
+  for (const item of items) {
+    if ((item.calories || 0) > SANITY_MAX_KCAL_PER_ITEM) { flags.push('kcal_per_item'); break; }
+  }
+
+  return flags;
+}
