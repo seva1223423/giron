@@ -322,6 +322,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [errorRetryable, setErrorRetryable] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
+  // Search query inside the "+ Сохранённые" panel — filters savedFoods first,
+  // falls through to FOOD_DB when nothing user-saved matches the query.
+  const [addPanelQuery, setAddPanelQuery] = useState('');
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
   // Full-size image preview on tap — the thumbnail is small and users want
   // to double-check what they actually photographed before trusting the AI.
@@ -1401,38 +1404,104 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               </TouchableOpacity>
             </View>
 
-            {showAddPanel && (
-              <Card style={{ marginBottom: spacing.md }}>
-                {savedFoods.length === 0 ? (
-                  <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center', paddingVertical: spacing.sm }]}>
-                    Сохраняй продукты кнопкой + в карточке — они появятся здесь
-                  </Text>
-                ) : (
-                  <>
-                    <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
-                      Сохранённые продукты
+            {showAddPanel && (() => {
+              const q = addPanelQuery.trim().toLowerCase();
+              // Saved-foods first (case-insensitive substring), then FOOD_DB
+              // (only when there's a query — without one we'd flood the panel
+              // with 220 generic entries).
+              const savedMatches = q
+                ? savedFoods.filter((f) => f.name.toLowerCase().includes(q))
+                : savedFoods;
+              const dbMatches = q
+                ? FOOD_DB.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 10)
+                : [];
+              const hasNothing = savedMatches.length === 0 && dbMatches.length === 0;
+
+              return (
+                <Card style={{ marginBottom: spacing.md }}>
+                  {/* Inline search — hidden when there's nothing to search through */}
+                  {(savedFoods.length > 0 || q.length > 0) && (
+                    <TextInput
+                      value={addPanelQuery}
+                      onChangeText={setAddPanelQuery}
+                      placeholder="Поиск по названию..."
+                      placeholderTextColor={colors.inputPlaceholder}
+                      style={[styles.addPanelSearch, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                      accessibilityLabel="Поиск продукта по названию"
+                      autoCorrect={false}
+                    />
+                  )}
+                  {savedFoods.length === 0 && !q ? (
+                    <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center', paddingVertical: spacing.sm }]}>
+                      Сохраняй продукты кнопкой + в карточке — они появятся здесь.
+                      {'\n'}
+                      Или введи название выше — поищем во встроенной базе.
                     </Text>
-                    {savedFoods.slice(0, 15).map((food) => (
-                      <TouchableOpacity
-                        key={food.id}
-                        onPress={() => addSavedFoodItem(food)}
-                        style={[styles.savedFoodRow, { borderBottomColor: colors.border }]}
-                      >
-                        <Text style={[typography.smallMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>{food.name}</Text>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                          {food.calories} ккал / {food.weightGrams}г
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                    {savedFoods.length > 15 && (
-                      <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', paddingTop: spacing.xs }]}>
-                        + ещё {savedFoods.length - 15} — открой «Поиск продуктов» для полного списка
-                      </Text>
-                    )}
-                  </>
-                )}
-              </Card>
-            )}
+                  ) : hasNothing ? (
+                    <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center', paddingVertical: spacing.sm }]}>
+                      Ничего не найдено. Попробуй другое название.
+                    </Text>
+                  ) : (
+                    <>
+                      {savedMatches.length > 0 && (
+                        <>
+                          <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.xs }]}>
+                            Мои сохранённые ({savedMatches.length})
+                          </Text>
+                          {savedMatches.slice(0, q ? 50 : 15).map((food) => (
+                            <TouchableOpacity
+                              key={food.id}
+                              onPress={() => { addSavedFoodItem(food); setAddPanelQuery(''); }}
+                              style={[styles.savedFoodRow, { borderBottomColor: colors.border }]}
+                            >
+                              <Text style={[typography.smallMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>{food.name}</Text>
+                              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                                {food.calories} ккал / {food.weightGrams}г
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                          {!q && savedFoods.length > 15 && (
+                            <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', paddingTop: spacing.xs }]}>
+                              + ещё {savedFoods.length - 15} — введи запрос для поиска
+                            </Text>
+                          )}
+                        </>
+                      )}
+                      {dbMatches.length > 0 && (
+                        <>
+                          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.xs }]}>
+                            База продуктов ({dbMatches.length})
+                          </Text>
+                          {dbMatches.map((food, i) => (
+                            <TouchableOpacity
+                              key={`db-${i}-${food.name}`}
+                              onPress={() => {
+                                addSavedFoodItem({
+                                  id: `db-add-${Date.now()}-${i}`,
+                                  name: food.name,
+                                  calories: food.calories,
+                                  protein: food.protein,
+                                  fats: food.fats,
+                                  carbs: food.carbs,
+                                  weightGrams: 100,
+                                });
+                                setAddPanelQuery('');
+                              }}
+                              style={[styles.savedFoodRow, { borderBottomColor: colors.border }]}
+                            >
+                              <Text style={[typography.smallMedium, { color: colors.text, flex: 1 }]} numberOfLines={1}>{food.name}</Text>
+                              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                                {food.calories} ккал/100г
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+                </Card>
+              );
+            })()}
 
             {/* Totals */}
             <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.primary + '10' }}>
@@ -1651,5 +1720,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+  },
+  addPanelSearch: {
+    height: 40,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    fontSize: 14,
+    marginBottom: spacing.sm,
   },
 });
