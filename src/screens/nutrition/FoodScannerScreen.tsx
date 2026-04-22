@@ -1161,6 +1161,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           </View>
         ) : (
           <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.huge }}>
+            {/* Quick remaining-calories context — even before the user starts
+                a scan, they see how much room is left in today's budget. */}
+            {dayLog.targetCalories > 0 && (() => {
+              const remaining = dayLog.targetCalories - alreadyEaten;
+              const overBy = remaining < 0 ? Math.abs(remaining) : 0;
+              const tone = remaining < 0 ? colors.error : remaining < 300 ? colors.warning : colors.success;
+              return (
+                <View style={[{ alignSelf: 'stretch', padding: spacing.sm, marginBottom: spacing.md, borderRadius: borderRadius.md, backgroundColor: tone + '15', borderWidth: 1, borderColor: tone + '40' }]}>
+                  <Text style={[typography.smallMedium, { color: tone, textAlign: 'center' }]}>
+                    {remaining >= 0
+                      ? `Осталось на сегодня: ${remaining} ккал из ${dayLog.targetCalories}`
+                      : `Превышение цели: +${overBy} ккал из ${dayLog.targetCalories}`}
+                  </Text>
+                </View>
+              );
+            })()}
             <Text style={{ fontSize: 64, marginBottom: spacing.lg }}>📷</Text>
             <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.md }]}>
               Сфотографируй еду или загрузи из галереи{'\n'}ИИ определит продукты и рассчитает КБЖУ
