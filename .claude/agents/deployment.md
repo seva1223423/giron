@@ -29,7 +29,7 @@ RESULT:
 
 **CI:** GitHub Actions — two workflow gates:
 - `.github/workflows/server-tests.yml` — server TypeScript + 19 Jest suites (~532 tests)
-- `.github/workflows/client-tests.yml` — client TypeScript + 29 Jest suites (~512 tests)
+- `.github/workflows/client-tests.yml` — client TypeScript + 29 Jest suites (~542 tests)
 
 **Schema sync:** `npx prisma db push` — NO migration files, schema is source of truth.
 

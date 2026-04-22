@@ -26,7 +26,7 @@ wc -l C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/routes/*.ts
 # Server test suite count (expected: 19 suites, 532 tests)
 ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/__tests__/*.test.ts | wc -l
 
-# Client test suite count (expected: 29 suites, 512 tests)
+# Client test suite count (expected: 29 suites, 542 tests)
 ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/__tests__/*.test.ts | wc -l
 
 # Pending git changes
