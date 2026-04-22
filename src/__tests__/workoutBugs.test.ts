@@ -182,6 +182,115 @@ describe('fetchHistory merge bug', () => {
   });
 });
 
+describe('fetchHistory — clientId deduplication', () => {
+  test('BUG FIX: does not duplicate workout when server already has it via clientId match', async () => {
+    // Scenario: user completes a workout offline → it's saved locally as 'wo-local-1'
+    // Later the sync succeeds → server stores it with a CUID and clientId: 'wo-local-1'
+    // On next fetchHistory: the server returns the workout with clientId reference.
+    // The merge MUST exclude the local copy to avoid a duplicate entry.
+
+    const localWorkout = {
+      id: 'wo-local-1', name: 'Push Day',
+      completedAt: '2026-04-10T10:00:00Z', startedAt: '2026-04-10T09:00:00Z',
+      exercises: [], durationMinutes: 60, totalVolume: 1200,
+    };
+    useWorkoutStore.setState({ workoutHistory: [localWorkout] as any, pendingSync: [] });
+
+    // Server returns the same workout with a server-generated CUID + clientId back-reference
+    const serverWorkout = {
+      id: 'cserverpushday000000001', // server-generated CUID
+      clientId: 'wo-local-1',        // back-reference to original local ID
+      name: 'Push Day',
+      completedAt: '2026-04-10T10:00:00Z', startedAt: '2026-04-10T09:00:00Z',
+      exercises: [], durationMinutes: 60, totalVolume: 1200,
+    };
+    const { workoutService } = require('../services');
+    workoutService.getHistory.mockResolvedValueOnce({ workouts: [serverWorkout], total: 1 });
+
+    await useWorkoutStore.getState().fetchHistory();
+
+    const history = useWorkoutStore.getState().workoutHistory;
+    // Must have exactly 1 entry — the server version; local copy was excluded via clientId match
+    expect(history.length).toBe(1);
+    expect(history[0].id).toBe('cserverpushday000000001');
+  });
+
+  test('workouts with no clientId overlap are both kept in merge', async () => {
+    const localWorkout = {
+      id: 'wo-truly-local', name: 'Local Only Workout',
+      completedAt: '2026-04-11T10:00:00Z', startedAt: '2026-04-11T09:00:00Z',
+      exercises: [], durationMinutes: 45, totalVolume: 900,
+    };
+    useWorkoutStore.setState({ workoutHistory: [localWorkout] as any, pendingSync: [] });
+
+    const serverWorkout = {
+      id: 'cserverdifferent000001',
+      name: 'Server Workout',
+      completedAt: '2026-04-09T10:00:00Z', startedAt: '2026-04-09T09:00:00Z',
+      exercises: [], durationMinutes: 50, totalVolume: 1000,
+      // no clientId → no match with local
+    };
+    const { workoutService } = require('../services');
+    workoutService.getHistory.mockResolvedValueOnce({ workouts: [serverWorkout], total: 1 });
+
+    await useWorkoutStore.getState().fetchHistory();
+
+    const history = useWorkoutStore.getState().workoutHistory;
+    expect(history.length).toBe(2);
+    expect(history.find((w: any) => w.id === 'wo-truly-local')).toBeDefined();
+    expect(history.find((w: any) => w.id === 'cserverdifferent000001')).toBeDefined();
+  });
+});
+
+describe('fetchHistory — pendingSync FIFO order', () => {
+  test('flushes pending syncs in insertion (FIFO) order', async () => {
+    // When the store retries failed syncs on fetchHistory, syncWorkout must be called
+    // in the same order the workouts were added to pendingSync (oldest → newest).
+    // Out-of-order submission could confuse server-side progressive overload logic.
+
+    const pending = [
+      { id: 'wo-pending-a', name: 'Monday', completedAt: '2026-04-07T10:00:00Z', exercises: [] },
+      { id: 'wo-pending-b', name: 'Wednesday', completedAt: '2026-04-09T10:00:00Z', exercises: [] },
+      { id: 'wo-pending-c', name: 'Friday', completedAt: '2026-04-11T10:00:00Z', exercises: [] },
+    ];
+    useWorkoutStore.setState({ pendingSync: pending as any, workoutHistory: [] });
+
+    const { workoutService } = require('../services');
+    workoutService.syncWorkout.mockResolvedValue(undefined);
+    workoutService.getHistory.mockResolvedValueOnce({ workouts: [], total: 0 });
+
+    await useWorkoutStore.getState().fetchHistory();
+
+    const calls = (workoutService.syncWorkout as jest.Mock).mock.calls;
+    expect(calls.length).toBe(3);
+    // Calls must be in insertion order
+    expect(calls[0][0].id).toBe('wo-pending-a');
+    expect(calls[1][0].id).toBe('wo-pending-b');
+    expect(calls[2][0].id).toBe('wo-pending-c');
+  });
+
+  test('successful pending syncs are removed from queue; failed ones stay', async () => {
+    const pending = [
+      { id: 'wo-ok', name: 'Success Workout', completedAt: '2026-04-07T10:00:00Z', exercises: [] },
+      { id: 'wo-fail', name: 'Failed Workout', completedAt: '2026-04-08T10:00:00Z', exercises: [] },
+    ];
+    useWorkoutStore.setState({ pendingSync: pending as any, workoutHistory: [] });
+
+    const { workoutService } = require('../services');
+    // First call succeeds, second fails
+    workoutService.syncWorkout
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Network error'));
+    workoutService.getHistory.mockResolvedValueOnce({ workouts: [], total: 0 });
+
+    await useWorkoutStore.getState().fetchHistory();
+
+    const remaining = useWorkoutStore.getState().pendingSync;
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].id).toBe('wo-fail');
+  });
+});
+
 describe('finishWorkout', () => {
   test('calculates totalVolume correctly including all set types', () => {
     useWorkoutStore.setState({ workoutHistory: [], activeWorkout: null });

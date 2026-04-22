@@ -37,9 +37,9 @@ server/src/__tests__/           — server integration tests (Jest + Supertest, 
 
 src/__tests__/                  — client store unit tests (Jest, 25 suites, 442 tests)
   workoutStore.test.ts          — 100+ tests: PR detection, superset, history merge
-  workoutBugs.test.ts           — regression tests for known workout store bugs
+  workoutBugs.test.ts           — regression tests for known workout store bugs; clientId dedup, FIFO pending sync
   nutritionStore.test.ts        — meal CRUD, cleanup, merge with server data
-  nutritionBugs.test.ts         — regression tests for known nutrition bugs
+  nutritionBugs.test.ts         — regression tests for known nutrition bugs; no-duplicate on sync, offline-delete limitation
   authStore.test.ts             — login flows, token persistence
   subscriptionStore.test.ts     — free limit consumption and reset
   routinesStore.test.ts         — routine CRUD, startWorkoutFromRoutine, progressive overload
@@ -79,7 +79,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 268 server tests pass (12 suites), 442 client tests pass (25 suites).
+**Expected baseline:** 268 server tests pass (12 suites), 448 client tests pass (25 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
@@ -430,22 +430,17 @@ describe('useSubscriptionStore', () => {
 
 ## High-Priority Test Gaps — Write These Next
 
-1. **Workout sync deduplication** — when `pendingSync` has `clientId` items the server already has:
-   ```typescript
-   test('does not duplicate workout if clientId already on server', async () => { ... });
-   ```
+~~1. **Workout sync deduplication**~~ — **DONE** in `workoutBugs.test.ts` (2 tests: clientId dedup + full overlap)
+
+~~4. **Offline → online sync order**~~ — **DONE** in `workoutBugs.test.ts` (2 tests: FIFO order + partial failure queue drain)
 
 2. **Nutrition merge conflict** — server has items the client deleted; merge should prefer local deletion:
+   (currently documented as KNOWN LIMITATION in `nutritionBugs.test.ts` — needs offline delete queue to fix)
    ```typescript
    test('merge keeps local deletions over server data', async () => { ... });
    ```
 
 ~~3. **AI tool userId isolation**~~ — **DONE** in `ai_security.test.ts` (BUG-AI-001, 2 tests)
-
-4. **Offline → online sync order** — pendingSync items dispatched in insertion order:
-   ```typescript
-   test('flushes pending syncs in FIFO order', async () => { ... });
-   ```
 
 ## Common Test Failures and Fixes
 
@@ -465,4 +460,4 @@ describe('useSubscriptionStore', () => {
 - **New route needs tests** → `backend` agent implements the route; `tests` agent writes the test file. When spawning `tests` agent, provide: route path, HTTP method, Prisma models touched, expected status codes (200/201/400/401/404/402).
 - **Failing test due to store shape change** → `frontend` agent changed a Zustand store shape without bumping `version` or updating `partialize`. Tests can simulate this by calling `setState` with old shape in `beforeEach`.
 - **Coverage gaps** → `security` agent audits routes; `tests` agent writes the missing test cases. If `security` flags "no test for 403 on ownership check", spawn `tests` agent with that specific case.
-- **Test count reference** — as of 2026-04-22: 263 server tests (11 suites). Before adding a new test suite, confirm the file doesn't already exist in `server/src/__tests__/`.
+- **Test count reference** — as of 2026-04-22: 268 server tests (12 suites), 448 client tests (25 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.

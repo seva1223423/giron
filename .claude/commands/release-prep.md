@@ -29,8 +29,9 @@ grep -rn "console\.log\|console\.error" C:/Users/sevka/Desktop/1223/work/iron-gy
 # Server integration tests (12 suites, ~268 tests)
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npm test -- --forceExit 2>&1 | tail -8
 
-# Client store unit tests (25 suites, ~442 tests)
+# Client store unit tests (25 suites, ~448 tests)
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && npm test -- --forceExit 2>&1 | tail -8
+# Expected: 25 suites, ~448 tests
 ```
 
 **BLOCKER if:** any test failures in either suite.
