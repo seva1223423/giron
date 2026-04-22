@@ -6,6 +6,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { useHaptic } from '../../../hooks/useHaptic';
 import type { NutritionItem } from '../../../types';
+import { confidenceBucket } from '../../../utils/foodScanner';
 
 interface Props {
   item: NutritionItem;
@@ -26,15 +27,6 @@ interface Props {
 }
 
 const PORTION_PRESETS = [30, 50, 100, 150, 200, 300];
-
-/** Confidence color + label. AI returns 0..1 for some items, undefined for others.
- *  We use 3 buckets: high (≥0.8), medium (0.5–0.8), low (<0.5 or missing). */
-function confidenceBucket(conf: number | undefined): 'high' | 'medium' | 'low' {
-  if (conf == null) return 'low';
-  if (conf >= 0.8) return 'high';
-  if (conf >= 0.5) return 'medium';
-  return 'low';
-}
 
 const RecognizedItemCardImpl: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename, typicalWeight, isDuplicate }) => {
   const { colors } = useThemeStore();
