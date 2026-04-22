@@ -34,7 +34,7 @@ server/src/__tests__/           — server integration tests (Jest + Supertest, 
   __mocks__/
     expo-server-sdk.ts          — mock for push notification SDK
 
-src/__tests__/                  — client store unit tests (Jest, 22 suites, 358 tests)
+src/__tests__/                  — client store unit tests (Jest, 22 suites, 377 tests)
   workoutStore.test.ts          — 100+ tests: PR detection, superset, history merge
   workoutBugs.test.ts           — regression tests for known workout store bugs
   nutritionStore.test.ts        — meal CRUD, cleanup, merge with server data
@@ -52,7 +52,7 @@ src/__tests__/                  — client store unit tests (Jest, 22 suites, 35
   stressTests.test.ts           — bulk operations, large history, edge cases
   1rm.test.ts                   — Epley/Brzycki/Lander/O'Conner formula accuracy
   achievements.test.ts          — achievement unlock conditions
-  date.test.ts                  — computeStreak, localDateStr, getPastDates
+  date.test.ts                  — computeStreak (13 tests incl. today-forgiving semantics), localDateStr, getPastDates
   dateTimezone.test.ts          — timezone-safe date formatting (UTC+3 edge cases)
   foodScanner.test.ts           — barcode scan, food analysis, scan count gating
   commaDecimal.test.ts          — Russian decimal input (comma → dot conversion)
@@ -75,7 +75,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 263 server tests pass (11 suites), 358 client tests pass (22 suites).
+**Expected baseline:** 263 server tests pass (11 suites), 377 client tests pass (22 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
