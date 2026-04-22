@@ -28,7 +28,7 @@ RESULT:
 **Client:** Expo EAS Build + OTA updates. Target: RuStore + potentially Google Play.
 
 **CI:** GitHub Actions — two workflow gates:
-- `.github/workflows/server-tests.yml` — server TypeScript + 19 Jest suites (~619 tests)
+- `.github/workflows/server-tests.yml` — server TypeScript + 19 Jest suites (~642 tests)
 - `.github/workflows/client-tests.yml` — client TypeScript + 29 Jest suites (~555 tests)
 
 **Schema sync:** `npx prisma db push` — NO migration files, schema is source of truth.

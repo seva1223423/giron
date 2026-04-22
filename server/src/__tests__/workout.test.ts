@@ -45,12 +45,24 @@ jest.mock('../db', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       count: jest.fn(),
+    },
+    workoutSet: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     exercise: {
       findMany: jest.fn().mockResolvedValue([]),
     },
+    routine: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -78,6 +90,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../index';
 import { prisma } from '../db';
+import { getSubStatus } from '../utils/subscriptionCheck';
 
 const JWT_ISS = 'irongym-api';
 const JWT_AUD = 'irongym-app';
@@ -92,6 +105,8 @@ const makeToken = (userId = 'u-test', role = 'USER') =>
 const baseUser = { id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' };
 
 const PROGRAM_ID = 'cprog000000000000000001';
+const WORKOUT_ID = 'cwkt000000000000000001';
+const ROUTINE_ID = 'crtn000000000000000001';
 
 const sampleProgram = {
   id: PROGRAM_ID,
@@ -124,7 +139,11 @@ beforeEach(() => {
   // history endpoint uses both findMany AND count
   (prisma.workout.count as jest.Mock).mockResolvedValue(0);
   (prisma.workout.findFirst as jest.Mock).mockResolvedValue(null);
+  (prisma.workout.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
   (prisma.program.findFirst as jest.Mock).mockResolvedValue(null);
+  (prisma.routine.findMany as jest.Mock).mockResolvedValue([]);
+  (prisma.routine.findUnique as jest.Mock).mockResolvedValue(null);
+  (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
 });
 
 // ─── GET /api/workouts/programs ────────────────────────────────────────────────
@@ -529,5 +548,306 @@ describe('POST /api/workouts/sync', () => {
     const findFirstCalls = (prisma.workout.findFirst as jest.Mock).mock.calls;
     expect(findFirstCalls[0][0].where.userId).toBe('u-test');
     expect(findFirstCalls[0][0].where.clientId).toBe('client-xyz');
+  });
+});
+
+// Workout with nested exercises shape — used by complete/autosave
+const sampleWorkoutFull = {
+  id: WORKOUT_ID,
+  userId: 'u-test',
+  name: 'Тренировка',
+  startedAt: new Date(Date.now() - 3_600_000), // started 1h ago
+  completedAt: null,
+  exercises: [{ id: 'cwe0000000000000000001', sets: [{ id: 'cwset00000000000000001' }] }],
+};
+
+const sampleRoutine = {
+  id: ROUTINE_ID,
+  userId: 'u-test',
+  name: 'Силовая рутина',
+  description: null,
+  exercises: [],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
+// ─── POST /api/workouts/:id/complete ─────────────────────────────────────────
+
+describe('POST /api/workouts/:id/complete', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post(`/api/workouts/${WORKOUT_ID}/complete`).send({});
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/workouts/bad-id/complete')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when workout belongs to different user (IDOR)', async () => {
+    (prisma.workout.findUnique as jest.Mock).mockResolvedValueOnce({
+      ...sampleWorkoutFull,
+      userId: 'u-other', // not the token user
+    });
+
+    const res = await request(app)
+      .post(`/api/workouts/${WORKOUT_ID}/complete`)
+      .set('Authorization', `Bearer ${makeToken('u-test')}`)
+      .send({});
+
+    expect(res.status).toBe(404);
+  });
+
+  it('409 when workout already completed (atomic guard count=0)', async () => {
+    (prisma.workout.findUnique as jest.Mock)
+      .mockResolvedValueOnce(sampleWorkoutFull)    // ownership check
+      .mockResolvedValueOnce(sampleWorkoutFull);   // refetch after tx
+    (prisma.workout.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+    const res = await request(app)
+      .post(`/api/workouts/${WORKOUT_ID}/complete`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain('уже завершена');
+  });
+
+  it('200 completes workout — sets userId via JWT, returns updated workout', async () => {
+    const completedWorkout = { ...sampleWorkoutFull, completedAt: new Date(), exercises: [] };
+    (prisma.workout.findUnique as jest.Mock)
+      .mockResolvedValueOnce(sampleWorkoutFull)  // ownership + validSetIds
+      .mockResolvedValueOnce(sampleWorkoutFull)  // refetch after tx (totalVolume calc)
+      .mockResolvedValueOnce(completedWorkout);  // final return
+    (prisma.workout.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    const res = await request(app)
+      .post(`/api/workouts/${WORKOUT_ID}/complete`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.completedAt).toBeDefined();
+
+    // Atomic guard must scope to req.userId (IDOR protection)
+    const updateManyCalls = (prisma.workout.updateMany as jest.Mock).mock.calls;
+    expect(updateManyCalls[0][0].where.userId).toBe('u-test');
+    expect(updateManyCalls[0][0].where.id).toBe(WORKOUT_ID);
+    expect(updateManyCalls[0][0].where.completedAt).toBeNull();
+  });
+});
+
+// ─── POST /api/workouts/:id/autosave ─────────────────────────────────────────
+
+describe('POST /api/workouts/:id/autosave', () => {
+  const validSets = [{ id: 'cwset00000000000000001', reps: 8, weight: 80, completed: true }];
+
+  it('401 without token', async () => {
+    const res = await request(app).post(`/api/workouts/${WORKOUT_ID}/autosave`).send({ sets: validSets });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/workouts/bad-id/autosave')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ sets: validSets });
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when workout belongs to a different user (IDOR)', async () => {
+    (prisma.workout.findUnique as jest.Mock).mockResolvedValueOnce({
+      ...sampleWorkoutFull,
+      userId: 'u-other',
+    });
+
+    const res = await request(app)
+      .post(`/api/workouts/${WORKOUT_ID}/autosave`)
+      .set('Authorization', `Bearer ${makeToken('u-test')}`)
+      .send({ sets: validSets });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('200 fire-and-forget — returns { success: true } even if no set IDs match', async () => {
+    (prisma.workout.findUnique as jest.Mock).mockResolvedValueOnce(sampleWorkoutFull);
+
+    const res = await request(app)
+      .post(`/api/workouts/${WORKOUT_ID}/autosave`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ sets: [{ id: 'cwset00000000000000001', reps: 5, weight: 60 }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+});
+
+// ─── GET /api/workouts/leaderboard ───────────────────────────────────────────
+
+describe('GET /api/workouts/leaderboard', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/workouts/leaderboard');
+    expect(res.status).toBe(401);
+  });
+
+  it('402 for free user (subscription required)', async () => {
+    (getSubStatus as jest.Mock).mockResolvedValueOnce({ isPaid: false, plan: 'free', isActive: false });
+
+    const res = await request(app)
+      .get('/api/workouts/leaderboard')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(402);
+    expect(res.body.code).toBe('SUBSCRIPTION_REQUIRED');
+  });
+
+  it('200 for paid user — calls $queryRaw and returns rows', async () => {
+    (getSubStatus as jest.Mock).mockResolvedValueOnce({ isPaid: true, plan: 'premium', isActive: true });
+    const leaderboardRows = [
+      { exerciseName: 'Жим лёжа', userName: 'Иван', weightKg: 120, reps: 5, estimated1RM: 140, date: new Date().toISOString(), verified: true },
+    ];
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce(leaderboardRows);
+
+    const res = await request(app)
+      .get('/api/workouts/leaderboard')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.leaderboard)).toBe(true);
+    expect(res.body.leaderboard[0].exerciseName).toBe('Жим лёжа');
+  });
+});
+
+// ─── GET /api/workouts/routines ───────────────────────────────────────────────
+
+describe('GET /api/workouts/routines', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/workouts/routines');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns routines array for authenticated user', async () => {
+    (prisma.routine.findMany as jest.Mock).mockResolvedValueOnce([sampleRoutine]);
+
+    const res = await request(app)
+      .get('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].name).toBe('Силовая рутина');
+  });
+
+  it('SECURITY: findMany filters by req.userId', async () => {
+    (prisma.routine.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken('u-test')}`);
+
+    const calls = (prisma.routine.findMany as jest.Mock).mock.calls;
+    expect(calls[0][0].where.userId).toBe('u-test');
+  });
+});
+
+// ─── POST /api/workouts/routines ──────────────────────────────────────────────
+
+describe('POST /api/workouts/routines', () => {
+  const validRoutinePayload = {
+    name: 'Рутина жим',
+    exercises: [
+      {
+        exerciseId: 'ex-bench-press',
+        order: 0,
+        restSeconds: 90,
+        sets: [{ setNumber: 1, type: 'normal', reps: 8, weight: 80 }],
+      },
+    ],
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/workouts/routines').send(validRoutinePayload);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when name is missing', async () => {
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ exercises: validRoutinePayload.exercises });
+    expect(res.status).toBe(400);
+  });
+
+  it('201 creates routine with userId from JWT', async () => {
+    (prisma.routine.create as jest.Mock).mockResolvedValueOnce({ ...sampleRoutine, exercises: [] });
+
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validRoutinePayload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe(ROUTINE_ID);
+
+    const createCalls = (prisma.routine.create as jest.Mock).mock.calls;
+    expect(createCalls[0][0].data.userId).toBe('u-test');
+  });
+
+  it('400 when exerciseId does not exist in DB (P2003 FK violation)', async () => {
+    const fkError = new Error('Foreign key constraint') as any;
+    fkError.code = 'P2003';
+    (prisma.routine.create as jest.Mock).mockRejectedValueOnce(fkError);
+
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validRoutinePayload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('упражнений');
+  });
+});
+
+// ─── GET /api/workouts/routines/:id ──────────────────────────────────────────
+
+describe('GET /api/workouts/routines/:id', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get(`/api/workouts/routines/${ROUTINE_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .get('/api/workouts/routines/bad-id')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when routine belongs to different user (IDOR)', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValueOnce({
+      ...sampleRoutine,
+      userId: 'u-other', // not the token user
+    });
+
+    const res = await request(app)
+      .get(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-test')}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('200 returns owned routine', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValueOnce(sampleRoutine);
+
+    const res = await request(app)
+      .get(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(ROUTINE_ID);
+    expect(res.body.name).toBe('Силовая рутина');
   });
 });
