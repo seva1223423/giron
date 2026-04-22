@@ -14,6 +14,8 @@ import {
   findHeaviestPR,
   todayMondayIndex,
   calorieDayProgress,
+  deriveWeekPlanDays,
+  RU_DAY_LABELS,
 } from '../utils/homeDerivations';
 
 // ─── buildWeekDotsFromHistory ───────────────────────────────────────────────
@@ -248,5 +250,112 @@ describe('calorieDayProgress', () => {
 
   test('Infinity now → 0', () => {
     expect(calorieDayProgress(Infinity, 2000)).toBe(0);
+  });
+});
+
+// ─── deriveWeekPlanDays ─────────────────────────────────────────────────────
+
+describe('RU_DAY_LABELS constant', () => {
+  test('has 7 Monday-first labels', () => {
+    expect(RU_DAY_LABELS).toEqual(['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']);
+  });
+});
+
+describe('deriveWeekPlanDays', () => {
+  // Use a fixed Monday so the logic is deterministic regardless of
+  // when the suite runs.
+  const MON = new Date(2026, 3, 20); // 2026-04-20 is a Monday
+  const TUE = new Date(2026, 3, 21);
+  const SUN = new Date(2026, 3, 26);
+
+  test('returns exactly 7 days', () => {
+    const out = deriveWeekPlanDays({}, [], MON);
+    expect(out).toHaveLength(7);
+  });
+
+  test('each day has dayLabel, title, active, done', () => {
+    const out = deriveWeekPlanDays({}, [], MON);
+    for (const d of out) {
+      expect(d).toHaveProperty('dayLabel');
+      expect(d).toHaveProperty('title');
+      expect(d).toHaveProperty('active');
+      expect(d).toHaveProperty('done');
+    }
+  });
+
+  test('Monday today → index 0 active + "Сегодня"', () => {
+    const out = deriveWeekPlanDays({}, [], MON);
+    expect(out[0].active).toBe(true);
+    expect(out[0].title).toBe('Сегодня');
+    expect(out[0].dayLabel).toBe('Пн');
+    // Others not active
+    for (let i = 1; i < 7; i++) expect(out[i].active).toBe(false);
+  });
+
+  test('Sunday today → index 6 active', () => {
+    const out = deriveWeekPlanDays({}, [], SUN);
+    expect(out[6].active).toBe(true);
+    expect(out[6].title).toBe('Сегодня');
+    for (let i = 0; i < 6; i++) expect(out[i].active).toBe(false);
+  });
+
+  test('weekPlan name used for non-today days', () => {
+    const plan = {
+      0: null,
+      1: { name: 'Ноги' },
+      3: { name: 'Грудь + трицепс' },
+    };
+    const out = deriveWeekPlanDays(plan as any, [], TUE);
+    // Today (tuesday=1) has "Сегодня"
+    expect(out[1].title).toBe('Сегодня');
+    // Other days show the plan name or default
+    expect(out[0].title).toBe('Отдых'); // null
+    expect(out[3].title).toBe('Грудь + трицепс');
+    expect(out[5].title).toBe('Отдых'); // missing key
+  });
+
+  test('done = true for past day with matching completion in history', () => {
+    const wed = new Date(2026, 3, 22); // Wednesday
+    const history = [{ completedAt: new Date(2026, 3, 20, 10).toISOString() }]; // Monday workout
+    const out = deriveWeekPlanDays({}, history, wed);
+    expect(out[0].done).toBe(true); // Monday done
+    expect(out[1].done).toBe(false); // Tuesday not
+  });
+
+  test('done = false for current and future days', () => {
+    const mon = MON;
+    const history = [{ completedAt: mon.toISOString() }];
+    const out = deriveWeekPlanDays({}, history, mon);
+    // Today is not "done" — we're live
+    expect(out[0].done).toBe(false);
+    // Future days also not done
+    expect(out[6].done).toBe(false);
+  });
+
+  test('handles invalid completedAt gracefully', () => {
+    const history = [
+      { completedAt: 'not-a-date' } as any,
+      { completedAt: null },
+      { completedAt: undefined },
+    ];
+    expect(() => deriveWeekPlanDays({}, history, MON)).not.toThrow();
+  });
+
+  test('empty plan + empty history → all "Отдых" except today', () => {
+    const out = deriveWeekPlanDays({}, [], new Date(2026, 3, 23)); // Thursday
+    for (let i = 0; i < 7; i++) {
+      if (i === 3) {
+        expect(out[i].title).toBe('Сегодня');
+      } else {
+        expect(out[i].title).toBe('Отдых');
+      }
+      expect(out[i].done).toBe(false);
+    }
+  });
+
+  test('null weekPlan[key] treated as missing (shows "Отдых")', () => {
+    const out = deriveWeekPlanDays({ 0: null, 1: null } as any, [], MON);
+    expect(out[0].title).toBe('Сегодня');
+    expect(out[1].title).toBe('Отдых');
   });
 });

@@ -36,6 +36,7 @@ import {
   findHeaviestPR,
   todayMondayIndex,
   calorieDayProgress,
+  deriveWeekPlanDays,
 } from '../../utils/homeDerivations';
 import { useSafeTop } from '../../hooks/useSafeTop';
 const todayDate = todayDateStr;
@@ -505,21 +506,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
              not an array. We iterate 0..6 explicitly so the strip
              renders all 7 cards even on days with null entries. */}
       {(() => {
-        const dayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-        const dowIdx = todayMondayIndex();
-        const days = [0, 1, 2, 3, 4, 5, 6].map((i) => {
-          const p = weekPlan[i] ?? null;
-          return {
-            dayLabel: dayLabels[i] ?? '',
-            title: i === dowIdx ? 'Сегодня' : (p?.name ?? 'Отдых'),
-            active: i === dowIdx,
-            done: i < dowIdx && workoutHistory.some((w) => {
-              if (!w.completedAt) return false;
-              const wd = new Date(w.completedAt);
-              return todayMondayIndex(wd) === i;
-            }),
-          };
-        });
+        const days = deriveWeekPlanDays(weekPlan, workoutHistory);
         return (
           <FadeIn delay={240}>
             <WeekPlanStrip
