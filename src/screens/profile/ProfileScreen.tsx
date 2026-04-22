@@ -4,7 +4,7 @@ import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-nat
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
-import { Card, Button, AnimatedPressable, Icon } from '../../components';
+import { Card, Button, AnimatedPressable, Icon, type IconName } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
@@ -38,9 +38,11 @@ const ProfileRow: React.FC<{ label: string; value: string; colors: any; isLast?:
   </View>
 );
 
-// Single row in the navigation menu
+// Single row in the navigation menu. Uses the shared Icon set for the
+// left leading glyph so every menu line looks like the Direction A
+// profile list spec.
 const MenuRow: React.FC<{
-  icon: string;
+  iconName: IconName;
   iconBg: string;
   iconColor: string;
   title: string;
@@ -50,7 +52,7 @@ const MenuRow: React.FC<{
   colors: any;
   badge?: string;
   badgeColor?: string;
-}> = ({ icon, iconBg, iconColor, title, subtitle, onPress, isLast, colors, badge, badgeColor }) => (
+}> = ({ iconName, iconBg, iconColor, title, subtitle, onPress, isLast, colors, badge, badgeColor }) => (
   <AnimatedPressable
     onPress={onPress}
     haptic={false}
@@ -61,7 +63,7 @@ const MenuRow: React.FC<{
     ]}
   >
     <View style={{ width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: iconBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: iconColor + '35' }}>
-      <Text style={{ fontSize: 15, fontWeight: '700', color: iconColor }}>{icon}</Text>
+      <Icon name={iconName} size={18} color={iconColor} />
     </View>
     <View style={{ flex: 1 }}>
       <Text style={[typography.body, { color: colors.text }]} numberOfLines={1}>{title}</Text>
@@ -72,7 +74,9 @@ const MenuRow: React.FC<{
         <Text style={{ fontSize: 10, fontWeight: '700', color: badgeColor || colors.primary }}>{badge}</Text>
       </View>
     )}
-    <Text style={[typography.body, { color: colors.textTertiary }]}>›</Text>
+    <View style={{ transform: [{ rotate: '0deg' }] }}>
+      <Icon name="chev" size={16} color={colors.textTertiary} />
+    </View>
   </AnimatedPressable>
 );
 
@@ -510,7 +514,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
       <Card style={{ marginBottom: spacing.lg }}>
         <MenuRow
-          icon="⚙"
+          iconName="settings"
           iconBg={colors.border}
           iconColor={colors.textSecondary}
           title="Настройки"
@@ -519,7 +523,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           colors={colors}
         />
         <MenuRow
-          icon="T"
+          iconName="user"
           iconBg={colors.primary + '18'}
           iconColor={colors.primary}
           title="Режим тренера"
@@ -528,7 +532,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           colors={colors}
         />
         <MenuRow
-          icon="★"
+          iconName="bolt"
           iconBg={colors.accent + '18'}
           iconColor={colors.accent}
           title="Подписка"
@@ -539,7 +543,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           colors={colors}
         />
         <MenuRow
-          icon="◫"
+          iconName="news"
           iconBg={colors.border}
           iconColor={colors.textSecondary}
           title="Новости спорта"
@@ -548,7 +552,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           colors={colors}
         />
         <MenuRow
-          icon="?"
+          iconName="message"
           iconBg="#6366F118"
           iconColor="#6366F1"
           title="Техническая поддержка"
@@ -559,7 +563,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         />
         {(user?.role === 'admin' || user?.role === 'support') && (
           <MenuRow
-            icon="A"
+            iconName="lock"
             iconBg="#EF444418"
             iconColor="#EF4444"
             title="Панель администратора"
@@ -576,8 +580,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       <Card style={{ marginBottom: spacing.xl }}>
         {/* Phone verification */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.phoneVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
-            <Text style={{ fontSize: 15 }}>{user?.phoneVerified ? '✓' : '?'}</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.phoneVerified ? colors.success + '20' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Icon name={user?.phoneVerified ? 'check' : 'mic'} size={15} color={user?.phoneVerified ? colors.success : colors.textSecondary} strokeWidth={user?.phoneVerified ? 2.4 : 1.6} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Телефон</Text>
@@ -596,8 +600,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Email verification */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.emailVerified ? '#34C75920' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
-            <Text style={{ fontSize: 15 }}>{user?.emailVerified ? '✓' : '@'}</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.emailVerified ? colors.success + '20' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Icon name={user?.emailVerified ? 'check' : 'message'} size={15} color={user?.emailVerified ? colors.success : colors.textSecondary} strokeWidth={user?.emailVerified ? 2.4 : 1.6} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Email</Text>

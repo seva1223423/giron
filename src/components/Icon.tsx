@@ -21,7 +21,7 @@ export type IconName =
   | 'timer' | 'camera' | 'mic' | 'scan' | 'heart' | 'bolt' | 'target'
   | 'plus' | 'play' | 'pause' | 'refresh' | 'send' | 'search' | 'logo'
   | 'dumbbell' | 'apple' | 'chart' | 'user' | 'home' | 'message' | 'bookmark' | 'more'
-  | 'settings' | 'lock' | 'grid';
+  | 'settings' | 'lock' | 'grid' | 'news' | 'water' | 'moon' | 'rouble';
 
 interface Props {
   name: IconName;
@@ -187,6 +187,21 @@ const PATHS: Record<IconName, (color: string, sw: number) => React.ReactNode> = 
       <Rect x={3} y={14} width={7} height={7} rx={1} stroke={c} strokeWidth={sw} fill="none" />
       <Rect x={14} y={14} width={7} height={7} rx={1} stroke={c} strokeWidth={sw} fill="none" />
     </>
+  ),
+  news: (c, sw) => (
+    <>
+      <Rect x={3} y={5} width={18} height={14} rx={2} stroke={c} strokeWidth={sw} fill="none" />
+      <Path d="M7 9h7M7 13h10M7 17h5" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" />
+    </>
+  ),
+  water: (c, sw) => (
+    <Path d="M12 3c4 6 7 9 7 13a7 7 0 0 1-14 0c0-4 3-7 7-13Z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  moon: (c, sw) => (
+    <Path d="M20 15A8 8 0 0 1 9 4a8 8 0 1 0 11 11Z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  rouble: (c, sw) => (
+    <Path d="M7 20V4h5a4.5 4.5 0 0 1 0 9H5M5 16h8" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
   ),
 };
 
