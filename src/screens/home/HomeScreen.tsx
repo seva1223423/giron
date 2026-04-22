@@ -77,7 +77,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
   const { user } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, customExercises, fetchWeekPlan } = useWorkoutStore();
+  const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, customExercises, fetchWeekPlan, startWorkoutFromRoutine } = useWorkoutStore();
   const { getDayLog } = useNutritionStore();
 
   useEffect(() => {
@@ -192,9 +192,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return { name: rec.name, emoji: rec.emoji, daysLabel, programWorkout: null };
   }, [workoutHistory, activeProgram]);
 
-  const handleStartPlannedWorkout = useCallback(() => {
-    if (!todayPlan || todayPlan.exercises.length === 0) return;
+  const handleStartPlannedWorkout = useCallback(async () => {
+    if (!todayPlan) return;
     haptic.medium();
+    // If the plan day is linked to a saved routine, use the progressive-overload path
+    if (todayPlan.routineId) {
+      try {
+        const workout = await startWorkoutFromRoutine(todayPlan.routineId);
+        if (workout) navigation.navigate('ActiveWorkout');
+      } catch {
+        haptic.error();
+        Alert.alert('Ошибка', 'Не удалось запустить рутину. Проверь соединение.');
+      }
+      return;
+    }
+    if (todayPlan.exercises.length === 0) return;
     const allExercises = [...customExercises, ...localExercises];
     const workoutExercises: WorkoutExercise[] = todayPlan.exercises
       .map((exId: string, index: number) => {
@@ -216,7 +228,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       navigation,
       { tab: 'WorkoutsTab' },
     );
-  }, [todayPlan, customExercises, navigation, haptic]);
+  }, [todayPlan, customExercises, navigation, haptic, startWorkoutFromRoutine]);
 
   const handleRepeatWorkout = useCallback(() => {
     if (!lastWorkout) return;

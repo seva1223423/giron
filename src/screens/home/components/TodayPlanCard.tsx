@@ -8,7 +8,7 @@ import { exerciseThumbSource } from '../../../config/store';
 import { exercises as localExercises } from '../../../data/exercises';
 
 interface Props {
-  todayPlan: { name: string; emoji: string; exercises: string[] };
+  todayPlan: { name: string; emoji: string; exercises: string[]; routineId?: string };
   onStart: () => void;
 }
 
@@ -32,17 +32,22 @@ export const TodayPlanCard: React.FC<Props> = ({ todayPlan, onStart }) => {
   return (
     <Card
       style={{ marginBottom: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent }}
-      onPress={todayPlan.exercises.length > 0 ? onStart : undefined}
+      onPress={todayPlan.exercises.length > 0 || todayPlan.routineId ? onStart : undefined}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
           <Text style={[typography.captionMedium, { color: colors.accent }]}>ПЛАН НА СЕГОДНЯ</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs, flexWrap: 'wrap' }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: colors.accent }}>{todayPlan.emoji}</Text>
             <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>{todayPlan.name}</Text>
+            {todayPlan.routineId && (
+              <View style={[styles.routineBadge, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]}>
+                <Text style={[typography.caption, { color: colors.primary, fontSize: 10 }]}>◈ +2.5кг</Text>
+              </View>
+            )}
           </View>
         </View>
-        {todayPlan.exercises.length > 0 && (
+        {(todayPlan.exercises.length > 0 || todayPlan.routineId) && (
           <Text style={[typography.bodySemibold, { color: colors.accent }]}>▶ Начать</Text>
         )}
       </View>
@@ -97,4 +102,5 @@ const styles = StyleSheet.create({
   placeholder: { alignItems: 'center', justifyContent: 'center' },
   placeholderIcon: { fontSize: 16, opacity: 0.7 },
   overflowTile: { alignItems: 'center', justifyContent: 'center' },
+  routineBadge: { paddingHorizontal: spacing.xs, paddingVertical: 1, borderRadius: borderRadius.sm, borderWidth: 1 },
 });
