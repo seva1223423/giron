@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useThemeStore } from '../../../store';
 import { useSafeTop } from '../../../hooks/useSafeTop';
+import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -18,6 +19,7 @@ interface Props {
 export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned, onClose, onScan }) => {
   const { colors } = useThemeStore();
   const safeTop = useSafeTop();
+  const haptic = useHaptic();
   const [permission, requestPermission] = useCameraPermissions();
   const [torchEnabled, setTorchEnabled] = useState(false);
 
@@ -56,7 +58,12 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
         {!permission?.granted ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
             <Text style={[typography.body, { color: '#FFF', textAlign: 'center' }]}>Ожидание разрешения камеры...</Text>
-            <TouchableOpacity onPress={onClose} style={{ marginTop: spacing.xl }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{ marginTop: spacing.xl }}
+              accessibilityLabel="Закрыть сканер"
+              accessibilityRole="button"
+            >
               <Text style={{ color: '#FFF', fontSize: 16 }}>Закрыть</Text>
             </TouchableOpacity>
           </View>
@@ -72,12 +79,20 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
         <View style={styles.overlay}>
           <View style={[styles.topArea, { paddingTop: safeTop }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <TouchableOpacity
+                onPress={() => { haptic.light(); onClose(); }}
+                style={styles.closeBtn}
+                accessibilityLabel="Закрыть сканер штрих-кодов"
+                accessibilityRole="button"
+              >
                 <Text style={{ color: '#FFF', fontSize: 16 }}>✕  Закрыть</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setTorchEnabled((v) => !v)}
+                onPress={() => { haptic.selection(); setTorchEnabled((v) => !v); }}
                 style={[styles.closeBtn, torchEnabled && styles.torchActive]}
+                accessibilityLabel={torchEnabled ? 'Выключить фонарь' : 'Включить фонарь камеры'}
+                accessibilityRole="button"
+                accessibilityState={{ selected: torchEnabled }}
               >
                 <Text style={{ color: torchEnabled ? '#FFD60A' : '#FFF', fontSize: 16 }}>
                   {torchEnabled ? '○ Выкл' : '○ Фонарь'}
