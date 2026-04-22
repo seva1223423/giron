@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore, useNutritionStore, useSubscriptionStore, useConnectionStore, FREE_LIMITS } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useHaptic } from '../../hooks/useHaptic';
-import { Button, Card, PaywallModal, FadeIn } from '../../components';
+import { Button, Card, PaywallModal, FadeIn, Spinner } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import type { NutritionItem, Meal } from '../../types';
@@ -1601,7 +1601,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             it's hung. */}
         {loading && (
           <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.xxl }}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            {/* Premium spark spinner — on-brand loader matching the AI
+                coach avatar in the home / chat screens. Smoother visual
+                cue than the default grey ActivityIndicator. */}
+            <Spinner size={38} />
             <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.md }]}>ИИ анализирует фото...</Text>
             <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Определяю продукты и рассчитываю КБЖУ</Text>
             <Text style={[typography.small, { color: loadingElapsed > 15 ? colors.warning : colors.textTertiary, marginTop: spacing.xs }]}>

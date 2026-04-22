@@ -11,3 +11,4 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { Tooltip } from './Tooltip';
 export { GoogleAuthButton } from './GoogleAuthButton';
 export { Icon, type IconName } from './Icon';
+export { Spinner } from './Spinner';
