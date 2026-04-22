@@ -1822,11 +1822,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                   maxLength={5}
                   returnKeyType="done"
                   onSubmitEditing={scaleAllPortions}
+                  accessibilityLabel="Общий вес тарелки в граммах"
+                  accessibilityHint="Все позиции масштабируются пропорционально под этот вес"
                 />
                 <Text style={[typography.small, { color: colors.textSecondary, marginLeft: 4 }]}>г</Text>
                 <TouchableOpacity
                   onPress={scaleAllPortions}
                   style={[styles.scalerBtn, { backgroundColor: colors.primary }]}
+                  accessibilityLabel="Пересчитать веса и калории под указанный общий вес"
+                  accessibilityRole="button"
                 >
                   <Text style={[typography.captionMedium, { color: '#FFF', fontWeight: '700' }]}>Пересчитать</Text>
                 </TouchableOpacity>
@@ -1846,8 +1850,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>+ Ещё фото</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setShowAddPanel((v) => !v)}
+                onPress={() => { haptic.selection(); setShowAddPanel((v) => !v); }}
                 style={[styles.addMoreBtn, { flex: 1, borderColor: showAddPanel ? colors.primary : colors.border, backgroundColor: colors.surface }]}
+                accessibilityLabel={showAddPanel ? 'Свернуть список сохранённых продуктов' : 'Открыть список сохранённых продуктов'}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showAddPanel }}
               >
                 <Text style={[typography.smallMedium, { color: showAddPanel ? colors.primary : colors.textSecondary }]}>
                   {showAddPanel ? '− Свернуть' : '+ Сохранённые'}
