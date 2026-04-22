@@ -18,25 +18,45 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 11 suites, 263 tests)
   auth.test.ts                  — login, register, refresh token, ban, 2FA
   otp.test.ts                   — OTP flows, forgot/reset password, brute-force lockout
   webhook.test.ts               — RevenueCat, YuKassa, generic webhook signature verification
   subscription_gating.test.ts   — history/measurements/leaderboard gating by sub status
-  routines.test.ts              — GET/POST/PATCH/DELETE routines, duplicate, history, routineId in sync (15 tests)
+  routines.test.ts              — GET/POST/PATCH/DELETE routines, duplicate, history, routineId in sync
+  bugs_regression.test.ts       — server-side regression tests for known bugs
+  foodVision.test.ts            — food photo analysis endpoint, malformed JSON recovery
+  leaderboard.test.ts           — top-100 est1RM leaderboard endpoint
+  middleware.test.ts            — auth middleware: missing token, expired token, wrong issuer
+  news.test.ts                  — RSS fetch, save/unsave, auto-categorization
+  validation.test.ts            — Zod validation edge cases across routes
   setup.ts                      — JWT secrets + env vars (runs before every test)
   __mocks__/
     expo-server-sdk.ts          — mock for push notification SDK
 
-src/__tests__/                  — client store unit tests (Jest)
+src/__tests__/                  — client store unit tests (Jest, 22 suites, 358 tests)
   workoutStore.test.ts          — 100+ tests: PR detection, superset, history merge
+  workoutBugs.test.ts           — regression tests for known workout store bugs
   nutritionStore.test.ts        — meal CRUD, cleanup, merge with server data
+  nutritionBugs.test.ts         — regression tests for known nutrition bugs
   authStore.test.ts             — login flows, token persistence
   subscriptionStore.test.ts     — free limit consumption and reset
-  workoutBugs.test.ts           — regression tests for known bugs
-  stressTests.test.ts           — bulk operations, edge cases
-  1rm.test.ts                   — Epley formula accuracy
+  routinesStore.test.ts         — routine CRUD, startWorkoutFromRoutine, progressive overload
+  cardioStoreBugs.test.ts       — regression tests for cardio store edge cases
+  sleepStore.test.ts            — sleep entry CRUD and duration computation
+  sleepStoreBugs.test.ts        — regression tests for sleep store
+  settingsStore.test.ts         — rest timer, units, notification preferences
+  themeStore.test.ts            — light/dark theme switching
+  trainerStore.test.ts          — trainer-client CRUD with paywall gating
+  connectionStore.test.ts       — online/offline state transitions
+  stressTests.test.ts           — bulk operations, large history, edge cases
+  1rm.test.ts                   — Epley/Brzycki/Lander/O'Conner formula accuracy
   achievements.test.ts          — achievement unlock conditions
+  date.test.ts                  — computeStreak, localDateStr, getPastDates
+  dateTimezone.test.ts          — timezone-safe date formatting (UTC+3 edge cases)
+  foodScanner.test.ts           — barcode scan, food analysis, scan count gating
+  commaDecimal.test.ts          — Russian decimal input (comma → dot conversion)
+  progressRing.test.ts          — ProgressRing SVG arc math
 ```
 
 ## Verification Commands
@@ -55,7 +75,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 178+ server tests pass, ~200+ client tests pass.
+**Expected baseline:** 263 server tests pass (11 suites), 358 client tests pass (22 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
