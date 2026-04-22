@@ -14,6 +14,10 @@ interface Props {
   onRemove: (id: string) => void;
   /** Called with (id, newName) when the user commits a rename. */
   onRename?: (id: string, newName: string) => void;
+  /** Median weight (grams) this user has logged for this food across recent
+   *  meals. When supplied AND sufficiently different from the AI's guess,
+   *  a one-tap "Обычно: N г" hint appears. */
+  typicalWeight?: number;
 }
 
 const PORTION_PRESETS = [30, 50, 100, 150, 200, 300];
@@ -27,7 +31,7 @@ function confidenceBucket(conf: number | undefined): 'high' | 'medium' | 'low' {
   return 'low';
 }
 
-export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename }) => {
+export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename, typicalWeight }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
   const { saveFoodItem, savedFoods } = useNutritionStore();
@@ -163,6 +167,23 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
         </View>
       )}
 
+      {/* "Usually you eat" hint — surfaces the user's own historical median
+          when it meaningfully differs from the AI's guess. Threshold of 10%
+          avoids flapping for near-matches; "≥2 samples" filter is enforced
+          upstream in computeTypicalPortions so we don't show a chip based
+          on a single outlier meal. */}
+      {typicalWeight != null && Math.abs(typicalWeight - currentWeight) / Math.max(1, currentWeight) > 0.1 && (
+        <TouchableOpacity
+          onPress={() => selectPortion(typicalWeight)}
+          style={[styles.typicalHint, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '40' }]}
+          accessibilityLabel={`Применить твой обычный вес: ${typicalWeight} грамм`}
+        >
+          <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+            Обычно ты ешь: {typicalWeight}г — применить
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Portion presets — shown when base macros per 100g are available */}
       {base && (
         <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm, flexWrap: 'wrap' }}>
@@ -216,4 +237,12 @@ const styles = StyleSheet.create({
   nutritionRow: { flexDirection: 'row', justifyContent: 'space-between' },
   nutritionCell: { alignItems: 'center' },
   portionBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm, borderWidth: 1 },
+  typicalHint: {
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    marginBottom: spacing.sm,
+  },
 });
