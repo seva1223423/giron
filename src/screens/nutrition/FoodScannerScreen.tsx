@@ -1524,6 +1524,34 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                   </View>
                 ))}
               </View>
+              {/* Stacked macro distribution bar — visual at-a-glance ratio of
+                  protein : fats : carbs by calorie contribution. Quickly tells
+                  the user "this is a fat-heavy meal" vs "this is carb-heavy". */}
+              {(() => {
+                const totalP = recognizedItems.reduce((s, i) => s + i.protein, 0);
+                const totalF = recognizedItems.reduce((s, i) => s + i.fats, 0);
+                const totalC = recognizedItems.reduce((s, i) => s + i.carbs, 0);
+                const calP = totalP * 4;
+                const calF = totalF * 9;
+                const calC = totalC * 4;
+                const sum = calP + calF + calC;
+                if (sum < 1) return null; // no macros — skip the bar
+                const pctP = Math.round((calP / sum) * 100);
+                const pctF = Math.round((calF / sum) * 100);
+                const pctC = Math.max(0, 100 - pctP - pctF); // ensure they sum to 100
+                return (
+                  <View style={{ marginTop: spacing.md }}>
+                    <View style={[styles.macroBar, { backgroundColor: colors.border }]}>
+                      <View style={{ width: `${pctP}%`, height: '100%', backgroundColor: colors.protein }} />
+                      <View style={{ width: `${pctF}%`, height: '100%', backgroundColor: colors.fats }} />
+                      <View style={{ width: `${pctC}%`, height: '100%', backgroundColor: colors.carbs }} />
+                    </View>
+                    <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 4, textAlign: 'center' }]}>
+                      Б {pctP}% · Ж {pctF}% · У {pctC}%
+                    </Text>
+                  </View>
+                );
+              })()}
             </Card>
 
             {/* Remaining calories indicator */}
@@ -1728,5 +1756,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     fontSize: 14,
     marginBottom: spacing.sm,
+  },
+  macroBar: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'row',
   },
 });
