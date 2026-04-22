@@ -24,7 +24,9 @@ describe('useThemeStore', () => {
     const state = useThemeStore.getState();
     expect(state.mode).toBe('light');
     expect(state.isDark).toBe(false);
-    expect(state.colors.background).toBe('#F5F5F7');
+    // Premium Graphite + Gold palette — warm cream background in light mode
+    // (inverse of the dark-mode text color, keeps the brand warmth consistent).
+    expect(state.colors.background).toBe('#F4F1EA');
   });
 
   test('setMode dark changes colors to dark palette', () => {

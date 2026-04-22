@@ -1,104 +1,115 @@
 /**
- * Iron Gym Color System
+ * Iron Gym Color System — Premium Graphite + Gold
  *
- * Design philosophy: Dark minimalism with purple accent
- * Inspired by Apple design language — clean, unified, elegant
+ * Design philosophy: Premium dark product with champagne gold accent.
+ * Tokens match Claude Design "Direction A" export (2026-04-22 handoff):
+ *   - Warm graphite background #0E0E0F
+ *   - Layered surfaces #17171A → #1E1E22 for depth
+ *   - Champagne gold #D4B07A as the signature accent (was purple #8B5CF6)
+ *   - Warm cream text #F4F1EA on dark; warm grey subtext
+ *
+ * Light mode keeps the gold accent but inverts to a warm off-white
+ * background so the brand identity stays consistent across modes.
+ *
+ * Macro palette (calories / protein / fats / carbs) follows the same
+ * warm scheme — protein = gold (replaces old purple), so the macro
+ * bars and primary CTAs share the brand color.
  */
 
 export const lightColors = {
-  primary: '#8B5CF6',       // Purple — main accent
-  primaryDark: '#7C3AED',
-  primaryLight: '#A78BFA',
-  secondary: '#1A1A2E',
-  accent: '#8B5CF6',        // Same as primary for unity
+  primary: '#B08A4E',       // Gold — deeper for light-mode contrast
+  primaryDark: '#8E6B3E',   // Antique bronze
+  primaryLight: '#D4B07A',  // Champagne gold (dark-mode accent)
+  secondary: '#17171A',
+  accent: '#B08A4E',
 
-  background: '#F5F5F7',    // Apple-style light gray
+  background: '#F4F1EA',    // Warm cream (inverse of dark text)
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
   card: '#FFFFFF',
 
-  text: '#1C1C1E',          // Apple dark text
-  textSecondary: '#636366',  // Apple secondary
-  textTertiary: '#AEAEB2',   // Apple tertiary
-  textInverse: '#FFFFFF',
+  text: '#17171A',          // Graphite
+  textSecondary: '#6B6860',
+  textTertiary: '#A8A49C',
+  textInverse: '#F4F1EA',
 
-  border: '#E5E5EA',        // Apple separator
-  borderLight: '#F2F2F7',
-  divider: '#E5E5EA',
+  border: '#E5DFD2',        // Warm tan separator
+  borderLight: '#EEE8DC',
+  divider: '#E5DFD2',
 
-  success: '#34C759',       // Apple green
-  warning: '#FF9F0A',       // Apple orange
-  error: '#FF3B30',         // Apple red
-  info: '#5AC8FA',          // Apple blue
+  success: '#6FA66A',       // Muted sage (matches graphite mood, not Apple neon)
+  warning: '#C9824E',       // Amber — warm
+  error: '#C76558',         // Terracotta
+  info: '#6B91B0',          // Muted slate
 
   tabBar: '#FFFFFF',
-  tabBarBorder: '#E5E5EA',
-  tabBarActive: '#8B5CF6',
-  tabBarInactive: '#AEAEB2',
+  tabBarBorder: '#E5DFD2',
+  tabBarActive: '#B08A4E',
+  tabBarInactive: '#A8A49C',
 
-  inputBackground: '#F2F2F7',
-  inputBorder: '#E5E5EA',
-  inputText: '#1C1C1E',
-  inputPlaceholder: '#AEAEB2',
+  inputBackground: '#EEE8DC',
+  inputBorder: '#E5DFD2',
+  inputText: '#17171A',
+  inputPlaceholder: '#A8A49C',
 
-  overlay: 'rgba(0, 0, 0, 0.4)',
-  shadow: 'rgba(0, 0, 0, 0.06)',
+  overlay: 'rgba(14, 14, 15, 0.4)',
+  shadow: 'rgba(14, 14, 15, 0.08)',
 
-  progressBar: '#8B5CF6',
-  progressBarBackground: '#E5E5EA',
+  progressBar: '#B08A4E',
+  progressBarBackground: '#E5DFD2',
 
-  calories: '#FF3B30',      // Red
-  protein: '#8B5CF6',       // Purple (unified)
-  fats: '#FF9F0A',          // Orange
-  carbs: '#34C759',         // Green
+  calories: '#C76558',      // Terracotta (warm red)
+  protein: '#B08A4E',       // Gold — primary brand
+  fats: '#C9824E',          // Amber
+  carbs: '#6FA66A',         // Sage
 };
 
 export const darkColors: typeof lightColors = {
-  primary: '#A78BFA',       // Lighter purple for dark mode
-  primaryDark: '#8B5CF6',
-  primaryLight: '#C4B5FD',
-  secondary: '#F5F5F7',
-  accent: '#A78BFA',
+  primary: '#D4B07A',       // Champagne gold — the signature accent
+  primaryDark: '#B08A4E',   // Deeper gold for pressed states
+  primaryLight: '#E5C896',
+  secondary: '#F4F1EA',
+  accent: '#D4B07A',
 
-  background: '#0A0A0F',    // Very dark
-  surface: '#141420',       // Dark card
-  surfaceElevated: '#1C1C2E',
-  card: '#141420',
+  background: '#0E0E0F',    // Graphite (tokens.A.bg)
+  surface: '#17171A',       // Surface (tokens.A.surface)
+  surfaceElevated: '#1E1E22', // Elevated surface (tokens.A.surfaceHi)
+  card: '#17171A',
 
-  text: '#F5F5F7',
-  textSecondary: '#98989D',
-  textTertiary: '#636366',
-  textInverse: '#0A0A0F',
+  text: '#F4F1EA',          // Warm cream
+  textSecondary: '#A8A49C',
+  textTertiary: '#6B6860',
+  textInverse: '#0E0E0F',
 
-  border: '#2C2C3A',
-  borderLight: '#1C1C2E',
-  divider: '#2C2C3A',
+  border: 'rgba(255, 255, 255, 0.08)',       // tokens.A.line
+  borderLight: 'rgba(255, 255, 255, 0.04)',
+  divider: 'rgba(255, 255, 255, 0.08)',
 
-  success: '#30D158',       // Apple green (dark)
-  warning: '#FFD60A',
-  error: '#FF453A',
-  info: '#64D2FF',
+  success: '#9AC28C',       // Soft sage (tokens.A.good)
+  warning: '#E8A36A',       // Warm amber (tokens.A.warn)
+  error: '#E07A6B',         // Terracotta (tokens.A.danger)
+  info: '#8BA8BF',
 
-  tabBar: '#141420',
-  tabBarBorder: '#2C2C3A',
-  tabBarActive: '#A78BFA',
-  tabBarInactive: '#636366',
+  tabBar: 'rgba(20, 20, 24, 0.82)', // Translucent dark — uses backdrop blur
+  tabBarBorder: 'rgba(255, 255, 255, 0.14)',
+  tabBarActive: '#D4B07A',
+  tabBarInactive: '#A8A49C',
 
-  inputBackground: '#1C1C2E',
-  inputBorder: '#2C2C3A',
-  inputText: '#F5F5F7',
-  inputPlaceholder: '#636366',
+  inputBackground: '#1E1E22',
+  inputBorder: 'rgba(255, 255, 255, 0.14)',
+  inputText: '#F4F1EA',
+  inputPlaceholder: '#6B6860',
 
   overlay: 'rgba(0, 0, 0, 0.6)',
   shadow: 'rgba(0, 0, 0, 0.4)',
 
-  progressBar: '#A78BFA',
-  progressBarBackground: '#2C2C3A',
+  progressBar: '#D4B07A',
+  progressBarBackground: 'rgba(255, 255, 255, 0.08)',
 
-  calories: '#FF453A',
-  protein: '#A78BFA',       // Purple (unified)
-  fats: '#FFD60A',
-  carbs: '#30D158',
+  calories: '#E07A6B',      // Terracotta
+  protein: '#D4B07A',       // Champagne gold — primary brand
+  fats: '#E8A36A',          // Warm amber
+  carbs: '#9AC28C',         // Soft sage
 };
 
 export type Colors = typeof lightColors;
