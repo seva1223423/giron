@@ -1535,19 +1535,25 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                     variant="outline"
                     onPress={() => { haptic.selection(); setError(''); setImageUri(null); setTextModalOpen(true); }}
                     style={{ flex: 1 }}
+                    accessibilityLabel="Переключиться на ввод текстом"
+                    accessibilityHint="Откроет модальное окно с описанием еды"
                   />
                   <Button
                     title="📦 Штрих-код"
                     variant="outline"
-                    onPress={() => { setError(''); setImageUri(null); openBarcodeScanner(); }}
+                    onPress={() => { haptic.selection(); setError(''); setImageUri(null); openBarcodeScanner(); }}
                     style={{ flex: 1 }}
+                    accessibilityLabel="Переключиться на сканер штрих-кода"
+                    accessibilityHint="Откроет камеру для сканирования упаковки"
                   />
                 </View>
                 <Button
                   title="Добавить вручную"
                   variant="outline"
-                  onPress={() => { setError(''); setImageUri(null); navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() }); }}
+                  onPress={() => { haptic.selection(); setError(''); setImageUri(null); navigation.navigate('ManualFoodAdd', { mealType, date: todayDate() }); }}
                   fullWidth
+                  accessibilityLabel="Перейти к ручному вводу КБЖУ"
+                  accessibilityHint="Откроет полную форму с белками, жирами и углеводами"
                 />
               </View>
             )}
