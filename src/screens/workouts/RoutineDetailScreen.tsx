@@ -301,6 +301,15 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const totalSets = routine.exercises.reduce((s, e) => s + e.sets.length, 0);
   const createdDate = new Date(routine.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
+  // Estimated duration: ~45s per working set + rest time between sets + 60s transition per exercise
+  const estimatedMinutes = Math.round(
+    (routine.exercises.reduce((total, ex) => {
+      const workSets = ex.sets.filter((s) => s.type !== 'warmup').length;
+      const warmupSets = ex.sets.length - workSets;
+      return total + (workSets * 45) + (warmupSets * 25) + (workSets > 0 ? (workSets - 1) * ex.restSeconds : 0) + 60;
+    }, 0)) / 60
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -328,6 +337,11 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             <View style={styles.statItem}>
               <Text style={[typography.h3, { color: colors.primary }]}>{totalSets}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>подходов</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statItem}>
+              <Text style={[typography.h3, { color: colors.primary }]}>~{estimatedMinutes}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>мин</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
