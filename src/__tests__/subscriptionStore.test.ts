@@ -199,6 +199,37 @@ describe('useSubscriptionStore', () => {
       useSubscriptionStore.setState({ isPremium: true, premiumExpiresAt: null });
       expect(useSubscriptionStore.getState().foodScansLeft()).toBe(Infinity);
     });
+
+    describe('refundFoodScan', () => {
+      test('decrements counter after consume', () => {
+        useSubscriptionStore.getState().consumeFoodScan();
+        useSubscriptionStore.getState().consumeFoodScan();
+        expect(useSubscriptionStore.getState().foodScansUsedToday).toBe(2);
+        useSubscriptionStore.getState().refundFoodScan();
+        expect(useSubscriptionStore.getState().foodScansUsedToday).toBe(1);
+      });
+
+      test('never goes below zero', () => {
+        expect(useSubscriptionStore.getState().foodScansUsedToday).toBe(0);
+        useSubscriptionStore.getState().refundFoodScan();
+        expect(useSubscriptionStore.getState().foodScansUsedToday).toBe(0);
+      });
+
+      test('no-op for premium users', () => {
+        useSubscriptionStore.setState({ isPremium: true, premiumExpiresAt: null, foodScansUsedToday: 3 });
+        useSubscriptionStore.getState().refundFoodScan();
+        // Premium state shouldn't touch the counter at all (it's unused for them anyway)
+        expect(useSubscriptionStore.getState().foodScansUsedToday).toBe(3);
+      });
+
+      test('does not refund yesterday scans into today budget', () => {
+        // Scan counted under yesterday's date — today should start at 0, refund is a no-op.
+        useSubscriptionStore.setState({ foodScansUsedToday: 2, foodScansDate: '2000-01-01' });
+        useSubscriptionStore.getState().refundFoodScan();
+        // Should remain untouched — different date.
+        expect(useSubscriptionStore.getState().foodScansUsedToday).toBe(2);
+      });
+    });
   });
 
   describe('markTrialUsed', () => {

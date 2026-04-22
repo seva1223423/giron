@@ -389,7 +389,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   // Prevent double barcode scan consumption
   const barcodeProcessingRef = useRef(false);
 
-  const { consumeFoodScan, foodScansLeft, isPremiumActive } = useSubscriptionStore();
+  const { consumeFoodScan, refundFoodScan, foodScansLeft, isPremiumActive } = useSubscriptionStore();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [barcodeScanned, setBarcodeScanned] = useState(false);
@@ -613,6 +613,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       if (items.length === 0) {
         setError('Продукты не распознаны. Попробуй сделать чёткое фото тарелки с едой, или просканируй штрих-код упаковки.');
         setImageUri(null);
+        // Refund the optimistically-consumed scan — user gets nothing out of
+        // this call, so it shouldn't count against today's budget.
+        refundFoodScan();
         haptic.warning();
       } else {
         // Cache the successful result by the image fingerprint — next re-scan is free.
@@ -626,8 +629,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setError('Анализ отменён.');
         setImageUri(null);
         lastBase64Ref.current = '';
+        // User bailed before we got anything useful — refund.
+        refundFoodScan();
       } else if (e?.response?.status === 402) {
-        // Server quota exceeded (e.g. scanned on another device) — show paywall
+        // Server quota exceeded (e.g. scanned on another device) — show paywall.
+        // Don't refund: the server counted this against quota.
         setImageUri(null);
         lastBase64Ref.current = '';
         setShowPaywall(true);
@@ -635,6 +641,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       } else if (e?.suggestion) {
         setError(e.suggestion);
         setErrorRetryable(e?.retryable !== false);
+        // Refund only for non-retryable — retryable errors let the user press
+        // "Попробовать снова" which reuses the AI call without consuming twice.
+        if (e?.retryable === false) refundFoodScan();
         haptic.error();
       } else {
         setError(getApiError(e).message);
