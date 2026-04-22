@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions, Modal, Platform, AppState } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCameraPermissions } from 'expo-camera';
@@ -15,6 +15,7 @@ import { aiService, getApiError } from '../../services';
 import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../../services/notificationService';
 import { BarcodeScannerModal, RecognizedItemCard } from './scanner';
 import { localDateStr } from '../../utils/date';
+import { FOOD_DB } from './manual/foodData';
 import {
   fingerprintBase64,
   flagSanity,
@@ -361,6 +362,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     return () => { abortRef.current?.abort(); lastBase64Ref.current = ''; };
   }, []);
 
+  // Cancel any in-flight AI request when the app goes to background. Keeps
+  // a dead ~10s request from counting against the user's free quota when
+  // they've clearly lost interest, and avoids UI flashing when the user
+  // returns to a stale "analysing..." indicator.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'background' && loading && abortRef.current) {
+        abortRef.current.abort();
+      }
+    });
+    return () => sub.remove();
+  }, [loading]);
+
   // Persist the current scan as a draft whenever recognisedItems changes.
   // Debounced indirectly by React's batching — every state-changing edit
   // writes once. On an empty list we clear the draft so the next mount
@@ -389,13 +403,29 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   // ─── AI photo analysis ──────────────────────────────────────────────────────
 
+  /** Combined known-foods pool — user's savedFoods FIRST (highest trust),
+   *  then the built-in FOOD_DB (Skurikhin-ish reference values). Wraps
+   *  FOOD_DB entries with a synthetic id + weightGrams:100 so they match
+   *  the MatchableFood signature that findSavedFoodMatch expects. */
+  const knownFoods = React.useMemo(() => {
+    const dbFoods = FOOD_DB.map((f, i) => ({
+      id: `db-${i}`,
+      name: f.name,
+      calories: f.calories,
+      protein: f.protein,
+      fats: f.fats,
+      carbs: f.carbs,
+      weightGrams: 100,
+    }));
+    return [...savedFoods, ...dbFoods];
+  }, [savedFoods]);
+
   const applyAIItems = (rawItems: CachedAIResult['items']) => {
     const items: NutritionItem[] = rawItems.map((raw, index) => {
-      // Prefer user's saved macros when the AI-recognised name is one the
-      // user has previously added — their data is higher trust than the
-      // AI's per-image estimate. We keep the AI's weight guess and scale
-      // the saved per-100g values to it.
-      const match = findSavedFoodMatch(savedFoods, raw.name);
+      // Prefer user's saved macros first, then the built-in FOOD_DB — both
+      // are higher trust than the AI's per-image estimate. Keep the AI's
+      // weight guess and scale the reference per-100g values to it.
+      const match = findSavedFoodMatch(knownFoods, raw.name);
       const w = raw.weightGrams || 100;
       if (match) {
         const mw = match.weightGrams || 100;
