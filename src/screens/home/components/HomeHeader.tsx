@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useThemeStore, useAuthStore, useWorkoutStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
-import { localDateStr } from '../../../utils/date';
+import { computeStreak } from '../../../utils/date';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -26,20 +26,10 @@ export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { user } = useAuthStore();
   const { workoutHistory } = useWorkoutStore();
 
-  const streak = useMemo(() => {
-    if (workoutHistory.length === 0) return 0;
-    let s = 0;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const ds = localDateStr(d);
-      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === ds)) s++;
-      else if (i > 0) break;
-    }
-    return s;
-  }, [workoutHistory]);
+  const streak = useMemo(
+    () => computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]),
+    [workoutHistory],
+  );
 
   const streakDisplay = getStreakDisplay(streak, colors.primary, colors.primaryLight);
 

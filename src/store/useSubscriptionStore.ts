@@ -42,6 +42,13 @@ interface SubscriptionStore {
   consumeAiMessage: () => boolean;
   canScanFood: () => boolean;
   consumeFoodScan: () => boolean;
+  /** Refund one food scan today — called when a scan we had optimistically
+   *  counted (before compressing & sending to AI) didn't produce a usable
+   *  result: user cancelled mid-analysis, AI returned zero items, or a
+   *  non-retryable server error fired. No-op for premium users and never
+   *  goes below zero. Date-bounded so a scan consumed yesterday can't
+   *  refund into today's budget. */
+  refundFoodScan: () => void;
 
   // Getters
   aiMessagesLeft: () => number;
@@ -170,6 +177,18 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
 
         set({ foodScansUsedToday: used + 1, foodScansDate: today });
         return true;
+      },
+
+      refundFoodScan: () => {
+        if (get().isPremiumActive()) return;
+        const today = todayDateStr();
+        const { foodScansDate, foodScansUsedToday } = get();
+        // Only refund if the consumed scan was from today — don't restore a
+        // scan from yesterday that already rolled over (foodScansDate !==
+        // today means the 0'd baseline applies for today).
+        if (foodScansDate !== today) return;
+        if (foodScansUsedToday <= 0) return;
+        set({ foodScansUsedToday: foodScansUsedToday - 1 });
       },
 
       aiMessagesLeft: () => {
