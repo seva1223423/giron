@@ -31,6 +31,12 @@ const SPLITS = [
 
 import { todayDateStr, computeStreak } from '../../utils/date';
 import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
+import {
+  buildWeekDotsFromHistory,
+  findHeaviestPR,
+  todayMondayIndex,
+  calorieDayProgress,
+} from '../../utils/homeDerivations';
 import { useSafeTop } from '../../hooks/useSafeTop';
 const todayDate = todayDateStr;
 
@@ -444,10 +450,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
              static target for now (wired to the pedometer hook later). */}
       {(() => {
         const calTarget = dayLog.targetCalories || 2400;
-        const calNow = dayLog.meals.reduce((s, m) => s + m.totalCalories, 0);
+        const calNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalCalories ?? 0), 0);
         const protTarget = dayLog.targetProtein || 160;
-        const protNow = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0);
-        const dayProgress = calTarget > 0 ? calNow / calTarget : 0;
+        const protNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalProtein ?? 0), 0);
+        const dayProgress = calorieDayProgress(calNow, calTarget);
         return (
           <FadeIn delay={120}>
             <RingStatsCard
@@ -481,36 +487,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
              last 7 calendar days; PR picks the heaviest completed set
              across all history. */}
       {(() => {
-        const now = new Date();
-        const weekDots: (0 | 1)[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(now);
-          d.setDate(d.getDate() - i);
-          const ds = d.toISOString().split('T')[0];
-          const hit = workoutHistory.some(
-            (w) => w.completedAt && w.completedAt.startsWith(ds),
-          );
-          weekDots.push(hit ? 1 : 0);
-        }
-        let prKg = 0;
-        let prLabel = 'Ещё нет PR';
-        for (const w of workoutHistory) {
-          for (const we of w.exercises ?? []) {
-            for (const s of we.sets ?? []) {
-              if (s.completed && (s.weight ?? 0) > prKg) {
-                prKg = s.weight ?? 0;
-                prLabel = we.exercise?.name ?? 'Рекорд';
-              }
-            }
-          }
-        }
+        const weekDots = buildWeekDotsFromHistory(workoutHistory);
+        const pr = findHeaviestPR(workoutHistory);
         return (
           <FadeIn delay={180}>
             <StreakPRGrid
               streakDays={streak}
               weekDots={weekDots}
-              prKg={prKg}
-              prLabel={prLabel}
+              prKg={pr.kg}
+              prLabel={pr.exerciseName}
             />
           </FadeIn>
         );
@@ -521,7 +506,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
              renders all 7 cards even on days with null entries. */}
       {(() => {
         const dayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-        const dowIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+        const dowIdx = todayMondayIndex();
         const days = [0, 1, 2, 3, 4, 5, 6].map((i) => {
           const p = weekPlan[i] ?? null;
           return {
@@ -531,8 +516,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             done: i < dowIdx && workoutHistory.some((w) => {
               if (!w.completedAt) return false;
               const wd = new Date(w.completedAt);
-              const wdow = (() => { const x = wd.getDay(); return x === 0 ? 6 : x - 1; })();
-              return wdow === i;
+              return todayMondayIndex(wd) === i;
             }),
           };
         });
