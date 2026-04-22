@@ -63,7 +63,8 @@
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/server/"
+      "/server/",
+      "/.claude/worktrees/"
     ]
   },
   "private": true
