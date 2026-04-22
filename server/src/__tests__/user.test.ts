@@ -25,7 +25,10 @@ jest.mock('../db', () => ({
     },
     refreshToken: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
@@ -60,6 +63,7 @@ jest.mock('../db', () => ({
     securityEvent: {
       create: jest.fn().mockResolvedValue({}),
       findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     passwordHistory: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -571,5 +575,202 @@ describe('DELETE /api/user/measurements/:date', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+});
+
+// ─── DELETE /api/user/sleep/:date ─────────────────────────────────────────────
+
+describe('DELETE /api/user/sleep/:date', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.sleepEntry.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).delete('/api/user/sleep/2026-04-22');
+    expect(res.status).toBe(401);
+  });
+
+  it('400 for invalid date format', async () => {
+    const res = await request(app)
+      .delete('/api/user/sleep/not-a-date')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/YYYY-MM-DD/);
+  });
+
+  it('200 deletes sleep entry for the given date', async () => {
+    const res = await request(app)
+      .delete('/api/user/sleep/2026-04-22')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('404 when no entry exists for that date', async () => {
+    (prisma.sleepEntry.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+    const res = await request(app)
+      .delete('/api/user/sleep/2026-01-01')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+// ─── GET /api/user/has-password ───────────────────────────────────────────────
+
+describe('GET /api/user/has-password', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/user/has-password');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns hasPassword true when hash is set', async () => {
+    // authenticate calls user.findUnique first; then the route calls it again for passwordHash
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' }) // authenticate
+      .mockResolvedValueOnce({ passwordHash: '$2b$10$hashedpassword' }); // route lookup
+
+    const res = await request(app)
+      .get('/api/user/has-password')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.hasPassword).toBe(true);
+  });
+
+  it('200 returns hasPassword false when hash is null', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' }) // authenticate
+      .mockResolvedValueOnce({ passwordHash: null }); // route lookup
+
+    const res = await request(app)
+      .get('/api/user/has-password')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.hasPassword).toBe(false);
+  });
+});
+
+// ─── GET /api/user/security-events ───────────────────────────────────────────
+
+describe('GET /api/user/security-events', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.securityEvent.findMany as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/user/security-events');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns security events for the authenticated user', async () => {
+    const sampleEvent = {
+      id: 'cevt0000000000000000001',
+      action: 'LOGIN_SUCCESS',
+      ip: '127.0.0.1',
+      userAgent: 'Jest',
+      createdAt: new Date().toISOString(),
+      details: null,
+    };
+    (prisma.securityEvent.findMany as jest.Mock).mockResolvedValueOnce([sampleEvent]);
+
+    const res = await request(app)
+      .get('/api/user/security-events')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].action).toBe('LOGIN_SUCCESS');
+  });
+});
+
+// ─── GET /api/user/sessions ───────────────────────────────────────────────────
+
+describe('GET /api/user/sessions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.refreshToken.findMany as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/user/sessions');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns active sessions scoped to authenticated user', async () => {
+    const sampleSession = {
+      id: 'csess0000000000000001',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      userAgent: 'Jest/1.0',
+      ip: '127.0.0.1',
+    };
+    (prisma.refreshToken.findMany as jest.Mock).mockResolvedValueOnce([sampleSession]);
+
+    const res = await request(app)
+      .get('/api/user/sessions')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].id).toBe('csess0000000000000001');
+  });
+});
+
+// ─── DELETE /api/user/sessions/:id ───────────────────────────────────────────
+
+const SESSION_ID = 'csess0000000000000001';
+
+describe('DELETE /api/user/sessions/:id', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({ userId: 'u-test' });
+    (prisma.refreshToken.update as jest.Mock).mockResolvedValue({});
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).delete(`/api/user/sessions/${SESSION_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('404 IDOR — cannot revoke another user\'s session', async () => {
+    // Session belongs to a different user
+    (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValueOnce({ userId: 'u-other' });
+
+    const res = await request(app)
+      .delete(`/api/user/sessions/${SESSION_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+    expect(prisma.refreshToken.update).not.toHaveBeenCalled();
+  });
+
+  it('200 revokes own session', async () => {
+    const res = await request(app)
+      .delete(`/api/user/sessions/${SESSION_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(prisma.refreshToken.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { revoked: true } }),
+    );
   });
 });
