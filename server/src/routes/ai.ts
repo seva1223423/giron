@@ -81286,8 +81286,38 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
   ]
 }`;
 
-    const text = await analyzeImage(imageBase64, prompt, mimeType);
-    const items = parseFoodResponse(text);
+    let text = await analyzeImage(imageBase64, prompt, mimeType);
+    let items = parseFoodResponse(text);
+
+    // Low-confidence retry — if the first pass returns an answer but every
+    // item's confidence is below 0.6, the model was unsure. A second pass
+    // with a "take your time, double-check scale and ingredient" nudge
+    // typically lifts confidence by ~0.2 when the real cause was a rushed
+    // first read, and costs a single extra Mistral call at most. We only
+    // retry once, and only if the original parse succeeded.
+    const firstPassAvgConf = items && items.length > 0
+      ? items.reduce((s, i) => s + (typeof i.confidence === 'number' ? i.confidence : 0.6), 0) / items.length
+      : 1;
+    if (items && items.length > 0 && firstPassAvgConf < 0.6) {
+      try {
+        const retryPrompt = `${prompt}\n\nВАЖНО: предыдущая оценка была с низкой уверенностью. Пересмотри внимательно: точнее определи ингредиенты (посмотри на цвет, форму, текстуру), корректнее прикинь вес по ориентирам из правила 3. Если всё равно не уверен — лучше верни меньше позиций, но с высокой точностью.`;
+        const retryText = await analyzeImage(imageBase64, retryPrompt, mimeType);
+        const retryItems = parseFoodResponse(retryText);
+        if (retryItems && retryItems.length > 0) {
+          const retryAvgConf = retryItems.reduce((s, i) => s + (typeof i.confidence === 'number' ? i.confidence : 0.6), 0) / retryItems.length;
+          // Only swap in the retry if it's actually more confident — avoids
+          // the case where the retry hallucinates more and gets worse.
+          if (retryAvgConf > firstPassAvgConf) {
+            text = retryText;
+            items = retryItems;
+            logger.info(`[FoodScan] low-conf retry improved: ${firstPassAvgConf.toFixed(2)} → ${retryAvgConf.toFixed(2)}`);
+          }
+        }
+      } catch (retryErr) {
+        // Non-fatal — fall through with original items
+        logger.warn('[FoodScan] low-conf retry failed, using first pass:', retryErr);
+      }
+    }
 
     // Check if AI explicitly said it's not food — parseFoodResponse returns [] for notFood
     const isNotFood = (() => {
