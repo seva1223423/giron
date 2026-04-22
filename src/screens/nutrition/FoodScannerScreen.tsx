@@ -351,6 +351,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Seconds elapsed since loading started — ticks once/sec so we can show
+  // a live progress hint instead of a static "Обычно 5–15 секунд" message.
+  // Crosses 15s → switch to "still processing" reassurance copy.
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
   const [recognizedItems, setRecognizedItems] = useState<NutritionItem[]>([]);
   const [itemBases, setItemBases] = useState<Record<string, { cal: number; prot: number; fats: number; carbs: number }>>({});
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>(defaultMealType);
@@ -957,6 +961,21 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     if (lastRemovedTimerRef.current) clearTimeout(lastRemovedTimerRef.current);
   }, []);
 
+  // Live elapsed-seconds counter for the AI analysis loading state.
+  // Resets to 0 on each `loading → true` transition. Gated on `loading`
+  // so the timer isn't running when the user's not waiting.
+  useEffect(() => {
+    if (!loading) {
+      setLoadingElapsed(0);
+      return undefined;
+    }
+    const started = Date.now();
+    const id = setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - started) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [loading]);
+
   /** Rename a recognized item — lets the user correct AI misidentifications
    *  (e.g. AI said "рис", user knows it's actually "плов"). */
   const renameItem = useCallback((id: string, newName: string) => {
@@ -1456,13 +1475,23 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           </Card>
         )}
 
-        {/* Analysis progress */}
+        {/* Analysis progress — tick once/sec so the user sees we're alive.
+            Crosses 15s → softer "still processing" copy so they don't think
+            it's hung. */}
         {loading && (
           <Card style={{ marginBottom: spacing.lg, alignItems: 'center', paddingVertical: spacing.xxl }}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.md }]}>ИИ анализирует фото...</Text>
             <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Определяю продукты и рассчитываю КБЖУ</Text>
-            <Text style={[typography.small, { color: colors.textTertiary, marginTop: spacing.xs }]}>Обычно 5–15 секунд</Text>
+            <Text style={[typography.small, { color: loadingElapsed > 15 ? colors.warning : colors.textTertiary, marginTop: spacing.xs }]}>
+              {loadingElapsed < 5
+                ? 'Обычно 5–15 секунд'
+                : loadingElapsed <= 15
+                  ? `${loadingElapsed}с...`
+                  : loadingElapsed <= 30
+                    ? `${loadingElapsed}с — сложное фото, почти готово`
+                    : `${loadingElapsed}с — можно отменить и попробовать проще`}
+            </Text>
             <TouchableOpacity
               onPress={cancelAnalysis}
               style={{ marginTop: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border }}
