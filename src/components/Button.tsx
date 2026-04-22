@@ -78,24 +78,30 @@ export const Button: React.FC<ButtonProps> = ({
   }, [onPress, hapticStyle]);
 
   const getContainerStyle = (): ViewStyle => {
+    // Direction A rounds buttons generously — 20pt on the primary CTA
+    // is the design spec (tokens.A, `buttons` in the onboarding/paywall
+    // screens). Smaller buttons shrink to 16pt to stay proportional.
     const base: ViewStyle = {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: borderRadius.md,
+      borderRadius: size === 'lg' ? borderRadius.xl : borderRadius.lg,
       ...(fullWidth && { width: '100%' }),
     };
 
     const sizes: Record<string, ViewStyle> = {
       sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, minHeight: 36 },
       md: { paddingVertical: spacing.md + 2, paddingHorizontal: spacing.xl, minHeight: 44 },
-      lg: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl, minHeight: 52 },
+      // lg = 58 in design; tall premium pill for onboarding / paywall CTAs
+      lg: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl, minHeight: 58 },
     };
 
     const variants: Record<string, ViewStyle> = {
       primary: { backgroundColor: disabled ? colors.textTertiary : colors.primary },
       secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: disabled ? colors.border : colors.border },
-      outline: { backgroundColor: disabled ? 'transparent' : colors.primary + '08', borderWidth: 2, borderColor: disabled ? colors.textTertiary : colors.primary },
+      // Outline: subtle gold fill + gold border + gold text. Keeps brand
+      // presence without competing with the solid primary.
+      outline: { backgroundColor: disabled ? 'transparent' : colors.primary + '15', borderWidth: 1, borderColor: disabled ? colors.textTertiary : colors.primary + '60' },
       ghost: { backgroundColor: 'transparent' },
       danger: { backgroundColor: disabled ? colors.textTertiary : colors.error },
     };
@@ -104,11 +110,16 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const getTextStyle = (): TextStyle => {
+    // Premium primary button = gold background with DARK foreground text
+    // (design spec: `color: '#0A0A0A'` on the gold pill). White-on-gold
+    // is low-contrast and reads as cheap. `textInverse` is dark in dark
+    // mode and cream in light mode — exactly what we want on the gold.
     const variants: Record<string, TextStyle> = {
-      primary: { color: '#FFFFFF' },
+      primary: { color: colors.textInverse },
       secondary: { color: disabled ? colors.textTertiary : colors.text },
       outline: { color: disabled ? colors.textTertiary : colors.primary },
       ghost: { color: disabled ? colors.textTertiary : colors.primary },
+      // Danger keeps white on terracotta — the red needs max contrast.
       danger: { color: '#FFFFFF' },
     };
 
@@ -140,7 +151,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : colors.primary}
+          color={variant === 'primary' ? colors.textInverse : variant === 'danger' ? '#FFFFFF' : colors.primary}
           size="small"
         />
       ) : (
