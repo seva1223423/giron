@@ -139,7 +139,12 @@ const RecognizedItemCardImpl: React.FC<Props> = ({ item, base, onWeightChange, o
   return (
     <Card style={[{ marginBottom: spacing.md }, isDuplicate && { borderWidth: 1, borderColor: colors.warning + '60' }]}>
       {isDuplicate && (
-        <View style={{ alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: colors.warning + '20', borderWidth: 1, borderColor: colors.warning + '50', marginBottom: spacing.sm }}>
+        <View
+          style={{ alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: colors.warning + '20', borderWidth: 1, borderColor: colors.warning + '50', marginBottom: spacing.sm }}
+          accessible
+          accessibilityLabel="Дубликат — в списке есть ещё позиция с таким же названием"
+          accessibilityRole="alert"
+        >
           <Text style={{ color: colors.warning, fontSize: 10, fontWeight: '700' }}>ДУБЛИКАТ</Text>
         </View>
       )}
