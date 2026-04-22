@@ -42,7 +42,8 @@ describe('Name greetings', () => {
 
   test('empty string fallback handled by caller not helper', () => {
     // When user?.firstName is undefined, caller shows 'Атлет'
-    const fallback = undefined || 'Атлет';
+    const name: string | undefined = undefined;
+    const fallback = name ?? 'Атлет';
     expect(buildGreeting(fallback)).toBe('Привет, Атлет');
   });
 });
