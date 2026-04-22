@@ -91,25 +91,66 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.md }}>
-        <Text style={[typography.h2, { color: colors.text }]} numberOfLines={1}>Новости</Text>
-        <TouchableOpacity onPress={onFetchFreshNews} disabled={refreshing}>
-          <Text style={[typography.small, { color: refreshing ? colors.textTertiary : colors.primary }]} numberOfLines={1}>{refreshing ? 'Обновление...' : '↻ Обновить'}</Text>
+      {/* Premium editorial header — "КОМЬЮНИТИ" eyebrow + large "Лента"
+          display title on the left, search + refresh icon tiles on the
+          right. Mirrors A_NewsV2's top block. */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: spacing.xl, paddingTop: safeTop + spacing.md, paddingBottom: spacing.md }}>
+        <View style={{ flex: 1, marginRight: spacing.md }}>
+          <Text
+            style={[typography.metaLabel, { color: colors.textTertiary, textTransform: 'uppercase' }]}
+            numberOfLines={1}
+          >
+            Комьюнити
+          </Text>
+          <Text
+            style={[typography.h2, { color: colors.text, marginTop: 2 }]}
+            numberOfLines={1}
+          >
+            Лента
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={onFetchFreshNews}
+          disabled={refreshing}
+          accessibilityLabel="Обновить ленту"
+          accessibilityRole="button"
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 11,
+            backgroundColor: colors.surfaceElevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: refreshing ? colors.textTertiary : colors.text, fontSize: 16 }}>
+            ↻
+          </Text>
         </TouchableOpacity>
       </View>
 
+      {/* Feed / Saved tabs — active tile uses gold fill + dark text
+          matching the primary-CTA contract in the design tokens. */}
       <View style={[styles.tabRow, { paddingHorizontal: spacing.xl }]}>
         <TouchableOpacity
           onPress={() => setTab('feed')}
-          style={[styles.tabButton, { backgroundColor: tab === 'feed' ? colors.primary : colors.surface, borderRadius: borderRadius.md }]}
+          style={[styles.tabButton, { backgroundColor: tab === 'feed' ? colors.primary : colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: tab === 'feed' ? colors.primary : colors.border }]}
+          accessibilityLabel="Вкладка: Лента"
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'feed' }}
         >
-          <Text style={[typography.smallMedium, { color: tab === 'feed' ? '#FFF' : colors.textSecondary, fontWeight: '600' }]}>Лента</Text>
+          <Text style={[typography.smallMedium, { color: tab === 'feed' ? colors.textInverse : colors.textSecondary, fontWeight: '600' }]}>Лента</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setTab('saved')}
-          style={[styles.tabButton, { backgroundColor: tab === 'saved' ? colors.primary : colors.surface, borderRadius: borderRadius.md }]}
+          style={[styles.tabButton, { backgroundColor: tab === 'saved' ? colors.primary : colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: tab === 'saved' ? colors.primary : colors.border }]}
+          accessibilityLabel="Вкладка: Сохранённое"
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'saved' }}
         >
-          <Text style={[typography.smallMedium, { color: tab === 'saved' ? '#FFF' : colors.textSecondary, fontWeight: '600' }]}>Сохранённое</Text>
+          <Text style={[typography.smallMedium, { color: tab === 'saved' ? colors.textInverse : colors.textSecondary, fontWeight: '600' }]}>Сохранённое</Text>
         </TouchableOpacity>
       </View>
 
@@ -130,12 +171,40 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         )}
       </View>
 
+      {/* Category chips — active uses gold-fill + dark text (same
+          primary-CTA color contract as the tab row above). */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity key={cat.key} onPress={() => setActiveCategory(cat.key)} style={[styles.categoryChip, { backgroundColor: activeCategory === cat.key ? colors.primary : colors.surface, borderColor: activeCategory === cat.key ? colors.primary : colors.border }]}>
-            <Text style={[typography.smallMedium, { color: activeCategory === cat.key ? '#FFF' : colors.text }]}>{cat.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {CATEGORIES.map((cat) => {
+          const active = activeCategory === cat.key;
+          return (
+            <TouchableOpacity
+              key={cat.key}
+              onPress={() => setActiveCategory(cat.key)}
+              accessibilityLabel={`Категория: ${cat.label}`}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={[
+                styles.categoryChip,
+                {
+                  backgroundColor: active ? colors.primary : 'transparent',
+                  borderColor: active ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  typography.smallMedium,
+                  {
+                    color: active ? colors.textInverse : colors.textSecondary,
+                    fontWeight: '600',
+                  },
+                ]}
+              >
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <ArticleDetailModal
