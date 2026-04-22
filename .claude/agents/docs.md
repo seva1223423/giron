@@ -77,3 +77,14 @@ Then open CLAUDE.md and compare. If CLAUDE.md says "22 models" and schema has 34
 - Don't reformat docs cosmetically if no fact changed — it creates noise and breaks diff review.
 - Don't edit `CLAUDE.md` to describe your own behavior — that goes in `feedback_rules.md`.
 - Don't duplicate content between CLAUDE.md and README.md. If they overlap and you're updating one, prefer trimming the other to a pointer.
+
+## See Also (Cross-Agent Coordination)
+
+- **Prisma model count drifts in CLAUDE.md** → `database` agent added the model; `docs` agent updates the count in the schema section. Run `grep -cE "^model [A-Z]" server/prisma/schema.prisma` to get the truth.
+- **Server route file size drifts** → `backend` agent grew a route file; `docs` agent updates the `(N строк)` annotation in CLAUDE.md. Run `wc -l server/src/routes/*.ts`.
+- **Test count drifts** → `tests` agent added a suite; `docs` agent updates the suite count in CLAUDE.md. Check with `cd server && npx jest --no-coverage --forceExit 2>&1 | tail -5`.
+- **Screen count / store count drifts** → `frontend` agent added a screen or store; `docs` agent updates the Architecture section tallies. Run `ls src/store/ | grep -v index.ts | wc -l`.
+- **Knowledge module count drifts** → `ai-coach` agent added a module; `docs` agent updates the knowledge count in CLAUDE.md (`25 модулей знаний` line).
+- **Stale agent file paths** → if a path like `C:/Users/sevka/Projects/iron-gym` appears in `.claude/agents/*.md`, `docs` agent corrects it to `C:/Users/sevka/Desktop/1223/work/iron-gym`. This is drift from project relocation.
+- **project_status.md narrative rot** → runs autonomously; if a task is marked "в процессе" but the code shows it's done, `docs` agent deletes the line (prefer deletion over archival).
+- **Contradictions between CLAUDE.md and README.md** → CLAUDE.md wins. `docs` agent trims README to a pointer rather than trying to keep both in sync.
