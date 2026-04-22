@@ -616,6 +616,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         // Refund the optimistically-consumed scan — user gets nothing out of
         // this call, so it shouldn't count against today's budget.
         refundFoodScan();
+        // No items parsed → applyAIItems never ran → append flag never
+        // got consumed. Clear it so the next fresh scan isn't contaminated.
+        appendNextRef.current = false;
         haptic.warning();
       } else {
         // Cache the successful result by the image fingerprint — next re-scan is free.
@@ -625,6 +628,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         haptic.success();
       }
     } catch (e: any) {
+      // Any error path means applyAIItems never ran — clear the append flag
+      // once up here to cover all cases below.
+      appendNextRef.current = false;
       if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {
         setError('Анализ отменён.');
         setImageUri(null);
@@ -715,6 +721,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         // Resize to max 1280px and convert to JPEG — reduces payload 4-10x vs raw HEIC/PNG
         const compressed = await compressImageForUpload(asset.uri);
         if (!compressed.base64) {
+          appendNextRef.current = false;
           setImageUri(null);
           setError('Не удалось обработать изображение. Попробуй ещё раз.');
           setLoading(false);
@@ -722,6 +729,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         }
         // Server rejects base64 strings > 9MB — reject early on client to avoid opaque 400 error
         if (compressed.base64.length > 9_000_000) {
+          appendNextRef.current = false;
           setImageUri(null);
           setError('Фото слишком большое. Попробуй более близкий кадр или другое изображение.');
           setLoading(false);
@@ -729,13 +737,18 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         }
         // Consume credit only after successful compression — failed compression must not deduct a scan
         if (!isPremiumActive() && !consumeFoodScan()) {
+          appendNextRef.current = false;
           setImageUri(null);
           setLoading(false);
           setShowPaywall(true);
           return;
         }
+        // analyzeFood owns the flag from here — applyAIItems will consume it
+        // on success, and the ref-reset in the return-without-items path
+        // (refundFoodScan branch) is handled there.
         analyzeFood(compressed.base64, compressed.mimeType);
       } catch {
+        appendNextRef.current = false;
         setImageUri(null);
         setError('Не удалось обработать изображение.');
         setLoading(false);
