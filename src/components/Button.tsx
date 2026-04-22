@@ -31,6 +31,12 @@ interface ButtonProps {
   textStyle?: TextStyle;
   fullWidth?: boolean;
   hapticStyle?: 'light' | 'medium' | 'heavy' | 'none';
+  /** Override the VoiceOver label. Defaults to the visible `title`, which
+   *  reads wrong for emoji-only or icon-heavy button titles. */
+  accessibilityLabel?: string;
+  /** Extra VoiceOver hint read after the label — use for secondary context
+   *  (e.g. "Откроет камеру для анализа ИИ"). */
+  accessibilityHint?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -46,6 +52,8 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
   fullWidth = false,
   hapticStyle = 'light',
+  accessibilityLabel,
+  accessibilityHint,
 }) => {
   const { colors } = useThemeStore();
   const scale = useSharedValue(1);
@@ -119,6 +127,10 @@ export const Button: React.FC<ButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       style={[
         animatedStyle,
         getContainerStyle(),
