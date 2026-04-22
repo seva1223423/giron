@@ -83,7 +83,7 @@ Then open CLAUDE.md and compare. If CLAUDE.md says "22 models" and schema has 34
 - **Prisma model count drifts in CLAUDE.md** → `database` agent added the model; `docs` agent updates the count in the schema section. Run `grep -cE "^model [A-Z]" server/prisma/schema.prisma` to get the truth.
 - **Server route file size drifts** → `backend` agent grew a route file; `docs` agent updates the `(N строк)` annotation in CLAUDE.md. Run `wc -l server/src/routes/*.ts`.
 - **Test count drifts** → `tests` agent added a suite; `docs` agent updates the suite count in CLAUDE.md.
-  - Server: `cd server && npx jest --no-coverage --forceExit 2>&1 | tail -5` (expected: 19 suites, ~589 tests)
+  - Server: `cd server && npx jest --no-coverage --forceExit 2>&1 | tail -5` (expected: 19 suites, ~609 tests)
   - Client: `npm test -- --no-coverage --forceExit 2>&1 | tail -5` (expected: 29 suites, ~555 tests)
 - **Screen count / store count drifts** → `frontend` agent added a screen or store; `docs` agent updates the Architecture section tallies. Run `ls src/store/ | grep -v index.ts | wc -l`.
 - **Knowledge module count drifts** → `ai-coach` agent added a module; `docs` agent updates the knowledge count in CLAUDE.md (`25 модулей знаний` line).
