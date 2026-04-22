@@ -26,7 +26,7 @@ grep -rn "console\.log\|console\.error" C:/Users/sevka/Desktop/1223/work/iron-gy
 ## Section 2 — Tests
 
 ```bash
-# Server integration tests (13 suites, ~285 tests)
+# Server integration tests (14 suites, ~308 tests)
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npm test -- --forceExit 2>&1 | tail -8
 
 # Client store unit tests (25 suites, ~448 tests)
