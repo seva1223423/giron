@@ -218,10 +218,11 @@ These gaps are documented but not yet fixed. Reference them during audits:
 
 ## See Also (Cross-Agent Coordination)
 
-- **Per-user AI rate limit** — also flagged by `security.md`. Fixing it requires both a server code change (rate limit by `req.userId` instead of IP) AND a subscription check (free users get 10/day, premium get unlimited). Coordinate with `backend` agent for implementation.
+- ~~**Per-user AI rate limit**~~ — **RESOLVED** as of 2026-04-22: `perUserAiBuckets` Map in `server/src/routes/ai.ts`. 30 req/min per userId, check before SSE headers. Regression tests in `ai_security.test.ts` (BUG-AI-003).
 - **AI analytics context ~180 queries** — also a concern for `performance.md`. Monitoring should alert if analytics context build exceeds 2s. Performance should optimize the query count. `ai-coach` agent implements the fix.
+~~**Health check depth**~~ — **RESOLVED** as of 2026-04-22: `/health` now pings DB and returns 503 if unreachable (`server/src/index.ts`). Render will mark service unhealthy correctly.
 - **Admin audit log** — ~~also flagged by `compliance.md`~~ **RESOLVED** as of 2026-04-22: `admin.ts` writes to `AdminLog` on 20+ mutation paths (ban, subscription activate, announcement, data deletion). Full audit trail confirmed.
 - ~~**Subscription limit race condition**~~ — **RESOLVED** as of 2026-04-22: `ai.ts` uses a two-level check: fast non-atomic early exit (saves API call), plus atomic transactional re-check inside `$transaction` at message persist time — concurrent bypass is blocked.
-- **Health check depth** — shallow health check (no DB ping) means Render deploys succeed even if DB is unreachable. Coordinate with `deployment` agent which also checks the health endpoint configuration.
+~~**Health check depth**~~ — **RESOLVED** as of 2026-04-22: `GET /health` now calls `prisma.$queryRaw\`SELECT 1\`` and returns `503 { db: 'unreachable' }` if DB is down. `server/src/index.ts` line ~90.
 
 Note: `monitoring` flags observability gaps; the implementing agent (backend, ai-coach, etc.) fixes them.

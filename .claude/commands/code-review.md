@@ -25,21 +25,32 @@ git diff --cached
 - `req.params.id` is cast as `string`, never used as `string | string[]`
 - File uploads via Multer have size + MIME type limits
 - No raw user input interpolated into `$queryRaw` strings
+- Password fields have `.max(1000)` (bcrypt DoS: bcrypt truncates at 72 chars; >1000 = CPU spike)
+- Registration passwords use `strongPassword` (min 8, max 128, uppercase + lowercase + digit)
+- `photoUrl` fields have `.refine(u => u.startsWith('https://'))` — reject http:// uploads
 
 ### Prisma Safety
 - Mutations on user-owned resources use `where: { id, userId }` (not just `id`) — prevents IDOR
 - Multi-step writes use `$transaction`
 - New models have `onDelete: Cascade` on user-owned relations
 
+### Rate Limiting — AI Route Specifically
+If `server/src/routes/ai.ts` is changed:
+- `perUserAiBuckets` check must remain AFTER daily quota check and BEFORE SSE headers are sent
+- Bucket keyed on `req.userId` from JWT (NOT from request body — IDOR)
+- `setInterval` prune must use `.unref()` (prevents Jest process hang + server memory leak)
+- New tool handlers must NOT accept `userId` as a parameter — always use `req.userId`
+
 ### Error Handling
 - Async handlers have try/catch
 - catch blocks return a proper `res.status(X).json({ error: '...' })` — not silent swallow
-- No stack traces leaked to client in error responses
+- No stack traces leaked to client in error responses (`500` always returns `'Ошибка сервера'`)
 
 ### Client Security
 - No `eval()` or `dangerouslySetInnerHTML`
 - No sensitive data (tokens, passwords) logged to console
 - AsyncStorage keys consistent with `clearUserData` in store
+- Optimistic updates have rollback on server error — check store for `setState(previousState)` in catch
 
 3. **Report format:**
 ```
