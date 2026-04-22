@@ -204,19 +204,26 @@ model Program {
 }
 
 model Workout {
-  id          String            @id @default(cuid())
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId    String?           @unique  // offline-first deduplication key
-  name        String
-  programId   String?
-  completedAt DateTime?
-  duration    Int?              // seconds
-  notes       String?
-  createdAt   DateTime          @default(now())
-  exercises   WorkoutExercise[]
+  id              String    @id @default(cuid())
+  clientId        String?           // offline-first idempotency key
+  name            String
+  description     String?
+  scheduledDate   DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  durationMinutes Int?
+  totalVolume     Float?
+  notes           String?
+  programId       String?
+  program         Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  routineId       String?           // set when workout was started from a Routine
+  routine         Routine?  @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises       WorkoutExercise[]
   @@index([userId])
   @@index([userId, completedAt])  // leaderboard + history pagination
+  @@index([routineId])            // routine history queries
 }
 
 model WorkoutExercise {
@@ -489,3 +496,11 @@ await prisma.$transaction([
 5. String interpolation in `$queryRaw` — SQL injection; always tagged template literal
 6. `onDelete: Cascade` missing on child models — orphaned records on user deletion
 7. Removing `@unique` from fields other code relies on — breaks unique constraint queries
+
+## See Also (Cross-Agent Coordination)
+
+- **New model for a full feature** → also spawn `feature` agent to implement the server route + client service + store + screen. `database` agent owns the schema layer; `feature` agent owns everything above it.
+- **Missing `@@index` found** → `performance` agent flags these in audits. `database` agent adds the index and runs `db push`. Always coordinate: performance finds → database fixes.
+- **`onDelete: Cascade` missing on child model** → `data-integrity` agent audits this. `database` agent adds the cascade rule and runs `db push`.
+- **`db push` not run after schema change** → `deployment` agent flags schema drift in its audit. After running `db push`, notify deployment agent that the drift is resolved.
+- **New model used by AI tool** → `ai-coach` agent writes to the model in `executeTool`. After adding the model, confirm with ai-coach agent that the `userId` scope is used in the tool case (never trust args for userId).

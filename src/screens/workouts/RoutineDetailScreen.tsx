@@ -124,7 +124,7 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { routines, activeWorkout, removeRoutine, updateRoutineName, duplicateRoutine, startWorkoutFromRoutine, fetchRoutines } = useWorkoutStore();
+  const { routines, activeWorkout, removeRoutine, updateRoutineName, replaceRoutine, duplicateRoutine, startWorkoutFromRoutine, fetchRoutines } = useWorkoutStore();
 
   const routine = routines.find((r) => r.id === routineId);
 
@@ -221,7 +221,8 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     }
     haptic.medium();
     setSavingEdit(true);
-    const updated = routine.exercises
+    const snapshot = routine; // keep for rollback
+    const updatedExercises = routine.exercises
       .filter((_, i) => i !== exerciseIndex)
       .map((ex, i) => ({
         exerciseId: ex.exerciseId,
@@ -230,13 +231,14 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
         notes: ex.notes,
         sets: ex.sets.map((s) => ({ setNumber: s.setNumber, type: s.type as string, reps: s.reps, weight: s.weight, rpe: s.rpe })),
       }));
+    // Optimistic update — remove exercise from store immediately
+    replaceRoutine({ ...routine, exercises: routine.exercises.filter((_, i) => i !== exerciseIndex).map((ex, i) => ({ ...ex, order: i })) });
     try {
-      const saved = await workoutService.updateRoutine(routine.id, { name: routine.name, description: routine.description, exercises: updated });
-      updateRoutineName(routine.id, saved.name, saved.description ?? null);
-      // Update routines list with new exercises (full refresh)
-      fetchRoutines().catch(() => {});
+      const saved = await workoutService.updateRoutine(routine.id, { name: routine.name, description: routine.description, exercises: updatedExercises });
+      replaceRoutine(saved); // set authoritative server data
       haptic.success();
     } catch {
+      replaceRoutine(snapshot); // rollback on failure
       haptic.error();
       Alert.alert('Ошибка', 'Не удалось сохранить. Проверь соединение.');
     } finally {
