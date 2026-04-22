@@ -252,7 +252,7 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={routineSavedId ? () => navigation.navigate('Routines') : openSaveRoutineModal}
+                onPress={routineSavedId ? () => navigation.navigate('RoutineDetail', { routineId: routineSavedId }) : openSaveRoutineModal}
                 style={{
                   paddingHorizontal: spacing.md,
                   paddingVertical: 8,
