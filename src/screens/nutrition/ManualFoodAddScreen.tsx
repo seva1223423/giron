@@ -106,7 +106,12 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => { haptic.light(); navigation.goBack(); }}
+          accessibilityLabel="Назад"
+          accessibilityRole="button"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
         </TouchableOpacity>
         <Text style={[typography.h3, { color: colors.text, flex: 1, textAlign: 'center' }]} numberOfLines={1}>Добавить в {MEAL_NAMES[mealType] || mealType}</Text>
@@ -115,7 +120,14 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
 
       <View style={[styles.tabs, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         {(['search', 'custom'] as const).map((t) => (
-          <TouchableOpacity key={t} onPress={() => { haptic.selection(); setTab(t); }} style={[styles.tab, tab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}>
+          <TouchableOpacity
+            key={t}
+            onPress={() => { haptic.selection(); setTab(t); }}
+            style={[styles.tab, tab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            accessibilityLabel={t === 'search' ? 'Вкладка: поиск по базе продуктов' : 'Вкладка: ввести данные вручную'}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === t }}
+          >
             <Text style={[typography.smallMedium, { color: tab === t ? colors.primary : colors.textSecondary }]}>
               {t === 'search' ? 'База продуктов' : 'Вручную'}
             </Text>
@@ -148,11 +160,22 @@ export const ManualFoodAddScreen: React.FC<{ route: any; navigation: any }> = ({
               }}
               disabled={savedCustomConfirm}
               style={[styles.saveBtnLg, { backgroundColor: savedCustomConfirm ? colors.success + '20' : colors.warning + '20', borderColor: savedCustomConfirm ? colors.success : colors.warning }]}
+              accessibilityLabel={savedCustomConfirm ? 'Сохранено в свои продукты' : 'Сохранить как пресет в свои продукты'}
+              accessibilityHint="Добавит в список сохранённых для быстрого повторного использования"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: savedCustomConfirm }}
             >
-              <Text style={[typography.smallMedium, { color: savedCustomConfirm ? colors.success : colors.primary, fontWeight: '700' }]}>{savedCustomConfirm ? '✓' : '+'}</Text>
+              <Text style={[typography.smallMedium, { color: savedCustomConfirm ? colors.success : colors.primary, fontWeight: '700' }]}>{savedCustomConfirm ? '✓ Сохранён' : '+ В свои'}</Text>
             </TouchableOpacity>
           )}
-          <Button title="Добавить" onPress={handleAdd} fullWidth size="lg" style={{ flex: 1 }} />
+          <Button
+            title="Добавить"
+            onPress={handleAdd}
+            fullWidth
+            size="lg"
+            style={{ flex: 1 }}
+            accessibilityLabel={`Добавить в ${(MEAL_NAMES[mealType] || mealType).toLowerCase()}`}
+          />
         </View>
       </ScrollView>
     </View>
