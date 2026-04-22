@@ -181,6 +181,7 @@ describe('buildSetEyebrow', () => {
     } as any,
     sets,
     order: 0,
+    restSeconds: 120,
   });
 
   test('returns "" for invalid index', () => {

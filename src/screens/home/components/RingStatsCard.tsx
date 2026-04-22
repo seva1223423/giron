@@ -19,6 +19,11 @@ interface Props {
   rows: Row[];
 }
 
+// Re-export for any callers that imported from here; real source is the
+// pure util so tests can run without the store graph.
+import { clampProgress } from '../../../utils/layout';
+export { clampProgress };
+
 /** A small progress ring built on react-native-svg. Rotated -90° so the
  *  value starts from the top. Rounded cap keeps the stroke soft. */
 const Ring: React.FC<{
@@ -30,7 +35,7 @@ const Ring: React.FC<{
 }> = ({ size, stroke, value, color, track }) => {
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
-  const off = C * (1 - Math.min(1, Math.max(0, value)));
+  const off = C * (1 - clampProgress(value));
   return (
     <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
       <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
@@ -49,7 +54,9 @@ const Ring: React.FC<{
   );
 };
 
-/** A simple linear progress bar. Rounded pill with a filled segment. */
+/** A simple linear progress bar. Rounded pill with a filled segment.
+ *  Width is clamped through clampProgress so NaN / Infinity don't cause
+ *  React Native to warn about invalid percentage strings. */
 const Bar: React.FC<{ value: number; color: string; track: string; height?: number }> = ({
   value,
   color,
@@ -68,7 +75,7 @@ const Bar: React.FC<{ value: number; color: string; track: string; height?: numb
     <View
       style={{
         height: '100%',
-        width: `${Math.min(100, Math.max(0, value * 100))}%`,
+        width: `${clampProgress(value) * 100}%`,
         backgroundColor: color,
         borderRadius: 999,
       }}
@@ -94,7 +101,9 @@ const Bar: React.FC<{ value: number; color: string; track: string; height?: numb
  */
 export const RingStatsCard: React.FC<Props> = ({ dayProgress, rows }) => {
   const { colors } = useThemeStore();
-  const pct = Math.round(Math.min(100, Math.max(0, dayProgress * 100)));
+  // clampProgress already guards NaN/Infinity/out-of-range; the Math.round
+  // stays because we want an integer for the "68%" display.
+  const pct = Math.round(clampProgress(dayProgress) * 100);
 
   return (
     <View
