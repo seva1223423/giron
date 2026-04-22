@@ -557,6 +557,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     try {
       const result = await aiService.analyzeFood(base64, controller.signal, mimeType);
       const items = applyAIItems(result.items);
+      // Server now also returns sanityFlags — merge with our local flags so
+      // the banner reflects all warnings (server may catch things the client
+      // didn't, e.g. unmatched Skurikhin reference for the named food).
+      if (result.sanityFlags && result.sanityFlags.length > 0) {
+        setSanityFlags((prev) => Array.from(new Set([...prev, ...result.sanityFlags!])));
+      }
       if (items.length === 0) {
         setError('Продукты не распознаны. Попробуй сделать чёткое фото тарелки с едой, или просканируй штрих-код упаковки.');
         setImageUri(null);
@@ -670,6 +676,10 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       // Same shape as /analyze-food — reuse applyAIItems so all the derived
       // state (bases, totalWeight, sanity flags) gets computed the same way.
       const items = applyAIItems(result.items);
+      // Merge server-side sanity flags with whatever the client side flagged.
+      if (result.sanityFlags && result.sanityFlags.length > 0) {
+        setSanityFlags((prev) => Array.from(new Set([...prev, ...result.sanityFlags!])));
+      }
       if (items.length === 0) {
         setError('Не удалось распознать продукты из описания. Попробуй конкретнее.');
         haptic.warning();
