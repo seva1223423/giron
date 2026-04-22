@@ -664,12 +664,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const pickImage = async (useCamera: boolean) => {
     haptic.selection();
-    if (foodScansLeft() === 0 && !isPremiumActive()) { setShowPaywall(true); haptic.warning(); return; }
+    if (foodScansLeft() === 0 && !isPremiumActive()) {
+      // Clear the append flag here too — a failed pre-check shouldn't leak
+      // append intent into a later fresh scan.
+      appendNextRef.current = false;
+      setShowPaywall(true);
+      haptic.warning();
+      return;
+    }
     // Offline short-circuit — without network, the AI call will hang for
     // 60s before axios gives up. Bail early with a clear error so the user
     // knows what to do. Barcode scans still use the full pickImage path
     // indirectly only for retake, but camera-open logic is handled separately.
     if (!isOnline) {
+      appendNextRef.current = false;
       haptic.warning();
       Alert.alert(
         'Нет соединения',
@@ -680,11 +688,24 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) { Alert.alert('Нужен доступ', 'Разрешите доступ к камере/галерее в настройках'); return; }
+    if (!permission.granted) {
+      // Permission denied — don't keep the append flag set, or the next
+      // *fresh* photo would incorrectly merge into old items.
+      appendNextRef.current = false;
+      Alert.alert('Нужен доступ', 'Разрешите доступ к камере/галерее в настройках');
+      return;
+    }
     const result = useCamera
       ? await ImagePicker.launchCameraAsync({ quality: 0.9, base64: false })
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.9, base64: false });
-    if (!result.canceled && result.assets[0]) {
+    // Reset the append flag early — if the user cancelled the picker, we
+    // must not carry "append next" into a fresh photo taken later. The flag
+    // is re-set just before the append-flow pickImage call, so this is safe.
+    if (result.canceled) {
+      appendNextRef.current = false;
+      return;
+    }
+    if (result.assets[0]) {
       const asset = result.assets[0];
       setImageUri(asset.uri);
       setError('');
