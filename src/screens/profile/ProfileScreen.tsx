@@ -4,7 +4,7 @@ import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-nat
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
-import { Card, Button, AnimatedPressable } from '../../components';
+import { Card, Button, AnimatedPressable, Icon } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
@@ -351,7 +351,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                     backgroundColor: colors.primary,
                   }}
                 >
-                  <Text style={{ color: colors.textInverse, fontSize: 11, fontWeight: '700' }}>◈</Text>
+                  <Icon name="bolt" size={11} color={colors.textInverse} />
                   <Text
                     style={{
                       color: colors.textInverse,
