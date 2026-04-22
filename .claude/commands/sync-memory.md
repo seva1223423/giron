@@ -48,7 +48,7 @@ ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" | wc -l
 # Client test suites (expected: 25 suites, ~448 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\src\__tests__\" | wc -l
 
-# Server test suites (expected: 16 suites, ~339 tests)
+# Server test suites (expected: 17 suites, ~364 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\server\src\__tests__\" | grep "\.test\.ts$" | wc -l
 ```
 
