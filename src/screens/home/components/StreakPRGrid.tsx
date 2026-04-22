@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { useThemeStore } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 
@@ -55,7 +56,7 @@ export const StreakPRGrid: React.FC<Props> = ({
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: spacing.sm }}>
-          <Text style={{ color: colors.primary, fontSize: 16 }}>△</Text>
+          <Icon name="flame" size={18} color={colors.primary} />
           <Text
             style={{
               color: colors.primary,
@@ -113,7 +114,7 @@ export const StreakPRGrid: React.FC<Props> = ({
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: spacing.sm }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 16 }}>◆</Text>
+          <Icon name="trophy" size={18} color={colors.textSecondary} />
           <Text
             style={{
               color: colors.textSecondary,

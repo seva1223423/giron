@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useThemeStore, useAuthStore } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 
@@ -71,10 +72,7 @@ export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
             justifyContent: 'center',
           }}
         >
-          {/* Simple bell glyph — filled stroke icons need a real SVG lib
-              later; this monospace bell keeps the layout correct without
-              adding a dependency. */}
-          <Text style={{ fontSize: 16, color: colors.text }}>◔</Text>
+          <Icon name="bell" size={18} color={colors.text} />
         </View>
         {/* Gold dot overlay in the corner — ambient unread indicator */}
         <View

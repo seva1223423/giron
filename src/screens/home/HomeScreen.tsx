@@ -554,13 +554,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <QuickActionsGrid
           actions={[
             {
-              icon: '◫',
+              icon: 'scan',
               label: 'Сканировать еду',
               subtitle: 'ИИ определит КБЖУ',
               onPress: () => navigation.navigate('NutritionTab', { screen: 'FoodScanner' }),
             },
             {
-              icon: '△',
+              icon: 'chart',
               label: 'Добавить вес',
               subtitle: 'Утреннее взвешивание',
               onPress: () => navigation.navigate('ProgressTab'),

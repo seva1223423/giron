@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useThemeStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -91,7 +92,7 @@ export const AICoachCard: React.FC<Props> = ({
               marginRight: spacing.sm,
             }}
           >
-            <Text style={{ color: colors.textInverse, fontSize: 14, fontWeight: '700' }}>✦</Text>
+            <Icon name="spark" size={16} color={colors.textInverse} strokeWidth={2.2} />
           </View>
           <Text
             style={{
@@ -155,7 +156,7 @@ export const AICoachCard: React.FC<Props> = ({
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ color: colors.text, fontSize: 16 }}>↻</Text>
+              <Icon name="refresh" size={18} color={colors.text} />
             </TouchableOpacity>
           )}
         </View>
