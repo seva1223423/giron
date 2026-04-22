@@ -17,6 +17,7 @@ import { adminRouter } from './routes/admin';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
 import { adminStatsCache, newsCache } from './utils/memCache';
+import { prisma } from './db';
 
 dotenv.config();
 
@@ -86,9 +87,15 @@ app.use(express.json({
   verify: (req, _res, buf) => { (req as any).rawBody = buf.toString(); },
 }));
 
-// Health check — do not expose version or build info
-app.get('/health', (_, res) => {
-  res.json({ status: 'ok' });
+// Health check — includes DB ping so Render marks unhealthy when DB is unreachable
+app.get('/health', async (_, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', db: 'connected' });
+  } catch {
+    // Return 503 so Render/load-balancer knows service is unhealthy
+    res.status(503).json({ status: 'error', db: 'unreachable' });
+  }
 });
 
 // ── Rate limiters ────────────────────────────────────────────────────────────
