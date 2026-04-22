@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeStore, useSubscriptionStore, FREE_LIMITS } from '../../../store';
 import { typography } from '../../../theme';
@@ -24,45 +25,143 @@ interface Props {
   lastMeta: AIMeta | null;
 }
 
+/**
+ * AI chat header — pixel copy of Direction A design (A_AI).
+ * Left-aligned gradient avatar tile (44pt rounded square, gold→bronze
+ * linear gradient) + name + online dot + memory cue + quota counter
+ * in the top-right.
+ *
+ *  ┌ ╔══╗                                            ┐
+ *  │ ║✦ ║  ИИ‑тренер                          8 / 10 │
+ *  │ ╚══╝  • Онлайн · помнит вашу историю            │
+ *  └─────────────────────────────────────────────────┘
+ *
+ * The recovery chip + streak are kept as optional extras under the
+ * primary row — they carry genuine runtime info and don't fight the
+ * design's "clean header" spec.
+ */
 export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { isPremiumActive, aiMessagesLeft } = useSubscriptionStore();
 
+  const quotaText = isPremiumActive()
+    ? '∞ Pro'
+    : `${aiMessagesLeft()}/${FREE_LIMITS.AI_MESSAGES_PER_DAY}`;
+
   return (
-    <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: safeTop }]}>
-      <View style={{ alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>IC</Text></View>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 }} numberOfLines={1}>Iron Coach</Text>
-          <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
-          {isPremiumActive() && (
-            <View style={[styles.badge, { backgroundColor: colors.accent, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }]}>
-              <Text style={{ fontSize: 10, color: '#fff', fontWeight: '700' }}>PRO</Text>
-            </View>
-          )}
+    <View
+      style={[
+        styles.header,
+        {
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
+          paddingTop: safeTop + spacing.md,
+        },
+      ]}
+    >
+      <View style={styles.row}>
+        {/* Gradient avatar tile — rounded square with gold→bronze fill
+            matching A_AI's 44pt accent/accent2 gradient spec. */}
+        <View style={styles.avatar}>
+          <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+            <Defs>
+              <LinearGradient id="aiAvatarBg" x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={colors.primaryLight} stopOpacity={1} />
+                <Stop offset="1" stopColor={colors.primaryDark} stopOpacity={1} />
+              </LinearGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#aiAvatarBg)" rx="14" ry="14" />
+          </Svg>
+          <Text style={{ color: colors.textInverse, fontSize: 20, fontWeight: '700' }}>✦</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>
-            {isPremiumActive()
-              ? '∞ Безлимитный доступ'
-              : `${aiMessagesLeft()} / ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений`}
-          </Text>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text
+              style={[typography.h4, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              ИИ‑тренер
+            </Text>
+            {isPremiumActive() && (
+              <View
+                style={[styles.proBadge, { backgroundColor: colors.primary }]}
+              >
+                <Text
+                  style={{ color: colors.textInverse, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}
+                >
+                  PRO
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+            <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
+            <Text
+              style={[typography.caption, { color: colors.success }]}
+              numberOfLines={1}
+            >
+              Онлайн · помнит вашу историю
+            </Text>
+          </View>
+        </View>
+
+        <Text
+          style={[
+            typography.caption,
+            { color: colors.textSecondary, fontVariant: ['tabular-nums'] },
+          ]}
+        >
+          {quotaText}
+        </Text>
+      </View>
+
+      {/* Secondary row with recovery + streak — only shows when server
+          supplied the meta, keeps the header compact otherwise. */}
+      {(lastMeta?.recovery != null || (lastMeta?.streak ?? 0) > 0) && (
+        <View style={styles.metaRow}>
           {lastMeta?.recovery != null && (
-            <View style={[styles.badge, { backgroundColor: getRecoveryColor(lastMeta.recovery, colors) + '15', borderWidth: 1, borderColor: getRecoveryColor(lastMeta.recovery, colors) + '40' }]}>
-              <Text style={{ fontSize: 10, color: getRecoveryColor(lastMeta.recovery, colors), fontWeight: '600' }}>
+            <View
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: getRecoveryColor(lastMeta.recovery, colors) + '15',
+                  borderColor: getRecoveryColor(lastMeta.recovery, colors) + '40',
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: '600',
+                  color: getRecoveryColor(lastMeta.recovery, colors),
+                }}
+              >
                 {getRecoveryLabel(lastMeta.recovery)} {lastMeta.recovery}%
               </Text>
             </View>
           )}
           {lastMeta?.streak != null && lastMeta.streak > 0 && (
-            <Text style={[typography.caption, { color: colors.accent, fontWeight: '600' }]}>
-              {lastMeta.streak} дн.
+            <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+              △ {lastMeta.streak} дн.
             </Text>
           )}
         </View>
-      </View>
-      <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 6, fontSize: 10, textAlign: 'center', paddingHorizontal: spacing.md }]}>
+      )}
+
+      <Text
+        style={[
+          typography.caption,
+          {
+            color: colors.textTertiary,
+            fontSize: 10,
+            textAlign: 'center',
+            paddingHorizontal: spacing.md,
+            marginTop: 8,
+          },
+        ]}
+      >
         Рекомендации носят информационный характер и не заменяют консультацию врача.
       </Text>
     </View>
@@ -70,7 +169,38 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
 };
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'center', justifyContent: 'center', paddingBottom: spacing.md, borderBottomWidth: 1 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  proBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  chip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
 });
