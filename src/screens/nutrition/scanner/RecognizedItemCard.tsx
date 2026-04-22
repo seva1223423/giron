@@ -71,8 +71,17 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
   }, [item.name, editingName]);
 
   const commitWeight = () => {
-    if (weightDraft !== item.weightGrams?.toString()) {
-      onWeightChange(item.id, weightDraft);
+    const trimmed = weightDraft.trim();
+    // Empty / whitespace / non-numeric — restore the previous weight so
+    // the input never sits on an invalid value that looks committed.
+    const parsed = parseFloat(trimmed.replace(',', '.'));
+    if (!trimmed || !isFinite(parsed) || parsed <= 0 || parsed > 5000) {
+      setWeightDraft(item.weightGrams?.toString() ?? '100');
+      if (trimmed) haptic.warning();
+      return;
+    }
+    if (trimmed !== item.weightGrams?.toString()) {
+      onWeightChange(item.id, trimmed);
     }
   };
 
@@ -128,8 +137,11 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
               onBlur={commitName}
               onSubmitEditing={commitName}
               autoFocus
+              selectTextOnFocus
               maxLength={100}
               returnKeyType="done"
+              accessibilityLabel="Редактирование названия продукта"
+              accessibilityHint="Введите правильное название если AI распознал неверно"
             />
           </View>
         ) : (
@@ -166,6 +178,9 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
               onSubmitEditing={commitWeight}
               keyboardType="numeric"
               selectTextOnFocus
+              accessibilityLabel={`Вес порции в граммах, текущий ${currentWeight}`}
+              accessibilityHint="Введите вес, КБЖУ пересчитается автоматически"
+              maxLength={5}
             />
             <Text style={[typography.small, { color: colors.textSecondary }]}>г</Text>
           </View>
