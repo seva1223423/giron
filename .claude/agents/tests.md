@@ -441,4 +441,4 @@ describe('useSubscriptionStore', () => {
 - **New route needs tests** → `backend` agent implements the route; `tests` agent writes the test file. When spawning `tests` agent, provide: route path, HTTP method, Prisma models touched, expected status codes (200/201/400/401/404/402).
 - **Failing test due to store shape change** → `frontend` agent changed a Zustand store shape without bumping `version` or updating `partialize`. Tests can simulate this by calling `setState` with old shape in `beforeEach`.
 - **Coverage gaps** → `security` agent audits routes; `tests` agent writes the missing test cases. If `security` flags "no test for 403 on ownership check", spawn `tests` agent with that specific case.
-- **Test count reference** — as of 2026-04-22: 227 server tests (10 suites). Before adding a new test suite, confirm the file doesn't already exist in `server/src/__tests__/`.
+- **Test count reference** — as of 2026-04-22: 263 server tests (11 suites). Before adding a new test suite, confirm the file doesn't already exist in `server/src/__tests__/`.
