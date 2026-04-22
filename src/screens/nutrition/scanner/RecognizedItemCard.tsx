@@ -36,7 +36,7 @@ function confidenceBucket(conf: number | undefined): 'high' | 'medium' | 'low' {
   return 'low';
 }
 
-export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename, typicalWeight, isDuplicate }) => {
+const RecognizedItemCardImpl: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename, typicalWeight, isDuplicate }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
   const { saveFoodItem, savedFoods } = useNutritionStore();
@@ -293,6 +293,39 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
     </Card>
   );
 };
+
+/** Memoized wrapper — with 5–10 items in the list, typing in any weight /
+ *  name input on ONE card used to rerender all siblings (parent passes a
+ *  freshly-built `recognizedItems` array on each edit). A shallow compare
+ *  on the props that actually affect this card's visible output means
+ *  only the edited card re-renders. Callbacks are stable (parent wraps
+ *  them in useCallback) so reference equality works for them.
+ *
+ *  We DO need to look at item fields individually because parent often
+ *  rebuilds the item object (e.g. when commitWeight runs, it maps over
+ *  items and returns a fresh `{ ...item, weightGrams: newW, ... }`) even
+ *  when nothing visible changed for sibling items. */
+export const RecognizedItemCard = React.memo(RecognizedItemCardImpl, (prev, next) => {
+  return (
+    prev.item.id === next.item.id &&
+    prev.item.name === next.item.name &&
+    prev.item.weightGrams === next.item.weightGrams &&
+    prev.item.calories === next.item.calories &&
+    prev.item.protein === next.item.protein &&
+    prev.item.fats === next.item.fats &&
+    prev.item.carbs === next.item.carbs &&
+    prev.item.confidence === next.item.confidence &&
+    prev.base?.cal === next.base?.cal &&
+    prev.base?.prot === next.base?.prot &&
+    prev.base?.fats === next.base?.fats &&
+    prev.base?.carbs === next.base?.carbs &&
+    prev.typicalWeight === next.typicalWeight &&
+    prev.isDuplicate === next.isDuplicate &&
+    prev.onWeightChange === next.onWeightChange &&
+    prev.onRemove === next.onRemove &&
+    prev.onRename === next.onRename
+  );
+});
 
 const styles = StyleSheet.create({
   deleteBtn: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
