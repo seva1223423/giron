@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform,
+  FlatList,
 } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -10,6 +11,7 @@ import { Button, Card, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { workoutService } from '../../services';
+import { exercises as exerciseLibrary } from '../../data/exercises';
 import type { RoutineExercise, RoutineStartPayload, RoutineHistoryEntry } from '../../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -137,6 +139,8 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [showExPicker, setShowExPicker] = useState(false);
+  const [exSearch, setExSearch] = useState('');
 
   useEffect(() => {
     if (!routine) return;
@@ -258,6 +262,35 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     const [moved] = reordered.splice(fromIndex, 1);
     reordered.splice(toIndex, 0, moved);
     await saveExerciseOrder(reordered);
+  }, [routine, haptic, saveExerciseOrder]);
+
+  const filteredExercises = useMemo(() => {
+    const q = exSearch.trim().toLowerCase();
+    if (!q) return exerciseLibrary;
+    return exerciseLibrary.filter((e) => e.name.toLowerCase().includes(q));
+  }, [exSearch]);
+
+  const handleAddExercise = useCallback(async (exerciseId: string) => {
+    if (!routine) return;
+    setShowExPicker(false);
+    setExSearch('');
+    haptic.medium();
+    const exerciseDef = exerciseLibrary.find((e) => e.id === exerciseId);
+    if (!exerciseDef) return;
+    // Default: 3 working sets × 10 reps, no weight, 90s rest
+    const newEx: RoutineExercise = {
+      exerciseId,
+      order: routine.exercises.length,
+      restSeconds: 90,
+      notes: undefined,
+      exercise: exerciseDef,
+      sets: [
+        { setNumber: 1, type: 'normal', reps: 10, weight: undefined },
+        { setNumber: 2, type: 'normal', reps: 10, weight: undefined },
+        { setNumber: 3, type: 'normal', reps: 10, weight: undefined },
+      ],
+    };
+    await saveExerciseOrder([...routine.exercises, newEx]);
   }, [routine, haptic, saveExerciseOrder]);
 
   const handleDuplicate = useCallback(async () => {
@@ -400,6 +433,14 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, marginTop: spacing.sm }}>
           <Text style={[typography.captionMedium, { color: colors.textSecondary, flex: 1 }]}>УПРАЖНЕНИЯ</Text>
+          {editMode && (
+            <TouchableOpacity
+              onPress={() => setShowExPicker(true)}
+              style={[styles.actionChip, { borderColor: colors.primary + '60', backgroundColor: colors.primary + '12', marginRight: spacing.sm }]}
+            >
+              <Text style={[typography.caption, { color: colors.primary }]}>+ Добавить</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => setEditMode((v) => !v)}
             style={[styles.actionChip, { borderColor: editMode ? colors.primary + '60' : colors.border, backgroundColor: editMode ? colors.primary + '12' : colors.surface }]}
@@ -554,6 +595,58 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
         />
       )}
 
+      {/* Exercise picker modal */}
+      <Modal visible={showExPicker} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={[previewStyles.overlay, { justifyContent: 'flex-end' }]}>
+            <View style={[{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40, maxHeight: '80%' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.xl, paddingBottom: spacing.md }}>
+                <Text style={[typography.h4, { color: colors.text, flex: 1 }]}>Добавить упражнение</Text>
+                <TouchableOpacity onPress={() => { setShowExPicker(false); setExSearch(''); }}>
+                  <Text style={{ fontSize: 20, color: colors.textSecondary }}>×</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ paddingHorizontal: spacing.xl, marginBottom: spacing.sm }}>
+                <TextInput
+                  value={exSearch}
+                  onChangeText={setExSearch}
+                  placeholder="Поиск упражнения..."
+                  placeholderTextColor={colors.inputPlaceholder}
+                  style={[styles.renameInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                  autoFocus
+                  returnKeyType="search"
+                />
+              </View>
+              <FlatList
+                data={filteredExercises}
+                keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.md }}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => handleAddExercise(item.id)}
+                    style={[styles.exPickerRow, { borderBottomColor: colors.border }]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.body, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                      <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                        {item.type} · {item.primaryMuscles[0] ?? ''}
+                      </Text>
+                    </View>
+                    <Text style={{ color: colors.primary, fontSize: 18 }}>+</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={[typography.small, { color: colors.textSecondary, textAlign: 'center', paddingVertical: spacing.lg }]}>
+                    Упражнений не найдено
+                  </Text>
+                }
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Rename modal */}
       <Modal visible={showRename} transparent animationType="fade">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -643,5 +736,10 @@ const styles = StyleSheet.create({
   moveBtn: {
     width: 26, height: 26, borderRadius: 6,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  },
+  exPickerRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
 });
