@@ -4,6 +4,7 @@ import { useThemeStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { WorkoutExercise } from '../../../types';
+import { findLiveSet, rpeFillRatio, buildSetEyebrow } from './heroLogic';
 
 interface Props {
   exercise: WorkoutExercise;
@@ -42,26 +43,18 @@ export const CurrentSetHero: React.FC<Props> = ({ exercise, previousSet, onFocus
   const { colors } = useThemeStore();
   const haptic = useHaptic();
 
-  const uncompleteIndex = exercise.sets.findIndex((s) => !s.completed);
-  const liveIndex = uncompleteIndex >= 0 ? uncompleteIndex : exercise.sets.length - 1;
-  const liveSet = exercise.sets[liveIndex];
-  if (!liveSet) return null;
+  const live = findLiveSet(exercise.sets ?? []);
+  if (!live) return null;
+  const { index: liveIndex, set: liveSet } = live;
 
-  const workingCount = exercise.sets.filter((s) => s.type !== 'warmup').length;
-  const workingSoFar = exercise.sets
-    .slice(0, liveIndex)
-    .filter((s) => s.type !== 'warmup').length;
-  const eyebrow = liveSet.type === 'warmup'
-    ? `Разминка · подход ${liveIndex + 1}`
-    : `Подход ${workingSoFar + 1} из ${workingCount} · рабочий`;
-
+  const eyebrow = buildSetEyebrow(exercise, liveIndex);
   const prevHint = previousSet?.weight && previousSet?.reps
     ? `Прошлый: ${previousSet.weight}×${previousSet.reps}`
     : null;
 
   // RPE 6..10 → 8 cells with fill proportion.
   const rpeValue = liveSet.rpe ?? 7;
-  const rpeFillRatio = Math.max(0, Math.min(1, (rpeValue - 6) / 4));
+  const rpeFill = rpeFillRatio(rpeValue);
 
   return (
     <TouchableOpacity
@@ -93,7 +86,7 @@ export const CurrentSetHero: React.FC<Props> = ({ exercise, previousSet, onFocus
         <View style={{ flexDirection: 'row', gap: 3 }}>
           {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
             const cellCenter = i / 7;
-            const filled = cellCenter <= rpeFillRatio;
+            const filled = cellCenter <= rpeFill;
             return (
               <View
                 key={i}

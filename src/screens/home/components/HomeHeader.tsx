@@ -4,20 +4,7 @@ import { useThemeStore, useAuthStore } from '../../../store';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
-
-/** Formats the current date to match the design export exactly:
- *  "Вторник · 22 апреля" — meta-label uppercase monospace. */
-function formatDateMetaRu(d: Date): string {
-  const weekdays = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
-  const months = [
-    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-  ];
-  const weekday = weekdays[d.getDay()];
-  const day = d.getDate();
-  const month = months[d.getMonth()];
-  return `${weekday} · ${day} ${month}`;
-}
+import { formatDateMetaRu } from '../../../utils/date';
 
 /**
  * Header row from Direction A home design:
