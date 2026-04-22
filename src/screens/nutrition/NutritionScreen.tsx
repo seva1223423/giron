@@ -66,16 +66,36 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <View style={styles.header}>
         <Text style={[typography.h2, { color: colors.text }]}>Питание</Text>
         <View style={{ flexDirection: 'row', gap: spacing.lg }}>
-          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('NutritionHistory'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+          <TouchableOpacity
+            onPress={() => { haptic.selection(); navigation.navigate('NutritionHistory'); }}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityLabel="История приёмов пищи"
+            accessibilityRole="button"
+          >
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>История</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MealPlan'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+          <TouchableOpacity
+            onPress={() => { haptic.selection(); navigation.navigate('MealPlan'); }}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityLabel="План питания от ИИ"
+            accessibilityRole="button"
+          >
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>ИИ-план</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+          <TouchableOpacity
+            onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityLabel="Калькулятор КБЖУ"
+            accessibilityRole="button"
+          >
             <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>Калькулятор</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { haptic.selection(); setShowGoalsModal(true); }} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+          <TouchableOpacity
+            onPress={() => { haptic.selection(); setShowGoalsModal(true); }}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityLabel="Настроить дневные цели по КБЖУ"
+            accessibilityRole="button"
+          >
             <View style={{ backgroundColor: colors.primary + '15', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: colors.primary + '35' }}>
               <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>Цели</Text>
             </View>
@@ -88,7 +108,15 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <QuickMeals selectedDate={selectedDate} />
       <Tooltip tipId="nutrition-scan" text="Нажми кнопку ниже для сканирования еды по фото или штрих-коду" />
 
-      <Button title="Сканировать еду по фото" onPress={handlePhotoScan} fullWidth size="lg" style={{ marginBottom: spacing.lg }} />
+      <Button
+        title="Сканировать еду по фото"
+        onPress={handlePhotoScan}
+        fullWidth
+        size="lg"
+        style={{ marginBottom: spacing.lg }}
+        accessibilityLabel="Сканировать еду по фото или штрих-коду"
+        accessibilityHint="Откроет камеру для AI-анализа продуктов"
+      />
 
       <SavedFoodsQuickAdd onQuickAdd={handleQuickAdd} />
       <WaterTracker selectedDate={selectedDate} />
