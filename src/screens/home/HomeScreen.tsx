@@ -28,7 +28,7 @@ const SPLITS = [
   { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '◎' },
 ];
 
-import { todayDateStr, localDateStr } from '../../utils/date';
+import { todayDateStr, computeStreak } from '../../utils/date';
 import { startWorkoutSafe } from '../../utils/startWorkoutSafe';
 import { useSafeTop } from '../../hooks/useSafeTop';
 const todayDate = todayDateStr;
@@ -120,20 +120,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     };
   }, [workoutHistory]);
 
-  const streak = useMemo(() => {
-    if (workoutHistory.length === 0) return 0;
-    let s = 0;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const ds = localDateStr(d);
-      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === ds)) s++;
-      else if (i > 0) break;
-    }
-    return s;
-  }, [workoutHistory]);
+  const streak = useMemo(() =>
+    computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]),
+  [workoutHistory]);
 
   useEffect(() => {
     if (daysSinceLastWorkout !== null) {

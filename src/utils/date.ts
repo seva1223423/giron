@@ -41,3 +41,36 @@ export function getPastDates(days: number): string[] {
     return localDateStr(d);
   });
 }
+
+/**
+ * Compute current workout streak from history.
+ * Streak = consecutive calendar days (going back from today) that contain at least one
+ * completed workout. Today is special: if there is no workout today yet the streak is NOT
+ * broken — you still have until midnight to maintain it.
+ *
+ * @param completedDates - array of YYYY-MM-DD strings (or Date-parseable strings) of completed workouts
+ */
+export function computeStreak(completedDates: string[]): number {
+  if (completedDates.length === 0) return 0;
+  const dateSet = new Set(
+    completedDates.map((d) => {
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? '' : localDateStr(parsed);
+    }).filter(Boolean)
+  );
+  let streak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = localDateStr(d);
+    if (dateSet.has(dateStr)) {
+      streak++;
+    } else if (i > 0) {
+      break; // gap found — streak ends
+    }
+    // i === 0 with no workout today: don't break, let streak survive until midnight
+  }
+  return streak;
+}

@@ -11,7 +11,7 @@ import { MuscleHeatmapCard } from './MuscleHeatmapCard';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { WeeklyInsightsCard } from './WeeklyInsightsCard';
 import { useCardioStore } from '../../../store';
-import { getMonday, localDateStr, formatNum } from '../../../utils/date';
+import { getMonday, localDateStr, formatNum, computeStreak } from '../../../utils/date';
 import type { Workout } from '../../../types';
 
 interface OverviewTabProps {
@@ -30,20 +30,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ colors, workoutHistory
   const totalVolume = workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0);
   const totalDuration = workoutHistory.reduce((s, w) => s + (w.durationMinutes || 0), 0);
 
-  const streak = useMemo(() => {
-    if (workoutHistory.length === 0) return 0;
-    let s = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 365; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = localDateStr(date);
-      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr)) s++;
-      else if (i > 0) break;
-    }
-    return s;
-  }, [workoutHistory]);
+  const streak = useMemo(() =>
+    computeStreak(workoutHistory.map((w) => w.completedAt).filter(Boolean) as string[]),
+  [workoutHistory]);
 
   const { weeklyVolumeData, weeklyCountData } = useMemo(() => {
     const volumes: { label: string; value: number }[] = [];
