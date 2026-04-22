@@ -18,11 +18,11 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 642 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 652 tests)
   cardio.test.ts                — GET/POST/DELETE cardio sessions; type enum validation, all Zod boundary conditions, IDOR isolation (22 tests)
   nutrition.test.ts             — POST/GET/PATCH/DELETE meals; macro calc, IDOR isolation, ownership checks (23 tests)
   trainer.test.ts               — GET/POST/DELETE/PATCH trainer clients+sessions; requireTrainerRole, sub access, IDOR isolation (37 tests)
-  support.test.ts               — ticket CRUD, message posting, close, staff GET/all; IDOR + rate limit (25 tests)
+  support.test.ts               — ticket CRUD, message posting, close, staff GET/all, PATCH /status, PATCH /assign; IDOR + role guards (35 tests)
   admin.test.ts                 — ADMIN auth gating, ban/unban, role change, unlock, GET /users, announcements CRUD; self-protect guards (47 tests)
   workout.test.ts               — programs CRUD, GET /history, GET /exercises, POST /start, POST /sync, POST /:id/complete, POST /:id/autosave, GET /leaderboard, routines CRUD; IDOR + userId isolation (56 tests)
   user.test.ts                  — GET/PATCH profile, PATCH nutrition-targets, POST weight, measurements, sleep, trusted-devices; req.userId isolation (37 tests)

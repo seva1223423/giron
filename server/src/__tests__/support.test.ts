@@ -369,3 +369,150 @@ describe('GET /api/support/all (staff only)', () => {
     expect(res.body.total).toBe(0);
   });
 });
+
+// ─── PATCH /api/support/tickets/:id/status ────────────────────────────────────
+
+describe('PATCH /api/support/tickets/:id/status', () => {
+  // Valid CUID for staff member — required by Zod .cuid() on assignedToId
+  const STAFF_CUID = 'cstaff0000000000000001';
+  const staffUserCuid = { id: STAFF_CUID, isBanned: false, lockedUntil: null, role: 'SUPPORT' };
+
+  it('401 without token', async () => {
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/status`)
+      .send({ status: 'in_progress' });
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for regular USER role — blocked by requireStaff', async () => {
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/status`)
+      .set('Authorization', `Bearer ${makeToken('u-test', 'USER')}`)
+      .send({ status: 'in_progress' });
+    expect(res.status).toBe(403);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(staffUser);
+
+    const res = await request(app)
+      .patch('/api/support/tickets/bad-id/status')
+      .set('Authorization', `Bearer ${makeToken('u-staff', 'SUPPORT')}`)
+      .send({ status: 'in_progress' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('403 SUPPORT staff cannot update status if not assigned to ticket', async () => {
+    // authenticate → staffUser, route actor check → staffUser (not admin)
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(staffUser)   // authenticate
+      .mockResolvedValueOnce(staffUser);  // actor check in route (role: SUPPORT → not admin)
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
+      assignedToId: 'u-other-staff', // assigned to DIFFERENT staff member
+    });
+
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/status`)
+      .set('Authorization', `Bearer ${makeToken('u-staff', 'SUPPORT')}`)
+      .send({ status: 'in_progress' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('200 ADMIN can update any ticket status regardless of assignment', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(adminUser)  // authenticate
+      .mockResolvedValueOnce(adminUser); // actor check → ADMIN (bypasses assignment check)
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
+      assignedToId: null, // not assigned to anyone
+    });
+    (prisma.supportTicket.update as jest.Mock).mockResolvedValueOnce({
+      ...sampleTicket,
+      status: 'resolved',
+    });
+
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/status`)
+      .set('Authorization', `Bearer ${makeToken('u-admin', 'ADMIN')}`)
+      .send({ status: 'resolved' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('resolved');
+  });
+});
+
+// ─── PATCH /api/support/tickets/:id/assign ────────────────────────────────────
+
+describe('PATCH /api/support/tickets/:id/assign', () => {
+  const STAFF_CUID = 'cstaff0000000000000001';
+  const staffUserCuid = { id: STAFF_CUID, isBanned: false, lockedUntil: null, role: 'SUPPORT' };
+
+  it('401 without token', async () => {
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/assign`)
+      .send({ assignedToId: STAFF_CUID });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(adminUser);
+
+    const res = await request(app)
+      .patch('/api/support/tickets/bad-id/assign')
+      .set('Authorization', `Bearer ${makeToken('u-admin', 'ADMIN')}`)
+      .send({ assignedToId: STAFF_CUID });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('403 SUPPORT role cannot assign tickets — admin only', async () => {
+    // authenticate → staffUser, route actor check → staffUser (role: SUPPORT ≠ ADMIN)
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(staffUser)  // authenticate
+      .mockResolvedValueOnce(staffUser); // actor check → not ADMIN → 403
+
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken('u-staff', 'SUPPORT')}`)
+      .send({ assignedToId: STAFF_CUID });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('400 when assignedToId belongs to a regular user (not staff)', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(adminUser)  // authenticate
+      .mockResolvedValueOnce(adminUser)  // actor check → ADMIN
+      .mockResolvedValueOnce(baseUser);  // assignee lookup → USER role → invalid
+
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken('u-admin', 'ADMIN')}`)
+      .send({ assignedToId: STAFF_CUID });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('сотруднику');
+  });
+
+  it('200 admin successfully assigns ticket to a SUPPORT staff member', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(adminUser)    // authenticate
+      .mockResolvedValueOnce(adminUser)    // actor check → ADMIN
+      .mockResolvedValueOnce(staffUserCuid); // assignee → SUPPORT role, not banned
+    (prisma.supportTicket.update as jest.Mock).mockResolvedValueOnce({
+      ...sampleTicket,
+      assignedToId: STAFF_CUID,
+      status: 'in_progress',
+    });
+
+    const res = await request(app)
+      .patch(`/api/support/tickets/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken('u-admin', 'ADMIN')}`)
+      .send({ assignedToId: STAFF_CUID });
+
+    expect(res.status).toBe(200);
+    expect(res.body.assignedToId).toBe(STAFF_CUID);
+    expect(res.body.status).toBe('in_progress');
+  });
+});
