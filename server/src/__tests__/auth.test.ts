@@ -14,8 +14,10 @@ jest.mock('../db', () => ({
   prisma: {
     user: {
       findUnique: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     refreshToken: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -33,6 +35,9 @@ jest.mock('../db', () => ({
     otpCode: {
       findFirst: jest.fn().mockResolvedValue(null),
       update: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockResolvedValue({}),
+      count: jest.fn().mockResolvedValue(0),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     passwordResetToken: {
       findUnique: jest.fn(),
@@ -104,6 +109,9 @@ describe('Auth Routes', () => {
     (mockPrisma.securityEvent.create as jest.Mock).mockResolvedValue({});
     (mockPrisma.securityEvent.findFirst as jest.Mock).mockResolvedValue(null);
     (mockPrisma.otpCode as any).findFirst.mockResolvedValue(null);
+    (mockPrisma.otpCode as any).count.mockResolvedValue(0);
+    (mockPrisma.otpCode as any).updateMany.mockResolvedValue({ count: 1 });
+    (mockPrisma.user.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (mockPrisma.passwordHistory.findMany as jest.Mock).mockResolvedValue([]);
     (mockPrisma.passwordHistory.create as jest.Mock).mockResolvedValue({});
     (mockPrisma.passwordHistory.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
@@ -604,6 +612,163 @@ describe('Auth Routes', () => {
   });
 
   // ─── Logout ─────────────────────────────────────────────────────────────────
+
+  // ─── Check email availability ──────────────────────────────────────────────
+
+  describe('POST /api/auth/check-email', () => {
+    it('200 { exists: false } when email is not registered', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/check-email')
+        .send({ email: 'nobody@example.com' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.exists).toBe(false);
+    });
+
+    it('200 { exists: true, hasPassword: true } for registered email with password', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 'u-test',
+        passwordHash: '$2b$10$hashedpassword',
+        googleId: null,
+        vkId: null,
+        yandexId: null,
+      });
+
+      const res = await request(app)
+        .post('/api/auth/check-email')
+        .send({ email: 'registered@example.com' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.exists).toBe(true);
+      expect(res.body.hasPassword).toBe(true);
+      expect(res.body.hasGoogle).toBe(false);
+    });
+
+    it('200 { exists: false } for invalid email format — ZodError caught silently', async () => {
+      const res = await request(app)
+        .post('/api/auth/check-email')
+        .send({ email: 'not-an-email' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.exists).toBe(false);
+    });
+  });
+
+  // ─── Check phone availability ──────────────────────────────────────────────
+
+  describe('POST /api/auth/check-phone', () => {
+    it('200 { exists: false } when phone is not registered', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/check-phone')
+        .send({ phone: '+79991234567' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.exists).toBe(false);
+    });
+
+    it('200 { exists: true } when phone is registered', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
+
+      const res = await request(app)
+        .post('/api/auth/check-phone')
+        .send({ phone: '+79991234567' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.exists).toBe(true);
+    });
+  });
+
+  // ─── Email verification ────────────────────────────────────────────────────
+
+  describe('POST /api/auth/verify-email', () => {
+    const validOtp = {
+      id: 'cotp0000000000000000001',
+      code: '654321',
+      email: 'user@example.com',
+      attempts: 0,
+      used: false,
+      expiresAt: new Date(Date.now() + 600_000), // expires in 10 min
+    };
+
+    it('400 when no active OTP exists for the email', async () => {
+      (mockPrisma.otpCode as any).findFirst.mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ email: 'user@example.com', code: '123456' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.valid).toBe(false);
+    });
+
+    it('400 when submitted code does not match stored OTP', async () => {
+      (mockPrisma.otpCode as any).findFirst.mockResolvedValueOnce(validOtp);
+      // Wrong code '999999' ≠ '654321' → attempt increment
+      (mockPrisma.otpCode as any).updateMany.mockResolvedValueOnce({ count: 1 });
+
+      const res = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ email: 'user@example.com', code: '999999' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.valid).toBe(false);
+    });
+
+    it('200 marks emailVerified when correct code is submitted', async () => {
+      (mockPrisma.otpCode as any).findFirst.mockResolvedValueOnce(validOtp);
+      // Correct code '654321' — OTP consumed atomically
+      (mockPrisma.otpCode as any).updateMany.mockResolvedValueOnce({ count: 1 }); // consume
+      (mockPrisma.user.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
+
+      const res = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ email: 'user@example.com', code: '654321' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.valid).toBe(true);
+      expect(res.body.emailVerified).toBe(true);
+
+      // user.updateMany must scope to the correct email
+      const updateManyCalls = (mockPrisma.user.updateMany as jest.Mock).mock.calls;
+      expect(updateManyCalls[0][0].where.email).toBe('user@example.com');
+      expect(updateManyCalls[0][0].data.emailVerified).toBe(true);
+    });
+  });
+
+  // ─── Resend verification email ─────────────────────────────────────────────
+
+  describe('POST /api/auth/resend-verification', () => {
+    it('200 with generic message when email is not registered (enumeration protection)', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/resend-verification')
+        .send({ email: 'nobody@example.com' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('письмо отправлено');
+    });
+
+    it('200 sends OTP for unverified user (rate limit not reached)', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 'u-test',
+        emailVerified: false,
+      });
+      (mockPrisma.otpCode as any).count.mockResolvedValueOnce(0); // no recent OTPs
+
+      const res = await request(app)
+        .post('/api/auth/resend-verification')
+        .send({ email: 'unverified@example.com' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('письмо отправлено');
+    });
+  });
 
   describe('POST /api/auth/logout', () => {
     it('200 with no body (graceful — session already expired or client lost token)', async () => {
