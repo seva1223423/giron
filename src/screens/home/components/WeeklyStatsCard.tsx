@@ -19,6 +19,13 @@ const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, streak, navigation }) => {
   const { colors } = useThemeStore();
 
+  // Pre-build a Set<YYYY-MM-DD> for O(1) "did I work out on this date?" lookups.
+  // Without it, each day-dot and adherence check runs a full O(n) .some() scan.
+  const completedDateSet = useMemo(
+    () => new Set(workoutHistory.flatMap((w) => w.completedAt ? [localDateStr(new Date(w.completedAt))] : [])),
+    [workoutHistory],
+  );
+
   const weekWorkouts = useMemo(() => workoutHistory.filter((w) => {
     if (!w.completedAt) return false;
     return new Date(w.completedAt) >= new Date(Date.now() - 7 * 86400000);
@@ -51,11 +58,10 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
       if (i > currentDow) continue;
       const dayDate = new Date(mondayDate);
       dayDate.setDate(mondayDate.getDate() + i);
-      const dayStr = localDateStr(dayDate);
-      if (workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dayStr)) done++;
+      if (completedDateSet.has(localDateStr(dayDate))) done++;
     }
     return { planned, done, pastPlanned: Math.min(planned, currentDow + 1) };
-  }, [weekPlan, workoutHistory]);
+  }, [weekPlan, completedDateSet]);
 
   const now = new Date();
   const currentDow = now.getDay() === 0 ? 6 : now.getDay() - 1;
@@ -75,7 +81,7 @@ export const WeeklyStatsCard: React.FC<Props> = ({ workoutHistory, weekPlan, str
           const dayDate = new Date(now);
           dayDate.setDate(now.getDate() - currentDow + i);
           const dateStr = localDateStr(dayDate);
-          const hadWorkout = workoutHistory.some((w) => w.completedAt && localDateStr(new Date(w.completedAt)) === dateStr);
+          const hadWorkout = completedDateSet.has(dateStr);
           const isToday = i === currentDow;
           const hasPlan = !!weekPlan[i];
           const isPast = i < currentDow;
