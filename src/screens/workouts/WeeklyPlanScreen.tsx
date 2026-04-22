@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useWorkoutStore } from '../../store';
@@ -24,8 +24,9 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { weekPlan, setWeekPlanDay, savedTemplates, customExercises, startWorkoutFromRoutine } = useWorkoutStore();
+  const { weekPlan, setWeekPlanDay, savedTemplates, customExercises, startWorkoutFromRoutine, routines } = useWorkoutStore();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
+  const [startingDow, setStartingDow] = useState<number | null>(null);
 
   const allExercises = [...customExercises, ...localExercises];
 
@@ -47,33 +48,40 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
     setPickerDay(null);
   };
 
-  const handleStartWorkout = async (entry: WeekPlanEntry) => {
+  const handleStartWorkout = useCallback(async (entry: WeekPlanEntry, dow: number) => {
     haptic.medium();
-    if (entry.routineId) {
-      const workout = await startWorkoutFromRoutine(entry.routineId);
-      if (workout) navigation.navigate('ActiveWorkout');
-      return;
+    setStartingDow(dow);
+    try {
+      if (entry.routineId) {
+        const workout = await startWorkoutFromRoutine(entry.routineId);
+        if (workout) navigation.navigate('ActiveWorkout');
+        return;
+      }
+      if (entry.exercises.length === 0) return;
+      const workoutExercises: WorkoutExercise[] = entry.exercises
+        .map((exId, index) => {
+          const ex = allExercises.find((e) => e.id === exId);
+          if (!ex) return null;
+          const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
+            id: `set-${Date.now()}-${index}-${i}`,
+            setNumber: i + 1,
+            type: 'normal' as const,
+            reps: 10,
+            weight: 0,
+            completed: false,
+          }));
+          return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
+        })
+        .filter(Boolean) as WorkoutExercise[];
+      const workout: Workout = { id: `workout-${Date.now()}`, name: entry.name, exercises: workoutExercises };
+      startWorkoutSafe(workout, navigation);
+    } catch {
+      haptic.error();
+      Alert.alert('Ошибка', 'Не удалось запустить тренировку.');
+    } finally {
+      setStartingDow(null);
     }
-    if (entry.exercises.length === 0) return;
-    const workoutExercises: WorkoutExercise[] = entry.exercises
-      .map((exId, index) => {
-        const ex = allExercises.find((e) => e.id === exId);
-        if (!ex) return null;
-        const sets: WorkoutSet[] = Array.from({ length: 4 }, (_, i) => ({
-          id: `set-${Date.now()}-${index}-${i}`,
-          setNumber: i + 1,
-          type: 'normal' as const,
-          reps: 10,
-          weight: 0,
-          completed: false,
-        }));
-        return { id: `we-${Date.now()}-${index}`, exerciseId: ex.id, exercise: ex, order: index, sets, restSeconds: 0 };
-      })
-      .filter(Boolean) as WorkoutExercise[];
-
-    const workout: Workout = { id: `workout-${Date.now()}`, name: entry.name, exercises: workoutExercises };
-    startWorkoutSafe(workout, navigation);
-  };
+  }, [haptic, startWorkoutFromRoutine, allExercises, navigation]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -102,9 +110,14 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                   {entry ? (
                     <>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
                         <Text style={{ fontSize: 16 }}>{entry.emoji}</Text>
                         <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{entry.name}</Text>
+                        {entry.routineId && (
+                          <View style={[styles.routineBadge, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '40' }]}>
+                            <Text style={[typography.caption, { color: colors.primary, fontSize: 10 }]}>◈ +2.5кг</Text>
+                          </View>
+                        )}
                       </View>
                       {entry.exercises.length > 0 && (
                         <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
@@ -118,9 +131,15 @@ export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) 
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                  {isToday && entry && entry.exercises.length > 0 && (
-                    <TouchableOpacity onPress={() => handleStartWorkout(entry)} style={[styles.actionBtn, { backgroundColor: colors.success }]}>
-                      <Text style={[typography.captionMedium, { color: '#fff' }]}>▶ Старт</Text>
+                  {isToday && entry && (entry.exercises.length > 0 || entry.routineId) && (
+                    <TouchableOpacity
+                      onPress={() => handleStartWorkout(entry, dow)}
+                      disabled={startingDow !== null}
+                      style={[styles.actionBtn, { backgroundColor: colors.success, minWidth: 64, alignItems: 'center' }]}
+                    >
+                      {startingDow === dow
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={[typography.captionMedium, { color: '#fff' }]}>▶ Старт</Text>}
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -178,4 +197,5 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
   dayBadge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   actionBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.md },
+  routineBadge: { paddingHorizontal: spacing.xs, paddingVertical: 1, borderRadius: borderRadius.sm, borderWidth: 1 },
 });

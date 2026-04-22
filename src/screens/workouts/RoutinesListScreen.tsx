@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, RefreshControl,
@@ -14,11 +14,26 @@ export const RoutinesListScreen: React.FC<{ navigation: any }> = ({ navigation }
   const safeTop = useSafeTop();
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { routines, isLoadingRoutines, fetchRoutines, removeRoutine, workoutHistory } = useWorkoutStore();
+  const { routines, isLoadingRoutines, fetchRoutines, removeRoutine, workoutHistory, startWorkoutFromRoutine } = useWorkoutStore();
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRoutines().catch(() => {});
   }, []);
+
+  const handleStart = async (id: string) => {
+    haptic.medium();
+    setStartingId(id);
+    try {
+      const workout = await startWorkoutFromRoutine(id);
+      if (workout) navigation.navigate('ActiveWorkout');
+    } catch {
+      haptic.error();
+      Alert.alert('Ошибка', 'Не удалось запустить рутину. Проверь соединение.');
+    } finally {
+      setStartingId(null);
+    }
+  };
 
   const handleDelete = (id: string, name: string) => {
     haptic.medium();
@@ -120,6 +135,16 @@ export const RoutinesListScreen: React.FC<{ navigation: any }> = ({ navigation }
                     </View>
                     <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
                       <TouchableOpacity
+                        onPress={() => handleStart(routine.id)}
+                        disabled={startingId !== null}
+                        style={[styles.startBtn, { backgroundColor: colors.success + (startingId === routine.id ? '30' : '18'), borderColor: colors.success + '50' }]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        {startingId === routine.id
+                          ? <ActivityIndicator size="small" color={colors.success} />
+                          : <Text style={{ fontSize: 12, color: colors.success, fontWeight: '700' }}>▶</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity
                         onPress={() => handleDelete(routine.id, routine.name)}
                         style={[styles.deleteBtn, { borderColor: colors.error + '50' }]}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -154,6 +179,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
+  startBtn: {
+    width: 28, height: 28, borderRadius: 14,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  },
   deleteBtn: {
     width: 28, height: 28, borderRadius: 14,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',

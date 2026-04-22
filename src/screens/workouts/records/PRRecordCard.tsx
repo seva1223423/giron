@@ -76,8 +76,15 @@ export const PRRecordCard: React.FC<Props> = ({ record, idx, isExpanded, onToggl
   const trend = record.history.length >= 2
     ? record.history[record.history.length - 1].estimated1RM - record.history[record.history.length - 2].estimated1RM
     : 0;
+  const trendPct = record.history.length >= 2 && record.history[record.history.length - 2].estimated1RM > 0
+    ? Math.round((trend / record.history[record.history.length - 2].estimated1RM) * 100)
+    : 0;
   const trendColor = trend > 0 ? colors.success : trend < 0 ? colors.error : colors.textTertiary;
-  const trendLabel = trend > 0 ? `+${trend} кг` : trend < 0 ? `${trend} кг` : '';
+  const trendLabel = trend > 0
+    ? `+${trend} кг (+${trendPct}%)`
+    : trend < 0
+      ? `${trend} кг (${trendPct}%)`
+      : '';
 
   return (
     <FadeIn delay={Math.min(idx * 30, 300)}>
