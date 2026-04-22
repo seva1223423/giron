@@ -208,7 +208,7 @@ When auditing, verify: `server/.env` is in `.gitignore` and none of these appear
 
 - **Admin actions** — also check `compliance.md`: every admin mutation (ban, delete user, send announcement) must write to `AdminLog`. Security flags the IDOR risk; compliance flags the audit trail gap.
 ~~**Per-user AI rate limit**~~ — **RESOLVED** 2026-04-22: `perUserAiBuckets` Map in `server/src/routes/ai.ts` limits 30 req/min per userId (in addition to per-IP limit). No open gap.
-- **Subscription gating** — also covered by `feature.md` Layer 4 and `frontend.md`. If server gate is present but client gate is missing, use `/premium-feature` command for full 5-layer checklist.
+- **Subscription gating** — also covered by `feature.md` and `frontend.md`. If server gate present but client gate missing, implement: `isPremiumActive()` check → `setShowPaywall(true)` → `PaywallModal` render.
 - **Data residency (152-ФЗ)** — overlap with `compliance.md`. Security handles the technical transport security; compliance handles the legal data location requirement. Both must be satisfied.
 - **Missing index + WHERE filter** — if security finds an IDOR risk that requires adding `userId` to `where:`, also check `performance.md` (index needed) and spawn `database` agent to add `@@index([userId])`.
 

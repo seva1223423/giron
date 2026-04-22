@@ -301,7 +301,7 @@ Key models and their @@index patterns already set:
 ## See Also (Cross-Agent Coordination)
 
 - **New route needs new schema** → spawn `database` agent to add models/fields/indexes. `backend` agent implements the route; `database` agent owns schema changes.
-- **New route with subscription gate** → use `/premium-feature` command for the full 5-layer checklist. `backend` agent implements server gate (`getSubStatus`); `frontend` agent implements the client PaywallModal.
+- **New route with subscription gate** → 5 layers required: server `getSubStatus` check (402), client `isPremiumActive()` gate before action, `PaywallModal` on false, subscription store hydrated, test the 402 path. `backend` agent implements server gate; `frontend` agent implements PaywallModal.
 - **Rate limiting on new endpoint** → check existing limiters in `index.ts` first (`userRateLimiter` covers most routes at 200/min). Only add a dedicated limiter if the endpoint is high-cost (AI, file upload, email send). Coordinate with `security` agent if the endpoint is sensitive.
 - **Admin route** → `compliance` agent: every admin mutation needs an `AdminLog` write in `$transaction`. `security` agent: needs `requireAdmin` middleware. `monitoring` agent: needs alerting if log write fails.
 - **Tests for new route** → spawn `tests` agent after route is implemented. Provide the route path, HTTP method, and expected status codes. `tests` agent writes the test file in `server/src/__tests__/`.
