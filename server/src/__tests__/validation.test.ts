@@ -7,31 +7,40 @@ import { z } from 'zod';
 
 // ─── Schema definitions (mirroring those in route files) ─────────────────────
 
+const strongPassword = z
+  .string()
+  .min(8, 'Пароль минимум 8 символов')
+  .max(128, 'Пароль не может быть длиннее 128 символов')
+  .refine((p) => /[A-Z]/.test(p), { message: 'Пароль должен содержать хотя бы одну заглавную букву' })
+  .refine((p) => /[a-z]/.test(p), { message: 'Пароль должен содержать хотя бы одну строчную букву' })
+  .refine((p) => /[0-9]/.test(p), { message: 'Пароль должен содержать хотя бы одну цифру' });
+
 const registerSchema = z.object({
-  email: z.string().email('Некорректный email'),
-  password: z.string().min(6, 'Пароль минимум 6 символов'),
-  firstName: z.string().min(1, 'Введите имя'),
-  lastName: z.string().optional(),
+  email: z.string().email('Некорректный email').max(254, 'Email слишком длинный'),
+  password: strongPassword,
+  firstName: z.string().min(1, 'Введите имя').max(100, 'Имя слишком длинное'),
+  lastName: z.string().max(100, 'Фамилия слишком длинная').optional(),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
+  email: z.string().email().max(254),
+  password: z.string().max(1000), // bcrypt DoS prevention
 });
 
 const mealItemSchema = z.object({
-  name: z.string().min(1),
-  calories: z.number().min(0).max(10000),
-  protein: z.number().min(0).max(1000),
-  fats: z.number().min(0).max(1000),
-  carbs: z.number().min(0).max(1000),
-  weightGrams: z.number().min(0).max(10000).optional(),
+  name: z.string().min(1).max(200),       // max 200 mirrors nutrition.ts
+  calories: z.number().finite().min(0).max(10000),
+  protein: z.number().finite().min(0).max(1000),
+  fats: z.number().finite().min(0).max(1000),
+  carbs: z.number().finite().min(0).max(1000),
+  weightGrams: z.number().finite().min(0).max(10000).optional(),
 });
 
 const addMealSchema = z.object({
   type: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   items: z.array(mealItemSchema).min(1).max(50),
-  photoUrl: z.string().optional(),
+  photoUrl: z.string().url().max(2048).refine((u) => u.startsWith('https://'), 'URL должен использовать HTTPS').optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !isNaN(Date.parse(d + 'T00:00:00Z'))).optional(),
 });
 
 const weightSchema = z.object({
@@ -211,6 +220,44 @@ describe('Validation Schemas', () => {
       const result = addMealSchema.safeParse({ type: 'lunch', items });
       expect(result.success).toBe(false);
     });
+
+    it('should reject item name longer than 200 chars', () => {
+      const result = addMealSchema.safeParse({
+        ...validMeal,
+        items: [{ name: 'X'.repeat(201), calories: 100, protein: 10, fats: 5, carbs: 20 }],
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject photoUrl with http (must be https)', () => {
+      const result = addMealSchema.safeParse({
+        ...validMeal,
+        photoUrl: 'http://img.com/photo.jpg',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject non-URL photoUrl string', () => {
+      const result = addMealSchema.safeParse({
+        ...validMeal,
+        photoUrl: 'not-a-url',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept valid date field', () => {
+      const result = addMealSchema.safeParse({ ...validMeal, date: '2026-04-20' });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject date in wrong format', () => {
+      const result = addMealSchema.safeParse({ ...validMeal, date: '2026/04/20' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept meal without date (date is optional)', () => {
+      expect(addMealSchema.safeParse(validMeal).success).toBe(true);
+    });
   });
 
   // ─── User Profile / Weight ─────────────────────────────────────────────
@@ -257,36 +304,98 @@ describe('Validation Schemas', () => {
 
   // ─── Registration Validation ───────────────────────────────────────────
 
-  describe('Registration validation (registerSchema)', () => {
-    it('should accept valid registration', () => {
-      const result = registerSchema.safeParse({
-        email: 'user@test.com', password: 'secret123', firstName: 'John',
-      });
-      expect(result.success).toBe(true);
+  describe('Registration validation (registerSchema + strongPassword)', () => {
+    const validReg = { email: 'user@test.com', password: 'Secret123', firstName: 'John' };
+
+    it('should accept valid registration with strong password', () => {
+      expect(registerSchema.safeParse(validReg).success).toBe(true);
     });
 
-    it('should reject XSS in firstName (but zod just validates min length)', () => {
-      // Zod does not sanitize HTML — this test documents that behavior
-      const result = registerSchema.safeParse({
-        email: 'user@test.com', password: 'secret123', firstName: '<script>alert(1)</script>',
-      });
+    it('should reject XSS in firstName (Zod does not sanitize — rendering layer must)', () => {
       // Zod passes it — XSS protection must be at rendering layer
-      expect(result.success).toBe(true);
+      expect(registerSchema.safeParse({
+        ...validReg, firstName: '<script>alert(1)</script>',
+      }).success).toBe(true);
     });
 
     it('should reject empty firstName', () => {
-      const result = registerSchema.safeParse({
-        email: 'user@test.com', password: 'secret123', firstName: '',
-      });
-      expect(result.success).toBe(false);
+      expect(registerSchema.safeParse({ ...validReg, firstName: '' }).success).toBe(false);
     });
 
-    it('should accept optional lastName', () => {
-      const result = registerSchema.safeParse({
-        email: 'user@test.com', password: 'secret123', firstName: 'John',
-      });
+    it('should reject firstName exceeding 100 chars', () => {
+      expect(registerSchema.safeParse({ ...validReg, firstName: 'A'.repeat(101) }).success).toBe(false);
+    });
+
+    it('should accept optional lastName (absent = undefined)', () => {
+      const result = registerSchema.safeParse(validReg);
       expect(result.success).toBe(true);
       expect(result.data?.lastName).toBeUndefined();
+    });
+
+    it('should reject lastName exceeding 100 chars', () => {
+      expect(registerSchema.safeParse({ ...validReg, lastName: 'B'.repeat(101) }).success).toBe(false);
+    });
+
+    it('should reject email exceeding 254 chars', () => {
+      const longEmail = 'a'.repeat(250) + '@x.co';
+      expect(registerSchema.safeParse({ ...validReg, email: longEmail }).success).toBe(false);
+    });
+
+    // ── Strong password requirements ──────────────────────────────────────
+
+    it('should reject password shorter than 8 chars', () => {
+      expect(registerSchema.safeParse({ ...validReg, password: 'Sec12' }).success).toBe(false);
+    });
+
+    it('should reject password exceeding 128 chars', () => {
+      const long = 'Aa1' + 'x'.repeat(126); // 129 chars
+      expect(registerSchema.safeParse({ ...validReg, password: long }).success).toBe(false);
+    });
+
+    it('should reject password without uppercase letter', () => {
+      expect(registerSchema.safeParse({ ...validReg, password: 'secret123' }).success).toBe(false);
+    });
+
+    it('should reject password without lowercase letter', () => {
+      expect(registerSchema.safeParse({ ...validReg, password: 'SECRET123' }).success).toBe(false);
+    });
+
+    it('should reject password without digit', () => {
+      expect(registerSchema.safeParse({ ...validReg, password: 'SecretPass' }).success).toBe(false);
+    });
+
+    it('should accept password at boundary length 8 with all requirements', () => {
+      expect(registerSchema.safeParse({ ...validReg, password: 'Secret1!' }).success).toBe(true);
+    });
+
+    it('should accept password at boundary length 128', () => {
+      const maxPass = 'Aa1' + 'x'.repeat(125); // exactly 128 chars
+      expect(registerSchema.safeParse({ ...validReg, password: maxPass }).success).toBe(true);
+    });
+  });
+
+  // ─── Login Schema Validation ──────────────────────────────────────────
+
+  describe('Login validation (loginSchema)', () => {
+    it('should accept valid credentials', () => {
+      expect(loginSchema.safeParse({ email: 'user@test.com', password: 'anything' }).success).toBe(true);
+    });
+
+    it('should reject invalid email', () => {
+      expect(loginSchema.safeParse({ email: 'not-an-email', password: 'pass' }).success).toBe(false);
+    });
+
+    it('should reject email exceeding 254 chars', () => {
+      const longEmail = 'a'.repeat(250) + '@x.co';
+      expect(loginSchema.safeParse({ email: longEmail, password: 'pass' }).success).toBe(false);
+    });
+
+    it('should reject password exceeding 1000 chars (bcrypt DoS protection)', () => {
+      expect(loginSchema.safeParse({ email: 'user@test.com', password: 'x'.repeat(1001) }).success).toBe(false);
+    });
+
+    it('should accept password at boundary 1000 chars', () => {
+      expect(loginSchema.safeParse({ email: 'user@test.com', password: 'x'.repeat(1000) }).success).toBe(true);
     });
   });
 
