@@ -25,7 +25,7 @@
 
 **7 вкладок:** Главная, Тренировки (12 экранов), Питание (5), Прогресс, ИИ, Новости, Профиль (6)
 
-**14 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support + store/index.ts
+**13 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support
 
 **11 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip
 
@@ -38,9 +38,9 @@
 ## Архитектура сервера
 
 ### API маршруты (server/src/routes/)
-- `auth.ts` (1458 строк) — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
-- `user.ts` (1152 строки) — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
-- `workout.ts` (899 строк) — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
+- `auth.ts` (1475 строк) — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
+- `user.ts` (1267 строк) — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
+- `workout.ts` (1067 строк) — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
 - `nutrition.ts` — meals CRUD (фильтр по дате)
 - `news.ts` — RSS парсинг (4 Google News источника, каждые 6ч), save/unsave, refresh
 - `subscription.ts` — status, activate, cancel, webhook (RevenueCat/YuKassa/generic)
@@ -67,12 +67,12 @@
 
 ```
 src/
-  screens/       — ai, auth, home, news, nutrition, onboarding, profile, progress, settings, tracker, trainer, workouts
-  store/         — 8 Zustand-сторов (все persist через AsyncStorage)
-  components/    — 8 переиспользуемых компонентов
+  screens/       — admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts (15 областей)
+  store/         — 13 Zustand-сторов (все persist через AsyncStorage)
+  components/    — 11 переиспользуемых компонентов
   navigation/    — AppNavigator.tsx (трёхступенчатый: Auth/Onboarding/Main)
-  services/      — 7 API-сервисов + notifications
-  hooks/         — useHaptic.ts
+  services/      — 12 API-сервисов
+  hooks/         — useHaptic.ts, useSafeTop.ts, useAchievementCheck.ts, usePedometer.ts
   theme/         — colors (light/dark), typography (16 стилей), spacing, borderRadius
   types/         — index.ts (все типы: User, Exercise, Workout, Program, Meal, NewsArticle, ChatMessage...)
   data/          — exercises.ts (71), programs.ts (6 built-in)
@@ -80,7 +80,7 @@ src/
 
 server/
   src/
-    routes/      — auth, user, workout, nutrition, news, subscription, ai
+    routes/      — auth, user, workout, nutrition, news, subscription, ai, trainer, cardio, support, admin (11 файлов)
     services/    — deepseekAI, localAI, newsRefreshService
     middleware/  — auth.ts (JWT verify)
     knowledge/   — 25 модулей (6547 строк, тренировки/питание/добавки/физиология/психология)
@@ -109,7 +109,7 @@ npm test               # jest (client unit tests)
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, ~40 файлов)
+npm test               # jest (server integration tests, 10 суитов, ~227 тестов)
 npm run prisma:studio  # GUI для БД
 npm run prisma:generate # генерация Prisma client
 # НЕ запускать: npm run prisma:migrate (prisma migrate dev) — проект использует `prisma db push`
