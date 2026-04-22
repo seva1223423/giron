@@ -86,3 +86,45 @@ export function calorieDayProgress(calNow: number, calTarget: number): number {
   if (!isFinite(calNow) || calNow < 0) return 0;
   return calNow / calTarget;
 }
+
+// ─── Week plan day derivation ──────────────────────────────────────────────
+
+export interface WeekPlanDerived {
+  dayLabel: string;
+  title: string;
+  active: boolean;
+  done: boolean;
+}
+
+/** Short Russian day labels, Monday-first (matches WeekPlanStrip spec). */
+export const RU_DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as const;
+
+/**
+ * Turn a weekPlan record (keyed by dow Mon=0..Sun=6) + workout history
+ * into the 7 WeekPlanStrip tiles. Live day flips to "Сегодня" + active.
+ * Past days check the history for a completion on their weekday.
+ *
+ * Pure so we can lock the exact labels, active flag, and done-detection
+ * without mounting the screen.
+ */
+export function deriveWeekPlanDays(
+  weekPlan: Record<number, { name?: string } | null | undefined>,
+  workoutHistory: Array<{ completedAt?: string | null }>,
+  now: Date = new Date(),
+): WeekPlanDerived[] {
+  const todayIdx = todayMondayIndex(now);
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => {
+    const p = weekPlan[i] ?? null;
+    return {
+      dayLabel: RU_DAY_LABELS[i],
+      title: i === todayIdx ? 'Сегодня' : (p?.name ?? 'Отдых'),
+      active: i === todayIdx,
+      done: i < todayIdx && workoutHistory.some((w) => {
+        if (typeof w.completedAt !== 'string') return false;
+        const wd = new Date(w.completedAt);
+        if (isNaN(wd.getTime())) return false;
+        return todayMondayIndex(wd) === i;
+      }),
+    };
+  });
+}
