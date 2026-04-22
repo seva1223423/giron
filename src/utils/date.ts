@@ -42,6 +42,22 @@ export function getPastDates(days: number): string[] {
   });
 }
 
+/** Formats a Date to "вторник · 22 апреля" — uppercase meta-label style
+ *  used in the Direction A home / news headers. Lowercase weekday +
+ *  month name so the parent can decide on text-transform. All in ru-RU;
+ *  non-localized fallback matches the design's hand-coded wording. */
+export function formatDateMetaRu(d: Date = new Date()): string {
+  const weekdays = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+  const months = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+  ];
+  const weekday = weekdays[d.getDay()] ?? '';
+  const day = d.getDate();
+  const month = months[d.getMonth()] ?? '';
+  return `${weekday} · ${day} ${month}`;
+}
+
 /**
  * Compute current workout streak from history.
  * Streak = consecutive calendar days (going back from today) that contain at least one
