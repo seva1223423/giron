@@ -41,6 +41,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Git worktrees — managed by git, not part of the project source
+.claude/worktrees/
+
 # Prisma
 server/prisma/migrations/dev.db
 android-keystore.jks
