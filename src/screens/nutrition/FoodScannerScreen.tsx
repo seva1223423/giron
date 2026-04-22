@@ -2019,12 +2019,24 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               const q = addPanelQuery.trim().toLowerCase();
               // Saved-foods first (case-insensitive substring), then FOOD_DB
               // (only when there's a query — without one we'd flood the panel
-              // with 220 generic entries).
+              // with 700 generic entries). Rank prefix matches before
+              // substring matches so "рис" surfaces "Рис варёный" before
+              // "Сибирский рис в соусе".
               const savedMatches = q
                 ? savedFoods.filter((f) => f.name.toLowerCase().includes(q))
                 : savedFoods;
               const dbMatches = q
-                ? FOOD_DB.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 10)
+                ? FOOD_DB
+                    .map((f) => {
+                      const n = f.name.toLowerCase();
+                      if (n.startsWith(q)) return { food: f, score: 0 };
+                      if (n.includes(q)) return { food: f, score: 1 };
+                      return null;
+                    })
+                    .filter((x): x is { food: (typeof FOOD_DB)[number]; score: number } => x != null)
+                    .sort((a, b) => a.score - b.score || a.food.name.localeCompare(b.food.name, 'ru'))
+                    .slice(0, 20)
+                    .map((x) => x.food)
                 : [];
               const hasNothing = savedMatches.length === 0 && dbMatches.length === 0;
 
