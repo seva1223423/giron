@@ -847,8 +847,43 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   // ─── Save ───────────────────────────────────────────────────────────────────
 
+  /** Heuristic check for an accidental re-log: today's meals (same mealType)
+   *  where the first-item name matches the one we're about to save. Doesn't
+   *  block — just surfaces an Alert so the user can cancel if it's a dupe. */
+  const maybeDuplicateTodayMeal = React.useMemo(() => {
+    if (recognizedItems.length === 0) return null;
+    const firstName = recognizedItems[0]?.name?.toLowerCase().trim();
+    if (!firstName) return null;
+    const todaysMatches = (dayLog.meals || []).filter((m) => {
+      if (m.type !== mealType) return false;
+      const otherFirst = m.items[0]?.name?.toLowerCase().trim();
+      return otherFirst === firstName;
+    });
+    return todaysMatches.length > 0 ? todaysMatches[todaysMatches.length - 1] : null;
+  }, [recognizedItems, dayLog.meals, mealType]);
+
   const handleSave = () => {
     if (recognizedItems.length === 0) return;
+    // Duplicate check — if today's log already has a meal of the same type
+    // whose first item matches, ask before re-saving. Users occasionally
+    // tap "Сохранить" twice or forget they already logged; this catches it.
+    if (maybeDuplicateTodayMeal) {
+      const prevCal = Math.round(maybeDuplicateTodayMeal.totalCalories);
+      Alert.alert(
+        'Похожий приём уже есть',
+        `Сегодня уже записан «${maybeDuplicateTodayMeal.items[0]?.name}» на ${prevCal} ккал. Записать ещё раз?`,
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Да, записать', onPress: doSave },
+        ],
+      );
+      haptic.warning();
+      return;
+    }
+    doSave();
+  };
+
+  const doSave = () => {
     haptic.success();
     const totalCal = Math.round(recognizedItems.reduce((s, i) => s + i.calories, 0));
     const totalProt = Math.round(recognizedItems.reduce((s, i) => s + i.protein, 0) * 10) / 10;
