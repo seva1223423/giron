@@ -320,3 +320,14 @@ Merge strategy: when server data arrives, keep local-only items (by prefix), rep
 5. No `version` bump after store shape change → crashes on existing installations
 6. Missing PaywallModal render → paywall state set but modal never shown
 7. `navigation.navigate('Screen')` without adding to AppNavigator → runtime crash
+
+## See Also (Cross-Agent Coordination)
+
+- **New screen needs integration tests** → spawn `tests` agent after the screen is implemented. Provide the store method names and the API endpoints the screen calls.
+- **Subscription gating (new premium feature)** → use `/premium-feature` command for the full 5-layer checklist. `frontend` agent implements the PaywallModal render + `isPremiumActive()` gate; `backend` agent implements the server-side `getSubStatus` check.
+- **Store shape change** → bump `version` and add a `migrate` function in the persist config. `data-integrity` agent documents the migration rule; `frontend` agent implements it. Skipping version bump crashes existing installs silently.
+- **PaywallModal missing render** → `security` agent flags the gap during audit; `frontend` agent implements the missing `<PaywallModal visible={showPaywall} ... />` render. Both guards (isPremiumActive check + modal render) are required — one without the other is a partial paywall.
+- **New API endpoint consumed by client** → `backend` agent writes the route; `frontend` agent adds the matching service method in `src/services/` and wires the store action.
+- **Heavy list screen (large payload)** → `performance` agent audits payload size and N+1 patterns; `frontend` agent applies client-side pagination or virtualization.
+- **Dark mode regression** → all colors must come from `useThemeStore`. Hardcoded hex is the only cause. `frontend` agent owns the fix.
+- **Offline-first ID collision** → if a `local-${Date.now()}` item survives a re-mount and the server has returned the real ID, the merge strategy in the store must replace it. `data-integrity` agent flags duplicate IDs; `frontend` agent fixes the merge logic.
