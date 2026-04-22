@@ -931,6 +931,65 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setRecognizedItems((prev) => prev.map((i) => (i.id === id ? { ...i, name: trimmed } : i)));
   }, []);
 
+  /** Merge duplicate-name items into one each. For every group of items that
+   *  share a normalized name:
+   *   - Keep the first (so the user's per-item edits like rename / confidence
+   *     badge are preserved where they made them first).
+   *   - Sum all weights; recompute macros from the kept item's base (per-100g).
+   *   - Drop the rest and their bases.
+   *
+   *  We don't auto-merge on detection — the warning banner calls this
+   *  explicitly. No undo: confirming via Alert prevents accidental taps.
+   *  Items with empty/whitespace names are left alone (we can't group them). */
+  const mergeDuplicates = useCallback(() => {
+    // Compute the whole transform from the currently-known arrays, then commit
+    // both state updates in lockstep. Avoids the nested-functional-setState
+    // trap where we'd race with two independent React updates.
+    const seen = new Map<string, string>(); // normKey → kept item id
+    const extra = new Map<string, number>(); // kept id → summed extra grams
+    for (const item of recognizedItems) {
+      const key = normalizeFoodName(item.name);
+      if (!key) continue;
+      const kept = seen.get(key);
+      if (kept == null) seen.set(key, item.id);
+      else extra.set(kept, (extra.get(kept) ?? 0) + (item.weightGrams || 0));
+    }
+    if (extra.size === 0) return; // nothing to merge
+
+    const keptIds = new Set(seen.values());
+    const nextItems = recognizedItems
+      .filter((item) => {
+        const key = normalizeFoodName(item.name);
+        if (!key) return true; // keep nameless items as-is
+        return keptIds.has(item.id);
+      })
+      .map((item) => {
+        const addG = extra.get(item.id);
+        if (!addG) return item;
+        const newW = (item.weightGrams || 0) + addG;
+        const base = itemBases[item.id];
+        if (!base) return { ...item, weightGrams: newW };
+        return {
+          ...item,
+          weightGrams: newW,
+          calories: Math.round((base.cal * newW) / 100),
+          protein: Math.round(((base.prot * newW) / 100) * 10) / 10,
+          fats: Math.round(((base.fats * newW) / 100) * 10) / 10,
+          carbs: Math.round(((base.carbs * newW) / 100) * 10) / 10,
+        };
+      });
+
+    // Drop bases for removed items
+    const nextBases: typeof itemBases = {};
+    for (const item of nextItems) {
+      if (itemBases[item.id]) nextBases[item.id] = itemBases[item.id];
+    }
+
+    setRecognizedItems(nextItems);
+    setItemBases(nextBases);
+    haptic.success();
+  }, [recognizedItems, itemBases, haptic]);
+
   /** Scale all items proportionally so the combined weight equals `totalG`.
    *  Use case: AI guessed the plate was 350g, but scale says 500g — one tap
    *  corrects every item's macros instead of editing each row manually. */
@@ -1525,15 +1584,37 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 <>
                   {/* Duplicate-name warning — flags accidental double-counting when
                       multi-photo append or the AI returns two near-identical items.
-                      We show the count and let the user clean up manually (they
-                      may legitimately have two portions of the same food; we don't
-                      auto-merge). Comparison uses normalized name. */}
+                      Offers a one-tap "Объединить" that calls mergeDuplicates.
+                      We don't auto-merge on detection: user may legitimately
+                      have two portions of the same food (e.g. 2 yogurts). */}
                   {dups.size > 0 && (
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.warning + '15', borderWidth: 1, borderColor: colors.warning + '40', marginBottom: spacing.md }}>
-                      <Text style={{ fontSize: 16, marginRight: spacing.sm }}>⚠</Text>
-                      <Text style={[typography.small, { color: colors.warning, flex: 1 }]}>
-                        Дубликаты: {dupLabel}{more}. Проверь список — одинаковые позиции удвоят КБЖУ.
-                      </Text>
+                    <View style={{ padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.warning + '15', borderWidth: 1, borderColor: colors.warning + '40', marginBottom: spacing.md }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                        <Text style={{ fontSize: 16, marginRight: spacing.sm }}>⚠</Text>
+                        <Text style={[typography.small, { color: colors.warning, flex: 1 }]}>
+                          Дубликаты: {dupLabel}{more}. Одинаковые позиции удвоят КБЖУ.
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Alert.alert(
+                            'Объединить дубликаты?',
+                            'Одинаковые позиции сложатся по весу в одну. Это действие нельзя отменить.',
+                            [
+                              { text: 'Отмена', style: 'cancel' },
+                              { text: 'Объединить', onPress: mergeDuplicates },
+                            ],
+                          );
+                        }}
+                        style={{ alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.warning + '60' }}
+                        accessibilityLabel={`Объединить ${dups.size} групп дубликатов`}
+                        accessibilityHint="Веса одинаковых позиций сложатся. Калории пересчитаются."
+                        accessibilityRole="button"
+                      >
+                        <Text style={[typography.captionMedium, { color: colors.warning, fontWeight: '700' }]}>
+                          Объединить
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   )}
 
