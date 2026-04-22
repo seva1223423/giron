@@ -57,7 +57,7 @@ Expected: 25 knowledge modules. Also check `ai-coach.md` documents the same coun
 
 **Check test counts (client suites and server suites):**
 ```bash
-# Client test suites (expected: 29 suites, ~555 tests)
+# Client test suites (expected: 29 suites, ~566 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\src\__tests__\" | wc -l
 
 # Server test suites (expected: 20 suites, ~700 tests)
