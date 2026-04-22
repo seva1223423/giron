@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
-import { Card, Button, FadeIn } from '../../components';
-import { useThemeStore, useNutritionStore } from '../../store';
+import { Card, Button, FadeIn, PaywallModal } from '../../components';
+import { useThemeStore, useNutritionStore, useSubscriptionStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { useHaptic } from '../../hooks/useHaptic';
@@ -105,15 +105,22 @@ export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { addMeal, getDayLog, defaultTargets } = useNutritionStore();
+  const { canSendAiMessage, consumeAiMessage } = useSubscriptionStore();
 
   const [plan, setPlan] = useState<PlanDay[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const todayIdx = getMondayBasedDayIndex();
 
   const generate = useCallback(async () => {
     haptic.medium();
+    if (!canSendAiMessage()) {
+      setShowPaywall(true);
+      return;
+    }
+    consumeAiMessage();
     setLoading(true);
     setPlan(null);
     try {
@@ -160,7 +167,7 @@ export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     } finally {
       setLoading(false);
     }
-  }, [getDayLog, defaultTargets, todayIdx, haptic]);
+  }, [getDayLog, defaultTargets, todayIdx, haptic, canSendAiMessage, consumeAiMessage]);
 
   const addMealToLog = (meal: PlanMeal, dayOffset: number) => {
     haptic.success();
@@ -367,6 +374,8 @@ export const MealPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           </View>
         </FadeIn>
       )}
+
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="ai_limit" />
     </ScrollView>
   );
 };
