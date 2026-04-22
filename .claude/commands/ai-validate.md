@@ -120,15 +120,18 @@ Verify:
 grep -n "BUG-AI-003\|perUserAiBuckets\|rate.*limit.*burst\|30.*parallel" server/src/__tests__/ai_security.test.ts
 ```
 
-### 8. buildAnalyticsContext Performance Gate
+### 8. Analytics Context Timing Alert
 
 ```bash
-grep -n "buildAnalyticsContext\|Promise\.all\|parallel" server/src/routes/ai.ts | head -20
+grep -n "_t0ContextPrimary\|_t0ContextSecondary\|primaryContextMs\|secondaryContextMs" server/src/routes/ai.ts | head -10
 ```
 
-Known issue: ~180 parallel DB queries per analytics context build. Verify:
-- Only called when intent = `analytics_query` (not on every message)
-- Has a timeout or partial result fallback
+The analytics context is built on every AI message via two `Promise.all` blocks (~180 total queries).
+Timing instrumentation was added 2026-04-22. Verify:
+- `_t0ContextPrimary` and `_t0ContextSecondary` variables exist before each `Promise.all` block
+- `logger.warn` is called if either block exceeds 2000ms (check for `> 2000` threshold)
+- Both log the `userId` for correlation in Render logs
+- If timing alerts fire in production, the fix path is: cache per-user with 60s TTL (ai-coach agent owns this)
 
 ### 9. Report
 

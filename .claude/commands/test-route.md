@@ -118,8 +118,13 @@ import { prisma } from '../db';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// MUST include issuer+audience — auth middleware verifies both
 const makeToken = (userId = 'u-test', role = 'USER') =>
-  jwt.sign({ userId, role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+  jwt.sign({ userId, role }, process.env.JWT_SECRET!, {
+    expiresIn: '1h',
+    issuer: 'irongym-api',
+    audience: 'irongym-app',
+  });
 
 // Standard authenticated user mock (re-use across describe blocks)
 const mockAuthUser = (userId = 'u-test') => {
@@ -316,7 +321,7 @@ All tests must pass before reporting done. Common failures and fixes:
 
 After all tests pass, update counts in CLAUDE.md and `.claude/agents/tests.md`:
 - Increment server suite count (was 19, now 20)
-- Increment server test count (was 410, add new count)
+- Increment server test count (was 532, add new count)
 - Add file entry to the `server/src/__tests__/` list in `tests.md`
 
 ## Step 6 — Report
