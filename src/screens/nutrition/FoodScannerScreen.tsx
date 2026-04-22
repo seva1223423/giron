@@ -93,6 +93,36 @@ async function loadRecentScans(): Promise<RecentScan[]> {
 // ─── Draft autosave (AsyncStorage) ───────────────────────────────────────────
 
 const DRAFT_KEY = 'iron_gym_scanner_draft';
+// Remembers the last meal type the user SAVED (not just browsed). Lets the
+// default pick be "what you last picked at this hour" instead of the blunt
+// time-of-day heuristic alone. Key is stored separately so wiping scanner
+// drafts (on save/cancel) doesn't erase this preference.
+const LAST_MEAL_TYPE_KEY = 'iron_gym_scanner_last_meal_type';
+// Keep only recent history (last 14 days) — so a 3-month-old "завтрак in
+// evening" choice doesn't override today's correct default.
+const LAST_MEAL_TYPE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+async function loadLastMealType(): Promise<{ type: 'breakfast' | 'lunch' | 'dinner' | 'snack'; savedAt: number; hour: number } | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_MEAL_TYPE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.type || typeof parsed.savedAt !== 'number') return null;
+    if (Date.now() - parsed.savedAt > LAST_MEAL_TYPE_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function saveLastMealType(type: 'breakfast' | 'lunch' | 'dinner' | 'snack'): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      LAST_MEAL_TYPE_KEY,
+      JSON.stringify({ type, savedAt: Date.now(), hour: new Date().getHours() }),
+    );
+  } catch { /* non-fatal */ }
+}
 
 async function loadDraft(): Promise<ScannerDraft | null> {
   try {
@@ -325,6 +355,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   useEffect(() => {
     loadRecentScans().then(setRecentScans);
+
+    // Hydrate mealType from the user's last-saved choice when it lines up
+    // with the current hour (within ±2h). Falls back to the time-of-day
+    // heuristic otherwise. Example: user normally breakfasts at 10am —
+    // opening the scanner at 10:30am will pre-select breakfast even if
+    // the heuristic would say lunch.
+    loadLastMealType().then((last) => {
+      if (!last) return;
+      const nowHour = new Date().getHours();
+      if (Math.abs(nowHour - last.hour) <= 2) {
+        setMealType(last.type);
+      }
+    });
 
     // Offer to restore an abandoned scan if the user was mid-editing when
     // they backgrounded / killed the app. Kept deliberately non-modal: an
@@ -904,6 +947,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     // Draft has served its purpose — clear before leaving to prevent the
     // next mount from offering to restore already-saved data.
     clearDraft().catch(() => {});
+    // Remember this meal-type choice for next time (±2h window) so the
+    // default matches the user's actual eating pattern, not just the clock.
+    saveLastMealType(mealType).catch(() => {});
     const calTarget = dayLog.targetCalories || 2000;
     const protTarget = dayLog.targetProtein || 150;
     const totalProteinSoFar = dayLog.meals.reduce((s, m) => s + m.totalProtein, 0) + totalProt;
