@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../../store';
 import { Card } from '../../../components';
@@ -38,7 +38,8 @@ interface Props {
 export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { activeWorkout, routines } = useWorkoutStore();
+  const { activeWorkout, routines, startWorkoutFromRoutine } = useWorkoutStore();
+  const [repeating, setRepeating] = useState(false);
   const routineName = workout.routineId ? routines.find((r) => r.id === workout.routineId)?.name : undefined;
 
   const exercises = workout.exercises ?? [];
@@ -48,8 +49,24 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
   exercises.forEach((ex: any) => (ex.exercise?.primaryMuscles ?? []).slice(0, 1).forEach((m: string) => muscleSet.add(m)));
   const muscles = Array.from(muscleSet).slice(0, 3);
 
-  const handleRepeat = () => {
+  const handleRepeat = async () => {
+    if (repeating) return;
     haptic.medium();
+    // If this workout came from a routine, start via the routine so progressive
+    // overload weights are applied. Fall back to copying the raw history exercises.
+    if (workout.routineId) {
+      setRepeating(true);
+      try {
+        const newWorkout = await startWorkoutFromRoutine(workout.routineId);
+        if (newWorkout) navigation.navigate('ActiveWorkout');
+      } catch {
+        haptic.error();
+        Alert.alert('Ошибка', 'Не удалось запустить рутину. Проверь соединение.');
+      } finally {
+        setRepeating(false);
+      }
+      return;
+    }
     const exercises: WorkoutExercise[] = (workout.exercises ?? []).map((we: any, index: number) => {
       const sets: WorkoutSet[] = (we.sets ?? []).map((s: any, i: number) => ({
         id: `set-${Date.now()}-${index}-${i}`, setNumber: i + 1, type: s.type, reps: s.reps, weight: s.weight, completed: false,
@@ -109,9 +126,15 @@ export const WorkoutCard: React.FC<Props> = ({ workout, isExpanded, onToggle, na
             {!activeWorkout && (
               <TouchableOpacity
                 onPress={handleRepeat}
-                style={[{ backgroundColor: colors.primary + '15', borderRadius: borderRadius.sm, paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.primary + '35' }]}
+                disabled={repeating}
+                style={[{ backgroundColor: colors.primary + '15', borderRadius: borderRadius.sm, paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.primary + '35', flexDirection: 'row', justifyContent: 'center', gap: spacing.xs }]}
               >
-                <Text style={[typography.captionMedium, { color: colors.primary }]}>Повторить тренировку</Text>
+                {repeating
+                  ? <ActivityIndicator size="small" color={colors.primary} />
+                  : <Text style={[typography.captionMedium, { color: colors.primary }]}>
+                      {workout.routineId ? '◈ Повторить с прогрессией' : 'Повторить тренировку'}
+                    </Text>
+                }
               </TouchableOpacity>
             )}
             {exercises.map((ex: any, ei: number) => {
