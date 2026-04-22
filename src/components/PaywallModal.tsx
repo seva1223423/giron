@@ -11,6 +11,7 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useThemeStore } from '../store';
 import { useSubscriptionStore, FREE_LIMITS } from '../store/useSubscriptionStore';
 import { useHaptic } from '../hooks/useHaptic';
+import { Icon, type IconName } from './Icon';
 import { typography } from '../theme';
 import { spacing, borderRadius } from '../theme/spacing';
 
@@ -34,25 +35,26 @@ const REASON_EYEBROW: Record<PaywallModalProps['reason'], string> = {
 };
 
 /** Value props shown in the feature list — matches the design's 4-row
- *  layout (spark / camera / dumbbell / chart icons with check on right). */
-const PRO_FEATURES: Array<{ icon: string; title: string; subtitle: string }> = [
+ *  layout with spark / camera / dumbbell / chart icons and a check on
+ *  the right. Icon names feed the shared Icon component. */
+const PRO_FEATURES: Array<{ icon: IconName; title: string; subtitle: string }> = [
   {
-    icon: '✦',
+    icon: 'spark',
     title: 'Безлимитный ИИ‑тренер',
     subtitle: `Было ${FREE_LIMITS.AI_MESSAGES_PER_DAY} сообщений в день`,
   },
   {
-    icon: '◫',
+    icon: 'camera',
     title: 'Сканер еды по фото',
     subtitle: 'Точный КБЖУ за 3 секунды',
   },
   {
-    icon: '◇',
+    icon: 'dumbbell',
     title: 'Все программы',
     subtitle: '50+ профессиональных',
   },
   {
-    icon: '◈',
+    icon: 'chart',
     title: 'Глубокая аналитика',
     subtitle: 'Тренды, PR, прогнозы',
   },
@@ -141,7 +143,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
           {/* Header row — logo/brand on left, close X on right */}
           <View style={styles.headerRow}>
             <View style={styles.brand}>
-              <Text style={[styles.brandGlyph, { color: colors.primary }]}>◈</Text>
+              <Icon name="logo" size={20} color={colors.primary} />
               <Text
                 style={{
                   color: colors.primary,
@@ -231,7 +233,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                     { backgroundColor: colors.primary + '18' },
                   ]}
                 >
-                  <Text style={{ color: colors.primary, fontSize: 16 }}>{f.icon}</Text>
+                  <Icon name={f.icon} size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
@@ -243,11 +245,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                     {f.subtitle}
                   </Text>
                 </View>
-                <Text
-                  style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}
-                >
-                  ✓
-                </Text>
+                <Icon name="check" size={16} color={colors.text} strokeWidth={2.4} />
               </View>
             ))}
           </View>
@@ -375,16 +373,9 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
             >
               {ctaTitle}
             </Text>
-            <Text
-              style={{
-                color: colors.textInverse,
-                fontSize: 18,
-                fontWeight: '700',
-                marginLeft: 8,
-              }}
-            >
-              →
-            </Text>
+            <View style={{ marginLeft: 8 }}>
+              <Icon name="arrow" size={18} color={colors.textInverse} strokeWidth={2.2} />
+            </View>
           </TouchableOpacity>
 
           <Text

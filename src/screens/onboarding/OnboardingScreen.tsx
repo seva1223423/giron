@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-nati
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useThemeStore, useAuthStore, useNutritionStore, useWorkoutStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { Button } from '../../components';
+import { Button, Icon } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { TrainingGoal, FitnessLevel, Gender } from '../../types';
@@ -134,7 +134,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
           inputs are blank). */}
       <View style={[styles.brandRow, { paddingTop: safeTop + spacing.sm }]}>
         <View style={styles.brand}>
-          <Text style={[styles.brandGlyph, { color: colors.primary }]}>◈</Text>
+          <Icon name="logo" size={22} color={colors.primary} />
           <Text
             style={{
               color: colors.primary,
@@ -200,7 +200,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
           title={step === TOTAL_STEPS - 1 ? 'Начать путь' : 'Далее'}
           variant="primary"
           size="lg"
-          iconRight={<Text style={{ color: colors.textInverse, fontSize: 18, fontWeight: '700' }}>→</Text>}
+          iconRight={<Icon name="arrow" size={18} color={colors.textInverse} strokeWidth={2.2} />}
           onPress={() => { if (step === TOTAL_STEPS - 1) handleFinish(); else setStep((s) => s + 1); }}
           disabled={!canNext()}
           fullWidth={step === 0}
