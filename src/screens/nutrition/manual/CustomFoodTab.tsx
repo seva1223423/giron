@@ -21,13 +21,18 @@ interface Props {
 export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
   const { colors } = useThemeStore();
 
-  const macroCal = useMemo(() => {
+  const macros = useMemo(() => {
     const p = Math.max(0, parseFloat(state.protein.replace(',', '.')) || 0);
     const f = Math.max(0, parseFloat(state.fats.replace(',', '.')) || 0);
     const c = Math.max(0, parseFloat(state.carbs.replace(',', '.')) || 0);
-    if (p + f + c === 0) return null;
-    return Math.round(p * 4 + f * 9 + c * 4);
+    const sumKcal = p * 4 + f * 9 + c * 4;
+    if (sumKcal < 1) return null;
+    const pctP = Math.round((p * 4 / sumKcal) * 100);
+    const pctF = Math.round((f * 9 / sumKcal) * 100);
+    const pctC = Math.max(0, 100 - pctP - pctF);
+    return { kcal: Math.round(sumKcal), pctP, pctF, pctC };
   }, [state.protein, state.fats, state.carbs]);
+  const macroCal = macros?.kcal ?? null;
 
   return (
     <Card>
@@ -42,16 +47,28 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
           placeholderTextColor={colors.inputPlaceholder}
         />
       </View>
-      {macroCal !== null && (
-        <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.sm }}
-          onPress={() => onChange('calories', String(macroCal))}
-        >
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-            Из макросов: {macroCal} ккал
-          </Text>
-          <Text style={[typography.caption, { color: colors.primary }]}>Подставить</Text>
-        </TouchableOpacity>
+      {macroCal !== null && macros && (
+        <View style={{ marginBottom: spacing.sm }}>
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
+            onPress={() => onChange('calories', String(macroCal))}
+            accessibilityLabel={`Подставить ${macroCal} калорий рассчитанных из макросов`}
+            accessibilityRole="button"
+          >
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              Из макросов: {macroCal} ккал
+            </Text>
+            <Text style={[typography.caption, { color: colors.primary }]}>Подставить</Text>
+          </TouchableOpacity>
+          {/* Live macro distribution preview — same stacked bar pattern used
+              in the scanner's totals card. Helps the user spot data-entry
+              issues at a glance (e.g. only protein typed → bar all purple). */}
+          <View style={[styles.macroBar, { backgroundColor: colors.border, marginTop: 6 }]}>
+            <View style={{ width: `${macros.pctP}%`, height: '100%', backgroundColor: colors.protein }} />
+            <View style={{ width: `${macros.pctF}%`, height: '100%', backgroundColor: colors.fats }} />
+            <View style={{ width: `${macros.pctC}%`, height: '100%', backgroundColor: colors.carbs }} />
+          </View>
+        </View>
       )}
       <View style={styles.row}>
         {([['calories', 'Калории', 'ккал'], ['protein', 'Белки', 'г']] as const).map(([field, label, unit]) => (
@@ -65,6 +82,7 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
               placeholder="0"
               placeholderTextColor={colors.inputPlaceholder}
               selectTextOnFocus
+              maxLength={6}
             />
           </View>
         ))}
@@ -81,6 +99,7 @@ export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
               placeholder="0"
               placeholderTextColor={colors.inputPlaceholder}
               selectTextOnFocus
+              maxLength={6}
             />
           </View>
         ))}
@@ -93,4 +112,5 @@ const styles = StyleSheet.create({
   input: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16 },
   row: { flexDirection: 'row', gap: spacing.md },
   macroInput: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.md, fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  macroBar: { height: 8, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' },
 });
