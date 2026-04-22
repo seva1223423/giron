@@ -23,6 +23,8 @@ import {
   parseServingGrams,
   defaultMealType,
   findSavedFoodMatch,
+  findDuplicateNames,
+  normalizeFoodName,
   buildBarcodeDisplayName,
   isDraftFresh,
   DRAFT_TTL_MS,
@@ -1466,19 +1468,91 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               </View>
             )}
 
-            <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.md }]}>Распознано:</Text>
-            {recognizedItems.map((item, idx) => (
-              <FadeIn key={item.id} delay={idx * 60} from="bottom">
-                <RecognizedItemCard
-                  item={item}
-                  base={itemBases[item.id]}
-                  onWeightChange={updateItemWeight}
-                  onRemove={removeItem}
-                  onRename={renameItem}
-                  typicalWeight={typicalPortionFor(typicalPortions, item.name)}
-                />
-              </FadeIn>
-            ))}
+            {/* Header row: "Распознано:" + per-state actions.
+                - Count pill so the user sees item count at a glance.
+                - "Очистить" clears the list in one shot when it got unwieldy
+                  (3+ items). Before that, per-item ✕ is faster. Undo stays
+                  available through the single-item lastRemoved row — we
+                  don't try to undo bulk clear (too much state to restore). */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <Text style={[typography.h4, { color: colors.text, flex: 1 }]}>Распознано:</Text>
+              {recognizedItems.length > 0 && (
+                <View style={{ paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: colors.primary + '18', marginRight: spacing.sm }}>
+                  <Text style={[typography.captionMedium, { color: colors.primary, fontSize: 11, fontWeight: '700' }]}>
+                    {recognizedItems.length}
+                  </Text>
+                </View>
+              )}
+              {recognizedItems.length >= 3 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    // Confirm because bulk-clear can't be undone and fingers
+                    // slip. Single-item delete does have undo (lastRemoved).
+                    Alert.alert(
+                      'Очистить список?',
+                      `Будут удалены все ${recognizedItems.length} позиций.`,
+                      [
+                        { text: 'Отмена', style: 'cancel' },
+                        {
+                          text: 'Очистить',
+                          style: 'destructive',
+                          onPress: () => {
+                            haptic.warning();
+                            setRecognizedItems([]);
+                            setItemBases({});
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={`Очистить все ${recognizedItems.length} распознанных позиций`}
+                  accessibilityHint="Список опустеет. Действие нельзя отменить."
+                  accessibilityRole="button"
+                >
+                  <Text style={[typography.captionMedium, { color: colors.error, fontWeight: '700' }]}>Очистить</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Compute duplicate set once per render (small N — at most 10ish
+                items, O(n)). Used both for the banner and the per-card flag. */}
+            {(() => {
+              const dups = findDuplicateNames(recognizedItems);
+              const dupLabel = Array.from(dups).slice(0, 3).join(', ');
+              const more = dups.size > 3 ? ` +${dups.size - 3}` : '';
+              return (
+                <>
+                  {/* Duplicate-name warning — flags accidental double-counting when
+                      multi-photo append or the AI returns two near-identical items.
+                      We show the count and let the user clean up manually (they
+                      may legitimately have two portions of the same food; we don't
+                      auto-merge). Comparison uses normalized name. */}
+                  {dups.size > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.warning + '15', borderWidth: 1, borderColor: colors.warning + '40', marginBottom: spacing.md }}>
+                      <Text style={{ fontSize: 16, marginRight: spacing.sm }}>⚠</Text>
+                      <Text style={[typography.small, { color: colors.warning, flex: 1 }]}>
+                        Дубликаты: {dupLabel}{more}. Проверь список — одинаковые позиции удвоят КБЖУ.
+                      </Text>
+                    </View>
+                  )}
+
+                  {recognizedItems.map((item, idx) => (
+                    <FadeIn key={item.id} delay={idx * 60} from="bottom">
+                      <RecognizedItemCard
+                        item={item}
+                        base={itemBases[item.id]}
+                        onWeightChange={updateItemWeight}
+                        onRemove={removeItem}
+                        onRename={renameItem}
+                        typicalWeight={typicalPortionFor(typicalPortions, item.name)}
+                        isDuplicate={dups.has(normalizeFoodName(item.name))}
+                      />
+                    </FadeIn>
+                  ))}
+                </>
+              );
+            })()}
 
             {/* Portion scaler — single input that resizes every item proportionally
                 to match the total plate/bowl weight. Useful when the AI got the

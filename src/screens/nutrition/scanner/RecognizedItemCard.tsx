@@ -18,6 +18,11 @@ interface Props {
    *  meals. When supplied AND sufficiently different from the AI's guess,
    *  a one-tap "Обычно: N г" hint appears. */
   typicalWeight?: number;
+  /** True when another item in the list shares this (normalized) name —
+   *  the parent computes the duplicate set with `findDuplicateNames`. We
+   *  add a subtle warning border + chip so the user can spot which two
+   *  cards are the duplicates without scanning every name. */
+  isDuplicate?: boolean;
 }
 
 const PORTION_PRESETS = [30, 50, 100, 150, 200, 300];
@@ -31,7 +36,7 @@ function confidenceBucket(conf: number | undefined): 'high' | 'medium' | 'low' {
   return 'low';
 }
 
-export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename, typicalWeight }) => {
+export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename, typicalWeight, isDuplicate }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
   const { saveFoodItem, savedFoods } = useNutritionStore();
@@ -124,7 +129,12 @@ export const RecognizedItemCard: React.FC<Props> = ({ item, base, onWeightChange
   const confColor = bucket === 'high' ? colors.success : bucket === 'medium' ? colors.warning : colors.error;
 
   return (
-    <Card style={{ marginBottom: spacing.md }}>
+    <Card style={[{ marginBottom: spacing.md }, isDuplicate && { borderWidth: 1, borderColor: colors.warning + '60' }]}>
+      {isDuplicate && (
+        <View style={{ alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: colors.warning + '20', borderWidth: 1, borderColor: colors.warning + '50', marginBottom: spacing.sm }}>
+          <Text style={{ color: colors.warning, fontSize: 10, fontWeight: '700' }}>ДУБЛИКАТ</Text>
+        </View>
+      )}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
         {/* Confidence dot — tap-target covers the icon so VO users still read name */}
         <View style={[styles.confDot, { backgroundColor: confColor }]} />

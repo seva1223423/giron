@@ -196,6 +196,29 @@ export function findSavedFoodMatch<T extends MatchableFood>(
   return savedFoods.find((f) => normalizeFoodName(f.name) === norm);
 }
 
+/**
+ * Return the set of *normalized* food names that appear 2+ times in a list.
+ *
+ * Used by the scanner screen to warn the user when the AI (or a multi-photo
+ * append) produced near-duplicates like "Яблоко" + "яблоко (100г)" — these
+ * would otherwise double-count into the totals. We compare by
+ * `normalizeFoodName` so "(100г)" suffixes and case differences don't hide
+ * the overlap. Empty/whitespace names are skipped.
+ */
+export function findDuplicateNames<T extends { name: string }>(items: T[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const key = normalizeFoodName(item.name);
+    if (!key) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const dups = new Set<string>();
+  for (const [key, count] of counts) {
+    if (count >= 2) dups.add(key);
+  }
+  return dups;
+}
+
 // ─── Meal-type default (time-of-day heuristic) ────────────────────────────────
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
