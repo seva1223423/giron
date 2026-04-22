@@ -6,11 +6,11 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { useHaptic } from '../../../hooks/useHaptic';
 import type { NutritionItem } from '../../../types';
-import { confidenceBucket } from '../../../utils/foodScanner';
+import { confidenceBucket, type MacroBase } from '../../../utils/foodScanner';
 
 interface Props {
   item: NutritionItem;
-  base: { cal: number; prot: number; fats: number; carbs: number } | undefined;
+  base: MacroBase | undefined;
   onWeightChange: (id: string, weight: string) => void;
   onRemove: (id: string) => void;
   /** Called with (id, newName) when the user commits a rename. */
