@@ -27,13 +27,14 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx tsc --noEmit
 ```
 src/
   screens/           — all screens by feature area
-  store/             — 14 Zustand stores (all persist via AsyncStorage)
+  store/             — 13 Zustand stores (all persist via AsyncStorage)
     index.ts         — re-exports all stores + FREE_LIMITS constant
   services/
     api.ts           — axios with JWT auto-refresh interceptor
     index.ts         — re-exports all services + getApiError
   components/        — Button, Card, Input, FadeIn, AnimatedPressable,
-                       ProgressRing, MacroBar, PaywallModal
+                       ProgressRing, MacroBar, PaywallModal,
+                       ErrorBoundary, SkeletonLoader, Tooltip
   navigation/
     AppNavigator.tsx — 3-tier: Auth → Onboarding → MainTabs (7 tabs)
   hooks/
@@ -47,6 +48,9 @@ src/
   types/index.ts     — all shared TS types
   utils/
     secureStorage.ts — tokenStorage wrapper for Expo SecureStore
+    date.ts          — todayDateStr, localDateStr, computeStreak, getPastDates, getMonday
+    startWorkoutSafe.ts — guards against overwriting active workout; shows Alert if active
+    achievements.ts  — computeAchievements(workoutHistory, nutritionDaysLogged, currentStreak)
 ```
 
 ## Screen Template
