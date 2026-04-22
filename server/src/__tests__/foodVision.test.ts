@@ -6,6 +6,10 @@
 import {
   parseFoodResponse,
   validateFoodItems,
+  flagSanity,
+  SANITY_MAX_KCAL_PER_100G,
+  SANITY_MAX_KCAL_PER_ITEM,
+  SANITY_MAX_TOTAL_KCAL,
   type FoodItem,
 } from '../utils/foodVision';
 
@@ -180,5 +184,50 @@ describe('validateFoodItems', () => {
       baseItem({ name: 'Огурец' }),
     ]);
     expect(out).toHaveLength(3);
+  });
+});
+
+// ─── flagSanity ───────────────────────────────────────────────────────────────
+
+describe('flagSanity', () => {
+  test('empty input → no flags', () => {
+    expect(flagSanity([])).toEqual([]);
+  });
+
+  test('normal meal → no flags', () => {
+    expect(flagSanity([
+      { calories: 350, weightGrams: 200 },
+      { calories: 180, weightGrams: 150 },
+    ])).toEqual([]);
+  });
+
+  test('too-high kcal/100g flagged', () => {
+    const flags = flagSanity([{ calories: 2000, weightGrams: 100 }]);
+    expect(flags).toContain('kcal_per_100g');
+  });
+
+  test('per-item ceiling flagged', () => {
+    expect(flagSanity([
+      { calories: SANITY_MAX_KCAL_PER_ITEM + 1, weightGrams: 1000 },
+    ])).toContain('kcal_per_item');
+  });
+
+  test('total over daily ceiling flagged', () => {
+    expect(flagSanity([
+      { calories: 2000, weightGrams: 500 },
+      { calories: 2000, weightGrams: 500 },
+      { calories: 2000, weightGrams: 500 },
+    ])).toContain('total_kcal');
+  });
+
+  test('zero-weight items skip per-100g check', () => {
+    const flags = flagSanity([{ calories: 5000, weightGrams: 0 }]);
+    expect(flags).not.toContain('kcal_per_100g');
+    expect(flags).toContain('kcal_per_item');
+  });
+
+  test('boundary values do not trigger', () => {
+    expect(flagSanity([{ calories: SANITY_MAX_KCAL_PER_100G, weightGrams: 100 }])).toEqual([]);
+    expect(flagSanity([{ calories: SANITY_MAX_KCAL_PER_ITEM, weightGrams: 1000 }])).toEqual([]);
   });
 });

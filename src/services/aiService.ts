@@ -15,6 +15,15 @@ export interface FoodAnalysisItem {
 
 export interface FoodAnalysisResult {
   items: FoodAnalysisItem[];
+  /** Server-side sanity check flags. Present on successful /analyze-food and
+   *  /analyze-food-text responses. Empty array means the response looks
+   *  physically plausible; otherwise each flag points at a specific concern. */
+  sanityFlags?: Array<'kcal_per_100g' | 'kcal_per_item' | 'total_kcal'>;
+  totalCalories?: number;
+  totalProtein?: number;
+  totalFats?: number;
+  totalCarbs?: number;
+  confidence?: number | null;
 }
 
 export interface AIActionResult {

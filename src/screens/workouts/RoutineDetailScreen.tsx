@@ -213,6 +213,32 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     }
   }, [renameValue, routine, updateRoutineName, haptic]);
 
+  // Shared helper — takes a new ordered exercise list, sends to server optimistically
+  const saveExerciseOrder = useCallback(async (newExercises: typeof routine extends undefined ? never : NonNullable<typeof routine>['exercises']) => {
+    if (!routine) return;
+    setSavingEdit(true);
+    const snapshot = routine;
+    replaceRoutine({ ...routine, exercises: newExercises.map((ex, i) => ({ ...ex, order: i })) });
+    try {
+      const payload = newExercises.map((ex, i) => ({
+        exerciseId: ex.exerciseId,
+        order: i,
+        restSeconds: ex.restSeconds,
+        notes: ex.notes,
+        sets: ex.sets.map((s) => ({ setNumber: s.setNumber, type: s.type as string, reps: s.reps, weight: s.weight, rpe: s.rpe })),
+      }));
+      const saved = await workoutService.updateRoutine(routine.id, { name: routine.name, description: routine.description, exercises: payload });
+      replaceRoutine(saved);
+      haptic.success();
+    } catch {
+      replaceRoutine(snapshot);
+      haptic.error();
+      Alert.alert('Ошибка', 'Не удалось сохранить. Проверь соединение.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [routine, haptic, replaceRoutine]);
+
   const handleRemoveExercise = useCallback(async (exerciseIndex: number) => {
     if (!routine) return;
     if (routine.exercises.length <= 1) {
@@ -220,40 +246,33 @@ export const RoutineDetailScreen: React.FC<{ route: any; navigation: any }> = ({
       return;
     }
     haptic.medium();
-    setSavingEdit(true);
-    const snapshot = routine; // keep for rollback
-    const updatedExercises = routine.exercises
-      .filter((_, i) => i !== exerciseIndex)
-      .map((ex, i) => ({
-        exerciseId: ex.exerciseId,
-        order: i,
-        restSeconds: ex.restSeconds,
-        notes: ex.notes,
-        sets: ex.sets.map((s) => ({ setNumber: s.setNumber, type: s.type as string, reps: s.reps, weight: s.weight, rpe: s.rpe })),
-      }));
-    // Optimistic update — remove exercise from store immediately
-    replaceRoutine({ ...routine, exercises: routine.exercises.filter((_, i) => i !== exerciseIndex).map((ex, i) => ({ ...ex, order: i })) });
-    try {
-      const saved = await workoutService.updateRoutine(routine.id, { name: routine.name, description: routine.description, exercises: updatedExercises });
-      replaceRoutine(saved); // set authoritative server data
-      haptic.success();
-    } catch {
-      replaceRoutine(snapshot); // rollback on failure
-      haptic.error();
-      Alert.alert('Ошибка', 'Не удалось сохранить. Проверь соединение.');
-    } finally {
-      setSavingEdit(false);
-    }
-  }, [routine, haptic, updateRoutineName, fetchRoutines]);
+    await saveExerciseOrder(routine.exercises.filter((_, i) => i !== exerciseIndex));
+  }, [routine, haptic, saveExerciseOrder]);
+
+  const handleMoveExercise = useCallback(async (fromIndex: number, direction: 'up' | 'down') => {
+    if (!routine) return;
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= routine.exercises.length) return;
+    haptic.selection();
+    const reordered = [...routine.exercises];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    await saveExerciseOrder(reordered);
+  }, [routine, haptic, saveExerciseOrder]);
 
   const handleDuplicate = useCallback(async () => {
     if (!routine) return;
     haptic.medium();
-    const copy = await duplicateRoutine(routine.id);
-    if (copy) {
-      haptic.success();
-      Alert.alert('Скопировано', `«${copy.name}» добавлена в список рутин.`);
-    } else {
+    try {
+      const copy = await duplicateRoutine(routine.id);
+      if (copy) {
+        haptic.success();
+        Alert.alert('Скопировано', `«${copy.name}» добавлена в список рутин.`);
+      } else {
+        Alert.alert('Ошибка', 'Не удалось скопировать. Проверь соединение.');
+      }
+    } catch {
+      haptic.error();
       Alert.alert('Ошибка', 'Не удалось скопировать. Проверь соединение.');
     }
   }, [routine, duplicateRoutine, haptic]);
