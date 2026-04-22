@@ -87,11 +87,12 @@ app.use(express.json({
   verify: (req, _res, buf) => { (req as any).rawBody = buf.toString(); },
 }));
 
-// Health check — includes DB ping so Render marks unhealthy when DB is unreachable
+// Health check — DB ping returns 503 when unreachable (used by Render health check URL)
 app.get('/health', async (_, res) => {
+  const t0 = Date.now();
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: 'ok', db: 'connected' });
+    res.json({ status: 'ok', db: 'connected', dbLatencyMs: Date.now() - t0 });
   } catch {
     // Return 503 so Render/load-balancer knows service is unhealthy
     res.status(503).json({ status: 'error', db: 'unreachable' });
