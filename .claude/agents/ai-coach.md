@@ -277,3 +277,11 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx tsc --noEmit
 4. Setting `cacheable: true` for intents that use live data → stale responses
 5. Memory patterns with greedy regex → false positives permanently stored
 6. Forgetting to add intent to `UserIntent` type → TypeScript error in switch statements
+
+## See Also (Cross-Agent Coordination)
+
+- **New AI tool that writes to DB** → also spawn `database` agent to verify no missing index on the model being written to, and `security` agent to check userId scoping (tool executor must always scope writes to `userId`, never trust tool args for ownership).
+- **Analytics context queries (~180)** → also flagged by `monitoring` (no timeout alerting) and `performance` (N+1 pattern, though concurrent). Fix: cache `buildAnalyticsContext` per-user with a short TTL (e.g. 60s), or make it lazy per-intent. Coordinate with `performance` agent.
+- **AI rate limit (60 req/min, per-IP only)** → `security` agent flags this: attacker with multiple accounts same IP bypasses it. Coordinate with `backend` agent to add per-userId rate limit Map in the route handler.
+- **Knowledge modules (currently 25, cap ~35)** → adding modules past the cap degrades TF-IDF selection accuracy. If a knowledge gap is identified that needs a new module, also spawn `performance` to verify scoring stays under 10ms per message.
+- **cacheable: true for a new intent** → also check `monitoring` (cached responses should log 'CACHE HIT' at INFO level). Coordinate: `monitoring` agent flags missing cache hit logging; ai-coach agent implements the log line.
