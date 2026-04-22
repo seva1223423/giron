@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore } from '../../../store';
@@ -31,7 +31,11 @@ interface Props {
 export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
   const { colors } = useThemeStore();
-  const { activeWorkout, savedTemplates, deleteTemplate } = useWorkoutStore();
+  const { activeWorkout, savedTemplates, deleteTemplate, routines, fetchRoutines } = useWorkoutStore();
+
+  useEffect(() => {
+    if (routines.length === 0) fetchRoutines().catch(() => {});
+  }, []);
 
   const createWorkoutFromTemplate = (template: typeof QUICK_WORKOUTS[0]) => {
     haptic.medium();
@@ -68,6 +72,41 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
               {activeWorkout.workout.name}
             </Text>
           </Card>
+        </FadeIn>
+      )}
+
+      {routines.length > 0 && (
+        <FadeIn delay={30}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+            <Text style={[typography.h4, { color: colors.text, flex: 1 }]}>Мои рутины</Text>
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); navigation.navigate('Routines'); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={[typography.caption, { color: colors.primary }]}>Все →</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.sm }}
+            style={{ marginBottom: spacing.xl }}
+          >
+            {routines.slice(0, 5).map((routine, i) => (
+              <FadeIn key={routine.id} delay={i * 60}>
+                <TouchableOpacity
+                  onPress={() => { haptic.selection(); navigation.navigate('RoutineDetail', { routineId: routine.id }); }}
+                  style={[styles.routineCard, { backgroundColor: colors.card, borderColor: colors.primary + '40' }]}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◈</Text>
+                  </View>
+                  <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.xs }]} numberOfLines={2}>{routine.name}</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>{routine.exercises.length} упр.</Text>
+                </TouchableOpacity>
+              </FadeIn>
+            ))}
+          </ScrollView>
         </FadeIn>
       )}
 
@@ -150,6 +189,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.xl,
     borderWidth: 1,
+    alignItems: 'center',
+  },
+  routineCard: {
+    width: 140,
+    padding: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
     alignItems: 'center',
   },
 });
