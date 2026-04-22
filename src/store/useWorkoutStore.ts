@@ -54,6 +54,7 @@ interface WorkoutStore {
   addRoutine: (routine: Routine) => void;
   removeRoutine: (id: string) => Promise<void>;
   updateRoutineName: (id: string, name: string, description?: string | null) => Promise<void>;
+  replaceRoutine: (routine: Routine) => void;
   duplicateRoutine: (id: string) => Promise<Routine | null>;
   startWorkoutFromRoutine: (routineId: string, preloadedPayload?: import('../types').RoutineStartPayload) => Promise<Workout | null>;
 
@@ -233,6 +234,12 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       addRoutine: (routine) => set((s) => ({ routines: [routine, ...s.routines] })),
+
+      // Replace a single routine in-place (full object including exercises).
+      // Used for optimistic updates after exercise add/remove via PUT.
+      replaceRoutine: (routine) => set((s) => ({
+        routines: s.routines.map((r) => r.id === routine.id ? routine : r),
+      })),
 
       updateRoutineName: async (id, name, description) => {
         const prev = get().routines.find((r) => r.id === id);

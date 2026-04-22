@@ -260,7 +260,16 @@ cd server && npx prisma generate && npx prisma db push
 ```
 
 Key models and their @@index patterns already set:
-- `Workout`: `@@index([userId])`, `@@index([userId, completedAt])`
+- `Workout`: `@@index([userId])`, `@@index([userId, completedAt])`, `@@index([routineId])`
 - `RefreshToken`: `@@index([userId, revoked, expiresAt])`
 - `OtpCode`: 4 composite indexes (phone/email × purpose/validity)
 - All user-scoped models have `@@index([userId])`
+
+## See Also (Cross-Agent Coordination)
+
+- **New route needs new schema** → spawn `database` agent to add models/fields/indexes. `backend` agent implements the route; `database` agent owns schema changes.
+- **New route with subscription gate** → use `/premium-feature` command for the full 5-layer checklist. `backend` agent implements server gate (`getSubStatus`); `frontend` agent implements the client PaywallModal.
+- **Rate limiting on new endpoint** → check existing limiters in `index.ts` first (`userRateLimiter` covers most routes at 200/min). Only add a dedicated limiter if the endpoint is high-cost (AI, file upload, email send). Coordinate with `security` agent if the endpoint is sensitive.
+- **Admin route** → `compliance` agent: every admin mutation needs an `AdminLog` write in `$transaction`. `security` agent: needs `requireAdmin` middleware. `monitoring` agent: needs alerting if log write fails.
+- **Tests for new route** → spawn `tests` agent after route is implemented. Provide the route path, HTTP method, and expected status codes. `tests` agent writes the test file in `server/src/__tests__/`.
+- **P2003 / FK violation in a route** → check if the parent record exists before insert, or catch P2003 and return 400. For `routineId` FK on Workout — use graceful fallback (retry with routineId: null) since the routine could be deleted between /start and /sync.
