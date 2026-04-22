@@ -45,7 +45,7 @@ ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" | wc -l
 
 **Check test counts (client suites and server suites):**
 ```bash
-# Client test suites (expected: 26 suites, ~470 tests)
+# Client test suites (expected: 27 suites, ~489 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\src\__tests__\" | wc -l
 
 # Server test suites (expected: 19 suites, ~410 tests)
