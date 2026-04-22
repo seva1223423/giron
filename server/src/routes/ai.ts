@@ -81352,6 +81352,121 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
   }
 });
 
+// Parse a free-text meal description into structured FoodItems.
+//
+// Complements /analyze-food: when the photo path fails (low light, non-food
+// object, AI times out) or when the user is in a situation where a photo
+// isn't practical (dark restaurant, already eaten, remembered meal), they
+// can type what they ate and get the same item-list response shape.
+//
+// Same quota, same cache, same validator as the vision endpoint — the only
+// differences are (a) the input is text not base64, (b) we call `generate`
+// with a text-only prompt instead of `analyzeImage`.
+router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = z.object({
+      description: z.string().min(3, 'Описание слишком короткое').max(2000, 'Описание слишком длинное'),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
+    const { description } = parsed.data;
+
+    const userId = req.userId!;
+
+    // Cross-device cache by (userId, normalized-text). Same pattern as the
+    // vision cache: same input → same answer, no extra Mistral call.
+    const normalizedText = description.toLowerCase().replace(/\s+/g, ' ').trim();
+    const cacheKey = `${userId}:text:${normalizedText}`;
+    const cachedResponse = foodVisionCache.get(cacheKey);
+    if (cachedResponse) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cachedResponse);
+    }
+
+    // Shares the same daily-quota pool as /analyze-food — a text parse still
+    // costs an AI call, and letting users bypass their limit via this route
+    // would be trivially gameable.
+    const scanTodayFloor = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+    const [userSub, scanTodayCount] = await Promise.all([
+      prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
+      prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
+    ]);
+    const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
+    if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
+      return res.status(402).json({
+        error: 'Достигнут дневной лимит анализа еды (5/день) для бесплатного плана. Оформите подписку для неограниченного доступа.',
+        code: 'SCAN_DAILY_LIMIT_EXCEEDED',
+      });
+    }
+
+    const prompt = `Ты — нутрициолог. Распарси описание еды и верни КБЖУ СТРОГО в JSON.
+
+ОПИСАНИЕ: ${description}
+
+ПРАВИЛА:
+1. Выдели отдельные продукты/блюда из текста. Например "курица 150г и рис 200г" → 2 позиции.
+2. Если вес указан — используй его. Если не указан — используй стандартный: ломтик хлеба 25г, яблоко 180г, кусок пиццы 120г, банан 120г, стакан молока 250мл, чайная ложка масла 5г, столовая ложка 15г, ладонь мяса 100г.
+3. Используй среднероссийские КБЖУ таблиц Скурихина.
+4. Способ приготовления влияет на калории: жареное +20–50% к отварному.
+5. Если описание не про еду (пустое, бессмысленное, про другое) — верни {"items": [], "notFood": true}.
+6. confidence:
+   • 0.9–1.0 — точный вес + знакомое блюдо
+   • 0.7–0.89 — блюдо чёткое, вес прикинут
+   • 0.5–0.69 — размытое описание
+
+Ответь СТРОГО JSON:
+{
+  "items": [
+    {"name": "Куриная грудка", "weightGrams": 150, "calories": 248, "protein": 46, "fats": 5, "carbs": 0, "confidence": 0.95}
+  ]
+}`;
+
+    const text = await generate(prompt, { temperature: 0.3, maxTokens: 800 });
+    const items = parseFoodResponse(text);
+
+    const isNotFood = (() => {
+      try {
+        const raw = JSON.parse(text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim());
+        return raw.notFood === true;
+      } catch { return false; }
+    })();
+
+    if (!items || items.length === 0) {
+      return res.status(422).json({
+        error: isNotFood ? 'Не похоже на еду' : 'Не удалось распознать продукты',
+        suggestion: 'Попробуй описать конкретнее: "150г куриной грудки и 200г варёного риса"',
+        retryable: true,
+      });
+    }
+
+    const validated = validateFoodItems(items);
+    if (validated.length === 0) {
+      return res.status(422).json({
+        error: 'Продукты найдены, но данные получились некорректные',
+        suggestion: 'Попробуй переформулировать.',
+        retryable: true,
+      });
+    }
+
+    prisma.foodScanLog.create({ data: { userId } }).catch((e) => logger.error('[FoodScanText] Failed to log quota:', e));
+
+    const totalCalories = Math.round(validated.reduce((s, i) => s + i.calories, 0));
+    const totalProtein = Math.round(validated.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const totalFats = Math.round(validated.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const totalCarbs = Math.round(validated.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
+    const avgConfidence = validated.some((i) => i.confidence != null)
+      ? Math.round(validated.reduce((s, i) => s + (i.confidence ?? 0.8), 0) / validated.length * 100) / 100
+      : null;
+
+    const responsePayload = { items: validated, totalCalories, totalProtein, totalFats, totalCarbs, confidence: avgConfidence };
+    foodVisionCache.set(cacheKey, responsePayload, 24 * 60 * 60 * 1000);
+    res.setHeader('X-Cache', 'MISS');
+    return res.json(responsePayload);
+  } catch (e) {
+    logger.error('Food text analysis error:', e);
+    res.status(500).json({ error: 'Ошибка анализа описания', retryable: true });
+  }
+});
+
 // Get chat history — paginated
 router.get('/history', authenticate, async (req: AuthRequest, res: Response) => {
   try {
