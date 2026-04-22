@@ -131,8 +131,9 @@ export const ExampleScreen: React.FC<{ navigation: any; route: any }> = ({ navig
         ))
       )}
 
+      {/* reason: "feature" | "ai_limit" | "food_scan_limit" | "programs_limit" | "history_limit" | "leaderboard" */}
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)}
-                    reason="feature_name" navigation={navigation} />
+                    reason="feature" navigation={navigation} />
     </ScrollView>
   );
 };

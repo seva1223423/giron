@@ -43,6 +43,17 @@ grep "模型\|models\|модел" "C:\Users\sevka\Desktop\1223\work\iron-gym\CLA
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" | wc -l
 ```
 
+**Check test counts (client suites and server suites):**
+```bash
+# Client test suites (expected: 25 suites, ~442 tests)
+ls "C:\Users\sevka\Desktop\1223\work\iron-gym\src\__tests__\" | wc -l
+
+# Server test suites (expected: 11 suites, ~263 tests)
+ls "C:\Users\sevka\Desktop\1223\work\iron-gym\server\src\__tests__\" | grep "\.test\.ts$" | wc -l
+```
+
+Compare counts against what CLAUDE.md and `.claude/agents/tests.md` document. Flag if actual file count differs from documented suite count.
+
 **Check ALL agents for stale paths:**
 ```bash
 grep -rn "Projects/iron-gym\|sevka/Projects" "C:\Users\sevka\Desktop\1223\work\iron-gym\.claude\agents\" 2>/dev/null
@@ -64,6 +75,8 @@ MEMORY SYNC REPORT:
     - Model count in CLAUDE.md: [X in CLAUDE.md, Y in schema.prisma — DRIFT / MATCH]
     - Agent count: [X agents found]
     - docs.md stale path: [FOUND at line X / CLEAN]
+    - Client test suites: [X actual vs Y in CLAUDE.md — MATCH / DRIFT]
+    - Server test suites: [X actual vs Y in CLAUDE.md — MATCH / DRIFT]
 ```
 
 ### 5. Fix stale facts

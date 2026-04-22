@@ -33,7 +33,7 @@ RESULT:
 1. AI analytics context: `buildAnalyticsContext(userId)` — ~180 parallel DB queries per AI message
 2. Leaderboard SQL: 4-CTE query touching all Workout+WorkoutSet for active users
 3. TF-IDF knowledge selection: O(n) score across all 25 modules per AI message
-4. Exercise list: `take: 500` hardcoded, returns full `instructions[]` array
+4. ~~Exercise list: `take: 500` hardcoded, returns full `instructions[]` array~~ — RESOLVED: `GET /exercises` now uses `EXERCISE_LIST_SELECT` (strips `instructions[]`, `description`, `videoUrl`, `imageUrl`). Payload reduced ~70%.
 
 ## Audit Checklist
 

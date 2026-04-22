@@ -331,10 +331,11 @@ export const FeatureScreen: React.FC<{ navigation: any; route: any }> = ({ navig
       )}
 
       {/* Paywall modal — must be in JSX or it never shows */}
+      {/* reason values: "feature" | "ai_limit" | "food_scan_limit" | "programs_limit" | "history_limit" | "leaderboard" */}
       <PaywallModal
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
-        reason="feature_name"
+        reason="feature"
         navigation={navigation}
       />
     </ScrollView>

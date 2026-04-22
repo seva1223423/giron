@@ -27,7 +27,9 @@ RESULT:
 
 **Client:** Expo EAS Build + OTA updates. Target: RuStore + potentially Google Play.
 
-**CI:** GitHub Actions — `.github/workflows/server-tests.yml` is the gate for PRs.
+**CI:** GitHub Actions — two workflow gates:
+- `.github/workflows/server-tests.yml` — server TypeScript + 11 Jest suites (~263 tests)
+- `.github/workflows/client-tests.yml` — client TypeScript + 25 Jest suites (~442 tests)
 
 **Schema sync:** `npx prisma db push` — NO migration files, schema is source of truth.
 
@@ -96,20 +98,25 @@ Flag: Render uses health check URL to determine if deploy succeeded. If no `/hea
 
 Expected: `GET /health` → `200 OK` with `{ status: 'ok', db: 'connected' }` (verify DB ping).
 
-### 5. CI Gate (server-tests.yml)
+### 5. CI Gates (server-tests.yml + client-tests.yml)
 
 ```bash
 cat .github/workflows/server-tests.yml
+cat .github/workflows/client-tests.yml
 ```
 
-Verify:
-- Tests actually run (`npm test` in `server/`)
+**Server CI verify:**
+- Tests run (`npm test` in `server/`)
 - DB connection in test env uses test DB (not production Neon)
 - `prisma generate` runs before tests
-- Test coverage gate (if any)
 - Node version matches Render's Node version
 
-Flag: if CI uses a different Node version than Render, tests may pass locally but fail in prod.
+**Client CI verify:**
+- TypeScript check runs (`npx tsc --noEmit`)
+- Client Jest tests run (`npm test`)
+- Triggers on `src/**` and `package.json` changes
+
+Flag: if either workflow uses a different Node version than Render, tests may pass locally but fail in prod.
 
 ### 6. EAS Build Config
 
@@ -182,6 +189,6 @@ Flag any deviation from this order in recent commits.
 
 - **Schema drift (prisma db push not run)** → `data-integrity` agent also flags orphaned records when schema and DB are out of sync. `compliance` agent flags it as a data residency risk if the wrong DB URL is used. After schema changes: verify `npx prisma db push` ran with PROD `DATABASE_URL` before deploying server code that writes the new field.
 - **Health endpoint depth (shallow check)** → `monitoring` agent also flags this. Coordinate: monitoring flags what to measure; deployment agent verifies the `/health` route returns `503` when DB is unreachable (not just `200 { status: 'ok' }`).
-- **CI gate (server-tests.yml)** → also checked by `release-prep` command (Section 2). If CI is broken, release-prep will catch it. Coordinate: deployment verifies CI config is correct; release-prep runs the gate before a deploy.
+- **CI gates (server-tests.yml + client-tests.yml)** → also checked by `release-prep` command (Section 2). If CI is broken, release-prep will catch it. Coordinate: deployment verifies CI config is correct; release-prep runs both gate tests before a deploy.
 - **EAS build client URL** → if `EXPO_PUBLIC_API_URL` isn't set, client silently calls `localhost:3001` in production. Also a `frontend` concern: `src/services/api.ts` uses this env var. Coordinate: deployment flags the gap; frontend agent fixes the fallback.
 - **Node.js version mismatch** → if `engines.node` in `server/package.json` differs from the Node version in CI (`.github/workflows/server-tests.yml`) or Render dashboard, tests pass but prod fails. Deployment agent checks this; `tests` agent can verify locally.

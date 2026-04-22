@@ -1,0 +1,49 @@
+name: Client Tests
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'babel.config.js'
+      - '.github/workflows/client-tests.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'babel.config.js'
+      - '.github/workflows/client-tests.yml'
+
+jobs:
+  test:
+    name: Jest (Node 22)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Run store unit tests
+        # 25 suites (~442 tests). All use mocked AsyncStorage + mocked services.
+        # No device or Expo runtime needed — jest-expo preset handles RN mocking.
+        run: npm test -- --no-coverage --forceExit
+        env:
+          NODE_ENV: test

@@ -19,11 +19,17 @@ grep -rn "getSubStatus\|subscription\|isPremium\|premium" C:/Users/sevka/Desktop
 
 Expected pattern:
 ```typescript
-const sub = await prisma.subscription.findFirst({
-  where: { userId: req.userId!, status: 'active' },
-});
-if (!sub) return res.status(402).json({ error: 'Требуется подписка' });
+import { getSubStatus } from '../utils/subscriptionCheck';
+
+const sub = await getSubStatus(req.userId!);
+// sub = { isPro: bool, isTrainer: bool, isClub: bool }
+// getSubStatus checks: (status === 'active' || status === 'cancelled') && endDate > now
+if (!sub.isPro) {
+  return res.status(402).json({ error: 'Требуется подписка Pro', code: 'SUBSCRIPTION_REQUIRED' });
+}
 ```
+
+**Why `getSubStatus` not `findFirst`:** `findFirst({ status: 'active' })` misses cancelled subscriptions that are still within their paid period. `getSubStatus` handles both correctly.
 
 **Flag if:** server returns data/action result without checking subscription.
 
@@ -108,7 +114,7 @@ Missing layers to implement:
 
 If layers are missing, implement in this order (never skip one):
 
-1. **Server first** — add Prisma subscription check before the feature logic
+1. **Server first** — call `getSubStatus(req.userId!)` and return 402 if not `isPro` (see Layer 1 pattern above)
 2. **Test the 402** — write a server integration test that hits the endpoint without subscription
 3. **Store check** — verify `isPremiumActive()` covers this plan tier
 4. **Client gate** — add `if (!isPremiumActive()) { setShowPaywall(true); return; }` before action
