@@ -60,7 +60,7 @@ Expected: 25 knowledge modules. Also check `ai-coach.md` documents the same coun
 # Client test suites (expected: 29 suites, ~566 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\src\__tests__\" | wc -l
 
-# Server test suites (expected: 20 suites, ~700 tests)
+# Server test suites (expected: 20 suites, ~719 tests)
 ls "C:\Users\sevka\Desktop\1223\work\iron-gym\server\src\__tests__\" | grep "\.test\.ts$" | wc -l
 ```
 
