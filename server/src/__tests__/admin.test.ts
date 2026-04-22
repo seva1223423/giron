@@ -41,6 +41,21 @@ jest.mock('../db', () => ({
     trustedDevice: {
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
+    workout: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    announcement: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+    supportTicket: {
+      create: jest.fn().mockResolvedValue({}),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -84,11 +99,50 @@ const adminUser = { id: 'u-admin', isBanned: false, lockedUntil: null, role: 'AD
 const regularUser = { id: 'u-regular', isBanned: false, lockedUntil: null, role: 'USER' };
 
 const TARGET_ID = 'ctarget000000000000001';
+const ANN_ID = 'cannounce0000000000001';
+
+const sampleAnnouncement = {
+  id: ANN_ID,
+  title: 'Тестовое объявление',
+  body: 'Тело объявления',
+  type: 'info',
+  isActive: true,
+  endsAt: null,
+  targetRole: null,
+  authorId: 'u-admin',
+  viewCount: 0,
+  createdAt: new Date().toISOString(),
+};
+
+const sampleTargetUser = {
+  id: TARGET_ID,
+  email: 'target@example.com',
+  firstName: 'Ivan',
+  lastName: 'Petrov',
+  role: 'CLIENT',
+  isBanned: false,
+  lockedUntil: null,
+  // strip these in route
+  passwordHash: 'secret-hash',
+  totpSecret: null,
+  totpBackupCodes: null,
+  subscription: null,
+  _count: { workouts: 5, meals: 20, chatMessages: 3, cardioSessions: 0, supportTickets: 1 },
+  workouts: [],
+  supportTickets: [],
+  chatMessages: [],
+  cardioSessions: [],
+  bodyWeights: [],
+  sleepEntries: [],
+  aiMemories: [],
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   (prisma.user.findUnique as jest.Mock).mockResolvedValue(adminUser);
   (prisma.adminLog.create as jest.Mock).mockResolvedValue({});
+  (prisma.workout.findFirst as jest.Mock).mockResolvedValue(null);
+  (prisma.workout.findMany as jest.Mock).mockResolvedValue([]);
 });
 
 // ─── Auth gating — all admin endpoints require ADMIN role ─────────────────────
@@ -351,5 +405,273 @@ describe('POST /api/admin/users/:id/unlock', () => {
     expect(res.status).toBe(200);
     expect(res.body.loginAttempts).toBe(0);
     expect(res.body.lockedUntil).toBeNull();
+  });
+});
+
+// ─── GET /api/admin/users/:id ─────────────────────────────────────────────────
+
+describe('GET /api/admin/users/:id', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get(`/api/admin/users/${TARGET_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('404 when user does not exist', async () => {
+    // authenticate call returns adminUser; the second findUnique (user detail) returns null
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(adminUser) // authenticate
+      .mockResolvedValueOnce(null);     // GET /users/:id detail query
+
+    const res = await request(app)
+      .get(`/api/admin/users/${TARGET_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('200 returns user without passwordHash / totpSecret', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(adminUser)      // authenticate
+      .mockResolvedValueOnce(sampleTargetUser); // detail query
+
+    const res = await request(app)
+      .get(`/api/admin/users/${TARGET_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(TARGET_ID);
+    expect(res.body.passwordHash).toBeUndefined();
+    expect(res.body.totpSecret).toBeUndefined();
+    expect(res.body).toHaveProperty('_count');
+  });
+});
+
+// ─── PATCH /api/admin/users/:id/subscription ─────────────────────────────────
+
+describe('PATCH /api/admin/users/:id/subscription', () => {
+  it('401 without token', async () => {
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .send({ plan: 'pro' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .patch('/api/admin/users/not-a-cuid/subscription')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ plan: 'pro' });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when plan is not a valid enum value', async () => {
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ plan: 'premium' }); // invalid — not in enum
+    expect(res.status).toBe(400);
+  });
+
+  it('200 upserts subscription and logs action', async () => {
+    const mockSub = { id: 'sub-1', userId: TARGET_ID, plan: 'pro', status: 'active', endDate: null };
+    (prisma.subscription.upsert as jest.Mock).mockResolvedValueOnce(mockSub);
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ plan: 'pro' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.plan).toBe('pro');
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    expect(logCalls.length).toBeGreaterThan(0);
+    expect(logCalls[0][0].data.action).toBe('CHANGE_SUBSCRIPTION');
+    expect(logCalls[0][0].data.adminId).toBe('u-admin');
+  });
+});
+
+// ─── DELETE /api/admin/users/:id ─────────────────────────────────────────────
+
+describe('DELETE /api/admin/users/:id', () => {
+  it('401 without token', async () => {
+    const res = await request(app).delete(`/api/admin/users/${TARGET_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when admin tries to delete their own account', async () => {
+    // Use a CUID-format ID so the route regex matches; self-delete guard is checked inside
+    const selfId = 'cadmin00000000000000001';
+    const selfUser = { id: selfId, isBanned: false, lockedUntil: null, role: 'ADMIN' };
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(selfUser);
+
+    const res = await request(app)
+      .delete(`/api/admin/users/${selfId}`)
+      .set('Authorization', `Bearer ${makeToken(selfId, 'ADMIN')}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when user does not exist (Prisma NotFound)', async () => {
+    const notFound = new Error('NotFoundError') as any;
+    notFound.code = 'P2025';
+    (prisma.user.update as jest.Mock).mockRejectedValueOnce(notFound);
+
+    const res = await request(app)
+      .delete(`/api/admin/users/${TARGET_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('200 anonymizes user data and logs DELETE_USER action', async () => {
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({ id: TARGET_ID, email: 'deleted@deleted.invalid' });
+
+    const res = await request(app)
+      .delete(`/api/admin/users/${TARGET_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    expect(updateCalls[0][0].data.email).toMatch(/^deleted_\d+@deleted\.invalid$/);
+    expect(updateCalls[0][0].data.isBanned).toBe(true);
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    expect(logCalls[0][0].data.action).toBe('DELETE_USER');
+  });
+});
+
+// ─── Announcements CRUD ────────────────────────────────────────────────────────
+
+describe('GET /api/admin/announcements', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/announcements');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns announcements list', async () => {
+    (prisma.announcement.findMany as jest.Mock).mockResolvedValueOnce([sampleAnnouncement]);
+
+    const res = await request(app)
+      .get('/api/admin/announcements')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].title).toBe('Тестовое объявление');
+  });
+});
+
+describe('POST /api/admin/announcements', () => {
+  it('401 without token', async () => {
+    const res = await request(app)
+      .post('/api/admin/announcements')
+      .send({ title: 'Test', body: 'Body' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when title is empty', async () => {
+    const res = await request(app)
+      .post('/api/admin/announcements')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ title: '', body: 'Body' });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when body is missing', async () => {
+    const res = await request(app)
+      .post('/api/admin/announcements')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ title: 'Test' });
+    expect(res.status).toBe(400);
+  });
+
+  it('201 creates announcement with authorId from JWT', async () => {
+    (prisma.announcement.create as jest.Mock).mockResolvedValueOnce(sampleAnnouncement);
+
+    const res = await request(app)
+      .post('/api/admin/announcements')
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ title: 'Тестовое объявление', body: 'Тело объявления' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe(ANN_ID);
+
+    const createCalls = (prisma.announcement.create as jest.Mock).mock.calls;
+    expect(createCalls[0][0].data.authorId).toBe('u-admin');
+  });
+});
+
+describe('PATCH /api/admin/announcements/:id', () => {
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .patch('/api/admin/announcements/bad-id')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ isActive: false });
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when announcement does not exist', async () => {
+    const notFound = new Error('NotFoundError') as any;
+    notFound.code = 'P2025';
+    (prisma.announcement.update as jest.Mock).mockRejectedValueOnce(notFound);
+
+    const res = await request(app)
+      .patch(`/api/admin/announcements/${ANN_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ isActive: false });
+    expect(res.status).toBe(404);
+  });
+
+  it('200 deactivates announcement', async () => {
+    const updated = { ...sampleAnnouncement, isActive: false };
+    (prisma.announcement.update as jest.Mock).mockResolvedValueOnce(updated);
+
+    const res = await request(app)
+      .patch(`/api/admin/announcements/${ANN_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ isActive: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.isActive).toBe(false);
+  });
+});
+
+describe('DELETE /api/admin/announcements/:id', () => {
+  it('401 without token', async () => {
+    const res = await request(app).delete(`/api/admin/announcements/${ANN_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .delete('/api/admin/announcements/bad-id')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when announcement does not exist', async () => {
+    const notFound = new Error('NotFoundError') as any;
+    notFound.code = 'P2025';
+    (prisma.announcement.delete as jest.Mock).mockRejectedValueOnce(notFound);
+
+    const res = await request(app)
+      .delete(`/api/admin/announcements/${ANN_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('200 deletes and logs DELETE_ANNOUNCEMENT action', async () => {
+    (prisma.announcement.delete as jest.Mock).mockResolvedValueOnce(sampleAnnouncement);
+
+    const res = await request(app)
+      .delete(`/api/admin/announcements/${ANN_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    expect(logCalls[0][0].data.action).toBe('DELETE_ANNOUNCEMENT');
+    expect(logCalls[0][0].data.adminId).toBe('u-admin');
   });
 });
