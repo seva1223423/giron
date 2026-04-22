@@ -18,7 +18,7 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 662 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 19 suites, 676 tests)
   cardio.test.ts                — GET/POST/DELETE cardio sessions; type enum validation, all Zod boundary conditions, IDOR isolation (22 tests)
   nutrition.test.ts             — POST/GET/PATCH/DELETE meals; macro calc, IDOR isolation, ownership checks (23 tests)
   trainer.test.ts               — GET/POST/DELETE/PATCH trainer clients+sessions; requireTrainerRole, sub access, IDOR isolation (37 tests)
