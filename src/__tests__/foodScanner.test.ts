@@ -443,6 +443,35 @@ describe('mergeDuplicateItems', () => {
     expect(result.mergedCount).toBe(0);
     expect(result.items).toHaveLength(3);
   });
+
+  test('merge promotes kept item confidence to group max', () => {
+    const items = [
+      { ...itemFactory('a', 'Рис', 100), confidence: 0.4 },
+      { ...itemFactory('b', 'рис', 200), confidence: 0.95 },
+    ];
+    const bases = {
+      a: { cal: 130, prot: 2.7, fats: 0.3, carbs: 28 },
+      b: { cal: 130, prot: 2.7, fats: 0.3, carbs: 28 },
+    };
+    const result = mergeDuplicateItems(items, bases);
+    expect(result.items).toHaveLength(1);
+    // Kept item had conf 0.4; merged item had 0.95 — result should be 0.95
+    // so the confidence dot flips from red to green after merging.
+    expect(result.items[0].confidence).toBe(0.95);
+  });
+
+  test('merge keeps kept confidence when kept is higher', () => {
+    const items = [
+      { ...itemFactory('a', 'Рис', 100), confidence: 0.9 },
+      { ...itemFactory('b', 'рис', 200), confidence: 0.4 },
+    ];
+    const bases = {
+      a: { cal: 130, prot: 2.7, fats: 0.3, carbs: 28 },
+      b: { cal: 130, prot: 2.7, fats: 0.3, carbs: 28 },
+    };
+    const result = mergeDuplicateItems(items, bases);
+    expect(result.items[0].confidence).toBe(0.9);
+  });
 });
 
 // ─── buildBarcodeDisplayName ──────────────────────────────────────────────────
