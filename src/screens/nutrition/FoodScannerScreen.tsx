@@ -1799,21 +1799,46 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         {/* Recognized items */}
         {recognizedItems.length > 0 && (
           <>
-            {/* Meal type selector — haptic feedback + a11y labels + tab role
-                so VO announces "Selected" for the active one. */}
-            <View style={styles.mealTypeRow} accessibilityRole="tablist">
-              {MEAL_TYPES.map((mt) => (
-                <TouchableOpacity
-                  key={mt.key}
-                  onPress={() => { haptic.selection(); setMealType(mt.key); }}
-                  style={[styles.mealTypeBtn, { backgroundColor: mealType === mt.key ? colors.primary : colors.surface, borderColor: mealType === mt.key ? colors.primary : colors.border }]}
-                  accessibilityLabel={`Тип приёма: ${mt.label.toLowerCase()}`}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: mealType === mt.key }}
-                >
-                  <Text style={[typography.captionMedium, { color: mealType === mt.key ? '#FFF' : colors.text }]}>{mt.label}</Text>
-                </TouchableOpacity>
-              ))}
+            {/* Meal type selector — Direction A scanner design uses a 2×2
+                tile grid instead of a flat button row. Active tile flips
+                to the gold+primary chipBg tint and keeps dark text so it
+                reads on the subtle gold fill. Tablist role + selected
+                state survive for VO accessibility. */}
+            <View
+              style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.lg }}
+              accessibilityRole="tablist"
+            >
+              {MEAL_TYPES.map((mt) => {
+                const active = mealType === mt.key;
+                return (
+                  <TouchableOpacity
+                    key={mt.key}
+                    onPress={() => { haptic.selection(); setMealType(mt.key); }}
+                    style={{
+                      flexGrow: 1,
+                      flexBasis: '48%',
+                      padding: 12,
+                      borderRadius: 12,
+                      backgroundColor: active ? colors.primary + '18' : colors.surface,
+                      borderWidth: 1,
+                      borderColor: active ? colors.primary : colors.border,
+                    }}
+                    accessibilityLabel={`Тип приёма: ${mt.label.toLowerCase()}`}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '600',
+                        color: active ? colors.primary : colors.text,
+                      }}
+                    >
+                      {mt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Barcode source hint */}
