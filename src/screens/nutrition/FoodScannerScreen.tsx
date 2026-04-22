@@ -2018,6 +2018,31 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               Например: «гречка 150г с курицей 200г и салатом из помидоров». Укажи
               примерный вес — так точнее.
             </Text>
+            {/* Quick-start chips — tap to replace the input with a template
+                that shows the expected format (weight + product, comma-joined).
+                Only shown when the field is empty so we don't clobber user
+                typing mid-edit. */}
+            {textDescription.length === 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+                {[
+                  'Овсянка 60г с бананом и 200мл молока',
+                  'Гречка 150г, курица 200г, салат',
+                  'Яблоко, творог 150г, кофе с молоком',
+                ].map((tmpl) => (
+                  <TouchableOpacity
+                    key={tmpl}
+                    onPress={() => { haptic.selection(); setTextDescription(tmpl); }}
+                    style={{ paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}
+                    accessibilityLabel={`Вставить шаблон: ${tmpl}`}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {tmpl.length > 32 ? tmpl.slice(0, 30) + '…' : tmpl}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             <TextInput
               value={textDescription}
               onChangeText={setTextDescription}
