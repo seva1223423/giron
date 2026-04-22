@@ -103,6 +103,10 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
         onChangeText={setSearchQuery}
         placeholder="Найти продукт..."
         placeholderTextColor={colors.inputPlaceholder}
+        accessibilityLabel="Поиск продукта в базе"
+        autoCorrect={false}
+        returnKeyType="search"
+        clearButtonMode="while-editing"
       />
 
       {filteredFoods.length === 0 && searchQuery.trim().length > 0 ? (
@@ -149,7 +153,7 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
               </Text>
             </TouchableOpacity>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm }}>
             <Text style={[typography.body, { color: colors.text }]}>Порция:</Text>
             <TextInput
               style={[styles.weightInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
@@ -157,8 +161,32 @@ export const FoodSearchTab: React.FC<Props> = ({ selectedFood, onSelectFood, wei
               onChangeText={onWeightChange}
               keyboardType="numeric"
               selectTextOnFocus
+              maxLength={5}
+              accessibilityLabel={`Вес порции в граммах, текущий ${weightGrams}`}
             />
             <Text style={[typography.body, { color: colors.textSecondary }]}>г</Text>
+          </View>
+          {/* One-tap portion presets — same pattern as in scanner's
+              RecognizedItemCard so users get the same shortcuts everywhere
+              they pick weight. */}
+          <View style={{ flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap', marginBottom: spacing.md }}>
+            {[30, 50, 100, 150, 200, 300].map((g) => {
+              const isActive = parseInt(weightGrams, 10) === g;
+              return (
+                <TouchableOpacity
+                  key={g}
+                  onPress={() => { haptic.selection(); onWeightChange(String(g)); }}
+                  style={[styles.portionPreset, {
+                    backgroundColor: isActive ? colors.primary : colors.inputBackground,
+                    borderColor: isActive ? colors.primary : colors.border,
+                  }]}
+                  accessibilityLabel={`${g} грамм`}
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: isActive ? '#FFF' : colors.textSecondary }}>{g}г</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {computedNutrition && (
             <View style={{ flexDirection: 'row', justifyContent: 'space-around', flexWrap: 'wrap' }}>
@@ -186,4 +214,5 @@ const styles = StyleSheet.create({
   weightInput: { width: 80, height: 40, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.md, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   recentChip: { borderRadius: borderRadius.lg, borderWidth: 1.5, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, alignItems: 'center', minWidth: 110, maxWidth: 150 },
   saveBtn: { borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  portionPreset: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm, borderWidth: 1 },
 });
