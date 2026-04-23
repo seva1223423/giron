@@ -9,6 +9,8 @@ import { recordAIRequest } from '../utils/aiMetrics';
 import { foodVisionCache } from '../utils/memCache';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
 import { sanitizeInput } from '../utils/inputSanitizer';
+import { detectInjection } from '../utils/promptInjectionDetector';
+import { reportError } from '../utils/errorReporter';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -2820,6 +2822,32 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     const todayDate = clientDate ?? new Date().toISOString().split('T')[0];
 
     const userId = req.userId!;
+
+    // Prompt-injection monitoring (MEGA-AI-04). Advisory only — we do NOT
+    // block the request. The real defense is the server-side tool layer
+    // (every action uses req.userId, never a userId from message content —
+    // see BUG-AI-001 in ai_security.test.ts). This flag feeds Sentry so
+    // operators can review actual attack traffic over time and tighten
+    // individual patterns per severity if needed.
+    try {
+      const detection = detectInjection(message);
+      if (detection.highestSeverity === 'high') {
+        reportError(new Error(`Prompt injection attempt: ${detection.patterns.map((p) => p.id).join(',')}`), {
+          userId,
+          route: 'POST /ai/chat',
+          tags: {
+            origin: 'prompt-injection',
+            severity: detection.highestSeverity,
+          },
+          extra: {
+            patterns: detection.patterns,
+            messagePreview: message.slice(0, 200),
+          },
+        });
+      }
+    } catch {
+      // Detector is best-effort — never let it block the real request.
+    }
 
     // ── Server-side daily message quota ──────────────────────────────────────
     // Rate limit check BEFORE SSE headers — once headers are flushed we can't send 402 JSON.
