@@ -1,0 +1,50 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'package-lock.json'
+      - 'server/package-lock.json'
+      - '.github/workflows/security-audit.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'package-lock.json'
+      - 'server/package-lock.json'
+      - '.github/workflows/security-audit.yml'
+  # Weekly scan catches newly-disclosed CVEs in existing dependencies —
+  # npm audit runs against the current advisory database, not the lockfile
+  # state at the time of commit.
+  schedule:
+    - cron: '0 7 * * 1'  # Every Monday 07:00 UTC
+
+concurrency:
+  group: security-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Audit client (production only)
+        # We ship the client code to stores. Dev-only dependencies (jest, babel,
+        # tsc) never leave the CI machine — their CVEs are not exploitable
+        # against real users, so we only fail on runtime deps.
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: false
+
+      - name: Audit server (production only)
+        working-directory: server
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: false
