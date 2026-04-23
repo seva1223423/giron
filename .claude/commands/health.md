@@ -23,7 +23,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npm test -- --forceExit 2
 # Expected: 20 suites, ~719 tests
 
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && npm test -- --forceExit 2>&1 | tail -5
-# Expected: 70 suites, ~1675 tests
+# Expected: 71 suites, ~1701 tests
 ```
 
 **BLOCKER** if any failures.
