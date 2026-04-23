@@ -15,6 +15,15 @@ export interface TrainerClient {
   notes?: string;
   phone?: string;
   emoji?: string;
+
+  // Invite linkage (Product-01) — populated by the server when the client
+  // accepts the trainer's invite code. `inviteCode` is nulled by the trainer
+  // on disconnect; `acceptedAt` remains for audit trail until a new invite
+  // overwrites it.
+  inviteCode?: string | null;
+  invitedAt?: string | null;   // ISO date
+  acceptedAt?: string | null;  // ISO date — presence = linked-to-real-user
+  clientUserId?: string | null;
 }
 
 export interface TrainerWorkoutSession {
@@ -41,6 +50,15 @@ interface TrainerStore {
   logWorkoutSession: (session: Omit<TrainerWorkoutSession, 'id'>) => Promise<void>;
   removeWorkoutSession: (id: string) => Promise<void>;
   getClientSessions: (clientId: string) => TrainerWorkoutSession[];
+
+  // Invite linkage (Product-01). `generateInvite` / `disconnectLink` are
+  // trainer-side actions; `acceptInvite` is called from the *client's*
+  // account — it doesn't mutate this store's roster but does return the
+  // trainerClientId for UI confirmation and observability.
+  generateInvite: (clientId: string) => Promise<{ code: string } | null>;
+  acceptInvite: (code: string) => Promise<{ trainerClientId: string; trainerId: string; displayName: string } | { error: string; code?: string }>;
+  disconnectLink: (clientId: string) => Promise<void>;
+
   clearUserData: () => void;
 }
 
@@ -176,6 +194,69 @@ export const useTrainerStore = create<TrainerStore>()(
         return get().sessions
           .filter((s) => s.clientId === clientId)
           .sort((a, b) => b.date.localeCompare(a.date));
+      },
+
+      generateInvite: async (clientId) => {
+        try {
+          const { code } = await trainerService.generateInvite(clientId);
+          // Optimistically patch the local row so the trainer sees the code
+          // immediately without a refetch. Server will eventually re-emit
+          // the same value on next fetchClients.
+          set((s) => ({
+            clients: s.clients.map((c) =>
+              c.id === clientId ? { ...c, inviteCode: code, invitedAt: new Date().toISOString() } : c
+            ),
+          }));
+          return { code };
+        } catch {
+          return null;
+        }
+      },
+
+      acceptInvite: async (code) => {
+        try {
+          const res = await trainerService.acceptInvite(code);
+          return {
+            trainerClientId: res.trainerClientId,
+            trainerId: res.trainerId,
+            displayName: res.displayName,
+          };
+        } catch (err: any) {
+          // Surface server error codes to the UI so it can render a friendly
+          // localized message (INVITE_NOT_FOUND vs INVITE_ALREADY_USED vs
+          // SELF_INVITE vs ALREADY_CLIENT). Fallback to generic on timeout.
+          const serverCode: string | undefined = err?.response?.data?.code;
+          const serverError: string | undefined = err?.response?.data?.error;
+          return {
+            error: serverError ?? 'Не удалось принять приглашение',
+            code: serverCode,
+          };
+        }
+      },
+
+      disconnectLink: async (clientId) => {
+        const prev = get().clients.find((c) => c.id === clientId);
+        // Optimistic clear so the trainer UI flips immediately.
+        set((s) => ({
+          clients: s.clients.map((c) =>
+            c.id === clientId
+              ? { ...c, inviteCode: null, invitedAt: null, acceptedAt: null, clientUserId: null }
+              : c
+          ),
+        }));
+
+        try {
+          await trainerService.disconnectClient(clientId);
+        } catch {
+          // Roll back on server failure so the UI doesn't lie. If another
+          // mutation landed concurrently, only this slot is rolled back —
+          // we don't replay the entire array snapshot.
+          if (prev) {
+            set((s) => ({
+              clients: s.clients.map((c) => (c.id === clientId ? prev : c)),
+            }));
+          }
+        }
       },
 
       clearUserData: () => set({ clients: [], sessions: [], isLoading: false }),

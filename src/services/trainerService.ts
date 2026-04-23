@@ -52,4 +52,34 @@ export const trainerService = {
   async deleteSession(id: string): Promise<void> {
     await api.delete(`/trainer/sessions/${id}`);
   },
+
+  // ── Invite linkage (Product-01) ───────────────────────────────────────────
+  // B2B Dashboard Phase 1 — trainer → real user bridge. See
+  // server/src/routes/trainer.ts for the error-code taxonomy.
+
+  /** Generate a 10-char invite code for this roster slot. Trainer shares it
+   *  out-of-band (Telegram, SMS) and the client pastes it in their app. */
+  async generateInvite(clientId: string): Promise<{ code: string }> {
+    const { data } = await api.post(`/trainer/clients/${clientId}/invite`);
+    return { code: data.code };
+  },
+
+  /** Accept an invite code as the current authenticated user. Links the
+   *  caller to the trainer's roster slot. Works for any authenticated user,
+   *  not gated on TRAINER role. */
+  async acceptInvite(code: string): Promise<{
+    success: boolean;
+    trainerClientId: string;
+    trainerId: string;
+    displayName: string;
+  }> {
+    const { data } = await api.post('/trainer/accept-invite', { code });
+    return data;
+  },
+
+  /** Disconnect a linked client. Row stays (preserves notes / sessions
+   *  history) but clientUserId is cleared so a new invite can be issued. */
+  async disconnectClient(clientId: string): Promise<void> {
+    await api.delete(`/trainer/clients/${clientId}/link`);
+  },
 };
