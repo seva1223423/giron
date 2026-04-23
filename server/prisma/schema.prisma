@@ -67,7 +67,11 @@ model User {
   savedNews               SavedNews[]
   subscription            Subscription?
   aiMemories              AIMemory[]
-  trainerClients          TrainerClient[]
+  trainerClients          TrainerClient[] @relation("TrainerOwnsClient")
+  // Clients-side relation: when this user accepts a trainer invite, the
+  // TrainerClient row points back here. A single user can be linked to
+  // multiple trainers (history + switching), but at most once per trainer.
+  trainerLinks            TrainerClient[] @relation("ClientIsUser")
   cardioSessions          CardioSession[]
   supportTickets          SupportTicket[]  @relation("UserTickets")
   assignedTickets         SupportTicket[]  @relation("StaffTickets")
@@ -400,13 +404,30 @@ model TrainerClient {
   lastVisit       String?   // YYYY-MM-DD
 
   trainerId       String
-  trainer         User              @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  trainer         User              @relation("TrainerOwnsClient", fields: [trainerId], references: [id], onDelete: Cascade)
   sessions        TrainerSession[]
+
+  // ── Invite linkage (B2B Dashboard Phase 1) ────────────────────────────────
+  // A trainer invites a real Iron Gym user by generating a random code. The
+  // code is shared out-of-band (Telegram, SMS, email). When the client enters
+  // it in their app, clientUserId is populated and acceptedAt stamped — from
+  // that point on the trainer can see the user's workouts / progress (subject
+  // to the client's privacy toggle — TODO: add User.shareProgressWithTrainer
+  // when we wire the consent UI).
+  inviteCode      String?  @unique
+  invitedAt       DateTime?
+  acceptedAt      DateTime?
+  clientUserId    String?
+  clientUser      User?             @relation("ClientIsUser", fields: [clientUserId], references: [id], onDelete: SetNull)
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([trainerId])
+  @@index([clientUserId])
+  // One trainer cannot link the same user twice — prevents duplicate roster
+  // rows if a trainer accidentally sends two invite codes to the same client.
+  @@unique([trainerId, clientUserId])
 }
 
 model TrainerSession {
