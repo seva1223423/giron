@@ -8,6 +8,7 @@ import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
 import { foodVisionCache } from '../utils/memCache';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
+import { sanitizeInput } from '../utils/inputSanitizer';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
 import {
   TRAINING_PRINCIPLES,
@@ -2764,7 +2765,14 @@ async function executeTool(
 }
 
 const chatRequestSchema = z.object({
-  message: z.string().min(1, 'Сообщение обязательно').max(4000, 'Сообщение слишком длинное (макс. 4000 символов)'),
+  // Sanitize BEFORE length check so an attacker can't pad past the 4000 cap
+  // with zero-width chars. The sanitizer strips control + bidi + format chars
+  // (classic prompt-injection vectors — see utils/inputSanitizer.ts) and
+  // normalizes NFC. Empty-after-sanitize strings fall through to the min(1)
+  // rule on the same field.
+  message: z.string()
+    .transform((s) => sanitizeInput(s, { maxLength: 4000 }))
+    .pipe(z.string().min(1, 'Сообщение обязательно').max(4000, 'Сообщение слишком длинное (макс. 4000 символов)')),
   stream: z.boolean().optional(),
   clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // client's local YYYY-MM-DD date
   clientHour: z.number().int().min(0).max(23).optional(), // client's local hour (0-23) for time-aware hints
