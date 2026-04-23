@@ -9,6 +9,7 @@ on:
       - 'package-lock.json'
       - 'tsconfig.json'
       - 'babel.config.js'
+      - 'jest.config.js'
       - '.github/workflows/client-tests.yml'
   pull_request:
     branches: [master, main]
@@ -18,12 +19,21 @@ on:
       - 'package-lock.json'
       - 'tsconfig.json'
       - 'babel.config.js'
+      - 'jest.config.js'
       - '.github/workflows/client-tests.yml'
+
+# If a newer push lands on the same branch, cancel the in-flight run. Without
+# this, rapid back-to-back commits burn CI minutes on stale revisions and
+# serialize unnecessarily on solo-founder velocity.
+concurrency:
+  group: client-tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     name: Jest (Node 22)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -41,8 +51,8 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
-      - name: Run store unit tests
-        # 29 suites (~512 tests). All use mocked AsyncStorage + mocked services.
+      - name: Run client tests
+        # 79+ suites (~1996 tests). All use mocked AsyncStorage + mocked services.
         # No device or Expo runtime needed — jest-expo preset handles RN mocking.
         run: npm test -- --no-coverage --forceExit
         env:

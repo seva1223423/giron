@@ -12,10 +12,15 @@ on:
       - 'server/**'
       - '.github/workflows/server-tests.yml'
 
+concurrency:
+  group: server-tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    name: Jest (Node 22)
+    name: Jest + Prod Build (Node 22)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     defaults:
       run:
@@ -51,3 +56,11 @@ jobs:
         run: npm test -- --no-coverage --forceExit
         env:
           NODE_ENV: test
+
+      - name: Production build
+        # Catches prod-only issues that tsc --noEmit misses: missing output file
+        # imports, circular deps that break at runtime, declaration merge edge
+        # cases. Cheap (~30s) and saves the next Render deploy from a 500 loop.
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy
