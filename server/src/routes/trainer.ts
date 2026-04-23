@@ -227,6 +227,12 @@ router.delete('/sessions/:id', authenticate, requireTrainerRole as any, async (r
 // it in their own app to link accounts. This is the foundation for every
 // richer B2B feature (shared progress, assigned programs, coach chat).
 
+/** Codes older than this at accept-time are refused. 7 days balances client
+ *  convenience (vacation-length window) vs "I forgot I sent it 3 months
+ *  ago" stale-invite risk. Server-side check uses invitedAt timestamp so
+ *  no cron job is needed — codes naturally invalidate. */
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** Generate a 10-char code: 6 chars alphabet (no O/0/I/1 confusion) +
  *  4 numeric. Short enough to dictate verbally, entropy ~10^13 so
  *  collision on UNIQUE retry is negligible at our scale. */
@@ -314,11 +320,17 @@ router.post('/accept-invite', authenticate, async (req: AuthRequest, res: Respon
     const { code } = parsed.data;
     const client = await prisma.trainerClient.findUnique({
       where: { inviteCode: code },
-      select: { id: true, trainerId: true, clientUserId: true, acceptedAt: true, name: true },
+      select: { id: true, trainerId: true, clientUserId: true, acceptedAt: true, name: true, invitedAt: true },
     });
     if (!client) return res.status(404).json({ error: 'Код не найден или больше не действителен', code: 'INVITE_NOT_FOUND' });
     if (client.acceptedAt || client.clientUserId) {
       return res.status(409).json({ error: 'Этот код уже был использован', code: 'INVITE_ALREADY_USED' });
+    }
+    // Expiry check — deliberately no DB TTL because Postgres cron extensions
+    // aren't portable across Neon / Yandex / Render. Lazy check at
+    // accept-time is free and sufficient.
+    if (client.invitedAt && Date.now() - client.invitedAt.getTime() > INVITE_TTL_MS) {
+      return res.status(410).json({ error: 'Срок действия кода истёк. Попроси тренера сгенерировать новый.', code: 'INVITE_EXPIRED' });
     }
 
     // Refuse self-invite: a trainer cannot become their own client. Would

@@ -309,6 +309,48 @@ describe('POST /trainer/accept-invite', () => {
     expect(res.status).toBe(401);
   });
 
+  test('410 INVITE_EXPIRED when code older than 7 days', async () => {
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    (prisma.trainerClient.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: CLIENT_ROW_ID,
+      trainerId: 'u-trainer',
+      clientUserId: null,
+      acceptedAt: null,
+      name: 'Ivan Petrov',
+      invitedAt: tenDaysAgo,
+    });
+
+    const res = await request(app)
+      .post('/api/trainer/accept-invite')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`)
+      .send({ code: VALID_CODE });
+
+    expect(res.status).toBe(410);
+    expect(res.body.code).toBe('INVITE_EXPIRED');
+  });
+
+  test('accepts code generated just now (edge of TTL window)', async () => {
+    // 6-day-old code should still work — TTL is 7 days exactly.
+    const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+    (prisma.trainerClient.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: CLIENT_ROW_ID,
+      trainerId: 'u-trainer',
+      clientUserId: null,
+      acceptedAt: null,
+      name: 'Ivan Petrov',
+      invitedAt: sixDaysAgo,
+    });
+    (prisma.trainerClient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.trainerClient.update as jest.Mock).mockResolvedValueOnce({});
+
+    const res = await request(app)
+      .post('/api/trainer/accept-invite')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`)
+      .send({ code: VALID_CODE });
+
+    expect(res.status).toBe(200);
+  });
+
   test('non-trainer users CAN accept (no trainer role required)', async () => {
     // The whole point: a regular user must be able to link themselves to a
     // trainer. The endpoint is auth'd but not gated on TRAINER role.
