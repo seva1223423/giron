@@ -438,6 +438,11 @@ model NewsArticle {
   savedBy     SavedNews[]
 
   @@index([title]) // dedup lookup in newsRefreshService: findFirst({ where: { title } })
+  // News feed is the most-hit read endpoint after auth. Without this,
+  // orderBy { publishedAt: 'desc' } forces a full table sort on every
+  // request — with the RSS refresher adding ~40 rows every 6h this scales
+  // linearly and shows up in pg_stat_statements as top-5 cost within weeks.
+  @@index([publishedAt])
 }
 
 model SavedNews {
@@ -454,7 +459,7 @@ model SavedNews {
 // ==================== SUBSCRIPTION ====================
 model Subscription {
   id         String   @id @default(cuid())
-  plan       String   // free, pro, trainer, club
+  plan       String   // free, pro, trainer, club, lifetime
   status     String   // active, cancelled, expired
   startDate  DateTime
   endDate    DateTime?
@@ -463,6 +468,12 @@ model Subscription {
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  // Composite for admin cron jobs that scan expiring subscriptions daily:
+  // where { status: 'active', endDate: { gte: now, lt: rangeEnd } }. Without
+  // this, admin.ts hits a full table scan + filter + sort — on a table that
+  // grows linearly with user count, this is a future P0 at scale.
+  @@index([status, endDate])
 }
 
 
