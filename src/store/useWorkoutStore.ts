@@ -113,14 +113,34 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       setWeekPlanDay: (dow, entry) => {
         if (!Number.isInteger(dow) || dow < 0 || dow > 6) return;
-        const prevEntry = get().weekPlan[dow];
-        set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: entry } }));
-        const updated = { ...get().weekPlan, [dow]: entry };
-        userService.saveWeekPlan(updated).catch(() => {
-          // Rollback only if the slot still holds *our* optimistic value. A newer
-          // edit may have replaced it while we were in flight — don't clobber that.
+        const state = get();
+        const prevEntry = state.weekPlan[dow];
+
+        // Dedupe — reference-equal entry means the UI fired the same object twice
+        // (common from memoized props / effects). Nothing to save, nothing to
+        // roll back. Skipping here also prevents a subtle double-save race:
+        // if save #1 fails *after* save #2 already succeeded, both in-flight
+        // rollbacks would otherwise fight over the slot.
+        if (prevEntry === entry) return;
+
+        // Build the updated plan once and reuse it for both the local write
+        // and the server payload — prevents TOCTOU between `set()` and `get()`.
+        const updated = { ...state.weekPlan, [dow]: entry };
+        set({ weekPlan: updated });
+
+        userService.saveWeekPlan(updated).catch((err) => {
+          // Rollback only if the slot still holds *our* optimistic value. A
+          // newer edit may have replaced it while we were in flight — that
+          // edit owns its own rollback; don't clobber it with our stale prev.
           if (get().weekPlan[dow] !== entry) return;
           set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: prevEntry } }));
+          // Log so Sentry (once integrated — Tech-05) surfaces persistent
+          // save failures — otherwise rollbacks are invisible to the user.
+          // eslint-disable-next-line no-console
+          console.warn('[useWorkoutStore] setWeekPlanDay save failed, rolled back', {
+            dow,
+            error: String(err),
+          });
         });
       },
 
