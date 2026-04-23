@@ -42,18 +42,20 @@ server/src/__tests__/           — server integration tests (Jest + Supertest, 
   __mocks__/
     expo-server-sdk.ts          — mock for push notification SDK
 
-src/__tests__/                  — client store unit tests (Jest, 29 suites, 566 tests)
+src/__tests__/                  — client tests (Jest, 70 suites, 1675 tests)
+
+  — Store unit tests —
   workoutStore.test.ts          — 100+ tests: PR detection, superset, history merge
-  workoutBugs.test.ts           — regression tests for known workout store bugs; clientId dedup, FIFO pending sync
+  workoutBugs.test.ts           — regression: clientId dedup, FIFO pending sync
   nutritionStore.test.ts        — meal CRUD, cleanup, merge with server data
-  nutritionBugs.test.ts         — regression tests for known nutrition bugs; no-duplicate on sync, offline-delete limitation
+  nutritionBugs.test.ts         — regression: no-duplicate on sync, offline-delete limitation
   authStore.test.ts             — login flows, token persistence
   subscriptionStore.test.ts     — free limit consumption and reset
   routinesStore.test.ts         — routine CRUD, startWorkoutFromRoutine, progressive overload
   cardioStore.test.ts           — addSession (server + offline fallback + 4xx rethrow), removeSession, getWeekSessions, sync (15 tests)
-  cardioStoreBugs.test.ts       — regression tests for cardio store edge cases
+  cardioStoreBugs.test.ts       — regression: cardio store edge cases
   sleepStore.test.ts            — sleep entry CRUD and duration computation
-  sleepStoreBugs.test.ts        — regression tests for sleep store
+  sleepStoreBugs.test.ts        — regression: sleep store
   settingsStore.test.ts         — rest timer, units, notification preferences
   themeStore.test.ts            — light/dark theme switching
   trainerStore.test.ts          — trainer-client CRUD with paywall gating
@@ -62,6 +64,8 @@ src/__tests__/                  — client store unit tests (Jest, 29 suites, 56
   onboardingTipsStore.test.ts   — markShown idempotency, hasShown, resetAll (8 tests)
   connectionStore.test.ts       — online/offline state transitions
   stressTests.test.ts           — bulk operations, large history, edge cases
+
+  — Pure logic / utilities —
   1rm.test.ts                   — Epley/Brzycki/Lander/O'Conner formula accuracy
   achievements.test.ts          — achievement unlock conditions
   date.test.ts                  — computeStreak (13 tests incl. today-forgiving semantics), localDateStr, getPastDates
@@ -69,9 +73,48 @@ src/__tests__/                  — client store unit tests (Jest, 29 suites, 56
   foodScanner.test.ts           — barcode scan, food analysis, scan count gating
   commaDecimal.test.ts          — Russian decimal input (comma → dot conversion)
   progressRing.test.ts          — ProgressRing SVG arc math
-  gender.test.ts                — normalizeGender/isMale/isFemale: UPPERCASE server enum → lowercase, null/undefined handling (22 tests)
-  macros.test.ts                — Mifflin-St Jeor BMR, TDEE, full macro pipeline, floor guards, constant table invariants (24 tests)
-  plates.test.ts                — calculatePlates greedy algorithm, weight reconstruction, PLATE_SIZES invariants (17 tests)
+  gender.test.ts                — normalizeGender/isMale/isFemale: UPPERCASE server enum → lowercase, null/undefined (22 tests)
+  macros.test.ts                — Mifflin-St Jeor BMR, TDEE, full macro pipeline, floor guards (24 tests)
+  plates.test.ts                — calculatePlates greedy algorithm, PLATE_SIZES invariants (17 tests)
+  homeDerivations.test.ts       — WeekPlanStrip + streak derivations from store state
+  paywallLogic.test.ts          — PaywallModal prop contracts and subscription gate logic
+  storageKeys.test.ts           — AsyncStorage key smoke: all stores use consistent key names
+
+  — Direction A design layer —
+  designComponents.test.ts      — formatDateMetaRu (all 7 weekdays/12 months), findLiveSet, rpeFillRatio, buildSetEyebrow (24 tests)
+  designPalette.test.ts         — Premium Graphite + Gold token invariants; contrast ratios, hex validity
+  designThemeParity.test.ts     — light/dark theme color parity: no undefined tokens, no cross-bleed
+  designButtonContract.test.ts  — Button height/radius/padding/text contracts across all variants
+  designMathInvariants.test.ts  — ProgressRing arc math, MacroBar ratios, ring clamp under Direction A tokens
+  designSafeArea.test.ts        — safe-area/notch/keyboard insets on 19 real device profiles (19 tests)
+  designAccessibility.test.ts   — a11y label contracts: all tappable elements have accessibilityLabel
+  designAccessibilityScaling.test.ts — Dynamic Type / font scaling safety (contentSizeCategory)
+  designRegression.test.ts      — regression guards for all Direction A fixes (ProgressRing, MacroBar, Streak, null guards)
+  designEdgeCases.test.ts       — null/undefined/empty data guards in Hero, Ring, WeekPlan components
+  designPerformance.test.ts     — performance budgets + memo-friendly shape contracts
+  designComplianceAudit.test.ts — design token compliance: theme mapping, no hardcoded hex in components
+  designQuotaReset.test.ts      — subscription quota reset at midnight / timezone edge cases
+  designTimezoneEdges.test.ts   — date display correctness across UTC±N timezones
+  designExtremeDevices.test.ts  — 19 real devices × 6 invariants (102 cases): foldables, iPad, tiny phones
+  designFullAuditSummary.test.ts — design audit snapshot: summary of all Direction A invariants
+
+  — Icon system —
+  iconSet.test.ts               — all Icon names resolve to non-empty paths; no missing glyphs
+  iconRender.test.tsx           — Icon renders without crash, size prop applied
+  a11yLabels.test.ts            — accessibilityLabel coverage across Icon usage sites
+
+  — Cross-device / safety —
+  crossDevice.test.ts           — layout constants correct on 19 device profiles
+  orientationSafety.test.ts     — portrait/landscape state invariants
+  russianTextEdges.test.ts      — long Russian strings, Cyrillic edge cases in date/macro formatters
+  componentStructuralSmoke.test.ts — component tree smoke: Button/Card/Input/Spinner render without crash
+  scannerDesignFlow.test.ts     — FoodScanner 2×2 grid state machine + meal-type selector contracts
+  designPlatformDivergence.test.ts — Platform.select() branch coverage, font family fallbacks, status bar height per OS (15 tests)
+  designStorageRobustness.test.ts  — AsyncStorage getStorageUsage thresholds, corrupt/large payload tolerance, store key invariants (21 tests)
+  designRapidInput.test.ts         — 1000-tap burst quota caps, clampProgress idempotency, parallel consume safety (14 tests)
+  designQuotaReset.test.ts         — quota resets at midnight, timezone edge cases
+  designTimezoneEdges.test.ts      — date display correctness across UTC offsets, DST transitions
+  designUnicodeEdges.test.ts       — Cyrillic + CJK + emoji text in formatters, length invariants
 ```
 
 ## Verification Commands
@@ -90,7 +133,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 719 server tests pass (20 suites), 566 client tests pass (29 suites).
+**Expected baseline:** 719 server tests pass (20 suites), 1675 client tests pass (70 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
@@ -499,4 +542,4 @@ describe('useSubscriptionStore', () => {
 - **New route needs tests** → `backend` agent implements the route; `tests` agent writes the test file. When spawning `tests` agent, provide: route path, HTTP method, Prisma models touched, expected status codes (200/201/400/401/404/402).
 - **Failing test due to store shape change** → `frontend` agent changed a Zustand store shape without bumping `version` or updating `partialize`. Tests can simulate this by calling `setState` with old shape in `beforeEach`.
 - **Coverage gaps** → `security` agent audits routes; `tests` agent writes the missing test cases. If `security` flags "no test for 403 on ownership check", spawn `tests` agent with that specific case.
-- **Test count reference** — as of 2026-04-22: 719 server tests (20 suites), 566 client tests (29 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.
+- **Test count reference** — as of 2026-04-23: 719 server tests (20 suites), 1675 client tests (70 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.

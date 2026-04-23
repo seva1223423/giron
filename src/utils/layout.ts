@@ -14,7 +14,7 @@
  *   - NaN would fail the SVG dash-offset math silently
  */
 export function clampProgress(v: number): number {
-  if (!isFinite(v)) return 0;
+  if (typeof v !== 'number' || !isFinite(v)) return 0;
   if (v < 0) return 0;
   if (v > 1) return 1;
   return v;
