@@ -294,10 +294,10 @@ export const FeatureScreen: React.FC<{ navigation: any; route: any }> = ({ navig
     // ... do premium action
   };
 
-  // Loading state
+  // Loading state — use Spinner (branded), not ActivityIndicator
   if (isLoading) return (
     <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator color={colors.primary} />
+      <Spinner color={colors.primary} />
     </View>
   );
 
@@ -355,6 +355,9 @@ Screen rules that must never be broken:
 4. Show loading, error, and empty states — always all three
 5. No emojis in UI text
 6. `spacing.xl` horizontal padding, `spacing.huge` bottom padding
+7. Use `Icon` component for icons — never raw unicode glyphs (◈ ‹ › △) or emoji
+8. Use `Spinner` for loading — not `ActivityIndicator`
+9. Primary color is **gold** (`colors.primary` = #D4B07A dark / #B08A4E light) since Direction A migration
 
 ---
 

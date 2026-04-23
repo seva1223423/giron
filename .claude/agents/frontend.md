@@ -34,7 +34,8 @@ src/
     index.ts         — re-exports all services + getApiError
   components/        — Button, Card, Input, FadeIn, AnimatedPressable,
                        ProgressRing, MacroBar, PaywallModal,
-                       ErrorBoundary, SkeletonLoader, Tooltip
+                       ErrorBoundary, SkeletonLoader, Tooltip,
+                       Icon (SVG icon set, Direction A — see below), Spinner
   navigation/
     AppNavigator.tsx — 3-tier: Auth → Onboarding → MainTabs (7 tabs)
   hooks/
@@ -151,6 +152,41 @@ const styles = StyleSheet.create({
 4. Show: loading state, error state, empty state — always all three
 5. No emojis in UI (project rule from CLAUDE.md)
 6. `spacing.xl` horizontal padding, `spacing.huge` bottom padding (standard)
+7. **Use `Icon` component for all icons** — not unicode glyphs (◈ △ ‹ ›), not emoji
+
+## Direction A Design System (Premium Graphite + Gold, 2026-04-22)
+
+The app uses a premium dark design language. Key tokens:
+
+```typescript
+import { Icon } from '../../components';
+// Available icon names: 'bell' | 'spark' | 'flame' | 'trophy' | 'check' |
+// 'arrow' | 'chev' | 'chevDn' | 'timer' | 'camera' | 'mic' | 'scan' |
+// 'heart' | 'bolt' | 'target' | 'plus' | 'play' | 'pause' | 'refresh' |
+// 'send' | 'search' | 'logo' | 'dumbbell' | 'apple' | 'chart' | 'user' |
+// 'home' | 'message' | 'bookmark' | 'more' | 'settings' | 'lock' |
+// 'grid' | 'news' | 'water' | 'moon' | 'rouble'
+//
+// Usage: <Icon name="dumbbell" size={20} color={colors.primary} />
+
+// Direction A color roles:
+// colors.primary        — Gold #D4B07A (dark) / #B08A4E (light) — main CTA, active tab
+// colors.text           — Warm graphite #F4F1EA / #17171A
+// colors.background     — #0E0E0F (dark) / #F4F1EA (light) — warm cream
+// colors.surface        — #17171A (dark) / #FFFFFF (light)
+// colors.card           — #1E1E22 (dark) / #FFFFFF (light)
+// colors.border         — #2C2C30 (dark) / #E5DFD2 (light) — warm tan
+// colors.textSecondary  — warm grey subtext
+// protein macro color   — same as primary (gold) — replaces old purple #8B5CF6
+```
+
+**Direction A component rules:**
+- Tab bar AI button: `colors.primary` gold background, large circular
+- Cards: `borderRadius.lg` (16) or `borderRadius.xl` (20) for premium feel
+- CTAs / primary buttons: gold background with dark text (NOT white text on gold)
+- Heading hierarchy: `typography.h2` (section titles) → `typography.h4` (card titles)
+- `Spinner` component: use instead of `ActivityIndicator` for branded loading
+- Back navigation: `Icon name="chev"` rotated, not raw `‹` glyph
 
 ## Zustand Store Template
 
@@ -240,13 +276,17 @@ consumeAiMessage(); // decrement before API call
 
 ```typescript
 const { colors } = useThemeStore();
-// Available color tokens:
-// background, surface, card
-// text, textSecondary, textTertiary
-// primary (#8B5CF6), accent, success, error, warning
-// border, inputBackground, inputBorder, inputPlaceholder
-// calories (#FF3B30), protein (#8B5CF6), fats (#FF9F0A), carbs (#34C759)
-// + dark mode equivalents (auto-switched by theme store)
+// Available color tokens (Direction A, Premium Graphite + Gold):
+// background, surface, surfaceElevated, card
+// text, textSecondary, textTertiary, textInverse
+// primary (#D4B07A gold dark / #B08A4E light), primaryDark, primaryLight
+// accent, success, warning (amber), error (terracotta)
+// border, borderLight, divider
+// inputBackground, inputBorder, inputText, inputPlaceholder
+// tabBar, tabBarBorder, tabBarActive (#D4B07A), tabBarInactive
+// calories (#C76558), protein (#D4B07A gold), fats (#C9824E), carbs (#6FA66A)
+// overlay, shadow
+// + dark mode: background #0E0E0F, surface #17171A, card #1E1E22
 
 import { typography } from '../../theme';
 // Styles: h1, h2, h3, h4, body, bodyMedium, bodySemibold,
