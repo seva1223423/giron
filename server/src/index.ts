@@ -99,6 +99,30 @@ app.get('/health', async (_, res) => {
   }
 });
 
+// Liveness probe — cheap check that the process is responsive. Unlike /health
+// it never touches the DB, so a transient Neon hiccup won't trigger a pod
+// restart. Use this for Kubernetes liveness / Render keepalive.
+app.get('/health/live', (_, res) => {
+  res.json({ status: 'ok', uptime: Math.round(process.uptime()) });
+});
+
+// Readiness probe — are we ready to serve real traffic? Adds DB + shutdown
+// gate on top of /health. Returns 503 during graceful shutdown so the load
+// balancer stops routing new requests immediately (before SIGTERM fully
+// drains).
+app.get('/health/ready', async (_, res) => {
+  if (isShuttingDown) {
+    return res.status(503).json({ status: 'shutting_down' });
+  }
+  const t0 = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ready', dbLatencyMs: Date.now() - t0 });
+  } catch {
+    res.status(503).json({ status: 'not_ready', reason: 'db_unreachable' });
+  }
+});
+
 // ── Rate limiters ────────────────────────────────────────────────────────────
 
 /** Admin endpoints: very strict — 30 requests per 15 minutes per IP */
@@ -304,9 +328,52 @@ setInterval(async () => {
   } catch {}
 }, 24 * 60 * 60 * 1000);
 
-app.listen(PORT, () => {
+// ── Graceful shutdown ───────────────────────────────────────────────────────
+// Render / Railway / Kubernetes send SIGTERM ~30s before SIGKILL. Without this
+// handler we drop in-flight requests (esp. AI calls up to 60s) and leave
+// Prisma pool connections dangling. The gate also flips the readiness probe
+// to 503 so the load balancer stops routing new traffic immediately.
+
+let isShuttingDown = false;
+
+const server = app.listen(PORT, () => {
   logger.info(`Iron Gym API server running on port ${PORT}`);
   startNewsRefreshScheduler();
 });
+
+function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return; // idempotent — avoid double-handling SIGTERM+SIGINT
+  isShuttingDown = true;
+  logger.info(`[Shutdown] Received ${signal}, draining connections...`);
+
+  // Hard ceiling — Render kills at 30s, Kubernetes at terminationGracePeriod.
+  // We aim for 25s so Prisma has a breath to finish before SIGKILL.
+  const HARD_TIMEOUT_MS = 25_000;
+  const killTimer = setTimeout(() => {
+    logger.error('[Shutdown] Drain timeout exceeded, forcing exit');
+    process.exit(1);
+  }, HARD_TIMEOUT_MS);
+  // Don't let this timer keep the event loop alive — if everything drains
+  // cleanly we exit via the success path below.
+  killTimer.unref();
+
+  // Stop accepting new connections. In-flight requests continue until done.
+  server.close(async (err) => {
+    if (err) {
+      logger.error('[Shutdown] server.close error:', err);
+    }
+    try {
+      await prisma.$disconnect();
+      logger.info('[Shutdown] Prisma disconnected cleanly');
+    } catch (e) {
+      logger.error('[Shutdown] Prisma disconnect failed:', e);
+    }
+    clearTimeout(killTimer);
+    process.exit(err ? 1 : 0);
+  });
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export default app;
