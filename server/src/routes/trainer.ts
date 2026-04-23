@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
@@ -218,6 +219,167 @@ router.delete('/sessions/:id', authenticate, requireTrainerRole as any, async (r
   } catch (e) {
     logger.error(e);
     res.status(500).json({ error: 'Ошибка удаления тренировки' });
+  }
+});
+
+// ── B2B Dashboard Phase 1: Invite linkage ───────────────────────────────────
+// A trainer generates a short random code on their side, the client enters
+// it in their own app to link accounts. This is the foundation for every
+// richer B2B feature (shared progress, assigned programs, coach chat).
+
+/** Generate a 10-char code: 6 chars alphabet (no O/0/I/1 confusion) +
+ *  4 numeric. Short enough to dictate verbally, entropy ~10^13 so
+ *  collision on UNIQUE retry is negligible at our scale. */
+function generateInviteCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I, O
+  const digits = '23456789';                    // no 0, 1
+  let out = '';
+  for (let i = 0; i < 6; i++) {
+    out += alphabet[crypto.randomInt(alphabet.length)];
+  }
+  for (let i = 0; i < 4; i++) {
+    out += digits[crypto.randomInt(digits.length)];
+  }
+  return out;
+}
+
+/**
+ * POST /trainer/clients/:id/invite
+ * Trainer generates (or regenerates) an invite code for one of their roster
+ * rows. If the row is already linked to a user (acceptedAt set), refuse —
+ * re-linking must go through a disconnect flow first.
+ *
+ * Response: { code, expiresAt? } — code stays valid until accepted or
+ * regenerated. No expiry yet (TODO: add 7-day window once we have cron).
+ */
+router.post('/clients/:id/invite', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const client = await prisma.trainerClient.findUnique({
+      where: { id: req.params.id as string },
+      select: { id: true, trainerId: true, clientUserId: true },
+    });
+    if (!client || client.trainerId !== req.userId) {
+      return res.status(404).json({ error: 'Клиент не найден' });
+    }
+    if (client.clientUserId) {
+      return res.status(409).json({ error: 'Клиент уже привязан к учётной записи', code: 'ALREADY_LINKED' });
+    }
+
+    // Retry on unique collision — extremely unlikely (~10^13 space) but
+    // cheap insurance. Bail after 5 tries to avoid a pathological loop
+    // if somehow the RNG got stuck.
+    let code = '';
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateInviteCode();
+      const collision = await prisma.trainerClient.findUnique({ where: { inviteCode: candidate }, select: { id: true } });
+      if (!collision) {
+        code = candidate;
+        break;
+      }
+    }
+    if (!code) {
+      return res.status(500).json({ error: 'Не удалось сгенерировать код, повторите' });
+    }
+
+    await prisma.trainerClient.update({
+      where: { id: client.id },
+      data: { inviteCode: code, invitedAt: new Date() },
+    });
+    res.json({ code });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка генерации приглашения' });
+  }
+});
+
+const acceptInviteSchema = z.object({
+  code: z.string().min(10).max(10).regex(/^[A-Z0-9]+$/, 'Код состоит только из букв и цифр'),
+});
+
+/**
+ * POST /trainer/accept-invite
+ * A regular authenticated user enters a code they received from a trainer.
+ * On success, the TrainerClient row is linked to their user id and marked
+ * as accepted. The trainer can now see their roster populated.
+ *
+ * Auth'd as the CLIENT (any authenticated user), NOT through requireTrainerRole —
+ * clients don't need a trainer sub to accept an invite.
+ */
+router.post('/accept-invite', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = acceptInviteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Некорректный код', details: parsed.error.flatten() });
+
+    const { code } = parsed.data;
+    const client = await prisma.trainerClient.findUnique({
+      where: { inviteCode: code },
+      select: { id: true, trainerId: true, clientUserId: true, acceptedAt: true, name: true },
+    });
+    if (!client) return res.status(404).json({ error: 'Код не найден или больше не действителен', code: 'INVITE_NOT_FOUND' });
+    if (client.acceptedAt || client.clientUserId) {
+      return res.status(409).json({ error: 'Этот код уже был использован', code: 'INVITE_ALREADY_USED' });
+    }
+
+    // Refuse self-invite: a trainer cannot become their own client. Would
+    // break the unique[trainerId, clientUserId] silently since trainerId
+    // always equals req.userId in that case.
+    if (client.trainerId === req.userId) {
+      return res.status(400).json({ error: 'Нельзя принять собственное приглашение', code: 'SELF_INVITE' });
+    }
+
+    // Enforce unique[trainerId, clientUserId] — one trainer cannot have the
+    // same user twice. Prisma will throw P2002 on the composite unique; we
+    // check upfront for a friendlier error.
+    const existingLink = await prisma.trainerClient.findFirst({
+      where: { trainerId: client.trainerId, clientUserId: req.userId! },
+      select: { id: true },
+    });
+    if (existingLink) {
+      return res.status(409).json({ error: 'Вы уже клиент этого тренера', code: 'ALREADY_CLIENT' });
+    }
+
+    await prisma.trainerClient.update({
+      where: { id: client.id },
+      data: {
+        clientUserId: req.userId!,
+        acceptedAt: new Date(),
+        // Burn the code so it can't be re-accepted by someone else. Keep
+        // the value (don't null it) so the trainer dashboard can still
+        // show "invited → accepted" audit trail.
+      },
+    });
+
+    res.json({
+      success: true,
+      trainerClientId: client.id,
+      trainerId: client.trainerId,
+      displayName: client.name,
+    });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка принятия приглашения' });
+  }
+});
+
+/**
+ * DELETE /trainer/clients/:id/link
+ * Trainer disconnects a linked user. The TrainerClient row remains (keeps
+ * history of notes, sessions) but clientUserId / acceptedAt are cleared so
+ * the trainer can re-invite a new user to the same roster slot.
+ */
+router.delete('/clients/:id/link', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const { count } = await prisma.trainerClient.updateMany({
+      where: { id: req.params.id as string, trainerId: req.userId! },
+      data: { clientUserId: null, acceptedAt: null, inviteCode: null, invitedAt: null },
+    });
+    if (count === 0) return res.status(404).json({ error: 'Клиент не найден' });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка отвязки' });
   }
 });
 
