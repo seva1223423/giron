@@ -60,6 +60,8 @@ export const AcceptInviteModal: React.FC<Props> = ({ visible, onClose, onSuccess
           return 'Код не найден. Проверь, что ввёл все 10 символов правильно.';
         case 'INVITE_ALREADY_USED':
           return 'Этот код уже использован. Попроси тренера сгенерировать новый.';
+        case 'INVITE_EXPIRED':
+          return 'Срок действия кода истёк. Попроси тренера сгенерировать новый — старые действуют 7 дней.';
         case 'SELF_INVITE':
           return 'Нельзя принять собственный код приглашения.';
         case 'ALREADY_CLIENT':

@@ -16,6 +16,7 @@ import { supportRouter } from './routes/support';
 import { adminRouter } from './routes/admin';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
+import { reportError } from './utils/errorReporter';
 import { adminStatsCache, newsCache } from './utils/memCache';
 import { prisma } from './db';
 
@@ -223,22 +224,38 @@ app.use('/api/cardio', userRateLimiter, cardioRouter);
 app.use('/api/support', userRateLimiter, supportRouter);
 app.use('/api/admin', adminRateLimiter, adminRouter);
 
-// Global error handler (catches both sync and async errors forwarded via next())
+// Global error handler (catches both sync and async errors forwarded via next()).
+// reportError routes to Sentry when SENTRY_DSN + @sentry/node are active,
+// otherwise falls through to logger.error — so call is unconditional.
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const userId = (req as { userId?: string }).userId;
+  reportError(err, {
+    route: `${req.method} ${req.path}`,
+    userId,
+    tags: { origin: 'express-error-handler' },
+  });
   logger.error(`${req.method} ${req.path}:`, err.message);
   if (!res.headersSent) {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-// Process-level crash guards
+// Process-level crash guards. These fire for async errors that nobody
+// awaited (stray `.then()` chains) and synchronous throws outside a
+// request context (e.g. scheduled intervals below).
 process.on('unhandledRejection', (reason) => {
+  reportError(reason, { tags: { origin: 'unhandled-rejection' } });
   logger.error('Unhandled promise rejection:', reason);
 });
 
 process.on('uncaughtException', (err) => {
+  reportError(err, { tags: { origin: 'uncaught-exception' } });
   logger.error('Uncaught exception:', err);
-  process.exit(1);
+  // Flush-then-exit: give Sentry up to 2s to dispatch the event before we
+  // die. reportError is a no-op when Sentry is inactive, so this is just
+  // a short delay in dev. process.exit is still synchronous — we only
+  // delay it via setTimeout.
+  setTimeout(() => process.exit(1), 2000).unref();
 });
 
 // Cleanup expired/revoked refresh tokens and expired trusted devices every 6 hours
@@ -346,8 +363,15 @@ function gracefulShutdown(signal: string) {
   isShuttingDown = true;
   logger.info(`[Shutdown] Received ${signal}, draining connections...`);
 
-  // Hard ceiling — Render kills at 30s, Kubernetes at terminationGracePeriod.
-  // We aim for 25s so Prisma has a breath to finish before SIGKILL.
+  // Hard ceiling. Render sends SIGTERM then SIGKILL 30s later; for longer
+  // drains we must request a higher terminationGracePeriodSeconds (K8s) or
+  // upgrade the Render plan. Our AI calls time out at 60s against Mistral,
+  // so setting this below 60s guarantees we'll SIGKILL mid-response on
+  // deploy windows that happen to catch a long-running AI chat.
+  //
+  // Compromise: 25s here keeps Render-free happy while at least giving
+  // most non-AI requests time to drain. When SENTRY_DSN is active this
+  // constant should be re-tuned against real p99 latency numbers.
   const HARD_TIMEOUT_MS = 25_000;
   const killTimer = setTimeout(() => {
     logger.error('[Shutdown] Drain timeout exceeded, forcing exit');

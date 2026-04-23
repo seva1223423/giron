@@ -2784,24 +2784,28 @@ const chatRequestSchema = z.object({
     waterTargetMl: z.number().finite().min(0).max(20000),
   }).optional(),
   waterMl: z.number().finite().min(0).max(20000).optional(),
+  // Every string field that ends up in the LLM prompt goes through the same
+  // sanitizer. An attacker who can't inject unicode into `message` (already
+  // stripped above) could otherwise hide payload in weekPlan day names,
+  // cardio notes, etc. — they're all stringified into the system prompt.
   weekPlan: z.record(z.union([
     z.object({
-      name: z.string().max(200),
-      emoji: z.string().max(10),
-      exercises: z.array(z.string().max(200)).max(50),
+      name: z.string().max(200).transform((s) => sanitizeInput(s, { maxLength: 200 })),
+      emoji: z.string().max(10).transform((s) => sanitizeInput(s, { maxLength: 10 })),
+      exercises: z.array(z.string().max(200).transform((s) => sanitizeInput(s, { maxLength: 200 }))).max(50),
     }),
     z.null(),
   ])).refine((v) => Object.keys(v).length <= 7, 'Не более 7 дней').optional(),
   cardioSessions: z.array(z.object({
-    type: z.string().max(50),
-    date: z.string().max(30),
+    type: z.string().max(50).transform((s) => sanitizeInput(s, { maxLength: 50 })),
+    date: z.string().max(30).transform((s) => sanitizeInput(s, { maxLength: 30 })),
     durationMinutes: z.number().finite().min(0).max(1440),
     distanceKm: z.number().finite().min(0).max(1000).optional(),
     caloriesBurned: z.number().finite().min(0).max(10000).optional(),
     avgHeartRate: z.number().finite().min(0).max(300).optional(),
   })).max(30).optional(),
   sleepEntries: z.array(z.object({
-    date: z.string().max(30),
+    date: z.string().max(30).transform((s) => sanitizeInput(s, { maxLength: 30 })),
     durationHours: z.number().finite().min(0).max(24),
     quality: z.number().finite().min(1).max(5).nullable().optional(),
   })).max(30).optional(),
