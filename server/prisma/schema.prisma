@@ -399,6 +399,10 @@ model AIMemory {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, key])
+  // Category-scoped lookup with recency ordering: "latest injuries", "all
+  // preferences sorted by update time". Without this index the AI context
+  // builder scans every memory row per user on each /ai/chat request.
+  @@index([userId, category, updatedAt])
 }
 
 // ==================== TRAINER ====================
