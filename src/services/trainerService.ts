@@ -82,4 +82,26 @@ export const trainerService = {
   async disconnectClient(clientId: string): Promise<void> {
     await api.delete(`/trainer/clients/${clientId}/link`);
   },
+
+  // ── Client side: see / leave my trainers ──────────────────────────────────
+
+  /** List trainers the current authenticated user is linked to. Used by the
+   *  client's "My trainers" screen and after a successful acceptInvite to
+   *  refresh local state. */
+  async getMyTrainers(): Promise<Array<{
+    trainerClientId: string;
+    acceptedAt: string | null;
+    trainerId: string;
+    firstName: string;
+    lastName: string | null;
+    avatarUrl: string | null;
+  }>> {
+    const { data } = await api.get('/trainer/my-trainers');
+    return data.trainers;
+  },
+
+  /** Client-initiated disconnect — leave a trainer without going through them. */
+  async leaveTrainer(trainerClientId: string): Promise<void> {
+    await api.delete(`/trainer/my-trainers/${trainerClientId}`);
+  },
 };

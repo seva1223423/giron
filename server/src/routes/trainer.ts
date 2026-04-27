@@ -375,6 +375,82 @@ router.post('/accept-invite', authenticate, async (req: AuthRequest, res: Respon
 });
 
 /**
+ * GET /trainer/my-trainers
+ * Client-side counterpart to GET /trainer/clients — lists every trainer
+ * the current user is linked to. Used by the client UI's "My trainers"
+ * screen and right after a successful POST /accept-invite to refresh
+ * local state.
+ *
+ * Returns a slim shape (trainerClientId + trainer profile basics +
+ * acceptance date) — explicitly NOT the trainer's whole roster, since
+ * that would leak other clients' data.
+ *
+ * Auth: any authenticated user. NOT gated on TRAINER role — the whole
+ * point is letting non-trainer users see who's coaching them.
+ */
+router.get('/my-trainers', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const links = await prisma.trainerClient.findMany({
+      where: { clientUserId: req.userId!, acceptedAt: { not: null } },
+      orderBy: { acceptedAt: 'desc' },
+      take: 50, // hard cap — a normal user has 1-3 trainers, never 50
+      select: {
+        id: true,
+        acceptedAt: true,
+        trainer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+    res.json({
+      trainers: links.map((link) => ({
+        trainerClientId: link.id,
+        acceptedAt: link.acceptedAt,
+        trainerId: link.trainer.id,
+        firstName: link.trainer.firstName,
+        lastName: link.trainer.lastName,
+        avatarUrl: link.trainer.avatarUrl,
+      })),
+    });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка загрузки тренеров' });
+  }
+});
+
+/**
+ * DELETE /trainer/my-trainers/:trainerClientId
+ * Client-initiated disconnect — the user wants to leave their trainer
+ * without asking the trainer to do it from their side. The row goes
+ * back to the unlinked state (clientUserId/acceptedAt cleared) so the
+ * trainer's roster shows them as "no longer linked" but historical
+ * notes are preserved.
+ *
+ * Auth: any authenticated user, but verifies clientUserId === req.userId
+ * before clearing — prevents one user disconnecting another user's
+ * relationship via the trainerClientId.
+ */
+router.delete('/my-trainers/:trainerClientId', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!isValidId(req.params.trainerClientId)) return res.status(400).json({ error: 'Некорректный ID' });
+  try {
+    const { count } = await prisma.trainerClient.updateMany({
+      where: { id: req.params.trainerClientId as string, clientUserId: req.userId! },
+      data: { clientUserId: null, acceptedAt: null, inviteCode: null, invitedAt: null },
+    });
+    if (count === 0) return res.status(404).json({ error: 'Связь с тренером не найдена' });
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(e);
+    res.status(500).json({ error: 'Ошибка отвязки' });
+  }
+});
+
+/**
  * DELETE /trainer/clients/:id/link
  * Trainer disconnects a linked user. The TrainerClient row remains (keeps
  * history of notes, sessions) but clientUserId / acceptedAt are cleared so
