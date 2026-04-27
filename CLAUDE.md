@@ -104,12 +104,12 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 71 суитов, ~1701 тестов)
+npm test               # jest (client unit tests, 80 суитов, ~2015 тестов)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 20 суитов, ~719 тестов)
+npm test               # jest (server integration tests, 26 суитов, ~870 тестов)
 npm run prisma:studio  # GUI для БД
 npm run prisma:generate # генерация Prisma client
 # НЕ запускать: npm run prisma:migrate (prisma migrate dev) — проект использует `prisma db push`
