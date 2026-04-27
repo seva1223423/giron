@@ -297,7 +297,12 @@ setInterval(async () => {
     });
     if (rtCount > 0) logger.info(`[Cleanup] Deleted ${rtCount} expired/revoked refresh tokens`);
     if (tdCount > 0) logger.info(`[Cleanup] Deleted ${tdCount} expired trusted devices`);
-  } catch {}
+  } catch (err) {
+    // Cleanup failures aren't user-facing but compounding silent failures
+    // mean we'd silently leak storage; surface them to Sentry so they're
+    // visible in the issue feed.
+    reportError(err as Error, { tags: { origin: 'cleanup-tokens-devices' } });
+  }
 }, 6 * 60 * 60 * 1000);
 
 // Cleanup used TOTP codes older than 90s (replay window) every 5 minutes
@@ -307,7 +312,9 @@ setInterval(async () => {
     await (await import('./db')).prisma.usedTotpCode.deleteMany({
       where: { usedAt: { lt: cutoff } },
     });
-  } catch {}
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'cleanup-totp-replay' } });
+  }
 }, 5 * 60 * 1000);
 
 // Cleanup expired/used OTP codes and stale TOTP replay records every hour
@@ -328,7 +335,9 @@ setInterval(async () => {
     const totpCutoff = new Date(Date.now() - 5 * 60 * 1000);
     const { count: totpCount } = await db.usedTotpCode.deleteMany({ where: { usedAt: { lt: totpCutoff } } });
     if (totpCount > 0) logger.info(`[Cleanup] Deleted ${totpCount} stale TOTP replay records`);
-  } catch {}
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'cleanup-otp-codes' } });
+  }
 }, 60 * 60 * 1000);
 
 // Cleanup expired password reset tokens every 6 hours
@@ -338,7 +347,9 @@ setInterval(async () => {
       where: { OR: [{ expiresAt: { lt: new Date() } }, { used: true, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } }] },
     });
     if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used password reset tokens`);
-  } catch {}
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'cleanup-password-reset' } });
+  }
 }, 6 * 60 * 60 * 1000);
 
 // Prune expired in-memory cache entries every 10 minutes to prevent memory growth
@@ -369,8 +380,63 @@ setInterval(async () => {
       deletedTotal += count;
     }
     if (deletedTotal > 0) logger.info(`[Cleanup] Trimmed ${deletedTotal} old security events`);
-  } catch {}
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'cleanup-security-events' } });
+  }
 }, 24 * 60 * 60 * 1000);
+
+// Retention pushes (RETENTION-01..04). Runs hourly so the activation cohort
+// fires reasonably close to the 24h mark; reactivation cohorts only "fire"
+// once per user (gated by *SentAt) so calling them hourly is safe and
+// self-deduplicating. The first invocation is delayed 5 minutes after boot
+// to avoid sending a backlog burst during a deploy/restart.
+setTimeout(() => {
+  setInterval(async () => {
+    try {
+      const { runAllRetentionCohorts } = await import('./services/retentionService');
+      await runAllRetentionCohorts();
+    } catch (err) {
+      reportError(err as Error, { tags: { origin: 'retention-cron' } });
+    }
+  }, 60 * 60 * 1000);
+}, 5 * 60 * 1000).unref();
+
+// Weekly summary email (RETENTION-03). Runs every hour but only fires the
+// expensive aggregation if it's currently Sunday 18:00-18:59 UTC. We pick
+// 18:00 UTC = 21:00 МСК — late enough that most users finished their
+// Sunday workout, early enough that the email isn't seen as Monday clutter.
+// The lookback window dedupes naturally — even if the cron tick is missed
+// once and runs at 19:00, the same eligibility set would still be processed
+// (no harm because email send is idempotent at the SMTP level for the
+// purpose of this lightweight version).
+setInterval(async () => {
+  const now = new Date();
+  if (now.getUTCDay() !== 0 /* Sunday */ || now.getUTCHours() !== 18) return;
+  try {
+    const { processWeeklySummaryEmails } = await import('./services/retentionService');
+    await processWeeklySummaryEmails();
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'weekly-summary-cron' } });
+  }
+}, 60 * 60 * 1000);
+
+// Daily admin digest (ADMIN-DIGEST-01). Fires once a day at 06:00 UTC =
+// 09:00 МСК. The hourly tick + hour gate is the same pattern as weekly
+// summary above — keeps the cron schedule trivial without adding a real
+// cron library. If a deploy lands during 06:00-06:59 UTC the digest still
+// fires within the hour window; if it lands at 06:55 we may double-fire
+// once, which is harmless (admins just get two pushes — annoying not
+// dangerous, and only on deploy days).
+setInterval(async () => {
+  const now = new Date();
+  if (now.getUTCHours() !== 6) return;
+  try {
+    const { sendDailyAdminDigest } = await import('./services/adminDigestService');
+    await sendDailyAdminDigest();
+  } catch (err) {
+    reportError(err as Error, { tags: { origin: 'admin-digest-cron' } });
+  }
+}, 60 * 60 * 1000);
 
 // ── Graceful shutdown ───────────────────────────────────────────────────────
 // Render / Railway / Kubernetes send SIGTERM ~30s before SIGKILL. Without this
@@ -383,6 +449,33 @@ let isShuttingDown = false;
 const server = app.listen(PORT, () => {
   logger.info(`Iron Gym API server running on port ${PORT}`);
   startNewsRefreshScheduler();
+
+  // ── Admin bootstrap (ADMIN-BOOTSTRAP-01) ──────────────────────────────
+  // If ADMIN_BOOTSTRAP_EMAIL is set in env, find the matching user and
+  // ensure their role is 'ADMIN'. Idempotent — re-running is a no-op when
+  // the user is already admin or the email isn't registered yet. Lets the
+  // founder promote themselves with one env var instead of running raw SQL
+  // against Neon.
+  //
+  // Runs *after* listen so a missing user doesn't block server start
+  // (e.g. fresh deploy on an empty DB) — fire-and-forget, log only.
+  const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+  if (bootstrapEmail) {
+    prisma.user.updateMany({
+      where: { email: bootstrapEmail, role: { not: 'ADMIN' } },
+      data: { role: 'ADMIN' },
+    }).then((r) => {
+      if (r.count > 0) {
+        logger.info(`[AdminBootstrap] Promoted ${bootstrapEmail} to ADMIN`);
+      } else {
+        // Either already admin (fine) or user not yet registered (also fine —
+        // the upsert will fire on the next boot after they register).
+        logger.info(`[AdminBootstrap] No promotion needed for ${bootstrapEmail}`);
+      }
+    }).catch((err) => {
+      reportError(err as Error, { tags: { origin: 'admin-bootstrap' } });
+    });
+  }
 });
 
 function gracefulShutdown(signal: string) {

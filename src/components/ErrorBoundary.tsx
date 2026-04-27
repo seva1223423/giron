@@ -1,9 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { reportError } from '../utils/errorReporter';
 
 interface Props {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  /** Optional tag attached to Sentry events — useful when an ErrorBoundary
+   *  wraps a specific screen subtree (e.g. AIChatScreen) so issues land in
+   *  the right inbox. Defaults to 'app-root'. */
+  scope?: string;
 }
 
 interface State {
@@ -23,6 +28,14 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    // Surface the React-render crash to Sentry with the component-stack
+    // attached. Without this every render-phase exception was invisible —
+    // the user sees the fallback screen, but the dev never knew it fired.
+    reportError(error, {
+      screen: this.props.scope ?? 'app-root',
+      tags: { origin: 'error-boundary' },
+      extra: { componentStack: errorInfo?.componentStack ?? null },
+    });
   }
 
   render() {

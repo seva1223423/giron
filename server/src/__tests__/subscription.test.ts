@@ -284,8 +284,11 @@ describe('POST /api/subscription/cancel', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('cancelled');
     expect(res.body.isPremium).toBe(true); // still premium until endDate
+    // Cancellation now also stamps canceledAt for the 376-ФЗ §2 audit trail —
+    // assert on the fields we care about (status) without locking the test
+    // to a single-field shape that breaks every time we add audit metadata.
     expect(prisma.subscription.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: 'cancelled' } }),
+      expect.objectContaining({ data: expect.objectContaining({ status: 'cancelled' }) }),
     );
   });
 });

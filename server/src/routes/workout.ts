@@ -432,6 +432,15 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       return res.status(409).json({ error: 'Тренировка уже завершена' });
     }
 
+    // Retention bookkeeping (RETENTION-01): refresh lastActiveAt so the
+    // 7/14/30d reactivation cohorts stay accurate even for users who train
+    // without ever talking to the AI. Fire-and-forget — never block the
+    // workout completion response.
+    prisma.user.update({
+      where: { id: req.userId! },
+      data: { lastActiveAt: new Date() },
+    }).catch(() => {});
+
     const updated = await prisma.workout.findUnique({
       where: { id },
       include: {

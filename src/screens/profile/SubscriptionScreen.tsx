@@ -6,7 +6,7 @@ import { useThemeStore, useSubscriptionStore } from '../../store';
 import { Card, Button, FadeIn } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { PlanSelector, FeaturesTable } from './components';
+import { PlanSelector, FeaturesTable, AutoRenewalConsentModal } from './components';
 
 const TESTIMONIALS = [
   { name: 'Алексей', text: 'Iron Coach перестроил всю программу под моё плечо. За 3 месяца жим вырос с 90 до 120 кг.' },
@@ -20,17 +20,33 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
   const { isPremiumActive, syncWithBackend, activateOnBackend, cancelOnBackend, trialUsed } = useSubscriptionStore();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [loading, setLoading] = useState(false);
+  // 376-ФЗ §3 — gate the activate call behind an explicit consent modal.
+  // For trials we still show the modal so users converting to paid have a
+  // signed audit trail from day one; the server treats the consent
+  // timestamp as optional for trial-length activations.
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
   const isActivePro = isPremiumActive();
 
   useEffect(() => { syncWithBackend(); }, []);
 
-  const handleSubscribe = async () => {
+  const priceLabel = selectedPlan === 'annual' ? '1 990 ₽/год' : '299 ₽/мес';
+  const cadenceLabel = selectedPlan === 'annual' ? 'ежегодно' : 'ежемесячно';
+
+  const handleSubscribe = () => {
     if (loading) return;
     haptic.success();
+    // Open the consent modal — actual activate call happens after the
+    // user confirms inside the modal (handleConsentConfirmed).
+    setConsentModalOpen(true);
+  };
+
+  const handleConsentConfirmed = async (consentTimestamp: string) => {
+    setConsentModalOpen(false);
+    if (loading) return;
     setLoading(true);
     try {
       const durationDays = trialUsed ? (selectedPlan === 'annual' ? 365 : 30) : 7;
-      await activateOnBackend('pro', durationDays);
+      await activateOnBackend('pro', durationDays, consentTimestamp);
       Alert.alert(
         'Iron Gym Pro активирован!',
         trialUsed ? `Подписка активна на ${durationDays} дней` : 'Пробный период 7 дней активирован. Все функции Pro открыты!',
@@ -156,10 +172,18 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
             <Text style={[typography.small, { color: colors.textSecondary }]}>Восстановить покупки</Text>
           </TouchableOpacity>
           <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.sm, lineHeight: 16 }]}>
-            Подписка автоматически продлевается. Отменить можно в любой момент в настройках устройства.
+            Подписка автоматически продлевается. Отменить можно в любой момент здесь, в этом разделе. За 48 часов до каждого списания мы пришлём напоминание на email (376-ФЗ).
           </Text>
         </FadeIn>
       </ScrollView>
+
+      <AutoRenewalConsentModal
+        visible={consentModalOpen}
+        priceLabel={priceLabel}
+        cadenceLabel={cadenceLabel}
+        onConfirm={handleConsentConfirmed}
+        onCancel={() => setConsentModalOpen(false)}
+      />
 
       {loading && (
         <View style={styles.loadingOverlay}>

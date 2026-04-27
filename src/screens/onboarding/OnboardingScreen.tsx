@@ -50,8 +50,12 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
   }, []);
 
   const handleFinish = () => {
-    // Apply training days to week plan
-    trainingDays.forEach((dayIndex) => {
+    // Express-path fallback: if the user reached "Skip" on the Days step
+    // without selecting anything, seed with the standard 3-day split so
+    // the week plan isn't empty and notification scheduling still has
+    // something to anchor to. Mon/Wed/Fri matches the screen default.
+    const effectiveDays = trainingDays.length > 0 ? trainingDays : [0, 2, 4];
+    effectiveDays.forEach((dayIndex) => {
       const existing = weekPlan[dayIndex];
       if (!existing || !existing.exercises?.length) {
         setWeekPlanDay(dayIndex, { name: 'Тренировка', emoji: '◎', exercises: [] });
@@ -146,7 +150,12 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
             IRON GYM
           </Text>
         </View>
-        {step > 0 && step < TOTAL_STEPS - 1 && (
+        {step > 0 && (
+          // "Skip" available from step 1 onwards (gender stays required —
+          // it's a 2-tap binary that materially changes BMR/TDEE math, and
+          // we don't have a credible default for it). All later steps have
+          // numeric or list fallbacks downstream in handleFinish, so users
+          // can bail out and still get a usable profile.
           <TouchableOpacity
             onPress={handleFinish}
             accessibilityLabel="Пропустить онбординг"

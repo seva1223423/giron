@@ -319,9 +319,12 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           containerStyle={{ marginTop: spacing.xl }}
         />
 
-        {/* Phone with +7 prefix */}
+        {/* Phone with +7 prefix — explicitly labelled optional so users
+            don't accidentally enter it and trigger the SMS+OTP loop, which
+            adds 30s-2min to TTFV. The hint text below the field reinforces
+            this once they start typing. */}
         <View style={{ marginTop: spacing.xl }}>
-          <Text style={[typography.small, { color: colors.textSecondary, marginBottom: 6 }]}>Телефон</Text>
+          <Text style={[typography.small, { color: colors.textSecondary, marginBottom: 6 }]}>Телефон (необязательно)</Text>
           <View style={[styles.phoneRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.body, { color: colors.textSecondary, marginRight: 8 }]}>🇷🇺 +7</Text>
             <TextInput

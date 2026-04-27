@@ -67,6 +67,7 @@ import AdminSupportScreen from '../screens/admin/AdminSupportScreen';
 import AdminTicketScreen from '../screens/admin/AdminTicketScreen';
 import AdminLogsScreen from '../screens/admin/AdminLogsScreen';
 import AdminAnalyticsScreen from '../screens/admin/AdminAnalyticsScreen';
+import AdminMetricsKeyScreen from '../screens/admin/AdminMetricsKeyScreen';
 import AdminAnnouncementsScreen from '../screens/admin/AdminAnnouncementsScreen';
 import AdminSubscriptionsScreen from '../screens/admin/AdminSubscriptionsScreen';
 import AdminSecurityEventsScreen from '../screens/admin/AdminSecurityEventsScreen';
@@ -188,6 +189,7 @@ function ProfileStackNavigator() {
         headerShown: ['SupportScreen','CreateTicketScreen','SupportTicketScreen',
           'AdminDashboardScreen','AdminUsersScreen','AdminUserDetailScreen',
           'AdminSupportScreen','AdminTicketScreen','AdminLogsScreen','AdminAnalyticsScreen',
+          'AdminMetricsKeyScreen',
           'AdminAnnouncementsScreen','AdminSubscriptionsScreen','AdminSecurityEventsScreen'].includes(route.name),
         animation: 'slide_from_right',
         headerStyle: { backgroundColor: '#0F0F0F' },
@@ -237,6 +239,9 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="AdminAnalyticsScreen" options={{ title: 'Аналитика' }}>
         {() => <AdminGuard requireVerified><AdminAnalyticsScreen /></AdminGuard>}
       </ProfileStack.Screen>
+      <ProfileStack.Screen name="AdminMetricsKeyScreen" options={{ title: '5 ключевых чисел' }}>
+        {() => <AdminGuard requireVerified><AdminMetricsKeyScreen /></AdminGuard>}
+      </ProfileStack.Screen>
       <ProfileStack.Screen name="AdminAnnouncementsScreen" options={{ title: 'Объявления' }}>
         {() => <AdminGuard requireVerified><AdminAnnouncementsScreen /></AdminGuard>}
       </ProfileStack.Screen>
@@ -254,10 +259,27 @@ function ProfileStackNavigator() {
 function MainTabs() {
   const { colors } = useThemeStore();
   const insets = useSafeAreaInsets();
+  // Read once at first render so the tab navigator initialRouteName is
+  // stable for this mount; clearing the flag on mount prevents repeat
+  // routing if the user later returns to MainTabs from a deep-linked
+  // sub-screen. justOnboarded is transient (not persisted), so app
+  // restarts always default back to HomeTab regardless.
+  const justOnboarded = useAuthStore((s) => s.justOnboarded);
+  const clearJustOnboarded = useAuthStore((s) => s.clearJustOnboarded);
+  useEffect(() => {
+    if (justOnboarded) {
+      // Defer clearing one tick so initialRouteName has consumed the flag
+      // before we wipe it. Without this, a fast re-render could see the
+      // cleared flag and never apply the AITab landing.
+      const t = setTimeout(() => clearJustOnboarded(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [justOnboarded, clearJustOnboarded]);
 
   return (
     <ErrorBoundary>
     <Tab.Navigator
+      initialRouteName={justOnboarded ? 'AITab' : 'HomeTab'}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,

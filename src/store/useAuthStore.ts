@@ -21,6 +21,12 @@ interface AuthStore {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isOnboarded: boolean;
+  /** Transient flag — true for the very first render of MainTabs after onboarding
+   *  finishes. Drives `initialRouteName` so the user lands on the AI tab (the
+   *  primary feature) instead of HomeTab. Cleared by MainTabs on mount and is
+   *  intentionally NOT persisted, so app restarts always honor the default
+   *  HomeTab landing. */
+  justOnboarded: boolean;
   isLoading: boolean;
   error: string | null;
   totpPendingToken: string | null;
@@ -40,6 +46,9 @@ interface AuthStore {
   logout: () => Promise<void>;
   logoutAllDevices: () => Promise<void>;
   completeOnboarding: () => void;
+  /** Called by MainTabs after the post-onboarding redirect to AI tab consumes
+   *  the flag, so it doesn't fire again on the next render. */
+  clearJustOnboarded: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
   fetchProfile: () => Promise<void>;
   clearError: () => void;
@@ -71,6 +80,7 @@ export const useAuthStore = create<AuthStore>()(
       refreshToken: null,
       isAuthenticated: false,
       isOnboarded: false,
+      justOnboarded: false,
       isLoading: false,
       error: null,
       totpPendingToken: null,
@@ -235,7 +245,9 @@ export const useAuthStore = create<AuthStore>()(
         clearStoreUserData();
       },
 
-      completeOnboarding: () => set({ isOnboarded: true }),
+      completeOnboarding: () => set({ isOnboarded: true, justOnboarded: true }),
+
+      clearJustOnboarded: () => set({ justOnboarded: false }),
 
       updateProfile: async (data) => {
         const user = get().user;
