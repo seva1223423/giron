@@ -31,6 +31,8 @@ jest.mock('../services/trainerService', () => ({
     generateInvite: jest.fn(),
     acceptInvite: jest.fn(),
     disconnectClient: jest.fn(),
+    getMyTrainers: jest.fn(() => Promise.resolve([])),
+    leaveTrainer: jest.fn(),
   },
 }));
 
@@ -40,6 +42,8 @@ import { trainerService } from '../services/trainerService';
 const mockGenerateInvite = trainerService.generateInvite as jest.Mock;
 const mockAcceptInvite = trainerService.acceptInvite as jest.Mock;
 const mockDisconnect = trainerService.disconnectClient as jest.Mock;
+const mockGetMyTrainers = trainerService.getMyTrainers as jest.Mock;
+const mockLeaveTrainer = trainerService.leaveTrainer as jest.Mock;
 
 const baseClient = (overrides: Partial<TrainerClient> = {}): TrainerClient => ({
   id: 'c-1',
@@ -49,7 +53,10 @@ const baseClient = (overrides: Partial<TrainerClient> = {}): TrainerClient => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
-  useTrainerStore.setState({ clients: [], sessions: [], isLoading: false });
+  useTrainerStore.setState({ clients: [], sessions: [], isLoading: false, myTrainers: [] });
+  // Default: getMyTrainers returns empty so background refresh after
+  // acceptInvite doesn't race other tests' mocks.
+  mockGetMyTrainers.mockResolvedValue([]);
 });
 
 describe('generateInvite — happy path', () => {
@@ -145,6 +152,131 @@ describe('acceptInvite — error mapping', () => {
     const result = await useTrainerStore.getState().acceptInvite('ABCDEF2345');
 
     expect((result as { error: string }).error).toBe('Не удалось принять приглашение');
+  });
+});
+
+describe('myTrainers — fetch / leave / sync after accept', () => {
+  test('fetchMyTrainers populates list from server', async () => {
+    mockGetMyTrainers.mockResolvedValueOnce([
+      {
+        trainerClientId: 'tc-1',
+        acceptedAt: '2026-04-22T10:00:00Z',
+        trainerId: 'u-trainer-1',
+        firstName: 'Stas',
+        lastName: 'Trainer',
+        avatarUrl: null,
+      },
+    ]);
+
+    await useTrainerStore.getState().fetchMyTrainers();
+
+    expect(useTrainerStore.getState().myTrainers).toHaveLength(1);
+    expect(useTrainerStore.getState().myTrainers[0].firstName).toBe('Stas');
+  });
+
+  test('fetchMyTrainers swallows errors and keeps stale list', async () => {
+    useTrainerStore.setState({
+      myTrainers: [{
+        trainerClientId: 'tc-1',
+        acceptedAt: '2026-04-22T10:00:00Z',
+        trainerId: 'u-trainer-1',
+        firstName: 'Stas',
+        lastName: null,
+        avatarUrl: null,
+      }],
+    });
+    mockGetMyTrainers.mockRejectedValueOnce(new Error('offline'));
+
+    await useTrainerStore.getState().fetchMyTrainers();
+
+    // Stale entry preserved — offline users still see their trainer.
+    expect(useTrainerStore.getState().myTrainers).toHaveLength(1);
+  });
+
+  test('successful acceptInvite triggers background myTrainers refresh', async () => {
+    mockAcceptInvite.mockResolvedValueOnce({
+      success: true,
+      trainerClientId: 'tc-2',
+      trainerId: 'u-trainer-2',
+      displayName: 'Petr',
+    });
+    mockGetMyTrainers.mockResolvedValueOnce([
+      {
+        trainerClientId: 'tc-2',
+        acceptedAt: '2026-04-22T10:00:00Z',
+        trainerId: 'u-trainer-2',
+        firstName: 'Petr',
+        lastName: null,
+        avatarUrl: null,
+      },
+    ]);
+
+    const result = await useTrainerStore.getState().acceptInvite('ABCDEF2345');
+
+    expect((result as any).trainerClientId).toBe('tc-2');
+    // Drain pending microtask so the store-side `.then()` fires.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(useTrainerStore.getState().myTrainers).toHaveLength(1);
+    expect(mockGetMyTrainers).toHaveBeenCalledTimes(1);
+  });
+
+  test('failed acceptInvite does NOT trigger refresh', async () => {
+    mockAcceptInvite.mockRejectedValueOnce({
+      response: { data: { code: 'INVITE_NOT_FOUND', error: 'no' } },
+    });
+
+    await useTrainerStore.getState().acceptInvite('ABCDEF2345');
+
+    expect(mockGetMyTrainers).not.toHaveBeenCalled();
+  });
+
+  test('leaveTrainer optimistically removes link and persists on success', async () => {
+    useTrainerStore.setState({
+      myTrainers: [
+        {
+          trainerClientId: 'tc-1',
+          acceptedAt: '2026-04-22T10:00:00Z',
+          trainerId: 'u-trainer-1',
+          firstName: 'Stas',
+          lastName: null,
+          avatarUrl: null,
+        },
+        {
+          trainerClientId: 'tc-2',
+          acceptedAt: '2026-04-22T10:00:00Z',
+          trainerId: 'u-trainer-2',
+          firstName: 'Petr',
+          lastName: null,
+          avatarUrl: null,
+        },
+      ],
+    });
+    mockLeaveTrainer.mockResolvedValueOnce(undefined);
+
+    await useTrainerStore.getState().leaveTrainer('tc-1');
+
+    const remaining = useTrainerStore.getState().myTrainers;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].trainerClientId).toBe('tc-2');
+  });
+
+  test('leaveTrainer rolls back on server failure', async () => {
+    const original = [{
+      trainerClientId: 'tc-1',
+      acceptedAt: '2026-04-22T10:00:00Z',
+      trainerId: 'u-trainer-1',
+      firstName: 'Stas',
+      lastName: null,
+      avatarUrl: null,
+    }];
+    useTrainerStore.setState({ myTrainers: original });
+    mockLeaveTrainer.mockRejectedValueOnce(new Error('500'));
+
+    await useTrainerStore.getState().leaveTrainer('tc-1');
+
+    expect(useTrainerStore.getState().myTrainers).toHaveLength(1);
+    expect(useTrainerStore.getState().myTrainers[0].trainerClientId).toBe('tc-1');
   });
 });
 

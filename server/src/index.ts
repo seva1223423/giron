@@ -124,6 +124,33 @@ app.get('/health/ready', async (_, res) => {
   }
 });
 
+// Deep diagnostics — DB + every configured LLM provider. NOT a probe (don't
+// wire to load balancer; the LLM probe takes a network round-trip and would
+// flap). For ops dashboards / on-call triage. Cached lightly via the LB
+// would be fine, but we don't bother — call frequency is human-paced.
+app.get('/health/deep', async (_, res) => {
+  if (isShuttingDown) {
+    return res.status(503).json({ status: 'shutting_down' });
+  }
+  const t0 = Date.now();
+  // Lazy require — keeps the LLM stack out of cold-start critical path.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+  const { healthCheckAll } = require('./services/llm/router') as typeof import('./services/llm/router');
+  const [dbResult, llmResults] = await Promise.allSettled([
+    prisma.$queryRaw`SELECT 1`,
+    healthCheckAll(),
+  ]);
+  const dbOk = dbResult.status === 'fulfilled';
+  const llms = llmResults.status === 'fulfilled' ? llmResults.value : [];
+  const allHealthy = dbOk && llms.every((p) => p.ok);
+  res.status(allHealthy ? 200 : 503).json({
+    status: allHealthy ? 'ok' : 'degraded',
+    db: { ok: dbOk, error: dbOk ? undefined : String((dbResult as PromiseRejectedResult).reason) },
+    llm: llms,
+    durationMs: Date.now() - t0,
+  });
+});
+
 // ── Rate limiters ────────────────────────────────────────────────────────────
 
 /** Admin endpoints: very strict — 30 requests per 15 minutes per IP */

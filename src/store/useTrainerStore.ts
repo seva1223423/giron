@@ -59,7 +59,24 @@ interface TrainerStore {
   acceptInvite: (code: string) => Promise<{ trainerClientId: string; trainerId: string; displayName: string } | { error: string; code?: string }>;
   disconnectLink: (clientId: string) => Promise<void>;
 
+  // Client-side: list of trainers the current user has accepted invites
+  // from. `myTrainers` mirrors the server response of GET /my-trainers
+  // and is repopulated by `fetchMyTrainers` + after a successful
+  // `acceptInvite`.
+  myTrainers: ClientTrainerLink[];
+  fetchMyTrainers: () => Promise<void>;
+  leaveTrainer: (trainerClientId: string) => Promise<void>;
+
   clearUserData: () => void;
+}
+
+export interface ClientTrainerLink {
+  trainerClientId: string;
+  acceptedAt: string | null;
+  trainerId: string;
+  firstName: string;
+  lastName: string | null;
+  avatarUrl: string | null;
 }
 
 export const useTrainerStore = create<TrainerStore>()(
@@ -68,6 +85,7 @@ export const useTrainerStore = create<TrainerStore>()(
       clients: [],
       sessions: [],
       isLoading: false,
+      myTrainers: [],
 
       fetchClients: async () => {
         set({ isLoading: true });
@@ -216,6 +234,12 @@ export const useTrainerStore = create<TrainerStore>()(
       acceptInvite: async (code) => {
         try {
           const res = await trainerService.acceptInvite(code);
+          // Refresh myTrainers in the background so the "My trainers" screen
+          // reflects the new link without a manual pull-to-refresh. Not
+          // awaited — UI can show success immediately, list will catch up.
+          trainerService.getMyTrainers()
+            .then((trainers) => set({ myTrainers: trainers }))
+            .catch(() => {});
           return {
             trainerClientId: res.trainerClientId,
             trainerId: res.trainerId,
@@ -259,12 +283,43 @@ export const useTrainerStore = create<TrainerStore>()(
         }
       },
 
-      clearUserData: () => set({ clients: [], sessions: [], isLoading: false }),
+      fetchMyTrainers: async () => {
+        try {
+          const trainers = await trainerService.getMyTrainers();
+          set({ myTrainers: trainers });
+        } catch {
+          // Keep stale list rather than wiping — offline users still want
+          // to see who their trainer is in the UI.
+        }
+      },
+
+      leaveTrainer: async (trainerClientId) => {
+        const prev = get().myTrainers;
+        // Optimistic removal so the UI updates instantly.
+        set((s) => ({
+          myTrainers: s.myTrainers.filter((t) => t.trainerClientId !== trainerClientId),
+        }));
+        try {
+          await trainerService.leaveTrainer(trainerClientId);
+        } catch {
+          // Restore the row on failure. Don't replay the entire array —
+          // that would erase any concurrent fetchMyTrainers refresh.
+          set((s) => {
+            const lost = prev.find((t) => t.trainerClientId === trainerClientId);
+            if (!lost) return s;
+            // Insert back in original position based on prev order.
+            const exists = s.myTrainers.some((t) => t.trainerClientId === trainerClientId);
+            return exists ? s : { myTrainers: [...s.myTrainers, lost] };
+          });
+        }
+      },
+
+      clearUserData: () => set({ clients: [], sessions: [], isLoading: false, myTrainers: [] }),
     }),
     {
       name: 'iron-gym-trainer',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ clients: state.clients, sessions: state.sessions }),
+      partialize: (state) => ({ clients: state.clients, sessions: state.sessions, myTrainers: state.myTrainers }),
       version: 1,
       migrate: (state: any) => state,
     }

@@ -425,6 +425,129 @@ describe('DELETE /trainer/clients/:id/link', () => {
   });
 });
 
+// ── GET /trainer/my-trainers ────────────────────────────────────────────────
+
+describe('GET /trainer/my-trainers', () => {
+  test('returns linked trainers for the current user', async () => {
+    (prisma.trainerClient.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: CLIENT_ROW_ID,
+        acceptedAt: new Date('2026-04-22T10:00:00Z'),
+        trainer: {
+          id: 'u-trainer',
+          firstName: 'Stas',
+          lastName: 'Trainer',
+          avatarUrl: null,
+        },
+      },
+    ]);
+
+    const res = await request(app)
+      .get('/api/trainer/my-trainers')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.trainers).toHaveLength(1);
+    expect(res.body.trainers[0]).toMatchObject({
+      trainerClientId: CLIENT_ROW_ID,
+      trainerId: 'u-trainer',
+      firstName: 'Stas',
+      lastName: 'Trainer',
+    });
+    // Findmany must filter on the authenticated user's id, not anything from
+    // the request body — IDOR check.
+    const findManyCall = (prisma.trainerClient.findMany as jest.Mock).mock.calls[0][0];
+    expect(findManyCall.where).toMatchObject({
+      clientUserId: 'u-client',
+      acceptedAt: { not: null },
+    });
+  });
+
+  test('returns empty trainers array when user has no links', async () => {
+    (prisma.trainerClient.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/api/trainer/my-trainers')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.trainers).toEqual([]);
+  });
+
+  test('available without trainer role (regular USER allowed)', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(clientUser);
+    (prisma.trainerClient.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/api/trainer/my-trainers')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`);
+
+    expect(res.status).toBe(200);
+  });
+
+  test('401 without auth', async () => {
+    const res = await request(app).get('/api/trainer/my-trainers');
+    expect(res.status).toBe(401);
+  });
+
+  test('caps result to 50 rows (sanity bound)', async () => {
+    (prisma.trainerClient.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/trainer/my-trainers')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`);
+
+    const findManyCall = (prisma.trainerClient.findMany as jest.Mock).mock.calls[0][0];
+    expect(findManyCall.take).toBe(50);
+  });
+});
+
+// ── DELETE /trainer/my-trainers/:trainerClientId ────────────────────────────
+
+describe('DELETE /trainer/my-trainers/:id (client-initiated disconnect)', () => {
+  test('clears linkage when row belongs to current user', async () => {
+    (prisma.trainerClient.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    const res = await request(app)
+      .delete(`/api/trainer/my-trainers/${CLIENT_ROW_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+    // Critical IDOR guard: the WHERE must filter on clientUserId === req.userId,
+    // otherwise user-A could disconnect user-B's relationship by passing the row id.
+    const updateCall = (prisma.trainerClient.updateMany as jest.Mock).mock.calls[0][0];
+    expect(updateCall.where).toMatchObject({
+      id: CLIENT_ROW_ID,
+      clientUserId: 'u-client',
+    });
+  });
+
+  test('404 when row does not belong to caller (IDOR test)', async () => {
+    // u-client is authenticated but the row's clientUserId is someone else,
+    // so updateMany's WHERE doesn't match and count comes back as 0.
+    (prisma.trainerClient.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+    const res = await request(app)
+      .delete(`/api/trainer/my-trainers/${CLIENT_ROW_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  test('400 for non-cuid id', async () => {
+    const res = await request(app)
+      .delete('/api/trainer/my-trainers/not-a-cuid')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`);
+    expect(res.status).toBe(400);
+  });
+
+  test('401 without auth', async () => {
+    const res = await request(app).delete(`/api/trainer/my-trainers/${CLIENT_ROW_ID}`);
+    expect(res.status).toBe(401);
+  });
+});
+
 // ── Invite code quality ─────────────────────────────────────────────────────
 
 describe('invite code properties', () => {
