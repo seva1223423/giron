@@ -239,6 +239,16 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
+
+    // Admin bootstrap-on-register: if this is the first time the user
+    // matching ADMIN_BOOTSTRAP_EMAIL signs up, create them straight as
+    // ADMIN. Saves a server restart that would otherwise be needed for
+    // the boot-time bootstrap to find them. Idempotent — only the very
+    // first registration with a matching email gets ADMIN; subsequent
+    // attempts hit the email-uniqueness 409 path below.
+    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+    const isBootstrapAdmin = bootstrapEmail && data.email.toLowerCase() === bootstrapEmail;
+
     const user = await prisma.user.create({
       data: {
         email: data.email,
@@ -248,8 +258,13 @@ router.post('/register', async (req: Request, res: Response) => {
         phone,
         phoneVerified,
         emailVerified: false,
+        role: isBootstrapAdmin ? 'ADMIN' : undefined,
       },
     });
+
+    if (isBootstrapAdmin) {
+      logger.info(`[AdminBootstrap] Auto-promoted ${user.email} on register`);
+    }
 
     const { token, refreshToken } = await signTokens(user.id, req);
 
