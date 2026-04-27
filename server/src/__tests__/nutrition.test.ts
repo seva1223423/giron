@@ -95,6 +95,10 @@ const sampleMeal = {
 beforeEach(() => {
   jest.clearAllMocks();
   (prisma.user.findUnique as jest.Mock).mockResolvedValue(baseUser);
+  // Routes touch user.update for the lastActiveAt retention bookkeeping
+  // (RETENTION-01) — fire-and-forget, but the chained .catch() needs the
+  // mock to return a thenable. Default to no-op success.
+  (prisma.user.update as jest.Mock).mockResolvedValue(baseUser);
 });
 
 // ─── POST /api/nutrition/meals ────────────────────────────────────────────────

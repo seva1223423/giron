@@ -433,9 +433,12 @@ export default function AdminDashboardScreen() {
         <AlertBanner icon="⚡" color="#8B5CF6" message={`${stats.churnRiskUsers} платных пользователей не тренируются 14+ дней`} onPress={() => navigation.navigate('AdminUsersScreen', { dormant: true })} />
       )}
 
-      {/* Quick nav */}
+      {/* Quick nav. "5 ключевых чисел" placed first — it's the screen the
+          founder should hit before any product/growth decision. The others
+          are tactical (users, support, logs); this one is strategic. */}
       <View style={styles.navGrid}>
         {[
+          { label: '5 ключевых чисел', icon: '⭐', screen: 'AdminMetricsKeyScreen' },
           { label: 'Пользователи', icon: '👥', screen: 'AdminUsersScreen' },
           { label: 'Поддержка', icon: '🎧', screen: 'AdminSupportScreen' },
           { label: 'Аналитика', icon: '📈', screen: 'AdminAnalyticsScreen' },

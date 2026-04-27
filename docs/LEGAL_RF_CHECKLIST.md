@@ -65,6 +65,19 @@
 
 ---
 
+## 4а. 376-ФЗ — автопродление подписок
+
+Закон вступил в силу **1 марта 2026**. Регулирует автоматически возобновляемые подписки: требует явного согласия, предупреждения о списании и простой отмены.
+
+- **[КОД] ✓** **Явное согласие на автопродление** — модал `AutoRenewalConsentModal` ([src/screens/profile/components/AutoRenewalConsentModal.tsx](../src/screens/profile/components/AutoRenewalConsentModal.tsx)) показывается перед оформлением подписки. Чекбокс обязателен; кнопка «Подтвердить» отключена до его установки. Timestamp передаётся в `/subscription/activate` и валидируется ≤2 минут freshness server-side.
+- **[КОД] ✓** **48-часовое уведомление перед автосписанием** — cron в [server/src/services/retentionService.ts](../server/src/services/retentionService.ts) функция `processPreRenewalNotices` ищет подписки с `endDate` в окне 46-50ч и `renewalNoticeSentAt = null`, шлёт push + email. Email-шаблон `sendPreRenewalNotificationEmail` указывает дату списания, сумму и путь к отмене.
+- **[КОД] ✓** **1-click cancel внутри приложения** — кнопка «Отменить подписку» в [SubscriptionScreen](../src/screens/profile/SubscriptionScreen.tsx) уже была. Теперь после отмены пользователю шлётся подтверждающий email через `sendSubscriptionCancelledEmail` с указанной access-until датой.
+- **[КОД] ✓** **Audit trail** — на модель `Subscription` добавлены `canceledAt`, `autoRenewalConsentAt`, `renewalNoticeSentAt`, `renewalAmountRub` (см. [server/prisma/schema.prisma](../server/prisma/schema.prisma)). Применяется через `npx prisma db push`.
+- **[ВЫ]** При первом запуске payment-интеграции убедиться, что `renewalAmountRub` записывается на каждое продление — иначе ARPU считается по fallback-ценам плана.
+- **[ВЫ]** Описать процесс отмены и 48ч уведомления в Условиях использования (см. [terms.html](terms.html)) и Политике конфиденциальности.
+
+---
+
 ## 5. Магазины приложений
 
 Приложение публикуется одновременно в RuStore + Google Play + App Store. Код использует feature-flag `EXPO_PUBLIC_STORE` (см. [`src/config/store.ts`](../src/config/store.ts)) для переключения видимых провайдеров в зависимости от целевого стора.

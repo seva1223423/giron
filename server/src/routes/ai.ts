@@ -3313,6 +3313,27 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       await prisma.chatMessage.create({ data: { role: 'user', content: message, userId } });
     }
 
+    // Retention bookkeeping (RETENTION-01). Stamp firstChatAt only on the
+    // very first message — using updateMany with `firstChatAt: null` makes
+    // this idempotent without reading the user back. Refresh lastActiveAt
+    // unconditionally. Both fire-and-forget so they never block the AI
+    // response. The retention cron uses these flags to detect users who
+    // installed but never engaged (firstChatAt IS NULL >24h after signup)
+    // and to drive re-engagement cohorts (lastActiveAt < threshold).
+    Promise.all([
+      prisma.user.updateMany({
+        where: { id: userId, firstChatAt: null },
+        data: { firstChatAt: new Date() },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { lastActiveAt: new Date() },
+      }),
+    ]).catch((err) => {
+      // Non-critical — log via reportError but never fail the chat path.
+      reportError(err, { userId, route: 'POST /ai/chat', tags: { origin: 'retention-bookkeep' } });
+    });
+
     // ─── Intent classification: tune AI parameters per message type ──────
     const intent = classifyIntent(message);
     const intentConfig = INTENT_CONFIGS[intent];

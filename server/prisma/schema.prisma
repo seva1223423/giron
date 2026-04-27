@@ -53,6 +53,19 @@ model User {
   loginAttempts           Int       @default(0)
   lockedUntil             DateTime?
 
+  // Retention/activation tracking. firstChatAt is set the very first time
+  // the AI chat handler accepts a successful user message — used by the
+  // hourly retention cron to detect users who installed but never engaged.
+  // *PushSentAt fields are write-once flags so the same user is never
+  // nagged twice for the same milestone. lastActiveAt drives the
+  // inactivity-cohort queries without needing to scan multiple tables.
+  firstChatAt             DateTime?
+  lastActiveAt            DateTime?
+  activationPushSentAt    DateTime?
+  reactivation7dSentAt    DateTime?
+  reactivation14dSentAt   DateTime?
+  reactivation30dSentAt   DateTime?
+
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -88,6 +101,15 @@ model User {
   trustedDevices          TrustedDevice[]
   usedTotpCodes           UsedTotpCode[]
   foodScanLogs            FoodScanLog[]
+
+  // Index for the hourly retention cron — finds users registered >24h ago
+  // whose firstChatAt is still null and activationPushSentAt is null.
+  // Composite index on (activationPushSentAt, firstChatAt, createdAt) keeps
+  // the scan tight as the user table grows.
+  @@index([activationPushSentAt, firstChatAt, createdAt])
+  // Index for reactivation cohorts — finds users whose lastActiveAt is
+  // older than threshold AND the relevant *SentAt is null.
+  @@index([lastActiveAt])
 }
 
 enum Gender {
@@ -503,6 +525,21 @@ model Subscription {
   userId     String   @unique
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // 376-ФЗ audit trail. canceledAt is set when the user taps "Отменить
+  // подписку" — distinct from `status='cancelled'` which can also be set
+  // by admin actions or webhook events. autoRenewalConsentAt records the
+  // moment the user explicitly confirmed the auto-renewal terms (modal in
+  // SubscriptionScreen, validates timestamp is recent server-side).
+  // renewalNoticeSentAt prevents double-firing the 48h pre-renewal email
+  // when the cron ticks more than once in the 48-46h window.
+  canceledAt              DateTime?
+  autoRenewalConsentAt    DateTime?
+  renewalNoticeSentAt     DateTime?
+  /// Renewal price snapshot — locks in the amount that the consent
+  /// covered, so a later price change requires fresh consent before the
+  /// next charge (376-ФЗ §3 — consent must cover the actual amount).
+  renewalAmountRub        Int?
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -511,6 +548,9 @@ model Subscription {
   // this, admin.ts hits a full table scan + filter + sort — on a table that
   // grows linearly with user count, this is a future P0 at scale.
   @@index([status, endDate])
+  // Index for the 48h pre-renewal cron — finds active subscriptions whose
+  // endDate falls within the next 48h and renewalNoticeSentAt is null.
+  @@index([status, endDate, renewalNoticeSentAt])
 }
 
 

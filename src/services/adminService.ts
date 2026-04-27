@@ -1,6 +1,60 @@
 import { api } from './api';
 import type { AdminStats, AdminUserSummary, AdminUserDetail, AdminLog, AdminAnalytics, UserRole, TicketStatus, TicketPriority, SupportTicket, Announcement, AnnouncementType } from '../types';
 
+/**
+ * Response shape for GET /admin/metrics/key. Each block contains both raw
+ * numbers and a derived `isHealthy` flag so the dashboard can colour-code
+ * cards without re-implementing the threshold logic on the client. The
+ * thresholds live server-side (single source of truth) and ride along on
+ * each response so the UI can show "healthy <N>" labels.
+ */
+export interface KeyMetrics {
+  generatedAt: string;
+  payingUsers: {
+    current: number;
+    thirtyDaysAgo: number;
+    /** % change from 30 days ago, null when prior cohort was 0 (avoid /0). */
+    deltaPct: number | null;
+  };
+  monthlyChurn: {
+    churnedLast30: number;
+    avgPaying: number;
+    churnPct: number;
+    healthyThreshold: number;
+    isHealthy: boolean;
+  };
+  arpu: {
+    rub: number;
+    sampleSize: number;
+    totalMrrRub: number;
+    healthyThreshold: number;
+    isHealthy: boolean;
+  };
+  activation: {
+    cohortSize: number;
+    activated24h: number;
+    activationRatePct: number;
+    medianTtfMinutes: number | null;
+    healthyThreshold: number;
+    isHealthy: boolean;
+  };
+  funnel: {
+    signups: number;
+    profiled: number;
+    firstWorkout: number;
+    firstChat: number;
+    paid: number;
+    signupToProfiledPct: number;
+    profiledToFirstChatPct: number;
+    firstChatToPaidPct: number;
+    signupToPaidPct: number;
+  };
+  previous30d: {
+    payingUsers: number;
+    signups: number;
+  };
+}
+
 export const adminService = {
   // ── Dashboard ─────────────────────────────────────────────────────────────
   async getStats(): Promise<AdminStats> {
@@ -11,6 +65,18 @@ export const adminService = {
   // ── Analytics ─────────────────────────────────────────────────────────────
   async getAnalytics(days?: number): Promise<AdminAnalytics> {
     const res = await api.get('/admin/analytics', { params: { days } });
+    return res.data;
+  },
+
+  /**
+   * Key metrics dashboard — the 5 numbers a solo founder needs to see in
+   * one place: paying users, monthly churn, ARPU, activation rate, and the
+   * signup→paid funnel. Optimised for AdminMetricsKeyScreen which shows
+   * each number with a healthy/unhealthy indicator. Cached server-side
+   * 5 min; pass refresh=true to bust the cache.
+   */
+  async getKeyMetrics(refresh?: boolean): Promise<KeyMetrics> {
+    const res = await api.get('/admin/metrics/key', refresh ? { params: { refresh: 1 } } : undefined);
     return res.data;
   },
 

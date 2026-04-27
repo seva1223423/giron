@@ -38,16 +38,28 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater, applyServerTargets } = useNutritionStore();
   const { getWeekSessions, syncFromServer: syncCardio, addSession: addCardioSession } = useCardioStore();
   const { getLastEntries: getSleepEntries, syncFromServer: syncSleep } = useSleepStore();
-  const { consumeAiMessage } = useSubscriptionStore();
+  const { consumeAiMessage, isPremiumActive, aiMessagesLeft } = useSubscriptionStore();
   const { setRestTimerDefault, setNotificationsEnabled, setReminderHour, setWaterRemindersEnabled, setWorkoutDurationGoal } = useSettingsStore();
   const { addEntry: addMeasurementEntry } = useMeasurementsStore();
   const scrollRef = useRef<ScrollView>(null);
   const dynamicPrompts = useDynamicPrompts();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([{
-    id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(),
-    content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\n⚠️ Важно: мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах, хронических заболеваниях и перед началом программы — проконсультируйтесь со специалистом.\n\nВыбери вопрос ниже или спроси своё!`,
-  }]);
+  // Build the welcome message once at first mount. The free-tier quota
+  // hint is computed from the subscription store snapshot — premium users
+  // see no quota line, free users get an explicit "X сообщений в день"
+  // ahead of any usage so they aren't surprised by the paywall on the 11th
+  // message.
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const isPremium = isPremiumActive();
+    const remaining = aiMessagesLeft();
+    const quotaLine = isPremium
+      ? ''
+      : `\n\n💬 На бесплатном тарифе — ${remaining} сообщений сегодня (обновляется каждый день в полночь).`;
+    return [{
+      id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(),
+      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.${quotaLine}\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\n⚠️ Важно: мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах, хронических заболеваниях и перед началом программы — проконсультируйтесь со специалистом.\n\nВыбери вопрос ниже или спроси своё!`,
+    }];
+  });
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [lastActions, setLastActions] = useState<AIActionResult[]>([]);

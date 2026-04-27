@@ -1230,6 +1230,359 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
   }
 });
 
+/**
+ * GET /admin/metrics/key — the 5 numbers a solo founder actually needs to
+ * decide what to do next, returned in one query so the dashboard doesn't
+ * need to stitch three endpoints together:
+ *
+ *   1. payingUsers       — current paid subscribers (plan != free, status active or cancelled-but-not-expired)
+ *   2. monthlyChurn      — % of paid users who left in the past 30d
+ *   3. arpu              — average revenue per paid user (₽/mo)
+ *   4. activation        — % of new signups who started a chat within 24h + median time-to-first-chat
+ *   5. funnel            — signup → profiled → first workout → first chat → paid (last 30d cohort)
+ *
+ * Cached 5 minutes — the underlying aggregation hits Subscription, User, and
+ * ChatMessage. At <10k users this runs in under 200ms; revisit when the
+ * table grows past that. ?refresh=1 forces a re-compute.
+ */
+router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { refresh } = req.query as Record<string, string>;
+    const KEY_METRICS_CACHE_KEY = 'admin:metrics:key';
+    const KEY_METRICS_CACHE_TTL = 5 * 60 * 1000;
+
+    if (refresh !== '1') {
+      const cached = adminStatsCache.get(KEY_METRICS_CACHE_KEY);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached);
+      }
+    }
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400 * 1000);
+
+    // ── 1. Paying users (current + delta vs 30 days ago) ──────────────────
+    // "Paying" = active OR cancelled-not-yet-expired AND plan != free. The
+    // cancelled bucket counts because the user has already paid — they
+    // contribute to current MRR until endDate hits.
+    const payingNow = await prisma.subscription.count({
+      where: {
+        plan: { not: 'free' },
+        OR: [
+          { status: 'active' },
+          { status: 'cancelled', endDate: { gte: now } },
+        ],
+      },
+    });
+
+    // 30 days ago snapshot: subscriptions that existed AND were paid AND
+    // hadn't expired yet at the cutoff. We approximate via createdAt + endDate.
+    const payingThirtyDaysAgo = await prisma.subscription.count({
+      where: {
+        plan: { not: 'free' },
+        createdAt: { lte: thirtyDaysAgo },
+        OR: [
+          { endDate: null },
+          { endDate: { gte: thirtyDaysAgo } },
+        ],
+      },
+    });
+
+    // ── 2. Monthly churn (last 30 days) ─────────────────────────────────────
+    // churnEvents = paid subscriptions that hit 'expired' OR canceledAt landed
+    // in the past 30d window. Uses canceledAt (the audit field added for
+    // 376-ФЗ) when present, falls back to updatedAt for the legacy 'expired'
+    // status flips that pre-date the audit field.
+    const churnedLast30 = await prisma.subscription.count({
+      where: {
+        plan: { not: 'free' },
+        OR: [
+          { canceledAt: { gte: thirtyDaysAgo } },
+          { status: 'expired', updatedAt: { gte: thirtyDaysAgo } },
+        ],
+      },
+    });
+    // Denominator: average paid users over the 30d window (start + end / 2).
+    const avgPaying = (payingNow + payingThirtyDaysAgo) / 2;
+    const monthlyChurnPct = avgPaying > 0
+      ? Math.round((churnedLast30 / avgPaying) * 1000) / 10
+      : 0;
+
+    // ── 3. ARPU ──────────────────────────────────────────────────────────────
+    // Use the renewalAmountRub snapshot when populated (added with the 376-ФЗ
+    // audit fields). For pre-audit subscriptions we fall back to a plan-based
+    // estimate: pro=299₽/mo, trainer=599₽/mo, club=1990₽/mo. These are list
+    // prices and may diverge from reality after promo codes — once the
+    // payment integration writes renewalAmountRub on every renewal this
+    // estimate is dead code.
+    const PLAN_PRICE_FALLBACK_RUB: Record<string, number> = {
+      pro: 299,
+      trainer: 599,
+      club: 1990,
+    };
+    const activeSubs = await prisma.subscription.findMany({
+      where: {
+        plan: { not: 'free' },
+        OR: [
+          { status: 'active' },
+          { status: 'cancelled', endDate: { gte: now } },
+        ],
+      },
+      select: { plan: true, renewalAmountRub: true },
+    });
+    let totalMrrRub = 0;
+    for (const sub of activeSubs) {
+      totalMrrRub += sub.renewalAmountRub ?? PLAN_PRICE_FALLBACK_RUB[sub.plan] ?? 0;
+    }
+    const arpuRub = activeSubs.length > 0 ? Math.round(totalMrrRub / activeSubs.length) : 0;
+
+    // ── 4. Activation: TTF-chat distribution ─────────────────────────────────
+    // % of users in the last 30d cohort who completed first AI chat within
+    // 24h, plus the median time-to-first-chat in minutes for that cohort.
+    // Median computed in SQL via percentile_cont — moves the work to PG
+    // instead of pulling timestamps into Node.
+    const ttfRows = await prisma.$queryRaw<{
+      cohort_size: bigint;
+      activated_24h: bigint;
+      median_minutes: number | null;
+    }[]>`
+      WITH cohort AS (
+        SELECT id, "createdAt", "firstChatAt"
+        FROM "User"
+        WHERE "createdAt" >= ${thirtyDaysAgo}
+      )
+      SELECT
+        COUNT(*)::bigint AS cohort_size,
+        COUNT(*) FILTER (
+          WHERE "firstChatAt" IS NOT NULL
+          AND EXTRACT(EPOCH FROM ("firstChatAt" - "createdAt")) <= 86400
+        )::bigint AS activated_24h,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (
+          ORDER BY EXTRACT(EPOCH FROM ("firstChatAt" - "createdAt")) / 60.0
+        ) FILTER (WHERE "firstChatAt" IS NOT NULL) AS median_minutes
+      FROM cohort
+    `;
+    const cohortSize = Number(ttfRows[0]?.cohort_size ?? 0);
+    const activated24h = Number(ttfRows[0]?.activated_24h ?? 0);
+    const activationRatePct = cohortSize > 0
+      ? Math.round((activated24h / cohortSize) * 1000) / 10
+      : 0;
+    const medianTtfMinutes = ttfRows[0]?.median_minutes != null
+      ? Math.round(Number(ttfRows[0].median_minutes))
+      : null;
+
+    // ── 5. Funnel: signup → profiled → first workout → first chat → paid ─────
+    const [funnelSignups, funnelProfiled, funnelFirstWorkout, funnelFirstChat, funnelPaid] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.user.count({
+        where: {
+          createdAt: { gte: thirtyDaysAgo },
+          goal: { not: null },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { gte: thirtyDaysAgo },
+          workouts: { some: { completedAt: { not: null } } },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { gte: thirtyDaysAgo },
+          firstChatAt: { not: null },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { gte: thirtyDaysAgo },
+          subscription: { plan: { not: 'free' }, status: 'active' },
+        },
+      }),
+    ]);
+
+    // ── Trend: same numbers for the previous 30d window for delta context ───
+    const [prevPayingNow, prevSignups] = await Promise.all([
+      prisma.subscription.count({
+        where: {
+          plan: { not: 'free' },
+          createdAt: { lte: sixtyDaysAgo },
+          OR: [
+            { endDate: null },
+            { endDate: { gte: sixtyDaysAgo } },
+          ],
+        },
+      }),
+      prisma.user.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    ]);
+
+    const payload = {
+      generatedAt: now.toISOString(),
+      payingUsers: {
+        current: payingNow,
+        thirtyDaysAgo: payingThirtyDaysAgo,
+        deltaPct: payingThirtyDaysAgo > 0
+          ? Math.round(((payingNow - payingThirtyDaysAgo) / payingThirtyDaysAgo) * 1000) / 10
+          : null,
+      },
+      monthlyChurn: {
+        churnedLast30,
+        avgPaying: Math.round(avgPaying * 10) / 10,
+        churnPct: monthlyChurnPct,
+        // Healthy benchmark for early-stage consumer SaaS: <10% monthly. Above
+        // that and acquisition can't keep up regardless of channel.
+        healthyThreshold: 10,
+        isHealthy: monthlyChurnPct <= 10,
+      },
+      arpu: {
+        rub: arpuRub,
+        sampleSize: activeSubs.length,
+        totalMrrRub,
+        // Healthy ARPU for RU fitness market: ≥400 ₽/mo. Below = paid acquisition
+        // doesn't pencil out unless retention is >12 months.
+        healthyThreshold: 400,
+        isHealthy: arpuRub >= 400,
+      },
+      activation: {
+        cohortSize,
+        activated24h,
+        activationRatePct,
+        medianTtfMinutes,
+        healthyThreshold: 50,
+        isHealthy: activationRatePct >= 50,
+      },
+      funnel: {
+        signups: funnelSignups,
+        profiled: funnelProfiled,
+        firstWorkout: funnelFirstWorkout,
+        firstChat: funnelFirstChat,
+        paid: funnelPaid,
+        // Conversion rates between consecutive steps — easier to read than the
+        // raw counts when comparing across periods.
+        signupToProfiledPct: funnelSignups > 0 ? Math.round((funnelProfiled / funnelSignups) * 1000) / 10 : 0,
+        profiledToFirstChatPct: funnelProfiled > 0 ? Math.round((funnelFirstChat / funnelProfiled) * 1000) / 10 : 0,
+        firstChatToPaidPct: funnelFirstChat > 0 ? Math.round((funnelPaid / funnelFirstChat) * 1000) / 10 : 0,
+        signupToPaidPct: funnelSignups > 0 ? Math.round((funnelPaid / funnelSignups) * 1000) / 10 : 0,
+      },
+      previous30d: {
+        payingUsers: prevPayingNow,
+        signups: prevSignups,
+      },
+    };
+
+    adminStatsCache.set(KEY_METRICS_CACHE_KEY, payload, KEY_METRICS_CACHE_TTL);
+    res.setHeader('X-Cache', 'MISS');
+    res.json(payload);
+  } catch (e) {
+    logger.error('GET /admin/metrics/key:', e);
+    res.status(500).json({ error: 'Ошибка получения ключевых метрик' });
+  }
+});
+
+/**
+ * GET /admin/digest/preview — return today's admin digest stats without
+ * sending email/push. Useful for verifying the cron output before 06:00 UTC
+ * fires for real. No side effects.
+ */
+router.get('/digest/preview', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const { computeDigestStats } = await import('../services/adminDigestService');
+    const stats = await computeDigestStats();
+    res.json(stats);
+  } catch (e) {
+    logger.error('GET /admin/digest/preview:', e);
+    res.status(500).json({ error: 'Ошибка получения превью дайджеста' });
+  }
+});
+
+/**
+ * GET /admin/digest/readiness — diagnostic endpoint that reports whether
+ * everything required for the daily digest is in place. Returns
+ * per-recipient status so the founder can see at a glance which admin
+ * users will receive the digest tomorrow morning vs. which are missing
+ * push token, email, or aren't registered yet.
+ *
+ * Output shape:
+ *   {
+ *     adminCount,                   // total users with role=ADMIN
+ *     bootstrapEmail,               // ADMIN_BOOTSTRAP_EMAIL env value (or null)
+ *     bootstrapEmailRegistered,     // true if a user with that email exists
+ *     smtpConfigured,               // whether SMTP_HOST/USER/PASS are set
+ *     admins: [{ id, email, hasPushToken, ... }],
+ *   }
+ *
+ * Doesn't require admin role to read because it's used during initial
+ * bootstrap *before* the founder can prove they're admin (the answer
+ * tells them whether they are). It does require auth — anonymous users
+ * shouldn't see admin emails. Rate-limited via the global admin limiter
+ * upstream.
+ */
+router.get('/digest/readiness', authenticate, async (_req: AuthRequest, res: Response) => {
+  try {
+    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() ?? null;
+
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN', isBanned: false },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        pushTokens: { select: { id: true } },
+      },
+    });
+
+    let bootstrapEmailRegistered = false;
+    if (bootstrapEmail) {
+      const exists = await prisma.user.count({ where: { email: bootstrapEmail } });
+      bootstrapEmailRegistered = exists > 0;
+    }
+
+    const smtpConfigured = Boolean(
+      process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
+    );
+
+    res.json({
+      adminCount: admins.length,
+      bootstrapEmail,
+      bootstrapEmailRegistered,
+      smtpConfigured,
+      admins: admins.map((a) => ({
+        id: a.id,
+        email: a.email,
+        firstName: a.firstName,
+        hasPushToken: a.pushTokens.length > 0,
+        pushTokenCount: a.pushTokens.length,
+        hasEmail: Boolean(a.email),
+      })),
+      // Surface the single critical question: will the next 09:00 МСК cron
+      // deliver a usable digest to anyone? True iff at least one admin has
+      // both an email AND SMTP is configured (push is bonus — most useful
+      // is email since it persists in inbox).
+      readyForNextDigest: smtpConfigured && admins.some((a) => Boolean(a.email)),
+    });
+  } catch (e) {
+    logger.error('GET /admin/digest/readiness:', e);
+    res.status(500).json({ error: 'Ошибка проверки готовности дайджеста' });
+  }
+});
+
+/**
+ * POST /admin/digest/send-now — fire the digest immediately to all admins.
+ * Use sparingly; meant for manual testing right after deploy. Returns the
+ * delivery count.
+ */
+router.post('/digest/send-now', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    const { sendDailyAdminDigest } = await import('../services/adminDigestService');
+    const sent = await sendDailyAdminDigest();
+    res.json({ sent });
+  } catch (e) {
+    logger.error('POST /admin/digest/send-now:', e);
+    res.status(500).json({ error: 'Ошибка отправки дайджеста' });
+  }
+});
+
 /** GET /admin/analytics/export — CSV export of daily timeline data */
 router.get('/analytics/export', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

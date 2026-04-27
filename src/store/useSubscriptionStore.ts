@@ -34,7 +34,16 @@ interface SubscriptionStore {
 
   // Backend sync
   syncWithBackend: () => Promise<void>;
-  activateOnBackend: (plan: 'pro' | 'trainer' | 'club', durationDays: number) => Promise<void>;
+  /**
+   * Activate the subscription on the server. The optional autoRenewalConsentAt
+   * is the ISO timestamp captured at the moment the user tapped "Подтвердить"
+   * in the 376-ФЗ consent modal — the server requires it to be ≤2 min old.
+   */
+  activateOnBackend: (
+    plan: 'pro' | 'trainer' | 'club',
+    durationDays: number,
+    autoRenewalConsentAt?: string,
+  ) => Promise<void>;
   cancelOnBackend: () => Promise<{ message?: string }>;
 
   // Counters — return true if allowed, false if limit exceeded
@@ -100,9 +109,18 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
         }
       },
 
-      activateOnBackend: async (plan, durationDays) => {
+      activateOnBackend: async (plan, durationDays, autoRenewalConsentAt) => {
         try {
-          const { data } = await api.post('/subscription/activate', { plan, durationDays });
+          const { data } = await api.post('/subscription/activate', {
+            plan,
+            durationDays,
+            // Forward the consent timestamp only when the caller actually
+            // captured one. Trial activations from older clients still work
+            // without it — the server treats it as optional for trials but
+            // will reject paid plan activations that omit it once the
+            // payment integration starts requiring it.
+            ...(autoRenewalConsentAt ? { autoRenewalConsentAt } : {}),
+          });
           set({
             isPremium: data.isPremium,
             premiumExpiresAt: data.expiresAt || null,
