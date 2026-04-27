@@ -33,10 +33,11 @@ const resetStore = () =>
 
 const sampleTicket = {
   id: 't-001',
+  userId: 'u-test',
   subject: 'Cannot log in',
   category: 'account' as const,
-  status: 'open',
-  priority: 'normal',
+  status: 'open' as const,
+  priority: 'normal' as const,
   createdAt: '2026-04-20T10:00:00.000Z',
   updatedAt: '2026-04-20T10:00:00.000Z',
   messages: [],

@@ -28,16 +28,17 @@ const mockCreate = cardioService.createSession as jest.Mock;
 const mockDelete = cardioService.deleteSession as jest.Mock;
 const mockGetSessions = cardioService.getSessions as jest.Mock;
 
-const session = (overrides: Partial<{id: string; date: string; type: string}> = {}) => ({
+import type { CardioType } from '../types';
+
+const session = (overrides: Partial<{id: string; date: string; type: CardioType}> = {}) => ({
   id: overrides.id ?? 's-001',
-  userId: 'u-test',
-  type: overrides.type ?? 'running',
+  type: (overrides.type ?? 'running') as CardioType,
   date: overrides.date ?? '2026-04-20',
   durationMinutes: 30,
   distanceKm: 5,
   caloriesBurned: 300,
   avgHeartRate: 145,
-  notes: null,
+  notes: undefined as string | undefined,
   createdAt: '2026-04-20T10:00:00.000Z',
 });
 
@@ -54,7 +55,6 @@ beforeEach(() => {
 describe('addSession', () => {
   test('adds server-returned session to state on success', async () => {
     await useCardioStore.getState().addSession({
-      userId: 'u-test',
       type: 'running',
       date: '2026-04-20',
       durationMinutes: 30,
@@ -70,7 +70,6 @@ describe('addSession', () => {
     mockCreate.mockRejectedValueOnce(new Error('Network timeout'));
 
     await useCardioStore.getState().addSession({
-      userId: 'u-test',
       type: 'walking',
       date: '2026-04-20',
       durationMinutes: 45,
@@ -87,7 +86,6 @@ describe('addSession', () => {
 
     await expect(
       useCardioStore.getState().addSession({
-        userId: 'u-test',
         type: 'running',
         date: '2026-04-20',
         durationMinutes: 0, // invalid
@@ -102,7 +100,6 @@ describe('addSession', () => {
     useCardioStore.setState({ sessions: [session({ id: 's-old', date: '2026-04-15' })] });
 
     await useCardioStore.getState().addSession({
-      userId: 'u-test',
       type: 'cycling',
       date: '2026-04-20',
       durationMinutes: 60,
