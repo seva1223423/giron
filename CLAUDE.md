@@ -38,14 +38,15 @@
 ## Архитектура сервера
 
 ### API маршруты (server/src/routes/)
-- `auth.ts` (1475 строк) — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
 - `user.ts` (1267 строк) — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
 - `workout.ts` (1067 строк) — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
 - `nutrition.ts` — meals CRUD (фильтр по дате)
 - `news.ts` — RSS парсинг (4 Google News источника, каждые 6ч), save/unsave, refresh
 - `subscription.ts` — status, activate, cancel, webhook (RevenueCat/YuKassa/generic)
 - `trainer.ts` — клиенты тренера CRUD
-- `cardio.ts`, `support.ts`, `admin.ts` — кардио, поддержка (тикеты), админка
+- `cardio.ts`, `support.ts` — кардио, поддержка (тикеты)
+- `admin.ts` (2672 строк) — пользователи, баны, роли, метрики, аналитика, объявления
+- `auth.ts` (1558 строк) — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
 - `ai.ts` (~84k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)
@@ -62,6 +63,10 @@
 - `emailService.ts` — Nodemailer + Gmail SMTP (reset password, верификация)
 - `smsService.ts` — SMS.ru (RU) / Twilio (fallback)
 - `pushService.ts` — Expo push notifications
+- `retentionService.ts` — retention push cohorts (activation/7d/14d/30d), weekly summary email; hard cap 200/tick
+- `adminDigestService.ts` — ежедневный дайджест метрик для ADMIN пользователей (пуш + email, 06:00 UTC)
+- `aiMemoryService.ts` — обёртка над AIMemory model, category-scoped queries
+- `errorReporter.ts` — Sentry wrapper (lazy init, PII scrubbing); активируется через SENTRY_DSN
 
 ## Структура
 
