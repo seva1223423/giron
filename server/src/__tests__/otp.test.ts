@@ -806,7 +806,12 @@ describe('POST /api/user/change-email — TOCTOU guard', () => {
     (mp.user.findUnique as jest.Mock)
       .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' })
       // route: 2FA check
-      .mockResolvedValueOnce({ totpEnabled: false, totpSecret: null });
+      // Step-up re-auth (sec audit 2026-04 HIGH-6) requires either a
+      // password (verified via bcrypt.compare against currentPassword)
+      // or 2FA. Mock as a passwordless 2FA-enabled account so the test
+      // can exercise the OTP / TOCTOU path without also needing a real
+      // bcrypt round per test.
+      .mockResolvedValueOnce({ totpEnabled: true, totpSecret: 'JBSWY3DPEHPK3PXP', passwordHash: null });
 
     (mp.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
       id: 'otp-1',
@@ -823,7 +828,10 @@ describe('POST /api/user/change-email — TOCTOU guard', () => {
     const res = await request(app)
       .post('/api/user/change-email')
       .set('Authorization', `Bearer ${makeUserToken()}`)
-      .send({ email: 'new@example.com', code: '123456' });
+      // totpCode satisfies the new step-up re-auth check; the otpauth
+      // mock returns 0 (success) for any token, so this just keeps the
+      // test focused on the OTP-row TOCTOU behaviour.
+      .send({ email: 'new@example.com', code: '123456', totpCode: '000000' });
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('INVALID_OTP');
@@ -832,7 +840,12 @@ describe('POST /api/user/change-email — TOCTOU guard', () => {
   it('returns 400 for wrong OTP code (timing-safe path)', async () => {
     (mp.user.findUnique as jest.Mock)
       .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' })
-      .mockResolvedValueOnce({ totpEnabled: false, totpSecret: null });
+      // Step-up re-auth (sec audit 2026-04 HIGH-6) requires either a
+      // password (verified via bcrypt.compare against currentPassword)
+      // or 2FA. Mock as a passwordless 2FA-enabled account so the test
+      // can exercise the OTP / TOCTOU path without also needing a real
+      // bcrypt round per test.
+      .mockResolvedValueOnce({ totpEnabled: true, totpSecret: 'JBSWY3DPEHPK3PXP', passwordHash: null });
 
     (mp.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
       id: 'otp-1',
@@ -847,7 +860,10 @@ describe('POST /api/user/change-email — TOCTOU guard', () => {
     const res = await request(app)
       .post('/api/user/change-email')
       .set('Authorization', `Bearer ${makeUserToken()}`)
-      .send({ email: 'new@example.com', code: '123456' }); // wrong code
+      // totpCode satisfies the new step-up re-auth check; the otpauth
+      // mock returns 0 (success) for any token, so this just keeps the
+      // test focused on the OTP-row TOCTOU behaviour.
+      .send({ email: 'new@example.com', code: '123456', totpCode: '000000' });
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('INVALID_OTP');
@@ -856,7 +872,12 @@ describe('POST /api/user/change-email — TOCTOU guard', () => {
   it('returns 429 when OTP max attempts reached', async () => {
     (mp.user.findUnique as jest.Mock)
       .mockResolvedValueOnce({ id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' })
-      .mockResolvedValueOnce({ totpEnabled: false, totpSecret: null });
+      // Step-up re-auth (sec audit 2026-04 HIGH-6) requires either a
+      // password (verified via bcrypt.compare against currentPassword)
+      // or 2FA. Mock as a passwordless 2FA-enabled account so the test
+      // can exercise the OTP / TOCTOU path without also needing a real
+      // bcrypt round per test.
+      .mockResolvedValueOnce({ totpEnabled: true, totpSecret: 'JBSWY3DPEHPK3PXP', passwordHash: null });
 
     (mp.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
       id: 'otp-1',
@@ -871,7 +892,10 @@ describe('POST /api/user/change-email — TOCTOU guard', () => {
     const res = await request(app)
       .post('/api/user/change-email')
       .set('Authorization', `Bearer ${makeUserToken()}`)
-      .send({ email: 'new@example.com', code: '123456' });
+      // totpCode satisfies the new step-up re-auth check; the otpauth
+      // mock returns 0 (success) for any token, so this just keeps the
+      // test focused on the OTP-row TOCTOU behaviour.
+      .send({ email: 'new@example.com', code: '123456', totpCode: '000000' });
 
     expect(res.status).toBe(429);
     expect(res.body.code).toBe('OTP_BRUTEFORCE');
