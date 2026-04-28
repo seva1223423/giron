@@ -39,13 +39,13 @@
 
 ### API маршруты (server/src/routes/)
 - `auth.ts` — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
-  - Социальный OAuth: `POST /auth/google`, `/auth/vk`, `/auth/yandex`, `/auth/ok`, `/auth/mailru`
-  - `GET /auth/check-email` — возвращает `{ hasPassword, hasGoogle, hasVk, hasYandex, hasOk, hasMailru }`
+  - Социальный OAuth: `POST /auth/google`, `/auth/vk`, `/auth/yandex`, `/auth/mailru`
+  - `GET /auth/check-email` — возвращает `{ hasPassword, hasGoogle, hasVk, hasYandex, hasMailru }`
   - Безопасность: SHA-256 хэш refresh-токенов, Google `email_verified` guard, CSRF state в клиенте
 - `user.ts` — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
   - `POST /user/linked-accounts/:provider` — привязать OAuth (step-up re-auth требует currentPassword/TOTP)
   - `DELETE /user/linked-accounts/:provider` — отвязать OAuth (защита последнего метода входа)
-  - provider: `google | vk | yandex | ok | mailru`
+  - provider: `google | vk | yandex | mailru`
 - `workout.ts` — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
 - `nutrition.ts` — meals CRUD (фильтр по дате)
 - `news.ts` — RSS парсинг (4 Google News источника, каждые 6ч), save/unsave, refresh
@@ -85,11 +85,10 @@
 | Google    | `POST /auth/google` | google-auth-library `verifyIdToken`      | `googleId` | `GOOGLE_CLIENT_IDS`         |
 | VK ID     | `POST /auth/vk`   | `api.vk.com/method/users.get?access_token` | `vkId`     | `VK_APP_ID`                 |
 | Яндекс    | `POST /auth/yandex` | `login.yandex.ru/info?format=json`       | `yandexId` | `YANDEX_CLIENT_ID`          |
-| OK.ru     | `POST /auth/ok`   | `api.ok.ru/api/users/getCurrentUser`     | `okId`     | `OK_APP_ID` / `OK_APP_KEY` / `OK_APP_SECRET` |
-| Mail.ru   | `POST /auth/mailru` | `oauth.mail.ru/userinfo`               | `mailruId` | _(только access_token)_     |
+| Mail.ru   | `POST /auth/mailru` | `oauth.mail.ru/userinfo`               | `mailruId` | `MAILRU_CLIENT_ID`          |
 
 Все провайдеры проверяют `TOTP gate` перед созданием/привязкой аккаунта.
-Клиентские env-переменные (для показа кнопки): `EXPO_PUBLIC_VK_APP_ID`, `EXPO_PUBLIC_YANDEX_CLIENT_ID`, `EXPO_PUBLIC_OK_APP_ID`, `EXPO_PUBLIC_MAILRU_APP_ID`.
+Клиентские env-переменные (для показа кнопки): `EXPO_PUBLIC_VK_APP_ID`, `EXPO_PUBLIC_YANDEX_CLIENT_ID`, `EXPO_PUBLIC_MAILRU_APP_ID`.
 
 ## Структура
 

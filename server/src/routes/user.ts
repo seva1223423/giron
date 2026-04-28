@@ -84,7 +84,7 @@ const USER_PROFILE_SELECT = {
   totpEnabled: true,
   isBanned: true, bannedAt: true,
   createdAt: true, updatedAt: true,
-  googleId: true, vkId: true, yandexId: true, okId: true, mailruId: true,
+  googleId: true, vkId: true, yandexId: true, mailruId: true,
   healthRestrictions: true,
 } as const;
 
@@ -109,13 +109,12 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const { googleId, vkId, yandexId, okId, mailruId, ...safeProfile } = user;
+    const { googleId, vkId, yandexId, mailruId, ...safeProfile } = user;
     res.json({
       ...safeProfile,
       hasGoogle: !!googleId,
       hasVk: !!vkId,
       hasYandex: !!yandexId,
-      hasOk: !!okId,
       hasMailru: !!mailruId,
     });
   } catch (e) {
@@ -167,8 +166,8 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       select: USER_PROFILE_SELECT,
     });
 
-    const { googleId, vkId, yandexId, okId, mailruId, ...safeProfile } = user;
-    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId, hasOk: !!okId, hasMailru: !!mailruId });
+    const { googleId, vkId, yandexId, mailruId, ...safeProfile } = user;
+    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId, hasMailru: !!mailruId });
   } catch (e: any) {
     if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error(e);
@@ -926,7 +925,9 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
 router.post('/change-email', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { email: newEmail, code, totpCode, currentPassword } = z.object({
-      email: z.string().email('Некорректный email'),
+      // Normalize trim/case/unicode-form so lookups stay consistent across
+      // all entry points (sec audit 2026-04: HIGH-14).
+      email: z.string().email('Некорректный email').transform((s) => s.trim().toLowerCase().normalize('NFKC')),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
       totpCode: z.string().length(6).optional(),
       // Step-up re-auth required to prevent account-takeover with a stolen
@@ -1185,7 +1186,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
  */
 router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'ok', 'google', 'mailru']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'google', 'mailru']).parse(req.params.provider);
     const { accessToken, userId: claimedUserId, currentPassword, totpCode } = z.object({
       accessToken: z.string().min(1, 'accessToken обязателен'),
       userId: z.string().optional(),
@@ -1236,7 +1237,7 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
     }
 
     let providerId: string;
-    let fieldName: 'vkId' | 'yandexId' | 'okId' | 'googleId' | 'mailruId';
+    let fieldName: 'vkId' | 'yandexId' | 'googleId' | 'mailruId';
 
     if (provider === 'vk') {
       if (!process.env.VK_APP_ID) {
@@ -1309,29 +1310,6 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       }
       fieldName = 'googleId';
       providerId = String(googlePayload.sub);
-
-    } else if (provider === 'ok') {
-      let okData: { uid?: string; name?: string; error_code?: number; error_msg?: string };
-      try {
-        const okResp = await fetch(
-          `https://api.ok.ru/api/users/getCurrentUser?access_token=${encodeURIComponent(accessToken)}&format=json`,
-          { signal: AbortSignal.timeout(10_000) },
-        );
-        if (!okResp.ok) throw new Error(`OK.ru API error: ${okResp.status}`);
-        okData = await okResp.json() as typeof okData;
-      } catch (e: any) {
-        logger.warn('OK.ru token validation failed (link):', e.message);
-        return res.status(401).json({ error: 'Не удалось проверить токен OK.ru', code: 'INVALID_TOKEN' });
-      }
-      if (okData.error_code || !okData.uid) {
-        return res.status(401).json({ error: 'Недействительный токен OK.ru', code: 'INVALID_TOKEN' });
-      }
-      if (claimedUserId && okData.uid !== String(claimedUserId)) {
-        logger.warn(`[SECURITY] OK.ru link uid mismatch: claimed=${claimedUserId} actual=${okData.uid} ip=${(req as any).ip}`);
-        return res.status(401).json({ error: 'userId не совпадает с владельцем токена', code: 'ID_MISMATCH' });
-      }
-      fieldName = 'okId';
-      providerId = okData.uid;
 
     } else {
       // provider === 'mailru'
@@ -1406,11 +1384,11 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
  */
 router.delete('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'google', 'ok', 'mailru']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'google', 'mailru']).parse(req.params.provider);
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true, okId: true, mailruId: true },
+      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true, mailruId: true },
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
@@ -1418,7 +1396,6 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
       yandex: 'yandexId',
       vk: 'vkId',
       google: 'googleId',
-      ok: 'okId',
       mailru: 'mailruId',
     };
 
@@ -1427,7 +1404,7 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
     }
 
     // Ensure user won't lose all login methods
-    const otherProviders = (['google', 'vk', 'yandex', 'ok', 'mailru'] as const)
+    const otherProviders = (['google', 'vk', 'yandex', 'mailru'] as const)
       .filter((p) => p !== provider)
       .filter((p) => !!user[fieldMap[p]]);
     if (!user.passwordHash && otherProviders.length === 0) {

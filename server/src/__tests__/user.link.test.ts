@@ -190,18 +190,6 @@ describe('POST /api/user/linked-accounts/:provider', () => {
     expect(res.body.error).toBeDefined();
   });
 
-  it('returns 400 when accessToken is missing (OK.ru)', async () => {
-    (mockPrisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(authUserRow);
-
-    const res = await request(app)
-      .post('/api/user/linked-accounts/ok')
-      .set('Authorization', `Bearer ${makeToken()}`)
-      .send({ currentPassword: 'pass' }); // accessToken absent
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBeDefined();
-  });
-
   it('returns 403 STEPUP_REQUIRED for mailru provider when user has no auth method', async () => {
     // 'mailru' IS in the POST provider enum. With no password and no TOTP set
     // the step-up gate fires before any OAuth call is made.
@@ -269,25 +257,6 @@ describe('POST /api/user/linked-accounts/:provider', () => {
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('INVALID_TOKEN');
     delete process.env.YANDEX_CLIENT_ID;
-  });
-
-  it('returns 401 when OK.ru API returns error_code', async () => {
-    (mockPrisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(authUserRow)
-      .mockResolvedValueOnce(stepUpWithPassword());
-
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ error_code: 102, error_msg: 'Invalid session key' }),
-    });
-
-    const res = await request(app)
-      .post('/api/user/linked-accounts/ok')
-      .set('Authorization', `Bearer ${makeToken()}`)
-      .send({ accessToken: 'bad_token', userId: '123', currentPassword: 'correctpass' });
-
-    expect(res.status).toBe(401);
-    expect(res.body.code).toBe('INVALID_TOKEN');
   });
 
   it('returns 409 when VK provider ID is already linked to a different user', async () => {
@@ -398,7 +367,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        okId: null,
         mailruId: null,
       });
 
@@ -418,7 +386,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        okId: null,
         mailruId: null,
       });
 
@@ -438,7 +405,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        okId: null,
         mailruId: null,
       });
 
@@ -460,7 +426,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: 'vk-123',
         yandexId: null,
-        okId: null,
         mailruId: null,
       });
 
@@ -480,7 +445,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: 'yandex-uid-999',
-        okId: null,
         mailruId: null,
       });
 
@@ -500,7 +464,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: 'vk-123',
         yandexId: null,
-        okId: null,
         mailruId: null,
       });
 
@@ -522,7 +485,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: 'vk-123',
         yandexId: 'yandex-uid-999',
-        okId: null,
         mailruId: null,
       });
 
@@ -534,8 +496,8 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
     expect(res.body.ok).toBe(true);
   });
 
-  it('returns 400 NOT_LINKED when ok provider is not linked', async () => {
-    // DELETE accepts yandex|vk|google|ok|mailru. When okId is null → NOT_LINKED.
+  it('returns 400 NOT_LINKED when mailru provider is not linked', async () => {
+    // DELETE accepts yandex|vk|google|mailru. When mailruId is null → NOT_LINKED.
     (mockPrisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(authUserRow)
       .mockResolvedValueOnce({
@@ -543,12 +505,11 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        okId: null,
         mailruId: null,
       });
 
     const res = await request(app)
-      .delete('/api/user/linked-accounts/ok')
+      .delete('/api/user/linked-accounts/mailru')
       .set('Authorization', `Bearer ${makeToken()}`);
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('NOT_LINKED');

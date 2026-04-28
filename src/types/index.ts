@@ -36,12 +36,10 @@ export interface User {
   vkId?: string | null;
   googleId?: string | null;
   yandexId?: string | null;
-  okId?: string | null;
   mailruId?: string | null;
   hasVk?: boolean;
   hasYandex?: boolean;
   hasGoogle?: boolean;
-  hasOk?: boolean;
   hasMailru?: boolean;
   isBanned?: boolean;
   banReason?: string | null;

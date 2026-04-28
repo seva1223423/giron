@@ -1,6 +1,6 @@
 /**
  * Unit tests for social login actions in useAuthStore:
- * loginWithVk, loginWithYandex, loginWithOk, loginWithMailru
+ * loginWithVk, loginWithYandex, loginWithMailru
  *
  * Covers: success path, TOTP gate (requiresTOTP response), and error path.
  */
@@ -48,7 +48,6 @@ jest.mock('../services', () => ({
     loginWithGoogle: jest.fn(),
     loginWithVk: jest.fn(),
     loginWithYandex: jest.fn(),
-    loginWithOk: jest.fn(),
     loginWithMailru: jest.fn(),
     loginByPhone: jest.fn(),
   },
@@ -209,61 +208,6 @@ describe('loginWithYandex', () => {
     expect(thrown.code).toBe('TOTP_REQUIRED');
     const state = useAuthStore.getState();
     expect(state.totpPendingToken).toBe('pending-456');
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-});
-
-// ── loginWithOk ───────────────────────────────────────────────────────────────
-
-describe('loginWithOk', () => {
-  beforeEach(() => {
-    resetState();
-    jest.clearAllMocks();
-  });
-
-  test('success: sets isAuthenticated, user, and tokens', async () => {
-    const { authService } = require('../services');
-    authService.loginWithOk.mockResolvedValueOnce(mockAuthResponse);
-
-    await useAuthStore.getState().loginWithOk({ accessToken: 'ok-token', userId: 'ok-user-id' });
-
-    const state = useAuthStore.getState();
-    expect(state.isAuthenticated).toBe(true);
-    expect(state.token).toBe('access-token-123');
-    expect(state.refreshToken).toBe('refresh-token-456');
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-    expect(mockTokenStorage.setTokens).toHaveBeenCalledWith('access-token-123', 'refresh-token-456');
-  });
-
-  test('error: sets error message and rethrows', async () => {
-    const { authService } = require('../services');
-    const err: any = new Error('OK.ru error');
-    err.response = { status: 401, data: { error: 'Недействительный токен OK.ru', code: 'INVALID_TOKEN' } };
-    authService.loginWithOk.mockRejectedValueOnce(err);
-
-    await expect(useAuthStore.getState().loginWithOk({ accessToken: 'bad', userId: 'id' })).rejects.toThrow();
-
-    const state = useAuthStore.getState();
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBe('Недействительный токен OK.ru');
-  });
-
-  test('TOTP gate: sets totpPendingToken, throws TOTP_REQUIRED, does not set error', async () => {
-    const { authService } = require('../services');
-    authService.loginWithOk.mockResolvedValueOnce({ requiresTOTP: true, pendingToken: 'pending-789' });
-
-    const thrown = await useAuthStore
-      .getState()
-      .loginWithOk({ accessToken: 'ok-token', userId: 'ok-id' })
-      .catch((e) => e);
-
-    expect(thrown.code).toBe('TOTP_REQUIRED');
-    const state = useAuthStore.getState();
-    expect(state.totpPendingToken).toBe('pending-789');
     expect(state.isAuthenticated).toBe(false);
     expect(state.isLoading).toBe(false);
     expect(state.error).toBeNull();
