@@ -351,8 +351,13 @@ router.post('/accept-invite', authenticate, async (req: AuthRequest, res: Respon
       return res.status(409).json({ error: 'Вы уже клиент этого тренера', code: 'ALREADY_CLIENT' });
     }
 
-    await prisma.trainerClient.update({
-      where: { id: client.id },
+    // Sec audit 2026-04: HIGH-12. Atomic conditional consume — prevents the
+    // TOCTOU race where two concurrent accept-invite calls with the same
+    // code both pass the in-memory `acceptedAt || clientUserId` check at
+    // line 326 and both run unconditional update, with the second
+    // overwriting the first (silent un-link of the legitimate client).
+    const { count } = await prisma.trainerClient.updateMany({
+      where: { id: client.id, acceptedAt: null, clientUserId: null },
       data: {
         clientUserId: req.userId!,
         acceptedAt: new Date(),
@@ -361,6 +366,9 @@ router.post('/accept-invite', authenticate, async (req: AuthRequest, res: Respon
         // show "invited → accepted" audit trail.
       },
     });
+    if (count === 0) {
+      return res.status(409).json({ error: 'Этот код уже был использован', code: 'INVITE_ALREADY_USED' });
+    }
 
     res.json({
       success: true,
