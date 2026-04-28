@@ -718,15 +718,46 @@ export default function AdminDashboardScreen() {
               : ageMs < 86_400_000 ? `${Math.round(ageMs / 3_600_000)} ч назад`
               : `${Math.round(ageMs / 86_400_000)} д назад`;
             const isHealthy = job.lastSuccessAt && (!job.lastErrorAt || new Date(job.lastSuccessAt) > new Date(job.lastErrorAt));
+            // Tappable for the 3 manually-runnable crons (retention,
+            // weekly-summary, admin-digest). keep-warm and news-refresh
+            // are wrapped in trackCron but excluded from the manual
+            // trigger endpoint — internal infrastructure.
+            const isRunnable = ['retention', 'weekly-summary', 'admin-digest'].includes(job.id);
+            const Wrap = isRunnable ? TouchableOpacity : View;
             return (
-              <View key={job.id} style={styles.cronRow}>
+              <Wrap
+                key={job.id}
+                style={styles.cronRow}
+                onPress={isRunnable ? async () => {
+                  Alert.alert(
+                    'Запустить cron сейчас?',
+                    `${job.id} — обычно запускается по расписанию. Запустить вручную (идемпотентно)?`,
+                    [
+                      { text: 'Отмена', style: 'cancel' },
+                      {
+                        text: 'Запустить',
+                        onPress: async () => {
+                          try {
+                            const result = await adminService.runCron(job.id as any);
+                            Alert.alert('Cron запущен', `${job.id}\nsent: ${JSON.stringify(result.sent ?? '—')}`);
+                            load(true);
+                          } catch (e: any) {
+                            Alert.alert('Ошибка', e?.response?.data?.error ?? e?.message ?? 'Не удалось запустить cron');
+                          }
+                        },
+                      },
+                    ],
+                  );
+                } : undefined}
+                activeOpacity={0.7}
+              >
                 <View style={[styles.cronDot, { backgroundColor: isHealthy ? '#10B981' : '#EF4444' }]} />
-                <Text style={styles.cronName}>{job.id}</Text>
+                <Text style={styles.cronName}>{job.id}{isRunnable ? ' ▶' : ''}</Text>
                 <Text style={styles.cronAge}>{ageStr}</Text>
                 <Text style={styles.cronCounts}>
                   ✓{job.successCount} · ✗{job.errorCount}
                 </Text>
-              </View>
+              </Wrap>
             );
           })}
         </View>

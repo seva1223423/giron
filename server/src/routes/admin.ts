@@ -645,6 +645,61 @@ router.get('/cron-health', requireAdmin, async (_req: AuthRequest, res: Response
   }
 });
 
+/**
+ * POST /admin/cron/run/:id — manually trigger a cron right now. Useful
+ * after deploying changes to a cron handler so the founder doesn't have
+ * to wait an hour to verify it works. Idempotent because each cron has
+ * its own write-once *SentAt gates (retention) or hour-of-day check
+ * (digest, weekly-summary), so re-firing won't double-send.
+ *
+ * Allowed ids: 'retention', 'weekly-summary', 'admin-digest'. Keep-warm
+ * and news-refresh are also wrapped in trackCron but excluded here —
+ * they're internal infrastructure that doesn't benefit from manual
+ * triggering.
+ *
+ * Response: { ok, sent? } — `sent` is the cohort count returned by the
+ * underlying handler (retention only).
+ */
+router.post('/cron/run/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  const ALLOWED = new Set(['retention', 'weekly-summary', 'admin-digest']);
+  const id = req.params.id as string;
+  if (!ALLOWED.has(id)) {
+    return res.status(400).json({
+      error: 'Недопустимый ID cron-задачи',
+      code: 'INVALID_CRON_ID',
+      allowed: Array.from(ALLOWED),
+    });
+  }
+  try {
+    let result: unknown = null;
+    if (id === 'retention') {
+      const { runAllRetentionCohorts } = await import('../services/retentionService');
+      await runAllRetentionCohorts();
+    } else if (id === 'weekly-summary') {
+      const { processWeeklySummaryEmails } = await import('../services/retentionService');
+      result = await processWeeklySummaryEmails();
+    } else if (id === 'admin-digest') {
+      const { sendDailyAdminDigest } = await import('../services/adminDigestService');
+      await sendDailyAdminDigest();
+    }
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'MANUAL_CRON_TRIGGER',
+        targetId: null,
+        details: `id=${id}`,
+      },
+    }).catch(() => { /* best-effort audit */ });
+    return res.json({ ok: true, id, sent: result });
+  } catch (e: any) {
+    logger.error(`POST /admin/cron/run/${id}:`, e);
+    return res.status(500).json({
+      error: 'Ошибка ручного запуска cron-задачи',
+      details: String(e?.message ?? e).slice(0, 200),
+    });
+  }
+});
+
 // ── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
 /** GET /admin/users — paginated user list */

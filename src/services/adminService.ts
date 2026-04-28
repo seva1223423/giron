@@ -184,6 +184,25 @@ export const adminService = {
   },
 
   /**
+   * POST /admin/cron/run/:id — manually fire a cron right now. Useful
+   * for verifying changes to a cron handler without waiting an hour
+   * for the next tick. Allowed ids: 'retention', 'weekly-summary',
+   * 'admin-digest'. Idempotent — each cron has its own *SentAt /
+   * hour-of-day gates.
+   */
+  async runCron(id: 'retention' | 'weekly-summary' | 'admin-digest'): Promise<{
+    ok: boolean;
+    id: string;
+    sent?: unknown;
+  }> {
+    // Long timeout — runAllRetentionCohorts can iterate 200+ users with
+    // a push + email per user. The 60s default axios timeout would
+    // kill genuine-but-slow runs.
+    const res = await api.post(`/admin/cron/run/${id}`, undefined, { timeout: 90_000 });
+    return res.data;
+  },
+
+  /**
    * POST /admin/test-notification — fire a test push and/or email to
    * the calling admin's account. Always per-actor (no userId param) so
    * it can't be used to spam other users. `channel` selects which
