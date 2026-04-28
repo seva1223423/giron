@@ -407,6 +407,67 @@ describe('HIGH-14 email normalisation in Yandex OAuth', () => {
   });
 });
 
+describe('HIGH-14 email normalisation in VK OAuth', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    jest.clearAllMocks();
+    process.env.VK_APP_ID = 'test_vk_app_id';
+  });
+
+  afterEach(() => {
+    delete process.env.VK_APP_ID;
+  });
+
+  it('normalises mixed-case email at user creation (VK does no email-based lookup)', async () => {
+    // VK's users.get API doesn't return email (post-2018 API change), so the
+    // client passes the email it got from the OAuth scope via request body.
+    // The route deliberately does NOT use this email for user lookup —
+    // see the SECURITY comment in routes/auth.ts:782-786 — because the
+    // client-supplied value can't be trusted as proof of ownership.
+    //
+    // What HIGH-14 still buys us here: when we DO store the email at user
+    // creation, the Zod transform normalises it so future change-email or
+    // forgot-password flows that look up by email find the right row
+    // regardless of what case/form the original VK token used.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: [{ id: 12345, first_name: 'Test', last_name: 'User', photo_200: 'https://example.com/avatar.jpg' }],
+      }),
+    });
+    (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce(null); // no user by vkId
+    (prisma.user.create as jest.Mock).mockResolvedValue({
+      id: 'new-user-vk-hi14',
+      email: 'test@vk.com',
+      firstName: 'Test',
+      lastName: 'User',
+      vkId: '12345',
+      isBanned: false,
+      lockedUntil: null,
+      totpEnabled: false,
+      totpSecret: null,
+      healthRestrictions: [],
+      emailVerified: false,
+    });
+
+    const res = await request(app)
+      .post('/api/auth/vk')
+      .send({
+        accessToken: 'valid-vk-token',
+        userId: 12345,
+        email: 'TEST@VK.COM', // client sends mixed-case
+      });
+
+    expect(res.status).toBe(200);
+    // user.create must store the normalised email — that's the column
+    // future flows will use to find this user. Without normalisation
+    // the same VK user could end up with two rows (one cased, one
+    // lowercased) on different sign-ins.
+    const createCall = (prisma.user.create as jest.Mock).mock.calls[0];
+    expect(createCall[0].data.email).toBe('test@vk.com');
+  });
+});
+
 describe('HIGH-14 email normalisation in Mail.ru OAuth', () => {
   beforeEach(() => {
     mockFetch.mockReset();
