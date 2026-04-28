@@ -20,6 +20,7 @@ const googleConfigured = !!(
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 const OK_APP_ID = process.env.EXPO_PUBLIC_OK_APP_ID;
+const MAILRU_APP_ID = process.env.EXPO_PUBLIC_MAILRU_APP_ID;
 
 type LoginTab = 'email' | 'phone';
 type PhoneStep = 'input' | 'otp';
@@ -68,6 +69,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [vkLoading, setVkLoading] = useState(false);
   const [yandexLoading, setYandexLoading] = useState(false);
   const [okLoading, setOkLoading] = useState(false);
+  const [mailruLoading, setMailruLoading] = useState(false);
 
   // Countdown timer cleanup
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
@@ -112,7 +114,8 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (!email || !password) { setLocalError('Заполните все поля'); return; }
     clearErrors();
     try {
-      await login(email.trim(), password);
+      const normalizedEmail = email.trim().toLowerCase();
+      await login(normalizedEmail, password);
     } catch (e: any) {
       if (e?.code === 'TOTP_REQUIRED') {
         setShowTotpInput(true);
@@ -122,7 +125,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const code = e?.response?.data?.code;
       const serverMsg = e?.response?.data?.error;
       if (code === 'EMAIL_NOT_FOUND' || code === 'INVALID_CREDENTIALS') setLocalError(serverMsg || 'Неверный email или пароль');
-      else if (code === 'SOCIAL_ONLY') setLocalError('Войдите через VK или Яндекс');
+      else if (code === 'SOCIAL_ONLY') setLocalError('Войдите через Google, VK, Яндекс или OK.ru');
       else if (code === 'WRONG_PASSWORD') setLocalError(serverMsg || 'Неверный email или пароль');
       else if (code === 'ACCOUNT_LOCKED') setLocalError(serverMsg || 'Аккаунт временно заблокирован');
       else if (code === 'BANNED') setLocalError(serverMsg || 'Аккаунт заблокирован');
@@ -299,8 +302,29 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  const handleMailruPress = async () => {
+    if (!MAILRU_APP_ID) return;
+    clearErrors();
+    setMailruLoading(true);
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/mailru' });
+      const authUrl = `https://oauth.mail.ru/login?client_id=${MAILRU_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=userinfo`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type !== 'success') return;
+      const fragment = result.url.split('#')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      if (!accessToken) { setLocalError('Не удалось получить токен от Mail.ru'); return; }
+      await useAuthStore.getState().loginWithMailru(accessToken);
+    } catch (e: any) {
+      setLocalError(e?.response?.data?.error ?? 'Ошибка входа через Mail.ru');
+    } finally {
+      setMailruLoading(false);
+    }
+  };
+
   const displayError = localError || error;
-  const anyLoading = isLoading || otpSending || vkLoading || yandexLoading || okLoading;
+  const anyLoading = isLoading || otpSending || vkLoading || yandexLoading || okLoading || mailruLoading;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -593,6 +617,21 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ОК</Text>
                 }
                 <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Войти через OK.ru</Text>
+              </TouchableOpacity>
+            )}
+
+            {!!MAILRU_APP_ID && (
+              <TouchableOpacity
+                style={[styles.socialBtn, { backgroundColor: '#FF6600', marginTop: spacing.sm, borderColor: '#FF6600' }, anyLoading && { opacity: 0.5 }]}
+                onPress={handleMailruPress}
+                disabled={anyLoading}
+                activeOpacity={0.8}
+              >
+                {mailruLoading
+                  ? <ActivityIndicator color="#fff" size="small" style={{ marginRight: spacing.sm }} />
+                  : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>M</Text>
+                }
+                <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Войти через Mail.ru</Text>
               </TouchableOpacity>
             )}
           </>

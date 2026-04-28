@@ -42,6 +42,7 @@ interface AuthStore {
   loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
   loginWithYandex: (accessToken: string) => Promise<void>;
   loginWithOk: (params: { accessToken: string; userId: string }) => Promise<void>;
+  loginWithMailru: (accessToken: string) => Promise<void>;
   loginByPhone: (phone: string, code: string) => Promise<void>;
   register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -198,6 +199,19 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithOk(params);
+          await tokenStorage.setTokens(response.token, response.refreshToken);
+          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+        } catch (e) {
+          const apiError = getApiError(e);
+          set({ isLoading: false, error: apiError.message });
+          throw e;
+        }
+      },
+
+      loginWithMailru: async (accessToken) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authService.loginWithMailru(accessToken);
           await tokenStorage.setTokens(response.token, response.refreshToken);
           set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
