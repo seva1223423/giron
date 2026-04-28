@@ -757,6 +757,39 @@ describe('POST /api/admin/test-notification', () => {
   });
 });
 
+// ─── POST /api/admin/cron/run/:id ─────────────────────────────────────────────
+
+describe('POST /api/admin/cron/run/:id', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/admin/cron/run/retention');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin role', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .post('/api/admin/cron/run/retention')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('400 on unknown cron id', async () => {
+    const res = await request(app)
+      .post('/api/admin/cron/run/unknown-job')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_CRON_ID');
+    expect(Array.isArray(res.body.allowed)).toBe(true);
+  });
+
+  it('400 rejects keep-warm (excluded from allowed list)', async () => {
+    const res = await request(app)
+      .post('/api/admin/cron/run/keep-warm')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+});
+
 // ─── GET /api/admin/cron-health ──────────────────────────────────────────────
 
 describe('GET /api/admin/cron-health', () => {
