@@ -709,6 +709,32 @@ describe('DELETE /api/admin/announcements/:id', () => {
   });
 });
 
+// ─── GET /api/admin/cron-health ──────────────────────────────────────────────
+
+describe('GET /api/admin/cron-health', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/cron-health');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin role', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/cron-health')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 returns cronJobs array and now timestamp', async () => {
+    const res = await request(app)
+      .get('/api/admin/cron-health')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.cronJobs)).toBe(true);
+    expect(typeof res.body.now).toBe('string');
+  });
+});
+
 // ─── GET /api/admin/me ───────────────────────────────────────────────────────
 
 describe('GET /api/admin/me', () => {

@@ -46,6 +46,7 @@
   - `POST /user/linked-accounts/:provider` — привязать OAuth (step-up re-auth требует currentPassword/TOTP)
   - `DELETE /user/linked-accounts/:provider` — отвязать OAuth (защита последнего метода входа)
   - provider: `google | vk | yandex | mailru`
+  - `POST /user/onboarding/step` — first-touch step telemetry (step 0..4) into User.onboardingStepLog Json + onboardingCompletedAt; idempotent re-submissions preserve original timestamp
 - `workout.ts` — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
 - `nutrition.ts` — meals CRUD (фильтр по дате)
 - `news.ts` — RSS парсинг (4 Google News источника, каждые 6ч), save/unsave, refresh
@@ -53,6 +54,9 @@
 - `trainer.ts` — клиенты тренера CRUD, invite code flow (generate/accept/expire), TOCTOU-safe `updateMany`
 - `cardio.ts`, `support.ts` — кардио, поддержка (тикеты)
 - `admin.ts` — пользователи, баны, роли, метрики, аналитика, объявления
+  - `GET /admin/me` — uncached founder self-status (activation funnel, push tokens, sub, last AI/workout, sessions)
+  - `GET /admin/cron-health` — in-memory liveness ledger for retention/digest/keep-warm crons (resets on dyno restart)
+  - `GET /admin/metrics/key` includes `onboardingFunnel` block (per-step drop-off from User.onboardingStepLog)
 - `ai.ts` (~84k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)

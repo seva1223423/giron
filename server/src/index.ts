@@ -20,6 +20,7 @@ import { reportError } from './utils/errorReporter';
 import { clientVersionGate } from './middleware/clientVersion';
 import { adminStatsCache, newsCache } from './utils/memCache';
 import { prisma } from './db';
+import { trackCron } from './utils/cronHealth';
 
 dotenv.config();
 
@@ -447,7 +448,9 @@ setInterval(() => {
 if (process.env.NODE_ENV !== 'test') {
   setInterval(async () => {
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await trackCron('keep-warm', async () => {
+        await prisma.$queryRaw`SELECT 1`;
+      });
     } catch (err) {
       // Don't reportError — the keep-warm is best-effort and a transient
       // failure here doesn't surface a real user-facing issue. Logging
@@ -492,8 +495,10 @@ setInterval(async () => {
 setTimeout(() => {
   setInterval(async () => {
     try {
-      const { runAllRetentionCohorts } = await import('./services/retentionService');
-      await runAllRetentionCohorts();
+      await trackCron('retention', async () => {
+        const { runAllRetentionCohorts } = await import('./services/retentionService');
+        await runAllRetentionCohorts();
+      });
     } catch (err) {
       reportError(err as Error, { tags: { origin: 'retention-cron' } });
     }
@@ -512,8 +517,10 @@ setInterval(async () => {
   const now = new Date();
   if (now.getUTCDay() !== 0 /* Sunday */ || now.getUTCHours() !== 18) return;
   try {
-    const { processWeeklySummaryEmails } = await import('./services/retentionService');
-    await processWeeklySummaryEmails();
+    await trackCron('weekly-summary', async () => {
+      const { processWeeklySummaryEmails } = await import('./services/retentionService');
+      await processWeeklySummaryEmails();
+    });
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'weekly-summary-cron' } });
   }
@@ -530,8 +537,10 @@ setInterval(async () => {
   const now = new Date();
   if (now.getUTCHours() !== 6) return;
   try {
-    const { sendDailyAdminDigest } = await import('./services/adminDigestService');
-    await sendDailyAdminDigest();
+    await trackCron('admin-digest', async () => {
+      const { sendDailyAdminDigest } = await import('./services/adminDigestService');
+      await sendDailyAdminDigest();
+    });
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'admin-digest-cron' } });
   }

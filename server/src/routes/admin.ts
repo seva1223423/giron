@@ -9,6 +9,7 @@ import { getActiveUsersCount, getActiveUserIds } from '../utils/activityTracker'
 import { getAIMetrics } from '../utils/aiMetrics';
 import { logger } from '../utils/logger';
 import { adminStatsCache } from '../utils/memCache';
+import { getCronHealth } from '../utils/cronHealth';
 
 const router = Router();
 
@@ -533,6 +534,32 @@ router.get('/me', requireAdmin, async (req: AuthRequest, res: Response) => {
   } catch (e) {
     logger.error('GET /admin/me:', e);
     return res.status(500).json({ error: 'Ошибка получения профиля администратора' });
+  }
+});
+
+/**
+ * GET /admin/cron-health — liveness ledger for the in-process crons.
+ * Each entry shows when the named cron last succeeded, last failed,
+ * total counts, and last run duration. Lets the founder verify
+ * retention/digest/keep-warm are firing on Render without grepping
+ * stdout. Records reset on dyno restart (in-memory by design — see
+ * utils/cronHealth.ts comment).
+ *
+ * Common ids (registered when their handler first runs):
+ *   - retention      — hourly retention cohorts (activation/reactivation/376-фз pre-renewal)
+ *   - weekly-summary — Sunday 18:00 UTC weekly recap email
+ *   - admin-digest   — daily 06:00 UTC admin digest push+email
+ *   - keep-warm      — 10-min DB SELECT 1 ping
+ */
+router.get('/cron-health', requireAdmin, async (_req: AuthRequest, res: Response) => {
+  try {
+    return res.json({
+      cronJobs: getCronHealth(),
+      now: new Date().toISOString(),
+    });
+  } catch (e) {
+    logger.error('GET /admin/cron-health:', e);
+    return res.status(500).json({ error: 'Ошибка получения здоровья cron-задач' });
   }
 });
 

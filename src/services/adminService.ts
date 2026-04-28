@@ -76,6 +76,28 @@ export interface KeyMetrics {
 }
 
 /**
+ * Response shape for GET /admin/cron-health — in-memory ledger of cron
+ * job liveness. Records reset on Render dyno restart (which happens
+ * every few hours on free tier), so an absence here is normal after
+ * deploy — the cron just hasn't fired yet.
+ */
+export interface CronHealthRecord {
+  id: string;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastErrorMessage: string | null;
+  lastDurationMs: number | null;
+  successCount: number;
+  errorCount: number;
+  registeredAt: string;
+}
+
+export interface CronHealthResponse {
+  cronJobs: CronHealthRecord[];
+  now: string;
+}
+
+/**
  * Response shape for GET /admin/me — founder self-status. Bundles the
  * answers to the questions sevka asks during a session: did push fire,
  * did the activation email fire, what's my subscription state, when was
@@ -140,6 +162,16 @@ export const adminService = {
    */
   async getMe(): Promise<AdminMe> {
     const res = await api.get('/admin/me');
+    return res.data;
+  },
+
+  /**
+   * GET /admin/cron-health — liveness data for the in-process crons.
+   * Returns an empty array shortly after a deploy (records reset on
+   * dyno restart). Used by AdminDashboardScreen to flag missing crons.
+   */
+  async getCronHealth(): Promise<CronHealthResponse> {
+    const res = await api.get('/admin/cron-health');
     return res.data;
   },
 
