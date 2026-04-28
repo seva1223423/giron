@@ -54,9 +54,10 @@
 - `trainer.ts` — клиенты тренера CRUD, invite code flow (generate/accept/expire), TOCTOU-safe `updateMany`
 - `cardio.ts`, `support.ts` — кардио, поддержка (тикеты)
 - `admin.ts` — пользователи, баны, роли, метрики, аналитика, объявления
-  - `GET /admin/me` — uncached founder self-status (activation funnel, push tokens, sub, last AI/workout, sessions)
+  - `GET /admin/me` — uncached founder self-status (activation funnel, onboarding state, push tokens, sub, last AI/workout, sessions)
   - `GET /admin/cron-health` — in-memory liveness ledger for retention/digest/keep-warm crons (resets on dyno restart)
   - `GET /admin/metrics/key` includes `onboardingFunnel` block (per-step drop-off from User.onboardingStepLog)
+  - `POST /admin/test-notification` — fires test push and/or email to caller's account; verifies both channels work end-to-end
 - `ai.ts` (~84k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)

@@ -149,6 +149,12 @@ type: project
   (F) `/admin/metrics/key` returns onboardingFunnel block (reachedStep0..4 + completed) using JSON `?` operator on onboardingStepLog. AdminMetricsKeyScreen renders as block #6.
   Schema changes pushed via `prisma db push` (no migration files per convention). Tests: +24 retention, +5 admin/me, +8 onboarding/step. Final: server 31 suites/986 tests, client 81 suites/2027 tests. OTA shipped to both `preview` and `production` channels.
 - **Round 3: cron health probe (2026-04-28)** — `server/src/utils/cronHealth.ts` provides `trackCron(id, fn)` wrapper that records last-success/last-error timestamps, durations, and counts in-memory. Wrapped 4 existing crons in `index.ts`: `retention` (hourly), `weekly-summary` (Sunday 18:00 UTC), `admin-digest` (daily 06:00 UTC), `keep-warm` (10 min DB ping). New `GET /admin/cron-health` endpoint exposes the ledger for AdminDashboard's "Cron-задачи" card (green/red dot per job + age + counts). Records reset on dyno restart (in-memory by design — Render free-tier restarts every few hours). New `cronHealth.test.ts` (6 tests) + 3 admin endpoint tests. Final: server 32 suites/995 tests.
+- **Round 4: p95 latency + onboarding state in /admin/me + test-notification (2026-04-28, commits 808b913, 8faba61, 4925a8b)** — Three observability wins:
+  1. `aiMetrics.ts` adds 200-sample rolling window + p50/p95/p99 percentile computation. Cache hits don't pollute the window. AdminDashboard "Ср. задержка" stat now shows p95 with colour-coded thresholds at 2.5s/5s. Falls back to avgLatencyMs on older server builds.
+  2. `/admin/me` adds `onboarding: { completed, completedAt, maxStepReached, stepLog }` block derived from User.onboardingStepLog/onboardingCompletedAt. AdminDashboard founder card adds "Онбординг шаг N/5" chip.
+  3. New `POST /admin/test-notification` — fires test push and/or email to caller's account, lets founder verify both channels work end-to-end after deploy. Per-actor only, no userId param. AdminDashboard button on founder card calls it and Alert()s the result.
+  4. trainer.ts /clients/:id/invite docstring TODO cleared (the 7-day expiry already exists via lazy check at /accept-invite, INVITE_TTL_MS line 234).
+  Tests: +4 aiMetrics, +1 admin/me onboarding state, +4 test-notification endpoint. Server is now TODO-free under server/src/. Final: server 33 suites/1004 tests, client 81 suites/2027 tests. OTA shipped to production channel.
 
 ---
 
