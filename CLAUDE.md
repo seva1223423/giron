@@ -27,9 +27,9 @@
 
 **13 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support
 
-**11 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip
+**13 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip, GoogleAuthButton (mode: `login|link`), ForceUpdateModal
 
-**12 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout
+**13 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater
 
 **Области экранов (15):** admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts
 
@@ -38,15 +38,21 @@
 ## Архитектура сервера
 
 ### API маршруты (server/src/routes/)
-- `user.ts` (1267 строк) — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
-- `workout.ts` (1067 строк) — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
+- `auth.ts` — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
+  - Социальный OAuth: `POST /auth/google`, `/auth/vk`, `/auth/yandex`, `/auth/ok`, `/auth/mailru`
+  - `GET /auth/check-email` — возвращает `{ hasPassword, hasGoogle, hasVk, hasYandex, hasOk, hasMailru }`
+  - Безопасность: SHA-256 хэш refresh-токенов, Google `email_verified` guard, CSRF state в клиенте
+- `user.ts` — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
+  - `POST /user/linked-accounts/:provider` — привязать OAuth (step-up re-auth требует currentPassword/TOTP)
+  - `DELETE /user/linked-accounts/:provider` — отвязать OAuth (защита последнего метода входа)
+  - provider: `google | vk | yandex | ok | mailru`
+- `workout.ts` — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
 - `nutrition.ts` — meals CRUD (фильтр по дате)
 - `news.ts` — RSS парсинг (4 Google News источника, каждые 6ч), save/unsave, refresh
 - `subscription.ts` — status, activate, cancel, webhook (RevenueCat/YuKassa/generic)
-- `trainer.ts` — клиенты тренера CRUD
+- `trainer.ts` — клиенты тренера CRUD, invite code flow (generate/accept/expire), TOCTOU-safe `updateMany`
 - `cardio.ts`, `support.ts` — кардио, поддержка (тикеты)
-- `admin.ts` (2672 строк) — пользователи, баны, роли, метрики, аналитика, объявления
-- `auth.ts` (1558 строк) — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
+- `admin.ts` — пользователи, баны, роли, метрики, аналитика, объявления
 - `ai.ts` (~84k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)
@@ -55,6 +61,10 @@
 - 25 модулей знаний (server/src/knowledge/, 6547 строк)
 - AI Memory (категории: preference, habit, injury, allergy, schedule, personality)
 - Кэш: TTL 4ч, max 200
+
+### Middleware (server/src/middleware/)
+- `auth.ts` — JWT verify, ban/lock check, rate-limit guard
+- `clientVersion.ts` — реджектит запросы от APK ниже `MIN_CLIENT_VERSION` (env), возвращает 426
 
 ### Ключевые сервисы (server/src/services/)
 - `deepseekAI.ts` — OpenAI-compatible клиент (Mistral/DeepSeek), retry, timeout 60s
@@ -67,6 +77,19 @@
 - `adminDigestService.ts` — ежедневный дайджест метрик для ADMIN пользователей (пуш + email, 06:00 UTC)
 - `aiMemoryService.ts` — обёртка над AIMemory model, category-scoped queries
 - `errorReporter.ts` — Sentry wrapper (lazy init, PII scrubbing); активируется через SENTRY_DSN
+
+### OAuth-провайдеры (Russian social login)
+
+| Провайдер | Endpoint          | Валидация токена                          | Ключ в БД  | Env-переменная              |
+|-----------|-------------------|-------------------------------------------|------------|-----------------------------|
+| Google    | `POST /auth/google` | google-auth-library `verifyIdToken`      | `googleId` | `GOOGLE_CLIENT_IDS`         |
+| VK ID     | `POST /auth/vk`   | `api.vk.com/method/users.get?access_token` | `vkId`     | `VK_APP_ID`                 |
+| Яндекс    | `POST /auth/yandex` | `login.yandex.ru/info?format=json`       | `yandexId` | `YANDEX_CLIENT_ID`          |
+| OK.ru     | `POST /auth/ok`   | `api.ok.ru/api/users/getCurrentUser`     | `okId`     | `OK_APP_ID` / `OK_APP_KEY` / `OK_APP_SECRET` |
+| Mail.ru   | `POST /auth/mailru` | `oauth.mail.ru/userinfo`               | `mailruId` | _(только access_token)_     |
+
+Все провайдеры проверяют `TOTP gate` перед созданием/привязкой аккаунта.
+Клиентские env-переменные (для показа кнопки): `EXPO_PUBLIC_VK_APP_ID`, `EXPO_PUBLIC_YANDEX_CLIENT_ID`, `EXPO_PUBLIC_OK_APP_ID`, `EXPO_PUBLIC_MAILRU_APP_ID`.
 
 ## Структура
 
@@ -100,6 +123,7 @@ server/
                     NewsArticle, SavedNews, Subscription, TrainerClient, TrainerSession,
                     SupportTicket, SupportMessage, AdminLog, Announcement,
                     Routine, RoutineExercise, RoutineSet)
+    User model OAuth fields: googleId, vkId, yandexId, okId, mailruId (все @unique, nullable)
     seed.ts       — 150+ упражнений, начальные данные
 ```
 
@@ -109,12 +133,14 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 80 суитов, ~2015 тестов)
+npm test               # jest (client unit tests, 81 суитов, ~2030 тестов)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 26 суитов, ~870 тестов)
+npm test               # jest (server integration tests, 29 суитов, ~929 тестов)
+                       # Новые суиты: auth.social.test.ts, user.link.test.ts, trainer_invite.test.ts,
+                       #              authStore.social.test.ts
 npm run prisma:studio  # GUI для БД
 npm run prisma:generate # генерация Prisma client
 # НЕ запускать: npm run prisma:migrate (prisma migrate dev) — проект использует `prisma db push`
