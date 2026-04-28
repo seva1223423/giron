@@ -20,6 +20,37 @@ type SentryModule = any;
 let sentry: SentryModule | null = null;
 let initialized = false;
 
+// Mirror of server-side scrub list. Health data is спец-категория under
+// 152-ФЗ, so even though the client mostly sends JWT-only requests, error
+// `extra` payloads or breadcrumb data can still carry user-supplied content
+// (e.g. a screen-level handler attaching the form being submitted).
+const SCRUB_KEY_PATTERNS = [
+  'password', 'passwd', 'secret', 'token', 'authorization', 'cookie', 'session',
+  'apikey', 'api_key', 'totp', 'otp', 'pin',
+  'email', 'phone', 'address', 'fullname', 'firstname', 'lastname',
+  'weight', 'height', 'pulse', 'bmi', 'bodyfat', 'goal', 'injur',
+  'healthrestriction', 'disease', 'allergy', 'medication',
+  'card', 'cvv', 'iban', 'pan',
+];
+const MAX_SCRUB_DEPTH = 6;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function scrubObject(obj: any, depth = 0): void {
+  if (depth > MAX_SCRUB_DEPTH || !obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)) {
+    for (const item of obj) scrubObject(item, depth + 1);
+    return;
+  }
+  for (const key of Object.keys(obj)) {
+    const lower = key.toLowerCase();
+    if (SCRUB_KEY_PATTERNS.some((p) => lower.includes(p))) {
+      obj[key] = '[scrubbed]';
+    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      scrubObject(obj[key], depth + 1);
+    }
+  }
+}
+
 function tryLoadSentry(): SentryModule | null {
   if (initialized) return sentry;
   initialized = true;
@@ -47,7 +78,23 @@ function tryLoadSentry(): SentryModule | null {
       // strings landing in Sentry breadcrumbs.
       beforeSend(event: any) {
         if (event?.contexts?.app?.profile) delete event.contexts.app.profile;
+        if (event?.request) {
+          if (event.request.data) scrubObject(event.request.data);
+          if (event.request.headers) scrubObject(event.request.headers);
+          if (event.request.cookies) scrubObject(event.request.cookies);
+        }
+        if (event?.extra) scrubObject(event.extra);
+        if (event?.contexts) scrubObject(event.contexts);
+        if (Array.isArray(event?.breadcrumbs)) {
+          for (const b of event.breadcrumbs) {
+            if (b?.data) scrubObject(b.data);
+          }
+        }
         return event;
+      },
+      beforeBreadcrumb(breadcrumb: any) {
+        if (breadcrumb?.data) scrubObject(breadcrumb.data);
+        return breadcrumb;
       },
     });
     sentry = mod;

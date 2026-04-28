@@ -44,14 +44,17 @@ async function isTotpReplay(userId: string, code: string): Promise<boolean> {
   return false;
 }
 
-/** Issue new access + refresh tokens after revoking all old sessions for the user */
+/** Issue new access + refresh tokens after revoking all old sessions for the user.
+ * Refresh token is stored as SHA-256 hash so a DB read can't be exchanged
+ * for a session at /auth/refresh. Sec audit 2026-04: HIGH-5. */
 async function reissueTokens(userId: string, req: AuthRequest): Promise<{ token: string; refreshToken: string }> {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
   const ip = (req as any).ip ?? null;
   const userAgent = req.headers['user-agent'] ?? null;
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  await prisma.refreshToken.create({ data: { token: rawRefresh, userId, expiresAt, ip, userAgent } });
+  const tokenHash = crypto.createHash('sha256').update(rawRefresh).digest('hex');
+  await prisma.refreshToken.create({ data: { token: tokenHash, userId, expiresAt, ip, userAgent } });
   return { token, refreshToken: rawRefresh };
 }
 
@@ -884,17 +887,43 @@ router.post('/2fa/backup-codes', authenticate, async (req: AuthRequest, res: Res
  */
 router.post('/change-email', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { email: newEmail, code, totpCode } = z.object({
+    const { email: newEmail, code, totpCode, currentPassword } = z.object({
       email: z.string().email('Некорректный email'),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
       totpCode: z.string().length(6).optional(),
+      // Step-up re-auth required to prevent account-takeover with a stolen
+      // access token. The email-change OTP goes to the NEW (attacker-chosen)
+      // address, so it adds zero proof of identity. Sec audit 2026-04: HIGH-6.
+      currentPassword: z.string().optional(),
     }).parse(req.body);
 
-    // If 2FA is enabled, require TOTP before allowing email change
+    // Step-up re-auth (sec audit 2026-04: HIGH-6).
     const userFor2fa = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { totpEnabled: true, totpSecret: true },
+      select: { totpEnabled: true, totpSecret: true, passwordHash: true },
     });
+    // Password owners must re-type their current password.
+    if (userFor2fa?.passwordHash) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Введите текущий пароль', code: 'PASSWORD_REQUIRED' });
+      }
+      const ok = await bcrypt.compare(currentPassword, userFor2fa.passwordHash);
+      if (!ok) {
+        await prisma.securityEvent.create({
+          data: { userId: req.userId!, action: 'REAUTH_FAILED', ip: (req as any).ip ?? null, details: 'op=change-email' },
+        }).catch(() => {});
+        return res.status(401).json({ error: 'Неверный пароль', code: 'INVALID_PASSWORD' });
+      }
+    } else if (!userFor2fa?.totpEnabled) {
+      // Social-only account with no 2FA — refuse and direct the user to add
+      // a password (or enable 2FA) so a stolen access token can't pivot to
+      // a permanent account takeover by re-pointing the email.
+      return res.status(403).json({
+        error: 'Чтобы сменить email, сначала установите пароль или включите 2FA в настройках безопасности.',
+        code: 'STEPUP_REQUIRED',
+      });
+    }
+    // If 2FA is enabled, require TOTP before allowing email change
     if (userFor2fa?.totpEnabled && userFor2fa.totpSecret) {
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
@@ -990,19 +1019,40 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
  */
 router.post('/change-phone', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { phone: rawPhone, code, totpCode } = z.object({
+    const { phone: rawPhone, code, totpCode, currentPassword } = z.object({
       phone: z.string().min(10, 'Введите номер телефона'),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
       totpCode: z.string().length(6).optional(),
+      // Step-up re-auth (sec audit 2026-04: HIGH-6 — same rationale as
+      // /change-email; the SMS OTP goes to the new attacker-chosen number).
+      currentPassword: z.string().optional(),
     }).parse(req.body);
 
     const phone = normalizePhone(rawPhone);
 
-    // If 2FA is enabled, require TOTP before allowing phone change
+    // Step-up re-auth (sec audit 2026-04: HIGH-6).
     const userFor2fa = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { totpEnabled: true, totpSecret: true },
+      select: { totpEnabled: true, totpSecret: true, passwordHash: true },
     });
+    if (userFor2fa?.passwordHash) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Введите текущий пароль', code: 'PASSWORD_REQUIRED' });
+      }
+      const ok = await bcrypt.compare(currentPassword, userFor2fa.passwordHash);
+      if (!ok) {
+        await prisma.securityEvent.create({
+          data: { userId: req.userId!, action: 'REAUTH_FAILED', ip: (req as any).ip ?? null, details: 'op=change-phone' },
+        }).catch(() => {});
+        return res.status(401).json({ error: 'Неверный пароль', code: 'INVALID_PASSWORD' });
+      }
+    } else if (!userFor2fa?.totpEnabled) {
+      return res.status(403).json({
+        error: 'Чтобы сменить телефон, сначала установите пароль или включите 2FA в настройках безопасности.',
+        code: 'STEPUP_REQUIRED',
+      });
+    }
+    // If 2FA is enabled, require TOTP before allowing phone change
     if (userFor2fa?.totpEnabled && userFor2fa.totpSecret) {
       if (!totpCode) {
         return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
@@ -1224,6 +1274,17 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
       select: { passwordHash: true, email: true, totpEnabled: true, totpSecret: true },
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    // Sec audit 2026-04: HIGH-7. Account deletion is irreversible (cascade
+    // wipes everything). At least one step-up factor is mandatory. Previously
+    // a social-only account with no 2FA could be permanently destroyed by
+    // anyone holding a 15-minute access token.
+    if (!user.passwordHash && !user.totpEnabled) {
+      return res.status(403).json({
+        error: 'Чтобы удалить аккаунт, сначала установите пароль или включите 2FA в настройках безопасности.',
+        code: 'STEPUP_REQUIRED',
+      });
+    }
 
     // If user has a password, they must provide it to confirm deletion
     if (user.passwordHash) {

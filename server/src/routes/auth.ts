@@ -109,6 +109,12 @@ const otpEquals = (stored: string, input: string): boolean => {
 
 const MAX_SESSIONS_PER_USER = 10;
 
+/** SHA-256 of a refresh token. Stored in DB so a leak does not yield
+ * exchangeable credentials. Sec audit 2026-04: HIGH-5. */
+function hashRefreshToken(raw: string): string {
+  return crypto.createHash('sha256').update(raw).digest('hex');
+}
+
 async function signTokens(userId: string, req?: Request) {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
@@ -132,7 +138,7 @@ async function signTokens(userId: string, req?: Request) {
 
   await prisma.refreshToken.create({
     data: {
-      token: rawRefresh,
+      token: hashRefreshToken(rawRefresh),
       userId,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       ip,
@@ -611,17 +617,45 @@ router.post('/google', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Не удалось получить данные из Google' });
     }
 
+    // Google OAuth account-takeover hardening (sec audit 2026-04: HIGH-2).
+    // `email_verified` MUST be true before we trust `payload.email` for
+    // user creation or auto-linking — otherwise a Google Workspace admin
+    // who controls a domain can mint an ID token with arbitrary `email`
+    // and unverified flag, taking over an existing Iron Gym account.
+    if (payload.email_verified !== true) {
+      return res.status(401).json({ error: 'Email Google не подтверждён', code: 'EMAIL_NOT_VERIFIED' });
+    }
+
     const googleId = payload.sub as string;
     const email = payload.email as string;
     const firstName = (payload.given_name as string) || (payload.name as string)?.split(' ')[0] || 'Пользователь';
     const lastName = (payload.family_name as string) || undefined;
     const avatarUrl = (payload.picture as string) || undefined;
 
-    // Find by googleId or email
+    // Lookup by googleId first (the strong identifier). Email-based linking
+    // is only allowed when the existing Iron Gym account already verified
+    // the same email — otherwise an attacker who registered a victim's
+    // address without verification could be silently linked.
     let user = await prisma.user.findFirst({
-      where: { OR: [{ googleId }, { email }] },
+      where: { googleId },
       include: { healthRestrictions: true },
     });
+    if (!user) {
+      const byEmail = await prisma.user.findUnique({
+        where: { email },
+        include: { healthRestrictions: true },
+      });
+      if (byEmail) {
+        if (!byEmail.emailVerified) {
+          await logSecurityEvent('OAUTH_EMAIL_LINK_BLOCKED', byEmail.id, req, 'method=google reason=existing_email_unverified');
+          return res.status(409).json({
+            error: 'Этот email уже зарегистрирован, но не подтверждён. Подтвердите email паролем, затем привяжите Google.',
+            code: 'EMAIL_NOT_VERIFIED_LOCAL',
+          });
+        }
+        user = byEmail;
+      }
+    }
 
     if (user) {
       // Link google if not linked yet
@@ -811,11 +845,30 @@ router.post('/yandex', async (req: Request, res: Response) => {
     const avatarId = yandexUser.default_avatar_id;
     const avatarUrl = avatarId && avatarId !== '0' ? `https://avatars.yandex.net/get-yapic/${avatarId}/islands-200` : undefined;
 
-    // Find existing user by yandexId or email
-    let user = await prisma.user.findFirst({
-      where: { OR: [{ yandexId }, ...(yandexEmail ? [{ email: yandexEmail }] : [])] },
+    // Lookup by yandexId first (the strong identifier). Email-based linking
+    // requires the existing Iron Gym account to have a verified email —
+    // otherwise an attacker who registered the victim's address without
+    // verification could be silently linked (sec audit 2026-04: HIGH-3).
+    let user: any = await prisma.user.findFirst({
+      where: { yandexId },
       include: { healthRestrictions: true },
     });
+    if (!user && yandexEmail) {
+      const byEmail = await prisma.user.findUnique({
+        where: { email: yandexEmail },
+        include: { healthRestrictions: true },
+      });
+      if (byEmail) {
+        if (!byEmail.emailVerified) {
+          await logSecurityEvent('OAUTH_EMAIL_LINK_BLOCKED', byEmail.id, req, 'method=yandex reason=existing_email_unverified');
+          return res.status(409).json({
+            error: 'Этот email уже зарегистрирован, но не подтверждён. Подтвердите email паролем, затем привяжите Яндекс.',
+            code: 'EMAIL_NOT_VERIFIED_LOCAL',
+          });
+        }
+        user = byEmail;
+      }
+    }
 
     if (user) {
       if (!user.yandexId) {
@@ -862,9 +915,10 @@ router.post('/yandex', async (req: Request, res: Response) => {
 
 router.post('/login-by-phone', async (req: Request, res: Response) => {
   try {
-    const { phone: rawPhone, code } = z.object({
+    const { phone: rawPhone, code, deviceToken } = z.object({
       phone: z.string().min(10, 'Введите номер телефона'),
       code: z.string().length(6, 'Код должен быть 6 цифр'),
+      deviceToken: z.string().optional(),
     }).parse(req.body);
 
     const phone = normalizePhone(rawPhone);
@@ -915,6 +969,16 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     }
 
     await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true, loginAttempts: 0, lockedUntil: null } });
+
+    // 2FA gate — must run before issuing access tokens. Phone-login was
+    // previously bypassing TOTP entirely (sec audit 2026-04: HIGH-1). The
+    // pending token is short-lived and can only be exchanged for a real
+    // session via /auth/totp-verify with a valid 6-digit code.
+    const totpGate = await checkSocialAuthTotpGate(user, deviceToken);
+    if (totpGate) {
+      await logSecurityEvent('LOGIN_TOTP_REQUIRED', user.id, req, 'method=sms_otp');
+      return res.json(totpGate);
+    }
 
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `phone=${phone} method=sms_otp`);
     checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
@@ -1115,8 +1179,9 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Недействительный refresh token' });
     }
 
-    // Check DB: token must exist and belong to the same user as the JWT payload
-    const dbToken = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
+    // Check DB: token must exist and belong to the same user as the JWT payload.
+    // Stored as SHA-256 hash (sec audit 2026-04: HIGH-5) — hash before lookup.
+    const dbToken = await prisma.refreshToken.findUnique({ where: { token: hashRefreshToken(refreshToken) } });
     if (!dbToken) return res.status(401).json({ error: 'Refresh token не найден' });
     if (dbToken.userId !== payload.userId) {
       // JWT payload userId doesn't match DB record — possible token swap attempt
@@ -1188,11 +1253,12 @@ router.post('/logout', async (req: Request, res: Response) => {
           }) as { userId: string };
           await prisma.refreshToken.updateMany({ where: { userId: payload.userId, revoked: false }, data: { revoked: true } });
         } catch {
-          // Token invalid/expired — fall back to revoking only this token
-          await prisma.refreshToken.updateMany({ where: { token: refreshToken, revoked: false }, data: { revoked: true } });
+          // Token invalid/expired — fall back to revoking only this token.
+          // Stored as SHA-256 hash; lookup by hash. Sec audit 2026-04: HIGH-5.
+          await prisma.refreshToken.updateMany({ where: { token: hashRefreshToken(refreshToken), revoked: false }, data: { revoked: true } });
         }
       } else {
-        await prisma.refreshToken.updateMany({ where: { token: refreshToken, revoked: false }, data: { revoked: true } });
+        await prisma.refreshToken.updateMany({ where: { token: hashRefreshToken(refreshToken), revoked: false }, data: { revoked: true } });
       }
     }
     res.json({ message: 'Выход выполнен' });
@@ -1233,15 +1299,21 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       data: { used: true },
     });
 
-    const token = crypto.randomBytes(32).toString('hex');
+    // Reset token is password-equivalent — only store the SHA-256 hash so a
+    // DB read (replica leak, BI export, support engineer with prisma:studio,
+    // SQL-injection elsewhere) does NOT yield ready-to-use reset links.
+    // Sec audit 2026-04: HIGH-4. The raw token is sent to the user's mailbox
+    // and is hashed back before lookup in /reset-password.
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
     await prisma.passwordResetToken.create({
-      data: { token, userId: user.id, expiresAt },
+      data: { token: tokenHash, userId: user.id, expiresAt },
     });
 
     // Fire-and-forget: awaiting SMTP leaks registration state via response timing.
-    sendPasswordResetEmail(email, token).catch((err) => {
+    sendPasswordResetEmail(email, rawToken).catch((err) => {
       logger.warn('sendPasswordResetEmail failed:', err);
     });
 
@@ -1264,8 +1336,12 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       password: strongPassword,
     }).parse(req.body);
 
+    // Token is stored as SHA-256 hash (sec audit 2026-04: HIGH-4). Hash the
+    // incoming raw value before lookup. crypto.createHash is constant-time
+    // for fixed-length input, so this doesn't open a timing oracle.
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const resetToken = await prisma.passwordResetToken.findUnique({
-      where: { token },
+      where: { token: tokenHash },
       include: { user: true },
     });
 
