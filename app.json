@@ -2,7 +2,10 @@
   "expo": {
     "name": "iron-gym",
     "slug": "iron-gym",
-    "scheme": ["irongym", "com.irongym.app"],
+    "scheme": [
+      "irongym",
+      "com.irongym.app"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,7 +22,9 @@
       "infoPlist": {
         "NSMotionUsageDescription": "���������� ��� �������� ����� � ������������ ����������"
       },
-      "associatedDomains": ["applinks:irongym.app"]
+      "associatedDomains": [
+        "applinks:irongym.app"
+      ]
     },
     "android": {
       "package": "com.irongym.app",
@@ -67,7 +72,8 @@
       ],
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION"
-      ]
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
