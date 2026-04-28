@@ -47,6 +47,8 @@ Expected cascade chain on User delete:
 - User → ChatMessage (Cascade)
 - User → AIMemory (Cascade)
 - User → Meal (Cascade) → MealItem (Cascade)
+- User (as client) → TrainerClient.clientUser (Cascade) → TrainerSession (Cascade)
+  _(Fixed 2026-04-28: was SetNull, left orphaned records violating 152-ФЗ DSR)_
 
 Flag any relation missing `onDelete: Cascade` where the child has no standalone meaning.
 
