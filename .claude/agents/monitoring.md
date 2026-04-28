@@ -184,6 +184,31 @@ grep -n "res\.json\|res\.send\|res\.status" server/src/routes/workout.ts | grep 
 
 Flag: routes that always return 200 even on error (swallowed exceptions = client shows stale data, not error message).
 
+### 11. Background Service Health (Retention + Admin Digest)
+
+```bash
+# Verify hard caps prevent runaway sends
+grep -n "take.*200\|take: 200\|HARD_CAP\|hardCap" server/src/services/retentionService.ts
+grep -n "take.*200\|ADMIN_BATCH" server/src/services/adminDigestService.ts
+
+# Verify SentAt gating (no double-send on restart)
+grep -n "SentAt\|sentAt\|activationPushSentAt\|reactivation.*SentAt" server/src/services/retentionService.ts | head -20
+
+# Verify all setInterval calls have .unref() (prevent Jest hangs in tests)
+grep -n "setInterval" server/src/index.ts | grep -v "\.unref()"
+
+# Check reportError is called on per-user failures (not just top-level)
+grep -n "reportError\|catch" server/src/services/retentionService.ts | head -20
+grep -n "reportError\|catch" server/src/services/adminDigestService.ts | head -20
+```
+
+Verify:
+- `retentionService.ts`: each cohort has a `*SentAt` guard; per-user push failures are caught and `reportError`-d but don't abort other users; `isBanned: false` filter applied; `take: 200` hard cap per tick
+- `adminDigestService.ts`: `lastAdminDigestSentDate` checked before re-sending (idempotency on same-day restart); push failure swallowed (`.catch(()=>{})`); email failure calls `reportError`
+- All 9 `setInterval` calls in `server/src/index.ts` have `.unref()` (otherwise Jest tests hang)
+
+Flag: any `setInterval` without `.unref()`, any background service that doesn't call `reportError` on failure, or any service missing a per-run hard cap.
+
 ## Reference: Expected Log Events
 
 These events should always be logged at appropriate level:
