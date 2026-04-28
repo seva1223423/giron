@@ -32,6 +32,8 @@ RESULT:
 - Suspicious login detection: new IP/device → `SecurityEvent` + email alert
 - Trusted device tokens (`TrustedDevice` model, `deviceToken` field)
 - OAuth CSRF protection: `state` param on Google/VK/Yandex flows
+- Email normalization on all auth paths: `.trim().toLowerCase().normalize('NFKC')` applied at Zod transform layer and in OAuth token handlers (Yandex `default_email`). Prevents duplicate-account bypass via mixed-case / Unicode lookalike addresses. (`normalizeEmail()` helper in `server/src/routes/auth.ts`)
+- OK.ru (Odnoklassniki) OAuth removed (2026-04-28) — was never configured, removed to reduce attack surface; `okId` field dropped from `User` model
 - Password history: last N passwords blocked on reset (`PasswordHistory` model)
 - Strong password Zod validation: min 8, max 128, uppercase + lowercase + digit (no special char required — intentional to reduce friction)
 
@@ -122,6 +124,9 @@ When auditing any file, check every item:
 - Fix: wrap persist storage with `expo-secure-store` or `react-native-encrypted-storage`
 
 ~~**3. No audit log for admin mutations**~~ — **RESOLVED** as of 2026-04-22
+~~**14. Email normalization missing on OAuth + change-email flows**~~ — **RESOLVED** as of 2026-04-28
+- `normalizeEmail()` helper (`.trim().toLowerCase().normalize('NFKC')`) applied to: Yandex OAuth `default_email`, change-email Zod transform in `user.ts`. Registration flow already normalized; Google/VK/Mail.ru use `email_verified` guarded tokens which are normalized by the provider.
+- Test: `auth.social.test.ts` and `user.link.test.ts` updated to use normalized emails in expectations.
 - `server/src/routes/admin.ts` has `prisma.adminLog.create` on 20+ mutation paths (ban, subscription activate, announcement, data deletion, etc.). Full audit trail exists via the `AdminLog` model.
 
 ### MEDIUM

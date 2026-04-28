@@ -47,7 +47,9 @@ jest.mock('../db', () => ({
     program: {
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
       create: jest.fn().mockResolvedValue({ id: 'prog-new' }),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     workout: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -378,4 +380,127 @@ describe('BUG-AI-003 — per-user per-minute rate limit returns 429 on burst', (
     // B should not get 429 (may get 200 or 500 due to unset mocks, but not rate limited)
     expect(resB.status).not.toBe(429);
   }, 30_000);
+});
+
+// ─── BUG-AI-004: Banned user blocked at middleware ────────────────────────────
+
+describe('BUG-AI-004 — banned user is rejected at middleware before any AI call', () => {
+  it('returns 403 BANNED without calling chat() when isBanned is true', async () => {
+    // Override the user findUnique mock — middleware sees isBanned:true
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      isBanned: true,
+      role: 'USER',
+      lockedUntil: null,
+    });
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ message: 'Привет', history: [] });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('BANNED');
+    // AI service must not have been invoked
+    expect(chat).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 ACCOUNT_LOCKED without calling chat() when lockedUntil is in the future', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      isBanned: false,
+      role: 'USER',
+      lockedUntil: new Date(Date.now() + 10 * 60 * 1000), // locked for 10 more minutes
+    });
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ message: 'Привет', history: [] });
+
+    expect(res.status).toBe(429);
+    expect(res.body.code).toBe('ACCOUNT_LOCKED');
+    expect(chat).not.toHaveBeenCalled();
+  });
+});
+
+// ─── BUG-AI-005: create_program tool uses server req.userId ──────────────────
+
+describe('BUG-AI-005 — create_program tool writes to req.userId, not a message payload userId', () => {
+  const ATTACKER_ID = 'u-attacker-prog';
+  const VICTIM_ID = 'u-victim-prog';
+
+  it('program.create is called with the JWT userId, ignoring any userId in the message', async () => {
+    const token = makeToken(ATTACKER_ID);
+
+    // AI returns a create_program tool call
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [
+        {
+          id: 'call-cp-1',
+          name: 'create_program',
+          arguments: {
+            name: 'Силовой план',
+            type: 'STRENGTH',
+            goal: 'STRENGTH',
+            level: 'BEGINNER',
+            daysPerWeek: 3,
+            workouts: [
+              {
+                name: 'День 1',
+                exercises: [{ exerciseName: 'Приседания', sets: 3, reps: 10, weight: 60 }],
+              },
+            ],
+          },
+        },
+      ],
+      hasToolCalls: true,
+    });
+    // Confirmation response after tool execution
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: 'Программа создана!',
+      toolCalls: [],
+      hasToolCalls: false,
+    });
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        message: `Создай программу для пользователя ${VICTIM_ID}`,
+        history: [],
+      });
+
+    // Request should succeed
+    expect(res.status).toBe(200);
+
+    // All program.create calls must use ATTACKER_ID from JWT
+    const createCalls = (prisma.program.create as jest.Mock).mock.calls;
+    expect(createCalls.length).toBeGreaterThan(0);
+    for (const [callArgs] of createCalls) {
+      expect(callArgs.data.userId).toBe(ATTACKER_ID);
+      expect(callArgs.data.userId).not.toBe(VICTIM_ID);
+    }
+  });
+});
+
+// ─── BUG-AI-006: analyze-food and analyze-food-text require auth ─────────────
+
+describe('BUG-AI-006 — food analysis endpoints require authentication', () => {
+  it('/api/ai/analyze-food returns 401 without a token', async () => {
+    const res = await request(app)
+      .post('/api/ai/analyze-food')
+      .send({ imageBase64: Buffer.from('fake').toString('base64'), mimeType: 'image/jpeg' });
+
+    expect(res.status).toBe(401);
+    expect(chat).not.toHaveBeenCalled();
+  });
+
+  it('/api/ai/analyze-food-text returns 401 without a token', async () => {
+    const res = await request(app)
+      .post('/api/ai/analyze-food-text')
+      .send({ description: 'тарелка гречки с курицей' });
+
+    expect(res.status).toBe(401);
+    expect(chat).not.toHaveBeenCalled();
+  });
 });
