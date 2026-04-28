@@ -132,12 +132,12 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 81 суитов, ~2030 тестов)
+npm test               # jest (client unit tests, 81 суитов, ~2027 тестов)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 31 суит, ~969 тестов)
+npm test               # jest (server integration tests, 31 суит, ~960 тестов)
                        # Новые суиты: retentionService.test.ts, adminDigestService.test.ts
 npm run prisma:studio  # GUI для БД
 npm run prisma:generate # генерация Prisma client
