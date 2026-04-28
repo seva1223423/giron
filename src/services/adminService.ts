@@ -10,6 +10,9 @@ import type { AdminStats, AdminUserSummary, AdminUserDetail, AdminLog, AdminAnal
  */
 export interface KeyMetrics {
   generatedAt: string;
+  /** Window the metrics cover (7/14/30/60/90). Set by the `?days=` query
+   *  parameter on the request; defaults to 30 when omitted. */
+  windowDays?: number;
   payingUsers: {
     current: number;
     thirtyDaysAgo: number;
@@ -75,8 +78,11 @@ export const adminService = {
    * each number with a healthy/unhealthy indicator. Cached server-side
    * 5 min; pass refresh=true to bust the cache.
    */
-  async getKeyMetrics(refresh?: boolean): Promise<KeyMetrics> {
-    const res = await api.get('/admin/metrics/key', refresh ? { params: { refresh: 1 } } : undefined);
+  async getKeyMetrics(opts?: { refresh?: boolean; days?: 7 | 14 | 30 | 60 | 90 }): Promise<KeyMetrics> {
+    const params: Record<string, string | number> = {};
+    if (opts?.refresh) params.refresh = 1;
+    if (opts?.days) params.days = opts.days;
+    const res = await api.get('/admin/metrics/key', { params });
     return res.data;
   },
 

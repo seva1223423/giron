@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { FadeIn, Icon } from '../../../components';
 import { typography } from '../../../theme';
@@ -63,6 +63,29 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
               accessibilityRole="button"
             >
               <Icon name={isSpeaking ? 'pause' : 'play'} size={12} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          {/* Share button on assistant messages — long programs and
+              meal plans are exactly the kind of content users send to
+              friends ("look at the plan AI made for me"). Sharing seeds
+              an organic growth loop: each share is a free impression
+              with a strong implicit endorsement. Skipped on user
+              messages because nobody shares their own questions, and
+              short messages (<40 chars) because a one-liner like
+              "понял, спасибо" isn't worth a share-sheet. */}
+          {!isUser && message.content.length > 40 && (
+            <TouchableOpacity
+              onPress={() => {
+                Share.share({
+                  message: `${message.content}\n\n— Iron Coach (Iron Gym)\nhttps://irongym.app`,
+                }).catch(() => {});
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.speakButton}
+              accessibilityLabel="Поделиться сообщением"
+              accessibilityRole="button"
+            >
+              <Icon name="send" size={12} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>

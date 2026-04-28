@@ -84,6 +84,13 @@ const USER_PROFILE_SELECT = {
   totpEnabled: true,
   isBanned: true, bannedAt: true,
   createdAt: true, updatedAt: true,
+  // Retention flags exposed to the client so the AI screen's
+  // FirstPromptCta can detect "user registered but never engaged" via
+  // firstChatAt being null. lastActiveAt isn't strictly needed on the
+  // client today but exposing it now avoids a follow-up profile-fetch
+  // shape change when banner-style nudges show up.
+  firstChatAt: true,
+  lastActiveAt: true,
   googleId: true, vkId: true, yandexId: true, mailruId: true,
   healthRestrictions: true,
 } as const;

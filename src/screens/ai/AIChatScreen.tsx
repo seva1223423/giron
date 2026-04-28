@@ -12,7 +12,7 @@ import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionSer
 import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
-  SuggestionChips,
+  SuggestionChips, FirstPromptCta,
 } from './components';
 import { localDateStr } from '../../utils/date';
 
@@ -388,6 +388,17 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         )}
         {messages.map((msg, i) => <MessageBubble key={msg.id} message={msg} isLast={i === messages.length - 1} speakingId={speakingId} onSpeak={handleSpeak} />)}
+        {/* Activation CTA (FUNNEL-1). Shown only to users who registered
+            but never sent a single message — `firstChatAt` is null on the
+            User row. Disappears on the next mount once they engage. The
+            prompt is intentionally narrow ("первая программа") because
+            wide-open AI chats with no starting point have a known choice-
+            paralysis problem on first use. */}
+        {messages.length <= 1 && !user?.firstChatAt && (
+          <FirstPromptCta
+            onPress={() => sendMessage('Составь мне первую программу тренировок под мои цели и уровень. Учти мой пол, рост, вес и опыт. Дай готовый план на неделю с упражнениями, подходами и весами.')}
+          />
+        )}
         {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
         {isTyping && <TypingIndicator />}
       </ScrollView>

@@ -336,8 +336,26 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
       },
       server: {
         uptimeSeconds: Math.round(uptime),
+        // Report `heapUsed` against the V8 max-old-space ceiling (or
+        // `rss` against the dyno's perceived memory limit) instead of
+        // `heapUsed / heapTotal`. The latter ratio is always ~70-95%
+        // because Node grows heapTotal lazily right up to whatever
+        // it's currently using — that triggered the founder's
+        // "Память процесса 93%" warning even though the actual
+        // process was well under any limit. Now we surface heapUsed
+        // and dyno-relative RSS so the admin dashboard's banner can
+        // fire on real pressure.
         memoryUsedMb: Math.round(memUsage.heapUsed / 1024 / 1024),
         memoryTotalMb: Math.round(memUsage.heapTotal / 1024 / 1024),
+        // RSS = total process memory (heap + native + buffers). This
+        // is what Render measures against the 512MB free-tier cap.
+        rssMb: Math.round(memUsage.rss / 1024 / 1024),
+        // Render free dyno is 512MB; assume that as the cap when the
+        // platform doesn't report a hard limit. systemMemTotalMb is
+        // the *host* memory which can be 30+ GB on shared instances
+        // and is not what's relevant to us.
+        rssLimitMb: 512,
+        rssUsedPct: Math.round((memUsage.rss / 1024 / 1024 / 512) * 100),
         systemMemUsedPct: Math.round(((totalMem - freeMem) / totalMem) * 100),
         systemMemFreeMb: Math.round(freeMem / 1024 / 1024),
         systemMemTotalMb: Math.round(totalMem / 1024 / 1024),
@@ -1345,8 +1363,20 @@ router.get('/analytics/subscriptions', requireAdmin, async (req: AuthRequest, re
  */
 router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { refresh } = req.query as Record<string, string>;
-    const KEY_METRICS_CACHE_KEY = 'admin:metrics:key';
+    const { refresh, days: rawDays } = req.query as Record<string, string>;
+
+    // Parse + clamp date-range filter. Default 30 days matches the
+    // historical contract; allow 7/14/30/60/90 as common founder views
+    // (last week, last 2 weeks, last month, last 2 months, last quarter).
+    // Anything else gets coerced to 30 silently — never error on a
+    // malformed query string for a metrics dashboard.
+    const ALLOWED_DAYS = [7, 14, 30, 60, 90];
+    const requestedDays = parseInt(rawDays ?? '30', 10);
+    const days = ALLOWED_DAYS.includes(requestedDays) ? requestedDays : 30;
+
+    // Cache key includes the window so different ranges don't trample
+    // each other. Keeps the 5-min TTL semantics per range.
+    const KEY_METRICS_CACHE_KEY = `admin:metrics:key:${days}d`;
     const KEY_METRICS_CACHE_TTL = 5 * 60 * 1000;
 
     if (refresh !== '1') {
@@ -1358,8 +1388,8 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
     }
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400 * 1000);
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - days * 86400 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - days * 2 * 86400 * 1000);
 
     // ── 1. Paying users (current + delta vs 30 days ago) ──────────────────
     // "Paying" = active OR cancelled-not-yet-expired AND plan != free. The
@@ -1517,6 +1547,9 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
 
     const payload = {
       generatedAt: now.toISOString(),
+      // Window the response covers, so the client can label charts and
+      // pick the right axis without re-deriving from `days` query param.
+      windowDays: days,
       payingUsers: {
         current: payingNow,
         thirtyDaysAgo: payingThirtyDaysAgo,
