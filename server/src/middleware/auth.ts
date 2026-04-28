@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
-import { recordActivity } from '../utils/activityTracker';
+import { recordActivity, shouldSyncLastActiveAt } from '../utils/activityTracker';
 import { logger } from '../utils/logger';
 
 export interface AuthRequest extends Request {
@@ -61,6 +61,28 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
   // Record activity for online-user tracking (non-blocking)
   recordActivity(payload.userId);
+
+  // Refresh User.lastActiveAt at most once per hour per user. Without this,
+  // passive readers (open the app, browse, never log a workout / talk to AI)
+  // would only update lastActiveAt via specific routes (workout complete,
+  // meal log, AI chat) and get incorrectly bucketed into the 7/14/30d
+  // reactivation cohorts. The 1h throttle keeps the DB write rate low while
+  // ensuring the cohort signal stays accurate. Fire-and-forget — never block
+  // the request on this bookkeeping write. Wrapped in try/catch because some
+  // jest test mocks of prisma.user.update return undefined (not a thenable),
+  // which would otherwise throw `.catch is not a function`.
+  if (shouldSyncLastActiveAt(payload.userId)) {
+    try {
+      const p = prisma.user.update({
+        where: { id: payload.userId },
+        data: { lastActiveAt: new Date() },
+      });
+      if (p && typeof (p as any).catch === 'function') {
+        (p as Promise<unknown>).catch(() => { /* best-effort retention bookkeeping */ });
+      }
+    } catch { /* mocked or otherwise non-thenable update — drop on the floor */ }
+  }
+
   next();
 };
 

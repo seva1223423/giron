@@ -13,7 +13,13 @@ import {
   getActiveUsersCount,
   getActiveUserIds,
   getTotalSeenCount,
+  shouldSyncLastActiveAt,
+  _resetActivityTracker,
 } from '../utils/activityTracker';
+
+beforeEach(() => {
+  _resetActivityTracker();
+});
 
 describe('recordActivity LRU ordering', () => {
   test('recently-active user stays in the map after subsequent activity', () => {
@@ -69,7 +75,32 @@ describe('getTotalSeenCount', () => {
     recordActivity('total-seen-1');
     recordActivity('total-seen-2');
     const after = getTotalSeenCount();
-    // At least 2 new entries, possibly more if other tests ran first
-    expect(after).toBeGreaterThanOrEqual(before + 2);
+    expect(after).toBe(before + 2);
+  });
+});
+
+describe('shouldSyncLastActiveAt throttle', () => {
+  test('returns true on first call for a user (never synced)', () => {
+    expect(shouldSyncLastActiveAt('sync-fresh')).toBe(true);
+  });
+
+  test('returns false on rapid consecutive calls within throttle window', () => {
+    expect(shouldSyncLastActiveAt('sync-throttled')).toBe(true);
+    expect(shouldSyncLastActiveAt('sync-throttled')).toBe(false);
+    expect(shouldSyncLastActiveAt('sync-throttled')).toBe(false);
+  });
+
+  test('returns true again after throttle window elapses (custom throttle)', async () => {
+    expect(shouldSyncLastActiveAt('sync-window', 5)).toBe(true);
+    expect(shouldSyncLastActiveAt('sync-window', 5)).toBe(false);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(shouldSyncLastActiveAt('sync-window', 5)).toBe(true);
+  });
+
+  test('per-user isolation — one user syncing does not affect another', () => {
+    expect(shouldSyncLastActiveAt('sync-iso-A')).toBe(true);
+    expect(shouldSyncLastActiveAt('sync-iso-A')).toBe(false);
+    // Different user — should return true (independent throttle)
+    expect(shouldSyncLastActiveAt('sync-iso-B')).toBe(true);
   });
 });

@@ -48,6 +48,7 @@ jest.mock('../services/newsRefreshService', () => ({
 
 jest.mock('../utils/activityTracker', () => ({
   recordActivity: jest.fn(),
+  shouldSyncLastActiveAt: jest.fn().mockReturnValue(false),
 }));
 
 import request from 'supertest';
