@@ -102,6 +102,23 @@ jest.mock('../services/newsRefreshService', () => ({
 const mockFetch = jest.fn();
 global.fetch = mockFetch as any;
 
+// Mock google-auth-library — Google OAuth uses OAuth2Client.verifyIdToken
+// instead of HTTP fetch, so we can't piggyback on the mockFetch path.
+// Each test configures mockGoogleVerifyIdToken before calling /auth/google.
+const mockGoogleVerifyIdToken = jest.fn();
+jest.mock('google-auth-library', () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({
+    verifyIdToken: mockGoogleVerifyIdToken,
+  })),
+}));
+
+// GOOGLE_CLIENT_IDS is read at module-load time in routes/auth.ts (the
+// const at the top of the file). Setting GOOGLE_CLIENT_ID_WEB BEFORE
+// importing the app is the only way to land in the test before that
+// snapshot. beforeEach is too late — the route has already memoised an
+// empty array and would 503 every test as "not configured".
+process.env.GOOGLE_CLIENT_ID_WEB = 'test_google_client_id_web';
+
 import app from '../index';
 
 // ── VK Auth ───────────────────────────────────────────────────────────────────
@@ -443,6 +460,153 @@ describe('HIGH-14 email normalisation in Mail.ru OAuth', () => {
     // user.create must store the normalised email
     const createCall = (prisma.user.create as jest.Mock).mock.calls[0];
     expect(createCall[0].data.email).toBe('user@mail.ru');
+  });
+});
+
+// ── Google Auth ───────────────────────────────────────────────────────────────
+//
+// Google OAuth was the only social provider without test coverage. Three
+// security audit findings live in this endpoint and need regression tests:
+//   - HIGH-2: email_verified MUST be true before trusting Google's email
+//             claim (stops Workspace-admin account-takeover)
+//   - HIGH-14: email normalised via .trim().toLowerCase().normalize('NFKC')
+//             before DB lookup or storage
+//   - Account-takeover defense: when a Google account's email matches an
+//             existing local account, link is only allowed if the local
+//             account already verified that email (otherwise an attacker
+//             who registered the victim's address could be silently linked)
+
+describe('POST /api/auth/google', () => {
+  beforeEach(() => {
+    mockGoogleVerifyIdToken.mockReset();
+    jest.clearAllMocks();
+    // GOOGLE_CLIENT_ID_WEB is set at file-level (before import) so the
+    // module-load snapshot of GOOGLE_CLIENT_IDS includes it.
+  });
+
+  const makeTicket = (payload: Record<string, unknown>) => ({
+    getPayload: () => payload,
+  });
+
+  it('400 when idToken is missing', async () => {
+    const res = await request(app).post('/api/auth/google').send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('401 when token verification fails', async () => {
+    mockGoogleVerifyIdToken.mockRejectedValue(new Error('Invalid token'));
+    const res = await request(app)
+      .post('/api/auth/google')
+      .send({ idToken: 'bad-token' });
+    expect(res.status).toBe(401);
+  });
+
+  it('401 when payload is missing sub or email', async () => {
+    mockGoogleVerifyIdToken.mockResolvedValue(makeTicket({ sub: null, email: null }));
+    const res = await request(app)
+      .post('/api/auth/google')
+      .send({ idToken: 'token-no-payload' });
+    expect(res.status).toBe(401);
+  });
+
+  it('401 SECURITY HIGH-2: email_verified=false is rejected', async () => {
+    // Workspace admin attack: Google can mint an ID token with arbitrary
+    // email if email_verified is false. We MUST reject it before user
+    // creation/auto-link. Without this guard, an attacker controlling
+    // example.com could mint a token with email='victim@gmail.com' and
+    // email_verified=false, then use it to take over the existing Iron
+    // Gym account belonging to the real victim@gmail.com.
+    mockGoogleVerifyIdToken.mockResolvedValue(makeTicket({
+      sub: 'attacker-google-id',
+      email: 'victim@gmail.com',
+      email_verified: false,
+      name: 'Attacker',
+    }));
+
+    const res = await request(app)
+      .post('/api/auth/google')
+      .send({ idToken: 'token-unverified-email' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('EMAIL_NOT_VERIFIED');
+    // Critically: no user lookup or creation should have happened
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY HIGH-14: normalises mixed-case email before DB lookup and storage', async () => {
+    mockGoogleVerifyIdToken.mockResolvedValue(makeTicket({
+      sub: 'google-uid-hi14',
+      email: 'Test@GMAIL.COM', // provider returns mixed-case
+      email_verified: true,
+      given_name: 'Test',
+      family_name: 'User',
+    }));
+
+    (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce(null); // no user by googleId
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null); // no user by email
+    (prisma.user.create as jest.Mock).mockResolvedValue({
+      id: 'new-user-google-hi14',
+      email: 'test@gmail.com',
+      firstName: 'Test',
+      lastName: 'User',
+      googleId: 'google-uid-hi14',
+      isBanned: false,
+      lockedUntil: null,
+      totpEnabled: false,
+      totpSecret: null,
+      healthRestrictions: [],
+      emailVerified: true,
+    });
+
+    const res = await request(app)
+      .post('/api/auth/google')
+      .send({ idToken: 'valid-google-token' });
+
+    expect(res.status).toBe(200);
+    // findUnique by email must use the normalised lowercase address
+    const findUniqueCalls = (prisma.user.findUnique as jest.Mock).mock.calls;
+    const emailLookup = findUniqueCalls.find((c) => c[0]?.where?.email !== undefined);
+    expect(emailLookup).toBeDefined();
+    expect(emailLookup![0].where.email).toBe('test@gmail.com');
+    // user.create must store the normalised form
+    const createCall = (prisma.user.create as jest.Mock).mock.calls[0];
+    expect(createCall[0].data.email).toBe('test@gmail.com');
+  });
+
+  it('SECURITY: refuses to auto-link existing local account if email is unverified', async () => {
+    // Attacker registered victim@gmail.com locally without verifying it.
+    // Now the real victim shows up via Google OAuth with the same email.
+    // We MUST NOT auto-link — instead surface EMAIL_NOT_VERIFIED_LOCAL
+    // and force the victim to verify via password reset first.
+    mockGoogleVerifyIdToken.mockResolvedValue(makeTicket({
+      sub: 'real-victim-google-id',
+      email: 'victim@gmail.com',
+      email_verified: true,
+      given_name: 'Victim',
+    }));
+
+    (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce(null); // no user by googleId
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'attacker-pre-registered',
+      email: 'victim@gmail.com',
+      emailVerified: false, // attacker registered without confirming
+      googleId: null,
+      isBanned: false,
+      lockedUntil: null,
+      totpEnabled: false,
+      totpSecret: null,
+      healthRestrictions: [],
+    });
+
+    const res = await request(app)
+      .post('/api/auth/google')
+      .send({ idToken: 'real-victim-token' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('EMAIL_NOT_VERIFIED_LOCAL');
+    // No silent user.update (linking) should have happened
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
 
