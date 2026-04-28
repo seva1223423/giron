@@ -149,8 +149,8 @@ async function signTokens(userId: string, req?: Request) {
 }
 
 function safeUser(user: any) {
-  const { passwordHash, googleId, vkId, yandexId, mailruId, totpSecret, totpBackupCodes, ...rest } = user;
-  return rest;
+  const { passwordHash, googleId, vkId, yandexId, okId, mailruId, totpSecret, totpBackupCodes, ...rest } = user;
+  return { ...rest, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId, hasOk: !!okId, hasMailru: !!mailruId };
 }
 
 // ── Email verification helper ─────────────────────────────────────────────────
@@ -544,7 +544,7 @@ router.post('/check-email', async (req: Request, res: Response) => {
     const { email } = z.object({ email: z.string().email().transform(normalizeEmail) }).parse(req.body);
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, googleId: true, passwordHash: true, vkId: true, yandexId: true, okId: true, mailruId: true },
+      select: { id: true, googleId: true, passwordHash: true, vkId: true, yandexId: true, mailruId: true },
     });
     if (!user) return res.json({ exists: false });
     res.json({
@@ -553,7 +553,6 @@ router.post('/check-email', async (req: Request, res: Response) => {
       hasGoogle: !!user.googleId,
       hasVk: !!user.vkId,
       hasYandex: !!user.yandexId,
-      hasOk: !!user.okId,
       hasMailru: !!user.mailruId,
     });
   } catch {
@@ -1047,6 +1046,96 @@ router.post('/mailru', async (req: Request, res: Response) => {
   } catch (e: any) {
     logger.error('POST /auth/mailru:', e);
     res.status(500).json({ error: 'Ошибка авторизации через Mail.ru' });
+  }
+});
+
+// ── OK.ru (Odnoklassniki) OAuth ──────────────────────────────────────────────
+
+/**
+ * POST /auth/ok
+ * Exchange an OK.ru OAuth access token for Iron Gym JWT tokens.
+ * Required env: OK_APP_ID
+ */
+router.post('/ok', async (req: Request, res: Response) => {
+  try {
+    const { accessToken, userId: claimedOkUserId, deviceToken } = z.object({
+      accessToken: z.string().min(1, 'accessToken обязателен'),
+      userId: z.string().min(1, 'userId обязателен'),
+      deviceToken: z.string().optional(),
+    }).parse(req.body);
+
+    if (!process.env.OK_APP_ID) {
+      return res.status(503).json({ error: 'OK.ru OAuth не настроен на сервере', code: 'MISCONFIGURED' });
+    }
+
+    let okUser: any;
+    try {
+      const resp = await fetch(
+        `https://api.ok.ru/oauth/userinfo.do?access_token=${encodeURIComponent(accessToken)}`,
+        { signal: AbortSignal.timeout(8000) },
+      );
+      if (!resp.ok) {
+        logger.warn(`OK.ru userinfo HTTP ${resp.status}`);
+        return res.status(401).json({ error: 'Не удалось проверить токен OK.ru', code: 'INVALID_TOKEN' });
+      }
+      okUser = await resp.json();
+    } catch (e: any) {
+      logger.warn('OK.ru userinfo fetch failed:', e.message);
+      return res.status(401).json({ error: 'Не удалось проверить токен OK.ru', code: 'INVALID_TOKEN' });
+    }
+
+    if (!okUser?.uid) {
+      return res.status(401).json({ error: 'Недействительный токен OK.ru', code: 'INVALID_TOKEN' });
+    }
+
+    if (String(okUser.uid) !== String(claimedOkUserId)) {
+      logger.warn(`[SECURITY] OK.ru uid mismatch: claimed=${claimedOkUserId} actual=${okUser.uid} ip=${(req as any).ip}`);
+      return res.status(401).json({ error: 'Токен OK.ru не совпадает с указанным пользователем', code: 'ID_MISMATCH' });
+    }
+
+    const okId = String(okUser.uid);
+    const firstName = okUser.first_name || okUser.name?.split(' ')[0] || 'Пользователь';
+    const lastName = okUser.last_name || (okUser.name?.includes(' ') ? okUser.name.split(' ').slice(1).join(' ') : undefined);
+    const email = okUser.email ? normalizeEmail(okUser.email) : undefined;
+    const avatarUrl: string | undefined = okUser.pic_3 || okUser.pic_2 || okUser.pic_1 || okUser.pic || undefined;
+
+    let user: any = await prisma.user.findUnique({ where: { okId }, include: { healthRestrictions: true } });
+
+    if (!user) {
+      if (email) {
+        const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+        if (existing) {
+          await logSecurityEvent('OAUTH_EMAIL_LINK_BLOCKED', existing.id, req, 'method=ok reason=not_oidc_verified');
+          return res.status(409).json({
+            error: 'Этот email уже зарегистрирован. Войдите паролем и привяжите OK.ru в настройках безопасности.',
+            code: 'LINK_REQUIRED',
+          });
+        }
+      }
+      user = await prisma.user.create({
+        data: { okId, firstName, lastName, avatarUrl, email: email || `ok_${okId}@irongym.internal`, emailVerified: false },
+        include: { healthRestrictions: true },
+      });
+      await logSecurityEvent('REGISTER', user.id, req, 'method=ok');
+    }
+
+    if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: user.lockedUntil });
+    }
+
+    const totpGate = await checkSocialAuthTotpGate(user, deviceToken);
+    if (totpGate) { await logSecurityEvent('LOGIN_TOTP_REQUIRED', user.id, req, 'method=ok'); return res.json(totpGate); }
+
+    const { token, refreshToken } = await signTokens(user.id, req);
+    await logSecurityEvent('LOGIN_SUCCESS', user.id, req, 'method=ok');
+    checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
+    res.json({ user: safeUser(user), token, refreshToken });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /auth/ok:', e);
+    res.status(500).json({ error: 'Ошибка авторизации через OK.ru' });
   }
 });
 
