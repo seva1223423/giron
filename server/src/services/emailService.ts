@@ -11,7 +11,28 @@ function esc(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-const transporter = nodemailer.createTransport({
+/**
+ * Email sending is gated on a complete SMTP config (host + user + pass).
+ * Without all three set, every send call returns silently — the caller
+ * keeps its happy path, no noisy SMTP-auth errors flood Sentry, and no
+ * cron loop dies. Useful state during early development before SMTP is
+ * wired, and as a self-healing fallback if env credentials get rotated
+ * out by mistake.
+ *
+ * We log a one-time warning on first send attempt so the operator knows
+ * the no-op is intentional, not a silent failure.
+ */
+const SMTP_CONFIGURED = Boolean(
+  process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
+);
+let smtpDisabledWarned = false;
+function warnSmtpDisabledOnce(): void {
+  if (smtpDisabledWarned) return;
+  smtpDisabledWarned = true;
+  logger.warn('[Email] SMTP_HOST/SMTP_USER/SMTP_PASS not all set — outbound email is disabled. Set all three in env to re-enable.');
+}
+
+const realTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587', 10),
   secure: process.env.SMTP_SECURE === 'true',
@@ -20,6 +41,24 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
+
+/**
+ * Wraps the real nodemailer transporter so every send goes through the
+ * SMTP_CONFIGURED gate. The shape mimics what nodemailer.Transporter
+ * exposes (just the `sendMail` method we actually use) so callers stay
+ * unchanged. When SMTP is disabled this returns a resolved promise with
+ * a fake messageId — that lets the calling code's `await` complete
+ * without blowing up the request handler.
+ */
+const transporter = {
+  async sendMail(options: Parameters<typeof realTransporter.sendMail>[0]) {
+    if (!SMTP_CONFIGURED) {
+      warnSmtpDisabledOnce();
+      return { messageId: 'disabled', accepted: [], rejected: [], response: 'SMTP disabled' } as any;
+    }
+    return realTransporter.sendMail(options);
+  },
+};
 
 const FROM = process.env.SMTP_FROM || 'Iron Gym <noreply@irongym.app>';
 const APP_NAME = 'Iron Gym';
