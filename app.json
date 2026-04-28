@@ -18,7 +18,8 @@
       "icon": "./assets/icon.png",
       "infoPlist": {
         "NSMotionUsageDescription": "���������� ��� �������� ����� � ������������ ����������"
-      }
+      },
+      "associatedDomains": ["applinks:irongym.app"]
     },
     "android": {
       "package": "com.irongym.app",
@@ -36,6 +37,26 @@
           "data": [
             {
               "scheme": "irongym"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "irongym.app",
+              "pathPrefix": "/reset-password"
+            },
+            {
+              "scheme": "https",
+              "host": "irongym.app",
+              "pathPrefix": "/auth"
             }
           ],
           "category": [
@@ -61,6 +82,15 @@
         "projectId": "8b6fa1fd-4943-4185-bf1a-ea14bc70cfc4"
       }
     },
-    "owner": "memno666"
+    "owner": "memno666",
+    "updates": {
+      "url": "https://u.expo.dev/8b6fa1fd-4943-4185-bf1a-ea14bc70cfc4",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 5000,
+      "enabled": true
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

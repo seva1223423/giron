@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { setOnlineStatus } from '../store/useConnectionStore';
 import { tokenStorage } from '../utils/secureStorage';
 
@@ -7,11 +8,61 @@ import { tokenStorage } from '../utils/secureStorage';
 // Override via EXPO_PUBLIC_API_URL for staging/local dev.
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://iron-gym-swoe.onrender.com/api';
 
+// Client version from app.json#expo.version. Sent on every request so the
+// server-side clientVersionGate (CLIENT-VERSION-01) can return 426 to old
+// APKs before they hit a route whose contract has changed. Falls back to
+// '0.0.0' if Constants is somehow unavailable — server treats that as
+// "unknown" and lets it through.
+const CLIENT_VERSION =
+  (Constants?.expoConfig?.version as string | undefined) ??
+  // @ts-expect-error legacy SDK fallback
+  (Constants?.manifest?.version as string | undefined) ??
+  '0.0.0';
+const CLIENT_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android';
+
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Client-Version': CLIENT_VERSION,
+    'X-Client-Platform': CLIENT_PLATFORM,
+  },
 });
+
+// ── 426 "client too old" subscriber pattern ─────────────────────────────────
+// The response interceptor below raises this event when the server gates
+// the request on MIN_CLIENT_VERSION. ForceUpdateModal subscribes via
+// onClientTooOld() on mount; using a tiny event bus instead of a context
+// provider keeps the modal optional — screens that don't render it just
+// never see the error and the user gets the standard error path.
+
+interface ClientTooOldPayload {
+  clientVersion: string;
+  minVersion: string;
+  /** Store URL to send the user to. May be null on web / unknown platform. */
+  updateUrl: string | null;
+  /** Server-provided message, displayable as-is. */
+  message: string;
+}
+
+type ClientTooOldHandler = (payload: ClientTooOldPayload) => void;
+const clientTooOldSubscribers = new Set<ClientTooOldHandler>();
+
+export function onClientTooOld(handler: ClientTooOldHandler): () => void {
+  clientTooOldSubscribers.add(handler);
+  return () => clientTooOldSubscribers.delete(handler);
+}
+
+function emitClientTooOld(payload: ClientTooOldPayload) {
+  for (const handler of clientTooOldSubscribers) {
+    try {
+      handler(payload);
+    } catch {
+      /* one bad subscriber shouldn't break the others */
+    }
+  }
+}
 
 // Request interceptor — attach JWT from SecureStore
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
@@ -56,6 +107,22 @@ api.interceptors.response.use(
         const { useAuthStore } = require('../store');
         useAuthStore.getState().logout();
       } catch { /* best effort */ }
+      return Promise.reject(error);
+    }
+
+    // Handle "client too old" — server sets MIN_CLIENT_VERSION above our
+    // app version, meaning future requests will keep failing until the
+    // user updates. Emit on the event bus so ForceUpdateModal can show
+    // a non-dismissible prompt. We still reject so any in-flight callers
+    // see a real error and don't render half-loaded screens.
+    if (error.response?.status === 426 && (error.response?.data as any)?.code === 'CLIENT_TOO_OLD') {
+      const data = error.response.data as any;
+      emitClientTooOld({
+        clientVersion: data.clientVersion ?? CLIENT_VERSION,
+        minVersion: data.minVersion ?? '?',
+        updateUrl: data.updateUrl ?? null,
+        message: data.error ?? 'Версия приложения устарела',
+      });
       return Promise.reject(error);
     }
 
