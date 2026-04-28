@@ -145,17 +145,21 @@ describe('loginWithVk', () => {
     expect(state.error).toBe('Недействительный токен VK');
   });
 
-  test('TOTP gate response: store throws because requiresTOTP response has no .token', async () => {
+  test('TOTP gate: sets totpPendingToken, throws TOTP_REQUIRED, does not set error', async () => {
     const { authService } = require('../services');
-    // Server responds with requiresTOTP — but the VK action does not handle it,
-    // so accessing .token on the response will throw.
     authService.loginWithVk.mockResolvedValueOnce({ requiresTOTP: true, pendingToken: 'pending-123' });
 
-    await expect(
-      useAuthStore.getState().loginWithVk({ accessToken: 'vk-token', userId: 123 }),
-    ).rejects.toThrow();
+    const thrown = await useAuthStore
+      .getState()
+      .loginWithVk({ accessToken: 'vk-token', userId: 123 })
+      .catch((e) => e);
 
-    expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(thrown.code).toBe('TOTP_REQUIRED');
+    const state = useAuthStore.getState();
+    expect(state.totpPendingToken).toBe('pending-123');
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
   });
 });
 
@@ -196,13 +200,18 @@ describe('loginWithYandex', () => {
     expect(state.error).toBe('Не удалось проверить токен Яндекса');
   });
 
-  test('TOTP gate response: throws because response has no .token', async () => {
+  test('TOTP gate: sets totpPendingToken, throws TOTP_REQUIRED, does not set error', async () => {
     const { authService } = require('../services');
     authService.loginWithYandex.mockResolvedValueOnce({ requiresTOTP: true, pendingToken: 'pending-456' });
 
-    await expect(useAuthStore.getState().loginWithYandex('ya-token')).rejects.toThrow();
+    const thrown = await useAuthStore.getState().loginWithYandex('ya-token').catch((e) => e);
 
-    expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(thrown.code).toBe('TOTP_REQUIRED');
+    const state = useAuthStore.getState();
+    expect(state.totpPendingToken).toBe('pending-456');
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
   });
 });
 
@@ -243,15 +252,21 @@ describe('loginWithOk', () => {
     expect(state.error).toBe('Недействительный токен OK.ru');
   });
 
-  test('TOTP gate response: throws because response has no .token', async () => {
+  test('TOTP gate: sets totpPendingToken, throws TOTP_REQUIRED, does not set error', async () => {
     const { authService } = require('../services');
     authService.loginWithOk.mockResolvedValueOnce({ requiresTOTP: true, pendingToken: 'pending-789' });
 
-    await expect(
-      useAuthStore.getState().loginWithOk({ accessToken: 'ok-token', userId: 'ok-id' }),
-    ).rejects.toThrow();
+    const thrown = await useAuthStore
+      .getState()
+      .loginWithOk({ accessToken: 'ok-token', userId: 'ok-id' })
+      .catch((e) => e);
 
-    expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(thrown.code).toBe('TOTP_REQUIRED');
+    const state = useAuthStore.getState();
+    expect(state.totpPendingToken).toBe('pending-789');
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
   });
 });
 
@@ -294,13 +309,18 @@ describe('loginWithMailru', () => {
     expect(state.error).toBe('Не удалось проверить токен Mail.ru');
   });
 
-  test('TOTP gate response: throws because response has no .token', async () => {
+  test('TOTP gate: sets totpPendingToken, throws TOTP_REQUIRED, does not set error', async () => {
     const { authService } = require('../services');
     authService.loginWithMailru.mockResolvedValueOnce({ requiresTOTP: true, pendingToken: 'pending-mr' });
 
-    await expect(useAuthStore.getState().loginWithMailru('mr-token')).rejects.toThrow();
+    const thrown = await useAuthStore.getState().loginWithMailru('mr-token').catch((e) => e);
 
-    expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(thrown.code).toBe('TOTP_REQUIRED');
+    const state = useAuthStore.getState();
+    expect(state.totpPendingToken).toBe('pending-mr');
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
   });
 
   test('network error: sets generic error message and rethrows', async () => {

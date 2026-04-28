@@ -252,6 +252,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
       }
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { setShowTotpInput(true); setTotpCode(''); return; }
       setLocalError(e?.response?.data?.error || 'Ошибка авторизации через VK');
     } finally {
       setVkLoading(false);
@@ -280,6 +281,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         }
       }
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { setShowTotpInput(true); setTotpCode(''); return; }
       setLocalError(e?.response?.data?.error || 'Ошибка авторизации через Яндекс');
     } finally {
       setYandexLoading(false);
@@ -305,6 +307,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       if (!accessToken || !userId) { setLocalError('Не удалось получить данные от OK.ru'); return; }
       await useAuthStore.getState().loginWithOk({ accessToken, userId });
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { setShowTotpInput(true); setTotpCode(''); return; }
       setLocalError(e?.response?.data?.error ?? 'Ошибка входа через OK.ru');
     } finally {
       setOkLoading(false);
@@ -329,6 +332,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       if (!accessToken) { setLocalError('Не удалось получить токен от Mail.ru'); return; }
       await useAuthStore.getState().loginWithMailru(accessToken);
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { setShowTotpInput(true); setTotpCode(''); return; }
       setLocalError(e?.response?.data?.error ?? 'Ошибка входа через Mail.ru');
     } finally {
       setMailruLoading(false);
@@ -590,7 +594,11 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </View>
 
             {features.googleOAuth && googleConfigured && (
-              <GoogleAuthButton onError={setLocalError} disabled={anyLoading} />
+              <GoogleAuthButton
+                onError={setLocalError}
+                onTotpRequired={() => { setShowTotpInput(true); setTotpCode(''); }}
+                disabled={anyLoading}
+              />
             )}
 
             <TouchableOpacity

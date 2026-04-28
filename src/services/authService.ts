@@ -80,28 +80,28 @@ export const authService = {
     }
   },
 
-  async loginWithGoogle(idToken: string): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/google', { idToken });
+  async loginWithGoogle(idToken: string): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/google', { idToken });
     return data;
   },
 
-  async loginWithVk(params: { accessToken: string; userId: number; email?: string }): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/vk', params);
+  async loginWithVk(params: { accessToken: string; userId: number; email?: string }): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/vk', params);
     return data;
   },
 
-  async loginWithYandex(accessToken: string): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/yandex', { accessToken });
+  async loginWithYandex(accessToken: string): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/yandex', { accessToken });
     return data;
   },
 
-  async loginWithOk(params: { accessToken: string; userId: string }): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/ok', params);
+  async loginWithOk(params: { accessToken: string; userId: string }): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/ok', params);
     return data;
   },
 
-  async loginWithMailru(accessToken: string): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>('/auth/mailru', { accessToken });
+  async loginWithMailru(accessToken: string): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/mailru', { accessToken });
     return data;
   },
 

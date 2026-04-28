@@ -10,13 +10,15 @@ WebBrowser.maybeCompleteAuthSession();
 
 interface Props {
   onError: (msg: string) => void;
+  /** Called instead of onError when the server requires TOTP verification. */
+  onTotpRequired?: () => void;
   disabled?: boolean;
   /** 'login' (default) — calls loginWithGoogle; 'link' — calls onSuccess(idToken) instead */
   mode?: 'login' | 'link';
   onSuccess?: (idToken: string) => void;
 }
 
-export function GoogleAuthButton({ onError, disabled, mode = 'login', onSuccess }: Props) {
+export function GoogleAuthButton({ onError, onTotpRequired, disabled, mode = 'login', onSuccess }: Props) {
   const { colors } = useThemeStore();
   const { loginWithGoogle } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -41,7 +43,10 @@ export function GoogleAuthButton({ onError, disabled, mode = 'login', onSuccess 
             .finally(() => setLoading(false));
         } else {
           loginWithGoogle(idToken)
-            .catch((e) => onError(e?.response?.data?.error || 'Ошибка входа через Google'))
+            .catch((e) => {
+              if (e?.code === 'TOTP_REQUIRED') { onTotpRequired?.(); }
+              else { onError(e?.response?.data?.error || 'Ошибка входа через Google'); }
+            })
             .finally(() => setLoading(false));
         }
       } else {
