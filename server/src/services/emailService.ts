@@ -25,14 +25,22 @@ const FROM = process.env.SMTP_FROM || 'Iron Gym <noreply@irongym.app>';
 const APP_NAME = 'Iron Gym';
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
-  const resetUrl = `irongym://reset-password?token=${token}`;
-  const webFallbackUrl = `${process.env.APP_URL || 'https://irongym.app'}/reset-password?token=${token}`;
+  // Sec audit 2026-04: HIGH-8. Use the verified https:// universal/app link
+  // as the primary tap target. The custom-scheme `irongym://` is registered
+  // without `android:autoVerify="true"` and can be hijacked by a malicious
+  // app installed on the device — sending the raw reset token to that app.
+  // The https URL is claimed via assetlinks.json + apple-app-site-association
+  // (deployment requirement: host both files at irongym.app/.well-known/),
+  // so OS-level link verification routes the tap to our app, falling back
+  // to the browser if the app isn't installed.
+  const appUrl = process.env.APP_URL || 'https://irongym.app';
+  const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
   await transporter.sendMail({
     from: FROM,
     to: email,
     subject: `${APP_NAME} — сброс пароля`,
-    text: `Ты запросил сброс пароля в ${APP_NAME}.\n\nОткрой приложение и перейди по ссылке:\n${resetUrl}\n\nЕсли ссылка не работает, открой в браузере:\n${webFallbackUrl}\n\nСсылка действительна 1 час.\n\nЕсли ты не запрашивал сброс — просто проигнорируй это письмо.`,
+    text: `Ты запросил сброс пароля в ${APP_NAME}.\n\nПерейди по ссылке, чтобы создать новый пароль:\n${resetUrl}\n\nСсылка действительна 1 час.\n\nЕсли ты не запрашивал сброс — просто проигнорируй это письмо.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #8B5CF6; margin-bottom: 8px;">🏋️ ${APP_NAME}</h2>
@@ -49,8 +57,8 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
         </p>
         <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;">
         <p style="color: #bbb; font-size: 12px;">
-          Если кнопка не работает, открой в браузере:<br>
-          <a href="${webFallbackUrl}" style="color:#8B5CF6;">${webFallbackUrl}</a>
+          Если кнопка не работает, скопируй ссылку:<br>
+          <a href="${resetUrl}" style="color:#8B5CF6;">${resetUrl}</a>
         </p>
       </div>
     `,

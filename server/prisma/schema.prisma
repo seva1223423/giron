@@ -600,6 +600,9 @@ model PasswordHistory {
 // ==================== PASSWORD RESET ====================
 model PasswordResetToken {
   id        String   @id @default(cuid())
+  // SHA-256 hash of the reset token (64-char hex). The raw token is sent
+  // to the user's mailbox and never stored. A DB read therefore can't be
+  // exchanged for a password reset. Sec audit 2026-04: HIGH-4.
   token     String   @unique
   userId    String
   expiresAt DateTime
@@ -767,6 +770,11 @@ model SecurityEvent {
 // ==================== REFRESH TOKENS ====================
 model RefreshToken {
   id        String   @id @default(cuid())
+  // SHA-256 hash of the JWT refresh token (64-char hex). The raw JWT is
+  // signed by JWT_REFRESH_SECRET and only ever held by the client; the
+  // server stores the digest so a DB read (replica leak, BI export, support
+  // engineer with prisma:studio, SQL-injection elsewhere) cannot be
+  // exchanged for a session at /auth/refresh. Sec audit 2026-04: HIGH-5.
   token     String   @unique
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

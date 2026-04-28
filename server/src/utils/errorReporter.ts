@@ -30,6 +30,61 @@ type SentryModule = any;
 let sentry: SentryModule | null = null;
 let initialized = false;
 
+// Field names that must never be sent to Sentry. Includes auth secrets,
+// 152-ФЗ спец-категория health data, contact info (PII), and payment
+// identifiers. Match is case-insensitive and substring-based for fields
+// like `userPasswordHash` or `phoneNumber`.
+const SCRUB_KEY_PATTERNS = [
+  'password', 'passwd', 'secret', 'token', 'authorization', 'cookie', 'session',
+  'apikey', 'api_key', 'totp', 'otp', 'pin',
+  'email', 'phone', 'address', 'fullname', 'firstname', 'lastname',
+  'weight', 'height', 'pulse', 'bmi', 'bodyfat', 'goal', 'injur',
+  'healthrestriction', 'disease', 'allergy', 'medication',
+  'card', 'cvv', 'iban', 'pan',
+];
+const MAX_SCRUB_DEPTH = 6;
+
+function shouldScrubKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  return SCRUB_KEY_PATTERNS.some((pat) => lower.includes(pat));
+}
+
+function scrubObject(obj: any, depth = 0): void {
+  if (depth > MAX_SCRUB_DEPTH || !obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)) {
+    for (const item of obj) scrubObject(item, depth + 1);
+    return;
+  }
+  for (const key of Object.keys(obj)) {
+    if (shouldScrubKey(key)) {
+      obj[key] = '[scrubbed]';
+    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      scrubObject(obj[key], depth + 1);
+    }
+  }
+}
+
+function scrubSentryEvent(event: any): void {
+  if (!event || typeof event !== 'object') return;
+  if (event.request) {
+    if (event.request.data) scrubObject(event.request.data);
+    if (event.request.headers) scrubObject(event.request.headers);
+    if (event.request.cookies) scrubObject(event.request.cookies);
+    // Strip query strings — they can contain reset tokens, OTP codes, etc.
+    if (typeof event.request.query_string === 'string' && event.request.query_string.length > 0) {
+      event.request.query_string = '[scrubbed]';
+    }
+  }
+  if (event.extra) scrubObject(event.extra);
+  if (event.contexts) scrubObject(event.contexts);
+  if (event.tags) scrubObject(event.tags);
+  if (Array.isArray(event.breadcrumbs)) {
+    for (const b of event.breadcrumbs) {
+      if (b?.data) scrubObject(b.data);
+    }
+  }
+}
+
 function tryLoadSentry(): SentryModule | null {
   if (initialized) return sentry;
   initialized = true;
@@ -54,15 +109,21 @@ function tryLoadSentry(): SentryModule | null {
       tracesSampleRate: 0.1,
       // Scrub obvious PII from event payloads. Iron Gym stores health data
       // (pulse, injuries, goals) which counts as spec-category PD under
-      // 152-ФЗ — never send it to Sentry servers.
+      // 152-ФЗ — never send it to Sentry servers. Recursive scrub covers
+      // request body, headers/cookies, extra context, and breadcrumb data
+      // since any of those can carry user-supplied content.
       beforeSend(event: any) {
-        if (event.request?.data && typeof event.request.data === 'object') {
-          const scrubKeys = ['password', 'passwordHash', 'refreshToken', 'token', 'weightKg', 'heightCm', 'healthRestrictions'];
-          for (const key of scrubKeys) {
-            if (key in event.request.data) event.request.data[key] = '[scrubbed]';
-          }
-        }
+        scrubSentryEvent(event);
         return event;
+      },
+      beforeBreadcrumb(breadcrumb: any) {
+        if (breadcrumb?.data) scrubObject(breadcrumb.data);
+        // Drop request-body fragments from console-log breadcrumbs entirely —
+        // safer to lose context than leak free-text health data.
+        if (breadcrumb?.category === 'console' && typeof breadcrumb.message === 'string' && breadcrumb.message.length > 200) {
+          breadcrumb.message = breadcrumb.message.slice(0, 200) + '…[truncated]';
+        }
+        return breadcrumb;
       },
     });
     sentry = mod;
