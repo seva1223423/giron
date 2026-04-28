@@ -453,6 +453,12 @@ export interface AdminStats {
     avgLatencyMs: number;
     minLatencyMs: number;
     maxLatencyMs: number;
+    /** Percentile latencies from a 200-request rolling window. Older
+     *  server builds may not return these — guard with `?? 0` on read. */
+    p50LatencyMs?: number;
+    p95LatencyMs?: number;
+    p99LatencyMs?: number;
+    latencySampleSize?: number;
     provider: string;
     providerDisplayName: string;
     providerModel: string;

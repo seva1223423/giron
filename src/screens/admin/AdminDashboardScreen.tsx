@@ -612,6 +612,25 @@ export default function AdminDashboardScreen() {
                 {me.user.totpEnabled ? '🔒 2FA' : '🔓 Без 2FA'}
               </Text>
             </View>
+            {/* Onboarding completion status — null on legacy accounts. */}
+            {me.onboarding && (
+              <View style={[
+                styles.meChip,
+                me.onboarding.completed
+                  ? styles.meChipOk
+                  : me.onboarding.maxStepReached !== null
+                    ? styles.meChipWarn
+                    : styles.meChipNeutral,
+              ]}>
+                <Text style={styles.meChipText}>
+                  {me.onboarding.completed
+                    ? '✓ Онбординг'
+                    : me.onboarding.maxStepReached !== null
+                      ? `→ онбординг шаг ${me.onboarding.maxStepReached + 1}/5`
+                      : '○ Онбординг не начат'}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.meStatRow}>
             <View style={styles.meStat}>
@@ -997,12 +1016,19 @@ export default function AdminDashboardScreen() {
           sub={`${stats.ai.cacheHits ?? 0} хит / ${stats.ai.cacheMisses ?? 0} мисс`}
         />
         <StatCard
-          title="Ср. задержка"
-          value={(stats.ai.avgLatencyMs ?? 0) > 0 ? `${stats.ai.avgLatencyMs}мс` : '—'}
-          sub={(stats.ai.minLatencyMs ?? 0) > 0
-            ? `${stats.ai.minLatencyMs}–${stats.ai.maxLatencyMs}мс`
-            : undefined}
-          color="#F59E0B"
+          title="p95 задержка"
+          // p95 is the right "user-felt slowness" indicator — avg gets dragged
+          // around by Mistral cold-start spikes. Falls back to avgLatency on
+          // older server builds that don't return the percentile block.
+          value={(stats.ai.p95LatencyMs ?? stats.ai.avgLatencyMs ?? 0) > 0
+            ? `${stats.ai.p95LatencyMs ?? stats.ai.avgLatencyMs}мс`
+            : '—'}
+          sub={(stats.ai.p50LatencyMs ?? 0) > 0
+            ? `p50 ${stats.ai.p50LatencyMs}мс · n=${stats.ai.latencySampleSize ?? 0}`
+            : (stats.ai.minLatencyMs ?? 0) > 0
+              ? `${stats.ai.minLatencyMs}–${stats.ai.maxLatencyMs}мс`
+              : undefined}
+          color={(stats.ai.p95LatencyMs ?? 0) > 5000 ? '#EF4444' : (stats.ai.p95LatencyMs ?? 0) > 2500 ? '#F59E0B' : '#10B981'}
         />
       </View>
 

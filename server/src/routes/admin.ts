@@ -444,6 +444,8 @@ router.get('/me', requireAdmin, async (req: AuthRequest, res: Response) => {
           reactivation7dSentAt: true,
           reactivation14dSentAt: true,
           reactivation30dSentAt: true,
+          onboardingStepLog: true,
+          onboardingCompletedAt: true,
           isBanned: true,
           lockedUntil: true,
           totpEnabled: true,
@@ -504,6 +506,17 @@ router.get('/me', requireAdmin, async (req: AuthRequest, res: Response) => {
       d30Fired: user.reactivation30dSentAt !== null,
     };
 
+    // Onboarding state — derived from the JSON log so the dashboard can
+    // show "you reached step N" without parsing JSON client-side.
+    const stepLog = (user.onboardingStepLog ?? {}) as Record<string, string>;
+    const reachedSteps = Object.keys(stepLog).map(Number).sort((a, b) => a - b);
+    const onboarding = {
+      completed: user.onboardingCompletedAt !== null,
+      completedAt: user.onboardingCompletedAt,
+      maxStepReached: reachedSteps.length > 0 ? reachedSteps[reachedSteps.length - 1] : null,
+      stepLog,
+    };
+
     return res.json({
       user: {
         id: user.id,
@@ -520,6 +533,7 @@ router.get('/me', requireAdmin, async (req: AuthRequest, res: Response) => {
       },
       activation,
       reactivation,
+      onboarding,
       pushTokens: {
         count: pushTokens.length,
         latest: pushTokens[0] ?? null,
