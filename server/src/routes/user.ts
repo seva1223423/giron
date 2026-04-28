@@ -1148,12 +1148,54 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
 router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const provider = z.enum(['yandex', 'vk', 'ok']).parse(req.params.provider);
-    const { accessToken, userId: claimedUserId } = z.object({
+    const { accessToken, userId: claimedUserId, currentPassword, totpCode } = z.object({
       accessToken: z.string().min(1, 'accessToken обязателен'),
       userId: z.string().optional(),
+      // Step-up re-auth (sec audit 2026-04: HIGH-9). Linking a new social
+      // provider creates a permanent additional login channel — without
+      // step-up, anyone holding a 15-min access token can attach their own
+      // OAuth account and own the victim's account forever.
+      currentPassword: z.string().optional(),
+      totpCode: z.string().length(6).optional(),
     }).parse(req.body);
 
     const authUserId = req.userId!;
+
+    // Sec audit 2026-04: HIGH-9. Require at least one step-up factor before
+    // linking. Mirrors the /change-email and /change-phone gates.
+    const meStepUp = await prisma.user.findUnique({
+      where: { id: authUserId },
+      select: { passwordHash: true, totpEnabled: true, totpSecret: true },
+    });
+    if (meStepUp?.passwordHash) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Введите текущий пароль', code: 'PASSWORD_REQUIRED' });
+      }
+      const ok = await bcrypt.compare(currentPassword, meStepUp.passwordHash);
+      if (!ok) {
+        await prisma.securityEvent.create({
+          data: { userId: authUserId, action: 'REAUTH_FAILED', ip: (req as any).ip ?? null, details: `op=link-${provider}` },
+        }).catch(() => {});
+        return res.status(401).json({ error: 'Неверный пароль', code: 'INVALID_PASSWORD' });
+      }
+    } else if (!meStepUp?.totpEnabled) {
+      return res.status(403).json({
+        error: 'Чтобы привязать новый аккаунт, сначала установите пароль или включите 2FA в настройках безопасности.',
+        code: 'STEPUP_REQUIRED',
+      });
+    }
+    if (meStepUp?.totpEnabled && meStepUp.totpSecret) {
+      if (!totpCode) {
+        return res.status(400).json({ error: 'Введите код из аутентификатора', code: 'TOTP_REQUIRED' });
+      }
+      const totp = new TOTP({ secret: Secret.fromBase32(meStepUp.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+      if (totp.validate({ token: totpCode, window: 1 }) === null) {
+        return res.status(401).json({ error: 'Неверный код 2FA', code: 'INVALID_TOTP' });
+      }
+      if (await isTotpReplay(authUserId, totpCode)) {
+        return res.status(401).json({ error: 'Этот код уже был использован. Дождитесь следующего кода.', code: 'TOTP_REPLAYED' });
+      }
+    }
 
     let providerId: string;
     let fieldName: 'vkId' | 'yandexId' | 'okId';
