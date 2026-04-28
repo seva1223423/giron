@@ -100,13 +100,20 @@ Flag: Privacy policy must disclose:
 - Cross-border data transfer (to Germany for Neon, to EU for Mistral)
 - User rights (access, correction, deletion, portability)
 
-### 5. GDPR (EU users if any)
+### 5. GDPR / Right-to-Erasure (EU users + 152-ФЗ DSR)
 
 ```bash
+grep -n "onDelete" server/prisma/schema.prisma
 grep -rn "gdpr\|dpo\|data.*protection" server/src/ docs/
 ```
 
 Check: if app is available to EU users, GDPR applies. Key gaps same as 152-ФЗ DSR above plus: legal basis for processing health data (explicit consent required for special categories).
+
+**Right-to-erasure cascade audit** — when a user exercises DSR deletion (`DELETE /user/account`), ALL relations with personal data must delete (Cascade) or be explicitly anonymized. Known-good as of 2026-04-28:
+- `TrainerClient.clientUser onDelete: Cascade` — correctly removes trainer-client links on client deletion
+- `RefreshToken`, `BodyWeight`, `Meal`, `SleepEntry`, `ChatMessage` — all Cascade from User
+
+Flag: any Prisma relation with `onDelete: SetNull` on a User FK where the dependent row contains PII. Verify schema changes are applied to production with `prisma db push`.
 
 ### 6. Content & Minors
 
