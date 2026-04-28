@@ -27,6 +27,7 @@ jest.mock('../services/pushService', () => ({
 jest.mock('../services/emailService', () => ({
   sendWeeklySummaryEmail: jest.fn(),
   sendPreRenewalNotificationEmail: jest.fn(),
+  sendActivationReminderEmail: jest.fn(),
 }));
 
 jest.mock('../utils/errorReporter', () => ({
@@ -46,7 +47,11 @@ import {
 } from '../services/retentionService';
 import { prisma } from '../db';
 import { sendPushToUser } from '../services/pushService';
-import { sendWeeklySummaryEmail, sendPreRenewalNotificationEmail } from '../services/emailService';
+import {
+  sendWeeklySummaryEmail,
+  sendPreRenewalNotificationEmail,
+  sendActivationReminderEmail,
+} from '../services/emailService';
 import { reportError } from '../utils/errorReporter';
 
 const mockUserFindMany = prisma.user.findMany as jest.Mock;
@@ -58,6 +63,7 @@ const mockWorkoutCount = prisma.workout.count as jest.Mock;
 const mockSendPush = sendPushToUser as jest.Mock;
 const mockWeeklyEmail = sendWeeklySummaryEmail as jest.Mock;
 const mockPreRenewalEmail = sendPreRenewalNotificationEmail as jest.Mock;
+const mockActivationEmail = sendActivationReminderEmail as jest.Mock;
 const mockReportError = reportError as jest.Mock;
 
 beforeEach(() => {
@@ -67,6 +73,19 @@ beforeEach(() => {
   mockSubUpdate.mockResolvedValue({});
   mockWeeklyEmail.mockResolvedValue(undefined);
   mockPreRenewalEmail.mockResolvedValue(undefined);
+  mockActivationEmail.mockResolvedValue(undefined);
+});
+
+// Helper: activation cohort candidates carry the full select shape now
+// (push tokens + activation timestamps + email). Tests can override per-case.
+const makeActivationCandidate = (overrides: Record<string, unknown> = {}) => ({
+  id: 'u-1',
+  firstName: 'Test',
+  email: 'user@test.com',
+  activationPushSentAt: null,
+  activationEmailSentAt: null,
+  pushTokens: [{ id: 'tok-1' }],
+  ...overrides,
 });
 
 // ── processActivationCohort ──────────────────────────────────────────────────
@@ -81,27 +100,81 @@ describe('processActivationCohort', () => {
     expect(mockSendPush).not.toHaveBeenCalled();
   });
 
-  test('sends push and sets activationPushSentAt after successful send', async () => {
+  test('sends push + email and sets both SentAt fields after successful send', async () => {
     mockUserFindMany.mockResolvedValueOnce([
-      { id: 'u-1', firstName: 'Иван' },
-      { id: 'u-2', firstName: null },
+      makeActivationCandidate({ id: 'u-1', firstName: 'Иван' }),
+      makeActivationCandidate({ id: 'u-2', firstName: null, email: 'two@test.com' }),
     ]);
 
     const sent = await processActivationCohort();
 
-    expect(sent).toBe(2);
+    // 2 users × 2 channels each = 4 sends total
+    expect(sent).toBe(4);
     expect(mockSendPush).toHaveBeenCalledTimes(2);
-    expect(mockUserUpdate).toHaveBeenCalledTimes(2);
+    expect(mockActivationEmail).toHaveBeenCalledTimes(2);
+    expect(mockUserUpdate).toHaveBeenCalledTimes(4);
     expect(mockUserUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'u-1' },
         data: { activationPushSentAt: expect.any(Date) },
       }),
     );
+    expect(mockUserUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'u-1' },
+        data: { activationEmailSentAt: expect.any(Date) },
+      }),
+    );
+  });
+
+  test('skips push when user has no push tokens, still sends email', async () => {
+    mockUserFindMany.mockResolvedValueOnce([
+      makeActivationCandidate({ id: 'u-no-push', pushTokens: [] }),
+    ]);
+
+    const sent = await processActivationCohort();
+
+    expect(sent).toBe(1); // email only
+    expect(mockSendPush).not.toHaveBeenCalled();
+    expect(mockActivationEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test('skips email for internal *@irongym.internal accounts', async () => {
+    mockUserFindMany.mockResolvedValueOnce([
+      makeActivationCandidate({ id: 'u-internal', email: 'ok_123@irongym.internal' }),
+    ]);
+
+    const sent = await processActivationCohort();
+
+    expect(sent).toBe(1); // push only
+    expect(mockSendPush).toHaveBeenCalledTimes(1);
+    expect(mockActivationEmail).not.toHaveBeenCalled();
+  });
+
+  test('respects already-set SentAt gates (push fired, email pending)', async () => {
+    mockUserFindMany.mockResolvedValueOnce([
+      makeActivationCandidate({
+        id: 'u-half',
+        activationPushSentAt: new Date(),
+        activationEmailSentAt: null,
+      }),
+    ]);
+
+    const sent = await processActivationCohort();
+
+    expect(sent).toBe(1); // email only — push gate already set
+    expect(mockSendPush).not.toHaveBeenCalled();
+    expect(mockActivationEmail).toHaveBeenCalledTimes(1);
   });
 
   test('push failure calls reportError and does NOT set activationPushSentAt', async () => {
-    mockUserFindMany.mockResolvedValueOnce([{ id: 'u-fail', firstName: 'Test' }]);
+    mockUserFindMany.mockResolvedValueOnce([
+      makeActivationCandidate({
+        id: 'u-fail',
+        // No email so the email path is skipped, isolating the push test.
+        email: null,
+      }),
+    ]);
     mockSendPush.mockRejectedValueOnce(new Error('Expo timeout'));
 
     const sent = await processActivationCohort();
@@ -114,14 +187,30 @@ describe('processActivationCohort', () => {
     );
   });
 
-  test('one failure does not prevent other users from being processed', async () => {
+  test('email failure calls reportError and does NOT set activationEmailSentAt', async () => {
     mockUserFindMany.mockResolvedValueOnce([
-      { id: 'u-ok', firstName: 'OK' },
-      { id: 'u-fail', firstName: 'Fail' },
+      makeActivationCandidate({ id: 'u-email-fail', pushTokens: [] }), // no push, only email
+    ]);
+    mockActivationEmail.mockRejectedValueOnce(new Error('SMTP down'));
+
+    const sent = await processActivationCohort();
+
+    expect(sent).toBe(0);
+    expect(mockUserUpdate).not.toHaveBeenCalled();
+    expect(mockReportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ userId: 'u-email-fail' }),
+    );
+  });
+
+  test('one user push failure does not prevent other users from being processed', async () => {
+    mockUserFindMany.mockResolvedValueOnce([
+      makeActivationCandidate({ id: 'u-ok', email: null }),    // push only
+      makeActivationCandidate({ id: 'u-fail', email: null }),  // push only — will fail
     ]);
     mockSendPush
-      .mockResolvedValueOnce(undefined)          // u-ok succeeds
-      .mockRejectedValueOnce(new Error('push')); // u-fail errors
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('push'));
 
     const sent = await processActivationCohort();
 

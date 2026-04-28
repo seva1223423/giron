@@ -29,10 +29,18 @@ jest.mock('../db', () => ({
       create: jest.fn().mockResolvedValue({}),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      count: jest.fn().mockResolvedValue(0),
     },
     subscription: {
       findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue(null),
       upsert: jest.fn(),
+    },
+    pushToken: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    chatMessage: {
+      findFirst: jest.fn().mockResolvedValue(null),
     },
     adminLog: {
       create: jest.fn().mockResolvedValue({}),
@@ -698,5 +706,132 @@ describe('DELETE /api/admin/announcements/:id', () => {
     const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
     expect(logCalls[0][0].data.action).toBe('DELETE_ANNOUNCEMENT');
     expect(logCalls[0][0].data.adminId).toBe('u-admin');
+  });
+});
+
+// ─── GET /api/admin/me ───────────────────────────────────────────────────────
+
+describe('GET /api/admin/me', () => {
+  // Full select shape that the route requests. Tests can override individual
+  // fields per-case.
+  const baseAdminProfile = {
+    id: 'u-admin',
+    email: 'admin@test.com',
+    firstName: 'Founder',
+    lastName: 'User',
+    role: 'ADMIN',
+    createdAt: new Date('2026-04-01T00:00:00Z'),
+    firstChatAt: null,
+    lastActiveAt: null,
+    activationPushSentAt: null,
+    activationEmailSentAt: null,
+    reactivation7dSentAt: null,
+    reactivation14dSentAt: null,
+    reactivation30dSentAt: null,
+    isBanned: false,
+    lockedUntil: null,
+    totpEnabled: false,
+    emailVerified: true,
+    phoneVerified: false,
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/me');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin role', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+
+    const res = await request(app)
+      .get('/api/admin/me')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('200 returns founder self-status with activation funnel', async () => {
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') return Promise.resolve({ ...adminUser, ...baseAdminProfile });
+      return Promise.resolve(adminUser);
+    });
+
+    const res = await request(app)
+      .get('/api/admin/me')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.id).toBe('u-admin');
+    expect(res.body.user.role).toBe('ADMIN');
+    expect(res.body.activation).toMatchObject({
+      activated: false,
+      pushFired: false,
+      emailFired: false,
+    });
+    expect(res.body.reactivation).toMatchObject({
+      d7Fired: false,
+      d14Fired: false,
+      d30Fired: false,
+    });
+    expect(res.body.pushTokens.count).toBe(0);
+    expect(res.body.subscription.plan).toBe('free');
+    expect(typeof res.body.now).toBe('string');
+  });
+
+  it('reflects activated user state when firstChatAt is set', async () => {
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') {
+        return Promise.resolve({
+          ...adminUser,
+          ...baseAdminProfile,
+          firstChatAt: new Date('2026-04-15T10:00:00Z'),
+          activationPushSentAt: new Date('2026-04-02T00:00:00Z'),
+          activationEmailSentAt: new Date('2026-04-02T00:00:00Z'),
+        });
+      }
+      return Promise.resolve(adminUser);
+    });
+
+    const res = await request(app)
+      .get('/api/admin/me')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.activation.activated).toBe(true);
+    expect(res.body.activation.pushFired).toBe(true);
+    expect(res.body.activation.emailFired).toBe(true);
+  });
+
+  it('returns push token count and active session count', async () => {
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') return Promise.resolve({ ...adminUser, ...baseAdminProfile });
+      return Promise.resolve(adminUser);
+    });
+    (prisma.pushToken.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'pt-1', createdAt: new Date(), updatedAt: new Date() },
+      { id: 'pt-2', createdAt: new Date(), updatedAt: new Date() },
+    ]);
+    (prisma.refreshToken.count as jest.Mock).mockResolvedValueOnce(3);
+
+    const res = await request(app)
+      .get('/api/admin/me')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.pushTokens.count).toBe(2);
+    expect(res.body.pushTokens.latest).toBeTruthy();
+    expect(res.body.activeSessionCount).toBe(3);
+  });
+
+  it('500 when DB query fails', async () => {
+    // Auth middleware queries user.findUnique first — let that succeed,
+    // then break a downstream query in the route handler.
+    (prisma.refreshToken.count as jest.Mock).mockRejectedValueOnce(new Error('DB error'));
+
+    const res = await request(app)
+      .get('/api/admin/me')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(500);
   });
 });

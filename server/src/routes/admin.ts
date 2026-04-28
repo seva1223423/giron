@@ -404,6 +404,138 @@ router.get('/stats', requireAdmin, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ── FOUNDER SELF-DIAGNOSTIC ─────────────────────────────────────────────────
+
+/**
+ * GET /admin/me — quick self-status for the founder. Bundles the answers
+ * to the questions sevka actually asks during a session ("am I getting
+ * push? did the activation email fire? subscription state? last AI msg?")
+ * into a single uncached call so the AdminDashboard can render a
+ * "your account" panel without N round-trips.
+ *
+ * Why a separate endpoint and not a tweak to /stats:
+ * - /stats is global (all users) and cached 90s. This is per-actor.
+ * - This is the only admin endpoint that is *expected* to be uncached —
+ *   the founder is debugging his own state in real time and a 90s lag
+ *   would defeat the purpose.
+ *
+ * Scoped to the calling admin only: never accepts a userId param.
+ */
+router.get('/me', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const now = new Date();
+
+    const [user, pushTokens, lastChat, lastWorkout, subscription, sessionCount] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          createdAt: true,
+          firstChatAt: true,
+          lastActiveAt: true,
+          activationPushSentAt: true,
+          activationEmailSentAt: true,
+          reactivation7dSentAt: true,
+          reactivation14dSentAt: true,
+          reactivation30dSentAt: true,
+          isBanned: true,
+          lockedUntil: true,
+          totpEnabled: true,
+          emailVerified: true,
+          phoneVerified: true,
+        },
+      }),
+      prisma.pushToken.findMany({
+        where: { userId },
+        select: { id: true, createdAt: true, updatedAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      prisma.chatMessage.findFirst({
+        where: { userId, role: 'user' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+      prisma.workout.findFirst({
+        where: { userId, completedAt: { not: null } },
+        orderBy: { completedAt: 'desc' },
+        select: { completedAt: true, totalVolume: true },
+      }),
+      prisma.subscription.findFirst({
+        where: { userId },
+        select: { plan: true, status: true, endDate: true, renewalNoticeSentAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.refreshToken.count({
+        where: { userId, expiresAt: { gt: now }, revoked: false },
+      }),
+    ]);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    // Days-since helpers — null-safe, returns null if the source date is null.
+    const daysSince = (d: Date | null | undefined): number | null => {
+      if (!d) return null;
+      return Math.floor((now.getTime() - d.getTime()) / 86_400_000);
+    };
+
+    // Activation funnel state — answers "did I make it past first chat?"
+    // and which retention nudges have already fired against this account.
+    const activation = {
+      firstChatAt: user.firstChatAt,
+      daysSinceSignup: daysSince(user.createdAt),
+      daysSinceLastActive: daysSince(user.lastActiveAt),
+      activated: user.firstChatAt !== null,
+      pushFired: user.activationPushSentAt !== null,
+      emailFired: user.activationEmailSentAt !== null,
+    };
+
+    const reactivation = {
+      d7Fired: user.reactivation7dSentAt !== null,
+      d14Fired: user.reactivation14dSentAt !== null,
+      d30Fired: user.reactivation30dSentAt !== null,
+    };
+
+    return res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        createdAt: user.createdAt,
+        isBanned: user.isBanned,
+        lockedUntil: user.lockedUntil,
+        totpEnabled: user.totpEnabled,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified,
+      },
+      activation,
+      reactivation,
+      pushTokens: {
+        count: pushTokens.length,
+        latest: pushTokens[0] ?? null,
+      },
+      lastChatAt: lastChat?.createdAt ?? null,
+      lastWorkoutAt: lastWorkout?.completedAt ?? null,
+      lastWorkoutVolume: lastWorkout?.totalVolume ?? null,
+      subscription: subscription ?? { plan: 'free', status: 'inactive', endDate: null, renewalNoticeSentAt: null },
+      activeSessionCount: sessionCount,
+      now: now.toISOString(),
+    });
+  } catch (e) {
+    logger.error('GET /admin/me:', e);
+    return res.status(500).json({ error: 'Ошибка получения профиля администратора' });
+  }
+});
+
 // ── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
 /** GET /admin/users — paginated user list */
@@ -1530,6 +1662,66 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
       }),
     ]);
 
+    // ── 6. Onboarding funnel: per-step drop-off ───────────────────────────
+    // Drives "where in onboarding do users bail?" answers. Counts come from
+    // the onboardingStepLog Json field (set by POST /user/onboarding/step,
+    // first-touch only). A user who reached step N is counted at every step
+    // 0..N. The "completed" count uses onboardingCompletedAt as the
+    // canonical "finished onboarding" signal — set when step 4 is recorded.
+    //
+    // Not joinable to the main funnel without scanning JSON paths, so we
+    // run a separate raw query. Falls back to zeroes on error so the
+    // metrics endpoint never blocks on this optional block.
+    let onboardingFunnel = {
+      cohortSize: 0,
+      reachedStep0: 0,
+      reachedStep1: 0,
+      reachedStep2: 0,
+      reachedStep3: 0,
+      reachedStep4: 0,
+      completed: 0,
+      completionRatePct: 0,
+    };
+    try {
+      const onbRows = await prisma.$queryRaw<{
+        cohort_size: bigint;
+        reached0: bigint;
+        reached1: bigint;
+        reached2: bigint;
+        reached3: bigint;
+        reached4: bigint;
+        completed: bigint;
+      }[]>`
+        SELECT
+          COUNT(*)::bigint AS cohort_size,
+          COUNT(*) FILTER (WHERE "onboardingStepLog" ? '0')::bigint AS reached0,
+          COUNT(*) FILTER (WHERE "onboardingStepLog" ? '1')::bigint AS reached1,
+          COUNT(*) FILTER (WHERE "onboardingStepLog" ? '2')::bigint AS reached2,
+          COUNT(*) FILTER (WHERE "onboardingStepLog" ? '3')::bigint AS reached3,
+          COUNT(*) FILTER (WHERE "onboardingStepLog" ? '4')::bigint AS reached4,
+          COUNT(*) FILTER (WHERE "onboardingCompletedAt" IS NOT NULL)::bigint AS completed
+        FROM "User"
+        WHERE "createdAt" >= ${thirtyDaysAgo}
+      `;
+      const cohort = Number(onbRows[0]?.cohort_size ?? 0);
+      const completed = Number(onbRows[0]?.completed ?? 0);
+      onboardingFunnel = {
+        cohortSize: cohort,
+        reachedStep0: Number(onbRows[0]?.reached0 ?? 0),
+        reachedStep1: Number(onbRows[0]?.reached1 ?? 0),
+        reachedStep2: Number(onbRows[0]?.reached2 ?? 0),
+        reachedStep3: Number(onbRows[0]?.reached3 ?? 0),
+        reachedStep4: Number(onbRows[0]?.reached4 ?? 0),
+        completed,
+        completionRatePct: cohort > 0
+          ? Math.round((completed / cohort) * 1000) / 10
+          : 0,
+      };
+    } catch (err) {
+      // Telemetry block — never block the metrics endpoint on this.
+      logger.warn('[admin/metrics/key] onboarding funnel query failed:', err);
+    }
+
     // ── Trend: same numbers for the previous 30d window for delta context ───
     const [prevPayingNow, prevSignups] = await Promise.all([
       prisma.subscription.count({
@@ -1600,6 +1792,7 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
         payingUsers: prevPayingNow,
         signups: prevSignups,
       },
+      onboardingFunnel,
     };
 
     adminStatsCache.set(KEY_METRICS_CACHE_KEY, payload, KEY_METRICS_CACHE_TTL);

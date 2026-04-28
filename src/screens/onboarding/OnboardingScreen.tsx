@@ -9,6 +9,7 @@ import { spacing } from '../../theme/spacing';
 import { TrainingGoal, FitnessLevel, Gender } from '../../types';
 import { GenderStep, BodyStep, GoalStep, LevelStep, DaysStep } from './steps';
 import { localDateStr } from '../../utils/date';
+import { userService } from '../../services';
 
 const TOTAL_STEPS = 5;
 
@@ -47,6 +48,18 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
     setTrainingDays((prev) =>
       prev.includes(dayIndex) ? prev.filter((d) => d !== dayIndex) : [...prev, dayIndex].sort()
     );
+  }, []);
+
+  /**
+   * Best-effort onboarding step telemetry. Fired when the user submits
+   * (advances past) a step. Server stores first-touch only so a flaky
+   * network retry doesn't reshape the funnel data. Errors are swallowed —
+   * onboarding UX must not be blocked on a server roundtrip.
+   */
+  const recordStep = useCallback((s: 0 | 1 | 2 | 3 | 4) => {
+    userService.recordOnboardingStep(s).catch(() => {
+      /* telemetry is best-effort — drop on the floor */
+    });
   }, []);
 
   const handleFinish = () => {
@@ -210,7 +223,15 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
           variant="primary"
           size="lg"
           iconRight={<Icon name="arrow" size={18} color={colors.textInverse} strokeWidth={2.2} />}
-          onPress={() => { if (step === TOTAL_STEPS - 1) handleFinish(); else setStep((s) => s + 1); }}
+          onPress={() => {
+            // Record the current step BEFORE advancing — clicking Next is
+            // the user's commitment to this step's data. On the final step
+            // this also marks onboardingCompletedAt server-side via the
+            // step=4 path inside handleFinish.
+            recordStep(step as 0 | 1 | 2 | 3 | 4);
+            if (step === TOTAL_STEPS - 1) handleFinish();
+            else setStep((s) => s + 1);
+          }}
           disabled={!canNext()}
           fullWidth={step === 0}
           style={{ flex: step > 0 ? 1 : undefined }}

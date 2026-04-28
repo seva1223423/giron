@@ -496,6 +496,58 @@ export async function sendDailyAdminDigestEmail(
   logger.info(`[Email] Daily admin digest sent to ${email} (${stats.date})`);
 }
 
+/**
+ * Activation email (RETENTION-05). Sent 24h after signup to users who
+ * never sent their first AI message. Targets the cohort that registered
+ * via the auth API (curl/web/Telegram CTA) but never opened the mobile
+ * app — they have no push token, so the push-channel activation cron
+ * can't reach them. Email is the only channel available.
+ *
+ * Single-fire per user — gated by activationEmailSentAt on the User row.
+ */
+export async function sendActivationReminderEmail(
+  email: string,
+  firstName: string | null,
+): Promise<void> {
+  const greeting = firstName ? `${esc(firstName)}, ` : '';
+
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: `${APP_NAME} — твой ИИ-тренер ждёт первого вопроса`,
+    text:
+      `${greeting}ты зарегистрировался в ${APP_NAME} вчера, но ещё не задал ни одного вопроса ИИ-тренеру.\n\n` +
+      `За 30 секунд он составит:\n` +
+      `— Программу тренировок под твою цель\n` +
+      `— План питания и КБЖУ под твой вес и нагрузку\n` +
+      `— Разбор техники любого упражнения\n\n` +
+      `Открой приложение и задай свой вопрос — это бесплатно: irongym://ai\n\n` +
+      `Не интересно? Можешь просто проигнорировать это письмо, повторных не будет.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #8B5CF6; margin-bottom: 8px;">🏋️ ${APP_NAME}</h2>
+        <h3 style="color: #333; margin-bottom: 16px;">Твой ИИ-тренер ждёт первого вопроса</h3>
+        <p style="color: #555; line-height: 1.6;">
+          ${greeting}ты зарегистрировался в ${APP_NAME} вчера, но ещё не задал ни одного вопроса ИИ-тренеру.
+        </p>
+        <p style="color: #555; line-height: 1.6;">За 30 секунд он составит:</p>
+        <ul style="color: #555; line-height: 1.8;">
+          <li>Программу тренировок под твою цель</li>
+          <li>План питания и КБЖУ под твой вес</li>
+          <li>Разбор техники любого упражнения</li>
+        </ul>
+        <a href="irongym://ai" style="display:inline-block; background:#8B5CF6; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; margin: 16px 0;">
+          Открыть и задать вопрос
+        </a>
+        <p style="color: #888; font-size: 12px; margin-top: 16px;">
+          Не интересно? Можешь просто проигнорировать это письмо — повторных не будет.
+        </p>
+      </div>
+    `,
+  });
+  logger.info(`[Email] Activation reminder sent to ${email}`);
+}
+
 export async function sendNewLoginAlert(email: string, ip: string, userAgent: string | null, date: Date): Promise<void> {
   const dateStr = date.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'medium', timeStyle: 'short' });
   const device = userAgent

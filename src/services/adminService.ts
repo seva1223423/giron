@@ -56,12 +56,90 @@ export interface KeyMetrics {
     payingUsers: number;
     signups: number;
   };
+  /**
+   * Step-by-step drop-off in the 5-step onboarding flow (signup cohort
+   * filtered by `windowDays`). Each `reachedStepN` counts users whose
+   * onboardingStepLog has a timestamp for that step (first-touch only,
+   * idempotent on retry). `completed` uses the canonical
+   * onboardingCompletedAt flag rather than parsing the JSON for step 4.
+   */
+  onboardingFunnel?: {
+    cohortSize: number;
+    reachedStep0: number;
+    reachedStep1: number;
+    reachedStep2: number;
+    reachedStep3: number;
+    reachedStep4: number;
+    completed: number;
+    completionRatePct: number;
+  };
+}
+
+/**
+ * Response shape for GET /admin/me — founder self-status. Bundles the
+ * answers to the questions sevka asks during a session: did push fire,
+ * did the activation email fire, what's my subscription state, when was
+ * my last AI msg, etc. Uncached so the data is real-time.
+ */
+export interface AdminMe {
+  user: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    role: string;
+    createdAt: string;
+    isBanned: boolean;
+    lockedUntil: string | null;
+    totpEnabled: boolean;
+    emailVerified: boolean;
+    phoneVerified: boolean;
+  };
+  activation: {
+    firstChatAt: string | null;
+    daysSinceSignup: number | null;
+    daysSinceLastActive: number | null;
+    activated: boolean;
+    pushFired: boolean;
+    emailFired: boolean;
+  };
+  reactivation: {
+    d7Fired: boolean;
+    d14Fired: boolean;
+    d30Fired: boolean;
+  };
+  pushTokens: {
+    count: number;
+    latest: { id: string; createdAt: string; updatedAt: string } | null;
+  };
+  lastChatAt: string | null;
+  lastWorkoutAt: string | null;
+  lastWorkoutVolume: number | null;
+  subscription: {
+    plan: string;
+    status: string;
+    endDate: string | null;
+    renewalNoticeSentAt: string | null;
+  };
+  activeSessionCount: number;
+  now: string;
 }
 
 export const adminService = {
   // ── Dashboard ─────────────────────────────────────────────────────────────
   async getStats(): Promise<AdminStats> {
     const res = await api.get('/admin/stats');
+    return res.data;
+  },
+
+  /**
+   * GET /admin/me — current admin's self-status. Real-time (uncached) so
+   * the dashboard reflects whatever just changed (push token registered,
+   * activation email fired, etc.). Used by AdminDashboardScreen's "Your
+   * account" panel.
+   */
+  async getMe(): Promise<AdminMe> {
+    const res = await api.get('/admin/me');
     return res.data;
   },
 

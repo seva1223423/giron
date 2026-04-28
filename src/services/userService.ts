@@ -114,4 +114,14 @@ export const userService = {
     const { data } = await api.post('/user/change-phone', { phone, code, totpCode });
     return data;
   },
+
+  /**
+   * Record that the authenticated user reached onboarding step `step` (0..4).
+   * Best-effort — call sites should not block UI on the resolution. Server
+   * stores first-touch only, so retries from a flaky network are idempotent.
+   * Promise rejects on hard server errors but the caller can swallow them.
+   */
+  async recordOnboardingStep(step: 0 | 1 | 2 | 3 | 4): Promise<void> {
+    await api.post('/user/onboarding/step', { step });
+  },
 };
