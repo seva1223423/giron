@@ -480,29 +480,33 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           />
         )}
 
-        <TouchableOpacity
-          onPress={handleVkPress}
-          disabled={anyLoading}
-          style={[styles.socialBtn, { backgroundColor: '#0077FF', borderColor: '#0077FF' }, anyLoading && { opacity: 0.5 }]}
-        >
-          {vkLoading
-            ? <ActivityIndicator size="small" color="#FFF" style={{ marginRight: spacing.sm }} />
-            : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ВК</Text>
-          }
-          <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через VK</Text>
-        </TouchableOpacity>
+        {!!VK_APP_ID && (
+          <TouchableOpacity
+            onPress={handleVkPress}
+            disabled={anyLoading}
+            style={[styles.socialBtn, { backgroundColor: '#0077FF', borderColor: '#0077FF' }, anyLoading && { opacity: 0.5 }]}
+          >
+            {vkLoading
+              ? <ActivityIndicator size="small" color="#FFF" style={{ marginRight: spacing.sm }} />
+              : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ВК</Text>
+            }
+            <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через VK</Text>
+          </TouchableOpacity>
+        )}
 
-        <TouchableOpacity
-          onPress={handleYandexPress}
-          disabled={anyLoading}
-          style={[styles.socialBtn, { backgroundColor: '#FC3F1D', borderColor: '#FC3F1D', marginTop: spacing.sm }, anyLoading && { opacity: 0.5 }]}
-        >
-          {yandexLoading
-            ? <ActivityIndicator size="small" color="#FFF" style={{ marginRight: spacing.sm }} />
-            : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>Я</Text>
-          }
-          <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через Яндекс</Text>
-        </TouchableOpacity>
+        {!!YANDEX_CLIENT_ID && (
+          <TouchableOpacity
+            onPress={handleYandexPress}
+            disabled={anyLoading}
+            style={[styles.socialBtn, { backgroundColor: '#FC3F1D', borderColor: '#FC3F1D', marginTop: spacing.sm }, anyLoading && { opacity: 0.5 }]}
+          >
+            {yandexLoading
+              ? <ActivityIndicator size="small" color="#FFF" style={{ marginRight: spacing.sm }} />
+              : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>Я</Text>
+            }
+            <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через Яндекс</Text>
+          </TouchableOpacity>
+        )}
 
         {!!OK_APP_ID && (
           <TouchableOpacity
