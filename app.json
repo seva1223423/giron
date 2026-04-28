@@ -2,7 +2,7 @@
   "expo": {
     "name": "iron-gym",
     "slug": "iron-gym",
-    "scheme": "irongym",
+    "scheme": ["irongym", "com.irongym.app"],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
