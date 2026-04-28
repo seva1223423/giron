@@ -647,7 +647,6 @@ describe('Auth Routes', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        okId: null,
         mailruId: null,
       });
 

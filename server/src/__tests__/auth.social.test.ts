@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { prisma } from '../db';
 
 // Disable rate limiting for tests
 jest.mock('express-rate-limit', () => {
@@ -330,6 +331,118 @@ describe('POST /api/auth/mailru', () => {
       .send({ accessToken: 'tok' });
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('WRONG_APP');
+  });
+});
+
+// ── HIGH-14 regression: email normalisation in OAuth flows ────────────────────
+// Verifies that emails returned by OAuth providers are normalised via
+// email.trim().toLowerCase().normalize('NFKC') before any DB lookup or storage.
+// Without this fix an attacker could register "TEST@yandex.ru" and then use a
+// Yandex account whose API returns "test@yandex.ru" to silently hijack the slot.
+
+describe('HIGH-14 email normalisation in Yandex OAuth', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    jest.clearAllMocks();
+    process.env.YANDEX_CLIENT_ID = 'test_yandex_client_id';
+  });
+
+  afterEach(() => {
+    delete process.env.YANDEX_CLIENT_ID;
+  });
+
+  it('normalises mixed-case default_email before DB lookup and storage (HIGH-14)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'yan-uid-001',
+        login: 'testuser',
+        default_email: 'Test@YANDEX.RU', // provider returns mixed-case
+        client_id: 'test_yandex_client_id',
+      }),
+    });
+    (prisma.user.findFirst as jest.Mock).mockResolvedValue(null);    // no user by yandexId
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);   // no user by normalised email
+    (prisma.user.create as jest.Mock).mockResolvedValue({
+      id: 'new-user-hi14-1',
+      email: 'test@yandex.ru',
+      firstName: 'Пользователь',
+      yandexId: 'yan-uid-001',
+      isBanned: false,
+      lockedUntil: null,
+      totpEnabled: false,
+      totpSecret: null,
+      healthRestrictions: [],
+      emailVerified: true,
+    });
+
+    const res = await request(app)
+      .post('/api/auth/yandex')
+      .send({ accessToken: 'valid-yan-token' });
+
+    expect(res.status).toBe(200);
+    // The findUnique call must use the normalised (lowercase) email
+    const findUniqueCall = (prisma.user.findUnique as jest.Mock).mock.calls[0];
+    expect(findUniqueCall[0].where.email).toBe('test@yandex.ru');
+    // user.create must store the normalised email
+    const createCall = (prisma.user.create as jest.Mock).mock.calls[0];
+    expect(createCall[0].data.email).toBe('test@yandex.ru');
+  });
+});
+
+describe('HIGH-14 email normalisation in Mail.ru OAuth', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    jest.clearAllMocks();
+    process.env.MAILRU_CLIENT_ID = 'test_mailru_client_id';
+  });
+
+  afterEach(() => {
+    delete process.env.MAILRU_CLIENT_ID;
+  });
+
+  it('normalises mixed-case email before DB lookup and storage (HIGH-14)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'mr-uid-hi14',
+        email: 'User@Mail.RU', // provider returns mixed-case
+        name: 'Test User',
+        client_id: 'test_mailru_client_id',
+      }),
+    });
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(null)  // no user by mailruId
+      .mockResolvedValueOnce(null); // no user by normalised email
+    (prisma.user.create as jest.Mock).mockResolvedValue({
+      id: 'new-user-hi14-2',
+      email: 'user@mail.ru',
+      firstName: 'Test',
+      lastName: 'User',
+      mailruId: 'mr-uid-hi14',
+      isBanned: false,
+      lockedUntil: null,
+      totpEnabled: false,
+      totpSecret: null,
+      healthRestrictions: [],
+      emailVerified: false,
+    });
+
+    const res = await request(app)
+      .post('/api/auth/mailru')
+      .send({ accessToken: 'valid-mailru-token' });
+
+    expect(res.status).toBe(200);
+    // The second findUnique call (by email) must use the normalised address
+    const findUniqueCalls = (prisma.user.findUnique as jest.Mock).mock.calls;
+    const emailLookupCall = findUniqueCalls.find(
+      (call) => call[0]?.where?.email !== undefined,
+    );
+    expect(emailLookupCall).toBeDefined();
+    expect(emailLookupCall![0].where.email).toBe('user@mail.ru');
+    // user.create must store the normalised email
+    const createCall = (prisma.user.create as jest.Mock).mock.calls[0];
+    expect(createCall[0].data.email).toBe('user@mail.ru');
   });
 });
 
