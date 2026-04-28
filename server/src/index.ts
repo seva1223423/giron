@@ -43,10 +43,24 @@ if ((process.env.JWT_REFRESH_SECRET?.length ?? 0) < 32) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust exactly one reverse-proxy hop when TRUST_PROXY=true (e.g. nginx, Heroku, Railway).
-// This makes req.ip correct and prevents rate-limiter collapse (all traffic showing proxy IP).
-// DO NOT enable in direct-internet deployments — it would allow spoofed X-Forwarded-For.
-if (process.env.TRUST_PROXY === 'true') {
+// Trust exactly one reverse-proxy hop. Without this, Express sees the
+// PaaS load-balancer IP as the client IP for every request, which collapses
+// every user into a single rate-limit bucket — that's why the admin panel
+// kept returning "Слишком много запросов" on the second tap from the
+// founder's phone. We auto-enable on the well-known PaaS env vars so a
+// missing TRUST_PROXY env var can't silently regress behaviour again.
+//
+// SECURITY NOTE: trust-proxy makes the app honour X-Forwarded-For, which
+// would let a direct-internet attacker spoof their IP. Auto-enable is
+// gated on PaaS markers (Render / Railway / Heroku set these themselves;
+// a malicious request can't fake the env var). For local dev or
+// direct-internet deployments TRUST_PROXY=true is still required.
+const ON_PAAS = Boolean(
+  process.env.RENDER ||           // Render auto-sets RENDER=true
+  process.env.RAILWAY_ENVIRONMENT || // Railway
+  process.env.HEROKU_APP_NAME,    // Heroku
+);
+if (process.env.TRUST_PROXY === 'true' || ON_PAAS) {
   app.set('trust proxy', 1);
 }
 
@@ -199,10 +213,23 @@ app.get('/health/deep', async (_, res) => {
 
 // ── Rate limiters ────────────────────────────────────────────────────────────
 
-/** Admin endpoints: very strict — 30 requests per 15 minutes per IP */
+/**
+ * Admin endpoints: 200 requests per 15 minutes per IP.
+ *
+ * The 30-req cap was too strict for legit founder use: AdminDashboardScreen
+ * fires 4 parallel requests on mount and again every 60s of auto-refresh
+ * (stats, analytics, logs, activityFeed). Eight minutes of having the
+ * dashboard open would burn the budget — and that's BEFORE the metrics-key
+ * screen, support inbox, or any user-detail drill-downs.
+ *
+ * 200/15min = ~13/min sustained which still defends against scraping but
+ * comfortably absorbs an active admin session. Combined with the
+ * trust-proxy fix above, each user gets their own bucket, so this cap is
+ * per-admin not global.
+ */
 const adminRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов к панели администратора. Попробуйте через 15 минут.' },
