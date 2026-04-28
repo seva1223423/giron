@@ -80,6 +80,17 @@ jest.mock('../utils/logger', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
+// Mock bcrypt for admin step-up checks (sec audit 2026-04: HIGH-11). The
+// real compare runs against `passwordHash` on the admin row; in tests we
+// always succeed so we exercise the destructive endpoints without owning
+// a real bcrypt-hashed fixture.
+jest.mock('bcryptjs', () => ({
+  __esModule: true,
+  default: { compare: jest.fn().mockResolvedValue(true), hash: jest.fn().mockResolvedValue('hashed') },
+  compare: jest.fn().mockResolvedValue(true),
+  hash: jest.fn().mockResolvedValue('hashed'),
+}));
+
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../index';
@@ -95,7 +106,7 @@ const makeToken = (userId = 'u-admin', role = 'ADMIN') =>
     audience: JWT_AUD,
   });
 
-const adminUser = { id: 'u-admin', isBanned: false, lockedUntil: null, role: 'ADMIN' };
+const adminUser = { id: 'u-admin', isBanned: false, lockedUntil: null, role: 'ADMIN', passwordHash: 'admin-bcrypt-hash', totpEnabled: false, totpSecret: null };
 const regularUser = { id: 'u-regular', isBanned: false, lockedUntil: null, role: 'USER' };
 
 const TARGET_ID = 'ctarget000000000000001';
@@ -139,8 +150,17 @@ const sampleTargetUser = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (prisma.user.findUnique as jest.Mock).mockResolvedValue(adminUser);
+  // Dispatch findUnique by id so the admin step-up lookup gets the admin
+  // record while target-user lookups (banTarget, delTarget) get the target.
+  (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+    if (where?.id === 'u-admin') return Promise.resolve(adminUser);
+    if (where?.id === TARGET_ID) return Promise.resolve(sampleTargetUser);
+    return Promise.resolve(adminUser);
+  });
+  // Default admin count > 1 so the "last admin" lockout guard does not kick in
+  (prisma.user.count as jest.Mock).mockResolvedValue(2);
   (prisma.adminLog.create as jest.Mock).mockResolvedValue({});
+  (prisma.securityEvent.create as jest.Mock).mockResolvedValue({});
   (prisma.workout.findFirst as jest.Mock).mockResolvedValue(null);
   (prisma.workout.findMany as jest.Mock).mockResolvedValue([]);
 });
@@ -249,7 +269,7 @@ describe('POST /api/admin/users/:id/ban', () => {
     const res = await request(app)
       .post(`/api/admin/users/${TARGET_ID}/ban`)
       .set('Authorization', `Bearer ${makeToken('u-admin')}`)
-      .send({ reason: 'Violating TOS' });
+      .send({ reason: 'Violating TOS', adminPassword: 'admin-pass' });
 
     expect(res.status).toBe(200);
     expect(res.body.isBanned).toBe(true);
@@ -262,7 +282,7 @@ describe('POST /api/admin/users/:id/ban', () => {
     await request(app)
       .post(`/api/admin/users/${TARGET_ID}/ban`)
       .set('Authorization', `Bearer ${makeToken('u-admin')}`)
-      .send({ reason: 'Reason', userId: 'u-injected-id' }); // userId in body must be ignored
+      .send({ reason: 'Reason', userId: 'u-injected-id', adminPassword: 'admin-pass' }); // userId in body must be ignored
 
     expect((prisma.$transaction as jest.Mock).mock.calls.length).toBeGreaterThan(0);
   });
@@ -347,7 +367,7 @@ describe('PATCH /api/admin/users/:id/role', () => {
     const res = await request(app)
       .patch(`/api/admin/users/${TARGET_ID}/role`)
       .set('Authorization', `Bearer ${makeToken('u-admin')}`)
-      .send({ role: 'TRAINER' });
+      .send({ role: 'TRAINER', adminPassword: 'admin-pass' });
 
     expect(res.status).toBe(200);
     expect(res.body.role).toBe('TRAINER');
@@ -364,7 +384,7 @@ describe('PATCH /api/admin/users/:id/role', () => {
     await request(app)
       .patch(`/api/admin/users/${TARGET_ID}/role`)
       .set('Authorization', `Bearer ${makeToken('u-admin')}`)
-      .send({ role: 'SUPPORT' });
+      .send({ role: 'SUPPORT', adminPassword: 'admin-pass' });
 
     const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
     expect(logCalls.length).toBeGreaterThan(0);
@@ -478,7 +498,7 @@ describe('PATCH /api/admin/users/:id/subscription', () => {
     const res = await request(app)
       .patch(`/api/admin/users/${TARGET_ID}/subscription`)
       .set('Authorization', `Bearer ${makeToken('u-admin')}`)
-      .send({ plan: 'pro' });
+      .send({ plan: 'pro', adminPassword: 'admin-pass' });
 
     expect(res.status).toBe(200);
     expect(res.body.plan).toBe('pro');
