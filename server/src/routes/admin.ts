@@ -552,6 +552,74 @@ router.get('/me', requireAdmin, async (req: AuthRequest, res: Response) => {
 });
 
 /**
+ * POST /admin/test-notification — send a test push and/or email to the
+ * calling admin. Lets the founder verify both channels work end-to-end
+ * after a deploy without waiting for the activation cron tick or
+ * fabricating a real test user. Per-actor only — the recipient is always
+ * `req.userId`, never accepts a userId param to avoid cross-account
+ * misuse.
+ *
+ * Body: { channel: 'push' | 'email' | 'both' }
+ *
+ * Response: { pushSent, emailSent, errors? } — partial-success aware
+ * (push may succeed while email fails or vice versa).
+ */
+router.post('/test-notification', requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = z.object({
+      channel: z.enum(['push', 'email', 'both']).default('both'),
+    }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Некорректный канал', code: 'INVALID_CHANNEL' });
+    }
+    const { channel } = parsed.data;
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { email: true, firstName: true },
+    });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    let pushSent = false;
+    let emailSent = false;
+    const errors: Record<string, string> = {};
+
+    if (channel === 'push' || channel === 'both') {
+      try {
+        const { sendPushToUser } = await import('../services/pushService');
+        await sendPushToUser(req.userId!, {
+          title: 'Iron Gym — тест',
+          body: 'Это тестовое уведомление из админки. Если ты его видишь — push работает.',
+          data: { url: 'irongym://admin', cohort: 'admin-test' },
+        });
+        pushSent = true;
+      } catch (e: any) {
+        errors.push = String(e?.message ?? e).slice(0, 200);
+      }
+    }
+
+    if ((channel === 'email' || channel === 'both') && user.email) {
+      try {
+        const { sendActivationReminderEmail } = await import('../services/emailService');
+        await sendActivationReminderEmail(user.email, user.firstName ?? null);
+        emailSent = true;
+      } catch (e: any) {
+        errors.email = String(e?.message ?? e).slice(0, 200);
+      }
+    }
+
+    return res.json({
+      pushSent,
+      emailSent,
+      ...(Object.keys(errors).length > 0 ? { errors } : {}),
+    });
+  } catch (e) {
+    logger.error('POST /admin/test-notification:', e);
+    return res.status(500).json({ error: 'Ошибка отправки тестового уведомления' });
+  }
+});
+
+/**
  * GET /admin/cron-health — liveness ledger for the in-process crons.
  * Each entry shows when the named cron last succeeded, last failed,
  * total counts, and last run duration. Lets the founder verify
