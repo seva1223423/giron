@@ -19,6 +19,7 @@ const googleConfigured = !!(
 );
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
+const OK_APP_ID = process.env.EXPO_PUBLIC_OK_APP_ID;
 
 type Step = 'form' | 'otp';
 
@@ -68,6 +69,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   const [vkLoading, setVkLoading] = useState(false);
   const [yandexLoading, setYandexLoading] = useState(false);
+  const [okLoading, setOkLoading] = useState(false);
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
@@ -238,7 +240,29 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     }
   };
 
-  const anyLoading = isLoading || otpSending || vkLoading || yandexLoading;
+  const handleOkPress = async () => {
+    if (!OK_APP_ID) return;
+    clearErrors();
+    setOkLoading(true);
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/ok' });
+      const authUrl = `https://connect.ok.ru/oauth/authorize?client_id=${OK_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=VALUABLE_ACCESS`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type !== 'success') return;
+      const fragment = result.url.split('#')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      const userId = params.get('logged_in_as');
+      if (!accessToken || !userId) { setLocalError('Не удалось получить данные от OK.ru'); return; }
+      await useAuthStore.getState().loginWithOk({ accessToken, userId });
+    } catch (e: any) {
+      setLocalError(e?.response?.data?.error ?? 'Ошибка регистрации через OK.ru');
+    } finally {
+      setOkLoading(false);
+    }
+  };
+
+  const anyLoading = isLoading || otpSending || vkLoading || yandexLoading || okLoading;
   const displayError = localError || error;
 
   // ── OTP step ─────────────────────────────────────────────────────────────────
@@ -434,6 +458,21 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           }
           <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через Яндекс</Text>
         </TouchableOpacity>
+
+        {!!OK_APP_ID && (
+          <TouchableOpacity
+            style={[styles.socialBtn, { backgroundColor: '#EE8208', borderColor: '#EE8208', marginTop: spacing.sm }, anyLoading && { opacity: 0.5 }]}
+            onPress={handleOkPress}
+            disabled={anyLoading}
+            activeOpacity={0.8}
+          >
+            {okLoading
+              ? <ActivityIndicator color="#fff" size="small" style={{ marginRight: spacing.sm }} />
+              : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>ОК</Text>
+            }
+            <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через OK.ru</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.footer}>
           <Text style={[typography.body, { color: colors.textSecondary }]}>Уже есть аккаунт? </Text>

@@ -93,6 +93,11 @@ export const authService = {
     return data;
   },
 
+  async loginWithOk(params: { accessToken: string; userId: string }): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/ok', params);
+    return data;
+  },
+
   async loginByPhone(phone: string, code: string): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>('/auth/login-by-phone', { phone, code });
     return data;
