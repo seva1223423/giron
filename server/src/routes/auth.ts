@@ -149,7 +149,7 @@ async function signTokens(userId: string, req?: Request) {
 }
 
 function safeUser(user: any) {
-  const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...rest } = user;
+  const { passwordHash, googleId, vkId, yandexId, okId, totpSecret, totpBackupCodes, ...rest } = user;
   return rest;
 }
 
@@ -908,6 +908,98 @@ router.post('/yandex', async (req: Request, res: Response) => {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /auth/yandex:', e);
     res.status(500).json({ error: 'Ошибка авторизации через Яндекс' });
+  }
+});
+
+// ── OK.ru (Odnoklassniki) OAuth ───────────────────────────────────────────────
+
+/**
+ * POST /auth/ok
+ * Exchange an OK.ru (Odnoklassniki) OAuth access token for Iron Gym JWT tokens.
+ * The client obtains the token via implicit-flow WebBrowser OAuth,
+ * then sends it here together with the logged_in_as (uid) for server-side validation.
+ */
+router.post('/ok', async (req: Request, res: Response) => {
+  try {
+    const { accessToken, userId, deviceToken } = z.object({
+      accessToken: z.string().min(1, 'accessToken обязателен'),
+      userId: z.string().min(1, 'userId обязателен'),
+      deviceToken: z.string().optional(),
+    }).parse(req.body);
+
+    // Verify token by fetching the current user from OK.ru API
+    let okData: { uid?: string; name?: string; pic_avatar?: string; error_code?: number; error_msg?: string };
+    try {
+      const okResp = await fetch(
+        `https://api.ok.ru/api/users/getCurrentUser?access_token=${encodeURIComponent(accessToken)}&format=json`,
+        { signal: AbortSignal.timeout(10_000) },
+      );
+      if (!okResp.ok) throw new Error(`OK.ru API error: ${okResp.status}`);
+      okData = await okResp.json() as typeof okData;
+    } catch (e: any) {
+      logger.warn('OK.ru token validation failed:', e.message);
+      return res.status(401).json({ error: 'Не удалось проверить токен OK.ru', code: 'INVALID_TOKEN' });
+    }
+
+    if (okData.error_code || !okData.uid) {
+      return res.status(401).json({ error: 'Недействительный токен OK.ru', code: 'INVALID_TOKEN' });
+    }
+
+    if (okData.uid !== String(userId)) {
+      logger.warn(`[SECURITY] OK.ru uid mismatch: claimed=${userId} actual=${okData.uid} ip=${(req as any).ip}`);
+      return res.status(401).json({ error: 'userId не совпадает с владельцем токена', code: 'ID_MISMATCH' });
+    }
+
+    const okId = okData.uid;
+    const fullName = (okData.name || 'Пользователь OK').slice(0, 100);
+    // OK.ru returns a single "name" field — split on first space for firstName/lastName
+    const spaceIdx = fullName.indexOf(' ');
+    const firstName = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName;
+    const lastName = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : undefined;
+    const avatarUrl = okData.pic_avatar || undefined;
+
+    let user: any = await prisma.user.findUnique({
+      where: { okId },
+      include: { healthRestrictions: true },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          okId,
+          firstName,
+          lastName,
+          avatarUrl,
+          email: `ok_${okId}@irongym.internal`,
+          emailVerified: false,
+        },
+        include: { healthRestrictions: true },
+      });
+      await logSecurityEvent('REGISTER', user.id, req, 'method=ok');
+    } else {
+      if (user.isBanned) {
+        return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
+      }
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+        return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: user.lockedUntil });
+      }
+    }
+
+    const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
+    if (totpGate) {
+      await logSecurityEvent('LOGIN_TOTP_REQUIRED', user!.id, req, 'method=ok');
+      return res.json(totpGate);
+    }
+
+    const { token, refreshToken } = await signTokens(user!.id, req);
+    await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=ok');
+    checkSuspiciousLogin(user!.id, req, user!.email, user!.emailVerified).catch(() => {});
+    res.json({ user: safeUser(user), token, refreshToken });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /auth/ok:', e);
+    res.status(500).json({ error: 'Ошибка авторизации через OK.ru' });
   }
 });
 
