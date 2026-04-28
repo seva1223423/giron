@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -30,6 +32,10 @@ const LEVEL_LABELS: Record<string, string> = {
   ADVANCED: 'Продвинутый', advanced: 'Продвинутый',
   EXPERT: 'Эксперт', expert: 'Эксперт',
 };
+
+const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
+const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
+const OK_APP_ID = process.env.EXPO_PUBLIC_OK_APP_ID;
 
 const ProfileRow: React.FC<{ label: string; value: string; colors: any; isLast?: boolean }> = ({ label, value, colors, isLast }) => (
   <View style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md }, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
@@ -90,6 +96,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
   const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
+  const [linkingProvider, setLinkingProvider] = useState<string | null>(null);
   const [resendingVerif, setResendingVerif] = useState(false);
   const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
   const [emailVerifCode, setEmailVerifCode] = useState('');
@@ -171,6 +178,71 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         },
       ],
     );
+  };
+
+  const handleLinkVk = async () => {
+    if (!VK_APP_ID) { Alert.alert('Ошибка', 'VK OAuth не настроен'); return; }
+    setLinkingProvider('vk');
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/vk' });
+      const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type !== 'success') return;
+      const fragment = result.url.split('#')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      const userId = params.get('user_id');
+      if (!accessToken || !userId) { Alert.alert('Ошибка', 'Не удалось получить данные от VK'); return; }
+      await userService.linkProvider('vk', { accessToken, userId });
+      await useAuthStore.getState().fetchProfile();
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать VK');
+    } finally {
+      setLinkingProvider(null);
+    }
+  };
+
+  const handleLinkYandex = async () => {
+    if (!YANDEX_CLIENT_ID) { Alert.alert('Ошибка', 'Yandex OAuth не настроен'); return; }
+    setLinkingProvider('yandex');
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/yandex' });
+      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type !== 'success') return;
+      const fragment = result.url.split('#')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      if (!accessToken) { Alert.alert('Ошибка', 'Не удалось получить токен от Яндекса'); return; }
+      await userService.linkProvider('yandex', { accessToken });
+      await useAuthStore.getState().fetchProfile();
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Яндекс');
+    } finally {
+      setLinkingProvider(null);
+    }
+  };
+
+  const handleLinkOk = async () => {
+    if (!OK_APP_ID) { Alert.alert('Ошибка', 'OK.ru OAuth не настроен'); return; }
+    setLinkingProvider('ok');
+    try {
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/ok' });
+      const authUrl = `https://connect.ok.ru/oauth/authorize?client_id=${OK_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=VALUABLE_ACCESS`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type !== 'success') return;
+      const fragment = result.url.split('#')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      const userId = params.get('logged_in_as');
+      if (!accessToken || !userId) { Alert.alert('Ошибка', 'Не удалось получить данные от OK.ru'); return; }
+      await userService.linkProvider('ok', { accessToken, userId });
+      await useAuthStore.getState().fetchProfile();
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать OK.ru');
+    } finally {
+      setLinkingProvider(null);
+    }
   };
 
   const handleLogout = () => {
@@ -666,12 +738,14 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               </Text>
             </TouchableOpacity>
           ) : (
-            // TODO: implement server-side linking endpoint, then replace this alert
             <TouchableOpacity
-              onPress={() => Alert.alert('Скоро', 'Привязка через VK будет доступна в следующем обновлении')}
+              onPress={handleLinkVk}
+              disabled={linkingProvider === 'vk'}
               style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
             >
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+                {linkingProvider === 'vk' ? '...' : 'Привязать'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -698,12 +772,14 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               </Text>
             </TouchableOpacity>
           ) : (
-            // TODO: implement server-side linking endpoint, then replace this alert
             <TouchableOpacity
-              onPress={() => Alert.alert('Скоро', 'Привязка через Яндекс будет доступна в следующем обновлении')}
+              onPress={handleLinkYandex}
+              disabled={linkingProvider === 'yandex'}
               style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
             >
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+                {linkingProvider === 'yandex' ? '...' : 'Привязать'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

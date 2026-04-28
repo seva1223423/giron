@@ -1141,6 +1141,130 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
 // ── Linked accounts ───────────────────────────────────────────────────────────
 
 /**
+ * POST /user/linked-accounts/:provider — link a social provider to the current account.
+ * Validates the provider token server-side, checks for conflicts with other accounts,
+ * then stores the provider ID on the current user.
+ */
+router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const provider = z.enum(['yandex', 'vk', 'ok']).parse(req.params.provider);
+    const { accessToken, userId: claimedUserId } = z.object({
+      accessToken: z.string().min(1, 'accessToken обязателен'),
+      userId: z.string().optional(),
+    }).parse(req.body);
+
+    const authUserId = req.userId!;
+
+    let providerId: string;
+    let fieldName: 'vkId' | 'yandexId' | 'okId';
+
+    if (provider === 'vk') {
+      if (!process.env.VK_APP_ID) {
+        return res.status(503).json({ error: 'VK OAuth не настроен на сервере' });
+      }
+      let vkUser: any;
+      try {
+        const params = new URLSearchParams({ fields: 'photo_200', access_token: accessToken, v: '5.199' });
+        const resp = await fetch(`https://api.vk.com/method/users.get?${params}`, { signal: AbortSignal.timeout(5000) });
+        const data = await resp.json() as any;
+        if (data.error) throw new Error(data.error.error_msg);
+        vkUser = data.response?.[0];
+      } catch (e: any) {
+        logger.warn('VK users.get failed (link):', e.message);
+        return res.status(401).json({ error: 'Не удалось получить данные из VK', code: 'INVALID_TOKEN' });
+      }
+      if (!vkUser) return res.status(401).json({ error: 'Пользователь VK не найден', code: 'INVALID_TOKEN' });
+      // Verify token owner matches claimed userId (prevents ID spoofing)
+      if (claimedUserId && String(vkUser.id) !== String(claimedUserId)) {
+        logger.warn(`VK link mismatch: claimed=${claimedUserId} actual=${vkUser.id} ip=${(req as any).ip}`);
+        return res.status(401).json({ error: 'Токен VK не совпадает с указанным пользователем', code: 'ID_MISMATCH' });
+      }
+      fieldName = 'vkId';
+      providerId = String(vkUser.id);
+
+    } else if (provider === 'yandex') {
+      if (!process.env.YANDEX_CLIENT_ID) {
+        return res.status(503).json({ error: 'Yandex OAuth не настроен на сервере' });
+      }
+      let yandexUser: any;
+      try {
+        const resp = await fetch('https://login.yandex.ru/info?format=json', {
+          headers: { Authorization: `OAuth ${accessToken}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!resp.ok) throw new Error(`Yandex API error: ${resp.status}`);
+        yandexUser = await resp.json();
+      } catch (e: any) {
+        logger.warn('Yandex token validation failed (link):', e.message);
+        return res.status(401).json({ error: 'Не удалось проверить Yandex токен', code: 'INVALID_TOKEN' });
+      }
+      if (!yandexUser?.id) return res.status(401).json({ error: 'Пользователь Яндекса не найден', code: 'INVALID_TOKEN' });
+      // Verify token was issued for our app
+      if (yandexUser.client_id && yandexUser.client_id !== process.env.YANDEX_CLIENT_ID) {
+        logger.warn(`[SECURITY] Yandex link token client_id mismatch: expected=${process.env.YANDEX_CLIENT_ID} got=${yandexUser.client_id}`);
+        return res.status(401).json({ error: 'Токен выдан для другого приложения', code: 'WRONG_APP' });
+      }
+      fieldName = 'yandexId';
+      providerId = String(yandexUser.id);
+
+    } else {
+      // provider === 'ok'
+      let okData: { uid?: string; name?: string; error_code?: number; error_msg?: string };
+      try {
+        const okResp = await fetch(
+          `https://api.ok.ru/api/users/getCurrentUser?access_token=${encodeURIComponent(accessToken)}&format=json`,
+          { signal: AbortSignal.timeout(10_000) },
+        );
+        if (!okResp.ok) throw new Error(`OK.ru API error: ${okResp.status}`);
+        okData = await okResp.json() as typeof okData;
+      } catch (e: any) {
+        logger.warn('OK.ru token validation failed (link):', e.message);
+        return res.status(401).json({ error: 'Не удалось проверить токен OK.ru', code: 'INVALID_TOKEN' });
+      }
+      if (okData.error_code || !okData.uid) {
+        return res.status(401).json({ error: 'Недействительный токен OK.ru', code: 'INVALID_TOKEN' });
+      }
+      if (claimedUserId && okData.uid !== String(claimedUserId)) {
+        logger.warn(`[SECURITY] OK.ru link uid mismatch: claimed=${claimedUserId} actual=${okData.uid} ip=${(req as any).ip}`);
+        return res.status(401).json({ error: 'userId не совпадает с владельцем токена', code: 'ID_MISMATCH' });
+      }
+      fieldName = 'okId';
+      providerId = okData.uid;
+    }
+
+    // Check the provider ID is not already linked to a DIFFERENT account
+    const existing = await prisma.user.findUnique({ where: { [fieldName]: providerId } as any, select: { id: true } });
+    if (existing && existing.id !== authUserId) {
+      return res.status(409).json({
+        error: 'Этот аккаунт уже привязан к другому пользователю',
+        code: 'PROVIDER_ALREADY_LINKED',
+      });
+    }
+
+    // Already linked to the same user — idempotent success
+    if (existing && existing.id === authUserId) {
+      return res.json({ message: 'Уже привязан' });
+    }
+
+    await prisma.user.update({
+      where: { id: authUserId },
+      data: { [fieldName]: providerId },
+    });
+
+    const ip = (req as any).ip ?? null;
+    await prisma.securityEvent.create({
+      data: { userId: authUserId, action: 'ACCOUNT_UPDATED', ip, details: `linked:${provider}` },
+    });
+
+    res.json({ message: `${provider} успешно привязан` });
+  } catch (e: any) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
+    logger.error('POST /user/linked-accounts:', e);
+    res.status(500).json({ error: 'Ошибка привязки аккаунта' });
+  }
+});
+
+/**
  * DELETE /user/linked-accounts/:provider — unlink a social provider from the account.
  * Safety: user must have either a password or another linked provider to log in after unlinking.
  */
