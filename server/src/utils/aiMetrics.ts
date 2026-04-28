@@ -18,6 +18,24 @@ let latencyCount = 0;     // number of non-cache requests that measured latency
 let latencyMin = Infinity;
 let latencyMax = 0;
 
+// Rolling window of the last N latency samples — used for percentile
+// computation. 200 samples is enough for stable p95/p99 at <2k requests/day
+// without burning memory; we sort on read which is fine for an admin page
+// hit a few times an hour.
+const LATENCY_WINDOW_SIZE = 200;
+const latencyWindow: number[] = [];
+
+/** Compute a percentile (0..100) on a copy of the rolling window. */
+function computePercentile(p: number): number {
+  if (latencyWindow.length === 0) return 0;
+  const sorted = [...latencyWindow].sort((a, b) => a - b);
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.floor((p / 100) * sorted.length)),
+  );
+  return Math.round(sorted[idx]);
+}
+
 // ── Hourly buckets (last 24h) ─────────────────────────────────────────────────
 const hourlyBuckets: HourBucket[] = [];
 
@@ -49,6 +67,7 @@ function resetIfNewDay(): void {
     latencyCount = 0;
     latencyMin = Infinity;
     latencyMax = 0;
+    latencyWindow.length = 0;
     lastResetDate = today;
   }
   // Reset weekly counter every 7 days
@@ -91,6 +110,11 @@ export function recordAIRequest(opts: {
       latencyCount++;
       if (opts.latencyMs < latencyMin) latencyMin = opts.latencyMs;
       if (opts.latencyMs > latencyMax) latencyMax = opts.latencyMs;
+      // Maintain rolling window for percentile computation. Push new,
+      // shift oldest when full — O(N) shift is fine at N=200 and called
+      // only on non-cache requests.
+      latencyWindow.push(opts.latencyMs);
+      if (latencyWindow.length > LATENCY_WINDOW_SIZE) latencyWindow.shift();
     }
   }
 
@@ -119,6 +143,13 @@ export function getAIMetrics() {
     avgLatencyMs: latencyCount > 0 ? Math.round(latencySum / latencyCount) : 0,
     minLatencyMs: latencyCount > 0 ? latencyMin : 0,
     maxLatencyMs: latencyCount > 0 ? latencyMax : 0,
+    // Percentiles from the last 200-request rolling window — better signal
+    // for "is the model slow right now" than the day-wide avg, which gets
+    // dragged around by a few outliers (Mistral cold-start spikes).
+    p50LatencyMs: computePercentile(50),
+    p95LatencyMs: computePercentile(95),
+    p99LatencyMs: computePercentile(99),
+    latencySampleSize: latencyWindow.length,
     hourlyBuckets: [...hourlyBuckets],
     provider: AI_PROVIDER.name,
     providerDisplayName: AI_PROVIDER.displayName,

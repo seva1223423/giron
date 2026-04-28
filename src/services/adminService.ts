@@ -130,6 +130,14 @@ export interface AdminMe {
     d14Fired: boolean;
     d30Fired: boolean;
   };
+  /** Onboarding telemetry — null fields on accounts that pre-date the
+   *  step-tracking endpoint (created before 2026-04-28). */
+  onboarding?: {
+    completed: boolean;
+    completedAt: string | null;
+    maxStepReached: number | null;
+    stepLog: Record<string, string>;
+  };
   pushTokens: {
     count: number;
     latest: { id: string; createdAt: string; updatedAt: string } | null;
