@@ -102,7 +102,7 @@ export const userService = {
     await api.delete(`/user/linked-accounts/${provider}`);
   },
 
-  async linkProvider(provider: 'vk' | 'yandex' | 'ok', params: { accessToken: string; userId?: string }): Promise<void> {
+  async linkProvider(provider: 'vk' | 'yandex' | 'ok' | 'google', params: { accessToken: string; userId?: string }): Promise<void> {
     await api.post(`/user/linked-accounts/${provider}`, params);
   },
 

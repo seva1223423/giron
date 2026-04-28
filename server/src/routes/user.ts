@@ -5,10 +5,18 @@ import jwt from 'jsonwebtoken';
 import { TOTP, Secret } from 'otpauth';
 import * as QRCode from 'qrcode';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { getSubStatus } from '../utils/subscriptionCheck';
+
+const GOOGLE_CLIENT_IDS = [
+  process.env.GOOGLE_CLIENT_ID_WEB,
+  process.env.GOOGLE_CLIENT_ID_IOS,
+  process.env.GOOGLE_CLIENT_ID_ANDROID,
+].filter(Boolean) as string[];
+const googleClient = new OAuth2Client();
 
 /** Free plan: max body measurement entries returned */
 const FREE_MEASUREMENTS_LIMIT = 5;
@@ -511,7 +519,35 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
 router.post('/push-token', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { token } = z.object({ token: z.string().min(1).max(200) }).parse(req.body);
-    // Upsert: if this token already exists for another user (device transfer), reassign it
+    // Sec audit 2026-04: HIGH-10. Validate Expo token shape — rejecting
+    // arbitrary strings stops opportunistic registration of bogus tokens.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+    const { default: Expo } = require('expo-server-sdk') as typeof import('expo-server-sdk');
+    if (!Expo.isExpoPushToken(token)) {
+      return res.status(400).json({ error: 'Некорректный формат push-токена', code: 'INVALID_PUSH_TOKEN' });
+    }
+    // Sec audit 2026-04: HIGH-10. Refuse silent reassignment of a token that
+    // already belongs to a different user — otherwise any authenticated
+    // attacker can submit the victim's push token, hijack notification
+    // delivery (DoS the victim's security alerts) and receive their own
+    // crafted security pushes on the victim's device (phishing primitive).
+    const existing = await prisma.pushToken.findUnique({
+      where: { token },
+      select: { userId: true },
+    });
+    if (existing && existing.userId !== req.userId) {
+      // Log both sides so the legit owner sees an attempted takeover.
+      await prisma.securityEvent.create({
+        data: { userId: req.userId!, action: 'PUSH_TOKEN_TAKEOVER_BLOCKED', ip: (req as any).ip ?? null, details: 'attempt' },
+      }).catch(() => {});
+      await prisma.securityEvent.create({
+        data: { userId: existing.userId, action: 'PUSH_TOKEN_TAKEOVER_BLOCKED', ip: (req as any).ip ?? null, details: 'target' },
+      }).catch(() => {});
+      return res.status(409).json({
+        error: 'Этот push-токен уже зарегистрирован под другим аккаунтом. Сначала выйдите из того аккаунта на устройстве.',
+        code: 'PUSH_TOKEN_OWNED',
+      });
+    }
     await prisma.pushToken.upsert({
       where: { token },
       update: { userId: req.userId!, updatedAt: new Date() },
@@ -1147,7 +1183,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
  */
 router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'ok']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'ok', 'google']).parse(req.params.provider);
     const { accessToken, userId: claimedUserId, currentPassword, totpCode } = z.object({
       accessToken: z.string().min(1, 'accessToken обязателен'),
       userId: z.string().optional(),
@@ -1198,7 +1234,7 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
     }
 
     let providerId: string;
-    let fieldName: 'vkId' | 'yandexId' | 'okId';
+    let fieldName: 'vkId' | 'yandexId' | 'okId' | 'googleId';
 
     if (provider === 'vk') {
       if (!process.env.VK_APP_ID) {
@@ -1248,6 +1284,29 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       }
       fieldName = 'yandexId';
       providerId = String(yandexUser.id);
+
+    } else if (provider === 'google') {
+      if (!GOOGLE_CLIENT_IDS.length && !process.env.GOOGLE_CLIENT_ID_WEB && !process.env.GOOGLE_CLIENT_ID_IOS && !process.env.GOOGLE_CLIENT_ID_ANDROID) {
+        return res.status(503).json({ error: 'Google OAuth не настроен на сервере' });
+      }
+      // accessToken is actually an idToken for Google — verify it with google-auth-library
+      const idToken = accessToken;
+      let googlePayload: any;
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: GOOGLE_CLIENT_IDS.length ? GOOGLE_CLIENT_IDS : undefined,
+        });
+        googlePayload = ticket.getPayload();
+      } catch (e: any) {
+        logger.warn('Google idToken verification failed (link):', e.message);
+        return res.status(401).json({ error: 'Не удалось проверить Google токен', code: 'INVALID_TOKEN' });
+      }
+      if (!googlePayload?.sub) {
+        return res.status(401).json({ error: 'Не удалось получить данные от Google', code: 'INVALID_TOKEN' });
+      }
+      fieldName = 'googleId';
+      providerId = String(googlePayload.sub);
 
     } else {
       // provider === 'ok'

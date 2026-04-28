@@ -6,7 +6,7 @@ import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-nat
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
-import { Card, Button, AnimatedPressable, Icon, type IconName } from '../../components';
+import { Card, Button, AnimatedPressable, Icon, type IconName, GoogleAuthButton } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
@@ -36,6 +36,11 @@ const LEVEL_LABELS: Record<string, string> = {
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 const OK_APP_ID = process.env.EXPO_PUBLIC_OK_APP_ID;
+const googleConfigured = !!(
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID
+);
 
 const ProfileRow: React.FC<{ label: string; value: string; colors: any; isLast?: boolean }> = ({ label, value, colors, isLast }) => (
   <View style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md }, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
@@ -240,6 +245,18 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       await useAuthStore.getState().fetchProfile();
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать OK.ru');
+    } finally {
+      setLinkingProvider(null);
+    }
+  };
+
+  const handleGoogleLinkSuccess = async (idToken: string) => {
+    setLinkingProvider('google');
+    try {
+      await userService.linkProvider('google', { accessToken: idToken });
+      await useAuthStore.getState().fetchProfile();
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Google');
     } finally {
       setLinkingProvider(null);
     }
@@ -805,10 +822,16 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 {unlinkingProvider === 'google' ? '...' : 'Отвязать'}
               </Text>
             </TouchableOpacity>
+          ) : googleConfigured ? (
+            <GoogleAuthButton
+              mode="link"
+              onSuccess={handleGoogleLinkSuccess}
+              onError={(msg) => Alert.alert('Ошибка', msg)}
+              disabled={linkingProvider === 'google'}
+            />
           ) : (
-            // TODO: implement server-side linking endpoint, then replace this alert
             <TouchableOpacity
-              onPress={() => Alert.alert('Скоро', 'Привязка через Google будет доступна в следующем обновлении')}
+              onPress={() => Alert.alert('Ошибка', 'Google OAuth не настроен')}
               style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
             >
               <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>

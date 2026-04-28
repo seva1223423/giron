@@ -37,6 +37,7 @@ export interface User {
   googleId?: string | null;
   yandexId?: string | null;
   okId?: string | null;
+  mailruId?: string | null;
   hasYandex?: boolean;
   hasGoogle?: boolean;
   isBanned?: boolean;

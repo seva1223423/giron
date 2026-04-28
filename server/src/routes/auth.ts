@@ -149,7 +149,7 @@ async function signTokens(userId: string, req?: Request) {
 }
 
 function safeUser(user: any) {
-  const { passwordHash, googleId, vkId, yandexId, okId, totpSecret, totpBackupCodes, ...rest } = user;
+  const { passwordHash, googleId, vkId, yandexId, okId, mailruId, totpSecret, totpBackupCodes, ...rest } = user;
   return rest;
 }
 
@@ -1000,6 +1000,94 @@ router.post('/ok', async (req: Request, res: Response) => {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /auth/ok:', e);
     res.status(500).json({ error: 'Ошибка авторизации через OK.ru' });
+  }
+});
+
+// ── Mail.ru OAuth ─────────────────────────────────────────────────────────────
+router.post('/mailru', async (req: Request, res: Response) => {
+  try {
+    const { accessToken, deviceToken } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({ error: 'accessToken обязателен', code: 'MISSING_PARAMS' });
+    }
+
+    const mrResp = await fetch(
+      `https://oauth.mail.ru/userinfo?access_token=${encodeURIComponent(accessToken)}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+
+    if (!mrResp.ok) {
+      return res.status(401).json({ error: 'Не удалось проверить токен Mail.ru', code: 'INVALID_TOKEN' });
+    }
+
+    const mrData = await mrResp.json() as {
+      id?: string;
+      email?: string;
+      name?: string;
+      first_name?: string;
+      last_name?: string;
+      image?: string;
+    };
+
+    if (!mrData.id) {
+      return res.status(401).json({ error: 'Недействительный токен Mail.ru', code: 'INVALID_TOKEN' });
+    }
+
+    const mailruId = mrData.id;
+    const name = (mrData.name || `${mrData.first_name ?? ''} ${mrData.last_name ?? ''}`.trim() || 'Пользователь Mail.ru').slice(0, 100);
+    const email = mrData.email || null;
+
+    let user: any = await prisma.user.findUnique({ where: { mailruId }, include: { healthRestrictions: true } });
+
+    if (!user && email) {
+      // Try email-based linking (Mail.ru verifies emails)
+      const byEmail = await prisma.user.findUnique({ where: { email }, include: { healthRestrictions: true } });
+      if (byEmail && byEmail.emailVerified) {
+        user = await prisma.user.update({
+          where: { id: byEmail.id },
+          data: { mailruId },
+          include: { healthRestrictions: true },
+        });
+      }
+    }
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          mailruId,
+          name,
+          email: email || `mailru_${mailruId}@irongym.internal`,
+          emailVerified: !!email,
+          role: 'USER',
+          onboardingCompleted: false,
+        },
+        include: { healthRestrictions: true },
+      });
+      await logSecurityEvent('REGISTER', user.id, req, 'method=mailru');
+    } else {
+      if (user.isBanned) {
+        return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
+      }
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+        return res.status(429).json({ error: `Аккаунт временно заблокирован. Попробуйте через ${minutesLeft} мин.`, code: 'ACCOUNT_LOCKED', lockedUntil: user.lockedUntil });
+      }
+    }
+
+    const totpGate = await checkSocialAuthTotpGate(user!, deviceToken);
+    if (totpGate) {
+      await logSecurityEvent('LOGIN_TOTP_REQUIRED', user!.id, req, 'method=mailru');
+      return res.json(totpGate);
+    }
+
+    const { token, refreshToken } = await signTokens(user!.id, req);
+    await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=mailru');
+    checkSuspiciousLogin(user!.id, req, user!.email, user!.emailVerified).catch(() => {});
+    res.json({ user: safeUser(user), token, refreshToken });
+  } catch (e: any) {
+    logger.error('POST /auth/mailru:', e);
+    res.status(500).json({ error: 'Ошибка авторизации через Mail.ru' });
   }
 });
 

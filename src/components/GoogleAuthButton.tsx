@@ -11,9 +11,12 @@ WebBrowser.maybeCompleteAuthSession();
 interface Props {
   onError: (msg: string) => void;
   disabled?: boolean;
+  /** 'login' (default) — calls loginWithGoogle; 'link' — calls onSuccess(idToken) instead */
+  mode?: 'login' | 'link';
+  onSuccess?: (idToken: string) => void;
 }
 
-export function GoogleAuthButton({ onError, disabled }: Props) {
+export function GoogleAuthButton({ onError, disabled, mode = 'login', onSuccess }: Props) {
   const { colors } = useThemeStore();
   const { loginWithGoogle } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -30,9 +33,17 @@ export function GoogleAuthButton({ onError, disabled }: Props) {
       const idToken = response.authentication?.idToken;
       if (idToken) {
         setLoading(true);
-        loginWithGoogle(idToken)
-          .catch((e) => onError(e?.response?.data?.error || 'Ошибка входа через Google'))
-          .finally(() => setLoading(false));
+        if (mode === 'link') {
+          // In link mode hand the idToken off to the caller; don't log in.
+          Promise.resolve()
+            .then(() => onSuccess?.(idToken))
+            .catch((e) => onError(e?.response?.data?.error || 'Ошибка привязки Google'))
+            .finally(() => setLoading(false));
+        } else {
+          loginWithGoogle(idToken)
+            .catch((e) => onError(e?.response?.data?.error || 'Ошибка входа через Google'))
+            .finally(() => setLoading(false));
+        }
       } else {
         onError('Не удалось получить токен от Google');
       }
@@ -40,6 +51,8 @@ export function GoogleAuthButton({ onError, disabled }: Props) {
       onError('Ошибка авторизации через Google');
     }
   }, [response]);
+
+  const label = mode === 'link' ? 'Привязать Google' : 'Войти через Google';
 
   return (
     <TouchableOpacity
@@ -58,7 +71,7 @@ export function GoogleAuthButton({ onError, disabled }: Props) {
         ? <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
         : <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
       }
-      <Text style={[typography.bodySemibold, { color: colors.text }]}>Войти через Google</Text>
+      <Text style={[typography.bodySemibold, { color: colors.text }]}>{label}</Text>
     </TouchableOpacity>
   );
 }

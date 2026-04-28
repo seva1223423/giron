@@ -98,6 +98,11 @@ export const authService = {
     return data;
   },
 
+  async loginWithMailru(accessToken: string): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/mailru', { accessToken });
+    return data;
+  },
+
   async loginByPhone(phone: string, code: string): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>('/auth/login-by-phone', { phone, code });
     return data;
