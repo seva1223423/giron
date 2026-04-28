@@ -119,6 +119,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         if (check.hasGoogle) methods.push('Google');
         if (check.hasVk) methods.push('VK');
         if (check.hasYandex) methods.push('Яндекс');
+        if (check.hasOk) methods.push('OK.ru');
         if (check.hasMailru) methods.push('Mail.ru');
         const hint = methods.length > 0
           ? ` Войдите через ${methods.join(' / ')}.`

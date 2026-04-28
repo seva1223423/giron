@@ -86,7 +86,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       try {
         const result = await authService.checkEmail(trimmed);
         if (!result.exists) setEmailHint('Email не зарегистрирован');
-        else if (!result.hasPassword && (result.hasGoogle || result.hasVk || result.hasYandex || result.hasMailru))
+        else if (!result.hasPassword && (result.hasGoogle || result.hasVk || result.hasYandex || result.hasOk || result.hasMailru))
           setEmailHint('Используйте вход через соцсеть');
       } finally {
         setEmailChecking(false);
