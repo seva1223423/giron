@@ -156,12 +156,27 @@ export async function refreshNews(force = false): Promise<{ added: number; skipp
 
 // Run every 6 hours
 export function startNewsRefreshScheduler(): void {
-  // Initial refresh after 5s startup delay (non-blocking)
+  // Lazy import — keeps the module load order clean and avoids a circular
+  // import path through utils → services → utils.
+  const { trackCron } = require('../utils/cronHealth');
+
+  // Initial refresh after 5s startup delay (non-blocking). The setTimeout
+  // doesn't need .unref() because it's a one-shot fire and clears itself.
   setTimeout(() => {
-    refreshNews().catch((e) => logger.warn('[NewsRefresh] Initial refresh failed:', e.message));
+    trackCron('news-refresh', () =>
+      refreshNews().catch((e: Error) =>
+        logger.warn('[NewsRefresh] Initial refresh failed:', e.message),
+      ),
+    ).catch(() => { /* trackCron only rethrows; we already swallow the news error */ });
   }, 5000);
 
+  // .unref() so the timer doesn't keep the Node process alive in tests
+  // that import this module (e.g. via the index.ts app for supertest).
   setInterval(() => {
-    refreshNews().catch((e) => logger.warn('[NewsRefresh] Scheduled refresh failed:', e.message));
-  }, REFRESH_INTERVAL_MS);
+    trackCron('news-refresh', () =>
+      refreshNews().catch((e: Error) =>
+        logger.warn('[NewsRefresh] Scheduled refresh failed:', e.message),
+      ),
+    ).catch(() => { /* see above */ });
+  }, REFRESH_INTERVAL_MS).unref();
 }
