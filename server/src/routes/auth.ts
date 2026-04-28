@@ -535,7 +535,7 @@ router.post('/check-email', async (req: Request, res: Response) => {
     const { email } = z.object({ email: z.string().email() }).parse(req.body);
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, googleId: true, passwordHash: true, vkId: true, yandexId: true },
+      select: { id: true, googleId: true, passwordHash: true, vkId: true, yandexId: true, okId: true, mailruId: true },
     });
     if (!user) return res.json({ exists: false });
     res.json({
@@ -544,6 +544,8 @@ router.post('/check-email', async (req: Request, res: Response) => {
       hasGoogle: !!user.googleId,
       hasVk: !!user.vkId,
       hasYandex: !!user.yandexId,
+      hasOk: !!user.okId,
+      hasMailru: !!user.mailruId,
     });
   } catch {
     res.json({ exists: false });

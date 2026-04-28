@@ -56,6 +56,9 @@ jest.mock('../db', () => ({
     supportTicket: {
       create: jest.fn().mockResolvedValue({}),
     },
+    securityEvent: {
+      create: jest.fn().mockResolvedValue({}),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -537,7 +540,8 @@ describe('DELETE /api/admin/users/:id', () => {
 
     const res = await request(app)
       .delete(`/api/admin/users/${TARGET_ID}`)
-      .set('Authorization', `Bearer ${makeToken()}`);
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ adminPassword: 'admin-pass' });
     expect(res.status).toBe(404);
   });
 
@@ -546,7 +550,8 @@ describe('DELETE /api/admin/users/:id', () => {
 
     const res = await request(app)
       .delete(`/api/admin/users/${TARGET_ID}`)
-      .set('Authorization', `Bearer ${makeToken('u-admin')}`);
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ adminPassword: 'admin-pass' });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
