@@ -94,6 +94,11 @@ export const authService = {
     return data;
   },
 
+  async loginWithOk(params: { accessToken: string; userId: string; deviceToken?: string }): Promise<AuthResponse | TOTPLoginResponse> {
+    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/ok', params);
+    return data;
+  },
+
   async loginWithMailru(accessToken: string): Promise<AuthResponse | TOTPLoginResponse> {
     const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/mailru', { accessToken });
     return data;
