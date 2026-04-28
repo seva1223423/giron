@@ -270,8 +270,20 @@ router.post('/register', async (req: Request, res: Response) => {
     // the boot-time bootstrap to find them. Idempotent — only the very
     // first registration with a matching email gets ADMIN; subsequent
     // attempts hit the email-uniqueness 409 path below.
-    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
-    const isBootstrapAdmin = bootstrapEmail && data.email.toLowerCase() === bootstrapEmail;
+    // NFKC-normalize alongside trim+lowercase so we match the same
+    // pipeline applied to user-input email via the Zod transform on
+    // registerSchema. Without NFKC, a precomposed ё in the env var
+    // wouldn't match the decomposed ё that NFKC produces from the
+    // user input (HIGH-14 leftover — user-side was fixed 2026-04-28
+    // but the bootstrap comparison was missed).
+    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL
+      ?.trim()
+      .toLowerCase()
+      .normalize('NFKC');
+    // data.email is already normalized by the Zod transform, so compare
+    // it directly. The previous .toLowerCase() was a no-op (already
+    // lowercased upstream) and could mask a NFKC mismatch.
+    const isBootstrapAdmin = bootstrapEmail && data.email === bootstrapEmail;
 
     const user = await prisma.user.create({
       data: {
