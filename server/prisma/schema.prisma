@@ -38,7 +38,6 @@ model User {
 
   vkId                    String?   @unique
   yandexId                String?   @unique
-  okId                    String?   @unique
   mailruId                String?   @unique
   phoneVerified           Boolean   @default(false)
 

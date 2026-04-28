@@ -35,7 +35,6 @@ const LEVEL_LABELS: Record<string, string> = {
 
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
-const OK_APP_ID = process.env.EXPO_PUBLIC_OK_APP_ID;
 const MAILRU_APP_ID = process.env.EXPO_PUBLIC_MAILRU_APP_ID;
 const googleConfigured = !!(
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
@@ -161,7 +160,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
   const unlockedAchievements = achievements.filter((a) => a.unlockedAt);
 
-  const handleUnlink = (provider: 'yandex' | 'vk' | 'google' | 'ok' | 'mailru', label: string) => {
+  const handleUnlink = (provider: 'yandex' | 'vk' | 'google' | 'mailru', label: string) => {
     Alert.alert(
       `Отвязать ${label}?`,
       'Вы больше не сможете входить через этот аккаунт.',
@@ -230,31 +229,6 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       await useAuthStore.getState().fetchProfile();
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Яндекс');
-    } finally {
-      setLinkingProvider(null);
-    }
-  };
-
-  const handleLinkOk = async () => {
-    if (!OK_APP_ID) { Alert.alert('Ошибка', 'OK.ru OAuth не настроен'); return; }
-    setLinkingProvider('ok');
-    try {
-      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/ok' });
-      const authUrl = `https://connect.ok.ru/oauth/authorize?client_id=${OK_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=VALUABLE_ACCESS;GET_EMAIL&state=${state}`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      if (result.type !== 'success') return;
-      const fragment = result.url.split('#')[1] ?? '';
-      const params = new URLSearchParams(fragment);
-      const returnedState = params.get('state');
-      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
-      const accessToken = params.get('access_token');
-      const userId = params.get('logged_in_as');
-      if (!accessToken || !userId) { Alert.alert('Ошибка', 'Не удалось получить данные от OK.ru'); return; }
-      await userService.linkProvider('ok', { accessToken, userId });
-      await useAuthStore.getState().fetchProfile();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать OK.ru');
     } finally {
       setLinkingProvider(null);
     }

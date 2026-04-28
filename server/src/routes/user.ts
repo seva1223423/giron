@@ -1411,11 +1411,11 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
  */
 router.delete('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'google', 'ok', 'mailru']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'google', 'mailru']).parse(req.params.provider);
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true, okId: true, mailruId: true },
+      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true, mailruId: true },
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
@@ -1423,7 +1423,6 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
       yandex: 'yandexId',
       vk: 'vkId',
       google: 'googleId',
-      ok: 'okId',
       mailru: 'mailruId',
     };
 
@@ -1432,7 +1431,7 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
     }
 
     // Ensure user won't lose all login methods
-    const otherProviders = (['google', 'vk', 'yandex', 'ok', 'mailru'] as const)
+    const otherProviders = (['google', 'vk', 'yandex', 'mailru'] as const)
       .filter((p) => p !== provider)
       .filter((p) => !!user[fieldMap[p]]);
     if (!user.passwordHash && otherProviders.length === 0) {

@@ -18,7 +18,6 @@ export interface CheckEmailResponse {
   hasGoogle?: boolean;
   hasVk?: boolean;
   hasYandex?: boolean;
-  hasOk?: boolean;
   hasMailru?: boolean;
 }
 
@@ -92,11 +91,6 @@ export const authService = {
 
   async loginWithYandex(accessToken: string): Promise<AuthResponse | TOTPLoginResponse> {
     const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/yandex', { accessToken });
-    return data;
-  },
-
-  async loginWithOk(params: { accessToken: string; userId: string; deviceToken?: string }): Promise<AuthResponse | TOTPLoginResponse> {
-    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/ok', params);
     return data;
   },
 
