@@ -393,16 +393,14 @@ router.post('/login', async (req: Request, res: Response) => {
       // Trusted device: fall through to normal login below
       await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email} method=trusted_device`);
       const { token: tk, refreshToken: rt } = await signTokens(user.id, req);
-      const { passwordHash: ph, googleId: gi, vkId: vi, yandexId: yi, ...uwsTrusted } = user as any;
-      return res.json({ user: uwsTrusted, token: tk, refreshToken: rt });
+      return res.json({ user: safeUser(user), token: tk, refreshToken: rt });
     }
 
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `email=${data.email}`);
     checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
 
     const { token, refreshToken } = await signTokens(user.id, req);
-    const { passwordHash, googleId, vkId, yandexId, ...userWithoutSecrets } = user as any;
-    res.json({ user: userWithoutSecrets, token, refreshToken });
+    res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) {
       return res.status(400).json({ error: e.errors[0].message });
@@ -518,8 +516,7 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
       deviceToken = rawToken;
     }
 
-    const { passwordHash, googleId, vkId, yandexId, totpSecret, ...userWithoutSecrets } = user as any;
-    res.json({ user: userWithoutSecrets, token, refreshToken, ...(deviceToken ? { deviceToken } : {}) });
+    res.json({ user: safeUser(user), token, refreshToken, ...(deviceToken ? { deviceToken } : {}) });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /auth/totp-verify:', e);
@@ -901,11 +898,10 @@ router.post('/yandex', async (req: Request, res: Response) => {
       return res.json(totpGate);
     }
 
-    const { passwordHash, googleId, vkId, yandexId: _ya, totpSecret, totpBackupCodes, ...safeYandexUser } = user as any;
     const { token, refreshToken } = await signTokens(user!.id, req);
     await logSecurityEvent('LOGIN_SUCCESS', user!.id, req, 'method=yandex');
-    checkSuspiciousLogin(user!.id, req, safeYandexUser.email, safeYandexUser.emailVerified).catch(() => {});
-    res.json({ user: safeYandexUser, token, refreshToken });
+    checkSuspiciousLogin(user!.id, req, user!.email, user!.emailVerified).catch(() => {});
+    res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error('POST /auth/yandex:', e);
@@ -1014,6 +1010,13 @@ router.post('/mailru', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'accessToken обязателен', code: 'MISSING_PARAMS' });
     }
 
+    // Sec audit 2026-04: HIGH-13. Refuse to operate without a configured
+    // Mail.ru OAuth client — otherwise any attacker-issued Mail.ru access
+    // token (from a malicious app) would be accepted at face value.
+    if (!process.env.MAILRU_CLIENT_ID) {
+      return res.status(503).json({ error: 'Mail.ru OAuth не настроен на сервере' });
+    }
+
     const mrResp = await fetch(
       `https://oauth.mail.ru/userinfo?access_token=${encodeURIComponent(accessToken)}`,
       { signal: AbortSignal.timeout(10_000) },
@@ -1030,10 +1033,24 @@ router.post('/mailru', async (req: Request, res: Response) => {
       first_name?: string;
       last_name?: string;
       image?: string;
+      client_id?: string;
+      aud?: string;
     };
 
     if (!mrData.id) {
       return res.status(401).json({ error: 'Недействительный токен Mail.ru', code: 'INVALID_TOKEN' });
+    }
+
+    // Sec audit 2026-04: HIGH-13. If Mail.ru ever returns a client_id/aud
+    // claim, hard-fail when it doesn't match our configured OAuth client —
+    // protects against tokens minted by another Mail.ru OAuth app.
+    if (mrData.client_id && mrData.client_id !== process.env.MAILRU_CLIENT_ID) {
+      logger.warn(`[SECURITY] Mail.ru token client_id mismatch: expected=${process.env.MAILRU_CLIENT_ID} got=${mrData.client_id}`);
+      return res.status(401).json({ error: 'Токен выдан для другого приложения', code: 'WRONG_APP' });
+    }
+    if (mrData.aud && mrData.aud !== process.env.MAILRU_CLIENT_ID) {
+      logger.warn(`[SECURITY] Mail.ru token aud mismatch: expected=${process.env.MAILRU_CLIENT_ID} got=${mrData.aud}`);
+      return res.status(401).json({ error: 'Токен выдан для другого приложения', code: 'WRONG_APP' });
     }
 
     const mailruId = mrData.id;
@@ -1044,33 +1061,49 @@ router.post('/mailru', async (req: Request, res: Response) => {
     const avatarUrl = mrData.image || undefined;
     const email = mrData.email || null;
 
-    let user: any = await prisma.user.findUnique({ where: { mailruId }, include: { healthRestrictions: true } });
-
-    if (!user && email) {
-      // Try email-based linking (Mail.ru verifies emails)
-      const byEmail = await prisma.user.findUnique({ where: { email }, include: { healthRestrictions: true } });
-      if (byEmail && byEmail.emailVerified) {
-        user = await prisma.user.update({
-          where: { id: byEmail.id },
-          data: { mailruId },
-          include: { healthRestrictions: true },
-        });
-      }
-    }
+    // Sec audit 2026-04: HIGH-13. Disable email-based auto-link entirely
+    // until the Mail.ru OAuth audience is verifiable end-to-end (OIDC
+    // ID-token + JWKS). Until then, login by Mail.ru must require a prior
+    // explicit link via /user/linked-accounts/mailru (which is gated by
+    // step-up). This mirrors the VK handler's safer pattern.
+    const user: any = await prisma.user.findUnique({ where: { mailruId }, include: { healthRestrictions: true } });
 
     if (!user) {
-      user = await prisma.user.create({
+      // No email-based merge — refuse with a clear instruction. New users
+      // sign up with email/password first, then link Mail.ru from the
+      // profile screen (which step-up-protects the link).
+      const existingByEmail = email ? await prisma.user.findUnique({ where: { email }, select: { id: true } }) : null;
+      if (existingByEmail) {
+        await logSecurityEvent('OAUTH_EMAIL_LINK_BLOCKED', existingByEmail.id, req, 'method=mailru reason=audience_unverified');
+        return res.status(409).json({
+          error: 'Этот email уже зарегистрирован. Войдите паролем и привяжите Mail.ru в настройках безопасности.',
+          code: 'LINK_REQUIRED',
+        });
+      }
+      const created = await prisma.user.create({
         data: {
           mailruId,
           firstName,
           lastName,
           avatarUrl,
           email: email || `mailru_${mailruId}@irongym.internal`,
-          emailVerified: !!email,
+          // Mail.ru-issued email is not trustworthy without aud verification
+          emailVerified: false,
         },
         include: { healthRestrictions: true },
       });
-      await logSecurityEvent('REGISTER', user.id, req, 'method=mailru');
+      await logSecurityEvent('REGISTER', created.id, req, 'method=mailru');
+      // Reuse the rest of the success path
+      Object.assign(user || {}, created);
+      const totpGate = await checkSocialAuthTotpGate(created, deviceToken);
+      if (totpGate) {
+        await logSecurityEvent('LOGIN_TOTP_REQUIRED', created.id, req, 'method=mailru');
+        return res.json(totpGate);
+      }
+      const { token: t, refreshToken: rt } = await signTokens(created.id, req);
+      await logSecurityEvent('LOGIN_SUCCESS', created.id, req, 'method=mailru');
+      checkSuspiciousLogin(created.id, req, created.email, created.emailVerified).catch(() => {});
+      return res.json({ user: safeUser(created), token: t, refreshToken: rt });
     } else {
       if (user.isBanned) {
         return res.status(403).json({ error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' });
@@ -1169,8 +1202,7 @@ router.post('/login-by-phone', async (req: Request, res: Response) => {
     await logSecurityEvent('LOGIN_SUCCESS', user.id, req, `phone=${phone} method=sms_otp`);
     checkSuspiciousLogin(user.id, req, user.email, user.emailVerified).catch(() => {});
     const { token, refreshToken } = await signTokens(user.id, req);
-    const { passwordHash, googleId, vkId, yandexId, totpSecret, totpBackupCodes, ...rest } = user as any;
-    res.json({ user: rest, token, refreshToken });
+    res.json({ user: safeUser(user), token, refreshToken });
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
     logger.error(e);
