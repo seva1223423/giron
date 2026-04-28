@@ -122,20 +122,25 @@ function setCachedResponse(message: string, intent: string, response: string, us
   if (!CACHEABLE_INTENTS.has(intent)) return;
   if (response.length < 50) return; // don't cache very short responses
 
-  // Evict old entries if at capacity
-  if (AI_RESPONSE_CACHE.size >= CACHE_MAX_SIZE) {
+  const key = simpleHash(normalizeForCache(message) + ':' + userId);
+
+  // Evict the oldest entry only if we're at capacity AND inserting a NEW
+  // key. Without the `has(key)` guard we'd evict an unrelated entry on
+  // every cache refresh of an existing key — small but wasteful at the
+  // 200-entry boundary. Compute the oldest only when eviction is
+  // actually needed, not on every set.
+  if (AI_RESPONSE_CACHE.size >= CACHE_MAX_SIZE && !AI_RESPONSE_CACHE.has(key)) {
     let oldestKey: string | null = null;
     let oldestTime = Infinity;
-    for (const [key, val] of AI_RESPONSE_CACHE) {
+    for (const [k, val] of AI_RESPONSE_CACHE) {
       if (val.timestamp < oldestTime) {
         oldestTime = val.timestamp;
-        oldestKey = key;
+        oldestKey = k;
       }
     }
     if (oldestKey) AI_RESPONSE_CACHE.delete(oldestKey);
   }
 
-  const key = simpleHash(normalizeForCache(message) + ':' + userId);
   AI_RESPONSE_CACHE.set(key, { response, timestamp: Date.now(), intent });
 }
 

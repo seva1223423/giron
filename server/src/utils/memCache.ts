@@ -38,6 +38,13 @@ export class MemCache<T = unknown> {
       const oldest = this.store.keys().next().value;
       if (oldest !== undefined) this.store.delete(oldest);
     }
+    // Delete-then-set so updates to an existing key move it to the BACK
+    // of iteration order (recency-correct LRU). A plain `set` on an
+    // existing key updates the value but leaves iteration position
+    // untouched — so a hot key set first would sit at the front and
+    // get wrongfully evicted on the next eviction sweep. Same bug
+    // pattern as activityTracker.ts (commit ab90086).
+    this.store.delete(key);
     this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
   }
 
