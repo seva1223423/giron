@@ -709,6 +709,53 @@ describe('DELETE /api/admin/announcements/:id', () => {
   });
 });
 
+// ─── POST /api/admin/test-notification ───────────────────────────────────────
+
+describe('POST /api/admin/test-notification', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/admin/test-notification').send({ channel: 'push' });
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin role', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .post('/api/admin/test-notification')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`)
+      .send({ channel: 'push' });
+    expect(res.status).toBe(403);
+  });
+
+  it('400 on invalid channel', async () => {
+    const res = await request(app)
+      .post('/api/admin/test-notification')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ channel: 'sms' });
+    expect(res.status).toBe(400);
+  });
+
+  it('200 with default channel=both, returns pushSent+emailSent flags', async () => {
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') {
+        return Promise.resolve({ ...adminUser, email: 'admin@test.com', firstName: 'Founder' });
+      }
+      return Promise.resolve(adminUser);
+    });
+
+    const res = await request(app)
+      .post('/api/admin/test-notification')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+
+    // Both branches are best-effort — without mocking pushService /
+    // emailService the calls will fail (no real Expo / SMTP). The
+    // endpoint should still 200 with errors object surfacing why.
+    expect(res.status).toBe(200);
+    expect(typeof res.body.pushSent).toBe('boolean');
+    expect(typeof res.body.emailSent).toBe('boolean');
+  });
+});
+
 // ─── GET /api/admin/cron-health ──────────────────────────────────────────────
 
 describe('GET /api/admin/cron-health', () => {

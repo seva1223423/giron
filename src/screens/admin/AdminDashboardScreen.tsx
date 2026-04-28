@@ -661,6 +661,32 @@ export default function AdminDashboardScreen() {
               {me.lastWorkoutVolume ? ` · ${Math.round(me.lastWorkoutVolume)}кг объём` : ''}
             </Text>
           )}
+          {/* Test notification button — verifies push + email work
+              end-to-end from the dashboard without waiting for the
+              activation cron tick. Uses Alert for inline feedback. */}
+          <TouchableOpacity
+            style={styles.meTestBtn}
+            onPress={async () => {
+              try {
+                const result = await adminService.sendTestNotification('both');
+                const lines = [
+                  `Push: ${result.pushSent ? '✓ отправлено' : '✗ не доставлено'}`,
+                  `Email: ${result.emailSent ? '✓ отправлено' : '✗ не доставлено'}`,
+                ];
+                if (result.errors) {
+                  for (const [ch, msg] of Object.entries(result.errors)) {
+                    lines.push(`${ch}: ${msg}`);
+                  }
+                }
+                Alert.alert('Тестовое уведомление', lines.join('\n'));
+              } catch (e: any) {
+                Alert.alert('Ошибка', e?.message ?? 'Не удалось отправить тест');
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.meTestBtnText}>📤 Отправить тестовое уведомление</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -1368,6 +1394,8 @@ const styles = StyleSheet.create({
   meStatLabel: { fontSize: 9, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   meStatValue: { fontSize: 14, color: '#E5E7EB', fontWeight: '700' },
   meRow: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  meTestBtn: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#8B5CF640', backgroundColor: '#8B5CF610', alignItems: 'center' },
+  meTestBtnText: { fontSize: 12, fontWeight: '600', color: '#A78BFA' },
   cronRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   cronDot: { width: 8, height: 8, borderRadius: 4 },
   cronName: { flex: 1, fontSize: 12, color: '#E5E7EB', fontWeight: '600' },

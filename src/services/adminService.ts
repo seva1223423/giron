@@ -183,6 +183,24 @@ export const adminService = {
     return res.data;
   },
 
+  /**
+   * POST /admin/test-notification — fire a test push and/or email to
+   * the calling admin's account. Always per-actor (no userId param) so
+   * it can't be used to spam other users. `channel` selects which
+   * channel(s) to test; default is both.
+   *
+   * Resolves to per-channel sent flags; an error object is included
+   * when one or both channels failed (the endpoint still 200s).
+   */
+  async sendTestNotification(channel: 'push' | 'email' | 'both' = 'both'): Promise<{
+    pushSent: boolean;
+    emailSent: boolean;
+    errors?: Record<string, string>;
+  }> {
+    const res = await api.post('/admin/test-notification', { channel });
+    return res.data;
+  },
+
   // ── Analytics ─────────────────────────────────────────────────────────────
   async getAnalytics(days?: number): Promise<AdminAnalytics> {
     const res = await api.get('/admin/analytics', { params: { days } });
