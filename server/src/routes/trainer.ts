@@ -256,7 +256,10 @@ function generateInviteCode(): string {
  * re-linking must go through a disconnect flow first.
  *
  * Response: { code, expiresAt? } — code stays valid until accepted or
- * regenerated. No expiry yet (TODO: add 7-day window once we have cron).
+ * regenerated, OR until 7 days after invitedAt (enforced lazily at
+ * /accept-invite time via INVITE_TTL_MS, see line 332). No background
+ * cron sweeps expired codes — Postgres cron extensions aren't portable
+ * across Neon/Yandex/Render and lazy expiry is free.
  */
 router.post('/clients/:id/invite', authenticate, requireTrainerRole as any, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
