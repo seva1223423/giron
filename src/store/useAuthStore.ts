@@ -16,6 +16,23 @@ const normalizeUser = (user: User): User => ({
   role: user.role ? (user.role.toLowerCase() as User['role']) : user.role,
 });
 
+/**
+ * Decide whether a user has already completed onboarding by looking at the
+ * three required profile fields the wizard collects (gender, height, weight).
+ * Used in every login action so a re-login after a session-expired logout
+ * doesn't bounce a fully-onboarded user back through the welcome flow —
+ * which is the bug the founder hit after the first Render redeploy.
+ *
+ * `goal` and `fitnessLevel` are intentionally NOT checked: legacy users
+ * who registered pre-onboarding flow may have nullable values there;
+ * gender + heightCm + weightKg is the strict subset that the wizard
+ * always sets.
+ */
+function deriveOnboarded(user: User | null | undefined): boolean {
+  if (!user) return false;
+  return Boolean(user.gender && user.heightCm && user.weightKg);
+}
+
 interface AuthStore {
   user: User | null;
   token: string | null;
@@ -111,11 +128,15 @@ export const useAuthStore = create<AuthStore>()(
           }
           const authResponse = response as import('../services/authService').AuthResponse;
           await tokenStorage.setTokens(authResponse.token, authResponse.refreshToken);
+          const normalized = normalizeUser(authResponse.user);
           set({
-            user: normalizeUser(authResponse.user),
+            user: normalized,
             token: authResponse.token,
             refreshToken: authResponse.refreshToken,
             isAuthenticated: true,
+            // Restore onboarding flag from server-side profile data — fixes
+            // the "wizard runs again on every re-login" bug.
+            isOnboarded: deriveOnboarded(normalized),
             isLoading: false,
             totpPendingToken: null,
           });
@@ -138,11 +159,13 @@ export const useAuthStore = create<AuthStore>()(
           if (response.deviceToken) {
             await tokenStorage.setDeviceToken(response.deviceToken);
           }
+          const normalized = normalizeUser(response.user);
           set({
-            user: normalizeUser(response.user),
+            user: normalized,
             token: response.token,
             refreshToken: response.refreshToken,
             isAuthenticated: true,
+            isOnboarded: deriveOnboarded(normalized),
             isLoading: false,
             totpPendingToken: null,
             ...(response.deviceToken ? { deviceToken: response.deviceToken } : {}),
@@ -168,7 +191,8 @@ export const useAuthStore = create<AuthStore>()(
           }
           const ar = response as AuthResponse;
           await tokenStorage.setTokens(ar.token, ar.refreshToken);
-          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
+          const normalizedG = normalizeUser(ar.user);
+          set({ user: normalizedG, token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedG), isLoading: false });
         } catch (e) {
           if ((e as any).code !== 'TOTP_REQUIRED') {
             const apiError = getApiError(e);
@@ -190,7 +214,8 @@ export const useAuthStore = create<AuthStore>()(
           }
           const ar = response as AuthResponse;
           await tokenStorage.setTokens(ar.token, ar.refreshToken);
-          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
+          const normalizedV = normalizeUser(ar.user);
+          set({ user: normalizedV, token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedV), isLoading: false });
         } catch (e) {
           if ((e as any).code !== 'TOTP_REQUIRED') {
             const apiError = getApiError(e);
@@ -212,7 +237,8 @@ export const useAuthStore = create<AuthStore>()(
           }
           const ar = response as AuthResponse;
           await tokenStorage.setTokens(ar.token, ar.refreshToken);
-          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
+          const normalizedY = normalizeUser(ar.user);
+          set({ user: normalizedY, token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedY), isLoading: false });
         } catch (e) {
           if ((e as any).code !== 'TOTP_REQUIRED') {
             const apiError = getApiError(e);
@@ -234,7 +260,8 @@ export const useAuthStore = create<AuthStore>()(
           }
           const ar = response as AuthResponse;
           await tokenStorage.setTokens(ar.token, ar.refreshToken);
-          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
+          const normalizedM = normalizeUser(ar.user);
+          set({ user: normalizedM, token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedM), isLoading: false });
         } catch (e) {
           if ((e as any).code !== 'TOTP_REQUIRED') {
             const apiError = getApiError(e);
@@ -249,7 +276,8 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authService.loginByPhone(phone, code);
           await tokenStorage.setTokens(response.token, response.refreshToken);
-          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+          const normalizedP = normalizeUser(response.user);
+          set({ user: normalizedP, token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedP), isLoading: false });
         } catch (e) {
           const apiError = getApiError(e);
           set({ isLoading: false, error: apiError.message });
@@ -262,11 +290,17 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await authService.register(params);
           await tokenStorage.setTokens(response.token, response.refreshToken);
+          const normalizedR = normalizeUser(response.user);
           set({
-            user: normalizeUser(response.user),
+            user: normalizedR,
             token: response.token,
             refreshToken: response.refreshToken,
             isAuthenticated: true,
+            // Brand-new users always start with isOnboarded=false because
+            // the registration payload doesn't carry profile data yet.
+            // Edge case: if /register ever starts echoing back an existing
+            // user with a filled profile, this still does the right thing.
+            isOnboarded: deriveOnboarded(normalizedR),
             isLoading: false,
           });
         } catch (e) {
@@ -319,7 +353,12 @@ export const useAuthStore = create<AuthStore>()(
       fetchProfile: async () => {
         try {
           const user = await userService.getProfile();
-          set({ user: normalizeUser(user) });
+          const normalized = normalizeUser(user);
+          // Re-derive isOnboarded — covers edge cases where the local flag
+          // got out of sync with server state (manual DB edit, multi-device
+          // login where profile was completed elsewhere, persisted v3 state
+          // from a build that didn't track it correctly).
+          set({ user: normalized, isOnboarded: deriveOnboarded(normalized) });
           // Sync server-persisted nutrition targets (set by AI coach) to local store
           const u = user as any;
           if (u.targetCalories || u.targetProtein || u.targetFats || u.targetCarbs || u.targetWaterMl) {
