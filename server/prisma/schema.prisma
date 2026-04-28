@@ -38,7 +38,6 @@ model User {
 
   vkId                    String?   @unique
   yandexId                String?   @unique
-  okId                    String?   @unique
   mailruId                String?   @unique
   phoneVerified           Boolean   @default(false)
 
@@ -458,7 +457,7 @@ model TrainerClient {
   invitedAt       DateTime?
   acceptedAt      DateTime?
   clientUserId    String?
-  clientUser      User?             @relation("ClientIsUser", fields: [clientUserId], references: [id], onDelete: SetNull)
+  clientUser      User?             @relation("ClientIsUser", fields: [clientUserId], references: [id], onDelete: Cascade)
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
