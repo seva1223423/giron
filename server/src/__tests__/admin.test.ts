@@ -759,6 +759,8 @@ describe('GET /api/admin/me', () => {
     totpEnabled: false,
     emailVerified: true,
     phoneVerified: false,
+    onboardingStepLog: null,
+    onboardingCompletedAt: null,
   };
 
   it('401 without token', async () => {
@@ -802,6 +804,39 @@ describe('GET /api/admin/me', () => {
     expect(res.body.pushTokens.count).toBe(0);
     expect(res.body.subscription.plan).toBe('free');
     expect(typeof res.body.now).toBe('string');
+    // Onboarding block — null fields surface as "never started"
+    expect(res.body.onboarding).toMatchObject({
+      completed: false,
+      maxStepReached: null,
+    });
+  });
+
+  it('reflects onboarding step state from onboardingStepLog', async () => {
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') {
+        return Promise.resolve({
+          ...adminUser,
+          ...baseAdminProfile,
+          onboardingStepLog: {
+            '0': '2026-04-20T10:00:00Z',
+            '1': '2026-04-20T10:01:00Z',
+            '2': '2026-04-20T10:02:00Z',
+          },
+          onboardingCompletedAt: null,
+        });
+      }
+      return Promise.resolve(adminUser);
+    });
+
+    const res = await request(app)
+      .get('/api/admin/me')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.onboarding.completed).toBe(false);
+    expect(res.body.onboarding.maxStepReached).toBe(2);
+    expect(res.body.onboarding.stepLog).toHaveProperty('0');
+    expect(res.body.onboarding.stepLog).toHaveProperty('2');
   });
 
   it('reflects activated user state when firstChatAt is set', async () => {
