@@ -612,7 +612,13 @@ export default function AdminDashboardScreen() {
                 {me.user.totpEnabled ? '🔒 2FA' : '🔓 Без 2FA'}
               </Text>
             </View>
-            {/* Onboarding completion status — null on legacy accounts. */}
+            {/* Onboarding completion status — null on legacy accounts.
+                Wording note: maxStepReached=N means the user submitted step
+                N's data via the Next button (recordStep is fired before
+                advancing). So "completed N+1 / 5 steps" reads correctly:
+                if they clicked Next on step 0 only, maxStepReached=0 →
+                "пройдено 1/5". The previous wording "шаг N/5" was
+                ambiguous about whether they were on or had completed N. */}
             {me.onboarding && (
               <View style={[
                 styles.meChip,
@@ -626,7 +632,7 @@ export default function AdminDashboardScreen() {
                   {me.onboarding.completed
                     ? '✓ Онбординг'
                     : me.onboarding.maxStepReached !== null
-                      ? `→ онбординг шаг ${me.onboarding.maxStepReached + 1}/5`
+                      ? `→ пройдено ${me.onboarding.maxStepReached + 1}/5`
                       : '○ Онбординг не начат'}
                 </Text>
               </View>
