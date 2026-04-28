@@ -1183,7 +1183,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
  */
 router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'ok', 'google']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'ok', 'google', 'mailru']).parse(req.params.provider);
     const { accessToken, userId: claimedUserId, currentPassword, totpCode } = z.object({
       accessToken: z.string().min(1, 'accessToken обязателен'),
       userId: z.string().optional(),
@@ -1234,7 +1234,7 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
     }
 
     let providerId: string;
-    let fieldName: 'vkId' | 'yandexId' | 'okId' | 'googleId';
+    let fieldName: 'vkId' | 'yandexId' | 'okId' | 'googleId' | 'mailruId';
 
     if (provider === 'vk') {
       if (!process.env.VK_APP_ID) {
@@ -1308,8 +1308,7 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       fieldName = 'googleId';
       providerId = String(googlePayload.sub);
 
-    } else {
-      // provider === 'ok'
+    } else if (provider === 'ok') {
       let okData: { uid?: string; name?: string; error_code?: number; error_msg?: string };
       try {
         const okResp = await fetch(
@@ -1331,6 +1330,26 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       }
       fieldName = 'okId';
       providerId = okData.uid;
+
+    } else {
+      // provider === 'mailru'
+      let mailruData: { id?: string; error?: string; message?: string };
+      try {
+        const mailruResp = await fetch(
+          `https://oauth.mail.ru/userinfo?access_token=${encodeURIComponent(accessToken)}`,
+          { signal: AbortSignal.timeout(10_000) },
+        );
+        if (!mailruResp.ok) throw new Error(`Mail.ru API error: ${mailruResp.status}`);
+        mailruData = await mailruResp.json() as typeof mailruData;
+      } catch (e: any) {
+        logger.warn('Mail.ru token validation failed (link):', e.message);
+        return res.status(401).json({ error: 'Не удалось проверить токен Mail.ru', code: 'INVALID_TOKEN' });
+      }
+      if (mailruData.error || !mailruData.id) {
+        return res.status(401).json({ error: 'Недействительный токен Mail.ru', code: 'INVALID_TOKEN' });
+      }
+      fieldName = 'mailruId';
+      providerId = String(mailruData.id);
     }
 
     // Check the provider ID is not already linked to a DIFFERENT account
@@ -1371,11 +1390,11 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
  */
 router.delete('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'google']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'google', 'ok', 'mailru']).parse(req.params.provider);
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true },
+      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true, okId: true, mailruId: true },
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
@@ -1383,6 +1402,8 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
       yandex: 'yandexId',
       vk: 'vkId',
       google: 'googleId',
+      ok: 'okId',
+      mailru: 'mailruId',
     };
 
     if (!user[fieldMap[provider]]) {
@@ -1390,7 +1411,7 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
     }
 
     // Ensure user won't lose all login methods
-    const otherProviders = (['google', 'vk', 'yandex'] as const)
+    const otherProviders = (['google', 'vk', 'yandex', 'ok', 'mailru'] as const)
       .filter((p) => p !== provider)
       .filter((p) => !!user[fieldMap[p]]);
     if (!user.passwordHash && otherProviders.length === 0) {

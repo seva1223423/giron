@@ -119,6 +119,8 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         if (check.hasGoogle) methods.push('Google');
         if (check.hasVk) methods.push('VK');
         if (check.hasYandex) methods.push('Яндекс');
+        if (check.hasOk) methods.push('OK.ru');
+        if (check.hasMailru) methods.push('Mail.ru');
         const hint = methods.length > 0
           ? ` Войдите через ${methods.join(' / ')}.`
           : '';
@@ -194,12 +196,15 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     clearErrors();
     setYandexLoading(true);
     try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/yandex' });
-      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type === 'success') {
         const fragment = result.url.split('#')[1] || '';
         const params = new URLSearchParams(fragment);
+        const returnedState = params.get('state');
+        if (returnedState !== state) { setLocalError('Ошибка безопасности: невалидный state'); return; }
         const accessToken = params.get('access_token');
         if (accessToken) {
           await loginWithYandex(accessToken);
@@ -219,12 +224,15 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     clearErrors();
     setVkLoading(true);
     try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/vk' });
-      const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email`;
+      const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type === 'success') {
         const fragment = result.url.split('#')[1] || '';
         const params = new URLSearchParams(fragment);
+        const returnedState = params.get('state');
+        if (returnedState !== state) { setLocalError('Ошибка безопасности: невалидный state'); return; }
         const accessToken = params.get('access_token');
         const userId = parseInt(params.get('user_id') || '0', 10);
         const email = params.get('email') || undefined;
@@ -247,12 +255,15 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     clearErrors();
     setOkLoading(true);
     try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/ok' });
-      const authUrl = `https://connect.ok.ru/oauth/authorize?client_id=${OK_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=VALUABLE_ACCESS`;
+      const authUrl = `https://connect.ok.ru/oauth/authorize?client_id=${OK_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=VALUABLE_ACCESS&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type !== 'success') return;
       const fragment = result.url.split('#')[1] ?? '';
       const params = new URLSearchParams(fragment);
+      const returnedState = params.get('state');
+      if (returnedState !== state) { setLocalError('Ошибка безопасности: невалидный state'); return; }
       const accessToken = params.get('access_token');
       const userId = params.get('logged_in_as');
       if (!accessToken || !userId) { setLocalError('Не удалось получить данные от OK.ru'); return; }
@@ -269,12 +280,15 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     clearErrors();
     setMailruLoading(true);
     try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/mailru' });
-      const authUrl = `https://oauth.mail.ru/login?client_id=${MAILRU_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=userinfo`;
+      const authUrl = `https://oauth.mail.ru/login?client_id=${MAILRU_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=userinfo&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type !== 'success') return;
       const fragment = result.url.split('#')[1] ?? '';
       const params = new URLSearchParams(fragment);
+      const returnedState = params.get('state');
+      if (returnedState !== state) { setLocalError('Ошибка безопасности: невалидный state'); return; }
       const accessToken = params.get('access_token');
       if (!accessToken) { setLocalError('Не удалось получить токен от Mail.ru'); return; }
       await useAuthStore.getState().loginWithMailru(accessToken);

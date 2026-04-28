@@ -36,6 +36,7 @@ const LEVEL_LABELS: Record<string, string> = {
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
 const OK_APP_ID = process.env.EXPO_PUBLIC_OK_APP_ID;
+const MAILRU_APP_ID = process.env.EXPO_PUBLIC_MAILRU_APP_ID;
 const googleConfigured = !!(
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
@@ -160,7 +161,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
   const unlockedAchievements = achievements.filter((a) => a.unlockedAt);
 
-  const handleUnlink = (provider: 'yandex' | 'vk' | 'google', label: string) => {
+  const handleUnlink = (provider: 'yandex' | 'vk' | 'google' | 'ok' | 'mailru', label: string) => {
     Alert.alert(
       `Отвязать ${label}?`,
       'Вы больше не сможете входить через этот аккаунт.',
@@ -189,12 +190,15 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     if (!VK_APP_ID) { Alert.alert('Ошибка', 'VK OAuth не настроен'); return; }
     setLinkingProvider('vk');
     try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/vk' });
-      const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email`;
+      const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type !== 'success') return;
       const fragment = result.url.split('#')[1] ?? '';
       const params = new URLSearchParams(fragment);
+      const returnedState = params.get('state');
+      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
       const accessToken = params.get('access_token');
       const userId = params.get('user_id');
       if (!accessToken || !userId) { Alert.alert('Ошибка', 'Не удалось получить данные от VK'); return; }
@@ -211,12 +215,15 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     if (!YANDEX_CLIENT_ID) { Alert.alert('Ошибка', 'Yandex OAuth не настроен'); return; }
     setLinkingProvider('yandex');
     try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/yandex' });
-      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type !== 'success') return;
       const fragment = result.url.split('#')[1] ?? '';
       const params = new URLSearchParams(fragment);
+      const returnedState = params.get('state');
+      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
       const accessToken = params.get('access_token');
       if (!accessToken) { Alert.alert('Ошибка', 'Не удалось получить токен от Яндекса'); return; }
       await userService.linkProvider('yandex', { accessToken });
@@ -232,12 +239,15 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     if (!OK_APP_ID) { Alert.alert('Ошибка', 'OK.ru OAuth не настроен'); return; }
     setLinkingProvider('ok');
     try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/ok' });
-      const authUrl = `https://connect.ok.ru/oauth/authorize?client_id=${OK_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=VALUABLE_ACCESS`;
+      const authUrl = `https://connect.ok.ru/oauth/authorize?client_id=${OK_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=VALUABLE_ACCESS&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type !== 'success') return;
       const fragment = result.url.split('#')[1] ?? '';
       const params = new URLSearchParams(fragment);
+      const returnedState = params.get('state');
+      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
       const accessToken = params.get('access_token');
       const userId = params.get('logged_in_as');
       if (!accessToken || !userId) { Alert.alert('Ошибка', 'Не удалось получить данные от OK.ru'); return; }
@@ -245,6 +255,30 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       await useAuthStore.getState().fetchProfile();
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать OK.ru');
+    } finally {
+      setLinkingProvider(null);
+    }
+  };
+
+  const handleLinkMailru = async () => {
+    if (!MAILRU_APP_ID) { Alert.alert('Ошибка', 'Mail.ru OAuth не настроен'); return; }
+    setLinkingProvider('mailru');
+    try {
+      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/mailru' });
+      const authUrl = `https://oauth.mail.ru/login?client_id=${MAILRU_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=userinfo&state=${state}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type !== 'success') return;
+      const fragment = result.url.split('#')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const returnedState = params.get('state');
+      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
+      const accessToken = params.get('access_token');
+      if (!accessToken) { Alert.alert('Ошибка', 'Не удалось получить токен от Mail.ru'); return; }
+      await userService.linkProvider('mailru', { accessToken });
+      await useAuthStore.getState().fetchProfile();
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Mail.ru');
     } finally {
       setLinkingProvider(null);
     }
@@ -835,6 +869,74 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
             >
               <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Linked social accounts — OK.ru */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.okId ? '#EE820818' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.okId ? '#EE820840' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.okId ? '#EE8208' : colors.textSecondary }}>ОК</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>OK.ru</Text>
+            <Text style={[typography.caption, { color: user?.okId ? '#34C759' : colors.textTertiary }]}>
+              {user?.okId ? 'Привязан' : 'Не привязан'}
+            </Text>
+          </View>
+          {user?.okId ? (
+            <TouchableOpacity
+              onPress={() => handleUnlink('ok', 'OK.ru')}
+              disabled={unlinkingProvider === 'ok'}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
+                {unlinkingProvider === 'ok' ? '...' : 'Отвязать'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={handleLinkOk}
+              disabled={linkingProvider === 'ok'}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+                {linkingProvider === 'ok' ? '...' : 'Привязать'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Linked social accounts — Mail.ru */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.mailruId ? '#FF660018' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.mailruId ? '#FF660040' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.mailruId ? '#FF6600' : colors.textSecondary }}>M</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Mail.ru</Text>
+            <Text style={[typography.caption, { color: user?.mailruId ? '#34C759' : colors.textTertiary }]}>
+              {user?.mailruId ? 'Привязан' : 'Не привязан'}
+            </Text>
+          </View>
+          {user?.mailruId ? (
+            <TouchableOpacity
+              onPress={() => handleUnlink('mailru', 'Mail.ru')}
+              disabled={unlinkingProvider === 'mailru'}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
+                {unlinkingProvider === 'mailru' ? '...' : 'Отвязать'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={handleLinkMailru}
+              disabled={linkingProvider === 'mailru'}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+                {linkingProvider === 'mailru' ? '...' : 'Привязать'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

@@ -18,6 +18,8 @@ export interface CheckEmailResponse {
   hasGoogle?: boolean;
   hasVk?: boolean;
   hasYandex?: boolean;
+  hasOk?: boolean;
+  hasMailru?: boolean;
 }
 
 export interface TotpVerifyResponse extends AuthResponse {
