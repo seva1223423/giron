@@ -7,7 +7,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { adminService } from '../../services/adminService';
+import { adminService, type AdminMe } from '../../services/adminService';
 import type { AdminStats, AdminAnalytics, AdminLog } from '../../types';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
@@ -182,6 +182,7 @@ function MemBar({
 export default function AdminDashboardScreen() {
   const navigation = useNavigation<AdminNav>();
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [me, setMe] = useState<AdminMe | null>(null);
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -214,16 +215,21 @@ export default function AdminDashboardScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [statsData, analyticsData, logsData, feedData] = await Promise.all([
+      const [statsData, analyticsData, logsData, feedData, meData] = await Promise.all([
         adminService.getStats(),
         adminService.getAnalytics(7),
         adminService.getLogs({ limit: 6 }),
         adminService.getActivityFeed(),
+        // /admin/me is uncached and per-actor — degrade gracefully if it
+        // 500s so the rest of the dashboard still renders. Founder card
+        // simply hides when null.
+        adminService.getMe().catch(() => null),
       ]);
       setStats(statsData);
       setAnalytics(analyticsData);
       setRecentLogs(logsData.logs);
       setActivityFeed(feedData);
+      setMe(meData);
       setLastRefreshed(new Date());
     } finally {
       setLoading(false);
@@ -555,6 +561,84 @@ export default function AdminDashboardScreen() {
             ))}
           </View>
         </>
+      )}
+
+      {/* ── Your account (founder self-status) ─────────────────────────
+          Surfaces the answers to the questions sevka asks every session:
+          push tokens registered? activation email fired? subscription?
+          Last AI msg / workout? Lets him spot account-specific issues
+          (e.g. "why didn't I get the activation push?") without paging
+          through user detail screens. Hides if /admin/me 500s. */}
+      {me && (
+        <View style={styles.meCard}>
+          <View style={styles.meHeaderRow}>
+            <Text style={styles.quickActionsTitle}>Твой аккаунт</Text>
+            <Text style={styles.meHeaderSub}>{me.user.email}</Text>
+          </View>
+          <View style={styles.meChipRow}>
+            {/* Activation funnel state — green if activated, amber if push fired but no first chat, red if neither. */}
+            <View style={[
+              styles.meChip,
+              me.activation.activated
+                ? styles.meChipOk
+                : me.activation.pushFired || me.activation.emailFired
+                  ? styles.meChipWarn
+                  : styles.meChipBad,
+            ]}>
+              <Text style={styles.meChipText}>
+                {me.activation.activated
+                  ? '✓ Активирован'
+                  : me.activation.pushFired || me.activation.emailFired
+                    ? '⚠ Напоминание отправлено'
+                    : '✗ Не активирован'}
+              </Text>
+            </View>
+            <View style={[styles.meChip, me.pushTokens.count > 0 ? styles.meChipOk : styles.meChipWarn]}>
+              <Text style={styles.meChipText}>
+                {me.pushTokens.count > 0 ? `🔔 ${me.pushTokens.count} push` : '🔕 Без push'}
+              </Text>
+            </View>
+            <View style={[styles.meChip, me.subscription.plan !== 'free' ? styles.meChipOk : styles.meChipNeutral]}>
+              <Text style={styles.meChipText}>
+                💳 {me.subscription.plan.toUpperCase()}
+              </Text>
+            </View>
+            <View style={[styles.meChip, me.user.totpEnabled ? styles.meChipOk : styles.meChipWarn]}>
+              <Text style={styles.meChipText}>
+                {me.user.totpEnabled ? '🔒 2FA' : '🔓 Без 2FA'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.meStatRow}>
+            <View style={styles.meStat}>
+              <Text style={styles.meStatLabel}>Push-нудж</Text>
+              <Text style={styles.meStatValue}>{me.activation.pushFired ? 'Да' : 'Нет'}</Text>
+            </View>
+            <View style={styles.meStat}>
+              <Text style={styles.meStatLabel}>Email-нудж</Text>
+              <Text style={styles.meStatValue}>{me.activation.emailFired ? 'Да' : 'Нет'}</Text>
+            </View>
+            <View style={styles.meStat}>
+              <Text style={styles.meStatLabel}>Сессий</Text>
+              <Text style={styles.meStatValue}>{me.activeSessionCount}</Text>
+            </View>
+            <View style={styles.meStat}>
+              <Text style={styles.meStatLabel}>Дней с регистрации</Text>
+              <Text style={styles.meStatValue}>{me.activation.daysSinceSignup ?? '—'}</Text>
+            </View>
+          </View>
+          {me.lastChatAt && (
+            <Text style={styles.meRow}>
+              Последний AI-чат: {new Date(me.lastChatAt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}
+            </Text>
+          )}
+          {me.lastWorkoutAt && (
+            <Text style={styles.meRow}>
+              Последняя тренировка: {new Date(me.lastWorkoutAt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}
+              {me.lastWorkoutVolume ? ` · ${Math.round(me.lastWorkoutVolume)}кг объём` : ''}
+            </Text>
+          )}
+        </View>
       )}
 
       {/* ── Quick actions ────────────────────────────────────────────── */}
@@ -1201,6 +1285,23 @@ const styles = StyleSheet.create({
   onlineAvatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#10B98130', justifyContent: 'center', alignItems: 'center' },
   onlineAvatarText: { fontSize: 9, fontWeight: '700', color: '#10B981' },
   onlineName: { fontSize: 11, color: '#10B981', fontWeight: '600', maxWidth: 70 },
+
+  // Founder self-status card (/admin/me)
+  meCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#8B5CF640' },
+  meHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
+  meHeaderSub: { fontSize: 11, color: '#6B7280' },
+  meChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  meChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  meChipOk: { backgroundColor: '#10B98115', borderColor: '#10B98140' },
+  meChipWarn: { backgroundColor: '#F59E0B15', borderColor: '#F59E0B40' },
+  meChipBad: { backgroundColor: '#EF444415', borderColor: '#EF444440' },
+  meChipNeutral: { backgroundColor: '#6B728015', borderColor: '#6B728040' },
+  meChipText: { fontSize: 11, fontWeight: '600', color: '#E5E7EB' },
+  meStatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 10 },
+  meStat: { minWidth: '22%' },
+  meStatLabel: { fontSize: 9, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  meStatValue: { fontSize: 14, color: '#E5E7EB', fontWeight: '700' },
+  meRow: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
 
   // Quick actions card
   quickActionsCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },

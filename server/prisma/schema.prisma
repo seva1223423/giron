@@ -63,9 +63,28 @@ model User {
   firstChatAt             DateTime?
   lastActiveAt            DateTime?
   activationPushSentAt    DateTime?
+  /// Parallel email-channel flag for users who never installed the app
+  /// (no push token). The activation cron sends both push AND email so
+  /// the silent-majority cohort that registered via curl/web still gets
+  /// reached. Each channel has its own write-once flag so a successful
+  /// send on one doesn't suppress the other.
+  activationEmailSentAt   DateTime?
   reactivation7dSentAt    DateTime?
   reactivation14dSentAt   DateTime?
   reactivation30dSentAt   DateTime?
+
+  /// Onboarding funnel telemetry. Map of step number (0..4) → ISO
+  /// timestamp, upserted by POST /user/onboarding/step as the user
+  /// advances through OnboardingScreen. First-touch only — once a step's
+  /// timestamp is recorded, subsequent revisits don't overwrite it. Lets
+  /// the admin metrics endpoint compute drop-off rates per step without
+  /// needing a separate event table. Null until the first step submission.
+  onboardingStepLog       Json?
+  /// Set when the user submits the final step (Days). Independent of
+  /// `onboardingStepLog["4"]` so cohort filters can use a simple non-null
+  /// check without parsing JSON. Drives "median time-to-onboarded"
+  /// metric: onboardingCompletedAt - createdAt.
+  onboardingCompletedAt   DateTime?
 
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt

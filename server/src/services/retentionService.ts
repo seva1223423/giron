@@ -3,6 +3,7 @@ import { sendPushToUser } from './pushService';
 import {
   sendWeeklySummaryEmail,
   sendPreRenewalNotificationEmail,
+  sendActivationReminderEmail,
   type WeeklySummaryStats,
 } from './emailService';
 import { logger } from '../utils/logger';
@@ -24,56 +25,106 @@ import { reportError } from '../utils/errorReporter';
  */
 
 /**
- * Activation push: users registered ≥24h ago who never sent an AI message.
- * Goal: convert install → first conversation. Single push per user, never
- * retried.
+ * Activation cohort: users registered ≥24h ago who never sent an AI
+ * message. Goal: convert install/signup → first conversation. Two
+ * channels run in parallel:
  *
- * Returns the number of pushes sent for observability.
+ *   PUSH — sent if user has at least one push token (i.e. opened the
+ *          app at least once and granted notifications). Gated by
+ *          activationPushSentAt.
+ *   EMAIL — sent if user has an email AND email channel hasn't fired
+ *           yet. Gated by activationEmailSentAt. Reaches the silent
+ *           majority that signed up via web/curl/Telegram CTA but
+ *           never opened the mobile app.
+ *
+ * Each channel has its own write-once flag; firing on one doesn't
+ * suppress the other so a user with both push + email gets a
+ * coordinated nudge across channels. Internal email-domain accounts
+ * (e.g. ok_*@irongym.internal from the legacy OK.ru flow) are skipped
+ * via the `not @irongym.internal` filter.
  */
 export async function processActivationCohort(): Promise<number> {
   const now = new Date();
   const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   try {
+    // Single query, two parallel candidate sets — anyone who needs
+    // either push or email or both. Kept generous (300) because the
+    // cron is hourly and most ticks find 0 candidates anyway.
     const candidates = await prisma.user.findMany({
       where: {
         firstChatAt: null,
-        activationPushSentAt: null,
         createdAt: { lt: cutoff },
         isBanned: false,
-        // Has at least one push token registered
-        pushTokens: { some: {} },
+        OR: [
+          { activationPushSentAt: null, pushTokens: { some: {} } },
+          { activationEmailSentAt: null, NOT: { email: { endsWith: '@irongym.internal' } } },
+        ],
       },
-      select: { id: true, firstName: true },
-      take: 200, // Hard cap per tick — protect Expo quota even if backlog spikes
+      select: {
+        id: true,
+        firstName: true,
+        email: true,
+        activationPushSentAt: true,
+        activationEmailSentAt: true,
+        pushTokens: { select: { id: true }, take: 1 },
+      },
+      take: 300,
     });
 
     if (candidates.length === 0) return 0;
 
-    let sent = 0;
+    let pushSent = 0;
+    let emailSent = 0;
     for (const user of candidates) {
       const greeting = user.firstName ? `${user.firstName}, ` : '';
-      try {
-        await sendPushToUser(user.id, {
-          title: 'Iron Coach ждёт первого вопроса',
-          body: `${greeting}задай ИИ-тренеру вопрос — программа, питание, техника. 30 секунд и план готов.`,
-          data: { url: 'irongym://ai', cohort: 'activation' },
-        });
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { activationPushSentAt: now },
-        });
-        sent++;
-      } catch (err) {
-        reportError(err as Error, {
-          userId: user.id,
-          tags: { origin: 'retention-activation' },
-        });
+
+      // Push path
+      if (!user.activationPushSentAt && user.pushTokens.length > 0) {
+        try {
+          await sendPushToUser(user.id, {
+            title: 'Iron Coach ждёт первого вопроса',
+            body: `${greeting}задай ИИ-тренеру вопрос — программа, питание, техника. 30 секунд и план готов.`,
+            data: { url: 'irongym://ai', cohort: 'activation' },
+          });
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { activationPushSentAt: now },
+          });
+          pushSent++;
+        } catch (err) {
+          reportError(err as Error, {
+            userId: user.id,
+            tags: { origin: 'retention-activation-push' },
+          });
+        }
+      }
+
+      // Email path — same eligibility window but separate gate. Skips
+      // users without a real email (synthetic *@irongym.internal stubs
+      // from legacy OAuth flows would bounce on every send and waste
+      // the SMTP quota).
+      if (!user.activationEmailSentAt && user.email && !user.email.endsWith('@irongym.internal')) {
+        try {
+          await sendActivationReminderEmail(user.email, user.firstName ?? null);
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { activationEmailSentAt: now },
+          });
+          emailSent++;
+        } catch (err) {
+          reportError(err as Error, {
+            userId: user.id,
+            tags: { origin: 'retention-activation-email' },
+          });
+        }
       }
     }
 
-    logger.info(`[Retention] Activation cohort: sent ${sent}/${candidates.length}`);
-    return sent;
+    logger.info(
+      `[Retention] Activation cohort: ${pushSent} pushes + ${emailSent} emails / ${candidates.length} candidates`,
+    );
+    return pushSent + emailSent;
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'retention-activation' } });
     return 0;

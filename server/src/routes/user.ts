@@ -182,6 +182,67 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
+/**
+ * POST /user/onboarding/step — record that the authenticated user reached
+ * onboarding step N. Called by OnboardingScreen as the user advances; the
+ * server stores first-touch timestamps so admin metrics can compute
+ * step-by-step drop-off without instrumenting an event pipeline.
+ *
+ *   step 0 — gender selected
+ *   step 1 — body data submitted (height/weight/age)
+ *   step 2 — training goal selected
+ *   step 3 — fitness level selected
+ *   step 4 — training days selected (final = onboarding complete)
+ *
+ * Body: { step: 0..4 }
+ *
+ * Behaviour notes:
+ *   - First-touch only: a step's timestamp is set at most once. Idempotent
+ *     re-submissions are silently absorbed so a flaky client retry doesn't
+ *     reshape the funnel data.
+ *   - Step 4 also stamps onboardingCompletedAt for the cohort filter.
+ *   - The endpoint is best-effort from the client's perspective: failures
+ *     are logged but the client should not block the user from progressing.
+ */
+router.post('/onboarding/step', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = z.object({
+      step: z.number().int().min(0).max(4),
+    }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Некорректный шаг онбординга' });
+    }
+    const { step } = parsed.data;
+    const now = new Date();
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { onboardingStepLog: true },
+    });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    // First-touch only — preserve the original timestamp if the step was
+    // already recorded. Defending against client retries / replays that
+    // would otherwise inflate later steps' timestamps.
+    const log = (user.onboardingStepLog ?? {}) as Record<string, string>;
+    const key = String(step);
+    if (log[key]) {
+      return res.json({ ok: true, alreadyRecorded: true });
+    }
+    log[key] = now.toISOString();
+
+    const data: Record<string, any> = { onboardingStepLog: log };
+    if (step === 4) data.onboardingCompletedAt = now;
+
+    await prisma.user.update({ where: { id: req.userId }, data });
+    return res.json({ ok: true, step, recordedAt: now.toISOString() });
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
+    logger.error('POST /user/onboarding/step:', e);
+    return res.status(500).json({ error: 'Ошибка записи шага онбординга' });
+  }
+});
+
 // Update nutrition targets (КБЖУ goals)
 router.patch('/nutrition-targets', authenticate, async (req: AuthRequest, res: Response) => {
   try {

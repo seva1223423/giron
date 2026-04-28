@@ -774,3 +774,122 @@ describe('DELETE /api/user/sessions/:id', () => {
     );
   });
 });
+
+// ─── POST /api/user/onboarding/step ──────────────────────────────────────────
+
+describe('POST /api/user/onboarding/step', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/user/onboarding/step').send({ step: 0 });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when step is missing', async () => {
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when step is out of range', async () => {
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ step: 5 });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when step is negative', async () => {
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ step: -1 });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when step is not an integer', async () => {
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ step: 1.5 });
+    expect(res.status).toBe(400);
+  });
+
+  it('200 records first-touch step into onboardingStepLog', async () => {
+    // Authenticate middleware → returns mockUser. Route handler then
+    // re-queries with select: { onboardingStepLog: true } — return null
+    // so the first-time branch runs.
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser) // auth middleware
+      .mockResolvedValueOnce({ onboardingStepLog: null }); // route handler
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({});
+
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ step: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.step).toBe(1);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'u-test' },
+        data: expect.objectContaining({
+          onboardingStepLog: expect.objectContaining({ '1': expect.any(String) }),
+        }),
+      }),
+    );
+  });
+
+  it('200 alreadyRecorded=true on idempotent re-submission (does NOT overwrite)', async () => {
+    const existingLog = { '0': '2026-04-01T10:00:00.000Z' };
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce({ onboardingStepLog: existingLog });
+
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ step: 0 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.alreadyRecorded).toBe(true);
+    // Update must NOT be called — first-touch is preserved
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('200 step=4 also stamps onboardingCompletedAt', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce({ onboardingStepLog: { '0': '2026-04-01T10:00:00.000Z' } });
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({});
+
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ step: 4 });
+
+    expect(res.status).toBe(200);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          onboardingCompletedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('404 when user does not exist', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post('/api/user/onboarding/step')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ step: 0 });
+
+    expect(res.status).toBe(404);
+  });
+});

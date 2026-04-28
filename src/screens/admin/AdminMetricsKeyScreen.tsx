@@ -238,6 +238,61 @@ export default function AdminMetricsKeyScreen() {
         </View>
       </View>
 
+      {/* 6. Onboarding step funnel — surfaces the EXACT step where users
+          drop off in the 5-step flow. Only renders if the server returned
+          the block (older server builds won't have onboardingFunnel). */}
+      {metrics.onboardingFunnel && metrics.onboardingFunnel.cohortSize > 0 && (
+        <View style={[styles.card, { borderLeftColor: '#F59E0B' }]}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardIndex}>6</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardLabel}>Шаги онбординга</Text>
+              <Text style={styles.cardSub}>где именно пользователи бросают анкету</Text>
+            </View>
+          </View>
+          <FunnelStep
+            label="Шаг 1 — пол"
+            value={metrics.onboardingFunnel.reachedStep0}
+            conv={metrics.onboardingFunnel.cohortSize > 0
+              ? Math.round((metrics.onboardingFunnel.reachedStep0 / metrics.onboardingFunnel.cohortSize) * 1000) / 10
+              : 0}
+            convLabel="от cohort"
+          />
+          <FunnelStep
+            label="Шаг 2 — рост/вес/возраст"
+            value={metrics.onboardingFunnel.reachedStep1}
+            conv={metrics.onboardingFunnel.reachedStep0 > 0
+              ? Math.round((metrics.onboardingFunnel.reachedStep1 / metrics.onboardingFunnel.reachedStep0) * 1000) / 10
+              : 0}
+          />
+          <FunnelStep
+            label="Шаг 3 — цель"
+            value={metrics.onboardingFunnel.reachedStep2}
+            conv={metrics.onboardingFunnel.reachedStep1 > 0
+              ? Math.round((metrics.onboardingFunnel.reachedStep2 / metrics.onboardingFunnel.reachedStep1) * 1000) / 10
+              : 0}
+          />
+          <FunnelStep
+            label="Шаг 4 — уровень"
+            value={metrics.onboardingFunnel.reachedStep3}
+            conv={metrics.onboardingFunnel.reachedStep2 > 0
+              ? Math.round((metrics.onboardingFunnel.reachedStep3 / metrics.onboardingFunnel.reachedStep2) * 1000) / 10
+              : 0}
+          />
+          <FunnelStep
+            label="Шаг 5 — дни тренировок"
+            value={metrics.onboardingFunnel.reachedStep4}
+            conv={metrics.onboardingFunnel.reachedStep3 > 0
+              ? Math.round((metrics.onboardingFunnel.reachedStep4 / metrics.onboardingFunnel.reachedStep3) * 1000) / 10
+              : 0}
+          />
+          <View style={styles.funnelTotal}>
+            <Text style={styles.funnelTotalLabel}>Завершили онбординг</Text>
+            <Text style={styles.funnelTotalValue}>{metrics.onboardingFunnel.completionRatePct}%</Text>
+          </View>
+        </View>
+      )}
+
       <Text style={styles.disclaimer}>
         Здоровые пороги: платящих ≥200, churn ≤10%, ARPU ≥400 ₽, активация ≥50%. Источник —
         server/src/routes/admin.ts (эндпоинт GET /admin/metrics/key, кэш 5 мин).
