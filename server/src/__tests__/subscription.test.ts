@@ -40,6 +40,7 @@ jest.mock('../utils/activityTracker', () => ({
   getActiveUsersCount: jest.fn().mockReturnValue(0),
   getActiveUserIds: jest.fn().mockReturnValue(new Set()),
   recordActivity: jest.fn(),
+  shouldSyncLastActiveAt: jest.fn().mockReturnValue(false),
 }));
 
 // Step 4: logger mock

@@ -1,5 +1,7 @@
 // In-memory tracker of user activity (last API call timestamp per userId)
-// Used for approximate "online now" count in admin dashboard.
+// Used for approximate "online now" count in admin dashboard, AND for
+// throttling DB writes to User.lastActiveAt (see shouldSyncLastActiveAt
+// below).
 //
 // Eviction is JS-Map insertion-order LRU: every recordActivity() does
 // delete-then-set, which moves the entry to the BACK of iteration order
@@ -9,6 +11,11 @@
 // least-recently-touched entry.
 
 const lastSeen = new Map<string, number>(); // userId → timestamp ms
+// Separate ledger for "last time we wrote lastActiveAt to the DB". Lets
+// us throttle the per-request DB write to ~1/hour while keeping the
+// online-now tracker (lastSeen) updated on every request. Same eviction
+// envelope as lastSeen.
+const lastDbSync = new Map<string, number>();
 
 export function recordActivity(userId: string): void {
   // Cap at 50k entries: if full, evict the 5k oldest to prevent unbounded memory growth
@@ -61,6 +68,36 @@ export function pruneOldEntries(): void {
   for (const [userId, ts] of lastSeen.entries()) {
     if (ts < cutoff) lastSeen.delete(userId);
   }
+  // Mirror prune on the DB-sync ledger so it doesn't outlive lastSeen.
+  for (const [userId, ts] of lastDbSync.entries()) {
+    if (ts < cutoff) lastDbSync.delete(userId);
+  }
+}
+
+/**
+ * Returns true if it's time to write User.lastActiveAt = now() for this
+ * user, using a 1-hour throttle. Records the sync timestamp internally
+ * — call sites should NOT call this twice for the same request, or the
+ * second call will return false even though no DB write happened.
+ *
+ * This solves the "passive reader" gap: users who open the app to
+ * browse but never complete a workout / log a meal / talk to the AI
+ * weren't refreshing lastActiveAt before, and were getting bucketed
+ * into the 7/14/30d reactivation cohorts incorrectly. Now any
+ * authenticated request refreshes their freshness up to once per hour.
+ */
+export function shouldSyncLastActiveAt(userId: string, throttleMs = 60 * 60 * 1000): boolean {
+  const now = Date.now();
+  const last = lastDbSync.get(userId);
+  if (last && now - last < throttleMs) return false;
+  lastDbSync.set(userId, now);
+  return true;
+}
+
+/** Test helper — wipes both ledgers between cases. */
+export function _resetActivityTracker(): void {
+  lastSeen.clear();
+  lastDbSync.clear();
 }
 
 // Prune on startup, then every hour. .unref() so the timer doesn't keep
