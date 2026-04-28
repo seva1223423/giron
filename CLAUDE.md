@@ -76,7 +76,7 @@
 - `retentionService.ts` — retention push cohorts (activation/7d/14d/30d), weekly summary email; hard cap 200/tick
 - `adminDigestService.ts` — ежедневный дайджест метрик для ADMIN пользователей (пуш + email, 06:00 UTC)
 - `aiMemoryService.ts` — обёртка над AIMemory model, category-scoped queries
-- `errorReporter.ts` — Sentry wrapper (lazy init, PII scrubbing); активируется через SENTRY_DSN
+- `errorReporter.ts` — Sentry wrapper (lazy init, PII scrubbing); активируется через SENTRY_DSN (путь: `server/src/utils/`)
 
 ### OAuth-провайдеры (Russian social login)
 
