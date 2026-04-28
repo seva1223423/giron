@@ -89,8 +89,22 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
 
       haptic.success();
       navigation.goBack();
-    } catch {
-      Alert.alert('Ошибка', 'Не удалось сохранить. Проверь подключение к серверу.');
+    } catch (e: any) {
+      // Surface the server-side error message when the API rejects the
+      // payload (validation, 401, 500, etc.) so the user sees the real
+      // reason instead of a misleading "проверь подключение" banner. The
+      // generic fallback only fires for genuine network errors.
+      const serverMsg = e?.response?.data?.error;
+      const code = e?.response?.data?.code;
+      const status = e?.response?.status;
+      console.error('[EditProfile] save failed:', { status, code, serverMsg, error: e });
+      if (serverMsg) {
+        Alert.alert('Ошибка', `${serverMsg}${code ? ` (${code})` : ''}`);
+      } else if (e?.code === 'ECONNABORTED' || e?.code === 'ERR_NETWORK' || !e?.response) {
+        Alert.alert('Ошибка', 'Не удалось сохранить. Проверь подключение к серверу.');
+      } else {
+        Alert.alert('Ошибка', `Не удалось сохранить (HTTP ${status ?? '?'})`);
+      }
     } finally {
       setSaving(false);
     }
