@@ -45,7 +45,18 @@ import { reportError } from '../utils/errorReporter';
  */
 export async function processActivationCohort(): Promise<number> {
   const now = new Date();
-  const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // Lower bound: registered ≥24h ago. Upper bound: registered ≤7 days
+  // ago. The upper bound keeps the cohort tight — a user who registered
+  // 3 months ago and never engaged should NOT get an activation push
+  // ("ждём первого вопроса") today; they belong in the reactivation
+  // cohort (which has its own copy: "we miss you, here's what's new").
+  // Without this bound, a fresh deploy would fire activation emails to
+  // every silent legacy account in one tick. The 7d window is forgiving
+  // enough that a user who created an account, took a short break, and
+  // came back still gets the nudge; tighter than that and we'd miss
+  // people who signed up before a weekend.
+  const minAge = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const maxAge = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   try {
     // Single query, two parallel candidate sets — anyone who needs
@@ -54,7 +65,7 @@ export async function processActivationCohort(): Promise<number> {
     const candidates = await prisma.user.findMany({
       where: {
         firstChatAt: null,
-        createdAt: { lt: cutoff },
+        createdAt: { lt: minAge, gte: maxAge },
         isBanned: false,
         OR: [
           { activationPushSentAt: null, pushTokens: { some: {} } },
