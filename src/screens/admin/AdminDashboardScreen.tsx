@@ -7,7 +7,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { adminService, type AdminMe } from '../../services/adminService';
+import { adminService, type AdminMe, type CronHealthResponse } from '../../services/adminService';
 import type { AdminStats, AdminAnalytics, AdminLog } from '../../types';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
@@ -183,6 +183,7 @@ export default function AdminDashboardScreen() {
   const navigation = useNavigation<AdminNav>();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [me, setMe] = useState<AdminMe | null>(null);
+  const [cronHealth, setCronHealth] = useState<CronHealthResponse | null>(null);
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -215,7 +216,7 @@ export default function AdminDashboardScreen() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [statsData, analyticsData, logsData, feedData, meData] = await Promise.all([
+      const [statsData, analyticsData, logsData, feedData, meData, cronData] = await Promise.all([
         adminService.getStats(),
         adminService.getAnalytics(7),
         adminService.getLogs({ limit: 6 }),
@@ -224,12 +225,15 @@ export default function AdminDashboardScreen() {
         // 500s so the rest of the dashboard still renders. Founder card
         // simply hides when null.
         adminService.getMe().catch(() => null),
+        // Cron health is supplementary — never block the dashboard on it.
+        adminService.getCronHealth().catch(() => null),
       ]);
       setStats(statsData);
       setAnalytics(analyticsData);
       setRecentLogs(logsData.logs);
       setActivityFeed(feedData);
       setMe(meData);
+      setCronHealth(cronData);
       setLastRefreshed(new Date());
     } finally {
       setLoading(false);
@@ -638,6 +642,42 @@ export default function AdminDashboardScreen() {
               {me.lastWorkoutVolume ? ` · ${Math.round(me.lastWorkoutVolume)}кг объём` : ''}
             </Text>
           )}
+        </View>
+      )}
+
+      {/* ── Cron health probe ──────────────────────────────────────────
+          Lightweight liveness ledger from /admin/cron-health. After a
+          fresh deploy this is empty (records are in-memory and reset
+          on dyno restart) — that's normal, not a problem. Once each
+          cron has fired once, this surfaces "last run was Nh ago" so
+          the founder can spot a stuck job without grepping logs. */}
+      {cronHealth && cronHealth.cronJobs.length > 0 && (
+        <View style={styles.meCard}>
+          <View style={styles.meHeaderRow}>
+            <Text style={styles.quickActionsTitle}>Cron-задачи</Text>
+            <Text style={styles.meHeaderSub}>{cronHealth.cronJobs.length} активных</Text>
+          </View>
+          {cronHealth.cronJobs.map((job) => {
+            const lastTs = job.lastSuccessAt ?? job.lastErrorAt;
+            const ageMs = lastTs ? Date.now() - new Date(lastTs).getTime() : null;
+            const ageStr = ageMs == null
+              ? 'не запускалась'
+              : ageMs < 60_000 ? '<1 мин'
+              : ageMs < 3_600_000 ? `${Math.round(ageMs / 60_000)} мин назад`
+              : ageMs < 86_400_000 ? `${Math.round(ageMs / 3_600_000)} ч назад`
+              : `${Math.round(ageMs / 86_400_000)} д назад`;
+            const isHealthy = job.lastSuccessAt && (!job.lastErrorAt || new Date(job.lastSuccessAt) > new Date(job.lastErrorAt));
+            return (
+              <View key={job.id} style={styles.cronRow}>
+                <View style={[styles.cronDot, { backgroundColor: isHealthy ? '#10B981' : '#EF4444' }]} />
+                <Text style={styles.cronName}>{job.id}</Text>
+                <Text style={styles.cronAge}>{ageStr}</Text>
+                <Text style={styles.cronCounts}>
+                  ✓{job.successCount} · ✗{job.errorCount}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -1302,6 +1342,11 @@ const styles = StyleSheet.create({
   meStatLabel: { fontSize: 9, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   meStatValue: { fontSize: 14, color: '#E5E7EB', fontWeight: '700' },
   meRow: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  cronRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  cronDot: { width: 8, height: 8, borderRadius: 4 },
+  cronName: { flex: 1, fontSize: 12, color: '#E5E7EB', fontWeight: '600' },
+  cronAge: { fontSize: 11, color: '#9CA3AF' },
+  cronCounts: { fontSize: 10, color: '#6B7280', minWidth: 60, textAlign: 'right' },
 
   // Quick actions card
   quickActionsCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#2C2C2E' },
