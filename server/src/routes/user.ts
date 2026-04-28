@@ -84,7 +84,7 @@ const USER_PROFILE_SELECT = {
   totpEnabled: true,
   isBanned: true, bannedAt: true,
   createdAt: true, updatedAt: true,
-  googleId: true, vkId: true, yandexId: true,
+  googleId: true, vkId: true, yandexId: true, okId: true, mailruId: true,
   healthRestrictions: true,
 } as const;
 
@@ -109,12 +109,14 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const { googleId, vkId, yandexId, ...safeProfile } = user;
+    const { googleId, vkId, yandexId, okId, mailruId, ...safeProfile } = user;
     res.json({
       ...safeProfile,
       hasGoogle: !!googleId,
       hasVk: !!vkId,
       hasYandex: !!yandexId,
+      hasOk: !!okId,
+      hasMailru: !!mailruId,
     });
   } catch (e) {
     logger.error(e);
@@ -165,8 +167,8 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       select: USER_PROFILE_SELECT,
     });
 
-    const { googleId, vkId, yandexId, ...safeProfile } = user;
-    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId });
+    const { googleId, vkId, yandexId, okId, mailruId, ...safeProfile } = user;
+    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId, hasOk: !!okId, hasMailru: !!mailruId });
   } catch (e: any) {
     if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error(e);
@@ -1333,7 +1335,13 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
 
     } else {
       // provider === 'mailru'
-      let mailruData: { id?: string; error?: string; message?: string };
+      // Sec audit 2026-04: HIGH-13. Refuse without configured client id +
+      // verify audience so a token from another Mail.ru OAuth app can't
+      // be used to attach a malicious mailruId to the user's account.
+      if (!process.env.MAILRU_CLIENT_ID) {
+        return res.status(503).json({ error: 'Mail.ru OAuth не настроен на сервере' });
+      }
+      let mailruData: { id?: string; error?: string; message?: string; client_id?: string; aud?: string };
       try {
         const mailruResp = await fetch(
           `https://oauth.mail.ru/userinfo?access_token=${encodeURIComponent(accessToken)}`,
@@ -1347,6 +1355,14 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       }
       if (mailruData.error || !mailruData.id) {
         return res.status(401).json({ error: 'Недействительный токен Mail.ru', code: 'INVALID_TOKEN' });
+      }
+      if (mailruData.client_id && mailruData.client_id !== process.env.MAILRU_CLIENT_ID) {
+        logger.warn(`[SECURITY] Mail.ru link token client_id mismatch: expected=${process.env.MAILRU_CLIENT_ID} got=${mailruData.client_id}`);
+        return res.status(401).json({ error: 'Токен выдан для другого приложения', code: 'WRONG_APP' });
+      }
+      if (mailruData.aud && mailruData.aud !== process.env.MAILRU_CLIENT_ID) {
+        logger.warn(`[SECURITY] Mail.ru link token aud mismatch: expected=${process.env.MAILRU_CLIENT_ID} got=${mailruData.aud}`);
+        return res.status(401).json({ error: 'Токен выдан для другого приложения', code: 'WRONG_APP' });
       }
       fieldName = 'mailruId';
       providerId = String(mailruData.id);

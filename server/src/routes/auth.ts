@@ -209,8 +209,20 @@ const strongPassword = z
   .refine((p) => /[a-z]/.test(p), { message: 'Пароль должен содержать хотя бы одну строчную букву' })
   .refine((p) => /[0-9]/.test(p), { message: 'Пароль должен содержать хотя бы одну цифру' });
 
+/** Canonicalize an email so case/whitespace/unicode-form variants collapse to
+ * a single value before any lookup or write hits the DB. Sec audit 2026-04:
+ * HIGH-14. The DB column is case-sensitive `text`, and the official client
+ * lowercases before submit — without this server-side normalization an
+ * attacker could bypass the client (curl/Postman) and pre-register a
+ * case-variant of a future user's email, then collect their OAuth-link or
+ * password-reset traffic via the duplicate row.
+ */
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase().normalize('NFKC');
+}
+
 const registerSchema = z.object({
-  email: z.string().email('Некорректный email').max(254, 'Email слишком длинный'),
+  email: z.string().email('Некорректный email').max(254, 'Email слишком длинный').transform(normalizeEmail),
   password: strongPassword,
   firstName: z.string().min(1, 'Введите имя').max(100, 'Имя слишком длинное'),
   lastName: z.string().max(100, 'Фамилия слишком длинная').optional(),
@@ -219,7 +231,7 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email().max(254),
+  email: z.string().email().max(254).transform(normalizeEmail), // sec audit 2026-04 HIGH-14
   password: z.string().max(1000), // prevent bcrypt DoS (bcrypt truncates at 72 chars anyway)
   deviceToken: z.string().optional(), // trusted device token for skipping TOTP
 });
@@ -529,7 +541,7 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
 /** POST /auth/check-email — returns auth methods available for an email */
 router.post('/check-email', async (req: Request, res: Response) => {
   try {
-    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+    const { email } = z.object({ email: z.string().email().transform(normalizeEmail) }).parse(req.body);
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true, googleId: true, passwordHash: true, vkId: true, yandexId: true, okId: true, mailruId: true },
@@ -626,7 +638,7 @@ router.post('/google', async (req: Request, res: Response) => {
     }
 
     const googleId = payload.sub as string;
-    const email = payload.email as string;
+    const email = normalizeEmail(payload.email as string); // sec audit 2026-04 HIGH-14
     const firstName = (payload.given_name as string) || (payload.name as string)?.split(' ')[0] || 'Пользователь';
     const lastName = (payload.family_name as string) || undefined;
     const avatarUrl = (payload.picture as string) || undefined;
@@ -713,7 +725,7 @@ router.post('/vk', async (req: Request, res: Response) => {
     const { accessToken, userId: claimedVkUserId, email: vkEmail, deviceToken } = z.object({
       accessToken: z.string().min(1),
       userId: z.number().int().positive(),
-      email: z.string().email().optional(),
+      email: z.string().email().transform(normalizeEmail).optional(), // sec audit 2026-04 HIGH-14
       deviceToken: z.string().optional(),
     }).parse(req.body);
 
@@ -1217,7 +1229,7 @@ router.post('/send-otp', async (req: Request, res: Response) => {
   try {
     const { phone: rawPhone, email, purpose } = z.object({
       phone: z.string().optional(),
-      email: z.string().email().optional(),
+      email: z.string().email().transform(normalizeEmail).optional(), // sec audit 2026-04 HIGH-14
       purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change', 'email-change']).default('register'),
     }).refine((d) => d.phone || d.email, { message: 'Укажите телефон или email' }).parse(req.body);
 
@@ -1327,7 +1339,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
   try {
     const { phone: rawPhone, email, code, purpose } = z.object({
       phone: z.string().optional(),
-      email: z.string().email().optional(),
+      email: z.string().email().transform(normalizeEmail).optional(), // sec audit 2026-04 HIGH-14
       code: z.string().length(6),
       purpose: z.enum(['register', 'login', 'phone-login', 'phone-reset', 'email-verify', 'phone-change', 'email-change']).default('register'),
     }).parse(req.body);
@@ -1489,7 +1501,7 @@ router.post('/logout', async (req: Request, res: Response) => {
 
 router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
-    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+    const { email } = z.object({ email: z.string().email().transform(normalizeEmail) }).parse(req.body); // sec audit 2026-04 HIGH-14
 
     const user = await prisma.user.findUnique({ where: { email } });
 
@@ -1616,7 +1628,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 router.post('/verify-email', async (req: Request, res: Response) => {
   try {
     const { email, code } = z.object({
-      email: z.string().email(),
+      email: z.string().email().transform(normalizeEmail), // sec audit 2026-04 HIGH-14
       code: z.string().length(6),
     }).parse(req.body);
 
@@ -1668,7 +1680,7 @@ router.post('/verify-email', async (req: Request, res: Response) => {
 /** POST /auth/resend-verification — resend email verification OTP */
 router.post('/resend-verification', async (req: Request, res: Response) => {
   try {
-    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+    const { email } = z.object({ email: z.string().email().transform(normalizeEmail) }).parse(req.body); // sec audit 2026-04 HIGH-14
 
     if (email.endsWith('@irongym.internal')) {
       return res.status(400).json({ error: 'Email verification не поддерживается для этого аккаунта' });

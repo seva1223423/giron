@@ -769,16 +769,16 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Linked social accounts — VK */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.vkId ? '#0077FF18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.vkId ? '#0077FF40' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.vkId ? '#0077FF' : colors.textSecondary }}>ВК</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.hasVk ? '#0077FF18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.hasVk ? '#0077FF40' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.hasVk ? '#0077FF' : colors.textSecondary }}>ВК</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>VK ID</Text>
-            <Text style={[typography.caption, { color: user?.vkId ? '#34C759' : colors.textTertiary }]}>
-              {user?.vkId ? 'Привязан' : 'Не привязан'}
+            <Text style={[typography.caption, { color: user?.hasVk ? '#34C759' : colors.textTertiary }]}>
+              {user?.hasVk ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
-          {user?.vkId ? (
+          {user?.hasVk ? (
             <TouchableOpacity
               onPress={() => handleUnlink('vk', 'VK')}
               disabled={unlinkingProvider === 'vk'}
@@ -875,16 +875,16 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Linked social accounts — OK.ru */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.okId ? '#EE820818' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.okId ? '#EE820840' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.okId ? '#EE8208' : colors.textSecondary }}>ОК</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.hasOk ? '#EE820818' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.hasOk ? '#EE820840' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.hasOk ? '#EE8208' : colors.textSecondary }}>ОК</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>OK.ru</Text>
-            <Text style={[typography.caption, { color: user?.okId ? '#34C759' : colors.textTertiary }]}>
-              {user?.okId ? 'Привязан' : 'Не привязан'}
+            <Text style={[typography.caption, { color: user?.hasOk ? '#34C759' : colors.textTertiary }]}>
+              {user?.hasOk ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
-          {user?.okId ? (
+          {user?.hasOk ? (
             <TouchableOpacity
               onPress={() => handleUnlink('ok', 'OK.ru')}
               disabled={unlinkingProvider === 'ok'}
@@ -909,16 +909,16 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
         {/* Linked social accounts — Mail.ru */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.mailruId ? '#FF660018' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.mailruId ? '#FF660040' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.mailruId ? '#FF6600' : colors.textSecondary }}>M</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.hasMailru ? '#FF660018' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.hasMailru ? '#FF660040' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.hasMailru ? '#FF6600' : colors.textSecondary }}>M</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Mail.ru</Text>
-            <Text style={[typography.caption, { color: user?.mailruId ? '#34C759' : colors.textTertiary }]}>
-              {user?.mailruId ? 'Привязан' : 'Не привязан'}
+            <Text style={[typography.caption, { color: user?.hasMailru ? '#34C759' : colors.textTertiary }]}>
+              {user?.hasMailru ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
-          {user?.mailruId ? (
+          {user?.hasMailru ? (
             <TouchableOpacity
               onPress={() => handleUnlink('mailru', 'Mail.ru')}
               disabled={unlinkingProvider === 'mailru'}

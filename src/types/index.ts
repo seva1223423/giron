@@ -38,8 +38,11 @@ export interface User {
   yandexId?: string | null;
   okId?: string | null;
   mailruId?: string | null;
+  hasVk?: boolean;
   hasYandex?: boolean;
   hasGoogle?: boolean;
+  hasOk?: boolean;
+  hasMailru?: boolean;
   isBanned?: boolean;
   banReason?: string | null;
   lockedUntil?: string | null;
