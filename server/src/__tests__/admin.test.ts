@@ -710,6 +710,131 @@ describe('DELETE /api/admin/announcements/:id', () => {
   });
 });
 
+// ─── POST /api/admin/users/:id/force-disable-2fa ─────────────────────────────
+//
+// Destructive op for 2FA recovery. Step-up re-auth required (sec audit
+// 2026-04 HIGH-11). Without tests, regressions could:
+//   - Allow non-admins to disable 2FA on other accounts
+//   - Skip the audit-log write (untraceable account takeovers)
+//   - Skip the security-event write (no notification trail to user)
+
+describe('POST /api/admin/users/:id/force-disable-2fa', () => {
+  it('401 without token', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-disable-2fa`)
+      .send({ adminPassword: 'pw' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/admin/users/bad-id/force-disable-2fa')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ adminPassword: 'pw' });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when adminPassword is missing (step-up gate)', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-disable-2fa`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+    // requireAdminStepUp returns 400 with ADMIN_PASSWORD_REQUIRED
+    expect(res.status).toBe(400);
+  });
+
+  it('200 disables 2FA + writes adminLog + writes securityEvent', async () => {
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({ id: TARGET_ID });
+
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-disable-2fa`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ adminPassword: 'admin-pw' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    // Verify the user.update wiped all 2FA state
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    const wipeCall = updateCalls.find((c) => c[0]?.where?.id === TARGET_ID);
+    expect(wipeCall).toBeTruthy();
+    expect(wipeCall![0].data).toEqual(
+      expect.objectContaining({
+        totpEnabled: false,
+        totpSecret: null,
+        totpBackupCodes: null,
+      }),
+    );
+
+    // adminLog must record FORCE_DISABLE_2FA with adminId from JWT
+    const adminLogCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const auditCall = adminLogCalls.find((c) => c[0]?.data?.action === 'FORCE_DISABLE_2FA');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.targetId).toBe(TARGET_ID);
+    expect(auditCall![0].data.adminId).toBe('u-admin');
+
+    // securityEvent must record TOTP_DISABLED on the TARGET user (not admin),
+    // so the user can see the action in their security-events feed
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const seCall = seCalls.find((c) => c[0]?.data?.action === 'TOTP_DISABLED');
+    expect(seCall).toBeTruthy();
+    expect(seCall![0].data.userId).toBe(TARGET_ID);
+  });
+});
+
+// ─── POST /api/admin/users/:id/force-logout ──────────────────────────────────
+
+describe('POST /api/admin/users/:id/force-logout', () => {
+  it('401 without token', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-logout`)
+      .send({ adminPassword: 'pw' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/admin/users/bad-id/force-logout')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ adminPassword: 'pw' });
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when target user does not exist', async () => {
+    // Auth middleware → admin; route's findUnique for target → null
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') return Promise.resolve(adminUser);
+      return Promise.resolve(null); // target not found
+    });
+
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-logout`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ adminPassword: 'pw' });
+    expect(res.status).toBe(404);
+  });
+
+  it('200 revokes all refresh tokens + deletes trusted devices', async () => {
+    (prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+      { count: 3 }, // 3 sessions revoked
+      { count: 2 }, // 2 trusted devices wiped
+    ]);
+
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-logout`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ adminPassword: 'admin-pw' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.revokedCount).toBe(3);
+
+    // Verify $transaction includes both refresh-token revocation and trusted-device deletion
+    const txCalls = (prisma.$transaction as jest.Mock).mock.calls;
+    expect(txCalls.length).toBe(1);
+  });
+});
+
 // ─── POST /api/admin/test-notification ───────────────────────────────────────
 
 describe('POST /api/admin/test-notification', () => {
