@@ -567,7 +567,11 @@ const server = app.listen(PORT, () => {
   //
   // Runs *after* listen so a missing user doesn't block server start
   // (e.g. fresh deploy on an empty DB) — fire-and-forget, log only.
-  const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+  // NFKC-normalize to match the Zod email pipeline applied at register/
+  // login (sec audit 2026-04 HIGH-14). Without it, a precomposed-vs-
+  // decomposed Unicode mismatch in the env var would silently skip
+  // the admin promotion even when the user is registered.
+  const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase().normalize('NFKC');
   if (bootstrapEmail) {
     prisma.user.updateMany({
       where: { email: bootstrapEmail, role: { not: 'ADMIN' } },
