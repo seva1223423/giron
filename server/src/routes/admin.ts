@@ -1629,10 +1629,15 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
     }
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - days * 86400 * 1000);
-    const sixtyDaysAgo = new Date(now.getTime() - days * 2 * 86400 * 1000);
+    // Window boundaries based on the requested `days` filter. The previous
+    // names (thirtyDaysAgo/sixtyDaysAgo) were left over from when the
+    // window was hardcoded at 30d — they remained even after we
+    // parameterised `days`, which made the math read as 30/60 even when
+    // it was actually 7/14 or 90/180. Renamed to match what they hold.
+    const windowStart = new Date(now.getTime() - days * 86400 * 1000);
+    const previousWindowStart = new Date(now.getTime() - days * 2 * 86400 * 1000);
 
-    // ── 1. Paying users (current + delta vs 30 days ago) ──────────────────
+    // ── 1. Paying users (current + delta vs window start) ──────────────────
     // "Paying" = active OR cancelled-not-yet-expired AND plan != free. The
     // cancelled bucket counts because the user has already paid — they
     // contribute to current MRR until endDate hits.
@@ -1646,34 +1651,37 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
       },
     });
 
-    // 30 days ago snapshot: subscriptions that existed AND were paid AND
+    // Window-start snapshot: subscriptions that existed AND were paid AND
     // hadn't expired yet at the cutoff. We approximate via createdAt + endDate.
+    // The variable name preserves the legacy `payingThirtyDaysAgo` because
+    // the public payload field is also `thirtyDaysAgo` — renaming it
+    // would break the client interface contract.
     const payingThirtyDaysAgo = await prisma.subscription.count({
       where: {
         plan: { not: 'free' },
-        createdAt: { lte: thirtyDaysAgo },
+        createdAt: { lte: windowStart },
         OR: [
           { endDate: null },
-          { endDate: { gte: thirtyDaysAgo } },
+          { endDate: { gte: windowStart } },
         ],
       },
     });
 
-    // ── 2. Monthly churn (last 30 days) ─────────────────────────────────────
+    // ── 2. Churn over the requested window ─────────────────────────────────
     // churnEvents = paid subscriptions that hit 'expired' OR canceledAt landed
-    // in the past 30d window. Uses canceledAt (the audit field added for
-    // 376-ФЗ) when present, falls back to updatedAt for the legacy 'expired'
-    // status flips that pre-date the audit field.
+    // in the window. Uses canceledAt (the audit field added for 376-ФЗ) when
+    // present, falls back to updatedAt for the legacy 'expired' status flips
+    // that pre-date the audit field.
     const churnedLast30 = await prisma.subscription.count({
       where: {
         plan: { not: 'free' },
         OR: [
-          { canceledAt: { gte: thirtyDaysAgo } },
-          { status: 'expired', updatedAt: { gte: thirtyDaysAgo } },
+          { canceledAt: { gte: windowStart } },
+          { status: 'expired', updatedAt: { gte: windowStart } },
         ],
       },
     });
-    // Denominator: average paid users over the 30d window (start + end / 2).
+    // Denominator: average paid users over the window (start + end / 2).
     const avgPaying = (payingNow + payingThirtyDaysAgo) / 2;
     const monthlyChurnPct = avgPaying > 0
       ? Math.round((churnedLast30 / avgPaying) * 1000) / 10
@@ -1708,7 +1716,7 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
     const arpuRub = activeSubs.length > 0 ? Math.round(totalMrrRub / activeSubs.length) : 0;
 
     // ── 4. Activation: TTF-chat distribution ─────────────────────────────────
-    // % of users in the last 30d cohort who completed first AI chat within
+    // % of users in the window cohort who completed first AI chat within
     // 24h, plus the median time-to-first-chat in minutes for that cohort.
     // Median computed in SQL via percentile_cont — moves the work to PG
     // instead of pulling timestamps into Node.
@@ -1720,7 +1728,7 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
       WITH cohort AS (
         SELECT id, "createdAt", "firstChatAt"
         FROM "User"
-        WHERE "createdAt" >= ${thirtyDaysAgo}
+        WHERE "createdAt" >= ${windowStart}
       )
       SELECT
         COUNT(*)::bigint AS cohort_size,
@@ -1744,28 +1752,28 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
 
     // ── 5. Funnel: signup → profiled → first workout → first chat → paid ─────
     const [funnelSignups, funnelProfiled, funnelFirstWorkout, funnelFirstChat, funnelPaid] = await Promise.all([
-      prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.user.count({ where: { createdAt: { gte: windowStart } } }),
       prisma.user.count({
         where: {
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: windowStart },
           goal: { not: null },
         },
       }),
       prisma.user.count({
         where: {
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: windowStart },
           workouts: { some: { completedAt: { not: null } } },
         },
       }),
       prisma.user.count({
         where: {
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: windowStart },
           firstChatAt: { not: null },
         },
       }),
       prisma.user.count({
         where: {
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: windowStart },
           subscription: { plan: { not: 'free' }, status: 'active' },
         },
       }),
@@ -1810,7 +1818,7 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
           COUNT(*) FILTER (WHERE "onboardingStepLog" ? '4')::bigint AS reached4,
           COUNT(*) FILTER (WHERE "onboardingCompletedAt" IS NOT NULL)::bigint AS completed
         FROM "User"
-        WHERE "createdAt" >= ${thirtyDaysAgo}
+        WHERE "createdAt" >= ${windowStart}
       `;
       const cohort = Number(onbRows[0]?.cohort_size ?? 0);
       const completed = Number(onbRows[0]?.completed ?? 0);
@@ -1836,14 +1844,14 @@ router.get('/metrics/key', requireAdmin, async (req: AuthRequest, res: Response)
       prisma.subscription.count({
         where: {
           plan: { not: 'free' },
-          createdAt: { lte: sixtyDaysAgo },
+          createdAt: { lte: previousWindowStart },
           OR: [
             { endDate: null },
-            { endDate: { gte: sixtyDaysAgo } },
+            { endDate: { gte: previousWindowStart } },
           ],
         },
       }),
-      prisma.user.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+      prisma.user.count({ where: { createdAt: { gte: previousWindowStart, lt: windowStart } } }),
     ]);
 
     const payload = {
