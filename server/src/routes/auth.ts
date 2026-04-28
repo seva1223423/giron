@@ -1035,7 +1035,11 @@ router.post('/mailru', async (req: Request, res: Response) => {
     }
 
     const mailruId = mrData.id;
-    const name = (mrData.name || `${mrData.first_name ?? ''} ${mrData.last_name ?? ''}`.trim() || 'Пользователь Mail.ru').slice(0, 100);
+    const fullName = (mrData.name || `${mrData.first_name ?? ''} ${mrData.last_name ?? ''}`.trim() || 'Пользователь Mail.ru').slice(0, 100);
+    const spaceIdx = fullName.indexOf(' ');
+    const firstName = spaceIdx > 0 ? fullName.slice(0, spaceIdx) : fullName;
+    const lastName = spaceIdx > 0 ? fullName.slice(spaceIdx + 1) : undefined;
+    const avatarUrl = mrData.image || undefined;
     const email = mrData.email || null;
 
     let user: any = await prisma.user.findUnique({ where: { mailruId }, include: { healthRestrictions: true } });
@@ -1056,11 +1060,11 @@ router.post('/mailru', async (req: Request, res: Response) => {
       user = await prisma.user.create({
         data: {
           mailruId,
-          name,
+          firstName,
+          lastName,
+          avatarUrl,
           email: email || `mailru_${mailruId}@irongym.internal`,
           emailVerified: !!email,
-          role: 'USER',
-          onboardingCompleted: false,
         },
         include: { healthRestrictions: true },
       });

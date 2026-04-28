@@ -29,7 +29,8 @@
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "752233520722-jnlgc229ip1tsmp3umvj6m7hjrlgtrvt.apps.googleusercontent.com",
         "EXPO_PUBLIC_VK_APP_ID": "",
         "EXPO_PUBLIC_YANDEX_CLIENT_ID": "",
-        "EXPO_PUBLIC_OK_APP_ID": ""
+        "EXPO_PUBLIC_OK_APP_ID": "",
+        "EXPO_PUBLIC_MAILRU_APP_ID": ""
       }
     },
     "rustore": {

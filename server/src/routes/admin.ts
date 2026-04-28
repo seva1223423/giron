@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import os from 'os';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+import { TOTP, Secret } from 'otpauth';
 import { prisma } from '../db';
 import { authenticate, requireAdmin, requireStaff, AuthRequest } from '../middleware/auth';
 import { getActiveUsersCount, getActiveUserIds } from '../utils/activityTracker';
@@ -18,6 +20,55 @@ const isNotFound = (e: any) => e?.code === 'P2025';
 
 const CUID_RE = /^c[a-z0-9]{20,30}$/;
 const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
+
+/**
+ * Step-up re-auth for admin destructive operations (sec audit 2026-04: HIGH-11).
+ * A 7-day admin access token alone must NOT be enough to permanently
+ * destroy data, promote anyone to ADMIN, force-disable 2FA, or move money
+ * (subscription overrides). Acting admin must prove fresh possession of
+ * password + TOTP (when set) by passing them in the request body.
+ *
+ * Returns null on success (caller proceeds). Returns a Response on failure
+ * (caller must `return`).
+ */
+async function requireAdminStepUp(req: AuthRequest, res: Response): Promise<Response | null> {
+  const parsed = z.object({
+    adminPassword: z.string().optional(),
+    adminTotpCode: z.string().length(6).optional(),
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Некорректное подтверждение администратора', code: 'STEPUP_INVALID' });
+  }
+  const { adminPassword, adminTotpCode } = parsed.data;
+  const me = await prisma.user.findUnique({
+    where: { id: req.userId! },
+    select: { passwordHash: true, totpEnabled: true, totpSecret: true },
+  });
+  if (!me) return res.status(401).json({ error: 'Сессия недействительна', code: 'NO_USER' });
+  if (!me.passwordHash) {
+    return res.status(403).json({ error: 'Установите пароль администратора, чтобы выполнять опасные операции.', code: 'ADMIN_STEPUP_PASSWORD_MISSING' });
+  }
+  if (!adminPassword) {
+    return res.status(400).json({ error: 'Введите пароль администратора', code: 'ADMIN_PASSWORD_REQUIRED' });
+  }
+  const ok = await bcrypt.compare(adminPassword, me.passwordHash);
+  if (!ok) {
+    await prisma.securityEvent.create({
+      data: { userId: req.userId!, action: 'ADMIN_REAUTH_FAILED', ip: (req as any).ip ?? null, details: req.path },
+    }).catch(() => {});
+    return res.status(401).json({ error: 'Неверный пароль администратора', code: 'INVALID_ADMIN_PASSWORD' });
+  }
+  if (me.totpEnabled && me.totpSecret) {
+    if (!adminTotpCode) {
+      return res.status(400).json({ error: 'Введите код 2FA администратора', code: 'ADMIN_TOTP_REQUIRED' });
+    }
+    const totp = new TOTP({ secret: Secret.fromBase32(me.totpSecret), algorithm: 'SHA1', digits: 6, period: 30 });
+    if (totp.validate({ token: adminTotpCode, window: 1 }) === null) {
+      return res.status(401).json({ error: 'Неверный код 2FA администратора', code: 'INVALID_ADMIN_TOTP' });
+    }
+  }
+  return null;
+}
 
 // ── DASHBOARD STATS ─────────────────────────────────────────────────────────
 
@@ -505,6 +556,22 @@ router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Resp
     if (req.params.id === req.userId && role !== 'ADMIN') {
       return res.status(400).json({ error: 'Нельзя убрать у себя роль администратора' });
     }
+    // "Last-admin" lockout guard (sec audit 2026-04: HIGH-11). A compromised
+    // single admin token must not be able to demote ALL other admins and
+    // become the sole controller.
+    const currentTarget = await prisma.user.findUnique({
+      where: { id: req.params.id as string },
+      select: { role: true, isBanned: true },
+    });
+    if (currentTarget?.role === 'ADMIN' && role !== 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN', isBanned: false } });
+      if (adminCount <= 1) {
+        return res.status(409).json({ error: 'Нельзя демоутить последнего активного администратора', code: 'LAST_ADMIN' });
+      }
+    }
+    // Step-up re-auth (sec audit 2026-04: HIGH-11)
+    const stepup = await requireAdminStepUp(req, res);
+    if (stepup) return;
     const user = await prisma.user.update({
       where: { id: req.params.id as string },
       data: { role },
@@ -539,6 +606,9 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const data = changeSubSchema.parse(req.body);
+    // Step-up re-auth (sec audit 2026-04: HIGH-11) — financial mutation
+    const stepup = await requireAdminStepUp(req, res);
+    if (stepup) return;
     const sub = await prisma.subscription.upsert({
       where: { userId: req.params.id as string },
       update: {
@@ -583,6 +653,21 @@ router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Respon
     if (req.params.id === req.userId) {
       return res.status(400).json({ error: 'Нельзя заблокировать самого себя' });
     }
+    // "Last-admin" lockout guard (sec audit 2026-04: HIGH-11). Banning an
+    // admin must not strip the last surviving administrator from the system.
+    const banTarget = await prisma.user.findUnique({
+      where: { id: req.params.id as string },
+      select: { role: true },
+    });
+    if (banTarget?.role === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN', isBanned: false } });
+      if (adminCount <= 1) {
+        return res.status(409).json({ error: 'Нельзя забанить последнего активного администратора', code: 'LAST_ADMIN' });
+      }
+    }
+    // Step-up re-auth (sec audit 2026-04: HIGH-11)
+    const stepup = await requireAdminStepUp(req, res);
+    if (stepup) return;
     // Ban + revoke sessions atomically — prevents banned user from using a valid refresh token during the window
     const [user] = await prisma.$transaction([
       prisma.user.update({
@@ -712,6 +797,19 @@ router.delete('/users/:id([a-z0-9]{10,30})', requireAdmin, async (req: AuthReque
     if (req.params.id === req.userId) {
       return res.status(400).json({ error: 'Нельзя удалить свой аккаунт' });
     }
+    // "Last-admin" guard + step-up (sec audit 2026-04: HIGH-11)
+    const delTarget = await prisma.user.findUnique({
+      where: { id: req.params.id as string },
+      select: { role: true },
+    });
+    if (delTarget?.role === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN', isBanned: false } });
+      if (adminCount <= 1) {
+        return res.status(409).json({ error: 'Нельзя удалить последнего активного администратора', code: 'LAST_ADMIN' });
+      }
+    }
+    const stepup = await requireAdminStepUp(req, res);
+    if (stepup) return;
     // Anonymize the user instead of hard delete to preserve referential integrity
     const anon = `deleted_${Date.now()}`;
     await prisma.user.update({
@@ -2608,6 +2706,8 @@ router.get('/users/:id/security-events', requireAdmin, async (req: AuthRequest, 
 router.post('/users/:id/force-disable-2fa', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
+    const stepup = await requireAdminStepUp(req, res);
+    if (stepup) return;
     await prisma.user.update({
       where: { id: req.params.id as string },
       data: { totpEnabled: false, totpSecret: null, totpBackupCodes: null },
@@ -2649,6 +2749,9 @@ router.post('/users/:id/force-logout', requireAdmin, async (req: AuthRequest, re
   try {
     const target = await prisma.user.findUnique({ where: { id: req.params.id as string }, select: { id: true } });
     if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
+    // Step-up re-auth (sec audit 2026-04: HIGH-11) — preventing mass-logout abuse
+    const stepup = await requireAdminStepUp(req, res);
+    if (stepup) return;
     const [{ count }, { count: deviceCount }] = await prisma.$transaction([
       prisma.refreshToken.updateMany({
         where: { userId: req.params.id as string, revoked: false },
