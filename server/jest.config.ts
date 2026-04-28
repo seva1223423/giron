@@ -15,6 +15,11 @@ const config: Config = {
     '^expo-server-sdk$': '<rootDir>/src/__tests__/__mocks__/expo-server-sdk.ts',
     '^otpauth$': '<rootDir>/src/__tests__/__mocks__/otpauth.ts',
   },
+  // Force Jest to exit cleanly after all tests complete even when the express
+  // server's TCP socket leaves an open libuv handle. Without this flag the
+  // supertest-managed server (PORT=0, bound by index.ts on import) keeps the
+  // worker alive and triggers the "worker force-exited" warning.
+  forceExit: true,
 };
 
 export default config;

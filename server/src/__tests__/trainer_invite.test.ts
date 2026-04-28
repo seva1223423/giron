@@ -193,7 +193,8 @@ describe('POST /trainer/accept-invite', () => {
     });
     // Composite-unique check: no existing link.
     (prisma.trainerClient.findFirst as jest.Mock).mockResolvedValueOnce(null);
-    (prisma.trainerClient.update as jest.Mock).mockResolvedValueOnce({});
+    // Route uses updateMany for atomic conditional consume (TOCTOU prevention).
+    (prisma.trainerClient.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
     const res = await request(app)
       .post('/api/trainer/accept-invite')
@@ -207,9 +208,9 @@ describe('POST /trainer/accept-invite', () => {
       trainerId: 'u-trainer',
       displayName: 'Ivan Petrov',
     });
-    expect(prisma.trainerClient.update).toHaveBeenCalledWith(
+    expect(prisma.trainerClient.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: CLIENT_ROW_ID },
+        where: expect.objectContaining({ id: CLIENT_ROW_ID, acceptedAt: null, clientUserId: null }),
         data: expect.objectContaining({
           clientUserId: 'u-client',
           acceptedAt: expect.any(Date),
@@ -341,7 +342,7 @@ describe('POST /trainer/accept-invite', () => {
       invitedAt: sixDaysAgo,
     });
     (prisma.trainerClient.findFirst as jest.Mock).mockResolvedValueOnce(null);
-    (prisma.trainerClient.update as jest.Mock).mockResolvedValueOnce({});
+    (prisma.trainerClient.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
     const res = await request(app)
       .post('/api/trainer/accept-invite')
@@ -362,7 +363,7 @@ describe('POST /trainer/accept-invite', () => {
       name: 'Ivan Petrov',
     });
     (prisma.trainerClient.findFirst as jest.Mock).mockResolvedValueOnce(null);
-    (prisma.trainerClient.update as jest.Mock).mockResolvedValueOnce({});
+    (prisma.trainerClient.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
     // Note: makeToken with role USER, not TRAINER.
     const res = await request(app)
