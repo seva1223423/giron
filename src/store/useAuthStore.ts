@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
+import { AuthResponse } from '../services/authService';
 import { tokenStorage } from '../utils/secureStorage';
 import { useNutritionStore } from './useNutritionStore';
 
@@ -160,11 +161,20 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithGoogle(idToken);
-          await tokenStorage.setTokens(response.token, response.refreshToken);
-          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+          if ('requiresTOTP' in response && response.requiresTOTP) {
+            set({ isLoading: false, totpPendingToken: response.pendingToken });
+            const err: any = new Error('TOTP_REQUIRED');
+            err.code = 'TOTP_REQUIRED';
+            throw err;
+          }
+          const ar = response as AuthResponse;
+          await tokenStorage.setTokens(ar.token, ar.refreshToken);
+          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
-          const apiError = getApiError(e);
-          set({ isLoading: false, error: apiError.message });
+          if ((e as any).code !== 'TOTP_REQUIRED') {
+            const apiError = getApiError(e);
+            set({ isLoading: false, error: apiError.message });
+          }
           throw e;
         }
       },
@@ -173,11 +183,20 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithVk(params);
-          await tokenStorage.setTokens(response.token, response.refreshToken);
-          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+          if ('requiresTOTP' in response && response.requiresTOTP) {
+            set({ isLoading: false, totpPendingToken: response.pendingToken });
+            const err: any = new Error('TOTP_REQUIRED');
+            err.code = 'TOTP_REQUIRED';
+            throw err;
+          }
+          const ar = response as AuthResponse;
+          await tokenStorage.setTokens(ar.token, ar.refreshToken);
+          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
-          const apiError = getApiError(e);
-          set({ isLoading: false, error: apiError.message });
+          if ((e as any).code !== 'TOTP_REQUIRED') {
+            const apiError = getApiError(e);
+            set({ isLoading: false, error: apiError.message });
+          }
           throw e;
         }
       },
@@ -186,11 +205,20 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithYandex(accessToken);
-          await tokenStorage.setTokens(response.token, response.refreshToken);
-          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+          if ('requiresTOTP' in response && response.requiresTOTP) {
+            set({ isLoading: false, totpPendingToken: response.pendingToken });
+            const err: any = new Error('TOTP_REQUIRED');
+            err.code = 'TOTP_REQUIRED';
+            throw err;
+          }
+          const ar = response as AuthResponse;
+          await tokenStorage.setTokens(ar.token, ar.refreshToken);
+          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
-          const apiError = getApiError(e);
-          set({ isLoading: false, error: apiError.message });
+          if ((e as any).code !== 'TOTP_REQUIRED') {
+            const apiError = getApiError(e);
+            set({ isLoading: false, error: apiError.message });
+          }
           throw e;
         }
       },
@@ -199,11 +227,20 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithOk(params);
-          await tokenStorage.setTokens(response.token, response.refreshToken);
-          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+          if ('requiresTOTP' in response && response.requiresTOTP) {
+            set({ isLoading: false, totpPendingToken: response.pendingToken });
+            const err: any = new Error('TOTP_REQUIRED');
+            err.code = 'TOTP_REQUIRED';
+            throw err;
+          }
+          const ar = response as AuthResponse;
+          await tokenStorage.setTokens(ar.token, ar.refreshToken);
+          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
-          const apiError = getApiError(e);
-          set({ isLoading: false, error: apiError.message });
+          if ((e as any).code !== 'TOTP_REQUIRED') {
+            const apiError = getApiError(e);
+            set({ isLoading: false, error: apiError.message });
+          }
           throw e;
         }
       },
@@ -212,11 +249,20 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authService.loginWithMailru(accessToken);
-          await tokenStorage.setTokens(response.token, response.refreshToken);
-          set({ user: normalizeUser(response.user), token: response.token, refreshToken: response.refreshToken, isAuthenticated: true, isLoading: false });
+          if ('requiresTOTP' in response && response.requiresTOTP) {
+            set({ isLoading: false, totpPendingToken: response.pendingToken });
+            const err: any = new Error('TOTP_REQUIRED');
+            err.code = 'TOTP_REQUIRED';
+            throw err;
+          }
+          const ar = response as AuthResponse;
+          await tokenStorage.setTokens(ar.token, ar.refreshToken);
+          set({ user: normalizeUser(ar.user), token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isLoading: false });
         } catch (e) {
-          const apiError = getApiError(e);
-          set({ isLoading: false, error: apiError.message });
+          if ((e as any).code !== 'TOTP_REQUIRED') {
+            const apiError = getApiError(e);
+            set({ isLoading: false, error: apiError.message });
+          }
           throw e;
         }
       },

@@ -213,6 +213,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         }
       }
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { navigation.navigate('Login'); return; }
       setLocalError(e?.response?.data?.error || 'Ошибка через Яндекс');
     } finally {
       setYandexLoading(false);
@@ -244,6 +245,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         }
       }
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { navigation.navigate('Login'); return; }
       setLocalError(e?.response?.data?.error || 'Ошибка через VK');
     } finally {
       setVkLoading(false);
@@ -269,6 +271,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       if (!accessToken || !userId) { setLocalError('Не удалось получить данные от OK.ru'); return; }
       await useAuthStore.getState().loginWithOk({ accessToken, userId });
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { navigation.navigate('Login'); return; }
       setLocalError(e?.response?.data?.error ?? 'Ошибка регистрации через OK.ru');
     } finally {
       setOkLoading(false);
@@ -293,6 +296,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       if (!accessToken) { setLocalError('Не удалось получить токен от Mail.ru'); return; }
       await useAuthStore.getState().loginWithMailru(accessToken);
     } catch (e: any) {
+      if (e?.code === 'TOTP_REQUIRED') { navigation.navigate('Login'); return; }
       setLocalError(e?.response?.data?.error ?? 'Ошибка регистрации через Mail.ru');
     } finally {
       setMailruLoading(false);
@@ -469,7 +473,11 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         </View>
 
         {features.googleOAuth && googleConfigured && (
-          <GoogleAuthButton onError={setLocalError} disabled={anyLoading} />
+          <GoogleAuthButton
+            onError={setLocalError}
+            onTotpRequired={() => navigation.navigate('Login')}
+            disabled={anyLoading}
+          />
         )}
 
         <TouchableOpacity
