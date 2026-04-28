@@ -81,6 +81,10 @@ async function sendViaTwilio(phone: string, text: string): Promise<boolean> {
 /**
  * Send OTP via SMS.
  * Priority: SMS.ru (Russian provider) → Twilio → dev console.
+ *
+ * In production, falling through to the dev console means the user never
+ * receives an SMS while the API still returns 200 — a silent misconfig that's
+ * easy to miss in logs. Escalate it to error level so it surfaces immediately.
  */
 export async function sendSmsOtp(phone: string, code: string): Promise<void> {
   const normalized = normalizePhone(phone);
@@ -88,6 +92,14 @@ export async function sendSmsOtp(phone: string, code: string): Promise<void> {
 
   if (await sendViaSmsRu(normalized, text)) return;
   if (await sendViaTwilio(normalized, text)) return;
+
+  if (process.env.NODE_ENV === 'production') {
+    logger.error(
+      `[SMS] No provider configured in production — OTP for ${normalized} was NOT delivered. ` +
+      `Set SMSRU_API_ID (or TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_PHONE_NUMBER) in server env.`,
+    );
+    return;
+  }
 
   logger.info(`[SMS-DEV] OTP for ${normalized}: ${code}`);
 }
