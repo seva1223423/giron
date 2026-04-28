@@ -655,7 +655,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               {user?.vkId ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
-          {user?.vkId && (
+          {user?.vkId ? (
             <TouchableOpacity
               onPress={() => handleUnlink('vk', 'VK')}
               disabled={unlinkingProvider === 'vk'}
@@ -665,21 +665,29 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 {unlinkingProvider === 'vk' ? '...' : 'Отвязать'}
               </Text>
             </TouchableOpacity>
+          ) : (
+            // TODO: implement server-side linking endpoint, then replace this alert
+            <TouchableOpacity
+              onPress={() => Alert.alert('Скоро', 'Привязка через VK будет доступна в следующем обновлении')}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
+            </TouchableOpacity>
           )}
         </View>
 
         {/* Linked social accounts — Yandex */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.hasYandex ? '#FC3F1D18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.hasYandex ? '#FC3F1D40' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.hasYandex ? '#FC3F1D' : colors.textSecondary }}>Я</Text>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user?.yandexId || user?.hasYandex) ? '#FC3F1D18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: (user?.yandexId || user?.hasYandex) ? '#FC3F1D40' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: (user?.yandexId || user?.hasYandex) ? '#FC3F1D' : colors.textSecondary }}>Я</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Яндекс ID</Text>
-            <Text style={[typography.caption, { color: user?.hasYandex ? '#34C759' : colors.textTertiary }]}>
-              {user?.hasYandex ? 'Привязан' : 'Не привязан'}
+            <Text style={[typography.caption, { color: (user?.yandexId || user?.hasYandex) ? '#34C759' : colors.textTertiary }]}>
+              {(user?.yandexId || user?.hasYandex) ? 'Привязан' : 'Не привязан'}
             </Text>
           </View>
-          {user?.hasYandex && (
+          {(user?.yandexId || user?.hasYandex) ? (
             <TouchableOpacity
               onPress={() => handleUnlink('yandex', 'Яндекс')}
               disabled={unlinkingProvider === 'yandex'}
@@ -688,6 +696,46 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
                 {unlinkingProvider === 'yandex' ? '...' : 'Отвязать'}
               </Text>
+            </TouchableOpacity>
+          ) : (
+            // TODO: implement server-side linking endpoint, then replace this alert
+            <TouchableOpacity
+              onPress={() => Alert.alert('Скоро', 'Привязка через Яндекс будет доступна в следующем обновлении')}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Linked social accounts — Google */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user?.googleId || user?.hasGoogle) ? '#4285F418' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: (user?.googleId || user?.hasGoogle) ? '#4285F440' : 'transparent' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: (user?.googleId || user?.hasGoogle) ? '#4285F4' : colors.textSecondary }}>G</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Google</Text>
+            <Text style={[typography.caption, { color: (user?.googleId || user?.hasGoogle) ? '#34C759' : colors.textTertiary }]}>
+              {(user?.googleId || user?.hasGoogle) ? 'Привязан' : 'Не привязан'}
+            </Text>
+          </View>
+          {(user?.googleId || user?.hasGoogle) ? (
+            <TouchableOpacity
+              onPress={() => handleUnlink('google', 'Google')}
+              disabled={unlinkingProvider === 'google'}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
+                {unlinkingProvider === 'google' ? '...' : 'Отвязать'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            // TODO: implement server-side linking endpoint, then replace this alert
+            <TouchableOpacity
+              onPress={() => Alert.alert('Скоро', 'Привязка через Google будет доступна в следующем обновлении')}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
+            >
+              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
             </TouchableOpacity>
           )}
         </View>
