@@ -229,6 +229,33 @@ describe('processActivationCohort', () => {
     expect(sent).toBe(0);
     expect(mockReportError).toHaveBeenCalled();
   });
+
+  test('cohort filter bounds registration age to [7d ago, 24h ago]', async () => {
+    mockUserFindMany.mockResolvedValueOnce([]);
+
+    await processActivationCohort();
+
+    // Verify the query includes both bounds — protects against
+    // accidentally re-introducing the regression where legacy users
+    // registered months ago would get a "fresh signup" activation email.
+    expect(mockUserFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          createdAt: expect.objectContaining({
+            lt: expect.any(Date),  // ≥24h ago
+            gte: expect.any(Date), // ≤7d ago
+          }),
+        }),
+      }),
+    );
+    const callArg = mockUserFindMany.mock.calls[0][0];
+    const lt = callArg.where.createdAt.lt as Date;
+    const gte = callArg.where.createdAt.gte as Date;
+    // gte (older bound) must be earlier than lt (newer bound)
+    expect(gte.getTime()).toBeLessThan(lt.getTime());
+    // The window must be at least 6 days wide (7 - 1)
+    expect(lt.getTime() - gte.getTime()).toBeGreaterThanOrEqual(6 * 86_400_000);
+  });
 });
 
 // ── processReactivationCohort ─────────────────────────────────────────────────
