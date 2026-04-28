@@ -119,6 +119,41 @@ npm run prisma:studio  # GUI для БД
 npm run prisma:generate # генерация Prisma client
 # НЕ запускать: npm run prisma:migrate (prisma migrate dev) — проект использует `prisma db push`
 npx prisma db push     # синхронизация схемы с БД (без migration-файлов)
+
+# OTA обновления (без пересборки APK)
+eas update --channel production --message "Описание изменений"
+# Для preview-канала (внутренний тестинг):
+eas update --channel preview --message "..."
+# Только когда ты НЕ менял native-код (ничего из android/, ios/, plugins).
+# Если поменялись native-зависимости — нужен новый build (eas build).
+```
+
+## OTA-обновления (Expo Updates)
+
+Подключено через `expo-updates` + EAS Update. Channel-маппинг в `eas.json`:
+- `development` → канал `development`
+- `preview` → канал `preview`
+- `rustore`, `play`, `appstore`, `production` → канал `production`
+
+Workflow при изменении JS/TS-кода (без native):
+1. Пушишь код в master, Render автодеплоит сервер
+2. Локально: `eas update --channel production --message "Что поменялось"`
+3. У всех установленных APK обновление загрузится в фоне при следующем запуске
+4. На второй запуск — новый код активен
+
+Workflow при изменении native (новые plugins, native-модули):
+1. Бамп `version` в `app.json` (например с `1.0.0` на `1.1.0`)
+2. `eas build --platform android --profile rustore` — новая APK
+3. Старые APK не получат OTA для этой версии (`runtimeVersion.policy: appVersion`),
+   останутся на своём билде
+4. Опционально: бамп `MIN_CLIENT_VERSION` в Render env, чтобы старые APK получили
+   force-update модал и пользователь обновился через магазин
+
+Force-update flow (когда старая версия должна обновиться):
+1. В Render env: `MIN_CLIENT_VERSION=1.1.0`
+2. Сервер сразу начинает отвечать 426 на запросы от APK 1.0.x
+3. `ForceUpdateModal` (root компонент в App.tsx) показывает экран «Обнови приложение»
+4. Кнопка «Перезапустить» — пробует OTA из кэша; «Открыть в магазине» — RuStore/App Store
 ```
 
 ## Бренд
