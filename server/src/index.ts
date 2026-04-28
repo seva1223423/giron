@@ -17,6 +17,7 @@ import { adminRouter } from './routes/admin';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
 import { reportError } from './utils/errorReporter';
+import { clientVersionGate } from './middleware/clientVersion';
 import { adminStatsCache, newsCache } from './utils/memCache';
 import { prisma } from './db';
 
@@ -87,6 +88,13 @@ app.use(express.json({
   limit: '10kb',
   verify: (req, _res, buf) => { (req as any).rawBody = buf.toString(); },
 }));
+
+// Client version gate (CLIENT-VERSION-01). When MIN_CLIENT_VERSION is set
+// in env, requests from APKs older than that get a structured 426 response
+// instead of silently breaking on shape changes. Disabled by default — the
+// middleware checks the env var per-request so flipping it on/off is just
+// an env update + Render restart, no deploy.
+app.use(clientVersionGate);
 
 // Health check — DB ping returns 503 when unreachable (used by Render health check URL)
 app.get('/health', async (_, res) => {
@@ -303,7 +311,7 @@ setInterval(async () => {
     // visible in the issue feed.
     reportError(err as Error, { tags: { origin: 'cleanup-tokens-devices' } });
   }
-}, 6 * 60 * 60 * 1000);
+}, 6 * 60 * 60 * 1000).unref();
 
 // Cleanup used TOTP codes older than 90s (replay window) every 5 minutes
 setInterval(async () => {
@@ -315,7 +323,7 @@ setInterval(async () => {
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'cleanup-totp-replay' } });
   }
-}, 5 * 60 * 1000);
+}, 5 * 60 * 1000).unref();
 
 // Cleanup expired/used OTP codes and stale TOTP replay records every hour
 setInterval(async () => {
@@ -338,7 +346,7 @@ setInterval(async () => {
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'cleanup-otp-codes' } });
   }
-}, 60 * 60 * 1000);
+}, 60 * 60 * 1000).unref();
 
 // Cleanup expired password reset tokens every 6 hours
 setInterval(async () => {
@@ -350,13 +358,13 @@ setInterval(async () => {
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'cleanup-password-reset' } });
   }
-}, 6 * 60 * 60 * 1000);
+}, 6 * 60 * 60 * 1000).unref();
 
 // Prune expired in-memory cache entries every 10 minutes to prevent memory growth
 setInterval(() => {
   adminStatsCache.prune();
   newsCache.prune();
-}, 10 * 60 * 1000);
+}, 10 * 60 * 1000).unref();
 
 // Trim security events per user to last 200 entries (prevents unbounded DB growth) — runs daily
 setInterval(async () => {
@@ -383,7 +391,7 @@ setInterval(async () => {
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'cleanup-security-events' } });
   }
-}, 24 * 60 * 60 * 1000);
+}, 24 * 60 * 60 * 1000).unref();
 
 // Retention pushes (RETENTION-01..04). Runs hourly so the activation cohort
 // fires reasonably close to the 24h mark; reactivation cohorts only "fire"
@@ -398,7 +406,7 @@ setTimeout(() => {
     } catch (err) {
       reportError(err as Error, { tags: { origin: 'retention-cron' } });
     }
-  }, 60 * 60 * 1000);
+  }, 60 * 60 * 1000).unref();
 }, 5 * 60 * 1000).unref();
 
 // Weekly summary email (RETENTION-03). Runs every hour but only fires the
@@ -418,7 +426,7 @@ setInterval(async () => {
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'weekly-summary-cron' } });
   }
-}, 60 * 60 * 1000);
+}, 60 * 60 * 1000).unref();
 
 // Daily admin digest (ADMIN-DIGEST-01). Fires once a day at 06:00 UTC =
 // 09:00 МСК. The hourly tick + hour gate is the same pattern as weekly
@@ -436,7 +444,7 @@ setInterval(async () => {
   } catch (err) {
     reportError(err as Error, { tags: { origin: 'admin-digest-cron' } });
   }
-}, 60 * 60 * 1000);
+}, 60 * 60 * 1000).unref();
 
 // ── Graceful shutdown ───────────────────────────────────────────────────────
 // Render / Railway / Kubernetes send SIGTERM ~30s before SIGKILL. Without this
