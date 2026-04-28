@@ -63,6 +63,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [announcements, setAnnouncements] = useState<Array<{ id: string; title: string; body: string; type: AnnouncementType; createdAt: string }>>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
+  const [firstWorkoutBannerDismissed, setFirstWorkoutBannerDismissed] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
   const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
   const [emailVerifCode, setEmailVerifCode] = useState('');
@@ -318,6 +319,45 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </View>
       )}
+
+      {/* ── First-workout nudge banner (FUNNEL-2) ──────────────────────
+          Appears for users who registered >24h ago and still have zero
+          completed workouts. Direct CTA into the workouts list — the
+          metrics dashboard showed 0/5 first-workout conversion which is
+          worse than any other funnel step. The banner is dismissable so
+          users who genuinely don't want to train (or are just browsing)
+          aren't nagged forever; for active users the trigger fires once
+          per session and goes away the moment they complete a set. */}
+      {(() => {
+        if (firstWorkoutBannerDismissed) return null;
+        if (!user?.createdAt) return null;
+        const ageMs = Date.now() - new Date(user.createdAt).getTime();
+        if (ageMs < 24 * 60 * 60 * 1000) return null;
+        const hasAnyWorkout = workoutHistory.some((w) => w.completedAt);
+        if (hasAnyWorkout) return null;
+        return (
+          <View style={[annStyles.banner, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10', marginBottom: spacing.md }]}>
+            <Text style={{ fontSize: 18 }}>🏋️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[annStyles.title, { color: colors.primary }]}>Время первой тренировки</Text>
+              <Text style={annStyles.body} numberOfLines={2}>
+                Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('WorkoutsTab' as never)}
+                style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
+              >
+                <Text style={{ color: colors.textInverse, fontSize: 12, fontWeight: '700' }}>Начать</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setFirstWorkoutBannerDismissed(true)} style={{ padding: 4 }}>
+                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      })()}
 
       {/* Email verification modal */}
       <Modal visible={showEmailVerifModal} transparent animationType="fade" onRequestClose={() => setShowEmailVerifModal(false)}>

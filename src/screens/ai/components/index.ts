@@ -8,3 +8,4 @@ export { ChatInputBar } from './ChatInputBar';
 export { SuggestionChips } from './SuggestionChips';
 export { UndoToast } from './UndoToast';
 export { useDynamicPrompts } from './useDynamicPrompts';
+export { FirstPromptCta } from './FirstPromptCta';

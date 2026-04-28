@@ -14,7 +14,7 @@
 ### Сервер (`server/`)
 - Express 4 + TypeScript
 - Prisma 6 ORM (PostgreSQL на Neon eu-central-1, 37 моделей)
-- JWT (7d access + 30d refresh) + bcryptjs, helmet, express-rate-limit
+- JWT (60m access + 30d refresh, refresh hashed SHA-256) + bcryptjs, helmet, express-rate-limit
 - Zod (валидация), Multer (загрузка файлов), CORS
 - AI: Mistral API (основной, `mistral-small-latest`), DeepSeek, Ollama (локальный fallback)
 - Деплой: Render (`iron-gym-swoe.onrender.com`), автодеплой на push в master

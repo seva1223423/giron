@@ -45,6 +45,12 @@ export interface User {
   banReason?: string | null;
   lockedUntil?: string | null;
   loginAttempts?: number;
+  // Retention/activation tracking. firstChatAt is null until the user
+  // sends their first AI message — used by the onboarding "first prompt"
+  // CTA on the AI tab so we can detect "this user has registered but
+  // never engaged" and surface a prominent jumpstart.
+  firstChatAt?: string | null;
+  lastActiveAt?: string | null;
 }
 
 // ==================== EXERCISES ====================

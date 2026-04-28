@@ -431,6 +431,32 @@ setInterval(() => {
   newsCache.prune();
 }, 10 * 60 * 1000).unref();
 
+// DB keep-warm ping (PERF-01). Render free tier sleeps the service after
+// 15 min of idle, and Neon free tier scale-to-zero adds another 200-700ms
+// to the first query after sleep. The dashboard "DB ping 705мс" warning
+// the founder hit was that combined cold-start. A no-op SELECT 1 every
+// 10 minutes keeps both paths warm: Render counts the ping as activity,
+// Neon keeps the connection pool active. Doesn't help if the request
+// queue is genuinely loaded — but for a 5-user product it eliminates
+// the worst-case visible latency.
+//
+// Skip in test environment (NODE_ENV=test) — Jest test suites mock the
+// db module, and an unstubbed prisma reference here would break the
+// suite that imports index.ts (subscription_gating, trainer_invite,
+// otp). Production / development run as normal.
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(async () => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (err) {
+      // Don't reportError — the keep-warm is best-effort and a transient
+      // failure here doesn't surface a real user-facing issue. Logging
+      // every transient failure would just clutter Sentry/Render logs.
+      logger.debug('[KeepWarm] ping failed:', err);
+    }
+  }, 10 * 60 * 1000).unref();
+}
+
 // Trim security events per user to last 200 entries (prevents unbounded DB growth) — runs daily
 setInterval(async () => {
   try {

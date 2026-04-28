@@ -35,12 +35,16 @@ export default function AdminMetricsKeyScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Date-range picker state. 30 is the historical default; 7 is the
+  // most useful for week-over-week growth checks once there's traffic.
+  // Allowed values match the server-side ALLOWED_DAYS list.
+  const [windowDays, setWindowDays] = useState<7 | 14 | 30 | 60 | 90>(30);
 
   const load = useCallback(async (force: boolean) => {
     if (!force) setLoading(true);
     setError(null);
     try {
-      const data = await adminService.getKeyMetrics(force);
+      const data = await adminService.getKeyMetrics({ refresh: force, days: windowDays });
       setMetrics(data);
     } catch (e: any) {
       setError(e?.response?.data?.error || 'Не удалось загрузить метрики');
@@ -48,7 +52,7 @@ export default function AdminMetricsKeyScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [windowDays]);
 
   useEffect(() => {
     load(false);
@@ -104,8 +108,48 @@ export default function AdminMetricsKeyScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>← Назад</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>5 ключевых чисел</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>5 ключевых чисел</Text>
+          {/* Explicit refresh button — pull-to-refresh isn't always
+              discoverable on Android, and the 5-min server cache means a
+              user who just changed something needs an obvious way to
+              bust it. Disabled while a fetch is in flight to avoid
+              hammering the rate limit. */}
+          <TouchableOpacity
+            onPress={() => load(true)}
+            disabled={refreshing || loading}
+            style={[styles.refreshBtn, (refreshing || loading) && { opacity: 0.5 }]}
+            accessibilityLabel="Обновить метрики"
+            accessibilityRole="button"
+          >
+            <Text style={styles.refreshBtnText}>↻ Обновить</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.subtitle}>Обновлено {generatedStr} (МСК)</Text>
+
+        {/* Date-range picker. Selecting a window re-fetches metrics for
+            that period; the server caches each range separately. The
+            default 30d covers the standard "last month" view; 7d is
+            useful for week-over-week growth checks once traffic shows
+            up. */}
+        <View style={styles.rangeRow}>
+          {([7, 14, 30, 60, 90] as const).map((d) => (
+            <TouchableOpacity
+              key={d}
+              onPress={() => setWindowDays(d)}
+              style={[
+                styles.rangeBtn,
+                windowDays === d && styles.rangeBtnActive,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: windowDays === d }}
+            >
+              <Text style={[styles.rangeBtnText, windowDays === d && styles.rangeBtnTextActive]}>
+                {d}д
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* 1. Paying users */}
@@ -268,6 +312,31 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0A0A0F', padding: 32 },
   header: { marginBottom: 16 },
   backBtn: { marginBottom: 12 },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  refreshBtn: {
+    backgroundColor: '#15151F',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3F3F4D',
+  },
+  refreshBtnText: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+  rangeRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  rangeBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#15151F',
+    borderWidth: 1,
+    borderColor: '#3F3F4D',
+  },
+  rangeBtnActive: {
+    backgroundColor: '#6366F120',
+    borderColor: '#6366F1',
+  },
+  rangeBtnText: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+  rangeBtnTextActive: { color: '#A5B4FC' },
   backText: { color: '#6366F1', fontSize: 15, fontWeight: '600' },
   title: { fontSize: 24, fontWeight: '800', color: '#FFFFFF' },
   subtitle: { fontSize: 12, color: '#6B7280', marginTop: 4 },

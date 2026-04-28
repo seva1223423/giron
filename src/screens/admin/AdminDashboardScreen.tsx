@@ -281,7 +281,12 @@ export default function AdminDashboardScreen() {
   if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
   if (!stats) return null;
 
-  const memPct = Math.round((stats.server.memoryUsedMb / stats.server.memoryTotalMb) * 100);
+  // Prefer the new `rssUsedPct` (resident set / dyno limit) when the
+  // server reports it — that's a meaningful pressure signal. Fall back
+  // to the legacy heapUsed/heapTotal ratio only for older deploys; that
+  // ratio always sits ~70-95% so don't trigger warnings on it.
+  const rssPct = (stats.server as any).rssUsedPct as number | undefined;
+  const memPct = rssPct ?? Math.round((stats.server.memoryUsedMb / stats.server.memoryTotalMb) * 100);
   const sysPct = stats.server.systemMemUsedPct;
   const loadAvg1 = stats.server.loadAvg?.[0] ?? 0;
   const signups7d = analytics?.timeline.map((t) => t.signups) ?? [];

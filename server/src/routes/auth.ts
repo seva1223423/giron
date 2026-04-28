@@ -116,7 +116,13 @@ function hashRefreshToken(raw: string): string {
 }
 
 async function signTokens(userId: string, req?: Request) {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m', issuer: JWT_ISS, audience: JWT_AUD });
+  // Access token: 60 minutes. Was 15min — that was hostile to the founder
+  // experience because every Render redeploy (which takes 30-60 seconds)
+  // could fall during the JWT's last 15 min, fail refresh, and bounce
+  // them to login. 60min reduces that risk by 4x while still being short
+  // enough that a stolen token isn't a long-lived liability — refresh
+  // tokens (30 days, hashed in DB) are the real long-lived credential.
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '60m', issuer: JWT_ISS, audience: JWT_AUD });
   const rawRefresh = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '30d', issuer: JWT_ISS, audience: JWT_AUD });
   const ip = req ? ((req as any).ip ?? null) : null;
   const userAgent = req ? ((req.headers['user-agent'] as string | undefined) ?? null) : null;

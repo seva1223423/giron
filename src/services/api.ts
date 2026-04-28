@@ -99,7 +99,30 @@ api.interceptors.response.use(
     } else {
       setOnlineStatus(true);
     }
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
+
+    // Auto-retry on 502/503/504 — these are transient Render restarts /
+    // load-balancer reroutes and they typically clear within 5-10
+    // seconds. The founder hit this during the rate-limit fix deploy:
+    // the EditProfileScreen save fired during the redeploy window and
+    // showed a misleading "проверь подключение" instead of just waiting
+    // for the new instance. Up to 2 retries with exponential backoff
+    // (1s, 3s) absorbs most deploy windows. GET-only retry by default
+    // because POST/PATCH retries can double-write; explicitly opt-in
+    // mutations with `axios.config.shouldRetry` would be the future
+    // upgrade.
+    const status = error.response?.status;
+    const isTransient = status === 502 || status === 503 || status === 504;
+    const isIdempotent = (originalRequest.method || 'get').toLowerCase() === 'get';
+    if (isTransient && isIdempotent) {
+      const retryCount = originalRequest._retryCount ?? 0;
+      if (retryCount < 2) {
+        originalRequest._retryCount = retryCount + 1;
+        const backoffMs = retryCount === 0 ? 1000 : 3000;
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        return api(originalRequest);
+      }
+    }
 
     // Handle banned account — force logout immediately
     if (error.response?.status === 403 && (error.response?.data as any)?.code === 'BANNED') {

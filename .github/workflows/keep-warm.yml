@@ -1,0 +1,47 @@
+name: Keep Render warm
+
+# Render free tier sleeps the web service after 15 minutes of idle.
+# A cold start is 30-60 seconds — slow enough that the founder hits
+# "DB ping 705мс" warnings on the admin dashboard and slow enough that
+# real users would bounce on a 60-second login spinner.
+#
+# This cron pings /health every 14 minutes from GitHub's runners,
+# resetting Render's idle timer just before sleep would fire. Free
+# Render tier allows ~750 hours/month of awake time; 14-minute pings
+# keep the service awake ~24/7 within that envelope.
+#
+# /health does a `SELECT 1` against Neon, which also keeps the Neon
+# scale-to-zero pool warm. So one cron addresses both layers.
+#
+# GitHub Actions free tier gives 2000 minutes/month for private repos
+# (unlimited for public). Each ping run is ~3 seconds — at 14-min
+# cadence that's ~10 min/day = ~300 min/month. Well under any cap.
+
+on:
+  schedule:
+    # Every 14 minutes. GitHub cron resolution is 5-minute slots so the
+    # actual cadence drifts; that's fine — we want < 15 min between hits,
+    # and 14-min syntax gets us 10-15 min in practice.
+    - cron: '*/14 * * * *'
+  # Manual trigger for ops debug — useful right after a deploy to
+  # confirm the new instance is reachable.
+  workflow_dispatch:
+
+# Single-flight: if a previous run is still hanging on a cold-start,
+# don't queue another. Avoids piling up minutes on a stuck wake.
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /health
+        run: |
+          # -f makes curl exit non-zero on HTTP errors so the workflow
+          # fails (and shows up in Actions tab) when the server is
+          # genuinely down vs just cold. --max-time 90 covers worst-case
+          # cold-start; -s silences the progress bar.
+          curl -fsS --max-time 90 https://iron-gym-swoe.onrender.com/health
