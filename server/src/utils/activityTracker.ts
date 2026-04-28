@@ -1,5 +1,12 @@
 // In-memory tracker of user activity (last API call timestamp per userId)
-// Used for approximate "online now" count in admin dashboard
+// Used for approximate "online now" count in admin dashboard.
+//
+// Eviction is JS-Map insertion-order LRU: every recordActivity() does
+// delete-then-set, which moves the entry to the BACK of iteration order
+// (a plain `set` on an existing key updates the value but leaves
+// iteration order untouched — that's the bug a delete+set fixes). When
+// the map is full, the front of iteration is genuinely the
+// least-recently-touched entry.
 
 const lastSeen = new Map<string, number>(); // userId → timestamp ms
 
@@ -13,6 +20,13 @@ export function recordActivity(userId: string): void {
       lastSeen.delete(key);
     }
   }
+  // Delete first so the subsequent `set` re-inserts at the BACK of
+  // iteration order. Without this, an active user inserted on day 1
+  // stays at the front of the map and gets wrongfully evicted on day N
+  // even though they keep pinging activity. JS-Map semantics: setting
+  // an existing key updates the value but does NOT change iteration
+  // order; a delete+set does.
+  lastSeen.delete(userId);
   lastSeen.set(userId, Date.now());
 }
 
@@ -49,6 +63,13 @@ export function pruneOldEntries(): void {
   }
 }
 
-// Prune on startup, then every hour
+// Prune on startup, then every hour. .unref() so the timer doesn't keep
+// the Node process alive — Jest test suites that import this module
+// would hang at exit otherwise (same fix as the 9 setInterval sites in
+// index.ts, see project_status.md 2026-04-28). Skip the interval
+// entirely under NODE_ENV=test for an extra layer of safety since
+// tests reset state between cases.
 pruneOldEntries();
-setInterval(pruneOldEntries, 60 * 60 * 1000);
+if (process.env.NODE_ENV !== 'test') {
+  setInterval(pruneOldEntries, 60 * 60 * 1000).unref();
+}
