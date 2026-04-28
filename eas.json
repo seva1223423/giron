@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
+      "autoIncrement": true,
       "android": {
         "buildType": "apk",
         "credentialsSource": "local"
@@ -19,6 +20,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "autoIncrement": true,
       "android": {
         "buildType": "apk",
         "credentialsSource": "local"
@@ -33,6 +35,7 @@
       "extends": "preview",
       "distribution": "store",
       "channel": "production",
+      "autoIncrement": true,
       "android": {
         "buildType": "apk",
         "credentialsSource": "local"
@@ -45,6 +48,7 @@
     "play": {
       "extends": "production",
       "channel": "production",
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
       },
@@ -56,6 +60,7 @@
     "appstore": {
       "extends": "production",
       "channel": "production",
+      "autoIncrement": true,
       "ios": {
         "simulator": false
       },
@@ -66,6 +71,7 @@
     },
     "production": {
       "channel": "production",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_STORE": "universal"
       }
