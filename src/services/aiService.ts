@@ -49,6 +49,16 @@ export interface AIStarter {
   action?: string;
 }
 
+// Mistral cold-start + 70k-token system prompt + tool-call round trip means
+// /ai/chat can legitimately take 30-60s on the first request after Render
+// wakes the server. The default 15s axios timeout was rejecting genuine
+// responses and causing the AIChatScreen "stream failed → fallback to
+// chat → fallback also times out" path to surface a misleading "проверь
+// подключение" error. 60s matches the server-side AbortController in
+// services/deepseekAI.ts (CLAUDE.md: "AI insights timeout — AbortController
+// 12s + fallback" was the OLD value before the system prompt grew).
+const AI_REQUEST_TIMEOUT_MS = 60_000;
+
 export const aiService = {
   async chat(
     message: string,
@@ -60,7 +70,11 @@ export const aiService = {
     clientDate?: string,
   ): Promise<{ message: string; actions: AIActionResult[]; meta?: AIMeta }> {
     const clientHour = new Date().getHours();
-    const { data } = await api.post('/ai/chat', { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, clientDate, clientHour });
+    const { data } = await api.post(
+      '/ai/chat',
+      { message, nutritionTargets, waterMl, weekPlan, cardioSessions, sleepEntries, clientDate, clientHour },
+      { timeout: AI_REQUEST_TIMEOUT_MS },
+    );
     return { message: data.message, actions: data.actions ?? [], meta: data.meta };
   },
 
@@ -165,7 +179,10 @@ export const aiService = {
 
   async analyzeFood(imageBase64: string, signal?: AbortSignal, mimeType = 'image/jpeg'): Promise<FoodAnalysisResult> {
     try {
-      const { data } = await api.post('/ai/analyze-food', { imageBase64, mimeType }, { signal });
+      // Vision API call — same long-latency category as /ai/chat. Pass
+      // both the AbortSignal (for user cancellation via the cancel
+      // button) and the longer timeout (for legitimate slow responses).
+      const { data } = await api.post('/ai/analyze-food', { imageBase64, mimeType }, { signal, timeout: AI_REQUEST_TIMEOUT_MS });
       return data;
     } catch (e: any) {
       // 422: vision failed, server provides a suggestion text for the user
@@ -187,7 +204,7 @@ export const aiService = {
    *  path so callers can reuse UI error cards unchanged. */
   async analyzeFoodText(description: string, signal?: AbortSignal): Promise<FoodAnalysisResult> {
     try {
-      const { data } = await api.post('/ai/analyze-food-text', { description }, { signal });
+      const { data } = await api.post('/ai/analyze-food-text', { description }, { signal, timeout: AI_REQUEST_TIMEOUT_MS });
       return data;
     } catch (e: any) {
       if (e?.response?.status === 422) {
@@ -220,7 +237,10 @@ export const aiService = {
       sets: Array<{ weight?: number; reps?: number; completed?: boolean; rpe?: number }>;
     }>;
   }, signal?: AbortSignal): Promise<string> {
-    const { data } = await api.post('/ai/workout-insights', { workout }, { signal });
+    // Workout insights also routes through Mistral — same long-latency
+    // pattern. Bumped from 15s default to 60s to avoid timing out on
+    // legitimate slow responses (esp. cold-start after Render wake).
+    const { data } = await api.post('/ai/workout-insights', { workout }, { signal, timeout: AI_REQUEST_TIMEOUT_MS });
     return data.insights as string;
   },
 };
