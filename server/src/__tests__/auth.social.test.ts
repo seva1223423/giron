@@ -253,6 +253,12 @@ describe('POST /api/auth/ok', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     jest.clearAllMocks();
+    // OK_APP_ID must be set so the route doesn't short-circuit with 503
+    process.env.OK_APP_ID = 'test_ok_app_id';
+  });
+
+  afterEach(() => {
+    delete process.env.OK_APP_ID;
   });
 
   it('returns 400 when accessToken is missing', async () => {
@@ -269,6 +275,14 @@ describe('POST /api/auth/ok', () => {
       .send({ accessToken: 'tok' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
+  });
+
+  it('returns 503 when OK_APP_ID env var is not set', async () => {
+    delete process.env.OK_APP_ID;
+    const res = await request(app)
+      .post('/api/auth/ok')
+      .send({ accessToken: 'tok', userId: '123' });
+    expect(res.status).toBe(503);
   });
 
   it('returns 401 when OK.ru API HTTP request fails', async () => {
@@ -312,5 +326,91 @@ describe('POST /api/auth/ok', () => {
       .send({ accessToken: 'tok', userId: '123' });
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('ID_MISMATCH');
+  });
+});
+
+// ── Mail.ru Auth ──────────────────────────────────────────────────────────────
+
+describe('POST /api/auth/mailru', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    jest.clearAllMocks();
+    // MAILRU_CLIENT_ID must be set so the route doesn't short-circuit with 503
+    process.env.MAILRU_CLIENT_ID = 'test_mailru_client_id';
+  });
+
+  afterEach(() => {
+    delete process.env.MAILRU_CLIENT_ID;
+  });
+
+  it('returns 400 when accessToken is missing', async () => {
+    const res = await request(app)
+      .post('/api/auth/mailru')
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('returns 503 when MAILRU_CLIENT_ID env var is not set', async () => {
+    delete process.env.MAILRU_CLIENT_ID;
+    const res = await request(app)
+      .post('/api/auth/mailru')
+      .send({ accessToken: 'tok' });
+    expect(res.status).toBe(503);
+  });
+
+  it('returns 401 when Mail.ru API returns non-ok response', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 401 });
+    const res = await request(app)
+      .post('/api/auth/mailru')
+      .send({ accessToken: 'bad_token' });
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('INVALID_TOKEN');
+  });
+
+  it('returns 401 when Mail.ru response has no id field', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ email: 'test@mail.ru' }), // missing id
+    });
+    const res = await request(app)
+      .post('/api/auth/mailru')
+      .send({ accessToken: 'tok' });
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('INVALID_TOKEN');
+  });
+
+  it('returns 401 WRONG_APP when client_id in Mail.ru response does not match env', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'mr-uid-123',
+        email: 'test@mail.ru',
+        name: 'Test User',
+        client_id: 'other_client_id', // doesn't match MAILRU_CLIENT_ID
+      }),
+    });
+    const res = await request(app)
+      .post('/api/auth/mailru')
+      .send({ accessToken: 'tok' });
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('WRONG_APP');
+  });
+
+  it('returns 401 WRONG_APP when aud in Mail.ru response does not match env', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'mr-uid-123',
+        email: 'test@mail.ru',
+        name: 'Test User',
+        aud: 'different_app_id', // doesn't match MAILRU_CLIENT_ID
+      }),
+    });
+    const res = await request(app)
+      .post('/api/auth/mailru')
+      .send({ accessToken: 'tok' });
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('WRONG_APP');
   });
 });
