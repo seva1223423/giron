@@ -132,6 +132,44 @@ app.get('/health/ready', async (_, res) => {
   }
 });
 
+// Sentry status — quick "did the wrapper pick up SENTRY_DSN at boot?"
+// probe. Returns whether @sentry/node is loaded and the DSN host (not
+// the full DSN — that's a credential). Useful right after a deploy to
+// confirm error tracking is actually live before the first real crash
+// would tell you the hard way. NOT a probe / not gated on shutdown —
+// safe to hit any time.
+app.get('/health/sentry', (_, res) => {
+  // Touch the wrapper so its lazy init runs on first hit. If SENTRY_DSN
+  // isn't set the wrapper returns null without trying to require the
+  // module; reportError stays in console-only mode.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+  const { reportError } = require('./utils/errorReporter');
+  // Send a synthetic breadcrumb so the wrapper has *something* to do —
+  // the breadcrumb is dropped client-side if Sentry is inactive.
+  reportError(new Error('[health/sentry] init probe'), {
+    tags: { origin: 'health-check' },
+  });
+
+  const dsn = process.env.SENTRY_DSN ?? '';
+  let host: string | null = null;
+  try {
+    host = dsn ? new URL(dsn).host : null;
+  } catch {
+    host = 'invalid-dsn-url';
+  }
+  // We don't try to probe whether the @sentry/node module *loaded*
+  // because the wrapper hides that. Instead we report on env state which
+  // is the only thing the operator can act on.
+  res.json({
+    sentryDsnConfigured: Boolean(dsn),
+    dsnHost: host,
+    nodeEnv: process.env.NODE_ENV || 'development',
+    note: dsn
+      ? 'A test error has been routed through reportError. Check sentry.io within 30s.'
+      : 'SENTRY_DSN not set. errorReporter is in console-only mode; nothing leaves the server.',
+  });
+});
+
 // Deep diagnostics — DB + every configured LLM provider. NOT a probe (don't
 // wire to load balancer; the LLM probe takes a network round-trip and would
 // flap). For ops dashboards / on-call triage. Cached lightly via the LB

@@ -40,6 +40,7 @@ export interface User {
   hasVk?: boolean;
   hasYandex?: boolean;
   hasGoogle?: boolean;
+  hasOk?: boolean;
   hasMailru?: boolean;
   isBanned?: boolean;
   banReason?: string | null;
