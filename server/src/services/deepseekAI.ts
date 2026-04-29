@@ -468,11 +468,15 @@ export function cleanResponse(content: string): string {
 
   // Round 156: strip common closing fluff at end of response. Same anchor
   // logic as the opening patterns — only matches at end of string.
+  // Round 175: added two more closings — "если хочешь — могу..." and
+  // "буду рад помочь / готов помочь" closing tics.
   const badEndPatterns = [
     /\s*Если\s+(?:у\s+тебя\s+есть|появятся|возникнут)\s+(?:ещё\s+)?вопросы[^.!?]*[.!?]?\s*$/i,
     /\s*Удачи\s+(?:в\s+тренировках|с\s+тренировками)[^.!?]*[.!?]?\s*$/i,
     /\s*Надеюсь[,\s]+(?:это|информация|ответ)\s+(?:помог|поможет|полезн)[^.!?]*[.!?]?\s*$/i,
     /\s*Если\s+нужна\s+(?:дополнительная\s+)?помощь[^.!?]*[.!?]?\s*$/i,
+    /\s*Если\s+хочешь[\s,]+(?:могу|расскажу|покажу|объясню)[^.!?]*[.!?]?\s*$/i,
+    /\s*(?:Буду|Готов(?:ы)?)\s+(?:рад|помочь)[^.!?]*[.!?]?\s*$/i,
   ];
   for (const pattern of badEndPatterns) {
     cleaned = cleaned.replace(pattern, '');
