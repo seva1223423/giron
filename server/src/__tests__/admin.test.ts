@@ -800,6 +800,163 @@ describe('GET /api/admin/users/:id/sessions', () => {
   });
 });
 
+// ─── GET /api/admin/announcements/active ─────────────────────────────────────
+//
+// User-facing endpoint (any authenticated user calls it on home-screen
+// mount to pick up announcements). Filters by:
+//   - isActive
+//   - endsAt null OR future
+//   - targetRole null OR matches user's plan
+// Without correct targetRole filtering, free users could see paid-only
+// announcements (or vice versa).
+
+describe('GET /api/admin/announcements/active', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/announcements/active');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns active announcements + filters by user plan (free)', async () => {
+    // User has no subscription → free plan
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    const announcements = [
+      { id: 'a1', title: 'Hello', body: 'World', type: 'info', createdAt: new Date() },
+    ];
+    (prisma.announcement.findMany as jest.Mock).mockResolvedValueOnce(announcements);
+
+    const res = await request(app)
+      .get('/api/admin/announcements/active')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+
+    // Verify the where clause filters by isActive + endsAt + targetRole
+    const calls = (prisma.announcement.findMany as jest.Mock).mock.calls;
+    const where = calls[0][0].where;
+    expect(where.isActive).toBe(true);
+    expect(where.AND).toBeDefined();
+    // The targetRole filter must include 'free' (the user's effective plan)
+    // OR null (broadcast). Without this, free users would see no targeted
+    // announcements at all.
+    const targetRoleFilter = where.AND.find((clause: any) => clause.OR && clause.OR[0]?.targetRole !== undefined);
+    expect(targetRoleFilter).toBeDefined();
+  });
+
+  it('200 increments viewCount for returned announcements (fire-and-forget)', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.announcement.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'a1', title: 'A', body: 'B', type: 'info', createdAt: new Date() },
+      { id: 'a2', title: 'C', body: 'D', type: 'warn', createdAt: new Date() },
+    ]);
+
+    await request(app)
+      .get('/api/admin/announcements/active')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    // viewCount increment happens fire-and-forget — verify the call shape
+    const updateCalls = (prisma.announcement.updateMany as jest.Mock).mock.calls;
+    expect(updateCalls.length).toBeGreaterThan(0);
+    const incCall = updateCalls.find((c) => c[0]?.data?.viewCount?.increment === 1);
+    expect(incCall).toBeTruthy();
+    expect(incCall![0].where.id.in).toEqual(['a1', 'a2']);
+  });
+
+  it('200 skips viewCount increment when no announcements returned', async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.announcement.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/announcements/active')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    // Empty list → no updateMany call (avoid an empty `id.in: []` query
+    // that does nothing but burns a round-trip)
+    expect(prisma.announcement.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+// ─── GET /api/admin/announcements/preview ────────────────────────────────────
+
+describe('GET /api/admin/announcements/preview', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/announcements/preview');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/announcements/preview')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 counts non-banned users when no targetRole', async () => {
+    (prisma.user.count as jest.Mock).mockResolvedValueOnce(150);
+
+    const res = await request(app)
+      .get('/api/admin/announcements/preview')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(150);
+
+    const calls = (prisma.user.count as jest.Mock).mock.calls;
+    const where = calls[calls.length - 1][0].where;
+    expect(where.isBanned).toBe(false);
+  });
+
+  it('200 filters by subscription plan when targetRole=pro', async () => {
+    (prisma.user.count as jest.Mock).mockResolvedValueOnce(42);
+
+    const res = await request(app)
+      .get('/api/admin/announcements/preview?targetRole=pro')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(42);
+
+    const calls = (prisma.user.count as jest.Mock).mock.calls;
+    const where = calls[calls.length - 1][0].where;
+    // Must include the subscription nested filter — without this, an admin
+    // sending a "pro-only" announcement might over- or under-count their
+    // audience.
+    expect(where.subscription).toEqual({ plan: 'pro', status: 'active' });
+  });
+
+  it('200 filters by user role when targetRole=ADMIN', async () => {
+    (prisma.user.count as jest.Mock).mockResolvedValueOnce(2);
+
+    const res = await request(app)
+      .get('/api/admin/announcements/preview?targetRole=ADMIN')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(2);
+
+    const calls = (prisma.user.count as jest.Mock).mock.calls;
+    const where = calls[calls.length - 1][0].where;
+    expect(where.role).toBe('ADMIN');
+  });
+
+  it('200 ignores unrecognised targetRole values (safe fallback)', async () => {
+    (prisma.user.count as jest.Mock).mockResolvedValueOnce(150);
+
+    const res = await request(app)
+      .get('/api/admin/announcements/preview?targetRole=garbage')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+
+    const calls = (prisma.user.count as jest.Mock).mock.calls;
+    const where = calls[calls.length - 1][0].where;
+    // No subscription/role filter applied — falls back to all non-banned
+    expect(where.subscription).toBeUndefined();
+    expect(where.role).toBeUndefined();
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
