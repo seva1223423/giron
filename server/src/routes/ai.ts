@@ -11287,10 +11287,34 @@ function buildRecoveryContext(recovery: { score: number; factors: string[] }): s
  */
 async function cleanupStaleMemories(userId: string): Promise<void> {
   try {
+    // Round 97: TTL pruning for soft-confidence stale facts.
+    // Memories under confidence 0.85 (= the round-93 strong-qualitative tier
+    // and below) that haven't been re-mentioned in 180 days are likely
+    // outdated. The user's "люблю приседания" from a year ago might no
+    // longer be true; the AI should re-discover it on next mention rather
+    // than carry the stale label forever.
+    //
+    // Hard-confidence facts (≥ 0.85: target_weight_kg, sleep_duration_hours,
+    // smoking_status, diet_style, current_weight_kg, height_cm, training_
+    // frequency, etc.) are NOT pruned by time alone — they're anchored
+    // numeric or behaviour-changing categorical facts that the user
+    // intends to be stable. They get refreshed via the upsert path when
+    // re-mentioned and only get cut by the top-100 cap.
+    const STALE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+    const stalecutoff = new Date(Date.now() - STALE_TTL_MS);
+
     // Remove low-confidence and clamp over-1.0 entries — independent, run in parallel
     await Promise.all([
       prisma.aIMemory.deleteMany({ where: { userId, confidence: { lt: 0.1 } } }),
       prisma.aIMemory.updateMany({ where: { userId, confidence: { gt: 1.0 } }, data: { confidence: 1.0 } }),
+      // TTL prune: soft-confidence + not touched for 180 days.
+      prisma.aIMemory.deleteMany({
+        where: {
+          userId,
+          confidence: { lt: 0.85 },
+          updatedAt: { lt: stalecutoff },
+        },
+      }),
     ]);
     // Cap total memories per user at 100 — remove lowest-confidence/oldest beyond the top 100
     const excess = await prisma.aIMemory.findMany({
