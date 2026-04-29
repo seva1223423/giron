@@ -1528,7 +1528,9 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
  * Fast rule-based intent classifier. No AI call — pure regex.
  * Returns the most specific intent or 'general' as fallback.
  */
-function classifyIntent(message: string): UserIntent {
+// Exported for unit testing in __tests__/classifyIntent.test.ts. Not used
+// directly by external consumers; the route imports it locally.
+export function classifyIntent(message: string): UserIntent {
   for (const [intent, patterns] of INTENT_PATTERNS) {
     if (patterns.some((p) => p.test(message))) {
       return intent;
