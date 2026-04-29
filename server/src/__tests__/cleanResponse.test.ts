@@ -59,6 +59,33 @@ describe('cleanResponse — does NOT strip mid-sentence fluff', () => {
   });
 });
 
+describe('cleanResponse — round 156 closing fluff', () => {
+  test('strips "Если у тебя есть вопросы..." at end', () => {
+    const out = cleanResponse('Делай 4 подхода. Если у тебя есть вопросы, спрашивай!');
+    expect(out).toBe('Делай 4 подхода.');
+  });
+
+  test('strips "Удачи в тренировках!" at end', () => {
+    const out = cleanResponse('Программа готова. Удачи в тренировках!');
+    expect(out).toBe('Программа готова.');
+  });
+
+  test('strips "Надеюсь, это поможет!" at end', () => {
+    const out = cleanResponse('Программа на неделю. Надеюсь, это поможет!');
+    expect(out).toBe('Программа на неделю.');
+  });
+
+  test('strips "Если нужна помощь..." at end', () => {
+    const out = cleanResponse('Тренируйся 3 раза. Если нужна помощь, обращайся.');
+    expect(out).toBe('Тренируйся 3 раза.');
+  });
+
+  test('does NOT strip mid-sentence "если у тебя"', () => {
+    const out = cleanResponse('Если у тебя болит, остановись и отдохни.');
+    expect(out).toBe('Если у тебя болит, остановись и отдохни.');
+  });
+});
+
 describe('cleanResponse — boundary properties', () => {
   test('empty string returns empty string', () => {
     expect(cleanResponse('')).toBe('');
