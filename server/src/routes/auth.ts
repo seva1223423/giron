@@ -739,10 +739,20 @@ router.post('/google', async (req: Request, res: Response) => {
 
 router.post('/vk', async (req: Request, res: Response) => {
   try {
-    const { accessToken, userId: claimedVkUserId, email: vkEmail, deviceToken } = z.object({
+    const { accessToken, userId: claimedVkUserId, deviceToken } = z.object({
       accessToken: z.string().min(1),
       userId: z.number().int().positive(),
-      email: z.string().email().transform(normalizeEmail).optional(), // sec audit 2026-04 HIGH-14
+      // `email` is intentionally NOT accepted from the client. VK's
+      // users.get API doesn't return an email server-side, and the value
+      // the mobile flow extracts from the OAuth redirect fragment is
+      // forwarded through the device — an attacker can replay /auth/vk
+      // directly with a valid VK token of their own VK account but a
+      // crafted `email` field, squatting on the victim's email at user
+      // creation time. The unique constraint on User.email blocks the
+      // takeover for emails already registered, but for free emails the
+      // squatter wins, and the legitimate owner is then locked out of
+      // /register with "email taken". HIGH-3 closed the auto-link half
+      // of this gap; this closes the new-account-creation half.
       deviceToken: z.string().optional(),
     }).parse(req.body);
 
@@ -790,9 +800,11 @@ router.post('/vk', async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      // New VK user — create account. If vkEmail was provided by the client, store it
-      // but never mark it as verified (VK doesn't prove email ownership server-side).
-      const email = vkEmail || `vk_${vkId}@irongym.internal`;
+      // New VK user — create with the synthetic internal email only.
+      // The client-supplied email is no longer accepted (see schema note
+      // above). The user can attach a real email later via the
+      // /user/change-email OTP flow, which proves ownership end-to-end.
+      const email = `vk_${vkId}@irongym.internal`;
       user = await prisma.user.create({
         data: { email, vkId, firstName, lastName, avatarUrl, emailVerified: false },
         include: { healthRestrictions: true },
