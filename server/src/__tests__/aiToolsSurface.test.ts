@@ -102,6 +102,28 @@ describe('AI tools surface (round 110 baseline)', () => {
     }
   });
 
+  test('every expected tool name appears in routes/ai.ts as a toolName === branch (round 135)', async () => {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const aiRoutePath = path.resolve(__dirname, '../routes/ai.ts');
+    const content = await fs.readFile(aiRoutePath, 'utf-8');
+
+    for (const name of EXPECTED_TOOL_NAMES) {
+      // Each tool must have an executor branch — match either of:
+      //   if (toolName === 'X')        — main dispatcher
+      //   case 'X':                    — context-tool switch in contextTools
+      const inMainDispatcher = content.includes(`toolName === '${name}'`);
+      const inContextDispatcher = content.includes(`case '${name}'`);
+      // CONTEXT_TOOL_DEFINITIONS may be imported from contextTools.ts —
+      // its tools won't be in routes/ai.ts directly. So the assertion
+      // only fires for tools defined inline in TOOL_DEFINITIONS, which
+      // are ALL in EXPECTED_TOOL_NAMES per the round-100 baseline.
+      if (!inMainDispatcher && !inContextDispatcher) {
+        throw new Error(`Tool "${name}" has no executor branch in routes/ai.ts`);
+      }
+    }
+  });
+
   test('CLAUDE.md mentions every expected tool name', async () => {
     // Read CLAUDE.md from the repo root and assert each tool name appears.
     // This catches doc drift when a new tool is added without bumping the
