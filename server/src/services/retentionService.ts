@@ -418,6 +418,14 @@ export async function processWeeklySummaryEmails(): Promise<number> {
  * tolerance band absorbs cron drift and missed ticks during deploys; the
  * `renewalNoticeSentAt` gate guarantees one notice per renewal cycle.
  *
+ * Quiet hours: the **push** is skipped during 22:00..08:00 MSK so we don't
+ * wake a user with a charging warning at 03:00. The **email** still fires —
+ * email is the channel that satisfies 376-ФЗ §4 (lands in inbox at any
+ * time, harmless), and the gate is set on email success so the user gets
+ * exactly one notice per cycle. Push is a UX nudge, not a legal channel,
+ * so dropping it during sleep hours costs nothing. This matches the
+ * activation cohort behaviour (push deferred, email always).
+ *
  * Lifetime plans (no `endDate`) and free-tier rows are skipped.
  */
 export async function processPreRenewalNotices(): Promise<number> {
@@ -446,18 +454,26 @@ export async function processPreRenewalNotices(): Promise<number> {
 
     if (candidates.length === 0) return 0;
 
+    const quietHour = isQuietHourUtc(now);
     let sent = 0;
+    let pushDeferred = 0;
     for (const sub of candidates) {
       if (sub.user?.isBanned) continue;
       if (!sub.user?.email || !sub.endDate) continue;
 
       try {
-        // Push first (instant), then email (slower SMTP). Both are best-effort.
-        await sendPushToUser(sub.userId, {
-          title: 'Подписка продлится через 2 дня',
-          body: `Списание ${sub.endDate.toLocaleDateString('ru-RU')}. Отменить можно в разделе «Подписка».`,
-          data: { url: 'irongym://subscription', cohort: 'pre-renewal' },
-        }).catch(() => {});
+        // Push first (instant) when allowed, then email (slower SMTP, the
+        // legally-required channel). Push is best-effort — failures are
+        // swallowed so a flaky Expo response doesn't block the email path.
+        if (!quietHour) {
+          await sendPushToUser(sub.userId, {
+            title: 'Подписка продлится через 2 дня',
+            body: `Списание ${sub.endDate.toLocaleDateString('ru-RU')}. Отменить можно в разделе «Подписка».`,
+            data: { url: 'irongym://subscription', cohort: 'pre-renewal' },
+          }).catch(() => {});
+        } else {
+          pushDeferred++;
+        }
 
         await sendPreRenewalNotificationEmail(
           sub.user.email,
@@ -481,7 +497,8 @@ export async function processPreRenewalNotices(): Promise<number> {
     }
 
     logger.info(
-      `[376-ФЗ] Pre-renewal notices: sent ${sent}/${candidates.length}`,
+      `[376-ФЗ] Pre-renewal notices: sent ${sent}/${candidates.length}` +
+      (pushDeferred > 0 ? ` (${pushDeferred} push deferred — quiet hours)` : ''),
     );
     return sent;
   } catch (err) {
