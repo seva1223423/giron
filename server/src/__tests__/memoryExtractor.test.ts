@@ -844,6 +844,12 @@ describe('extractMemories — round 113 workout time patterns', () => {
     expect(out.some((m) => m.key === 'workout_time_pref' && /завтрак/.test(m.value))).toBe(true);
   });
 
+  // Round 170: negation guard
+  test('round 170: "не тренируюсь утром" does NOT match workout_time_pref', () => {
+    const out = extractMemories('я не тренируюсь утром');
+    expect(out.filter((m) => m.key === 'workout_time_pref')).toEqual([]);
+  });
+
   test('captures explicit hour "тренируюсь в 7"', () => {
     const out = extractMemories('тренируюсь в 7 утра');
     expect(out.some((m) => m.key === 'workout_time_hour' && /^7:00$/.test(m.value))).toBe(true);
