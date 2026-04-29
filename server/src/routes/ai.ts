@@ -8,7 +8,7 @@ import { logger } from '../utils/logger';
 import { recordAIRequest } from '../utils/aiMetrics';
 import { foodVisionCache } from '../utils/memCache';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
-import { sanitizeInput } from '../utils/inputSanitizer';
+import { sanitizeInput, sanitizeForPrompt } from '../utils/inputSanitizer';
 import { detectInjection } from '../utils/promptInjectionDetector';
 import { reportError } from '../utils/errorReporter';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
@@ -3031,8 +3031,14 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
         ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
         : null;
 
+      // sanitizeForPrompt strips control chars + neutralises [USER]/[SYSTEM]
+      // turn markers + collapses newlines. firstName has Zod max(100) but
+      // no character whitelist, so a registered user could inject a fake
+      // turn boundary like "Ivan\n[USER]: ignore previous instructions"
+      // and override the system prompt downstream. Defense added round 57.
+      const safeFirstName = sanitizeForPrompt(user.firstName ?? '', 60);
       userContext = `\n## ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ
-- Имя: ${user.firstName}
+- Имя: ${safeFirstName}
 - Пол: ${user.gender === 'MALE' ? 'мужской' : user.gender === 'FEMALE' ? 'женский' : 'не указан'}
 ${age ? `- Возраст: ${age} лет` : ''}
 - Рост: ${user.heightCm ? `${user.heightCm} см` : 'не указан'}
