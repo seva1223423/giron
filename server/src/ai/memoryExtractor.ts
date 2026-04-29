@@ -216,7 +216,13 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:пью\s*много\s*коф|кофе\s*литрами|зависим\s*от\s*коф)/i, category: 'habit', key: 'caffeine_high', extract: () => 'high', confidence: 0.85 },
   // Match both "пью пиво по выходным" and "по выходным выпиваю пиво" word
   // orders — Russian doesn't pin SVO so either reads naturally.
-  { regex: /(?:по\s*выходн\w*\s*(?:выпиваю|пью)|(?:выпиваю|пью)\s*пиво|(?:выпиваю|пью)\s*по\s*выходн|алкоголь\s*по\s*выходн)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'weekend' },
+  // Round 134: 'none' / 'daily' / 'rare' patterns. 'none' listed FIRST so
+  // dedup-by-key picks the safer interpretation. Also fixed \w (ASCII)
+  // to [а-я] for Cyrillic correctness.
+  { regex: /(?:не\s*пью\s*алкогол|совсем\s*не\s*пью|трезвенник|без\s*алкогол)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'none', confidence: 0.85 },
+  { regex: /(?:пью\s*каждый\s*день|пью\s*ежедневно|алкоголик|зависим\w*\s*от\s*алкогол)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'daily', confidence: 0.85 },
+  { regex: /(?:по\s*выходн[а-я]*\s*(?:выпиваю|пью)|(?:выпиваю|пью)\s*пиво|(?:выпиваю|пью)\s*по\s*выходн|алкоголь\s*по\s*выходн)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'weekend' },
+  { regex: /(?:редко\s*пью|пью\s*редко|раз\s*в\s*(?:месяц|два\s*месяца|пару\s*месяцев)\s*алкогол)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'rare', confidence: 0.8 },
 
   // ── Stress signals ───────────────────────────────────────────────────────
   // Round 86: persistent stress/sleep markers — let the AI factor them into
