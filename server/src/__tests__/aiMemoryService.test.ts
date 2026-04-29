@@ -137,6 +137,54 @@ describe('upsertFact', () => {
     const upsertCall = (prisma.aIMemory.upsert as jest.Mock).mock.calls[0][0];
     expect(upsertCall.create.confidence).toBe(0);
   });
+
+  test('round 85: invalidates foodVisionCache for the user when an allergy fact is upserted', async () => {
+    // The vision prompt bakes the user's allergies in at scan time, so
+    // touching an allergy fact must drop the user's cached responses
+    // (otherwise the next scan within 24h returns the pre-update reply).
+    // Stash a couple of cache entries for this and another user, run an
+    // upsert with category='allergy', and assert only this user's keys
+    // are gone.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+    const { foodVisionCache } = require('../utils/memCache');
+    foodVisionCache.set(`${USER_ID}:fp1`, { items: [] }, 60_000);
+    foodVisionCache.set(`${USER_ID}:text:fp2`, { items: [] }, 60_000);
+    foodVisionCache.set('u-other:fp3', { items: [] }, 60_000);
+
+    (prisma.aIMemory.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.aIMemory.upsert as jest.Mock).mockResolvedValueOnce({
+      id: 'f-allergy', category: 'allergy', key: 'gluten', value: 'severe',
+      confidence: 0.9, source: 'stated', updatedAt: new Date(),
+    });
+
+    await upsertFact({ userId: USER_ID, category: 'allergy', key: 'gluten', value: 'severe' });
+
+    expect(foodVisionCache.get(`${USER_ID}:fp1`)).toBeUndefined();
+    expect(foodVisionCache.get(`${USER_ID}:text:fp2`)).toBeUndefined();
+    // Other user's cache must not be touched.
+    expect(foodVisionCache.get('u-other:fp3')).toBeDefined();
+    foodVisionCache.clear();
+  });
+
+  test('round 85: does NOT invalidate foodVisionCache for unrelated categories like milestone', async () => {
+    // A milestone fact ("hit 100kg bench") doesn't change the vision
+    // prompt context — preserve the cache.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+    const { foodVisionCache } = require('../utils/memCache');
+    foodVisionCache.set(`${USER_ID}:fp1`, { items: [] }, 60_000);
+
+    (prisma.aIMemory.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.aIMemory.upsert as jest.Mock).mockResolvedValueOnce({
+      id: 'f-milestone', category: 'milestone', key: 'bench100', value: '2026-04',
+      confidence: 1.0, source: 'observed', updatedAt: new Date(),
+    });
+
+    await upsertFact({ userId: USER_ID, category: 'milestone', key: 'bench100', value: '2026-04' });
+
+    // Cache key still present.
+    expect(foodVisionCache.get(`${USER_ID}:fp1`)).toBeDefined();
+    foodVisionCache.clear();
+  });
 });
 
 // ── getFactsByUser ──────────────────────────────────────────────────────────

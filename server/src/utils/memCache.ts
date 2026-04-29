@@ -53,6 +53,22 @@ export class MemCache<T = unknown> {
     this.store.delete(key);
   }
 
+  /** Remove every entry whose key starts with `prefix`. Useful for scoped
+   *  invalidation — e.g. dropping every cached vision response for a
+   *  given userId after their allergies or preferences change, so the
+   *  next scan re-queries the LLM with the fresh context. Returns the
+   *  count of removed entries for callers that want to log impact. */
+  deletePrefix(prefix: string): number {
+    let removed = 0;
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        this.store.delete(key);
+        removed++;
+      }
+    }
+    return removed;
+  }
+
   /** Remove every entry. Used by tests that need a fresh cache between cases,
    *  since module-singleton caches otherwise leak state across `it` blocks. */
   clear(): void {
