@@ -69,8 +69,21 @@ jest.mock('../db', () => ({
     passwordHistory: {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     otpCode: { findFirst: jest.fn().mockResolvedValue(null) },
+    // $transaction: pass-through default — runs each op individually so existing
+    // tests that don't explicitly mock $transaction still work. Tests that need
+    // specific batched return values use mockResolvedValueOnce per case.
+    $transaction: jest.fn().mockImplementation(async (ops: any) => {
+      if (Array.isArray(ops)) {
+        return Promise.all(ops);
+      }
+      return ops; // function form: just run it
+    }),
+    // $executeRaw: used by recordPasswordHistory to prune old hashes via
+    // raw SQL. Default no-op.
+    $executeRaw: jest.fn().mockResolvedValue(0),
   },
 }));
 
@@ -902,6 +915,112 @@ describe('POST /api/user/onboarding/step', () => {
       .send({ step: 0 });
 
     expect(res.status).toBe(404);
+  });
+});
+
+// ─── POST /api/user/change-password ──────────────────────────────────────────
+//
+// Security-critical: HIGH-6 step-up reauth (current password), 2FA gate +
+// TOTP replay check, password-history reuse block, and post-change session
+// revocation. Was untested despite covering all of these.
+
+describe('POST /api/user/change-password', () => {
+  const userWithPassword = {
+    id: 'u-test',
+    email: 'test@example.com',
+    emailVerified: true,
+    passwordHash: 'bcrypt-hash',
+    totpEnabled: false,
+    totpSecret: null,
+  };
+  const userWith2FA = {
+    ...userWithPassword,
+    totpEnabled: true,
+    totpSecret: 'JBSWY3DPEHPK3PXP',
+  };
+
+  beforeEach(() => {
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValue(true);
+    bcrypt.default.compare.mockResolvedValue(true);
+    bcrypt.hash.mockResolvedValue('new-hash');
+    bcrypt.default.hash.mockResolvedValue('new-hash');
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app)
+      .post('/api/user/change-password')
+      .send({ currentPassword: 'old', newPassword: 'NewPassw0rd!' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when newPassword fails strong-password validation (too short)', async () => {
+    const res = await request(app)
+      .post('/api/user/change-password')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ currentPassword: 'old', newPassword: 'short' });
+    expect(res.status).toBe(400);
+  });
+
+  it('401 WRONG_CURRENT_PASSWORD when bcrypt.compare returns false', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)              // auth middleware
+      .mockResolvedValueOnce(userWithPassword);     // route handler
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValueOnce(false);
+    bcrypt.default.compare.mockResolvedValueOnce(false);
+
+    const res = await request(app)
+      .post('/api/user/change-password')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ currentPassword: 'wrong', newPassword: 'NewPassw0rd!' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('WRONG_CURRENT_PASSWORD');
+    // No password update or session revocation should have happened
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('400 TOTP_REQUIRED when 2FA is enabled but no totpCode provided', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWith2FA);
+
+    const res = await request(app)
+      .post('/api/user/change-password')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ currentPassword: 'old', newPassword: 'NewPassw0rd!' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('TOTP_REQUIRED');
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('200 success — updates password + revokes all sessions atomically', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPassword);
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
+    (prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+      { count: 2 }, // refresh tokens revoked
+      { count: 1 }, // trusted devices wiped
+    ]);
+
+    const res = await request(app)
+      .post('/api/user/change-password')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ currentPassword: 'correct', newPassword: 'NewPassw0rd!' });
+
+    expect(res.status).toBe(200);
+
+    // user.update called with new bcrypt hash
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    const pwUpdate = updateCalls.find((c) => c[0]?.data?.passwordHash !== undefined);
+    expect(pwUpdate).toBeTruthy();
+    expect(pwUpdate![0].data.passwordHash).toBe('new-hash');
+
+    // Sessions wiped via $transaction (atomic) — verify it was called
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 });
 
