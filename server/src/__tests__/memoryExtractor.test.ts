@@ -19,7 +19,8 @@ describe('extractMemories — original (pre-round-86) coverage still passes', ()
       category: 'schedule',
       key: 'training_frequency',
       value: '3 раз в неделю',
-      confidence: 0.7,
+      // Round 93: numeric anchored → 0.9.
+      confidence: 0.9,
       source: 'stated',
     }));
   });
@@ -566,12 +567,61 @@ describe('extractMemories — round 92 boundary (no false positives)', () => {
   });
 });
 
+describe('extractMemories — round 93 confidence calibration', () => {
+  test('numeric anchored facts get confidence 0.9 (training_frequency, sleep_duration, target_weight)', () => {
+    const cases: Array<{ input: string; key: string }> = [
+      { input: 'тренируюсь 4 раза в неделю', key: 'training_frequency' },
+      { input: 'сплю 8 часов', key: 'sleep_duration_hours' },
+      { input: 'моя цель 75 кг', key: 'target_weight_kg' },
+      { input: 'у меня 40 минут на тренировку', key: 'session_minutes_max' },
+      { input: 'пью 2 литра воды', key: 'water_intake_liters' },
+      { input: 'у меня 18% жира', key: 'bodyfat_percent' },
+      { input: 'сейчас вешу 80 кг', key: 'current_weight_kg' },
+      { input: 'мой рост 180 см', key: 'height_cm' },
+    ];
+    for (const c of cases) {
+      const out = extractMemories(c.input);
+      const found = out.find((m) => m.key === c.key);
+      expect(found).toBeDefined();
+      expect(found!.confidence).toBe(0.9);
+    }
+  });
+
+  test('strong qualitative facts get confidence 0.8-0.85 (training_location, smoking, diet_style, caffeine)', () => {
+    const out1 = extractMemories('тренируюсь дома');
+    expect(out1.find((m) => m.key === 'training_location')?.confidence).toBe(0.8);
+
+    const out2 = extractMemories('я не курю');
+    expect(out2.find((m) => m.key === 'smoking_status')?.confidence).toBe(0.85);
+
+    const out3 = extractMemories('сижу на кето');
+    expect(out3.find((m) => m.key === 'diet_style')?.confidence).toBe(0.85);
+
+    const out4 = extractMemories('пью много кофе');
+    expect(out4.find((m) => m.key === 'caffeine_high')?.confidence).toBe(0.85);
+  });
+
+  test('weak signals get confidence 0.6 (personality_trait)', () => {
+    const out = extractMemories('я перфекционист');
+    expect(out.find((m) => m.key === 'personality_trait')?.confidence).toBe(0.6);
+  });
+
+  test('uncalibrated patterns retain default 0.7', () => {
+    // favorite_exercise has no explicit confidence — falls back to 0.7.
+    const out = extractMemories('люблю приседания');
+    const fav = out.find((m) => m.key === 'favorite_exercise');
+    expect(fav).toBeDefined();
+    expect(fav!.confidence).toBe(0.7);
+  });
+});
+
 describe('extractMemories — output contract', () => {
-  test('all extractions have confidence=0.7 and source=stated', () => {
+  test('all extractions have valid confidence in [0.6, 0.9] range and source=stated', () => {
     const out = extractMemories('тренируюсь 4 раза в неделю, сплю 8 часов, моя цель 80 кг');
     expect(out.length).toBeGreaterThan(0);
     for (const m of out) {
-      expect(m.confidence).toBe(0.7);
+      expect(m.confidence).toBeGreaterThanOrEqual(0.6);
+      expect(m.confidence).toBeLessThanOrEqual(0.9);
       expect(m.source).toBe('stated');
     }
   });
