@@ -37,12 +37,23 @@ describe('buildWeekDotsFromHistory data integrity', () => {
   });
 
   test('duplicate workouts on same day count once (dot is binary)', () => {
+    // Round 64cfec7 changed buildWeekDotsFromHistory to bucket by LOCAL
+    // calendar date (was UTC). The pre-existing test built `todayIso`
+    // from `today.toISOString().split('T')[0]` — that's a UTC date,
+    // which differs from the local date for any TZ where local time is
+    // currently in the previous/next UTC day. In MSK (UTC+3) this fires
+    // every night between 21:00 and 23:59 local: UTC date is "today" but
+    // MSK has rolled over to "tomorrow". The 12:00Z timestamp then
+    // bucketed to dots[5] (yesterday MSK) instead of dots[6] (today MSK).
+    //
+    // Fix: build the workout timestamp at NOW (today's actual local
+    // moment) rather than at noon UTC of an arbitrary date.
     const today = new Date();
-    const todayIso = today.toISOString().split('T')[0] + 'T12:00:00Z';
+    const nowIso = today.toISOString();
     const history = [
-      { completedAt: todayIso },
-      { completedAt: todayIso },
-      { completedAt: todayIso },
+      { completedAt: nowIso },
+      { completedAt: nowIso },
+      { completedAt: nowIso },
     ];
     const dots = buildWeekDotsFromHistory(history, today);
     expect(dots[6]).toBe(1);
