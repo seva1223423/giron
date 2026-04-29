@@ -61,6 +61,32 @@ describe('extractMemories — original (pre-round-86) coverage still passes', ()
     expect(pains.length).toBeGreaterThanOrEqual(2);
   });
 
+  // Round 136: past_injury (distinct from current pain)
+  test('past_injury captures "была травма колена"', () => {
+    const out = extractMemories('была травма колена 5 лет назад');
+    expect(out.some((m) => m.key.startsWith('past_injury_') && /колен/.test(m.value))).toBe(true);
+  });
+
+  test('past_injury captures "ломал руку"', () => {
+    const out = extractMemories('ломал руку в детстве');
+    expect(out.some((m) => m.key.startsWith('past_injury_') && /рук/.test(m.value))).toBe(true);
+  });
+
+  test('past_injury captures "раньше болело плечо"', () => {
+    const out = extractMemories('раньше болело плечо, сейчас в порядке');
+    expect(out.some((m) => m.key.startsWith('past_injury_') && /плеч/.test(m.value))).toBe(true);
+  });
+
+  test('past_injury and pain_area can coexist for different body parts', () => {
+    const out = extractMemories('болит плечо, а раньше травмировал колено');
+    const past = out.filter((m) => m.key.startsWith('past_injury_'));
+    const current = out.filter((m) => m.key.startsWith('pain_'));
+    // At least one past injury (knee) and one current pain (shoulder)
+    // should both land — they're tracked under different key prefixes.
+    expect(past.length).toBeGreaterThanOrEqual(1);
+    expect(current.length).toBeGreaterThanOrEqual(1);
+  });
+
   test('user_goal extracts canonical value, not the matched verb', () => {
     const out = extractMemories('хочу похудеть и сбросить вес');
     const goals = out.filter((m) => m.key === 'user_goal');
