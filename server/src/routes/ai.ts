@@ -10768,6 +10768,10 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         // count for context — this just propagates it to the response
         // payload.
         aiMemoryCount,
+        // Round 179: also surface how many NEW memories the AI extracted
+        // from THIS turn's message. UI can show "AI запомнил N новых
+        // фактов" if > 0.
+        memoryExtractedNow: extractedMemories.length,
         milestones: gamification.milestones.length > 0 ? gamification.milestones : undefined,
         newPRs: gamification.newPRsThisWeek.length > 0
           ? gamification.newPRsThisWeek.map((pr) => `${pr.exercise}: ${pr.weight}кг`)
