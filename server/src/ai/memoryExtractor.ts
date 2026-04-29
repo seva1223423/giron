@@ -97,7 +97,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 86: capture sleep DURATION, not just bedtime. "сплю по 7 часов" and
   // "сплю 8 часов" were both invisible before — extracting them lets the
   // recovery / fatigue blocks tune their ACWR ceiling per user.
-  { regex: /сплю?\s*(?:по\s*)?(\d{1,2})\s*час/i, category: 'habit', key: 'sleep_duration_hours', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  // Round 109: widened to also catch past-tense + perfective verbs:
+  //   сплю / спал / поспал / проспал / выспал
+  // and noun-prefix variant "X часов сна" — covers "получил 6 часов сна",
+  // "сегодня 7 часов сна".
+  { regex: /(?:спл[юм]|спал[аи]?|поспал[аи]?|проспал[аи]?|выспал[ся]*|вы\s*спал)\s*(?:по\s*)?(\d{1,2})\s*час/i, category: 'habit', key: 'sleep_duration_hours', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  { regex: /(\d{1,2})\s*час(?:а|ов)?\s*сна/i, category: 'habit', key: 'sleep_duration_hours', extract: (m) => `${m[1]}`, confidence: 0.85 },
 
   // ── Experience ────────────────────────────────────────────────────────────
   { regex: /(?:занимаюсь|тренируюсь)\s*(?:уже)?\s*(\d+)\s*(лет|год|месяц)/i, category: 'preference', key: 'experience_stated', extract: (m) => `${m[1]} ${m[2]}` },

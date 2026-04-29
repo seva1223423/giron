@@ -92,6 +92,27 @@ describe('extractMemories — round 86 expansions', () => {
     }));
   });
 
+  // Round 109: past-tense + noun-prefix variants
+  test('sleep_duration_hours captures "поспал 6 часов"', () => {
+    const out = extractMemories('сегодня поспал 6 часов всего');
+    expect(out.some((m) => m.key === 'sleep_duration_hours' && m.value === '6')).toBe(true);
+  });
+
+  test('sleep_duration_hours captures "проспал 9 часов"', () => {
+    const out = extractMemories('проспал 9 часов отлично');
+    expect(out.some((m) => m.key === 'sleep_duration_hours' && m.value === '9')).toBe(true);
+  });
+
+  test('sleep_duration_hours captures "спал 5 часов"', () => {
+    const out = extractMemories('спал 5 часов из-за работы');
+    expect(out.some((m) => m.key === 'sleep_duration_hours' && m.value === '5')).toBe(true);
+  });
+
+  test('sleep_duration_hours captures "получил 7 часов сна"', () => {
+    const out = extractMemories('получил 7 часов сна');
+    expect(out.some((m) => m.key === 'sleep_duration_hours' && m.value === '7')).toBe(true);
+  });
+
   test('user_goal — alternative phrasing "моя цель — похудеть"', () => {
     const out = extractMemories('моя цель — похудеть к лету');
     const goals = out.filter((m) => m.key === 'user_goal');
