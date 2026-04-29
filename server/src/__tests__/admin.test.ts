@@ -1858,6 +1858,120 @@ describe('GET /api/admin/subscriptions', () => {
   });
 });
 
+// ─── GET /api/admin/logs ─────────────────────────────────────────────────────
+
+describe('GET /api/admin/logs', () => {
+  beforeEach(() => {
+    (prisma.adminLog.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.adminLog as any).count = jest.fn().mockResolvedValue(0);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/logs');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/logs')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 default pagination uses limit=50 (capped at 200)', async () => {
+    const res = await request(app)
+      .get('/api/admin/logs')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    const calls = (prisma.adminLog.findMany as jest.Mock).mock.calls;
+    expect(calls[0][0].take).toBe(50);
+  });
+
+  it('200 caps limit at 200 (sanity bound)', async () => {
+    await request(app)
+      .get('/api/admin/logs?limit=999')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.adminLog.findMany as jest.Mock).mock.calls;
+    expect(calls[0][0].take).toBe(200);
+  });
+
+  it('400 when search query exceeds 100 chars', async () => {
+    const long = 'x'.repeat(101);
+    const res = await request(app)
+      .get(`/api/admin/logs?search=${long}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('200 search filter expands across details + admin email/name', async () => {
+    await request(app)
+      .get('/api/admin/logs?search=banned')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.adminLog.findMany as jest.Mock).mock.calls;
+    const where = calls[0][0].where;
+    // OR clause must search 4 places: details, admin.email, admin.firstName,
+    // admin.lastName. Without all 4, the audit search becomes too narrow
+    // and admins can't grep by their colleagues' names.
+    expect(where.OR).toEqual(expect.arrayContaining([
+      expect.objectContaining({ details: expect.objectContaining({ contains: 'banned' }) }),
+      expect.objectContaining({ admin: expect.objectContaining({ email: expect.any(Object) }) }),
+      expect.objectContaining({ admin: expect.objectContaining({ firstName: expect.any(Object) }) }),
+      expect.objectContaining({ admin: expect.objectContaining({ lastName: expect.any(Object) }) }),
+    ]));
+    expect(where.OR.length).toBe(4);
+  });
+});
+
+// ─── GET /api/admin/staff ────────────────────────────────────────────────────
+
+describe('GET /api/admin/staff', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/staff');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for regular USER (not staff)', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/staff')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 SUPPORT role can call (used for ticket assignment dropdown)', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ...regularUser, id: 'u-support', role: 'SUPPORT',
+    });
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/api/admin/staff')
+      .set('Authorization', `Bearer ${makeToken('u-support', 'SUPPORT')}`);
+
+    expect(res.status).toBe(200);
+  });
+
+  it('200 returns SUPPORT + ADMIN users only, excludes banned', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/staff')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const staffCall = calls.find((c) => c[0]?.where?.role?.in !== undefined);
+    expect(staffCall).toBeDefined();
+    expect(staffCall![0].where.role.in).toEqual(['SUPPORT', 'ADMIN']);
+    expect(staffCall![0].where.isBanned).toBe(false);
+    // Sort: firstName asc — predictable order in the dropdown
+    expect(staffCall![0].orderBy).toEqual({ firstName: 'asc' });
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
