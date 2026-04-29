@@ -112,6 +112,7 @@ model User {
   adminLogs               AdminLog[]       @relation("AdminLogs")
   sleepEntries            SleepEntry[]
   announcements           Announcement[]   @relation("Announcements")
+  recipes                 Recipe[]
 
   gym                     Gym?      @relation(fields: [gymId], references: [id], onDelete: SetNull)
   passwordResetTokens     PasswordResetToken[]
@@ -829,5 +830,55 @@ model FoodScanLog {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
+  @@index([userId, createdAt])
+}
+
+// ==================== RECIPES ====================
+// Three-source recipe library:
+//   CURATED — seeded by ops, userId is null, browseable by every authed user.
+//   AI      — generated on-the-fly by /recipes/ai-generate; ephemeral (not saved).
+//             Persisted only when the user explicitly accepts and we re-save as USER.
+//   USER    — created by the user (manual or via "save AI result"). userId required.
+//
+// Macros are stored at the recipe level (totalCalories etc.) AND duplicated inside
+// each ingredient (in `ingredients` JSON). Server treats client-supplied
+// per-ingredient values as authoritative on POST and recomputes totals from them.
+enum RecipeSource {
+  CURATED
+  AI
+  USER
+}
+
+model Recipe {
+  id            String       @id @default(cuid())
+  source        RecipeSource
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name          String
+  descriptionRu String?
+  imageUrl      String?      // null → client falls back to a placeholder icon
+
+  totalCalories Float
+  totalProtein  Float
+  totalFats     Float
+  totalCarbs    Float
+
+  prepTimeMin   Int
+  servings      Int          @default(1)
+
+  // [{ name, weightGrams, calories, protein, fats, carbs }]
+  ingredients   Json
+  // string[] — Russian cooking steps
+  steps         Json
+  // tags: weight-loss/maintain/gain · breakfast/lunch/dinner/snack · high-protein/low-carb
+  tags          String[]
+  // allergens present: lactose/gluten/eggs/nuts/fish/soy
+  allergens     String[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([source, createdAt])
   @@index([userId, createdAt])
 }

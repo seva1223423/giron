@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "seed:recipes": "tsx prisma/seed-recipes.ts",
     "test": "jest --forceExit --detectOpenHandles"
   },
   "dependencies": {
