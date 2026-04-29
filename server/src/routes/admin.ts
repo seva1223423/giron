@@ -2473,10 +2473,17 @@ router.patch('/support/:id/assign', requireAdmin, async (req: AuthRequest, res: 
     const { assignedToId } = z.object({ assignedToId: z.string().cuid().nullable() }).parse(req.body);
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
-    // Validate assignee is staff if not null
+    // Validate assignee is staff if not null. Round 82: also check
+    // isBanned — a banned admin/support shouldn't get assigned new
+    // tickets. The user-route equivalent at routes/support.ts:283
+    // (PATCH /support/tickets/:id/assign) already checks isBanned;
+    // this admin route was the inconsistent one.
     if (assignedToId) {
-      const assignee = await prisma.user.findUnique({ where: { id: assignedToId }, select: { role: true } });
-      if (!assignee || !['SUPPORT', 'ADMIN'].includes(assignee.role)) {
+      const assignee = await prisma.user.findUnique({
+        where: { id: assignedToId },
+        select: { role: true, isBanned: true },
+      });
+      if (!assignee || assignee.isBanned || !['SUPPORT', 'ADMIN'].includes(assignee.role)) {
         return res.status(400).json({ error: 'Назначенный пользователь не является сотрудником' });
       }
     }
