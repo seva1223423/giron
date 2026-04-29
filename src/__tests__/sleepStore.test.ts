@@ -257,8 +257,12 @@ describe('useSleepStore', () => {
   describe('addEntry server sync failure rollback', () => {
     const { userService } = require('../services/userService');
 
-    test('rolls back entry when saveSleep fails', async () => {
-      userService.saveSleep.mockRejectedValueOnce(new Error('server error'));
+    test('round 73: keeps entry with pendingSync flag on network/5xx (was data-loss)', async () => {
+      // No `response.status` on the error → treated as offline. Round 73
+      // changed the contract so the user's offline-logged sleep entry stays
+      // visible and gets flushed by the next syncFromServer instead of
+      // silently disappearing. 4xx still drops (next test).
+      userService.saveSleep.mockRejectedValueOnce(new Error('Network timeout'));
 
       useSleepStore.getState().addEntry({
         date: '2026-04-08',
@@ -269,10 +273,28 @@ describe('useSleepStore', () => {
       // Entry is added optimistically
       expect(useSleepStore.getState().entries).toHaveLength(1);
 
-      // Wait for the rejected promise to trigger rollback
       await new Promise((r) => setTimeout(r, 0));
 
-      expect(useSleepStore.getState().entries).toHaveLength(0);
+      // Entry retained, marked pendingSync for the next online tick.
+      const entries = useSleepStore.getState().entries;
+      expect(entries).toHaveLength(1);
+      expect(entries[0].pendingSync).toBe(true);
+    });
+
+    test('round 73: drops entry on 4xx (validation reject is permanent)', async () => {
+      userService.saveSleep.mockRejectedValueOnce({ response: { status: 400 } });
+
+      useSleepStore.getState().addEntry({
+        date: '2026-04-08',
+        bedtime: '23:00',
+        wakeTime: '07:00',
+      });
+
+      expect(useSleepStore.getState().entries).toHaveLength(1); // optimistic
+
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(useSleepStore.getState().entries).toHaveLength(0); // dropped
     });
   });
 

@@ -9,6 +9,11 @@ export interface SleepEntry {
   wakeTime: string; // HH:MM (24h)
   durationHours: number;
   quality?: number; // 1-5
+  /** Set to true when addEntry's POST failed with a network/5xx error and the
+   *  row is still waiting to reach the server. syncFromServer flushes these
+   *  on the next online tick. Always undefined for server-confirmed rows so
+   *  no migration is needed for existing persisted state. */
+  pendingSync?: boolean;
 }
 
 interface SleepStore {
@@ -44,10 +49,24 @@ export const useSleepStore = create<SleepStore>()(
           entries: [newEntry, ...state.entries.filter((e) => e.date !== entry.date)]
             .sort((a, b) => b.date.localeCompare(a.date)),
         }));
-        // Sync to server; remove only this entry on failure — restoring a snapshot would
-        // erase concurrent entries added while this sync was in-flight
-        userService.saveSleep({ ...newEntry }).catch(() => {
-          set((s) => ({ entries: s.entries.filter((e) => e.date !== newEntry.date) }));
+        // Round 73: distinguish 4xx (drop — bad payload, retrying won't help)
+        // from network/5xx (keep with pendingSync — syncFromServer will push
+        // it on the next online tick). The original behaviour dropped EVERY
+        // failure mode, so a sleep entry logged offline silently vanished
+        // from the user's history. Same shape as cardioStore round 71 and
+        // measurementsStore round 72.
+        userService.saveSleep({ ...newEntry }).catch((err: any) => {
+          const status = err?.response?.status;
+          if (status && status >= 400 && status < 500) {
+            set((s) => ({ entries: s.entries.filter((e) => e.date !== newEntry.date) }));
+          } else {
+            // Mark as pending so the next syncFromServer flushes it.
+            set((s) => ({
+              entries: s.entries.map((e) =>
+                e.date === newEntry.date ? { ...e, pendingSync: true } : e,
+              ),
+            }));
+          }
         });
       },
 
@@ -67,6 +86,36 @@ export const useSleepStore = create<SleepStore>()(
 
       syncFromServer: async () => {
         try {
+          // Phase 1 — flush any entries marked pendingSync (offline-saved
+          // but never reached the backend). Server upsert is keyed on
+          // userId+date so retrying is idempotent. Round 73.
+          const pending = get().entries.filter((e) => e.pendingSync);
+          const flushedDates = new Set<string>();
+          for (const local of pending) {
+            try {
+              await userService.saveSleep({
+                date: local.date,
+                bedtime: local.bedtime,
+                wakeTime: local.wakeTime,
+                durationHours: local.durationHours,
+                quality: local.quality,
+              });
+              flushedDates.add(local.date);
+            } catch {
+              // Still offline / still 4xx — leave pendingSync flag in place
+              // for the next sync tick.
+            }
+          }
+          // Clear the flag on successfully-flushed entries before we hit the
+          // merge phase. They'll be replaced by the server snapshot next.
+          if (flushedDates.size > 0) {
+            set((s) => ({
+              entries: s.entries.map((e) =>
+                flushedDates.has(e.date) ? { ...e, pendingSync: undefined } : e,
+              ),
+            }));
+          }
+
           const serverEntries = await userService.getSleep();
           if (serverEntries.length > 0) {
             const mapped: SleepEntry[] = serverEntries.map((e) => ({
@@ -76,7 +125,9 @@ export const useSleepStore = create<SleepStore>()(
               durationHours: e.durationHours,
               quality: e.quality ?? undefined,
             })).sort((a, b) => b.date.localeCompare(a.date));
-            // Merge: server is authoritative; keep local-only entries (any date) not known to server
+            // Merge: server is authoritative; keep local entries (pending or
+            // synced from a previous session) for dates the server doesn't
+            // know about.
             const serverDates = new Set(mapped.map((e) => e.date));
             const localOnly = get().entries.filter((e) => !serverDates.has(e.date));
             set({ entries: [...localOnly, ...mapped].sort((a, b) => b.date.localeCompare(a.date)) });
