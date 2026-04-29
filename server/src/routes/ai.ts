@@ -1574,7 +1574,12 @@ const MOOD_PATTERNS: Array<[UserMood, RegExp[]]> = [
   ['excited', [
     /(?:ура|ааа|оооо|вау|круто|офигеть|охренеть|обалдеть|класс|супер|бомба)/i,
     /(?:наконец[-\s]?то|я\s*(?:смог|сделал|осилил|поднял|побил))/i,
-    /(?:новый рекорд|личный рекорд|pr|пр|пб)/i,
+    // Round 107 fix: bare "пр" / "пб" (PR / PB abbreviations) used to
+    // match inside any word containing those letters together — e.g.
+    // "справлюсь" contains "пр" and was tagged excited. Now require
+    // explicit word boundaries (start of string / whitespace before;
+    // end of string / whitespace / punctuation after).
+    /(?:новый рекорд|личный рекорд|(?:^|\s)(?:pr|пр|пб)(?:$|\s|[.,!?]))/i,
     /(?:!!|🔥|💪|🎉|🏆)/,
   ]],
   ['anxious', [
@@ -1622,7 +1627,9 @@ const MOOD_DIRECTIVES: Record<UserMood, string> = {
   fatigued: '😴 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: физически вымотан / признаки выгорания. НЕ давай моралите про "терпи и работай". Сначала проверь: сон, объём за последнюю неделю, давность последней неделя отдыха. Если ACWR > 1.5 — предложи деload. Подскажи 2-3 практики восстановления (сон, белок, растяжка). Тренировку — только лёгкую или совсем пропустить.',
 };
 
-function detectMood(message: string): MoodDirective {
+// Exported for unit testing (round 107). Not used externally; the route
+// imports it locally.
+export function detectMood(message: string): MoodDirective {
   for (const [mood, patterns] of MOOD_PATTERNS) {
     if (patterns.some((p) => p.test(message))) {
       return { mood, directive: MOOD_DIRECTIVES[mood] };
