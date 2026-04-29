@@ -1112,6 +1112,17 @@ describe('extractMemories — round 159 chronotype', () => {
     const out = extractMemories('обычно рано встаю');
     expect(out.some((m) => m.key === 'chronotype' && m.value === 'morning')).toBe(true);
   });
+
+  // Round 168: negation guard
+  test('round 168: "я не сова" does NOT match evening', () => {
+    const out = extractMemories('я не сова, обычно ложусь в 11');
+    expect(out.filter((m) => m.key === 'chronotype' && m.value === 'evening')).toEqual([]);
+  });
+
+  test('round 168: "я не жаворонок" does NOT match morning', () => {
+    const out = extractMemories('я не жаворонок, тяжело вставать');
+    expect(out.filter((m) => m.key === 'chronotype' && m.value === 'morning')).toEqual([]);
+  });
 });
 
 describe('extractMemories — round 157 training split preference', () => {

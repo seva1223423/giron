@@ -393,8 +393,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Drives workout time recommendation: morning chronotype (жаворонок) gets
   // pre-work AM session suggestions; night owl (сова) gets evening
   // suggestions. Confidence 0.8 (qualitative but stable trait).
-  { regex: /(?:я\s+)?(?:жаворонок|утренний\s+тип|рано\s+встаю|просыпаюсь\s+рано)/i, category: 'preference', key: 'chronotype', extract: () => 'morning', confidence: 0.8 },
-  { regex: /(?:я\s+)?(?:сова|ночной\s+тип|поздно\s+ложусь|поздно\s+встаю|тяжело\s+вставать)/i, category: 'preference', key: 'chronotype', extract: () => 'evening', confidence: 0.8 },
+  // Round 168: negation guard added — "я не сова" / "я не жаворонок" no
+  // longer matches as the opposite chronotype.
+  { regex: /(?<!не\s+)(?:я\s+)?(?:жаворонок|утренний\s+тип|рано\s+встаю|просыпаюсь\s+рано)/i, category: 'preference', key: 'chronotype', extract: () => 'morning', confidence: 0.8 },
+  { regex: /(?<!не\s+)(?:я\s+)?(?:сова|ночной\s+тип|поздно\s+ложусь|поздно\s+встаю|тяжело\s+вставать)/i, category: 'preference', key: 'chronotype', extract: () => 'evening', confidence: 0.8 },
 
   // ── Round 91: Experience level descriptor ────────────────────────────────
   // The existing experience_stated pattern captures "X лет/месяцев", but
