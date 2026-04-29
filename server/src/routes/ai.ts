@@ -11413,7 +11413,9 @@ function buildRecoveryContext(recovery: { score: number; factors: string[] }): s
  * Save or update extracted memories in the database.
  * Upsert: if key exists, increment confidence by 0.05 (reward repeated mentions, capped at 1.0 during cleanup); if new, create with 0.7.
  */
-async function cleanupStaleMemories(userId: string): Promise<void> {
+// Exported for unit testing in __tests__/cleanupStaleMemories.test.ts.
+// Internal use only — no external callers.
+export async function cleanupStaleMemories(userId: string): Promise<void> {
   try {
     // Round 97: TTL pruning for soft-confidence stale facts.
     // Memories under confidence 0.85 (= the round-93 strong-qualitative tier
