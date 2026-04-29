@@ -792,6 +792,40 @@ describe('extractMemories — round 113 workout time patterns', () => {
   });
 });
 
+describe('extractMemories — round 150 past achievements', () => {
+  test('weight_lost_kg captures "уже сбросил 5 кг"', () => {
+    const out = extractMemories('уже сбросил 5 кг за 2 месяца');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'weight_lost_kg',
+      value: '5',
+    }));
+  });
+
+  test('weight_gained_kg captures "уже набрал 3 кг"', () => {
+    const out = extractMemories('уже набрал 3 кг чистой массы');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'weight_gained_kg',
+      value: '3',
+    }));
+  });
+
+  test('milestone_pr_kg captures "достиг 100 кг в жиме"', () => {
+    const out = extractMemories('достиг 100 кг в жиме лёжа');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'milestone_pr_kg',
+      value: '100',
+    }));
+  });
+
+  test('milestone_pr_kg captures "пробил 150 кг"', () => {
+    const out = extractMemories('пробил 150 кг в становой');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'milestone_pr_kg',
+      value: '150',
+    }));
+  });
+});
+
 describe('extractMemories — round 112 weight delta targets', () => {
   test('captures "хочу сбросить 5 кг"', () => {
     const out = extractMemories('хочу сбросить 5 кг к лету');
