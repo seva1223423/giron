@@ -42,6 +42,7 @@ jest.mock('../db', () => ({
     },
     chatMessage: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     adminLog: {
       create: jest.fn().mockResolvedValue({}),
@@ -64,6 +65,7 @@ jest.mock('../db', () => ({
     },
     supportTicket: {
       create: jest.fn().mockResolvedValue({}),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     securityEvent: {
       create: jest.fn().mockResolvedValue({}),
@@ -1443,6 +1445,84 @@ describe('POST /api/admin/subscriptions/broadcast', () => {
     const window = subWhere.endDate.lte.getTime() - subWhere.endDate.gte.getTime();
     // Allow slack for clock skew during the test run (millisecond precision)
     expect(Math.abs(window - ms14d)).toBeLessThan(1000);
+  });
+});
+
+// ─── GET /api/admin/moderation/search ────────────────────────────────────────
+//
+// Searches AI chat messages + support tickets for a keyword. Used by the
+// founder when investigating reports of abusive content. Two security
+// properties pinned:
+//   - Auth gate (admin-only — search results expose user emails + content
+//     across the whole user base)
+//   - Filters chatMessage by role='user' (only USER-sent messages, not
+//     AI replies — AI replies aren't user-content; including them would
+//     surface internal AI responses every search). Same logic for
+//     supportTicket.messages.some.isStaff=false.
+
+describe('GET /api/admin/moderation/search', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/moderation/search?q=spam');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/moderation/search?q=spam')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('400 when query is missing', async () => {
+    const res = await request(app)
+      .get('/api/admin/moderation/search')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when query is shorter than 2 chars', async () => {
+    const res = await request(app)
+      .get('/api/admin/moderation/search?q=x')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when query exceeds 100 chars (sanity bound)', async () => {
+    const longQuery = 'x'.repeat(101);
+    const res = await request(app)
+      .get(`/api/admin/moderation/search?q=${longQuery}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('200 SECURITY: chatMessage search filters by role=user (excludes AI replies)', async () => {
+    (prisma.chatMessage.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.supportTicket.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/api/admin/moderation/search?q=spam')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+
+    // chatMessage.findMany must include role='user' filter
+    const chatCalls = (prisma.chatMessage.findMany as jest.Mock).mock.calls;
+    expect(chatCalls.length).toBe(1);
+    expect(chatCalls[0][0].where.role).toBe('user');
+    // Keyword passed through as case-insensitive contains
+    expect(chatCalls[0][0].where.content).toEqual(
+      expect.objectContaining({ contains: 'spam', mode: 'insensitive' }),
+    );
+
+    // supportTicket.findMany — message-content branch must filter by isStaff=false
+    // so the search only returns user-authored messages, not staff replies.
+    const ticketCalls = (prisma.supportTicket.findMany as jest.Mock).mock.calls;
+    expect(ticketCalls.length).toBe(1);
+    const orClauses = ticketCalls[0][0].where.OR;
+    const messageBranch = orClauses.find((c: any) => c.messages?.some?.content);
+    expect(messageBranch).toBeDefined();
+    expect(messageBranch.messages.some.isStaff).toBe(false);
   });
 });
 
