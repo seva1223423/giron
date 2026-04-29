@@ -1629,6 +1629,100 @@ describe('GET /api/admin/activity-feed', () => {
   });
 });
 
+// ─── GET /api/admin/users/top-revenue ────────────────────────────────────────
+
+describe('GET /api/admin/users/top-revenue', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/users/top-revenue');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/users/top-revenue')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 sorts by revenue desc + filters to active paid subs only', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'u-pro', firstName: 'Pro', lastName: null, email: 'p@x.com',
+        subscription: { plan: 'pro', startDate: new Date(), endDate: null },
+        _count: { workouts: 50, chatMessages: 100 } },
+      { id: 'u-club', firstName: 'Club', lastName: null, email: 'c@x.com',
+        subscription: { plan: 'club', startDate: new Date(), endDate: null },
+        _count: { workouts: 30, chatMessages: 50 } },
+      { id: 'u-trainer', firstName: 'T', lastName: null, email: 't@x.com',
+        subscription: { plan: 'trainer', startDate: new Date(), endDate: null },
+        _count: { workouts: 20, chatMessages: 40 } },
+    ]);
+
+    const res = await request(app)
+      .get('/api/admin/users/top-revenue')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    // Sort: club (29.99) > trainer (19.99) > pro (9.99)
+    expect(res.body[0].id).toBe('u-club');
+    expect(res.body[1].id).toBe('u-trainer');
+    expect(res.body[2].id).toBe('u-pro');
+
+    // Verify SECURITY: where clause excludes free + banned + non-active
+    const calls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const topRevCall = calls.find((c) => c[0]?.where?.subscription?.plan?.not === 'free');
+    expect(topRevCall).toBeDefined();
+    expect(topRevCall![0].where.isBanned).toBe(false);
+    expect(topRevCall![0].where.subscription.status).toBe('active');
+  });
+});
+
+// ─── GET /api/admin/users/churn-risk ─────────────────────────────────────────
+
+describe('GET /api/admin/users/churn-risk', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/users/churn-risk');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/users/churn-risk')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 filters paid users with no workout in 14+ days', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/api/admin/users/churn-risk')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+
+    // Verify the where clause: paid + no workout in 14d window. The
+    // 14d cutoff matters — too short and the founder gets noise from
+    // anyone on a deload, too long and dormant users slip through.
+    const calls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const churnCall = calls.find((c) =>
+      c[0]?.where?.workouts?.none?.completedAt?.gte instanceof Date,
+    );
+    expect(churnCall).toBeDefined();
+    expect(churnCall![0].where.isBanned).toBe(false);
+    expect(churnCall![0].where.subscription.status).toBe('active');
+    expect(churnCall![0].where.subscription.plan.not).toBe('free');
+
+    // Verify the 14-day window. Allow 1s slack for clock skew during
+    // the test run.
+    const cutoff = churnCall![0].where.workouts.none.completedAt.gte;
+    const expected = Date.now() - 14 * 86400 * 1000;
+    expect(Math.abs(cutoff.getTime() - expected)).toBeLessThan(1000);
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
