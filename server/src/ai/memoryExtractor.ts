@@ -209,6 +209,51 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?<!не\s+)(?:я\s+)?(новичок|новенький|только\s*начал|с\s*нуля)/i, category: 'preference', key: 'experience_level', extract: () => 'novice' },
   { regex: /(?<!не\s+)(?:я\s+)?(любитель|на\s*среднем\s*уровне|занимаюсь\s*для\s*себя)/i, category: 'preference', key: 'experience_level', extract: () => 'intermediate' },
   { regex: /(?<!не\s+)(?:я\s+)?(опытный|продвинутый|давно\s*занимаюсь)/i, category: 'preference', key: 'experience_level', extract: () => 'advanced' },
+
+  // ── Round 92: Sport history ──────────────────────────────────────────────
+  // Past sport background shapes movement competency and joint history.
+  // A user who "раньше играл в футбол" is likely OK with single-leg work
+  // but may have ankle/knee history. Stored verbatim so the AI can pattern
+  // its language ("если ты бегал — представь это как…").
+  //
+  // Design note: a naive pattern like
+  //   `(?:раньше|играл\s*в)\s*([а-я]{4,})`
+  // captures the next [а-я]{4,} word — which for "раньше играл в футбол"
+  // is "играл" (the verb), not "футбол" (the noun). Fixed by:
+  //   1. Requiring a temporal/action prefix (раньше / в детстве /
+  //      занимался / играл) AND a sport noun from a whitelist.
+  //   2. Allowing up to 20 chars between trigger and sport (lazy).
+  // Whitelist trades recall for precision — niche sports get missed, but
+  // the AI catches the common 80% without falsely tagging "раньше играл
+  // на пианино" as a fitness sport.
+  { regex: /(?:раньше|до\s*этого|в\s*детстве|занимался|играл|боксировал|бегал|плавал|танцевал|тренировался)\s.{0,20}?(футбол\w*|хоккей|баскетбол\w*|бокс\w*|плаван\w*|танц\w*|кроссфит\w*|карат\w*|самбо|дзюдо|тенис\w*|единоборств\w*|пауэрлифт\w*|бодибилдинг\w*|кикбоксинг\w*|мма|регби|волейбол\w*|джиу-джитсу|муай-тай|тяж[её]л\w*\s*атлетик\w*|лёгк\w*\s*атлетик\w*|легк\w*\s*атлетик\w*|велоспорт|лыж\w*|сноуборд\w*)/gi, category: 'preference', key: 'past_sport', multiMatch: true, keyFn: (m) => `past_sport_${m[1].toLowerCase().slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
+
+  // ── Round 92: Supplements / nutrition stack ──────────────────────────────
+  // Lets the AI reason about timing & interactions without re-asking. Each
+  // supplement gets its own keyed entry so a user can drop one without
+  // losing the rest. Excludes "пью кофе" (caffeine_high handles that).
+  { regex: /(?:пью|принимаю|использую|ем)\s*(креатин|протеин|казеин|омега[\s-]?3|витамин\s*[ABCDE]|d3|омега|bcaa|всаа|еаа|изолят|гейнер|магний|цинк|пред[\s-]?тренировочн[а-я]*|жиросжигател[а-я]*)/gi, category: 'habit', key: 'supplement', multiMatch: true, keyFn: (m) => `supplement_${m[1].toLowerCase().replace(/[\s-]+/g, '').slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
+
+  // ── Round 92: Family / lifestyle constraints ─────────────────────────────
+  // Time budget per session is already extracted, but family context
+  // explains *why* — and the AI can mention it ("у тебя ребёнок, понимаю").
+  // Stored as ENUM-ish strings: 'kids', 'spouse', 'remote_work'. Different
+  // keys so a user with kids AND a spouse gets both.
+  { regex: /(?:у меня|есть)\s*(?:двое|трое|маленьк[а-я]+|малыш[а-я]+|ребёнок|ребенок|дет[а-я]+|сын|дочь|дочк[а-я]+)/i, category: 'preference', key: 'family_kids', extract: () => 'true' },
+  { regex: /(?:я\s+)?(?:женат|замужем|муж|жена|супруг[а-я]*)/i, category: 'preference', key: 'family_partnered', extract: () => 'true' },
+  { regex: /(?:работаю\s+(?:из\s+)?дома|удал[её]нк[а-я]+|удал[её]нн[а-я]+\s+работ[а-я]+|home\s*office|wfh)/i, category: 'preference', key: 'work_remote', extract: () => 'true' },
+
+  // ── Round 92: Body composition self-report ──────────────────────────────
+  // The User profile already has weightKg/heightCm but those reflect the
+  // user's last numeric input. When the user mentions "я вешу 80" or "у
+  // меня 20% жира" in passing, capturing it as memory lets the AI surface
+  // a discrepancy ("в профиле 75 кг, ты упоминал 80 — обнови?").
+  // bodyfat_percent / current_weight_kg / height_cm — all single-key (each
+  // overwrites on change). Numeric-only values; future maintainers should
+  // resist storing units in the value (downstream blocks parse as Number).
+  { regex: /(?:у меня|мой|во мне)\s*(\d{1,2})\s*%\s*жира/i, category: 'preference', key: 'bodyfat_percent', extract: (m) => `${m[1]}` },
+  { regex: /(?:вешу|вес\s*мой|сейчас\s*вешу)\s*(\d{2,3})\s*кг/i, category: 'preference', key: 'current_weight_kg', extract: (m) => `${m[1]}` },
+  { regex: /(?:рост|мой\s*рост|у меня\s*рост)\s*(\d{3})\s*см/i, category: 'preference', key: 'height_cm', extract: (m) => `${m[1]}` },
 ];
 
 /**
