@@ -412,6 +412,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // sleep advice and meal timing.
   { regex: /(?:работаю\s+(?:по\s+)?(?:сменам|сменно|в\s+ночн[а-я]+\s+смен|посменно)|ночн[а-я]+\s+смен|шифт)/i, category: 'preference', key: 'shift_work', extract: () => 'true', confidence: 0.85 },
   { regex: /(?:работаю\s+(?:на\s+)?вахт[а-я]*|вахтов\w+\s+метод)/i, category: 'preference', key: 'rotation_work', extract: () => 'true', confidence: 0.85 },
+  // Round 148: pregnancy / breastfeeding state. Critical safety
+  // signal — drives exercise restrictions and macro adjustments.
+  // Stored under injury category since it requires precaution-driven
+  // training modifications (similar to chronic_condition).
+  { regex: /(?:беременн[а-я]+|на\s+\d+\s*неделе\s+беременн|жду\s+ребёнка|ждём\s+ребёнка|жду\s+малыша)/i, category: 'injury', key: 'pregnancy', extract: () => 'true', confidence: 0.9 },
+  { regex: /(?:кормлю\s*(?:грудью|молоком)|на\s+(?:грудном\s+вскармливании|гв)|лактаци[яе])/i, category: 'injury', key: 'breastfeeding', extract: () => 'true', confidence: 0.9 },
 
   // ── Round 92: Body composition self-report ──────────────────────────────
   // The User profile already has weightKg/heightCm but those reflect the

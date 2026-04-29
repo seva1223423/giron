@@ -645,6 +645,27 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
     expect(out.some((m) => m.key === 'rotation_work' && m.value === 'true')).toBe(true);
   });
 
+  // Round 148: pregnancy / breastfeeding state
+  test('pregnancy captures "я беременна"', () => {
+    const out = extractMemories('я беременна 4 месяца');
+    expect(out.some((m) => m.key === 'pregnancy' && m.value === 'true')).toBe(true);
+  });
+
+  test('pregnancy captures "на 12 неделе"', () => {
+    const out = extractMemories('я на 12 неделе беременности');
+    expect(out.some((m) => m.key === 'pregnancy' && m.value === 'true')).toBe(true);
+  });
+
+  test('breastfeeding captures "кормлю грудью"', () => {
+    const out = extractMemories('кормлю грудью, ребёнку 6 месяцев');
+    expect(out.some((m) => m.key === 'breastfeeding' && m.value === 'true')).toBe(true);
+  });
+
+  test('breastfeeding captures "на ГВ"', () => {
+    const out = extractMemories('я на гв');
+    expect(out.some((m) => m.key === 'breastfeeding' && m.value === 'true')).toBe(true);
+  });
+
   test('bodyfat_percent captures "у меня 20% жира"', () => {
     const out = extractMemories('у меня 20% жира по моим прикидкам');
     expect(out).toContainEqual(expect.objectContaining({
