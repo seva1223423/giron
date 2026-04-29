@@ -93,7 +93,16 @@ jest.mock('../utils/activityTracker', () => ({
 }));
 
 jest.mock('../utils/aiMetrics', () => ({
-  getAIMetrics: jest.fn().mockReturnValue({ requestsToday: 0, totalRequests: 0 }),
+  getAIMetrics: jest.fn().mockReturnValue({
+    requestsToday: 0,
+    totalRequests: 0,
+    // Round 96: per-tool metrics are now part of the admin payload.
+    toolMetrics: [
+      { name: 'log_meal', count: 50, avgMs: 220, maxMs: 800, errors: 1, errorRate: 2 },
+      { name: 'find_recipes', count: 30, avgMs: 350, maxMs: 1500, errors: 0, errorRate: 0 },
+    ],
+  }),
+  recordToolExecution: jest.fn(),
 }));
 
 jest.mock('../utils/memCache', () => {
