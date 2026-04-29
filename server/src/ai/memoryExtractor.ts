@@ -108,6 +108,13 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // casually).
   { regex: /(?:у меня|имеется|диагноз|страдаю)\s*(?:есть\s*)?(гипертони|диабет|астм|тахикард|варикоз|плоскостоп|остеохондроз|радикулит|ишиас|подагр|тиреоидит|гипотиреоз|гипертиреоз|анеми)\w*/gi, category: 'injury', key: 'health_condition', multiMatch: true, keyFn: (m) => `health_${m[1].toLowerCase().slice(0, 12)}`, extract: (m) => m[1].toLowerCase(), confidence: 0.85 },
   { regex: /(?:болит|травмирова|проблемы с)\s*(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп)/gi, category: 'injury', key: 'pain_area', multiMatch: true, keyFn: (m) => `pain_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
+  // Round 136: PAST injuries (healed). Distinct from pain_area (currently
+  // hurts) so the AI knows to be cautious-but-not-restrictive. Common
+  // phrasings: "была травма колена", "ломал руку 3 года назад", "раньше
+  // болело плечо, прошло", "раньше травмировал колено".
+  // [\sа-я]{0,15}? lazy class allows 0-2 stopwords between the past-tense
+  // trigger and the body-part noun ("раньше как-то болело плечо").
+  { regex: /(?:была\s*(?:когда-то\s*)?травма|ломал[аи]?|повреждал[аи]?|раньше\s*травмировал[аи]?|раньше\s*болел[аио]?)[\sа-я]{0,15}?(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп|рук|ног|кисть)[а-я]*/gi, category: 'injury', key: 'past_injury', multiMatch: true, keyFn: (m) => `past_injury_${m[1].toLowerCase().slice(0, 10)}`, extract: (m) => m[1].toLowerCase(), confidence: 0.8 },
 
   // ── Exercise preferences ─────────────────────────────────────────────────
   // Round 86 expansion: previously only 7 favourite / 4 disliked exercises.
