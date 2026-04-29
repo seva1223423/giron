@@ -609,6 +609,22 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
     expect(keys.size).toBe(sports.length);
   });
 
+  // Round 167: regular cardio activity
+  test('captures "бегаю 3 раза в неделю"', () => {
+    const out = extractMemories('бегаю 3 раза в неделю по утрам');
+    expect(out.some((m) => m.key === 'cardio_running_freq' && m.value === '3')).toBe(true);
+  });
+
+  test('captures "плаваю 2 раза в неделю"', () => {
+    const out = extractMemories('регулярно плаваю 2 раза в неделю');
+    expect(out.some((m) => m.key === 'cardio_swimming_freq' && m.value === '2')).toBe(true);
+  });
+
+  test('captures "бегаю 5 км" (distance variant)', () => {
+    const out = extractMemories('бегаю 5 км по утрам');
+    expect(out.some((m) => m.key === 'cardio_running_freq' && m.value === '5')).toBe(true);
+  });
+
   // Round 166: supplement_timing
   test('captures "креатин пью утром"', () => {
     const out = extractMemories('креатин пью утром натощак');

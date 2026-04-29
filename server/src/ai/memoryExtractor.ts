@@ -438,6 +438,13 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Lets the AI reason about timing & interactions without re-asking. Each
   // supplement gets its own keyed entry so a user can drop one without
   // losing the rest. Excludes "пью кофе" (caffeine_high handles that).
+  // ── Round 167: Cardio activity self-report ─────────────────────────────
+  // Captures regular cardio practice. Different from log_cardio tool
+  // (single-session) — this is the habitual pattern.
+  { regex: /(?:регулярно\s+)?бегаю\s*(?:по\s*)?(\d+)\s*(?:раз[а-я]*\s*в\s*неделю|км)/i, category: 'habit', key: 'cardio_running_freq', extract: (m) => `${m[1]}`, confidence: 0.85 },
+  { regex: /(?:регулярно\s+)?плаваю\s*(?:по\s*)?(\d+)\s*(?:раз[а-я]*\s*в\s*неделю|км|метров)/i, category: 'habit', key: 'cardio_swimming_freq', extract: (m) => `${m[1]}`, confidence: 0.85 },
+  { regex: /(?:регулярно\s+)?(?:катаюсь\s*на\s*велосипеде|кручу\s*педали)\s*(?:по\s*)?(\d+)\s*(?:раз[а-я]*\s*в\s*неделю|км)/i, category: 'habit', key: 'cardio_cycling_freq', extract: (m) => `${m[1]}`, confidence: 0.85 },
+
   // ── Round 166: Supplement timing — when the user takes specific
   // supplements. Different from supplement_X (existence) — this captures
   // the schedule. Useful for AI-suggesting better timing if suboptimal.
