@@ -624,6 +624,94 @@ describe('Auth Routes', () => {
     });
   });
 
+  // ─── Reset Password by Phone ────────────────────────────────────────────────
+  // Same security bar as reset-password (token-based) but goes through SMS
+  // OTP. Was previously untested.
+
+  describe('POST /api/auth/reset-password-by-phone', () => {
+    const validBody = { phone: '+79991234567', code: '123456', password: 'NewPass1' };
+
+    it('400 when phone is missing', async () => {
+      const res = await request(app)
+        .post('/api/auth/reset-password-by-phone')
+        .send({ code: '123456', password: 'NewPass1' });
+      expect(res.status).toBe(400);
+    });
+
+    it('400 when password is too weak', async () => {
+      const res = await request(app)
+        .post('/api/auth/reset-password-by-phone')
+        .send({ ...validBody, password: 'weak' });
+      expect(res.status).toBe(400);
+    });
+
+    it('400 when no active phone-reset OTP found', async () => {
+      (mockPrisma.otpCode.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/reset-password-by-phone')
+        .send(validBody);
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_OTP');
+    });
+
+    it('400 INVALID_OTP when code does not match (decrements attempts)', async () => {
+      // OTP exists but its `code` is different from the request body.
+      // The route increments `attempts` atomically and surfaces
+      // "Осталось попыток: N" / INVALID_OTP.
+      (mockPrisma.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: 'otp-bad', phone: '+79991234567', code: '999999',
+        purpose: 'phone-reset', used: false, attempts: 0,
+        expiresAt: new Date(Date.now() + 600_000),
+      });
+      (mockPrisma.otpCode.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+      const res = await request(app)
+        .post('/api/auth/reset-password-by-phone')
+        .send(validBody);
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('INVALID_OTP');
+    });
+
+    it('429 OTP_BRUTEFORCE when attempts cap is hit (atomic gate count=0)', async () => {
+      // Sec audit guard: concurrent requests with wrong code can race past
+      // the in-memory attempts check. The atomic updateMany.where.attempts
+      // < MAX_OTP_ATTEMPTS returns count=0 once the cap is hit, and the
+      // route surfaces 429 instead of letting unlimited tries through.
+      (mockPrisma.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: 'otp-locked', phone: '+79991234567', code: '999999',
+        purpose: 'phone-reset', used: false, attempts: 5,
+        expiresAt: new Date(Date.now() + 600_000),
+      });
+      (mockPrisma.otpCode.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+      const res = await request(app)
+        .post('/api/auth/reset-password-by-phone')
+        .send(validBody);
+
+      expect(res.status).toBe(429);
+      expect(res.body.code).toBe('OTP_BRUTEFORCE');
+    });
+
+    it('404 USER_NOT_FOUND when phone is not registered', async () => {
+      (mockPrisma.otpCode.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: 'otp-good', phone: '+79991234567', code: '123456',
+        purpose: 'phone-reset', used: false, attempts: 0,
+        expiresAt: new Date(Date.now() + 600_000),
+      });
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post('/api/auth/reset-password-by-phone')
+        .send(validBody);
+
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe('USER_NOT_FOUND');
+    });
+  });
+
   // ─── Logout ─────────────────────────────────────────────────────────────────
 
   // ─── Check email availability ──────────────────────────────────────────────
