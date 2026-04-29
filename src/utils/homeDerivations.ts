@@ -8,6 +8,7 @@
  */
 
 import type { Workout, WorkoutExercise, WorkoutSet } from '../types';
+import { localDateStr } from './date';
 
 // ─── Week dots bitmap ───────────────────────────────────────────────────────
 
@@ -15,6 +16,16 @@ import type { Workout, WorkoutExercise, WorkoutSet } from '../types';
  * Build a 7-cell bitmap of whether the user completed a workout on each
  * of the last 7 days (index 0 = 6 days ago, index 6 = today). Mirrors
  * the inline logic from HomeScreen.
+ *
+ * Timezone-correct: both the day buckets and the workout completion
+ * timestamps are bucketed by the user's LOCAL calendar day. The previous
+ * implementation compared `toISOString().split('T')[0]` (UTC date) with
+ * `w.completedAt.startsWith(ds)` (UTC prefix), which silently mis-bucketed
+ * workouts logged near midnight local — a 23:00 MSK workout has UTC date
+ * 20:00 the same day, but a 02:00 MSK workout has UTC date 23:00 of the
+ * PREVIOUS day, so the user saw an empty dot for "today" and a phantom
+ * dot for "yesterday" in their local view. date.ts has the same warning
+ * baked into the localDateStr docstring; this file now uses it.
  */
 export function buildWeekDotsFromHistory(
   workoutHistory: Array<{ completedAt?: string | null }>,
@@ -24,10 +35,13 @@ export function buildWeekDotsFromHistory(
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split('T')[0];
-    const hit = workoutHistory.some(
-      (w) => typeof w.completedAt === 'string' && w.completedAt.startsWith(ds),
-    );
+    const ds = localDateStr(d);
+    const hit = workoutHistory.some((w) => {
+      if (typeof w.completedAt !== 'string') return false;
+      const parsed = new Date(w.completedAt);
+      if (isNaN(parsed.getTime())) return false;
+      return localDateStr(parsed) === ds;
+    });
     dots.push(hit ? 1 : 0);
   }
   return dots;

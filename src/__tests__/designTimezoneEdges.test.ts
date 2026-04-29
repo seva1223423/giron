@@ -128,11 +128,19 @@ describe('buildWeekDotsFromHistory UTC vs local', () => {
     expect(dots[6]).toBe(1);
   });
 
-  test('completedAt just before midnight counts for that day', () => {
-    const now = new Date('2026-04-22T12:00:00Z');
-    const history = [{ completedAt: '2026-04-21T23:55:00Z' }];
+  test('completedAt just before midnight counts for that day (in user local TZ)', () => {
+    // Round 75: assertion is now TZ-correct. The previous version pinned
+    // both `now` and the workout via UTC ISO strings, which silently
+    // mis-asserted in any non-UTC test runner — a UTC+3 runner saw the
+    // 23:55 UTC workout as 02:55 the NEXT local day and bucketed it as
+    // "today" instead of "yesterday". Constructing the dates with the
+    // local Date constructor pins them to the runner's actual day-of-week,
+    // which is the bucket the user sees on Home.
+    const now = new Date(2026, 3, 22, 12, 0); // Apr 22 noon local
+    const yesterday2355 = new Date(2026, 3, 21, 23, 55).toISOString();
+    const history = [{ completedAt: yesterday2355 }];
     const dots = buildWeekDotsFromHistory(history, now);
-    // Index 5 = yesterday
+    // Index 5 = yesterday (1 day before `now`)
     expect(dots[5]).toBe(1);
   });
 });
