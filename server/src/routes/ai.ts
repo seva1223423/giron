@@ -10493,7 +10493,16 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             if (actionDescription) {
               performedActions.push({ type: tc.name, description: actionDescription, data: actionData });
             }
-            messages.push({ role: 'tool', tool_call_id: tc.id, content: resultText });
+            // Round 117: cap tool result text at 2000 chars when pushing
+            // back into the message history. A bloated find_recipes
+            // result with 30 entries was previously bumping the next
+            // chat() call's prompt by 5+kb. The actionData stays intact
+            // (it's not in the LLM context) so client-side rendering
+            // still has full data.
+            const safeResultText = typeof resultText === 'string' && resultText.length > 2000
+              ? `${resultText.slice(0, 2000)}\n…(результат обрезан, всего ${resultText.length} символов)`
+              : resultText;
+            messages.push({ role: 'tool', tool_call_id: tc.id, content: safeResultText });
           }
 
           result = await chat({
