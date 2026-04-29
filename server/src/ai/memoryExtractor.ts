@@ -456,7 +456,9 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 139: optional Cyrillic adjective between trigger and supplement
   // name so "пью сывороточный протеин" / "принимаю порошковый креатин"
   // both match. Lazy [а-я]+ class with mandatory whitespace.
-  { regex: /(?:пью|принимаю|использую|ем)\s+(?:[а-я]+\s+)?(креатин|протеин|казеин|омега[\s-]?3|витамин\s*[ABCDE]|d3|омега|bcaa|всаа|еаа|изолят|гейнер|магний|цинк|пред[\s-]?тренировочн[а-я]*|жиросжигател[а-я]*|кофеин|таурин|карнитин|глютамин|аргинин|цитруллин|бета-?аланин)/gi, category: 'habit', key: 'supplement', multiMatch: true, keyFn: (m) => `supplement_${m[1].toLowerCase().replace(/[\s-]+/g, '').slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
+  // Round 169: negation guard on supplement pattern. "не пью креатин"
+  // previously matched as if user takes creatine.
+  { regex: /(?<!не\s+)(?:пью|принимаю|использую|ем)\s+(?:[а-я]+\s+)?(креатин|протеин|казеин|омега[\s-]?3|витамин\s*[ABCDE]|d3|омега|bcaa|всаа|еаа|изолят|гейнер|магний|цинк|пред[\s-]?тренировочн[а-я]*|жиросжигател[а-я]*|кофеин|таурин|карнитин|глютамин|аргинин|цитруллин|бета-?аланин)/gi, category: 'habit', key: 'supplement', multiMatch: true, keyFn: (m) => `supplement_${m[1].toLowerCase().replace(/[\s-]+/g, '').slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
 
   // ── Round 92: Family / lifestyle constraints ─────────────────────────────
   // Time budget per session is already extracted, but family context
