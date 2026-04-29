@@ -280,6 +280,9 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // стресса" mention as a fresh discovery.
   { regex: /(?:много\s*стресса|нервная\s*работа|перенапряжение|выгорание)/i, category: 'habit', key: 'stress_high', extract: () => 'high' },
   { regex: /(?:плохо\s*высыпаюсь|мало\s*сплю|недосып)/i, category: 'habit', key: 'sleep_quality_low', extract: () => 'low' },
+  // Round 151: numeric sleep quality rating 1-5 / 10. The AI's recovery
+  // score block can use this as an explicit anchor.
+  { regex: /(?:качество\s*сна|сон)\s*[:–—-]?\s*(\d)\s*\/\s*(?:5|10)/i, category: 'habit', key: 'sleep_quality_rating', extract: (m) => `${m[1]}`, confidence: 0.85 },
 
   // ── Round 91: Diet style ─────────────────────────────────────────────────
   // The diet_restriction pattern above only catches "не ем X" / vegan style
