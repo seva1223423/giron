@@ -71,7 +71,14 @@ jest.mock('../db', () => ({
       create: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
-    otpCode: { findFirst: jest.fn().mockResolvedValue(null) },
+    otpCode: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    usedTotpCode: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({}),
+    },
     // $transaction: pass-through default — runs each op individually so existing
     // tests that don't explicitly mock $transaction still work. Tests that need
     // specific batched return values use mockResolvedValueOnce per case.
@@ -1021,6 +1028,112 @@ describe('POST /api/user/change-password', () => {
 
     // Sessions wiped via $transaction (atomic) — verify it was called
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+});
+
+// ─── POST /api/user/change-phone ─────────────────────────────────────────────
+//
+// Same security pattern as /change-email: HIGH-6 step-up reauth (the SMS OTP
+// goes to the new attacker-chosen phone, so it adds zero proof of identity)
+// + 2FA gate + phone-change OTP + atomic mark-as-used + post-change session
+// revocation. Was untested.
+
+describe('POST /api/user/change-phone', () => {
+  const userWithPassword = {
+    id: 'u-test',
+    passwordHash: 'bcrypt-hash',
+    totpEnabled: false,
+    totpSecret: null,
+  };
+  const socialOnlyUser = {
+    id: 'u-test',
+    passwordHash: null,
+    totpEnabled: false,
+    totpSecret: null,
+  };
+  const NEW_PHONE = '+79991234567';
+  const VALID_OTP = '123456';
+
+  beforeEach(() => {
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValue(true);
+    bcrypt.default.compare.mockResolvedValue(true);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app)
+      .post('/api/user/change-phone')
+      .send({ phone: NEW_PHONE, code: VALID_OTP });
+    expect(res.status).toBe(401);
+  });
+
+  it('403 STEPUP_REQUIRED for social-only account without 2FA', async () => {
+    // Same HIGH-6 rationale as /change-email: a stolen access token must
+    // not be enough to repoint the phone on a social-only account.
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)        // auth middleware
+      .mockResolvedValueOnce(socialOnlyUser); // route handler
+
+    const res = await request(app)
+      .post('/api/user/change-phone')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ phone: NEW_PHONE, code: VALID_OTP });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('STEPUP_REQUIRED');
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('400 PASSWORD_REQUIRED when user has password but none provided', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPassword);
+
+    const res = await request(app)
+      .post('/api/user/change-phone')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ phone: NEW_PHONE, code: VALID_OTP });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('PASSWORD_REQUIRED');
+  });
+
+  it('401 INVALID_PASSWORD writes REAUTH_FAILED security event', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPassword);
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValueOnce(false);
+    bcrypt.default.compare.mockResolvedValueOnce(false);
+
+    const res = await request(app)
+      .post('/api/user/change-phone')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ phone: NEW_PHONE, code: VALID_OTP, currentPassword: 'wrong' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('INVALID_PASSWORD');
+    // SECURITY: must write REAUTH_FAILED audit so a brute-force pattern
+    // shows up in /user/security-events
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const auditCall = seCalls.find((c) => c[0]?.data?.action === 'REAUTH_FAILED');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.details).toContain('change-phone');
+  });
+
+  it('400 INVALID_OTP when no active phone-change OTP found', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPassword);
+    (prisma.otpCode.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post('/api/user/change-phone')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ phone: NEW_PHONE, code: VALID_OTP, currentPassword: 'correct' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_OTP');
   });
 });
 
