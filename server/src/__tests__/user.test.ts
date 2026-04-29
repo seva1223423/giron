@@ -22,6 +22,7 @@ jest.mock('../db', () => ({
       update: jest.fn(),
       create: jest.fn(),
       updateMany: jest.fn(),
+      delete: jest.fn(),
     },
     refreshToken: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -92,6 +93,16 @@ jest.mock('../services/smsService', () => ({
 
 jest.mock('../services/pushService', () => ({
   sendPushToUser: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock bcrypt for endpoints that use it (currently account-delete and
+// change-password). compare returns true by default so tests exercise the
+// happy path; flip per-test for failure paths via mockResolvedValueOnce(false).
+jest.mock('bcryptjs', () => ({
+  __esModule: true,
+  default: { compare: jest.fn().mockResolvedValue(true), hash: jest.fn().mockResolvedValue('hashed') },
+  compare: jest.fn().mockResolvedValue(true),
+  hash: jest.fn().mockResolvedValue('hashed'),
 }));
 
 // Step 4: import app
@@ -891,5 +902,141 @@ describe('POST /api/user/onboarding/step', () => {
       .send({ step: 0 });
 
     expect(res.status).toBe(404);
+  });
+});
+
+// ─── DELETE /api/user/account ────────────────────────────────────────────────
+//
+// 152-FZ right-to-erasure compliance + sec audit HIGH-7 (step-up reauth on
+// destructive ops). The endpoint cascades the user row, which Prisma schema
+// has wired with onDelete: Cascade across every relation — so a regression
+// here could either:
+//   - Allow a 60-min access token alone to permanently destroy an account
+//     (no password/2FA confirmation), or
+//   - Block legitimate deletion when the user types the right password
+//
+// Both are user-visible high-severity bugs.
+
+describe('DELETE /api/user/account', () => {
+  const userWithPasswordOnly = {
+    id: 'u-test',
+    email: 'test@example.com',
+    passwordHash: 'bcrypt-hash',
+    totpEnabled: false,
+    totpSecret: null,
+  };
+  const userWithPasswordAnd2FA = {
+    ...userWithPasswordOnly,
+    totpEnabled: true,
+    totpSecret: 'JBSWY3DPEHPK3PXP', // base32 — not actually validated since we mock
+  };
+  const socialOnlyUser = {
+    id: 'u-test',
+    email: 'social@example.com',
+    passwordHash: null, // OAuth-only account
+    totpEnabled: false,
+    totpSecret: null,
+  };
+
+  beforeEach(() => {
+    // Reset bcrypt mock to default (compare returns true)
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValue(true);
+    bcrypt.default.compare.mockResolvedValue(true);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).delete('/api/user/account').send({ password: 'pw' });
+    expect(res.status).toBe(401);
+  });
+
+  it('403 STEPUP_REQUIRED when account has no password AND no 2FA (HIGH-7)', async () => {
+    // Sec audit HIGH-7: a social-only account without 2FA used to be
+    // deletable by anyone holding the access token. Now we refuse.
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)        // auth middleware
+      .mockResolvedValueOnce(socialOnlyUser); // route handler
+
+    const res = await request(app)
+      .delete('/api/user/account')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('STEPUP_REQUIRED');
+    // No deletion should have happened
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it('400 PASSWORD_REQUIRED when user has password but none provided', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPasswordOnly);
+
+    const res = await request(app)
+      .delete('/api/user/account')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('PASSWORD_REQUIRED');
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it('401 WRONG_PASSWORD when password does not match', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPasswordOnly);
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValueOnce(false);
+    bcrypt.default.compare.mockResolvedValueOnce(false);
+
+    const res = await request(app)
+      .delete('/api/user/account')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'wrong' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('WRONG_PASSWORD');
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it('400 TOTP_REQUIRED when 2FA is enabled but no totpCode provided', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPasswordAnd2FA);
+
+    const res = await request(app)
+      .delete('/api/user/account')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'pw' }); // password ok but no totpCode
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('TOTP_REQUIRED');
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it('200 deletes account + writes ACCOUNT_DELETED security event', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPasswordOnly);
+    (prisma.user.delete as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
+
+    const res = await request(app)
+      .delete('/api/user/account')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'correct-password' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBeDefined();
+    // Cascade deletion happened
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u-test' } });
+    // Audit trail: must write ACCOUNT_DELETED BEFORE the delete cascade
+    // (otherwise the FK reference would be gone). This ordering is
+    // critical — verify it via call order.
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const auditCall = seCalls.find((c) => c[0]?.data?.action === 'ACCOUNT_DELETED');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.userId).toBe('u-test');
   });
 });
