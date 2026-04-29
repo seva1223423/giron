@@ -38,6 +38,12 @@ import { ManualFoodAddScreen } from '../screens/nutrition/ManualFoodAddScreen';
 import { NutritionHistoryScreen } from '../screens/nutrition/NutritionHistoryScreen';
 import { MacroCalculatorScreen } from '../screens/nutrition/MacroCalculatorScreen';
 import { MealPlanScreen } from '../screens/nutrition/MealPlanScreen';
+import {
+  RecipesScreen,
+  RecipeDetailScreen,
+  RecipeFormScreen,
+  AIRecipeScreen,
+} from '../screens/nutrition/recipes';
 import { ProgressScreen } from '../screens/progress/ProgressScreen';
 import { NewsScreen } from '../screens/news/NewsScreen';
 import { AIChatScreen } from '../screens/ai/AIChatScreen';
@@ -177,6 +183,10 @@ function NutritionStackNavigator() {
       <NutritionStack.Screen name="NutritionHistory" component={NutritionHistoryScreen} />
       <NutritionStack.Screen name="MacroCalculator" component={MacroCalculatorScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <NutritionStack.Screen name="MealPlan" component={MealPlanScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+      <NutritionStack.Screen name="Recipes" component={RecipesScreen} />
+      <NutritionStack.Screen name="RecipeDetail" component={RecipeDetailScreen} />
+      <NutritionStack.Screen name="RecipeForm" component={RecipeFormScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+      <NutritionStack.Screen name="AIRecipe" component={AIRecipeScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
     </NutritionStack.Navigator>
   );
 }

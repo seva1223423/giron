@@ -12,3 +12,15 @@ export { trainerService } from './trainerService';
 export * from './notificationService';
 export { adminService } from './adminService';
 export { supportService } from './supportService';
+export { recipeService } from './recipeService';
+export type {
+  Recipe,
+  RecipeIngredient,
+  RecipeBody,
+  RecipeSource,
+  AIRecipeDraft,
+  Allergen,
+  Goal,
+  CuratedFilter,
+  AddToDiaryParams,
+} from './recipeService';
