@@ -217,6 +217,162 @@ describe('extractMemories — round 86 expansions', () => {
   });
 });
 
+describe('extractMemories — round 91 expansions', () => {
+  test('diet_style captures "сижу на кето"', () => {
+    const out = extractMemories('уже месяц сижу на кето и нравится');
+    expect(out).toContainEqual(expect.objectContaining({
+      category: 'preference',
+      key: 'diet_style',
+      value: 'кето',
+    }));
+  });
+
+  test('diet_style captures "соблюдаю интервальное голодание"', () => {
+    const out = extractMemories('соблюдаю интервальное голодание');
+    const styles = out.filter((m) => m.key === 'diet_style');
+    expect(styles.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('diet_style captures IF window notation "16:8"', () => {
+    const out = extractMemories('пощусь 16:8');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'diet_style',
+      value: 'IF 16:8',
+    }));
+  });
+
+  test('diet_style captures "придерживаюсь палео"', () => {
+    const out = extractMemories('придерживаюсь палео уже год');
+    expect(out.some((m) => m.key === 'diet_style' && m.value === 'палео')).toBe(true);
+  });
+
+  test('smoking_status — "бросил курить" wins over later "курю" (dedup-by-key)', () => {
+    // Adversarial: a user might type both phrases in one sentence.
+    // 'quit' is listed first in the array so dedup keeps it.
+    const out = extractMemories('бросил курить полгода назад, раньше курил пачку в день');
+    const smk = out.filter((m) => m.key === 'smoking_status');
+    expect(smk).toHaveLength(1);
+    expect(smk[0].value).toBe('quit');
+  });
+
+  test('smoking_status captures "не курю" → never', () => {
+    const out = extractMemories('я не курю и не пью');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'smoking_status',
+      value: 'never',
+    }));
+  });
+
+  test('smoking_status captures "курю пачку в день" → current', () => {
+    const out = extractMemories('курю пачку в день');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'smoking_status',
+      value: 'current',
+    }));
+  });
+
+  test('water_intake_liters captures "пью 2 литра воды"', () => {
+    const out = extractMemories('пью 2 литра воды в день');
+    expect(out).toContainEqual(expect.objectContaining({
+      category: 'habit',
+      key: 'water_intake_liters',
+      value: '2',
+    }));
+  });
+
+  test('water_intake_liters captures decimal "пью 2.5 литра воды"', () => {
+    const out = extractMemories('обычно пью 2.5 литра воды');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'water_intake_liters',
+      value: '2.5',
+    }));
+  });
+
+  test('water_intake_liters normalizes comma decimal "2,5"', () => {
+    const out = extractMemories('пью 2,5 литра воды');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'water_intake_liters',
+      value: '2.5',
+    }));
+  });
+
+  test('goal_deadline captures "к лету"', () => {
+    const out = extractMemories('хочу похудеть к лету');
+    expect(out.some((m) => m.key === 'goal_deadline' && m.value.startsWith('лет'))).toBe(true);
+  });
+
+  test('goal_deadline captures "к свадьбе"', () => {
+    const out = extractMemories('готовлюсь к свадьбе через 4 месяца');
+    const dl = out.filter((m) => m.key === 'goal_deadline');
+    expect(dl.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('goal_deadline captures "за 3 месяца"', () => {
+    const out = extractMemories('хочу набрать массу за 3 месяца');
+    expect(out.some((m) => m.key === 'goal_deadline' && m.value.includes('3'))).toBe(true);
+  });
+
+  test('experience_level captures "я новичок" → novice', () => {
+    const out = extractMemories('я новичок в зале');
+    expect(out).toContainEqual(expect.objectContaining({
+      category: 'preference',
+      key: 'experience_level',
+      value: 'novice',
+    }));
+  });
+
+  test('experience_level captures "я опытный" → advanced', () => {
+    const out = extractMemories('я опытный, давно занимаюсь');
+    expect(out.some((m) => m.key === 'experience_level' && m.value === 'advanced')).toBe(true);
+  });
+
+  test('experience_level captures "только начал" → novice', () => {
+    const out = extractMemories('только начал ходить в зал');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'experience_level',
+      value: 'novice',
+    }));
+  });
+});
+
+describe('extractMemories — round 91 boundary (no false positives)', () => {
+  test('"кето" inside an unrelated word does NOT trigger diet_style', () => {
+    // "кетамин" / "макет" / "анкета" all share substrings but should NOT match.
+    // The pattern requires a verb prefix (соблюдаю/на/сижу на/etc) so these
+    // are safe — pinning the contract.
+    const out = extractMemories('заполнил анкету в зале');
+    expect(out.filter((m) => m.key === 'diet_style')).toEqual([]);
+  });
+
+  test('"курят коллеги" does NOT match smoking_status (3rd-person verb)', () => {
+    // "курю" is 1st-person; "курят" is 3rd-person plural and shouldn't
+    // attribute the habit to the user. The negative lookahead (?!т) on
+    // "курю" guards this.
+    const out = extractMemories('у меня курят коллеги в офисе');
+    expect(out.filter((m) => m.key === 'smoking_status')).toEqual([]);
+  });
+
+  test('"пью 2 литра молока" does NOT match water_intake_liters', () => {
+    // The pattern requires "воды" — milk / juice / coffee in litres should
+    // not pollute the water memory.
+    const out = extractMemories('пью 2 литра молока в день');
+    expect(out.filter((m) => m.key === 'water_intake_liters')).toEqual([]);
+  });
+
+  test('"к лету готовлю огурцы" — context noise does NOT poison goal_deadline value', () => {
+    // The "к лету" deadline pattern is cheap — it's fine if it matches here.
+    // What this test pins: when it does match, the captured value is just
+    // the season noun, NOT bleeding into the rest of the sentence.
+    const out = extractMemories('к лету готовлю огурцы');
+    const dl = out.filter((m) => m.key === 'goal_deadline');
+    if (dl.length > 0) {
+      // Value must be a short season noun, not a phrase.
+      expect(dl[0].value.length).toBeLessThan(15);
+      expect(dl[0].value).toMatch(/^лет/);
+    }
+  });
+});
+
 describe('extractMemories — high-precision boundary (no false positives)', () => {
   test('"меня бесят бёрпи но я их делаю" — does NOT match disliked_exercise', () => {
     // "бесят" wasn't added to the dislike pattern on purpose — it's a
