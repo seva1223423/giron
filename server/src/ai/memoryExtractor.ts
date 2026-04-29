@@ -82,6 +82,14 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // a unique key.
   { regex: /(?:у меня|есть|имеется|купил)\s*(гантел|штанг|турник|брусь|гир|тренажёр|тренажер|резинк|trx|петл|эспандер|фитбол|ролик|скакалк|медбол|медицинск\w*\s*мяч|кистев\w*\s*эспандер|абс[\s-]ролик|пояс\w*\s*для\s*присед)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().replace(/\s+/g, '_').slice(0, 16)}`, extract: (m) => m[1] },
 
+  // ── Round 129: Gym membership / coach context ────────────────────────────
+  // Whether the user has a personal trainer changes the AI's coaching
+  // depth (don't override what the trainer says). Gym name is mostly
+  // contextual but affects equipment availability hints.
+  { regex: /(?:тренируюсь|занимаюсь)\s*(?:с\s*тренером|с\s*персональн[а-я]+\s*тренером|с\s*коучем)/i, category: 'preference', key: 'has_personal_trainer', extract: () => 'true', confidence: 0.85 },
+  { regex: /(?:без\s*тренера|сам(?:остоятельно)?(?!\s*тренер)|самосто[а-я]+)\s*(?:тренируюсь|занимаюсь)/i, category: 'preference', key: 'has_personal_trainer', extract: () => 'false', confidence: 0.7 },
+  { regex: /(?:хожу|занимаюсь|абонемент)\s*(?:в\s+)?(?:world\s*class|fitness\s*house|alex\s*fitness|алекс\s*фитнес|x-fit|сити\s*фитнес|фитнес\s*центр|фитнес-клуб|спортзал|качалк[а-я]*)/i, category: 'preference', key: 'gym_membership', extract: (m) => m[0].toLowerCase().slice(0, 60), confidence: 0.7 },
+
   // ── Diet preferences ──────────────────────────────────────────────────────
   // Round 111: widen diet_restriction to catch granular exclusions:
   //   "не ем красное мясо", "не ем свинину", "без сахара",
