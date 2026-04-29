@@ -12,6 +12,7 @@ import { sanitizeInput, sanitizeForPrompt } from '../utils/inputSanitizer';
 import { detectInjection } from '../utils/promptInjectionDetector';
 import { reportError } from '../utils/errorReporter';
 import { chat, chatWithoutTools, chatStream, analyzeImage, generate, DeepSeekTool, DeepSeekMessage, estimateTokens, trimHistory, summarizeHistory, validateResponse, cleanResponse } from '../services/deepseekAI';
+import { extractMemories, type MemoryExtraction } from '../ai/memoryExtractor';
 import {
   TRAINING_PRINCIPLES,
   NUTRITION_KNOWLEDGE,
@@ -10582,94 +10583,13 @@ function buildRecoveryContext(recovery: { score: number; factors: string[] }): s
 }
 
 // ─── Block 24: AI Memory — cross-session preference learning ────────────────
-
-interface MemoryExtraction {
-  category: string;
-  key: string;
-  value: string;
-  confidence: number;
-  source: 'stated' | 'inferred';
-}
-
-// Patterns to extract user preferences/facts from messages
-const MEMORY_PATTERNS: Array<{
-  regex: RegExp;
-  category: string;
-  key: string;
-  // When true, all matches in the message are captured (use with patterns that may appear multiple times)
-  multiMatch?: boolean;
-  // When provided, generates a unique key per match (enables storing multiple values for the same concept)
-  keyFn?: (match: RegExpMatchArray) => string;
-  extract: (match: RegExpMatchArray) => string;
-}> = [
-  // Training schedule
-  { regex: /тренируюсь?\s*(\d)\s*(раз|дн)/i, category: 'schedule', key: 'training_frequency', extract: (m) => `${m[1]} раз в неделю` },
-  { regex: /по\s*(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)/gi, category: 'schedule', key: 'training_days', multiMatch: true, keyFn: (m) => `training_day_${m[1].toLowerCase().slice(0, 6)}`, extract: (m) => m[0] },
-  // Equipment
-  { regex: /(?:занимаюсь|тренируюсь)\s*(дома|в зале|на улице)/i, category: 'preference', key: 'training_location', extract: (m) => m[1] },
-  { regex: /(?:у меня|есть|имеется)\s*(гантел|штанг|турник|брусья|гир|тренажёр|тренажер|резинк)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
-  // Diet preferences
-  { regex: /(?:я\s+)?(вегетарианец|веган|не ем мясо|не ем рыб|не пью молок|без глютен|безлактозн)/i, category: 'allergy', key: 'diet_restriction', extract: (m) => m[1] },
-  { regex: /(?:аллерги[яю]|непереносимость)\s+(?:на\s+)?([\wа-яА-Я]+)/gi, category: 'allergy', key: 'food_allergy', multiMatch: true, keyFn: (m) => `allergy_${m[1].toLowerCase().slice(0, 12)}`, extract: (m) => m[1] },
-  // Injuries and limitations — multi-match so both "болит плечо и колено" get stored separately
-  { regex: /(?:у меня|имеется|была?)\s*(грыж|протрузи|сколиоз|артрит|артроз)/gi, category: 'injury', key: 'chronic_condition', multiMatch: true, keyFn: (m) => `condition_${m[1].toLowerCase().slice(0, 10)}`, extract: (m) => m[1] },
-  { regex: /(?:болит|травмирова|проблемы с)\s*(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп)/gi, category: 'injury', key: 'pain_area', multiMatch: true, keyFn: (m) => `pain_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
-  // Preferences
-  { regex: /(?:люблю|нравится|предпочитаю)\s*(присед|жим|тяг|кардио|йог|бег|плаван)/i, category: 'preference', key: 'favorite_exercise', extract: (m) => m[1] },
-  { regex: /(?:не люблю|ненавижу|не хочу делать)\s*(кардио|присед|бег|планк)/i, category: 'preference', key: 'disliked_exercise', extract: (m) => m[1] },
-  // Workout timing preference
-  { regex: /(?:тренируюсь|хожу в зал|занимаюсь)\s*(утром|вечером|днём|ночью|после работы|до работы)/i, category: 'habit', key: 'workout_time_pref', extract: (m) => m[1] },
-  // Sleep pattern
-  { regex: /(?:сплю|ложусь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?\s*(?:час|ночи)?/i, category: 'habit', key: 'sleep_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
-  { regex: /(?:встаю|просыпаюсь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?/i, category: 'habit', key: 'wake_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
-  // Experience
-  { regex: /(?:занимаюсь|тренируюсь)\s*(?:уже)?\s*(\d+)\s*(лет|год|месяц)/i, category: 'preference', key: 'experience_stated', extract: (m) => `${m[1]} ${m[2]}` },
-  // Personality / motivation style
-  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+\w+)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1] },
-  // Goals — detect when user states a fitness goal in conversation
-  { regex: /хочу?\s*(похудеть|сбросить вес|сжечь жир|снизить вес)/i, category: 'preference', key: 'user_goal', extract: () => 'похудение' },
-  { regex: /хочу?\s*(набрать|накачаться|нарастить мышц|набрать массу)/i, category: 'preference', key: 'user_goal', extract: () => 'набор массы' },
-  { regex: /хочу?\s*(стать сильнее|увеличить силу|тренирую силу|силовые?)/i, category: 'preference', key: 'user_goal', extract: () => 'сила' },
-  { regex: /хочу?\s*(выносливость|бегаю|улучшить кардио|марафон)/i, category: 'preference', key: 'user_goal', extract: () => 'выносливость' },
-  { regex: /хочу?\s*(просто быть в форме|поддерживать форму|общая физподготовка|общее здоровье)/i, category: 'preference', key: 'user_goal', extract: () => 'общая форма' },
-];
-
-/**
- * Extract memorable facts from a user message.
- */
-function extractMemories(message: string): MemoryExtraction[] {
-  const memories: MemoryExtraction[] = [];
-
-  for (const pattern of MEMORY_PATTERNS) {
-    if (pattern.multiMatch) {
-      // Re-create regex with global flag to capture all occurrences (regex may already have /g)
-      const globalRegex = new RegExp(pattern.regex.source, 'gi');
-      for (const match of message.matchAll(globalRegex)) {
-        const key = pattern.keyFn ? pattern.keyFn(match as RegExpMatchArray) : pattern.key;
-        memories.push({
-          category: pattern.category,
-          key,
-          value: pattern.extract(match as RegExpMatchArray),
-          confidence: 0.7,
-          source: 'stated',
-        });
-      }
-    } else {
-      const match = message.match(pattern.regex);
-      if (match) {
-        memories.push({
-          category: pattern.category,
-          key: pattern.key,
-          value: pattern.extract(match),
-          confidence: 0.7,
-          source: 'stated',
-        });
-      }
-    }
-  }
-
-  return memories;
-}
+// Round 86: extractMemories + MEMORY_PATTERNS moved to ../ai/memoryExtractor.ts
+// so they can be unit-tested in isolation (importing routes/ai.ts pulls in
+// the whole 84k-line surface and is impractical for a regex-pattern test
+// suite). The expanded pattern set lives there too — sleep_duration_hours,
+// alternative goal phrasings, time-budget per session, caffeine/alcohol/
+// stress signals, and broader exercise like/dislike coverage. See the
+// commit message for round 86 for the full diff rationale.
 
 /**
  * Save or update extracted memories in the database.
