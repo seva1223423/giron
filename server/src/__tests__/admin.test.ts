@@ -2101,7 +2101,30 @@ describe('PATCH /api/admin/support/:id/assign', () => {
     // Auth middleware gets adminUser; the assignee role lookup gets a USER
     (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
       if (where?.id === 'u-admin') return Promise.resolve(adminUser);
-      if (where?.id === STAFF_ID) return Promise.resolve({ role: 'CLIENT' });
+      if (where?.id === STAFF_ID) return Promise.resolve({ role: 'CLIENT', isBanned: false });
+      return Promise.resolve(null);
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/support/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ assignedToId: STAFF_ID });
+
+    expect(res.status).toBe(400);
+    expect(prisma.supportTicket.update).not.toHaveBeenCalled();
+  });
+
+  it('round 82: 400 when assignee is staff but BANNED', async () => {
+    // The user-route equivalent (/support/tickets/:id/assign) already
+    // refuses to assign to banned staff. Round 82 brought this admin
+    // route in line — a banned admin/support shouldn't pick up new
+    // tickets just because they technically still hold the role.
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: TICKET_ID, userId: 'u-customer', status: 'open',
+    });
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') return Promise.resolve(adminUser);
+      if (where?.id === STAFF_ID) return Promise.resolve({ role: 'SUPPORT', isBanned: true });
       return Promise.resolve(null);
     });
 
