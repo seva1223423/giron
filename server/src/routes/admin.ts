@@ -585,16 +585,29 @@ router.post('/test-notification', requireAdmin, async (req: AuthRequest, res: Re
     const errors: Record<string, string> = {};
 
     if (channel === 'push' || channel === 'both') {
-      try {
-        const { sendPushToUser } = await import('../services/pushService');
-        await sendPushToUser(req.userId!, {
-          title: 'Iron Gym — тест',
-          body: 'Это тестовое уведомление из админки. Если ты его видишь — push работает.',
-          data: { url: 'irongym://admin', cohort: 'admin-test' },
-        });
-        pushSent = true;
-      } catch (e: any) {
-        errors.push = String(e?.message ?? e).slice(0, 200);
+      // sendPushToUser silently no-ops if the user has zero registered push
+      // tokens AND silently swallows every Expo error inside its try/catch.
+      // Without this guard the founder sees "✓ pushSent=true" even when no
+      // device is registered — the whole point of /test-notification is to
+      // distinguish "push works" from "push is silently broken", so probe
+      // the token table explicitly first. The send still runs best-effort
+      // when tokens exist; we don't try to bubble Expo receipts up here
+      // because that would mean changing pushService's contract.
+      const tokenCount = await prisma.pushToken.count({ where: { userId: req.userId! } });
+      if (tokenCount === 0) {
+        errors.push = 'Нет зарегистрированных push-устройств для этого аккаунта';
+      } else {
+        try {
+          const { sendPushToUser } = await import('../services/pushService');
+          await sendPushToUser(req.userId!, {
+            title: 'Iron Gym — тест',
+            body: 'Это тестовое уведомление из админки. Если ты его видишь — push работает.',
+            data: { url: 'irongym://admin', cohort: 'admin-test' },
+          });
+          pushSent = true;
+        } catch (e: any) {
+          errors.push = String(e?.message ?? e).slice(0, 200);
+        }
       }
     }
 
