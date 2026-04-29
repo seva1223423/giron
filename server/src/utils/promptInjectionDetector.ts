@@ -101,6 +101,40 @@ export const PATTERNS: InjectionPattern[] = [
     description: 'Direct tool-call manipulation in prose',
     severity: 'high',
   },
+  // ── Round 108: Russian-language variants of the high-severity patterns ──
+  // Each pattern uses (?:^|[^а-яё]) as the start anchor since JS \b doesn't
+  // fire between Cyrillic word chars. Trailing class loose to handle case
+  // inflections without breaking under ё / ä / etc.
+  {
+    id: 'jailbreak_persona_ru',
+    pattern: /(?:^|[^а-яё])(?:веди\s*себя\s*как|представь\s*что\s*ты|притворись|играй\s*роль|симулир|стань)\s+(?:DAN|админом?|разработчик|jailbro\w+|неограничен\w*|без\s*цензур\w*|без\s*фильтр\w*|злым)/iu,
+    description: 'Russian jailbreak persona switch',
+    severity: 'high',
+  },
+  {
+    id: 'admin_escape_ru',
+    pattern: /(?:^|[^а-яё])(?:админ(?:ский|ист)|разработчик(?:а|ий|ск)?|режим\s*разработчик|режим\s*админ|режим\s*бога|root\s*доступ)/iu,
+    description: 'Russian privilege-escalation attempt',
+    severity: 'high',
+  },
+  {
+    id: 'ignore_safety_ru',
+    pattern: /(?:^|[^а-яё])(?:отключи|обойди|сними|убери|игнорируй)\s+(?:свои?\s+|все\s+|все\s+твои\s+)?(?:фильтр|защит|ограничен|правил\s+безопасн|цензур|модерац)/iu,
+    description: 'Russian "disable safety / bypass restrictions"',
+    severity: 'high',
+  },
+  {
+    id: 'forget_everything_ru',
+    pattern: /(?:^|[^а-яё])(?:забудь|сотри|удали|очисти)\s+(?:всё|все|память|свои?\s+(?:инструкц|правил|контекст))/iu,
+    description: 'Russian "forget everything I told you"',
+    severity: 'high',
+  },
+  {
+    id: 'tool_hijack_ru',
+    pattern: /(?:^|[^а-яё])(?:вызови|запусти|выполни|invoke)\s+(?:функцию|инструмент|tool|method)\s*[:=]?\s*(?:delete|drop|remove)_/iu,
+    description: 'Russian tool-call manipulation',
+    severity: 'high',
+  },
   // Lower-severity flags — worth logging for pattern analysis but noisy
   // enough that we don't want every hit in Sentry.
   {
