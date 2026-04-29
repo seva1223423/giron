@@ -466,6 +466,19 @@ export function cleanResponse(content: string): string {
     cleaned = cleaned.replace(pattern, '');
   }
 
+  // Round 156: strip common closing fluff at end of response. Same anchor
+  // logic as the opening patterns — only matches at end of string.
+  const badEndPatterns = [
+    /\s*Если\s+(?:у\s+тебя\s+есть|появятся|возникнут)\s+(?:ещё\s+)?вопросы[^.!?]*[.!?]?\s*$/i,
+    /\s*Удачи\s+(?:в\s+тренировках|с\s+тренировками)[^.!?]*[.!?]?\s*$/i,
+    /\s*Надеюсь[,\s]+(?:это|информация|ответ)\s+(?:помог|поможет|полезн)[^.!?]*[.!?]?\s*$/i,
+    /\s*Если\s+нужна\s+(?:дополнительная\s+)?помощь[^.!?]*[.!?]?\s*$/i,
+  ];
+  for (const pattern of badEndPatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  cleaned = cleaned.trim();
+
   // Обрезаем слишком длинные ответы (оставляем первые ~2000 слов + добавляем многоточие)
   const words = cleaned.split(/\s+/);
   if (words.length > 2000) {
