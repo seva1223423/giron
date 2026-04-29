@@ -432,14 +432,13 @@ router.post('/:id/complete', authenticate, async (req: AuthRequest, res: Respons
       return res.status(409).json({ error: 'Тренировка уже завершена' });
     }
 
-    // Retention bookkeeping (RETENTION-01): refresh lastActiveAt so the
-    // 7/14/30d reactivation cohorts stay accurate even for users who train
-    // without ever talking to the AI. Fire-and-forget — never block the
-    // workout completion response.
-    prisma.user.update({
-      where: { id: req.userId! },
-      data: { lastActiveAt: new Date() },
-    }).catch(() => {});
+    // Retention bookkeeping (RETENTION-01) lives in the auth middleware
+    // now (1h-throttled lastActiveAt sync on every authenticated request),
+    // so completing a workout already keeps the 7/14/30d reactivation
+    // cohorts accurate via the same ride-along write. Day-granularity
+    // cohorts don't care about <1h staleness; the duplicate update we
+    // used to fire here was just extra DB churn without a defensive
+    // thenable guard, fragile under tests that didn't mock user.update.
 
     const updated = await prisma.workout.findUnique({
       where: { id },

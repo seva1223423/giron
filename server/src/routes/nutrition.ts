@@ -66,13 +66,12 @@ router.post('/meals', authenticate, async (req: AuthRequest, res: Response) => {
       include: { items: true },
     });
 
-    // Retention bookkeeping (RETENTION-01) — refresh lastActiveAt so users
-    // who only log meals (cardio-only / nutrition-only personas) still
-    // count as engaged for the reactivation cron. Fire-and-forget.
-    prisma.user.update({
-      where: { id: req.userId! },
-      data: { lastActiveAt: new Date() },
-    }).catch(() => {});
+    // Retention bookkeeping (RETENTION-01): the lastActiveAt sync now lives
+    // in the auth middleware — every authenticated request maintains it
+    // (1h-throttled), so meal-only personas already register as engaged
+    // for the reactivation cron via the ride-along write on this very
+    // request. The duplicate update we used to fire here was redundant
+    // and fragile (no thenable guard like the middleware has).
 
     res.status(201).json(meal);
   } catch (e) {
