@@ -11459,7 +11459,8 @@ export async function cleanupStaleMemories(userId: string): Promise<void> {
   } catch { /* non-critical */ }
 }
 
-async function saveMemories(userId: string, memories: MemoryExtraction[]): Promise<void> {
+// Exported for unit testing (round 115). Internal use only.
+export async function saveMemories(userId: string, memories: MemoryExtraction[]): Promise<void> {
   await Promise.all(memories.map(async (mem) => {
     try {
       const safeKey = String(mem.key).slice(0, 100);
