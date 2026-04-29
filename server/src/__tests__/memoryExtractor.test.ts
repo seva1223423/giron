@@ -214,6 +214,23 @@ describe('extractMemories — round 86 expansions', () => {
     }));
   });
 
+  // Round 176: typical session duration
+  test('session_minutes_typical captures "тренировка длится 75 минут"', () => {
+    const out = extractMemories('обычно моя тренировка длится 75 минут');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'session_minutes_typical',
+      value: '75',
+    }));
+  });
+
+  test('session_minutes_typical captures "тренируюсь 1 час" → 60 minutes', () => {
+    const out = extractMemories('обычно тренируюсь 1 час');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'session_minutes_typical',
+      value: '60',
+    }));
+  });
+
   test('session_minutes_max captures "у меня 40 минут на тренировку"', () => {
     const out = extractMemories('у меня 40 минут на тренировку максимум');
     expect(out).toContainEqual(expect.objectContaining({

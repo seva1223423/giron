@@ -257,6 +257,9 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:могу|у меня|есть|максимум|только)\s*(\d{2,3})\s*мин(?:ут)?\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: (m) => `${m[1]}`, confidence: 0.9 },
   { regex: /(?:только|максимум|есть)\s*(?:час|60\s*мин)\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: () => '60', confidence: 0.85 },
   { regex: /(?:только|максимум|есть)\s*полчаса\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: () => '30', confidence: 0.85 },
+  // Round 176: typical session duration (not max — habit).
+  { regex: /(?:обычно|типичн[а-я]+\s+)?(?:моя\s+)?тренировк[а-я]+\s*(?:длится|идёт|занимает)\s*(\d{2,3})\s*мин(?:ут)?/i, category: 'habit', key: 'session_minutes_typical', extract: (m) => `${m[1]}`, confidence: 0.85 },
+  { regex: /(?:обычно|типичн[а-я]+\s+)?тренируюсь\s+(?:по\s+)?(\d{1,2})(?:[:.](\d{2}))?\s*час[а-я]*/i, category: 'habit', key: 'session_minutes_typical', extract: (m) => `${parseInt(m[1], 10) * 60}`, confidence: 0.8 },
 
   // ── Stimulants / recovery friction ───────────────────────────────────────
   // Round 86: caffeine and alcohol intake correlate with sleep / recovery.
