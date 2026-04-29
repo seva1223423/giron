@@ -1658,7 +1658,8 @@ export function detectMood(message: string): MoodDirective {
 
 // ─── Time-Aware Context ─────────────────────────────────────────────────────
 
-function getTimeContext(clientHour?: number, clientDate?: string): string {
+// Exported for unit testing (round 165).
+export function getTimeContext(clientHour?: number, clientDate?: string): string {
   const now = new Date();
   const hour = clientHour ?? now.getHours();
   const DAY_NAMES = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
