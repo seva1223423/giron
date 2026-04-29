@@ -1705,7 +1705,8 @@ interface ProfileGap {
   priority: number; // higher = ask sooner
 }
 
-function getProfileGaps(user: {
+// Exported for unit testing (round 164).
+export function getProfileGaps(user: {
   weightKg: number | null;
   heightCm: number | null;
   goal: string | null;
