@@ -49,6 +49,13 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   const handlePhotoScan = () => navigation.navigate('FoodScanner');
 
+  const SUB_TABS: { key: string; label: string; a11y: string }[] = [
+    { key: 'NutritionHistory', label: 'История',     a11y: 'История приёмов пищи' },
+    { key: 'Recipes',          label: 'Рецепты',     a11y: 'Библиотека рецептов' },
+    { key: 'MealPlan',         label: 'ИИ-план',     a11y: 'План питания от ИИ' },
+    { key: 'MacroCalculator',  label: 'Калькулятор', a11y: 'Калькулятор КБЖУ' },
+  ];
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -63,53 +70,43 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         selectedDate={selectedDate}
       />
 
+      {/* Title row + primary action "Цели" */}
       <View style={styles.header}>
         <Text style={[typography.h2, { color: colors.text }]}>Питание</Text>
-        <View style={{ flexDirection: 'row', gap: spacing.lg }}>
-          <TouchableOpacity
-            onPress={() => { haptic.selection(); navigation.navigate('NutritionHistory'); }}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            accessibilityLabel="История приёмов пищи"
-            accessibilityRole="button"
-          >
-            <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>История</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { haptic.selection(); navigation.navigate('Recipes'); }}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            accessibilityLabel="Библиотека рецептов"
-            accessibilityRole="button"
-          >
-            <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>Рецепты</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { haptic.selection(); navigation.navigate('MealPlan'); }}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            accessibilityLabel="План питания от ИИ"
-            accessibilityRole="button"
-          >
-            <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>ИИ-план</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { haptic.selection(); navigation.navigate('MacroCalculator'); }}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            accessibilityLabel="Калькулятор КБЖУ"
-            accessibilityRole="button"
-          >
-            <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>Калькулятор</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { haptic.selection(); setShowGoalsModal(true); }}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            accessibilityLabel="Настроить дневные цели по КБЖУ"
-            accessibilityRole="button"
-          >
-            <View style={{ backgroundColor: colors.primary + '15', paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: colors.primary + '35' }}>
-              <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>Цели</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() => { haptic.selection(); setShowGoalsModal(true); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Настроить дневные цели по КБЖУ"
+          accessibilityRole="button"
+        >
+          <View style={{ backgroundColor: colors.primary + '15', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.primary + '35' }}>
+            <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>Цели</Text>
+          </View>
+        </TouchableOpacity>
       </View>
+
+      {/* Sub-section tabs — horizontally scrollable so they never overflow viewport */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabsRow}
+        style={styles.tabsScroller}
+      >
+        {SUB_TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            onPress={() => { haptic.selection(); navigation.navigate(tab.key); }}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            accessibilityLabel={tab.a11y}
+            accessibilityRole="button"
+            style={[styles.tabPill, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
       <DailyOverview selectedDate={selectedDate} />
@@ -142,4 +139,19 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  tabsScroller: {
+    marginHorizontal: -spacing.xl,
+    marginBottom: spacing.md,
+  },
+  tabsRow: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+    flexDirection: 'row',
+  },
+  tabPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
 });
