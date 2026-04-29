@@ -957,6 +957,98 @@ describe('GET /api/admin/announcements/preview', () => {
   });
 });
 
+// ─── POST /api/admin/users/:id/message ───────────────────────────────────────
+//
+// Admin sends a one-shot message to a user by creating a support ticket on
+// their behalf. Critical that the ticket gets created with isStaff=true on
+// the message (otherwise the user replying wouldn't see "from staff" in
+// their support inbox) and that the admin is the author + assignee.
+
+describe('POST /api/admin/users/:id/message', () => {
+  const validBody = { subject: 'Important update', message: 'Please update your contact info.' };
+
+  it('401 without token', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/message`)
+      .send(validBody);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/admin/users/bad-id/message')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validBody);
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when subject is empty', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/message`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, subject: '' });
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when target user does not exist', async () => {
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') return Promise.resolve(adminUser);
+      return Promise.resolve(null); // target not found
+    });
+
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/message`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validBody);
+
+    expect(res.status).toBe(404);
+    expect(prisma.supportTicket.create).not.toHaveBeenCalled();
+  });
+
+  it('201 creates ticket with admin as author + assignee + isStaff=true', async () => {
+    (prisma.supportTicket.create as jest.Mock).mockResolvedValueOnce({
+      id: 'cticket0000000000000001',
+      ...validBody,
+      status: 'in_progress',
+      priority: 'normal',
+      userId: TARGET_ID,
+      assignedToId: 'u-admin',
+      user: { id: TARGET_ID, firstName: 'Ivan', lastName: 'P', email: 'i@example.com' },
+      assignedTo: { firstName: 'Admin', lastName: null },
+      messages: [{
+        id: 'cmsg00000000000000001',
+        content: validBody.message,
+        authorId: 'u-admin',
+        isStaff: true,
+        author: { id: 'u-admin', firstName: 'Admin', lastName: null, role: 'ADMIN' },
+      }],
+    });
+
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/message`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send(validBody);
+
+    expect(res.status).toBe(201);
+
+    // Verify the ticket creation payload
+    const createCalls = (prisma.supportTicket.create as jest.Mock).mock.calls;
+    expect(createCalls.length).toBe(1);
+    const data = createCalls[0][0].data;
+    // Ticket scoped to target user
+    expect(data.userId).toBe(TARGET_ID);
+    // Admin auto-assigned (admin owns the conversation from creation)
+    expect(data.assignedToId).toBe('u-admin');
+    // Status starts in_progress (admin already engaged), not 'open'
+    expect(data.status).toBe('in_progress');
+    // SECURITY: nested message creation must mark isStaff=true so the
+    // user's support UI shows the "from staff" badge correctly
+    expect(data.messages.create.isStaff).toBe(true);
+    expect(data.messages.create.authorId).toBe('u-admin');
+    expect(data.messages.create.isInternal).toBe(false);
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
