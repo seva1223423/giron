@@ -329,4 +329,42 @@ describe('POST /api/news/refresh', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  it('round 84: clears newsCache after successful refresh so next GET /news returns fresh data', async () => {
+    // Pre-round-84 the admin clicked refresh, RSS fetch happened, but
+    // the 5-min cached `news:*` keys kept serving the previous list to
+    // every user — including the admin's own next GET /news. Clearing
+    // the cache after a refresh that actually added rows fixes this.
+    (mp.user.findUnique as jest.Mock).mockResolvedValue(mockAdmin);
+    const { refreshNews } = require('../services/newsRefreshService');
+    refreshNews.mockResolvedValueOnce({ added: 3, skipped: 2 });
+
+    // Seed the cache so we can verify the clear.
+    newsCache.set('news:all:20:0', [{ id: 'cached-old', title: 'Old' }], 5 * 60 * 1000);
+    expect(newsCache.size).toBeGreaterThan(0);
+
+    const res = await request(app)
+      .post('/api/news/refresh')
+      .set('Authorization', `Bearer ${makeToken('u-admin', 'ADMIN')}`);
+
+    expect(res.status).toBe(200);
+    expect(newsCache.size).toBe(0);
+  });
+
+  it('round 84: SKIPS cache clear when refresh added 0 articles (avoid wiping a hot cache for nothing)', async () => {
+    (mp.user.findUnique as jest.Mock).mockResolvedValue(mockAdmin);
+    const { refreshNews } = require('../services/newsRefreshService');
+    // refreshNews returns { added: 0, skipped: -1 } when too soon / already running.
+    refreshNews.mockResolvedValueOnce({ added: 0, skipped: -1 });
+
+    newsCache.set('news:all:20:0', [{ id: 'cached-fresh', title: 'Fresh' }], 5 * 60 * 1000);
+    expect(newsCache.size).toBe(1);
+
+    await request(app)
+      .post('/api/news/refresh')
+      .set('Authorization', `Bearer ${makeToken('u-admin', 'ADMIN')}`);
+
+    // Nothing was added → cache stays warm.
+    expect(newsCache.size).toBe(1);
+  });
 });
