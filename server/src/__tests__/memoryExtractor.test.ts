@@ -558,6 +558,48 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
   });
 });
 
+describe('extractMemories — round 116 schedule constraints', () => {
+  test('captures "не могу во вторник"', () => {
+    const out = extractMemories('не могу во вторник, занят');
+    expect(out.some((m) => m.key.startsWith('unavail_'))).toBe(true);
+  });
+
+  test('captures multiple unavailable days under unique keys', () => {
+    const out = extractMemories('не могу в понедельник и не могу в среду');
+    const unavail = out.filter((m) => m.key.startsWith('unavail_'));
+    expect(unavail.length).toBeGreaterThanOrEqual(1);
+    const keys = new Set(unavail.map((m) => m.key));
+    expect(keys.size).toBe(unavail.length);
+  });
+
+  test('captures "занят в субботу"', () => {
+    const out = extractMemories('занят в субботу');
+    expect(out.some((m) => m.key.startsWith('unavail_') && /суббот/.test(m.value))).toBe(true);
+  });
+
+  test('captures "только по выходным" → weekends_only', () => {
+    const out = extractMemories('только по выходным занимаюсь');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'training_window',
+      value: 'weekends_only',
+    }));
+  });
+
+  test('captures "только в будни" → weekdays_only', () => {
+    const out = extractMemories('занимаюсь только в будни');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'training_window',
+      value: 'weekdays_only',
+    }));
+  });
+
+  test('training_window has 0.85 confidence', () => {
+    const out = extractMemories('только по выходным');
+    const w = out.find((m) => m.key === 'training_window');
+    expect(w?.confidence).toBe(0.85);
+  });
+});
+
 describe('extractMemories — round 113 workout time patterns', () => {
   test('captures "тренируюсь по утрам"', () => {
     const out = extractMemories('тренируюсь по утрам перед работой');

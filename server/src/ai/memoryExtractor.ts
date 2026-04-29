@@ -63,6 +63,15 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 93 confidence: numeric-anchored, hard to mis-extract. 0.9.
   { regex: /тренируюсь?\s*(\d)\s*(раз|дн)/i, category: 'schedule', key: 'training_frequency', extract: (m) => `${m[1]} раз в неделю`, confidence: 0.9 },
   { regex: /по\s*(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)/gi, category: 'schedule', key: 'training_days', multiMatch: true, keyFn: (m) => `training_day_${m[1].toLowerCase().slice(0, 6)}`, extract: (m) => m[0] },
+  // Round 116: explicit unavailable days. The training_days pattern above
+  // captures POSITIVE constraints ("по средам, по пятницам"). Some users
+  // express scheduling negatively: "не могу во вторник", "не получится в
+  // среду", "только не пятница". Stored separately so the program planner
+  // can avoid those days specifically.
+  { regex: /(?:не\s*могу|не\s*получится|занят[а-я]*)\s*(?:во?\s*|по\s*)?(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)\w*/gi, category: 'schedule', key: 'unavailable_days', multiMatch: true, keyFn: (m) => `unavail_${m[1].toLowerCase().slice(0, 6)}`, extract: (m) => m[1].toLowerCase() },
+  // Round 116: weekend-only / weekday-only constraints
+  { regex: /(?:только\s*по\s*выходн[а-я]*|занимаюсь\s*(?:только\s*)?(?:в\s*)?выходн[а-я]+)/i, category: 'schedule', key: 'training_window', extract: () => 'weekends_only', confidence: 0.85 },
+  { regex: /(?:только\s*по\s*будн[а-я]+|только\s*в\s*будн[а-я]+|занимаюсь\s*только\s*в\s*будн[а-я]+)/i, category: 'schedule', key: 'training_window', extract: () => 'weekdays_only', confidence: 0.85 },
 
   // ── Equipment ─────────────────────────────────────────────────────────────
   // Round 93 confidence: strong qualitative, behaviour-changing. 0.8.
