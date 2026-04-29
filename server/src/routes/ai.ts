@@ -82256,11 +82256,18 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       ENDURANCE: 'выносливость',
       GENERAL_FITNESS: 'общая форма',
     } as Record<string, string>)[user.goal] ?? '' : '';
+    // Round 152: extract goal-category memory anchors (target_weight_kg,
+    // weight_loss_target_kg) so the AI can mention them in macro
+    // recommendations. Sanitized via sanitizeForPrompt.
+    const goalMemoryLines = userMemories
+      .filter((m) => m.category === 'goal')
+      .map((m) => `${m.key}=${sanitizeForPrompt(m.value, 60)}`);
     const userInfo = user
       ? [
           user.gender === 'MALE' ? 'мужчина' : user.gender === 'FEMALE' ? 'женщина' : '',
           user.weightKg ? `вес ${user.weightKg} кг` : '',
           goalRu ? `цель: ${goalRu}` : '',
+          goalMemoryLines.length > 0 ? `цели в памяти: ${goalMemoryLines.join(', ')}` : '',
         ].filter(Boolean).join(', ')
       : '';
 
