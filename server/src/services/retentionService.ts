@@ -22,7 +22,25 @@ import { reportError } from '../utils/errorReporter';
  * non-fatal; a missing push token simply means the user is skipped this
  * tick (they may install push later). All errors are routed to Sentry via
  * reportError but never thrown — the cron must be self-healing.
+ *
+ * Quiet hours: pushes (NOT emails — emails sit in inbox harmlessly) are
+ * skipped during sleep hours. Iron Gym is RU-focused so we approximate
+ * Moscow time (UTC+3): no pushes between 22:00 and 08:00 Moscow =
+ * 19:00..05:00 UTC. Eligible users are deferred to the next cron tick;
+ * the *SentAt gate isn't set so they're picked up cleanly later.
+ *
+ * TODO when User.timezone exists: switch to per-user local hour and drop
+ * the Moscow assumption. For users outside RU the current heuristic may
+ * fire 1-3h off their actual sleep window.
  */
+const QUIET_HOURS_UTC_START = 19; // 22:00 MSK
+const QUIET_HOURS_UTC_END = 5;    // 08:00 MSK
+
+function isQuietHourUtc(date: Date): boolean {
+  const h = date.getUTCHours();
+  // Window crosses midnight (19..23 + 0..4) — handle both halves
+  return h >= QUIET_HOURS_UTC_START || h < QUIET_HOURS_UTC_END;
+}
 
 /**
  * Activation cohort: users registered ≥24h ago who never sent an AI
@@ -85,29 +103,39 @@ export async function processActivationCohort(): Promise<number> {
 
     if (candidates.length === 0) return 0;
 
+    const quietHour = isQuietHourUtc(now);
     let pushSent = 0;
     let emailSent = 0;
+    let pushDeferred = 0;
     for (const user of candidates) {
       const greeting = user.firstName ? `${user.firstName}, ` : '';
 
-      // Push path
+      // Push path (skipped during quiet hours — no waking users at 3am)
       if (!user.activationPushSentAt && user.pushTokens.length > 0) {
-        try {
-          await sendPushToUser(user.id, {
-            title: 'Iron Coach ждёт первого вопроса',
-            body: `${greeting}задай ИИ-тренеру вопрос — программа, питание, техника. 30 секунд и план готов.`,
-            data: { url: 'irongym://ai', cohort: 'activation' },
-          });
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { activationPushSentAt: now },
-          });
-          pushSent++;
-        } catch (err) {
-          reportError(err as Error, {
-            userId: user.id,
-            tags: { origin: 'retention-activation-push' },
-          });
+        if (quietHour) {
+          // *SentAt gate intentionally NOT set — user is picked up at the
+          // next non-quiet tick. The cron is hourly so the worst-case
+          // delay is ~10h (one full quiet window), well within the 7-day
+          // activation window enforced by the createdAt filter above.
+          pushDeferred++;
+        } else {
+          try {
+            await sendPushToUser(user.id, {
+              title: 'Iron Coach ждёт первого вопроса',
+              body: `${greeting}задай ИИ-тренеру вопрос — программа, питание, техника. 30 секунд и план готов.`,
+              data: { url: 'irongym://ai', cohort: 'activation' },
+            });
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { activationPushSentAt: now },
+            });
+            pushSent++;
+          } catch (err) {
+            reportError(err as Error, {
+              userId: user.id,
+              tags: { origin: 'retention-activation-push' },
+            });
+          }
         }
       }
 
@@ -133,7 +161,9 @@ export async function processActivationCohort(): Promise<number> {
     }
 
     logger.info(
-      `[Retention] Activation cohort: ${pushSent} pushes + ${emailSent} emails / ${candidates.length} candidates`,
+      `[Retention] Activation cohort: ${pushSent} pushes + ${emailSent} emails` +
+      (pushDeferred > 0 ? ` (${pushDeferred} push deferred to non-quiet hours)` : '') +
+      ` / ${candidates.length} candidates`,
     );
     return pushSent + emailSent;
   } catch (err) {
@@ -186,6 +216,16 @@ export async function processReactivationCohort(
       body: `${greeting}за месяц мы добавили обновления — твой план ждёт. Открыть?`,
     };
   };
+
+  // Quiet-hours guard — skip the whole cohort during sleep window. The
+  // *SentAt gate isn't set so candidates roll forward to the next tick
+  // automatically; no special bookkeeping needed.
+  if (isQuietHourUtc(now)) {
+    logger.info(
+      `[Retention] Reactivation ${daysInactive}d cohort: deferred (quiet hours, ${now.getUTCHours()}:00 UTC)`,
+    );
+    return 0;
+  }
 
   try {
     const candidates = await prisma.user.findMany({
