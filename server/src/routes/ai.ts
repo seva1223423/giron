@@ -3433,8 +3433,21 @@ async function executeTool(
       .sort((a, b) => b.est1RM - a.est1RM)
       .slice(0, safeLimit);
 
+    // Round 121: include relative date of each PR so the LLM can answer
+    // "когда я последний раз бил ..." without re-querying. Uses approx
+    // "X дн./нед./мес. назад" — short and human-readable.
+    const ageString = (date: Date): string => {
+      const ageMs = Date.now() - date.getTime();
+      const ageDays = Math.floor(ageMs / 86_400_000);
+      if (ageDays < 1) return 'сегодня';
+      if (ageDays === 1) return 'вчера';
+      if (ageDays < 14) return `${ageDays} дн. назад`;
+      if (ageDays < 60) return `${Math.floor(ageDays / 7)} нед. назад`;
+      return `${Math.floor(ageDays / 30)} мес. назад`;
+    };
+
     const summary = sortedPRs
-      .map((pr) => `${sanitizeForPrompt(pr.exercise, 60)}: ${pr.weight}кг × ${pr.reps} (e1RM ${pr.est1RM}кг)`)
+      .map((pr) => `${sanitizeForPrompt(pr.exercise, 60)}: ${pr.weight}кг × ${pr.reps} (e1RM ${pr.est1RM}кг, ${ageString(pr.date)})`)
       .join('; ');
 
     return {
