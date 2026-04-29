@@ -558,6 +558,33 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
   });
 });
 
+describe('extractMemories — round 111 expanded diet_restriction', () => {
+  test('captures "не ем красное мясо"', () => {
+    const out = extractMemories('я не ем красное мясо последние 3 года');
+    expect(out.some((m) => m.key === 'diet_restriction' && /красн\w*\s*мяс|мяс/.test(m.value))).toBe(true);
+  });
+
+  test('captures "пескетарианка"', () => {
+    const out = extractMemories('я пескетарианка');
+    expect(out.some((m) => m.key === 'diet_restriction' && /пескетариан/.test(m.value))).toBe(true);
+  });
+
+  test('captures "без сахара"', () => {
+    const out = extractMemories('держусь без сахара');
+    expect(out.some((m) => m.key === 'diet_restriction' && /сахар/.test(m.value))).toBe(true);
+  });
+
+  test('captures "без глютена"', () => {
+    const out = extractMemories('питаюсь без глютена');
+    expect(out.some((m) => m.key === 'diet_restriction' && /глютен/.test(m.value))).toBe(true);
+  });
+
+  test('captures "не ем свинину"', () => {
+    const out = extractMemories('не ем свинину по религиозным соображениям');
+    expect(out.some((m) => m.key === 'diet_restriction' && /свинин/.test(m.value))).toBe(true);
+  });
+});
+
 describe('extractMemories — round 105 expanded equipment list', () => {
   test('captures "купил TRX"', () => {
     const out = extractMemories('купил TRX, теперь могу заниматься дома');
