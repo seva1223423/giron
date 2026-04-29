@@ -57,7 +57,12 @@ describe('classifyIntent — data_logging', () => {
     'забудь о тренере',
     'удали из памяти факт о боли в колене',
     'сотри факт',
-  ])('classifies memory command "%s" as data_logging (round 102)', (msg) => {
+    // Round 155 additions
+    'помни про мою травму колена',
+    'помни что я веган',
+    'не забывай про моё плечо',
+    'не забывай о моих аллергиях',
+  ])('classifies memory command "%s" as data_logging (round 102+155)', (msg) => {
     expect(classifyIntent(msg)).toBe('data_logging');
   });
 });
