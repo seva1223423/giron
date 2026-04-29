@@ -32,15 +32,41 @@ interface MemoryPattern {
    *  multiple values for the same concept — e.g. one row per allergy). */
   keyFn?: (match: RegExpMatchArray) => string;
   extract: (match: RegExpMatchArray) => string;
+  /**
+   * Round-93 calibration: per-pattern starting confidence. Replaces the
+   * flat 0.7 default with a tier-aligned value. The downstream upsert
+   * still increments confidence on repeated mention (rounds 26+), so
+   * starting confidence anchors how quickly a fact "earns" its place.
+   *
+   *   0.9 — numeric, anchored, hard to be wrong about ("сплю 8 часов",
+   *         "вешу 78 кг", "рост 180", "цель 75 кг", training_frequency
+   *         with explicit count). The number itself is the truth.
+   *   0.8 — strong qualitative facts that change behaviour ("сижу на
+   *         кето", "не курю", "у меня двое детей", "training_location:
+   *         дома"). Hard to mis-extract; rare false positives.
+   *   0.7 — default; soft preferences and inferred labels (favourite
+   *         exercise, disliked exercise, personality trait, experience
+   *         level descriptor, IF window).
+   *   0.6 — softer / more ambiguous (personality_trait, mood signals
+   *         that surface from a verb fragment).
+   *
+   * Omit to fall back to 0.7. Calibration is conservative — increasing
+   * confidence above 0.7 across the board would erode the saveMemories
+   * cap of 100 by giving every fresh extraction priority over older
+   * ones.
+   */
+  confidence?: number;
 }
 
 export const MEMORY_PATTERNS: MemoryPattern[] = [
   // ── Training schedule ─────────────────────────────────────────────────────
-  { regex: /тренируюсь?\s*(\d)\s*(раз|дн)/i, category: 'schedule', key: 'training_frequency', extract: (m) => `${m[1]} раз в неделю` },
+  // Round 93 confidence: numeric-anchored, hard to mis-extract. 0.9.
+  { regex: /тренируюсь?\s*(\d)\s*(раз|дн)/i, category: 'schedule', key: 'training_frequency', extract: (m) => `${m[1]} раз в неделю`, confidence: 0.9 },
   { regex: /по\s*(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)/gi, category: 'schedule', key: 'training_days', multiMatch: true, keyFn: (m) => `training_day_${m[1].toLowerCase().slice(0, 6)}`, extract: (m) => m[0] },
 
   // ── Equipment ─────────────────────────────────────────────────────────────
-  { regex: /(?:занимаюсь|тренируюсь)\s*(дома|в зале|на улице)/i, category: 'preference', key: 'training_location', extract: (m) => m[1] },
+  // Round 93 confidence: strong qualitative, behaviour-changing. 0.8.
+  { regex: /(?:занимаюсь|тренируюсь)\s*(дома|в зале|на улице)/i, category: 'preference', key: 'training_location', extract: (m) => m[1], confidence: 0.8 },
   { regex: /(?:у меня|есть|имеется)\s*(гантел|штанг|турник|брусья|гир|тренажёр|тренажер|резинк)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
 
   // ── Diet preferences ──────────────────────────────────────────────────────
@@ -67,7 +93,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 86: capture sleep DURATION, not just bedtime. "сплю по 7 часов" and
   // "сплю 8 часов" were both invisible before — extracting them lets the
   // recovery / fatigue blocks tune their ACWR ceiling per user.
-  { regex: /сплю?\s*(?:по\s*)?(\d{1,2})\s*час/i, category: 'habit', key: 'sleep_duration_hours', extract: (m) => `${m[1]}` },
+  { regex: /сплю?\s*(?:по\s*)?(\d{1,2})\s*час/i, category: 'habit', key: 'sleep_duration_hours', extract: (m) => `${m[1]}`, confidence: 0.9 },
 
   // ── Experience ────────────────────────────────────────────────────────────
   { regex: /(?:занимаюсь|тренируюсь)\s*(?:уже)?\s*(\d+)\s*(лет|год|месяц)/i, category: 'preference', key: 'experience_stated', extract: (m) => `${m[1]} ${m[2]}` },
@@ -76,7 +102,9 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 91 fix: `мотивируюсь\s+\w+` was unreachable in practice — JS \w
   // is ASCII-only, so "мотивируюсь спортом" failed to match (the Cyrillic
   // "с" in "спортом" doesn't satisfy \w). Switched to [а-я]+.
-  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+[а-я]+)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1] },
+  // Round 93 confidence: weak signal — "перфекционист" might be casual
+  // self-description not stable trait. 0.6.
+  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+[а-я]+)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1], confidence: 0.6 },
 
   // ── Goals ────────────────────────────────────────────────────────────────
   { regex: /хочу?\s*(похудеть|сбросить вес|сжечь жир|снизить вес)/i, category: 'preference', key: 'user_goal', extract: () => 'похудение' },
@@ -96,15 +124,15 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 86: "цель 75 кг" / "хочу весить 80" — concrete number to anchor
   // weight-loss / muscle-gain framing. Stored as kg with no further parsing
   // so a downstream block can compare against current weight.
-  { regex: /(?:цель|хочу\s*(?:весить|быть)|мечтаю\s*весить)\s*(\d{2,3})\s*кг/i, category: 'goal', key: 'target_weight_kg', extract: (m) => `${m[1]}` },
+  { regex: /(?:цель|хочу\s*(?:весить|быть)|мечтаю\s*весить)\s*(\d{2,3})\s*кг/i, category: 'goal', key: 'target_weight_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
 
   // ── Time budget per session ──────────────────────────────────────────────
   // Round 86: "у меня 40 минут на тренировку", "максимум час", "только полчаса".
   // Useful so the AI doesn't keep suggesting 90-min PPL splits to a parent
   // with 30 min between dropping kids off and starting work.
-  { regex: /(?:могу|у меня|есть|максимум|только)\s*(\d{2,3})\s*мин(?:ут)?\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: (m) => `${m[1]}` },
-  { regex: /(?:только|максимум|есть)\s*(?:час|60\s*мин)\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: () => '60' },
-  { regex: /(?:только|максимум|есть)\s*полчаса\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: () => '30' },
+  { regex: /(?:могу|у меня|есть|максимум|только)\s*(\d{2,3})\s*мин(?:ут)?\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  { regex: /(?:только|максимум|есть)\s*(?:час|60\s*мин)\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: () => '60', confidence: 0.85 },
+  { regex: /(?:только|максимум|есть)\s*полчаса\s*(?:на\s*)?(?:тренировк|зал)/i, category: 'preference', key: 'session_minutes_max', extract: () => '30', confidence: 0.85 },
 
   // ── Stimulants / recovery friction ───────────────────────────────────────
   // Round 86: caffeine and alcohol intake correlate with sleep / recovery.
@@ -119,8 +147,8 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // appears) so we yield to it deterministically. The MEMORY_PATTERNS
   // walker is in array order, so first hit on this key sticks via the
   // upsert ordering in saveMemories.
-  { regex: /(?:не\s*пью\s*коф|без\s*коф|кофе\s*не\s*пью)/i, category: 'habit', key: 'caffeine_high', extract: () => 'none' },
-  { regex: /(?:пью\s*много\s*коф|кофе\s*литрами|зависим\s*от\s*коф)/i, category: 'habit', key: 'caffeine_high', extract: () => 'high' },
+  { regex: /(?:не\s*пью\s*коф|без\s*коф|кофе\s*не\s*пью)/i, category: 'habit', key: 'caffeine_high', extract: () => 'none', confidence: 0.85 },
+  { regex: /(?:пью\s*много\s*коф|кофе\s*литрами|зависим\s*от\s*коф)/i, category: 'habit', key: 'caffeine_high', extract: () => 'high', confidence: 0.85 },
   // Match both "пью пиво по выходным" and "по выходным выпиваю пиво" word
   // orders — Russian doesn't pin SVO so either reads naturally.
   { regex: /(?:по\s*выходн\w*\s*(?:выпиваю|пью)|(?:выпиваю|пью)\s*пиво|(?:выпиваю|пью)\s*по\s*выходн|алкоголь\s*по\s*выходн)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'weekend' },
@@ -155,7 +183,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   //   4. Replaced \w+ in the genitive-case alternative (was dead code
   //      because \w is ASCII-only) so "интервального голодания" and other
   //      inflections of "интервальное голодание" now match.
-  { regex: /(?<!не\s+)(?:соблюдаю|сижу\s*на|придерживаюсь|держу)\s*(интервальн[а-я]+\s*голодан[а-я]*|интервальное\s*голодание|кетоген\w*|кето|lchf|низкоуглеводн[а-я]*|дукан[а-я]*|средиземноморск[а-я]*|палео|карнивор[а-я]*)/i, category: 'preference', key: 'diet_style', extract: (m) => m[1].toLowerCase() },
+  { regex: /(?<!не\s+)(?:соблюдаю|сижу\s*на|придерживаюсь|держу)\s*(интервальн[а-я]+\s*голодан[а-я]*|интервальное\s*голодание|кетоген\w*|кето|lchf|низкоуглеводн[а-я]*|дукан[а-я]*|средиземноморск[а-я]*|палео|карнивор[а-я]*)/i, category: 'preference', key: 'diet_style', extract: (m) => m[1].toLowerCase(), confidence: 0.85 },
   // "16:8" / "18:6" / "20:4" — IF window notations that often appear without
   // the word "интервальное". Stored verbatim so the AI can echo it back.
   { regex: /(?:голодание|пощусь|ем\s*в\s*окне)\s*(\d{1,2}[:\/]\d{1,2})/i, category: 'preference', key: 'diet_style', extract: (m) => `IF ${m[1].replace('/', ':')}` },
@@ -165,9 +193,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // shift with smoking status. Three-state: smoke / quit / never. The
   // "бросил" branch is listed FIRST (same dedup-by-key reasoning as
   // caffeine_high — quit is the more recent fact and overrides "курю").
-  { regex: /(?:бросил\s*курить|не\s*курю\s*уже|бросаю\s*курить|больше\s*не\s*курю)/i, category: 'habit', key: 'smoking_status', extract: () => 'quit' },
-  { regex: /(?:не\s*курю|никогда\s*не\s*курил)/i, category: 'habit', key: 'smoking_status', extract: () => 'never' },
-  { regex: /(?:курю(?!т)|выкуриваю|пачк[ау]\s*в\s*день)/i, category: 'habit', key: 'smoking_status', extract: () => 'current' },
+  // Round 93 confidence: smoking is a strong, recovery-impacting fact. 0.85.
+  { regex: /(?:бросил\s*курить|не\s*курю\s*уже|бросаю\s*курить|больше\s*не\s*курю)/i, category: 'habit', key: 'smoking_status', extract: () => 'quit', confidence: 0.85 },
+  { regex: /(?:не\s*курю|никогда\s*не\s*курил)/i, category: 'habit', key: 'smoking_status', extract: () => 'never', confidence: 0.85 },
+  { regex: /(?:курю(?!т)|выкуриваю|пачк[ау]\s*в\s*день)/i, category: 'habit', key: 'smoking_status', extract: () => 'current', confidence: 0.85 },
 
   // ── Round 91: Hydration intake ───────────────────────────────────────────
   // "пью 2 литра воды" — anchors the water_target the AI suggests. Without
@@ -177,8 +206,8 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // NB: JS regex `\w` matches only ASCII word chars — Cyrillic suffixes
   // need `[а-я]*` instead. Same convention used elsewhere in this file
   // (see the food_allergy pattern's [\wа-яА-Я]+ catcher).
-  { regex: /пью\s*(\d(?:[.,]\d)?)\s*литр[а-я]*\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.') },
-  { regex: /(?:выпиваю|потребляю)\s*(\d(?:[.,]\d)?)\s*л(?:итр[а-я]*)?\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.') },
+  { regex: /пью\s*(\d(?:[.,]\d)?)\s*литр[а-я]*\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.'), confidence: 0.9 },
+  { regex: /(?:выпиваю|потребляю)\s*(\d(?:[.,]\d)?)\s*л(?:итр[а-я]*)?\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.'), confidence: 0.9 },
 
   // ── Round 91: Goal deadline ──────────────────────────────────────────────
   // "к лету", "к свадьбе", "к отпуску", "к новому году" — when the user
@@ -251,9 +280,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // bodyfat_percent / current_weight_kg / height_cm — all single-key (each
   // overwrites on change). Numeric-only values; future maintainers should
   // resist storing units in the value (downstream blocks parse as Number).
-  { regex: /(?:у меня|мой|во мне)\s*(\d{1,2})\s*%\s*жира/i, category: 'preference', key: 'bodyfat_percent', extract: (m) => `${m[1]}` },
-  { regex: /(?:вешу|вес\s*мой|сейчас\s*вешу)\s*(\d{2,3})\s*кг/i, category: 'preference', key: 'current_weight_kg', extract: (m) => `${m[1]}` },
-  { regex: /(?:рост|мой\s*рост|у меня\s*рост)\s*(\d{3})\s*см/i, category: 'preference', key: 'height_cm', extract: (m) => `${m[1]}` },
+  // Round 93 confidence: numeric self-reports — high confidence. 0.9.
+  { regex: /(?:у меня|мой|во мне)\s*(\d{1,2})\s*%\s*жира/i, category: 'preference', key: 'bodyfat_percent', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  { regex: /(?:вешу|вес\s*мой|сейчас\s*вешу)\s*(\d{2,3})\s*кг/i, category: 'preference', key: 'current_weight_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  { regex: /(?:рост|мой\s*рост|у меня\s*рост)\s*(\d{3})\s*см/i, category: 'preference', key: 'height_cm', extract: (m) => `${m[1]}`, confidence: 0.9 },
 ];
 
 /**
@@ -289,7 +319,7 @@ export function extractMemories(message: string): MemoryExtraction[] {
           category: pattern.category,
           key,
           value: pattern.extract(match as RegExpMatchArray),
-          confidence: 0.7,
+          confidence: pattern.confidence ?? 0.7,
           source: 'stated',
         });
       }
@@ -302,7 +332,7 @@ export function extractMemories(message: string): MemoryExtraction[] {
           category: pattern.category,
           key: pattern.key,
           value: pattern.extract(match),
-          confidence: 0.7,
+          confidence: pattern.confidence ?? 0.7,
           source: 'stated',
         });
       }
