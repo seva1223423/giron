@@ -438,6 +438,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Lets the AI reason about timing & interactions without re-asking. Each
   // supplement gets its own keyed entry so a user can drop one without
   // losing the rest. Excludes "пью кофе" (caffeine_high handles that).
+  // ── Round 166: Supplement timing — when the user takes specific
+  // supplements. Different from supplement_X (existence) — this captures
+  // the schedule. Useful for AI-suggesting better timing if suboptimal.
+  // Single key supplement_timing storing free-text description.
+  { regex: /(?:креатин|протеин|казеин|омега|bcaa|еаа)\s+(?:пью|принимаю|ем)\s+(утром|вечером|до\s*тренировки|после\s*тренировки|на\s*ночь|перед\s*сном|с\s*едой|натощак)/i, category: 'habit', key: 'supplement_timing', extract: (m) => m[1].toLowerCase().replace(/\s+/g, ' '), confidence: 0.7 },
+
   // Round 139: optional Cyrillic adjective between trigger and supplement
   // name so "пью сывороточный протеин" / "принимаю порошковый креатин"
   // both match. Lazy [а-я]+ class with mandatory whitespace.
