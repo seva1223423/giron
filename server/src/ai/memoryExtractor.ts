@@ -140,6 +140,18 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /хочу?\s*(стать сильнее|увеличить силу|тренирую силу|силовые?)/i, category: 'preference', key: 'user_goal', extract: () => 'сила' },
   { regex: /хочу?\s*(выносливость|бегаю|улучшить кардио|марафон)/i, category: 'preference', key: 'user_goal', extract: () => 'выносливость' },
   { regex: /хочу?\s*(просто быть в форме|поддерживать форму|общая физподготовка|общее здоровье)/i, category: 'preference', key: 'user_goal', extract: () => 'общая форма' },
+  // Round 118: lifestyle / aesthetic goals that aren't covered by похудение
+  // / набор массы / сила / выносливость but that drive distinct programs:
+  //   - "пляжное тело" / "тело к лету" → пляжный/aesthetic, recomp
+  //   - "после родов" / "восстановиться после родов" → postpartum, low-impact
+  //   - "сесть на шпагат" / "стать гибче" → flexibility
+  //   - "укрепить кор" / "сильный пресс" → core focus
+  //   - "вернуть форму" → return-to-fitness (post-detrain)
+  { regex: /(?:хочу\s*)?(?:пляжн[а-я]+\s*тел[а-я]*|тел[а-я]*\s*к\s*лету|aesthetic|подсушит[а-я]+)/i, category: 'preference', key: 'user_goal', extract: () => 'эстетика' },
+  { regex: /(?:после\s*родов|восстановит[а-я]*\s*после\s*родов|постнатальн[а-я]+)/i, category: 'preference', key: 'user_goal', extract: () => 'восстановление после родов' },
+  { regex: /(?:сесть\s*на\s*шпагат|шпагат|стать\s*гибче|улучшит[а-я]+\s*гибкост[а-я]*)/i, category: 'preference', key: 'user_goal', extract: () => 'гибкость' },
+  { regex: /(?:укрепит[а-я]+\s*кор|сильный\s*пресс|сделат[а-я]+\s*пресс|кубики\s*на\s*прессе|поднакачать\s*пресс)/i, category: 'preference', key: 'user_goal', extract: () => 'кор и пресс' },
+  { regex: /(?:вернут[а-я]+\s*форму|вернутся\s*в\s*форму|восстановит[а-я]+\s*форму|come\s*back)/i, category: 'preference', key: 'user_goal', extract: () => 'возврат в форму' },
   // Round 86: alternative goal phrasings — "моя цель", "стремлюсь", "планирую",
   // "хочется". The previous patterns ALL required the "хочу" prefix and missed
   // perfectly natural Russian alternatives. High-impact because goal is the
