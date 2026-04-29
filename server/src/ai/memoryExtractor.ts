@@ -74,7 +74,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:у меня|есть|имеется|купил)\s*(гантел|штанг|турник|брусь|гир|тренажёр|тренажер|резинк|trx|петл|эспандер|фитбол|ролик|скакалк|медбол|медицинск\w*\s*мяч|кистев\w*\s*эспандер|абс[\s-]ролик|пояс\w*\s*для\s*присед)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().replace(/\s+/g, '_').slice(0, 16)}`, extract: (m) => m[1] },
 
   // ── Diet preferences ──────────────────────────────────────────────────────
-  { regex: /(?:я\s+)?(вегетарианец|веган|не ем мясо|не ем рыб|не пью молок|без глютен|безлактозн)/i, category: 'allergy', key: 'diet_restriction', extract: (m) => m[1] },
+  // Round 111: widen diet_restriction to catch granular exclusions:
+  //   "не ем красное мясо", "не ем свинину", "без сахара",
+  //   "без углеводов", "без глютена", "пескетариан", "флекситариан"
+  // NB: \w is ASCII-only in JS — switched all suffix matches to [а-я]*
+  // (same fix as round 91 / 109).
+  { regex: /(?:я\s+)?(вегетарианец|вегетарианк[аи]?|веган(?:к[аи])?|пескетариан[а-я]*|флекситариан[а-я]*|не\s*ем\s*(?:мяс|рыб|свинин|говядин|курин|красн[а-я]*\s*мяс|молок|молочн[а-я]*|сахар|хлеб|мучн[а-я]*)|не\s*пью\s*молок|без\s*глютен[а-я]*|безлактозн[а-я]*|без\s*сахар[а-я]*|без\s*углеводн[а-я]*|low\s*carb)/i, category: 'allergy', key: 'diet_restriction', extract: (m) => m[1].toLowerCase() },
   { regex: /(?:аллерги[яю]|непереносимость)\s+(?:на\s+)?([\wа-яА-Я]+)/gi, category: 'allergy', key: 'food_allergy', multiMatch: true, keyFn: (m) => `allergy_${m[1].toLowerCase().slice(0, 12)}`, extract: (m) => m[1] },
 
   // ── Injuries and limitations ─────────────────────────────────────────────
