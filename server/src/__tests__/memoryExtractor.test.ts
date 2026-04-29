@@ -1020,6 +1020,34 @@ describe('extractMemories — round 129 gym + coach context', () => {
   });
 });
 
+describe('extractMemories — round 159 chronotype', () => {
+  test('captures "я жаворонок" → morning', () => {
+    const out = extractMemories('я жаворонок, встаю в 5 утра');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'chronotype',
+      value: 'morning',
+    }));
+  });
+
+  test('captures "я сова" → evening', () => {
+    const out = extractMemories('я сова, до 2 ночи могу работать');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'chronotype',
+      value: 'evening',
+    }));
+  });
+
+  test('captures "тяжело вставать утром" → evening', () => {
+    const out = extractMemories('тяжело вставать по утрам, поздно ложусь');
+    expect(out.some((m) => m.key === 'chronotype' && m.value === 'evening')).toBe(true);
+  });
+
+  test('captures "рано встаю" → morning', () => {
+    const out = extractMemories('обычно рано встаю');
+    expect(out.some((m) => m.key === 'chronotype' && m.value === 'morning')).toBe(true);
+  });
+});
+
 describe('extractMemories — round 157 training split preference', () => {
   test('captures "люблю PPL"', () => {
     const out = extractMemories('люблю PPL, тренируюсь 6 раз в неделю');
