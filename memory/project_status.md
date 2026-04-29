@@ -171,6 +171,13 @@ type: project
   - **VK HIGH-14 (84129ec)**: +1 test for the creation-only normalisation path (VK does no email-based DB lookup per the SECURITY comment, so HIGH-14's job is normalising the email at user creation so future change-email flows find the right row).
   - **DELETE /user/account (46e5c7b)**: +6 tests for the highest-stakes user-initiated op (152-FZ erasure + irreversible cascade). Covers HIGH-7 step-up gate (social-only without 2FA can't delete), password/TOTP gates, and verifies ACCOUNT_DELETED security event lands BEFORE cascade (otherwise FK ref would be gone).
   Final: server 35 suites/1059 tests (+72 from Round 4), client 81 suites/2027 tests.
+- **Rounds 19-45: deep test backfill (2026-04-28)** — Continued the test backfill into nearly every untested endpoint in admin.ts + user.ts:
+  - User-side: change-password, change-phone, push-token (HIGH-10 takeover), 2FA disable, logout-all, account delete (HIGH-7), onboarding-step idempotency
+  - Admin-side: ~25 admin endpoints covered including announcements/active+preview+duplicate, mass-message, subscriptions/broadcast (with cancelled-not-expired branch), users/export + logs/export (CSV-injection guards pinned), digest/preview+readiness+send-now, cron-health + cron/run, moderation/search (filters by role=user + isStaff=false), top-revenue, churn-risk (14d cutoff), subscriptions/forecast (4-week MRR projection bucketing math), subscriptions list (100-cap + expiringSoon window), logs (4-field OR search), staff (SUPPORT-allowed gate), report/daily (date validation), support/:id/assign (assignee-must-be-staff guard), force-verify-email, users/:id/note, users/:id/security-events, users/:id/sessions, analytics/cohorts (8-week window), analytics/segments (auth gate, cache-protected), analytics/subscriptions (days clamp), analytics/export (UTF-8 BOM + column order), metrics/key (cache + windowDays filter)
+  - OAuth: Google /auth/google (HIGH-2 + HIGH-14 + EMAIL_NOT_VERIFIED_LOCAL takeover defense), VK HIGH-14 creation-only path
+  - Workout routines: DELETE/start/PUT/history with IDOR guards verified to NOT call $transaction or workout.findMany on failed ownership checks (cross-user data-loss prevention)
+  - Round 17 (60c0eea) self-corrected round 12's duplicate /accept-invite tests — deleted 9 dupes, kept 1 unique (TOCTOU count=0 race)
+  Final: server 35 suites/1222 tests (+163 from round 18 baseline), client 81 suites/2027 tests.
 
 ---
 
