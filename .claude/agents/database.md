@@ -32,7 +32,7 @@ npx tsc --noEmit             # verify no TypeScript errors
 
 Schema file: `server/prisma/schema.prisma`
 
-## Complete Schema — All 37 Models
+## Complete Schema — All 38 Models
 
 ### User & Auth
 
@@ -418,6 +418,30 @@ model SavedNews { ... }
 model Announcement { ... }
 model SupportTicket { ... }
 model SupportMessage { ... }
+
+model Recipe {
+  id            String       @id @default(cuid())
+  source        RecipeSource  // CURATED | AI_GENERATED | USER_CREATED
+  userId        String?       // null = curated; set for user/AI recipes
+  user          User?         @relation(..., onDelete: Cascade)
+  name          String
+  descriptionRu String?
+  imageUrl      String?
+  totalCalories Float
+  totalProtein  Float
+  totalFats     Float
+  totalCarbs    Float
+  prepTimeMin   Int
+  servings      Int          @default(1)
+  ingredients   Json         // [{ name, weightGrams, calories, protein, fats, carbs }]
+  steps         Json         // string[]
+  tags          String[]     // weight-loss/maintain/gain · meal type · dietary type
+  allergens     String[]     // lactose/gluten/eggs/nuts/fish/soy
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  @@index([source, createdAt])
+  @@index([userId, createdAt])
+}
 ```
 
 ## Index Design Rules

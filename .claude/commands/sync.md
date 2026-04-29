@@ -22,7 +22,7 @@ ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/store/ | grep -v index.ts | wc 
 ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/knowledge/ | grep -v "^index\.ts$" | wc -l
 ```
 
-Expected: 37 models · 38 server suites (~1379 tests) · 81 client suites (~2030 tests) · 25 knowledge modules · 5 commands · 14 stores
+Expected: 38 models · 38 server suites (~1379 tests) · 81 client suites (~2030 tests) · 25 knowledge modules · 5 commands · 14 stores
 
 ## 2 — Compare With CLAUDE.md
 
