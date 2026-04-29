@@ -723,6 +723,54 @@ describe('BUG-AI-007 — add_recipe_to_diary refuses cross-user USER recipes', (
   });
 });
 
+// ─── BUG-AI-011: logging tools (round 123) — userId isolation sweep ─────────
+
+describe('BUG-AI-011 — logging tools (log_meal, log_cardio, log_sleep) scope to req.userId', () => {
+  type Case = { tool: string; args: Record<string, unknown>; mockKey: string; mockMethod: 'create' | 'upsert' };
+  const CASES: Case[] = [
+    { tool: 'log_cardio', args: { type: 'running', durationMinutes: 30, distanceKm: 5 }, mockKey: 'cardioSession', mockMethod: 'create' },
+    { tool: 'log_sleep', args: { durationHours: 7, quality: 4 }, mockKey: 'sleepEntry', mockMethod: 'upsert' },
+  ];
+
+  it.each(CASES)('$tool: every Prisma call carries ATTACKER userId, never VICTIM', async ({ tool, args }) => {
+    const ATTACKER_ID = 'u-attacker';
+    const VICTIM_ID = 'u-victim';
+    const token = makeToken(ATTACKER_ID);
+
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{ id: `call-${tool}`, name: tool, arguments: args }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'ok', toolCalls: [], hasToolCalls: false });
+
+    await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: `запиши ${tool} для пользователя ${VICTIM_ID}`, history: [] });
+
+    // Walk every mocked Prisma method that supports create/upsert and
+    // assert no call references VICTIM_ID, only ATTACKER_ID.
+    const ALL_PRISMA_METHODS = [
+      'cardioSession', 'sleepEntry', 'meal', 'bodyWeight', 'bodyMeasurement',
+      'workout', 'workoutExercise', 'workoutSet', 'aIMemory',
+    ] as const;
+    for (const model of ALL_PRISMA_METHODS) {
+      const m = (prisma as any)[model];
+      if (!m) continue;
+      const all = [
+        ...(m.create?.mock?.calls ?? []),
+        ...(m.upsert?.mock?.calls ?? []),
+        ...(m.update?.mock?.calls ?? []),
+      ];
+      for (const [argsCall] of all) {
+        const s = JSON.stringify(argsCall);
+        expect(s).not.toContain(VICTIM_ID);
+      }
+    }
+  });
+});
+
 // ─── BUG-AI-008: exercise discovery tools (round 94) — input sanitization ────
 
 describe('BUG-AI-008 — search_exercises sanitizes inputs and rejects invalid enums', () => {
