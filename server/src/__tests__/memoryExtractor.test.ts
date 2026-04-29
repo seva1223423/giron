@@ -769,6 +769,33 @@ describe('extractMemories — round 105 expanded equipment list', () => {
   });
 });
 
+describe('extractMemories — round 125 RPE / intensity preference', () => {
+  test('captures "люблю тяжёлые тренировки" → high', () => {
+    const out = extractMemories('люблю тяжёлые тренировки до отказа');
+    expect(out.some((m) => m.key === 'rpe_pref' && m.value === 'high')).toBe(true);
+  });
+
+  test('captures "до отказа" via the "люблю до отказа" pattern', () => {
+    const out = extractMemories('комфортно работать до отказа');
+    expect(out.some((m) => m.key === 'rpe_pref' && m.value === 'high')).toBe(true);
+  });
+
+  test('captures "не люблю до отказа" → low', () => {
+    const out = extractMemories('не люблю до отказа, оставляю запас');
+    expect(out.some((m) => m.key === 'rpe_pref' && m.value === 'low')).toBe(true);
+  });
+
+  test('captures "работаю с запасом" → low', () => {
+    const out = extractMemories('работаю с запасом, не до отказа');
+    expect(out.some((m) => m.key === 'rpe_pref' && m.value === 'low')).toBe(true);
+  });
+
+  test('captures "оставляю в баке" → low', () => {
+    const out = extractMemories('оставляю пару повторов в баке');
+    expect(out.some((m) => m.key === 'rpe_pref' && m.value === 'low')).toBe(true);
+  });
+});
+
 describe('extractMemories — round 92 boundary (no false positives)', () => {
   test('"я не женат" does NOT match family_partnered (round 124 fix)', () => {
     // Round 92 originally matched this as 'true' — the pattern had no
