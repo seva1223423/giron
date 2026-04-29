@@ -3576,7 +3576,11 @@ async function executeTool(
     }
 
     const fmtPct = (cur: number, prev: number): string => {
-      if (prev === 0) return cur > 0 ? '+∞%' : '0%';
+      // Round 140: replace '+∞%' with 'новое' (new) when previous was 0
+      // and current is positive. The infinity symbol is technically
+      // correct but reads awkwardly to LLMs and some users; "новое"
+      // conveys the same meaning more clearly.
+      if (prev === 0) return cur > 0 ? 'новое' : '0%';
       const pct = Math.round(((cur - prev) / prev) * 100);
       return pct >= 0 ? `+${pct}%` : `${pct}%`;
     };
