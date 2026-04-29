@@ -5,7 +5,7 @@
  * via jest.isolateModules where ordering matters.
  */
 
-import { recordAIRequest, getAIMetrics } from '../utils/aiMetrics';
+import { recordAIRequest, recordToolExecution, getAIMetrics } from '../utils/aiMetrics';
 
 describe('aiMetrics percentile rolling window', () => {
   // Each test runs through the same singleton — order is fine because
@@ -52,5 +52,72 @@ describe('aiMetrics percentile rolling window', () => {
     recordAIRequest({ cacheHit: false }); // no latencyMs at all
     const m = getAIMetrics();
     expect(m.p50LatencyMs).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('aiMetrics tool execution metrics (round 96)', () => {
+  test('records per-tool count, avg, max, errors', () => {
+    // Use unique names so ordering tests below aren't polluted by
+    // earlier suites in the same singleton.
+    recordToolExecution('test_tool_a', 100, true);
+    recordToolExecution('test_tool_a', 200, true);
+    recordToolExecution('test_tool_a', 600, false); // failure
+
+    const m = getAIMetrics();
+    const a = m.toolMetrics.find((t) => t.name === 'test_tool_a');
+    expect(a).toBeDefined();
+    expect(a!.count).toBe(3);
+    expect(a!.errors).toBe(1);
+    expect(a!.avgMs).toBe(300); // (100 + 200 + 600) / 3
+    expect(a!.maxMs).toBe(600);
+    expect(a!.errorRate).toBe(33);
+  });
+
+  test('sorts toolMetrics by call count descending', () => {
+    recordToolExecution('test_tool_busy', 50, true);
+    recordToolExecution('test_tool_busy', 60, true);
+    recordToolExecution('test_tool_busy', 70, true);
+    recordToolExecution('test_tool_busy', 80, true);
+    recordToolExecution('test_tool_quiet', 50, true);
+
+    const m = getAIMetrics();
+    const busyIdx = m.toolMetrics.findIndex((t) => t.name === 'test_tool_busy');
+    const quietIdx = m.toolMetrics.findIndex((t) => t.name === 'test_tool_quiet');
+    expect(busyIdx).toBeGreaterThanOrEqual(0);
+    expect(quietIdx).toBeGreaterThanOrEqual(0);
+    expect(busyIdx).toBeLessThan(quietIdx);
+  });
+
+  test('clamps unreasonably large latency to 60_000ms (defence in depth)', () => {
+    recordToolExecution('test_tool_clamp', 999_999_999, true);
+    const m = getAIMetrics();
+    const c = m.toolMetrics.find((t) => t.name === 'test_tool_clamp');
+    expect(c).toBeDefined();
+    expect(c!.maxMs).toBe(60_000);
+  });
+
+  test('rejects empty / non-string tool names', () => {
+    const beforeMetrics = getAIMetrics();
+    const beforeCount = beforeMetrics.toolMetrics.length;
+
+    recordToolExecution('', 100, true);
+    // @ts-expect-error — testing runtime safety
+    recordToolExecution(null, 100, true);
+    // @ts-expect-error — testing runtime safety
+    recordToolExecution(undefined, 100, true);
+
+    const after = getAIMetrics();
+    expect(after.toolMetrics.length).toBe(beforeCount);
+  });
+
+  test('handles negative / NaN latency by treating as 0', () => {
+    recordToolExecution('test_tool_negms', -50, true);
+    recordToolExecution('test_tool_negms', NaN, true);
+    const m = getAIMetrics();
+    const n = m.toolMetrics.find((t) => t.name === 'test_tool_negms');
+    expect(n).toBeDefined();
+    expect(n!.count).toBe(2);
+    expect(n!.maxMs).toBe(0);
+    expect(n!.avgMs).toBe(0);
   });
 });

@@ -2,6 +2,17 @@
 
 interface HourBucket { hour: number; count: number }
 
+// ── Tool execution metrics (round 96) ─────────────────────────────────────────
+// Per-tool latency counters so the admin dashboard can spot slow / failing
+// tools without trawling logs. Reset daily alongside the other counters.
+interface ToolStats {
+  count: number;
+  totalMs: number;
+  maxMs: number;
+  errors: number;
+}
+const toolStats: Map<string, ToolStats> = new Map();
+
 // ── Counters ──────────────────────────────────────────────────────────────────
 let requestsToday = 0;
 let requestsThisWeek = 0;
@@ -68,6 +79,7 @@ function resetIfNewDay(): void {
     latencyMin = Infinity;
     latencyMax = 0;
     latencyWindow.length = 0;
+    toolStats.clear();
     lastResetDate = today;
   }
   // Reset weekly counter every 7 days
@@ -129,6 +141,29 @@ export function recordAIRequest(opts: {
   }
 }
 
+/**
+ * Record a tool-call execution. Called from ai.ts after every executeTool
+ * dispatch. Adds to the per-tool aggregate so the admin dashboard can show
+ * which tools are slow or failing.
+ *
+ * Cap on map size: 100 distinct names. If the LLM hallucinates a fresh tool
+ * name on every call, we cap to avoid unbounded growth.
+ */
+export function recordToolExecution(toolName: string, latencyMs: number, ok: boolean): void {
+  resetIfNewDay();
+  if (typeof toolName !== 'string' || toolName.length === 0) return;
+  // Defence against unbounded growth from hallucinated tool names.
+  if (!toolStats.has(toolName) && toolStats.size >= 100) return;
+  const safeMs = Number.isFinite(latencyMs) && latencyMs >= 0 ? Math.min(60_000, latencyMs) : 0;
+  const safeName = toolName.slice(0, 60);
+  const existing = toolStats.get(safeName) ?? { count: 0, totalMs: 0, maxMs: 0, errors: 0 };
+  existing.count++;
+  existing.totalMs += safeMs;
+  if (safeMs > existing.maxMs) existing.maxMs = safeMs;
+  if (!ok) existing.errors++;
+  toolStats.set(safeName, existing);
+}
+
 export function getAIMetrics() {
   resetIfNewDay();
   const total = cacheHits + cacheMisses;
@@ -154,5 +189,17 @@ export function getAIMetrics() {
     provider: AI_PROVIDER.name,
     providerDisplayName: AI_PROVIDER.displayName,
     providerModel: AI_MODEL,
+    // Round 96: per-tool execution metrics. Sorted by call count desc so the
+    // most-used tools surface first in the admin dashboard.
+    toolMetrics: Array.from(toolStats.entries())
+      .map(([name, s]) => ({
+        name,
+        count: s.count,
+        avgMs: s.count > 0 ? Math.round(s.totalMs / s.count) : 0,
+        maxMs: Math.round(s.maxMs),
+        errors: s.errors,
+        errorRate: s.count > 0 ? Math.round((s.errors / s.count) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count),
   };
 }
