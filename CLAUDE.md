@@ -142,8 +142,10 @@ npm test               # jest (client unit tests, 81 суитов, ~2027 тес�
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 31 суит, ~967 тестов)
-                       # Новые суиты: retentionService.test.ts, adminDigestService.test.ts
+npm test               # jest (server integration tests, 35 суитов, ~1059 тестов)
+                       # Новые суиты добавлены в rounds 2-18 (2026-04-28):
+                       # retentionService, adminDigestService, cronHealth,
+                       # aiMetrics, memCache, activityTracker
 npm run prisma:studio  # GUI для БД
 npm run prisma:generate # генерация Prisma client
 # НЕ запускать: npm run prisma:migrate (prisma migrate dev) — проект использует `prisma db push`
