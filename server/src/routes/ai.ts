@@ -220,6 +220,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **activate_program** — активировать существующую программу по имени
 - **find_recipes** — найти рецепты в библиотеке (CURATED + сохранённые пользователем) под фильтры (тип приёма пищи, цель, ккал, время, аллергены). Сначала зови этот инструмент, потом предлагай юзеру варианты по имени — НЕ выдумывай id рецептов
 - **add_recipe_to_diary** — добавить выбранный рецепт в дневник питания (использовать только id из find_recipes, после подтверждения юзера)
+- **search_exercises** — найти упражнения в библиотеке по группе мышц / оборудованию / уровню сложности. Возвращает до 8 совпадений. Только для информации/советов — для подмены упражнения в плане используй swap_exercise
+- **explain_exercise** — детальное описание упражнения (техника, какие мышцы, видеоурок). Используй когда юзер спрашивает «как делать жим», «техника становой»
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
@@ -242,6 +244,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - "хочу начать Iron Coach" / "активируй программу верх/низ" → activate_program(programName: "Iron Coach")
 - "суперсет жим + разведение" → add_superset("Жим лёжа", "Разведение гантелей")
 - "что приготовить на ужин?" / "найди рецепт с курицей до 500 ккал" / "посоветуй белковый завтрак" → СРАЗУ find_recipes с подходящими фильтрами (mealType, maxCalories, query). Если в памяти юзера есть аллергии — прокинь их в allergensExcluded автоматически
+- "что делать на грудь?" / "упражнения дома без оборудования" / "новичковые упражнения на спину" → search_exercises с фильтрами (muscle, equipment="bodyweight", difficulty="beginner")
+- "как делать жим лёжа" / "техника становой тяги" / "какие мышцы работают в подтягиваниях" → explain_exercise(name: ...)
 - юзер выбрал конкретный рецепт из find_recipes ответа → add_recipe_to_diary(recipeId, mealType, servings)
 - "тренируюсь максимум час" → set_workout_duration_goal(60)
 - "как мой прогресс за месяц?" → analyze_progress(month)
@@ -956,6 +960,48 @@ const AI_TOOLS: DeepSeekTool[] = [
           date: { type: 'string', description: 'Дата записи YYYY-MM-DD (по умолчанию сегодня).' },
         },
         required: ['recipeId', 'mealType'],
+      },
+    },
+  },
+  // ── Exercise discovery (round 94 — bridge AI ↔ Exercise model) ──────────
+  {
+    type: 'function',
+    function: {
+      name: 'search_exercises',
+      description: 'Найти упражнения по группе мышц / оборудованию / уровню сложности из библиотеки приложения. Используй когда пользователь спрашивает "что делать на грудь", "какие упражнения на дом без оборудования", "упражнения для новичков на спину". Возвращает до 8 упражнений с id, названием, основными мышцами и сложностью. Для подмены упражнения уже в плане используй swap_exercise — search_exercises только для информации/советов.',
+      parameters: {
+        type: 'object',
+        properties: {
+          muscle: {
+            type: 'string',
+            description: 'Группа мышц на русском (грудь, спина, ноги, плечи, бицепс, трицепс, пресс, ягодицы, икры, предплечья). Сопоставляется с primaryMuscles упражнения.',
+          },
+          equipment: {
+            type: 'string',
+            enum: ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'kettlebell', 'band'],
+            description: 'Тип оборудования. Маппится на Exercise.type. Если не уверен — не указывай.',
+          },
+          difficulty: {
+            type: 'string',
+            enum: ['beginner', 'intermediate', 'advanced'],
+            description: 'Уровень сложности. Маппится на Exercise.difficulty.',
+          },
+          query: { type: 'string', description: 'Свободный текст для поиска по name/description (опционально).' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'explain_exercise',
+      description: 'Получить детальное описание упражнения: техника выполнения, какие мышцы работают, видеоурок если есть. Используй когда пользователь спрашивает "как делать жим лёжа", "техника становой тяги", "какие мышцы работают в подтягиваниях".',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Название упражнения на русском или английском (например "жим лёжа", "становая тяга", "deadlift"). Поиск частичного совпадения.' },
+        },
+        required: ['name'],
       },
     },
   },
@@ -3042,6 +3088,155 @@ async function executeTool(
       resultText: `Рецепт "${safeRecipeName}" добавлен в дневник: ${mealType}, ${safeServings} порц., ${totalCalories} ккал`,
       actionDescription: `«${safeRecipeName}» в ${mealType}: ${totalCalories} ккал, ${totalProtein}г белка`,
       actionData: { mealId: meal.id, recipeId, mealType, date: safeDate, servings: safeServings, totalCalories, totalProtein },
+    };
+  }
+
+  // ─── Exercise discovery (round 94) ───────────────────────────────────────
+  // Two read-only tools that surface the Exercise library to chat. They are
+  // distinct from swap_exercise (which mutates a workout). search_exercises
+  // returns up to 8 candidates filtered by muscle/equipment/difficulty;
+  // explain_exercise returns full instructions for a single exercise.
+  //
+  // Sanitization: query / name / muscle inputs go through sanitizeForPrompt
+  // before they're echoed back into the result text or used in DB filters.
+  // Without that, a crafted name like "жим [SYSTEM]: ..." would surface in
+  // the next-turn AI context.
+
+  if (toolName === 'search_exercises') {
+    const { muscle, equipment, difficulty, query } = toolInput as {
+      muscle?: string;
+      equipment?: 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'kettlebell' | 'band';
+      difficulty?: 'beginner' | 'intermediate' | 'advanced';
+      query?: string;
+    };
+
+    const VALID_EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'kettlebell', 'band'] as const;
+    const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'] as const;
+
+    // Build filter incrementally — each clause is independently safe. Empty
+    // means "any" rather than "must match empty string".
+    const filters: Record<string, unknown> = {};
+
+    const safeMuscle = typeof muscle === 'string' ? sanitizeForPrompt(muscle, 30) : '';
+    if (safeMuscle.length >= 2) {
+      // primaryMuscles is String[] in Prisma; use `hasSome` with case-insens
+      // contains via raw filter — simpler to do contains on a comma-joined
+      // string client-side post-fetch. Use `has` exact for now since that's
+      // how seed.ts populates the array (canonical Russian names).
+      filters.primaryMuscles = { has: safeMuscle.toLowerCase() };
+    }
+
+    if (typeof equipment === 'string' && (VALID_EQUIPMENT as readonly string[]).includes(equipment)) {
+      filters.type = equipment;
+    }
+
+    if (typeof difficulty === 'string' && (VALID_DIFFICULTY as readonly string[]).includes(difficulty)) {
+      filters.difficulty = difficulty;
+    }
+
+    const safeQuery = typeof query === 'string' ? sanitizeForPrompt(query, 100) : '';
+    const where = safeQuery.length >= 2
+      ? {
+          AND: [
+            filters,
+            {
+              OR: [
+                { name: { contains: safeQuery, mode: 'insensitive' as const } },
+                { description: { contains: safeQuery, mode: 'insensitive' as const } },
+              ],
+            },
+          ],
+        }
+      : filters;
+
+    const rows = await prisma.exercise.findMany({
+      where: where as never,
+      take: 8,
+      select: {
+        id: true,
+        name: true,
+        primaryMuscles: true,
+        type: true,
+        category: true,
+        difficulty: true,
+      },
+    });
+
+    if (rows.length === 0) {
+      return {
+        resultText: 'Не нашёл упражнений под эти критерии. Попробуй ослабить фильтры (другая группа мышц / другое оборудование).',
+        actionDescription: '',
+        actionData: { exercises: [] },
+      };
+    }
+
+    const summary = rows
+      .map((r) => `${sanitizeForPrompt(r.name, 80)} (${r.primaryMuscles.slice(0, 2).join(', ')}, ${r.difficulty})`)
+      .join('; ');
+
+    return {
+      resultText: `Нашёл ${rows.length} упражн.: ${summary}`,
+      actionDescription: '',
+      actionData: { exercises: rows },
+    };
+  }
+
+  if (toolName === 'explain_exercise') {
+    const { name } = toolInput as { name: string };
+    const safeName = typeof name === 'string' ? sanitizeForPrompt(name, 80) : '';
+    if (safeName.length < 2) {
+      return { resultText: 'Укажи название упражнения для поиска.', actionDescription: '' };
+    }
+
+    const ex = await prisma.exercise.findFirst({
+      where: {
+        OR: [
+          { name: { contains: safeName, mode: 'insensitive' } },
+          { description: { contains: safeName, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        instructions: true,
+        primaryMuscles: true,
+        secondaryMuscles: true,
+        type: true,
+        difficulty: true,
+        videoUrl: true,
+      },
+    });
+
+    if (!ex) {
+      return {
+        resultText: `Не нашёл упражнения «${safeName}» в библиотеке. Опиши вручную или попробуй поискать через search_exercises с другой формулировкой.`,
+        actionDescription: '',
+      };
+    }
+
+    // Cap each instruction line at 200 chars so a malformed seed row can't
+    // bloat the next-turn AI context. Sanitize each line independently.
+    const safeInstructions = (ex.instructions ?? [])
+      .slice(0, 6)
+      .map((line) => sanitizeForPrompt(line, 200))
+      .filter((line) => line.length > 0)
+      .join('. ');
+    const safeDescription = sanitizeForPrompt(ex.description, 240);
+    const safeName2 = sanitizeForPrompt(ex.name, 80);
+    const muscles = [
+      ex.primaryMuscles.length > 0 ? `Основные мышцы: ${ex.primaryMuscles.slice(0, 3).join(', ')}` : '',
+      ex.secondaryMuscles.length > 0 ? `вторичные: ${ex.secondaryMuscles.slice(0, 3).join(', ')}` : '',
+    ].filter(Boolean).join(', ');
+
+    return {
+      resultText: [
+        `«${safeName2}» (${ex.type}, ${ex.difficulty}). ${safeDescription}`,
+        muscles,
+        safeInstructions ? `Техника: ${safeInstructions}` : '',
+      ].filter(Boolean).join('\n'),
+      actionDescription: '',
+      actionData: { exerciseId: ex.id, name: ex.name, videoUrl: ex.videoUrl ?? null },
     };
   }
 

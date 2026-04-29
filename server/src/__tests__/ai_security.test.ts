@@ -719,3 +719,139 @@ describe('BUG-AI-007 — add_recipe_to_diary refuses cross-user USER recipes', (
     expect(createCall.data.totalCalories).toBe(1600); // 800 × (4/2)
   });
 });
+
+// ─── BUG-AI-008: exercise discovery tools (round 94) — input sanitization ────
+
+describe('BUG-AI-008 — search_exercises sanitizes inputs and rejects invalid enums', () => {
+  it('drops invalid equipment enum values (defence in depth)', async () => {
+    const token = makeToken('u-test');
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-se-1', name: 'search_exercises',
+        arguments: { muscle: 'грудь', equipment: 'WEAPON_OF_CHOICE', difficulty: 'beginner' },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'ok', toolCalls: [], hasToolCalls: false });
+
+    (prisma.exercise.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'покажи упражнения', history: [] });
+
+    const findManyCalls = (prisma.exercise.findMany as jest.Mock).mock.calls;
+    expect(findManyCalls.length).toBeGreaterThan(0);
+    const where = findManyCalls[0][0].where;
+    const stringified = JSON.stringify(where);
+    // Only valid enums should land in the filter.
+    expect(stringified).not.toContain('WEAPON_OF_CHOICE');
+    expect(stringified).toContain('beginner'); // valid difficulty preserved
+  });
+
+  it('strips control / bidi chars from query before passing to Prisma', async () => {
+    const token = makeToken('u-test');
+    // RLO override + zero-width space inside the query string.
+    const NASTY = 'жим‮​лёжа';
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-se-2', name: 'search_exercises',
+        arguments: { query: NASTY, muscle: 'грудь' },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'ok', toolCalls: [], hasToolCalls: false });
+
+    (prisma.exercise.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'найди', history: [] });
+
+    const where = (prisma.exercise.findMany as jest.Mock).mock.calls[0][0].where;
+    const stringified = JSON.stringify(where);
+    // Bidi override and zero-width space must be stripped from the contains
+    // term — otherwise a stored exercise name "жим лёжа" wouldn't match.
+    expect(stringified).not.toContain('‮');
+    expect(stringified).not.toContain('​');
+    expect(stringified).toContain('жим');
+  });
+
+  it('returns "not found" message when no exercises match', async () => {
+    const token = makeToken('u-test');
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-se-3', name: 'search_exercises',
+        arguments: { muscle: 'несуществующая_группа' },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'попробуй другие фильтры', toolCalls: [], hasToolCalls: false });
+
+    (prisma.exercise.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'найди', history: [] });
+
+    expect(res.status).toBe(200);
+    // Just verify executor didn't blow up; specific text not asserted because
+    // the chat response above is mocked.
+    expect((prisma.exercise.findMany as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+  });
+});
+
+describe('BUG-AI-008 — explain_exercise sanitization + missing-name guard', () => {
+  it('returns "укажи название" when name is empty after sanitization', async () => {
+    const token = makeToken('u-test');
+    // Whitespace + control chars only — sanitizes to ''.
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-ex-1', name: 'explain_exercise',
+        arguments: { name: '   ​​  ' },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'ok', toolCalls: [], hasToolCalls: false });
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'объясни упражнение', history: [] });
+
+    expect(res.status).toBe(200);
+    // Exercise.findFirst should NOT be called when input sanitizes to empty —
+    // the executor short-circuits before any Prisma query.
+    expect((prisma.exercise.findFirst as jest.Mock).mock.calls.length).toBe(0);
+  });
+
+  it('returns "not found" when no exercise matches the name', async () => {
+    const token = makeToken('u-test');
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-ex-2', name: 'explain_exercise',
+        arguments: { name: 'космическое_упражнение' },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'нет такого', toolCalls: [], hasToolCalls: false });
+
+    (prisma.exercise.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'объясни', history: [] });
+
+    expect(res.status).toBe(200);
+    expect((prisma.exercise.findFirst as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+  });
+});
