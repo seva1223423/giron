@@ -1049,6 +1049,106 @@ describe('POST /api/admin/users/:id/message', () => {
   });
 });
 
+// ─── POST /api/admin/mass-message ────────────────────────────────────────────
+//
+// Bulk version of /users/:id/message — creates one ticket per user via
+// Promise.allSettled. Security-critical: must filter out banned users
+// (they shouldn't receive new admin DMs) and capped at 100 userIds per
+// request to prevent abuse.
+
+describe('POST /api/admin/mass-message', () => {
+  const VALID_IDS = [
+    'cmass00000000000000001',
+    'cmass00000000000000002',
+  ];
+  const validBody = {
+    userIds: VALID_IDS,
+    subject: 'Plan update',
+    message: 'New features available!',
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/admin/mass-message').send(validBody);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when userIds is empty', async () => {
+    const res = await request(app)
+      .post('/api/admin/mass-message')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, userIds: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when userIds exceeds 100 entries (sanity cap)', async () => {
+    // Generate 101 valid CUIDs by repeating with index suffix
+    const tooMany = Array.from({ length: 101 }, (_, i) => `cmass00000000000000${String(i).padStart(3, '0')}`);
+    const res = await request(app)
+      .post('/api/admin/mass-message')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, userIds: tooMany });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when userIds contains a non-CUID string', async () => {
+    const res = await request(app)
+      .post('/api/admin/mass-message')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, userIds: ['not-a-cuid'] });
+    expect(res.status).toBe(400);
+  });
+
+  it('200 SECURITY: filters out banned users via where.isBanned=false', async () => {
+    // Mock returns only the non-banned subset
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: VALID_IDS[0] },
+      // VALID_IDS[1] missing → would be banned in real DB
+    ]);
+    (prisma.supportTicket.create as jest.Mock).mockResolvedValue({ id: 'cticket1' });
+
+    const res = await request(app)
+      .post('/api/admin/mass-message')
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send(validBody);
+
+    expect(res.status).toBe(200);
+
+    // SECURITY: verify the user lookup includes the isBanned filter
+    const findCalls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const massSearchCall = findCalls.find((c) => c[0]?.where?.id?.in !== undefined);
+    expect(massSearchCall).toBeDefined();
+    expect(massSearchCall![0].where.isBanned).toBe(false);
+
+    // Only ONE ticket should have been created (banned user skipped)
+    expect((prisma.supportTicket.create as jest.Mock).mock.calls.length).toBe(1);
+  });
+
+  it('200 creates one ticket per non-banned user with isStaff=true', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: VALID_IDS[0] },
+      { id: VALID_IDS[1] },
+    ]);
+    (prisma.supportTicket.create as jest.Mock).mockResolvedValue({ id: 'cticket-x' });
+
+    const res = await request(app)
+      .post('/api/admin/mass-message')
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send(validBody);
+
+    expect(res.status).toBe(200);
+
+    const createCalls = (prisma.supportTicket.create as jest.Mock).mock.calls;
+    expect(createCalls.length).toBe(2);
+    // Each ticket: isStaff=true on the message + admin as assignee
+    for (const call of createCalls) {
+      const data = call[0].data;
+      expect(data.assignedToId).toBe('u-admin');
+      expect(data.messages.create.isStaff).toBe(true);
+      expect(data.messages.create.authorId).toBe('u-admin');
+    }
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
