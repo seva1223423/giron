@@ -47,6 +47,27 @@ describe('extractMemories — original (pre-round-86) coverage still passes', ()
     }));
   });
 
+  // Round 137: widened locations
+  test('training_location captures "в качалке"', () => {
+    const out = extractMemories('занимаюсь в качалке');
+    expect(out.some((m) => m.key === 'training_location' && /качалк/.test(m.value))).toBe(true);
+  });
+
+  test('training_location captures "в гараже"', () => {
+    const out = extractMemories('тренируюсь в гараже');
+    expect(out.some((m) => m.key === 'training_location' && /гараж/.test(m.value))).toBe(true);
+  });
+
+  test('training_location captures "на даче"', () => {
+    const out = extractMemories('занимаюсь на даче летом');
+    expect(out.some((m) => m.key === 'training_location' && /дач/.test(m.value))).toBe(true);
+  });
+
+  test('training_location captures "в парке"', () => {
+    const out = extractMemories('тренируюсь в парке');
+    expect(out.some((m) => m.key === 'training_location' && /парк/.test(m.value))).toBe(true);
+  });
+
   test('food_allergy multi-match captures multiple allergies with unique keys', () => {
     const out = extractMemories('у меня аллергия на орехи и непереносимость лактозы');
     const allergies = out.filter((m) => m.category === 'allergy' && m.key.startsWith('allergy_'));
