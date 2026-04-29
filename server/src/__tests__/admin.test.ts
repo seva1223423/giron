@@ -1790,6 +1790,74 @@ describe('GET /api/admin/subscriptions/forecast', () => {
   });
 });
 
+// ─── GET /api/admin/subscriptions ────────────────────────────────────────────
+
+describe('GET /api/admin/subscriptions', () => {
+  beforeEach(() => {
+    (prisma.subscription.count as jest.Mock) = jest.fn().mockResolvedValue(0);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/subscriptions');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/subscriptions')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 with default pagination + plan!=free filter', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/api/admin/subscriptions')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ subscriptions: [], page: 1 });
+
+    // Default where: plan != free (the page is for paid subs only)
+    const calls = (prisma.subscription.findMany as jest.Mock).mock.calls;
+    const subsCall = calls.find((c) => c[0]?.where?.plan?.not === 'free');
+    expect(subsCall).toBeDefined();
+    // Default take: 30
+    expect(subsCall![0].take).toBe(30);
+  });
+
+  it('200 caps limit query param at 100 (sanity bound)', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/subscriptions?limit=500')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.subscription.findMany as jest.Mock).mock.calls;
+    const subsCall = calls.find((c) => c[0]?.take !== undefined);
+    expect(subsCall![0].take).toBe(100); // clamped from 500
+  });
+
+  it('200 with expiringSoon=true forces status=active + 14d endDate window', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/subscriptions?expiringSoon=true')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.subscription.findMany as jest.Mock).mock.calls;
+    const subsCall = calls.find((c) => c[0]?.where?.endDate?.gte instanceof Date);
+    expect(subsCall).toBeDefined();
+    // expiringSoon overrides any explicit status filter — must be active
+    expect(subsCall![0].where.status).toBe('active');
+    // 14d window
+    const window = subsCall![0].where.endDate.lte.getTime() - subsCall![0].where.endDate.gte.getTime();
+    expect(Math.abs(window - 14 * 86400 * 1000)).toBeLessThan(1000);
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
