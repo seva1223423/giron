@@ -282,6 +282,20 @@ const foodAnalysisRateLimiter = rateLimit({
   message: { error: 'Слишком много запросов на анализ фото. Попробуйте через час.', code: 'VISION_RATE_LIMIT' },
 });
 
+/** AI recipe generation: 20 per hour per IP — same shape as foodAnalysis
+ *  because each call burns ~1500 Mistral tokens (full recipe JSON). The
+ *  recipes route otherwise inherits the userRateLimiter (200/min) which
+ *  is fine for the CRUD endpoints but lets cost-abuse pile up on the
+ *  one paid-LLM call. Mirror the food-analysis split: tight per-endpoint
+ *  cap stacked over the generic CRUD cap. */
+const recipeAiRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов на ИИ-рецепты. Попробуйте через час.', code: 'RECIPE_AI_RATE_LIMIT' },
+});
+
 /** Password-reset flow: 5 requests per hour per IP — prevents email-spam abuse */
 const passwordResetRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -325,6 +339,10 @@ app.use('/api/trainer', userRateLimiter, trainerRouter);
 app.use('/api/cardio', userRateLimiter, cardioRouter);
 app.use('/api/support', userRateLimiter, supportRouter);
 app.use('/api/admin', adminRateLimiter, adminRouter);
+// Tight per-endpoint cap for the LLM-backed recipe generator — must be
+// declared BEFORE the general /api/recipes mount so both limiters stack
+// (same pattern as /api/ai/analyze-food above).
+app.use('/api/recipes/ai-generate', recipeAiRateLimiter);
 app.use('/api/recipes', userRateLimiter, recipesRouter);
 
 // Global error handler (catches both sync and async errors forwarded via next()).
