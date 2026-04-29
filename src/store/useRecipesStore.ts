@@ -97,14 +97,29 @@ export const useRecipesStore = create<RecipesState>()(
       },
 
       removeMine: async (id) => {
-        // Optimistic remove — restore on failure (better than letting the
-        // user stare at a stale row while we wait for the server).
-        const prev = get().mine;
-        set({ mine: prev.filter((r) => r.id !== id) });
+        // Optimistic remove — restore the SPECIFIC recipe on failure,
+        // not a full snapshot. Snapshotting `prev` and restoring it
+        // would clobber any createMine/updateMine that landed between
+        // the optimistic delete and the failed remove response (e.g.
+        // user kicks off delete A, then quickly creates recipe B; A's
+        // server call fails 5s later — restoring prev wipes B). Same
+        // anti-pattern called out in nutrition / measurements / sleep /
+        // cardio rollbacks (rounds 71-73). Skip restoration if the row
+        // already came back via concurrent fetchMine to avoid duplicates.
+        const removed = get().mine.find((r) => r.id === id);
+        if (!removed) return; // nothing to do — already gone locally
+        set((s) => ({ mine: s.mine.filter((r) => r.id !== id) }));
         try {
           await recipeService.remove(id);
-        } catch (e) {
-          set({ mine: prev, error: 'Не удалось удалить рецепт' });
+        } catch (e: any) {
+          // 404 = already deleted on server (e.g. race with another device);
+          // local removal stands. Anything else → restore the single row.
+          if (e?.response?.status !== 404) {
+            set((s) => ({
+              mine: s.mine.some((r) => r.id === id) ? s.mine : [...s.mine, removed],
+              error: 'Не удалось удалить рецепт',
+            }));
+          }
           throw e;
         }
       },
