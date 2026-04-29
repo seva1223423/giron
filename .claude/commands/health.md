@@ -32,7 +32,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npm test -- --forceExit 2>&1 | t
 
 ```bash
 grep -c "^model " C:/Users/sevka/Desktop/1223/work/iron-gym/server/prisma/schema.prisma
-# Expected: 37
+# Expected: 38
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && git log --oneline -3 server/prisma/schema.prisma
 ```
 

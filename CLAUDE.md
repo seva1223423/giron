@@ -13,7 +13,7 @@
 
 ### Сервер (`server/`)
 - Express 4 + TypeScript
-- Prisma 6 ORM (PostgreSQL на Neon eu-central-1, 37 моделей)
+- Prisma 6 ORM (PostgreSQL на Neon eu-central-1, 38 моделей)
 - JWT (60m access + 30d refresh, refresh hashed SHA-256) + bcryptjs, helmet, express-rate-limit
 - Zod (валидация), Multer (загрузка файлов), CORS
 - AI: Mistral API (основной, `mistral-small-latest`), DeepSeek, Ollama (локальный fallback)
@@ -120,13 +120,13 @@ server/
     controllers/ — (пусто, логика в routes)
     utils/       — утилиты
   prisma/
-    schema.prisma — 37 моделей (User, RefreshToken, TrustedDevice, UsedTotpCode, OtpCode, PasswordHistory,
+    schema.prisma — 38 моделей (User, RefreshToken, TrustedDevice, UsedTotpCode, OtpCode, PasswordHistory,
                     PasswordResetToken, SecurityEvent, PushToken, Program, Workout, WorkoutExercise,
                     WorkoutSet, Exercise, HealthRestriction, Gym, CardioSession, SleepEntry,
                     BodyWeight, BodyMeasurement, Meal, MealItem, FoodScanLog, ChatMessage, AIMemory,
                     NewsArticle, SavedNews, Subscription, TrainerClient, TrainerSession,
                     SupportTicket, SupportMessage, AdminLog, Announcement,
-                    Routine, RoutineExercise, RoutineSet)
+                    Routine, RoutineExercise, RoutineSet, Recipe)
     User model OAuth fields: googleId, vkId, yandexId, mailruId (все @unique, nullable)
     seed.ts       — 150+ упражнений, начальные данные
 ```
