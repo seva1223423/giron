@@ -3157,7 +3157,10 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         const date = w.completedAt ? new Date(w.completedAt).toLocaleDateString('ru-RU') : '';
         const totalVolume = w.exercises.reduce((sum, ex) =>
           sum + ex.sets.filter((s) => s.completed).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0);
-        statsContext += `- ${date}: ${w.name}, ${w.durationMinutes || '?'} мин, объём ${Math.round(totalVolume)} кг\n`;
+        // w.name is user-supplied at workout-start time; sanitize before
+        // injection (same anti-prompt-injection rule as rounds 56-59).
+        const safeName = sanitizeForPrompt(w.name, 80);
+        statsContext += `- ${date}: ${safeName}, ${w.durationMinutes || '?'} мин, объём ${Math.round(totalVolume)} кг\n`;
       });
 
       // Build per-exercise progression for key compound lifts
@@ -3300,12 +3303,21 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       for (let i = 0; i <= 6; i++) {
         const entry = weekPlan[i];
         if (entry) {
-          // weekPlanIdToName was pre-fetched in the main parallel block
-          const resolvedExercises = (entry.exercises ?? []).map((ex) => weekPlanIdToName.get(ex) ?? ex);
+          // weekPlanIdToName was pre-fetched in the main parallel block.
+          // entry.name / entry.emoji / exercise names are user-supplied
+          // (PUT /user/week-plan + set_weekly_plan tool). Zod sanitizeInput
+          // there strips control chars but KEEPS newlines (legit for chat
+          // messages); for prompt injection we need the stricter
+          // sanitizeForPrompt that collapses CR/LF + neutralises
+          // [USER]/[SYSTEM] markers.
+          const resolvedExercises = (entry.exercises ?? [])
+            .map((ex) => sanitizeForPrompt(weekPlanIdToName.get(ex) ?? ex, 60));
           const exStr = resolvedExercises.length > 0
             ? ` (${resolvedExercises.slice(0, 5).join(', ')}${resolvedExercises.length > 5 ? ` +${resolvedExercises.length - 5}` : ''})`
             : '';
-          planLines.push(`- ${DAY_NAMES[i]}: ${entry.emoji} ${entry.name}${exStr}`);
+          const safeEmoji = sanitizeForPrompt(entry.emoji ?? '', 8);
+          const safeName = sanitizeForPrompt(entry.name ?? '', 80);
+          planLines.push(`- ${DAY_NAMES[i]}: ${safeEmoji} ${safeName}${exStr}`);
         } else {
           planLines.push(`- ${DAY_NAMES[i]}: отдых`);
         }
