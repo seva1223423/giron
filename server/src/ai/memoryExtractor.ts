@@ -360,6 +360,14 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // false-match (the "люблю" substring would otherwise trigger high).
   { regex: /(?<!не\s+)(?:люблю|нравится|комфортно)[\sа-я]{0,20}?(?:тяжёл|тяжел|очень\s*тяжел|на\s*максимум|до\s*отказа|на\s*пределе)/i, category: 'preference', key: 'rpe_pref', extract: () => 'high', confidence: 0.8 },
 
+  // ── Round 157: Training split preference ────────────────────────────────
+  // Captures user's preferred split style. Different from user_goal —
+  // "PPL" or "верх/низ" is a structural choice, not a goal.
+  { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:ppl|пуш[\s-]*пул[\s-]*легс|push[\s-]*pull[\s-]*legs)/i, category: 'preference', key: 'split_pref', extract: () => 'ppl', confidence: 0.85 },
+  { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:верх[\s\/-]*низ|upper[\s\/-]*lower|сплит\s*верх[\s\/-]*низ)/i, category: 'preference', key: 'split_pref', extract: () => 'upper_lower', confidence: 0.85 },
+  { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:фулбоди|full[\s-]*body|полное\s*тело)/i, category: 'preference', key: 'split_pref', extract: () => 'full_body', confidence: 0.85 },
+  { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:бро[\s-]*сплит|bro[\s-]*split|по\s*мышечн\w*\s*групп)/i, category: 'preference', key: 'split_pref', extract: () => 'bro_split', confidence: 0.85 },
+
   // ── Round 154: Program adherence self-report ────────────────────────────
   // Whether the user follows their training program religiously, casually,
   // or not at all. Drives whether the AI emphasizes consistency or

@@ -1020,6 +1020,40 @@ describe('extractMemories — round 129 gym + coach context', () => {
   });
 });
 
+describe('extractMemories — round 157 training split preference', () => {
+  test('captures "люблю PPL"', () => {
+    const out = extractMemories('люблю PPL, тренируюсь 6 раз в неделю');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'split_pref',
+      value: 'ppl',
+    }));
+  });
+
+  test('captures "предпочитаю верх/низ"', () => {
+    const out = extractMemories('предпочитаю верх/низ, классический сплит');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'split_pref',
+      value: 'upper_lower',
+    }));
+  });
+
+  test('captures "тренируюсь по фулбоди"', () => {
+    const out = extractMemories('тренируюсь по фулбоди 3 раза');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'split_pref',
+      value: 'full_body',
+    }));
+  });
+
+  test('captures "люблю бро-сплит"', () => {
+    const out = extractMemories('люблю бро-сплит — день груди, день спины');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'split_pref',
+      value: 'bro_split',
+    }));
+  });
+});
+
 describe('extractMemories — round 154 program adherence', () => {
   test('captures "строго соблюдаю программу" → strict', () => {
     const out = extractMemories('строго соблюдаю программу 4 раза в неделю');
