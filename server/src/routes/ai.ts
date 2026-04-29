@@ -1556,7 +1556,7 @@ export function classifyIntent(message: string): UserIntent {
 
 // ─── Emotion Detection ──────────────────────────────────────────────────────
 
-type UserMood = 'frustrated' | 'excited' | 'anxious' | 'sad' | 'neutral' | 'curious';
+type UserMood = 'frustrated' | 'excited' | 'anxious' | 'sad' | 'neutral' | 'curious' | 'fatigued';
 
 interface MoodDirective {
   mood: UserMood;
@@ -1589,6 +1589,18 @@ const MOOD_PATTERNS: Array<[UserMood, RegExp[]]> = [
     /(?:зачем\s*(?:всё это|я\s*(?:вообще|тут)|стараюсь))/i,
     /(?:все\s*(?:лучше|сильнее|красивее)\s*(?:меня|чем я))/i,
   ]],
+  // Round 106: 'fatigued' mood — distinct from 'frustrated' (anger) and
+  // 'sad' (depression). Captures physical/CNS exhaustion that should
+  // trigger a recovery / deload conversation, not a motivation pep talk.
+  // Common phrasings: "выгораю", "нет сил", "ноги ватные", "вяло",
+  // "перетренировался", "устал как собака".
+  ['fatigued', [
+    /(?:выгора\w*|перегора\w*|перетренир\w*|перегруз\w*)/i,
+    /(?:нет\s*сил|без\s*сил|на\s*нул[её]|обессилел)/i,
+    /(?:устал\s*как\s*(?:собака|чёрт|пёс)|выжат\s*как\s*лимон)/i,
+    /(?:ноги\s*ватные|вял\w*|разбит[ыа]?|туман\s*в\s*голове)/i,
+    /(?:нагрузк[аи]\s*(?:слишком|очень)\s*(?:большая|много)|устал\s*от\s*тренир)/i,
+  ]],
   ['curious', [
     /(?:а\s*(?:почему|зачем|как так|правда ли))/i,
     /(?:интересно|хочу\s*(?:узнать|понять|разобраться))/i,
@@ -1604,6 +1616,10 @@ const MOOD_DIRECTIVES: Record<UserMood, string> = {
   sad: '💪 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: подавлен/грустит. Будь мягким но не жалей. Покажи прогресс через данные ("посмотри сколько ты уже сделал"). Дай маленький достижимый шаг на сегодня.',
   neutral: '',
   curious: '🧠 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: любопытен, хочет разобраться. Дай развёрнутый ответ с объяснением механизмов. Можно чуть подробнее чем обычно — человек хочет понять.',
+  // Round 106: fatigued is recovery-related, not motivation-related. The
+  // worst response here is "ты можешь!" — that ignores the signal. Push
+  // toward deload / sleep / recovery talk first.
+  fatigued: '😴 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: физически вымотан / признаки выгорания. НЕ давай моралите про "терпи и работай". Сначала проверь: сон, объём за последнюю неделю, давность последней неделя отдыха. Если ACWR > 1.5 — предложи деload. Подскажи 2-3 практики восстановления (сон, белок, растяжка). Тренировку — только лёгкую или совсем пропустить.',
 };
 
 function detectMood(message: string): MoodDirective {
