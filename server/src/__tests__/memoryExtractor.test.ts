@@ -879,6 +879,48 @@ describe('extractMemories — round 93 confidence calibration', () => {
   });
 });
 
+describe('extractMemories — round 127 multi-pattern integration', () => {
+  test('long natural message yields multiple distinct memories without crosstalk', () => {
+    const message = `Привет! Я тренируюсь 4 раза в неделю по утрам,
+    в зале. Сейчас вешу 80 кг, рост 178 см, хочу сбросить 5 кг к лету.
+    У меня двое детей и я работаю из дома. Не курю, пью 2 литра воды.
+    Сплю 7 часов. Я опытный, давно занимаюсь.`;
+    const out = extractMemories(message);
+
+    // Multiple memories should land. Check key categories present.
+    const keys = new Set(out.map((m) => m.key));
+    expect(keys.has('training_frequency')).toBe(true);
+    expect(keys.has('current_weight_kg')).toBe(true);
+    expect(keys.has('height_cm')).toBe(true);
+    expect(keys.has('weight_loss_target_kg')).toBe(true);
+    expect(keys.has('family_kids')).toBe(true);
+    expect(keys.has('work_remote')).toBe(true);
+    expect(keys.has('smoking_status')).toBe(true);
+    expect(keys.has('water_intake_liters')).toBe(true);
+    expect(keys.has('sleep_duration_hours')).toBe(true);
+    expect(keys.has('experience_level')).toBe(true);
+  });
+
+  test('all memories from such a message have valid confidence in [0.6, 0.95]', () => {
+    const out = extractMemories(
+      'тренируюсь 5 раз в неделю, цель 85 кг, сплю 8 часов, я новичок'
+    );
+    for (const m of out) {
+      expect(m.confidence).toBeGreaterThanOrEqual(0.6);
+      expect(m.confidence).toBeLessThanOrEqual(0.95);
+      expect(m.source).toBe('stated');
+    }
+  });
+
+  test('all keys uniqueness invariant — no two memories share the same key', () => {
+    const out = extractMemories(
+      'тренируюсь 4 раза в неделю, тренируюсь дома, у меня двое детей, женат, не курю'
+    );
+    const keys = out.map((m) => m.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
 describe('extractMemories — output contract', () => {
   test('all extractions have valid confidence in [0.6, 0.9] range and source=stated', () => {
     const out = extractMemories('тренируюсь 4 раза в неделю, сплю 8 часов, моя цель 80 кг');
