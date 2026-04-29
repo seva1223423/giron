@@ -73,7 +73,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:занимаюсь|тренируюсь)\s*(?:уже)?\s*(\d+)\s*(лет|год|месяц)/i, category: 'preference', key: 'experience_stated', extract: (m) => `${m[1]} ${m[2]}` },
 
   // ── Personality / motivation style ───────────────────────────────────────
-  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+\w+)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1] },
+  // Round 91 fix: `мотивируюсь\s+\w+` was unreachable in practice — JS \w
+  // is ASCII-only, so "мотивируюсь спортом" failed to match (the Cyrillic
+  // "с" in "спортом" doesn't satisfy \w). Switched to [а-я]+.
+  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+[а-я]+)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1] },
 
   // ── Goals ────────────────────────────────────────────────────────────────
   { regex: /хочу?\s*(похудеть|сбросить вес|сжечь жир|снизить вес)/i, category: 'preference', key: 'user_goal', extract: () => 'похудение' },
@@ -137,7 +140,22 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // planner block generate compatible suggestions instead of asking again.
   // Single key (diet_style) — switching from keto to IF should overwrite,
   // not stack two contradictory protocols.
-  { regex: /(?:соблюдаю|на|сижу\s*на|придерживаюсь|держу)\s*(кето|кетоген|интервальное\s*голодание|интервальн\w+\s*голодан|lchf|низкоуглеводн|дукан|средиземноморск|палео|карнивор)/i, category: 'preference', key: 'diet_style', extract: (m) => m[1].toLowerCase() },
+  //
+  // Round 91 follow-up audit fixes:
+  //   1. Dropped bare "на" prefix — it false-matched "не настроен на кето"
+  //      ("на" appearing anywhere before "кето" was enough). Strong
+  //      prefixes (соблюдаю / сижу на / придерживаюсь / держу) are
+  //      sufficient for natural Russian phrasings.
+  //   2. Added `(?<!не\s+)` lookbehind so "не сижу на кето" / "не
+  //      соблюдаю кето" are correctly skipped. JS V8 supports
+  //      variable-length lookbehind since Node 10+.
+  //   3. Reordered diet alternatives so longer/more-inflected forms come
+  //      first — JS alternation is leftmost-match, so listing "кето" before
+  //      "кетоген" caused "сижу на кетогене" to capture just "кето".
+  //   4. Replaced \w+ in the genitive-case alternative (was dead code
+  //      because \w is ASCII-only) so "интервального голодания" and other
+  //      inflections of "интервальное голодание" now match.
+  { regex: /(?<!не\s+)(?:соблюдаю|сижу\s*на|придерживаюсь|держу)\s*(интервальн[а-я]+\s*голодан[а-я]*|интервальное\s*голодание|кетоген\w*|кето|lchf|низкоуглеводн[а-я]*|дукан[а-я]*|средиземноморск[а-я]*|палео|карнивор[а-я]*)/i, category: 'preference', key: 'diet_style', extract: (m) => m[1].toLowerCase() },
   // "16:8" / "18:6" / "20:4" — IF window notations that often appear without
   // the word "интервальное". Stored verbatim so the AI can echo it back.
   { regex: /(?:голодание|пощусь|ем\s*в\s*окне)\s*(\d{1,2}[:\/]\d{1,2})/i, category: 'preference', key: 'diet_style', extract: (m) => `IF ${m[1].replace('/', ':')}` },
@@ -177,9 +195,20 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // most users describe their level qualitatively first ("я новичок", "я
   // опытный"). The AI's tone, exercise difficulty, and warm-up depth all
   // shift on this. Different KEY from experience_stated — both can coexist.
-  { regex: /(?:я\s+)?(новичок|новенький|только\s*начал|с\s*нуля)/i, category: 'preference', key: 'experience_level', extract: () => 'novice' },
-  { regex: /(?:я\s+)?(любитель|на\s*среднем\s*уровне|занимаюсь\s*для\s*себя)/i, category: 'preference', key: 'experience_level', extract: () => 'intermediate' },
-  { regex: /(?:я\s+)?(опытный|продвинутый|давно\s*занимаюсь|выступал)/i, category: 'preference', key: 'experience_level', extract: () => 'advanced' },
+  //
+  // Round 91 follow-up audit fixes:
+  //   1. Added `(?<!не\s+)` lookbehind so "не опытный" / "не новичок" are
+  //      correctly skipped (otherwise the AI would invert the user's
+  //      self-description across sessions). JS V8 supports variable-length
+  //      lookbehind since Node 10+.
+  //   2. Removed the bare "выступал" → 'advanced' alternative — it
+  //      false-matched "выступал в театре", "выступал на конференции",
+  //      etc. Strong fitness-context phrasings (опытный / продвинутый /
+  //      давно занимаюсь) are sufficient. Power-/bodybuilders with
+  //      competition history will say "давно занимаюсь" anyway.
+  { regex: /(?<!не\s+)(?:я\s+)?(новичок|новенький|только\s*начал|с\s*нуля)/i, category: 'preference', key: 'experience_level', extract: () => 'novice' },
+  { regex: /(?<!не\s+)(?:я\s+)?(любитель|на\s*среднем\s*уровне|занимаюсь\s*для\s*себя)/i, category: 'preference', key: 'experience_level', extract: () => 'intermediate' },
+  { regex: /(?<!не\s+)(?:я\s+)?(опытный|продвинутый|давно\s*занимаюсь)/i, category: 'preference', key: 'experience_level', extract: () => 'advanced' },
 ];
 
 /**
