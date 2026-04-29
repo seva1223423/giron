@@ -82,6 +82,11 @@ describe('classifyIntent — workout_modify', () => {
     'не могу делать приседания',
     'добавь суперсет',
     'активируй программу Iron Coach',
+    // Round 104 widened pattern: bare lift names after the verb work too.
+    'убери жим',
+    'замени присед',
+    'убери становую',
+    'поменяй тягу',
   ])('classifies "%s" as workout_modify', (msg) => {
     expect(classifyIntent(msg)).toBe('workout_modify');
   });
@@ -94,6 +99,10 @@ describe('classifyIntent — technique_question', () => {
     'покажи технику приседа',
     'ошибки в жиме',
     'чем заменить становую',
+    // Round 104 widened pattern: noun-phrase between "техника" and lift root.
+    'техника становой тяги',
+    'техника румынской тяги',
+    'техника подтягиваний',
   ])('classifies "%s" as technique_question', (msg) => {
     expect(classifyIntent(msg)).toBe('technique_question');
   });
