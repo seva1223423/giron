@@ -408,6 +408,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // and diet_style (rounds 91+).
   { regex: /(?<!не\s+)(?:у меня\s+нет\s+)?(?:я\s+)?(?:женат|замужем|муж|жена|супруг[а-я]*)/i, category: 'preference', key: 'family_partnered', extract: () => 'true' },
   { regex: /(?<!не\s+)(?:работаю\s+(?:из\s+)?дома|удал[её]нк[а-я]+|удал[её]нн[а-я]+\s+работ[а-я]+|home\s*office|wfh)/i, category: 'preference', key: 'work_remote', extract: () => 'true' },
+  // Round 147: shift work / rotational work. Drives circadian-aware
+  // sleep advice and meal timing.
+  { regex: /(?:работаю\s+(?:по\s+)?(?:сменам|сменно|в\s+ночн[а-я]+\s+смен|посменно)|ночн[а-я]+\s+смен|шифт)/i, category: 'preference', key: 'shift_work', extract: () => 'true', confidence: 0.85 },
+  { regex: /(?:работаю\s+(?:на\s+)?вахт[а-я]*|вахтов\w+\s+метод)/i, category: 'preference', key: 'rotation_work', extract: () => 'true', confidence: 0.85 },
 
   // ── Round 92: Body composition self-report ──────────────────────────────
   // The User profile already has weightKg/heightCm but those reflect the

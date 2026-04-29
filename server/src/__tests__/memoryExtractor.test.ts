@@ -629,6 +629,22 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
     expect(out.some((m) => m.key === 'work_remote' && m.value === 'true')).toBe(true);
   });
 
+  // Round 147: shift_work + rotation_work
+  test('shift_work captures "работаю по сменам"', () => {
+    const out = extractMemories('работаю по сменам, день-ночь-два-выходных');
+    expect(out.some((m) => m.key === 'shift_work' && m.value === 'true')).toBe(true);
+  });
+
+  test('shift_work captures "ночные смены"', () => {
+    const out = extractMemories('у меня ночные смены 2 раза в неделю');
+    expect(out.some((m) => m.key === 'shift_work' && m.value === 'true')).toBe(true);
+  });
+
+  test('rotation_work captures "работаю на вахте"', () => {
+    const out = extractMemories('работаю на вахте 30 на 30');
+    expect(out.some((m) => m.key === 'rotation_work' && m.value === 'true')).toBe(true);
+  });
+
   test('bodyfat_percent captures "у меня 20% жира"', () => {
     const out = extractMemories('у меня 20% жира по моим прикидкам');
     expect(out).toContainEqual(expect.objectContaining({
