@@ -1336,6 +1336,116 @@ describe('POST /api/admin/mass-message', () => {
   });
 });
 
+// ─── POST /api/admin/subscriptions/broadcast ─────────────────────────────────
+//
+// Plan-segmented version of /mass-message — broadcasts to all users in a
+// given plan (pro/trainer/club/free), optionally restricted to those whose
+// sub expires within 14 days. Same security properties as /mass-message
+// (banned users filtered, isStaff=true on every nested message) PLUS:
+// the plan filter must match active OR cancelled-but-not-yet-expired
+// (cancelled users still have access until endDate hits).
+
+describe('POST /api/admin/subscriptions/broadcast', () => {
+  const validBody = {
+    plan: 'pro',
+    subject: 'Pro update',
+    message: 'New features for pro users.',
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/admin/subscriptions/broadcast').send(validBody);
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .post('/api/admin/subscriptions/broadcast')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`)
+      .send(validBody);
+    expect(res.status).toBe(403);
+  });
+
+  it('400 when plan is not in the allowed enum', async () => {
+    const res = await request(app)
+      .post('/api/admin/subscriptions/broadcast')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, plan: 'lifetime' }); // not in enum
+    expect(res.status).toBe(400);
+  });
+
+  it('200 with sent=0 when no users match the segment', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .post('/api/admin/subscriptions/broadcast')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validBody);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ sent: 0, failed: 0, total: 0 });
+    // No tickets should be created
+    expect(prisma.supportTicket.create).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: filters out banned users + matches active OR cancelled-not-expired subs', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'cuser000000000000001' },
+      { id: 'cuser000000000000002' },
+    ]);
+    (prisma.supportTicket.create as jest.Mock).mockResolvedValue({ id: 'cticket-x' });
+
+    const res = await request(app)
+      .post('/api/admin/subscriptions/broadcast')
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send(validBody);
+
+    expect(res.status).toBe(200);
+
+    // Verify the user lookup includes:
+    // - isBanned: false (security)
+    // - subscription with plan='pro' AND (active OR cancelled-not-yet-expired)
+    const findCalls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const broadcastSearch = findCalls.find((c) => c[0]?.where?.subscription?.plan === 'pro');
+    expect(broadcastSearch).toBeDefined();
+    const where = broadcastSearch![0].where;
+    expect(where.isBanned).toBe(false);
+    expect(where.subscription.plan).toBe('pro');
+    // The OR clause must include both active and cancelled-not-expired —
+    // missing the cancelled branch would fail to reach users still in
+    // their paid window (a real billing communication miss).
+    expect(where.subscription.OR).toEqual(expect.arrayContaining([
+      { status: 'active' },
+      expect.objectContaining({
+        status: 'cancelled',
+        endDate: expect.objectContaining({ gte: expect.any(Date) }),
+      }),
+    ]));
+  });
+
+  it('200 with expiringSoonOnly applies 14-day endDate window', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .post('/api/admin/subscriptions/broadcast')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, expiringSoonOnly: true });
+
+    const findCalls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const broadcastSearch = findCalls.find((c) => c[0]?.where?.subscription?.plan === 'pro');
+    expect(broadcastSearch).toBeDefined();
+    const subWhere = broadcastSearch![0].where.subscription;
+    // expiringSoonOnly adds an endDate window: now to now+14d
+    expect(subWhere.endDate).toEqual(
+      expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) }),
+    );
+    const ms14d = 14 * 86400 * 1000;
+    const window = subWhere.endDate.lte.getTime() - subWhere.endDate.gte.getTime();
+    // Allow slack for clock skew during the test run (millisecond precision)
+    expect(Math.abs(window - ms14d)).toBeLessThan(1000);
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
