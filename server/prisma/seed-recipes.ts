@@ -1750,6 +1750,911 @@ const RECIPES: SeedRecipe[] = [
   },
 ];
 
+// ════════════════════════════════════════════════════════════════════════════
+// COMBINATORIAL GENERATORS — produce ~820 recipes from compact ingredient
+// catalogs. Each loop yields N×M variations with auto-computed KBJU. Pure
+// data + small templates → fewer chances for typos than hand-writing 800
+// individual entries, and the per-recipe macros are guaranteed consistent
+// since they come from the same K table.
+// ════════════════════════════════════════════════════════════════════════════
+
+const GENERATED: SeedRecipe[] = [];
+
+let _idCounter = 0;
+const genId = () => {
+  _idCounter++;
+  return `crecipeg${String(_idCounter).padStart(16, '0')}`;
+};
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+type Item = { ru: string; ruDat?: string; cap: string; k: Per100; g: number; allergens?: string[] };
+
+// ── Каталоги ─────────────────────────────────────────────────────────────────
+// ru: краткое название в нижнем регистре (для имени блюда, "с яблоком")
+// ruDat: дательный падеж (после "к ...") — fallback к ru если совпадает
+// cap: с заглавной (как в списке ингредиентов)
+
+const FRUITS_OATS: Item[] = [
+  { ru: 'яблоком',      cap: 'Яблоко',     k: K.apple,        g: 100 },
+  { ru: 'грушей',       cap: 'Груша',      k: K.pear,         g: 120 },
+  { ru: 'бананом',      cap: 'Банан',      k: K.banana,       g: 100 },
+  { ru: 'малиной',      cap: 'Малина',     k: K.raspberry,    g: 80 },
+  { ru: 'черникой',     cap: 'Черника',    k: K.blueberry,    g: 80 },
+  { ru: 'клубникой',    cap: 'Клубника',   k: K.strawberry,   g: 100 },
+  { ru: 'персиком',     cap: 'Персик',     k: K.peach,        g: 100 },
+  { ru: 'манго',        cap: 'Манго',      k: K.mango,        g: 100 },
+  { ru: 'киви',         cap: 'Киви',       k: K.kiwi,         g: 100 },
+  { ru: 'апельсином',   cap: 'Апельсин',   k: K.orange,       g: 120 },
+  { ru: 'смородиной',   cap: 'Смородина',  k: K.blackcurrant, g: 80 },
+  { ru: 'вишней',       cap: 'Вишня',      k: K.cherry,       g: 80 },
+  { ru: 'ананасом',     cap: 'Ананас',     k: K.pineapple,    g: 100 },
+  { ru: 'гранатом',     cap: 'Гранат',     k: K.pomegranate,  g: 80 },
+  { ru: 'изюмом',       cap: 'Изюм',       k: K.raisin,       g: 25 },
+  { ru: 'черносливом',  cap: 'Чернослив',  k: K.prune,        g: 30 },
+  { ru: 'курагой',      cap: 'Курага',     k: K.driedApricot, g: 30 },
+  { ru: 'финиками',     cap: 'Финики',     k: K.date,         g: 30 },
+];
+
+const NUTS: Item[] = [
+  { ru: 'грецкий орех',         cap: 'Грецкий орех',        k: K.walnut,       g: 15, allergens: ['nuts'] },
+  { ru: 'миндаль',              cap: 'Миндаль',             k: K.almond,       g: 15, allergens: ['nuts'] },
+  { ru: 'кешью',                cap: 'Кешью',               k: K.cashew,       g: 15, allergens: ['nuts'] },
+  { ru: 'арахис',               cap: 'Арахис',              k: K.peanut,       g: 15, allergens: ['nuts'] },
+  { ru: 'тыквенные семечки',    cap: 'Тыквенные семечки',   k: K.pumpkinSeed,  g: 15 },
+  { ru: 'льняные семена',       cap: 'Льняные семена',      k: K.flaxseed,     g: 10 },
+  { ru: 'семена чиа',           cap: 'Семена чиа',          k: K.chiaSeed,     g: 10 },
+];
+
+const PROTEINS: Item[] = [
+  { ru: 'курицей',     cap: 'Куриная грудка',  k: K.chickenBreast, g: 180 },
+  { ru: 'индейкой',    cap: 'Филе индейки',    k: K.turkeyBreast,  g: 180 },
+  { ru: 'говядиной',   cap: 'Говядина',        k: K.beef,          g: 180 },
+  { ru: 'свининой',    cap: 'Свинина нежирная',k: K.porkLean,      g: 180 },
+  { ru: 'лососем',     cap: 'Лосось',          k: K.salmon,        g: 150, allergens: ['fish'] },
+  { ru: 'треской',     cap: 'Треска',          k: K.cod,           g: 200, allergens: ['fish'] },
+  { ru: 'тунцом',      cap: 'Тунец',           k: K.tuna,          g: 150, allergens: ['fish'] },
+  { ru: 'креветками',  cap: 'Креветки',        k: K.shrimp,        g: 200 },
+  { ru: 'форелью',     cap: 'Форель',          k: K.trout,         g: 180, allergens: ['fish'] },
+  { ru: 'минтаем',     cap: 'Минтай',          k: K.hake,          g: 200, allergens: ['fish'] },
+];
+
+const SIDES: Item[] = [
+  { ru: 'гречкой',          cap: 'Гречка варёная',          k: K.buckwheatCooked,   g: 150 },
+  { ru: 'бурым рисом',      cap: 'Бурый рис варёный',       k: K.brownRiceCooked,   g: 150 },
+  { ru: 'киноа',            cap: 'Киноа варёная',           k: K.quinoaCooked,      g: 150 },
+  { ru: 'булгуром',         cap: 'Булгур варёный',          k: K.bulgurCooked,      g: 150, allergens: ['gluten'] },
+  { ru: 'кускусом',         cap: 'Кускус варёный',          k: K.couscousCooked,    g: 150, allergens: ['gluten'] },
+  { ru: 'перловкой',        cap: 'Перловка варёная',        k: K.pearlBarleyCooked, g: 150, allergens: ['gluten'] },
+  { ru: 'пшеном',           cap: 'Пшено варёное',           k: K.millet,            g: 150 },
+  { ru: 'картофелем',       cap: 'Картофель',               k: K.potato,            g: 200 },
+  { ru: 'бататом',          cap: 'Сладкий картофель',       k: K.sweetPotato,       g: 200 },
+];
+
+const VEGS: Item[] = [
+  { ru: 'брокколи',           cap: 'Брокколи',          k: K.broccoli,    g: 150 },
+  { ru: 'цветной капустой',   cap: 'Цветная капуста',   k: K.cauliflower, g: 150 },
+  { ru: 'спаржей',            cap: 'Спаржа',            k: K.asparagus,   g: 120 },
+  { ru: 'стручковой фасолью', cap: 'Стручковая фасоль', k: K.greenBeans,  g: 120 },
+  { ru: 'цуккини',            cap: 'Цуккини',           k: K.zucchini,    g: 150 },
+  { ru: 'баклажанами',        cap: 'Баклажан',          k: K.eggplant,    g: 150 },
+  { ru: 'болгарским перцем',  cap: 'Болгарский перец',  k: K.bellPepper,  g: 100 },
+  { ru: 'грибами',            cap: 'Шампиньоны',        k: K.mushroom,    g: 150 },
+  { ru: 'шпинатом',           cap: 'Шпинат',            k: K.spinach,     g: 80 },
+  { ru: 'морковью',           cap: 'Морковь',           k: K.carrot,      g: 100 },
+];
+
+const MILKS: Item[] = [
+  { ru: 'молоке 2.5%',  cap: 'Молоко 2.5%',     k: K.milkLow,          g: 200, allergens: ['lactose'] },
+  { ru: 'овсяном молоке', cap: 'Овсяное молоко', k: K.milkOat,         g: 200 },
+  { ru: 'кокосовом молоке', cap: 'Кокосовое молоко light', k: K.coconutMilkLight, g: 200 },
+  { ru: 'воде',         cap: 'Вода',            k: { calories: 0, protein: 0, fats: 0, carbs: 0 }, g: 200 },
+];
+
+// helpers — собираем allergens из выбранных ингредиентов плюс базовые
+function collectAllergens(...items: (Item | undefined)[]): string[] {
+  const set = new Set<string>();
+  for (const it of items) if (it?.allergens) it.allergens.forEach((a) => set.add(a));
+  return [...set];
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 1. ОВСЯНКИ × фрукты × молоко (~50 вариаций)
+// ────────────────────────────────────────────────────────────────────────────
+for (const fruit of FRUITS_OATS) {
+  for (const milk of MILKS) {
+    if (milk.ru === 'воде' && fruit.ru === 'изюмом') continue; // skip uninteresting combo
+    if (GENERATED.length >= 50) break;
+    const baseAllergens = ['gluten', ...(milk.allergens ?? [])];
+    GENERATED.push({
+      id: genId(),
+      name: `Овсянка с ${fruit.ru} на ${milk.ru}`,
+      descriptionRu: `Сытный завтрак из овсянки с ${fruit.ru}`,
+      prepTimeMin: 10, servings: 1,
+      ingredients: [
+        ing('Овсяные хлопья', K.oatsRaw, 50),
+        ing(milk.cap, milk.k, milk.g),
+        ing(fruit.cap, fruit.k, fruit.g),
+      ],
+      steps: ['Залить хлопья жидкостью', 'Варить 5 минут на среднем огне', `Добавить ${fruit.ru}`],
+      tags: ['breakfast', 'maintain'],
+      allergens: [...new Set([...baseAllergens, ...collectAllergens(fruit)])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 2. ОВСЯНКИ С ОРЕХАМИ (15 вариаций)
+// ────────────────────────────────────────────────────────────────────────────
+const oatNutFruits = FRUITS_OATS.slice(0, 8);
+for (const fruit of oatNutFruits) {
+  for (const nut of NUTS.slice(0, 2)) {
+    if (GENERATED.length >= 65) break;
+    GENERATED.push({
+      id: genId(),
+      name: `Овсянка с ${fruit.ru} и ${nut.ru.includes('семена') ? nut.ru : `${nut.ru.replace('ё','е').replace(/\b(\S+)$/,'$1')}ом`}`,
+      descriptionRu: `Хрустящий завтрак с белком и полезными жирами`,
+      prepTimeMin: 10, servings: 1,
+      ingredients: [
+        ing('Овсяные хлопья', K.oatsRaw, 50),
+        ing('Молоко 2.5%', K.milkLow, 200),
+        ing(fruit.cap, fruit.k, fruit.g),
+        ing(nut.cap, nut.k, nut.g),
+      ],
+      steps: ['Сварить овсянку на молоке 5 мин', `Добавить ${fruit.ru} и ${nut.cap.toLowerCase()}`],
+      tags: ['breakfast', 'maintain'],
+      allergens: [...new Set(['gluten', 'lactose', ...collectAllergens(nut)])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 3. КАШИ × крупы × фрукты (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const PORRIDGES = [
+  { ru: 'Гречневая каша',  cap: 'Гречка варёная',     k: K.buckwheatCooked, g: 180, allergens: [] as string[] },
+  { ru: 'Рисовая каша',    cap: 'Рис варёный',        k: K.whiteRiceCooked, g: 180, allergens: [] as string[] },
+  { ru: 'Пшённая каша',    cap: 'Пшено варёное',      k: K.millet,          g: 180, allergens: [] as string[] },
+  { ru: 'Перловая каша',   cap: 'Перловка варёная',   k: K.pearlBarleyCooked, g: 180, allergens: ['gluten'] },
+  { ru: 'Манная каша',     cap: 'Манная крупа',       k: K.pastaReg,        g: 60,  allergens: ['gluten'] },
+];
+const PORRIDGE_TOPPINGS = FRUITS_OATS.slice(0, 8);
+for (const por of PORRIDGES) {
+  for (const top of PORRIDGE_TOPPINGS.slice(0, 6)) {
+    GENERATED.push({
+      id: genId(),
+      name: `${por.ru} с ${top.ru}`,
+      descriptionRu: `Тёплая каша на молоке с ${top.ru}`,
+      prepTimeMin: 20, servings: 1,
+      ingredients: [
+        ing(por.cap, por.k, por.g),
+        ing('Молоко 2.5%', K.milkLow, 200),
+        ing(top.cap, top.k, top.g),
+      ],
+      steps: ['Сварить кашу на молоке', `Подать с ${top.ru}`],
+      tags: ['breakfast', 'maintain'],
+      allergens: [...new Set(['lactose', ...por.allergens])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 4. ОМЛЕТЫ × начинки (~40)
+// ────────────────────────────────────────────────────────────────────────────
+const OMLET_FILLINGS: Array<{ ru: string; ings: SeedIngredient[]; allergens?: string[] }> = [
+  { ru: 'шпинатом',           ings: [ing('Шпинат', K.spinach, 60)] },
+  { ru: 'грибами',            ings: [ing('Шампиньоны', K.mushroom, 100)] },
+  { ru: 'помидорами',         ings: [ing('Помидоры', K.tomato, 100)] },
+  { ru: 'болгарским перцем',  ings: [ing('Болгарский перец', K.bellPepper, 80)] },
+  { ru: 'брокколи',           ings: [ing('Брокколи', K.broccoli, 100)] },
+  { ru: 'цуккини',            ings: [ing('Цуккини', K.zucchini, 100)] },
+  { ru: 'спаржей',            ings: [ing('Спаржа', K.asparagus, 80)] },
+  { ru: 'фетой',              ings: [ing('Фета', K.fetaCheese, 40)], allergens: ['lactose'] },
+  { ru: 'моцареллой',         ings: [ing('Моцарелла', K.mozzarella, 40)], allergens: ['lactose'] },
+  { ru: 'твёрдым сыром',      ings: [ing('Сыр твёрдый', K.hardCheese20, 30)], allergens: ['lactose'] },
+  { ru: 'курицей',            ings: [ing('Куриная грудка варёная', K.chickenBreast, 80)] },
+  { ru: 'тунцом',             ings: [ing('Тунец консервированный', K.tunaCanned, 70)], allergens: ['fish'] },
+  { ru: 'лососем',            ings: [ing('Лосось солёный', K.salmon, 50)], allergens: ['fish'] },
+  { ru: 'ветчиной',           ings: [ing('Ветчина', K.ham, 50)] },
+  { ru: 'кабачком',           ings: [ing('Кабачок', K.zucchini, 100)] },
+  { ru: 'зелёным луком',      ings: [ing('Зелёный лук', K.greenOnion, 30)] },
+  { ru: 'укропом и зеленью',  ings: [ing('Укроп', K.dill, 15)] },
+  { ru: 'нутом',              ings: [ing('Нут варёный', K.chickpeasCooked, 80)] },
+  { ru: 'фасолью',            ings: [ing('Фасоль красная', K.beanRedCooked, 80)] },
+  { ru: 'картофелем',         ings: [ing('Картофель варёный', K.potato, 100)] },
+];
+for (const fill of OMLET_FILLINGS) {
+  for (let eggs = 2; eggs <= 3; eggs++) {
+    GENERATED.push({
+      id: genId(),
+      name: `Омлет из ${eggs} яиц с ${fill.ru}`,
+      descriptionRu: `Белковый завтрак с ${fill.ru}`,
+      prepTimeMin: 10, servings: 1,
+      ingredients: [egg(eggs), ...fill.ings, ing('Оливковое масло', K.oliveOil, 5)],
+      steps: ['Взбить яйца', `Обжарить ${fill.ru} 3 минуты`, 'Залить яйцами, готовить под крышкой 4 мин'],
+      tags: ['breakfast', 'maintain', 'high-protein'],
+      allergens: [...new Set(['eggs', ...(fill.allergens ?? [])])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 5. ТВОРОЖНЫЕ ЗАВТРАКИ — творог × фрукты × орехи (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const CURD_FRUITS = FRUITS_OATS.slice(0, 12);
+for (const fruit of CURD_FRUITS) {
+  for (const variant of [
+    { fat: 5,  cap: 'Творог 5%',           k: K.curd5,  goal: 'maintain' },
+    { fat: 0,  cap: 'Творог обезжиренный', k: K.curd0,  goal: 'weight-loss' },
+  ]) {
+    if (GENERATED.length >= 250) break;
+    GENERATED.push({
+      id: genId(),
+      name: `${variant.cap} с ${fruit.ru}`,
+      descriptionRu: 'Простой белковый завтрак',
+      prepTimeMin: 3, servings: 1,
+      ingredients: [
+        ing(variant.cap, variant.k, 200),
+        ing(fruit.cap, fruit.k, fruit.g),
+      ],
+      steps: ['Творог в миску', `Добавить ${fruit.ru}`],
+      tags: ['breakfast', variant.goal, 'high-protein'],
+      allergens: ['lactose'],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 6. СМУЗИ — фрукты × молоко (~50)
+// ────────────────────────────────────────────────────────────────────────────
+const SMOOTHIE_FRUITS = [
+  { ru: 'банан-малина',     ings: [ing('Банан', K.banana, 100), ing('Малина', K.raspberry, 80)] },
+  { ru: 'банан-черника',    ings: [ing('Банан', K.banana, 100), ing('Черника', K.blueberry, 80)] },
+  { ru: 'банан-клубника',   ings: [ing('Банан', K.banana, 100), ing('Клубника', K.strawberry, 100)] },
+  { ru: 'манго-апельсин',   ings: [ing('Манго', K.mango, 120), ing('Апельсин', K.orange, 100)] },
+  { ru: 'клубника-киви',    ings: [ing('Клубника', K.strawberry, 100), ing('Киви', K.kiwi, 100)] },
+  { ru: 'персик-малина',    ings: [ing('Персик', K.peach, 120), ing('Малина', K.raspberry, 60)] },
+  { ru: 'банан-какао',      ings: [ing('Банан', K.banana, 120), ing('Какао-порошок', K.cocoaPowder, 8)] },
+  { ru: 'ягодный микс',     ings: [ing('Ягоды mix', K.blueberry, 150)] },
+  { ru: 'яблоко-морковь',   ings: [ing('Яблоко', K.apple, 150), ing('Морковь', K.carrot, 80)] },
+  { ru: 'шпинат-яблоко',    ings: [ing('Шпинат', K.spinach, 50), ing('Яблоко', K.apple, 150), ing('Банан', K.banana, 80)] },
+  { ru: 'шпинат-груша',     ings: [ing('Шпинат', K.spinach, 50), ing('Груша', K.pear, 150)] },
+  { ru: 'свёкла-апельсин',  ings: [ing('Свёкла варёная', K.beetroot, 100), ing('Апельсин', K.orange, 150)] },
+  { ru: 'тыква-имбирь',     ings: [ing('Тыква запечённая', K.pumpkin, 150), ing('Банан', K.banana, 80)] },
+];
+const SMOOTHIE_BASES: Array<{ ru: string; ing: SeedIngredient; allergens: string[] }> = [
+  { ru: 'на молоке',          ing: ing('Молоко 2.5%', K.milkLow, 250),      allergens: ['lactose'] },
+  { ru: 'на овсяном молоке',  ing: ing('Овсяное молоко', K.milkOat, 250),   allergens: [] },
+  { ru: 'на йогурте',         ing: ing('Греческий йогурт', K.yogurtGreek, 200), allergens: ['lactose'] },
+  { ru: 'на кокосовом молоке', ing: ing('Кокосовое молоко light', K.coconutMilkLight, 250), allergens: [] },
+];
+for (const fruits of SMOOTHIE_FRUITS) {
+  for (const base of SMOOTHIE_BASES) {
+    if (GENERATED.length >= 320) break;
+    GENERATED.push({
+      id: genId(),
+      name: `Смузи ${fruits.ru} ${base.ru}`,
+      descriptionRu: `Витаминный смузи`,
+      prepTimeMin: 5, servings: 1,
+      ingredients: [base.ing, ...fruits.ings],
+      tags: ['breakfast', 'maintain'],
+      steps: ['Сложить всё в блендер', 'Взбить 30 сек'],
+      allergens: base.allergens,
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 7. БЕЛКОВЫЕ ШЕЙКИ — протеин × фрукты (~25)
+// ────────────────────────────────────────────────────────────────────────────
+const SHAKE_ADDONS: Array<{ ru: string; cap: string; k: Per100; g: number; allergens?: string[] }> = [
+  { ru: 'банан',     cap: 'Банан',     k: K.banana, g: 120 },
+  { ru: 'клубника',  cap: 'Клубника',  k: K.strawberry, g: 120 },
+  { ru: 'малина',    cap: 'Малина',    k: K.raspberry, g: 80 },
+  { ru: 'черника',   cap: 'Черника',   k: K.blueberry, g: 80 },
+  { ru: 'манго',     cap: 'Манго',     k: K.mango, g: 100 },
+  { ru: 'персик',    cap: 'Персик',    k: K.peach, g: 100 },
+  { ru: 'какао',     cap: 'Какао-порошок', k: K.cocoaPowder, g: 8 },
+  { ru: 'арахисовая паста', cap: 'Арахисовая паста', k: K.peanutButter, g: 20, allergens: ['nuts'] },
+  { ru: 'овсянка',   cap: 'Овсяные хлопья', k: K.oatsRaw, g: 30, allergens: ['gluten'] },
+];
+for (const addon of SHAKE_ADDONS) {
+  for (const proto of [
+    { cap: 'Сывороточный протеин', k: K.proteinWhey,  base: 'Молоко 2.5%',  baseK: K.milkLow,  baseAl: ['lactose'] as string[] },
+    { cap: 'Растительный протеин', k: K.proteinPlant, base: 'Овсяное молоко', baseK: K.milkOat,  baseAl: [] as string[] },
+  ]) {
+    GENERATED.push({
+      id: genId(),
+      name: `Протеиновый шейк с ${addon.ru} (${proto.cap.toLowerCase()})`,
+      descriptionRu: 'Послетренировочный белковый напиток',
+      prepTimeMin: 3, servings: 1,
+      ingredients: [
+        ing(proto.cap, proto.k, 30),
+        ing(proto.base, proto.baseK, 250),
+        ing(addon.cap, addon.k, addon.g),
+      ],
+      steps: ['Все в шейкер', 'Встряхнуть 30 сек'],
+      tags: ['snack', 'gain', 'high-protein'],
+      allergens: [...new Set([...proto.baseAl, ...(addon.allergens ?? [])])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 8. БЕЛКОВЫЕ ОБЕДЫ/УЖИНЫ — белок × гарнир × овощ (~120)
+// ────────────────────────────────────────────────────────────────────────────
+for (const meat of PROTEINS) {
+  for (const side of SIDES.slice(0, 6)) {
+    for (const veg of VEGS.slice(0, 4)) {
+      if (GENERATED.length >= 480) break;
+      const isFish = !!meat.allergens?.includes('fish');
+      const cookVerb = isFish ? 'Запечь' : 'Обжарить';
+      const meal = (meat.k.fats > 10 || side.cap.includes('Картоф')) ? 'dinner' : 'lunch';
+      GENERATED.push({
+        id: genId(),
+        name: `${meat.cap} с ${side.ru} и ${veg.ru}`,
+        descriptionRu: `Сбалансированный обед: белок, сложные углеводы, овощи`,
+        prepTimeMin: 30, servings: 1,
+        ingredients: [
+          ing(meat.cap, meat.k, meat.g),
+          ing(side.cap, side.k, side.g),
+          ing(veg.cap, veg.k, veg.g),
+        ],
+        steps: [
+          `${cookVerb} ${meat.cap.toLowerCase()} 12-15 мин`,
+          `Подготовить ${side.ru}`,
+          `${veg.cap} приготовить на пару 5-7 мин`,
+          'Собрать на тарелке',
+        ],
+        tags: [meal, 'maintain', 'high-protein'],
+        allergens: collectAllergens(meat, side, veg),
+      });
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 9. САЛАТЫ — белок × овощи × заправка (~50)
+// ────────────────────────────────────────────────────────────────────────────
+const SALAD_PROTEINS: Item[] = [
+  { ru: 'курицей',    cap: 'Куриная грудка варёная', k: K.chickenBreast, g: 150 },
+  { ru: 'тунцом',     cap: 'Тунец консервированный', k: K.tunaCanned,    g: 100, allergens: ['fish'] },
+  { ru: 'индейкой',   cap: 'Индейка варёная',         k: K.turkeyBreast,  g: 150 },
+  { ru: 'лососем',    cap: 'Лосось',                  k: K.salmon,        g: 120, allergens: ['fish'] },
+  { ru: 'креветками', cap: 'Креветки',                k: K.shrimp,        g: 150 },
+  { ru: 'яйцом',      cap: 'Яйца варёные',            k: { calories: 155, protein: 13, fats: 11, carbs: 1.1 }, g: 100, allergens: ['eggs'] },
+  { ru: 'тофу',       cap: 'Тофу',                    k: { calories: 76, protein: 8, fats: 4.8, carbs: 1.9 }, g: 150, allergens: ['soy'] },
+];
+const SALAD_GREENS: Item[] = [
+  { ru: 'руколой',    cap: 'Руккола',         k: K.arugula,    g: 60 },
+  { ru: 'микс-салатом', cap: 'Микс салатов', k: K.saladMix,   g: 80 },
+  { ru: 'шпинатом',   cap: 'Шпинат',          k: K.spinach,    g: 80 },
+  { ru: 'ромэном',    cap: 'Салат ромэн',     k: K.romain,     g: 100 },
+];
+const SALAD_EXTRAS: Item[] = [
+  { ru: 'помидорами черри',  cap: 'Помидоры черри', k: K.tomato,    g: 100 },
+  { ru: 'огурцом',           cap: 'Огурец',          k: K.cucumber,  g: 100 },
+  { ru: 'авокадо',           cap: 'Авокадо',         k: K.avocado,   g: 80 },
+  { ru: 'болгарским перцем', cap: 'Болгарский перец',k: K.bellPepper, g: 80 },
+];
+for (const prot of SALAD_PROTEINS) {
+  for (const green of SALAD_GREENS) {
+    for (const extra of SALAD_EXTRAS.slice(0, 2)) {
+      if (GENERATED.length >= 540) break;
+      GENERATED.push({
+        id: genId(),
+        name: `Салат с ${prot.ru}, ${green.ru} и ${extra.ru}`,
+        descriptionRu: 'Лёгкий белковый салат',
+        prepTimeMin: 15, servings: 1,
+        ingredients: [
+          ing(prot.cap, prot.k, prot.g),
+          ing(green.cap, green.k, green.g),
+          ing(extra.cap, extra.k, extra.g),
+          ing('Оливковое масло', K.oliveOil, 8),
+        ],
+        steps: [`Подготовить ${prot.cap.toLowerCase()}`, 'Овощи нарезать', `Смешать с ${green.ru} и заправить маслом`],
+        tags: ['lunch', 'weight-loss', 'high-protein'],
+        allergens: collectAllergens(prot, extra),
+      });
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 10. БОУЛЫ — белок × крупа × овощ × заправка (~80)
+// ────────────────────────────────────────────────────────────────────────────
+for (const prot of SALAD_PROTEINS.slice(0, 5)) {
+  for (const side of SIDES.slice(0, 4)) {
+    for (const veg of VEGS.slice(0, 4)) {
+      if (GENERATED.length >= 620) break;
+      GENERATED.push({
+        id: genId(),
+        name: `Боул с ${prot.ru}, ${side.ru} и ${veg.ru}`,
+        descriptionRu: 'Сбалансированный обед в одной миске',
+        prepTimeMin: 25, servings: 1,
+        ingredients: [
+          ing(prot.cap, prot.k, prot.g),
+          ing(side.cap, side.k, side.g),
+          ing(veg.cap, veg.k, veg.g),
+          ing('Авокадо', K.avocado, 60),
+        ],
+        steps: [`Подготовить ${prot.cap.toLowerCase()}`, `Сварить ${side.ru}`, `${veg.cap} на пару 5 мин`, 'Сложить в боул, добавить авокадо'],
+        tags: ['lunch', 'maintain', 'high-protein'],
+        allergens: collectAllergens(prot, side, veg),
+      });
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 11. ЛАВАШИ/WRAPS — начинки (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const WRAP_FILLINGS: Array<{ ru: string; ings: SeedIngredient[]; allergens: string[] }> = [
+  { ru: 'курицей и овощами',     ings: [ing('Куриная грудка варёная', K.chickenBreast, 120), ing('Помидоры', K.tomato, 80), ing('Микс салатов', K.saladMix, 40)], allergens: [] },
+  { ru: 'индейкой и шпинатом',   ings: [ing('Индейка варёная', K.turkeyBreast, 120), ing('Шпинат', K.spinach, 50)], allergens: [] },
+  { ru: 'тунцом и йогуртом',     ings: [ing('Тунец консервированный', K.tunaCanned, 100), ing('Греческий йогурт', K.yogurtGreek, 30)], allergens: ['fish', 'lactose'] },
+  { ru: 'творогом и зеленью',    ings: [ing('Творог 5%', K.curd5, 150), ing('Укроп', K.dill, 15)], allergens: ['lactose'] },
+  { ru: 'хумусом и овощами',     ings: [ing('Хумус', K.hummus, 60), ing('Болгарский перец', K.bellPepper, 80), ing('Огурец', K.cucumber, 80)], allergens: [] },
+  { ru: 'фалафелем и хумусом',   ings: [ing('Нут варёный', K.chickpeasCooked, 150), ing('Хумус', K.hummus, 50)], allergens: [] },
+  { ru: 'лососем и авокадо',     ings: [ing('Лосось солёный', K.salmon, 80), ing('Авокадо', K.avocado, 60)], allergens: ['fish'] },
+  { ru: 'креветками и авокадо',  ings: [ing('Креветки варёные', K.shrimp, 120), ing('Авокадо', K.avocado, 60)], allergens: [] },
+  { ru: 'говядиной и луком',     ings: [ing('Говядина варёная', K.beef, 120), ing('Лук репчатый', K.onion, 40)], allergens: [] },
+  { ru: 'яйцом и зеленью',       ings: [egg(2), ing('Зелёный лук', K.greenOnion, 30)], allergens: ['eggs'] },
+  { ru: 'фетой и шпинатом',      ings: [ing('Фета', K.fetaCheese, 50), ing('Шпинат', K.spinach, 60)], allergens: ['lactose'] },
+  { ru: 'грибами и шпинатом',    ings: [ing('Шампиньоны', K.mushroom, 120), ing('Шпинат', K.spinach, 50)], allergens: [] },
+];
+for (const fill of WRAP_FILLINGS) {
+  for (const breadType of [
+    { cap: 'Лаваш тонкий', k: K.flatbread, g: 80 },
+    { cap: 'Хлеб цельнозерновой', k: K.breadWhole, g: 60 },
+  ]) {
+    GENERATED.push({
+      id: genId(),
+      name: `${breadType.cap.includes('Лаваш') ? 'Лаваш' : 'Сэндвич'} с ${fill.ru}`,
+      descriptionRu: 'Удобный обед или перекус с собой',
+      prepTimeMin: 10, servings: 1,
+      ingredients: [ing(breadType.cap, breadType.k, breadType.g), ...fill.ings],
+      steps: [`Разложить начинку на ${breadType.cap.toLowerCase()}`, 'Свернуть рулетом или закрыть вторым ломтиком'],
+      tags: ['lunch', 'maintain', 'high-protein'],
+      allergens: [...new Set(['gluten', ...fill.allergens])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 12. ПАСТА — соус × белок (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const PASTA_PROTEINS: Item[] = [
+  { ru: 'курицей',  cap: 'Куриная грудка',  k: K.chickenBreast, g: 150 },
+  { ru: 'индейкой', cap: 'Филе индейки',    k: K.turkeyBreast,  g: 150 },
+  { ru: 'тунцом',   cap: 'Тунец консервированный', k: K.tunaCanned, g: 120, allergens: ['fish'] },
+  { ru: 'креветками', cap: 'Креветки',       k: K.shrimp,        g: 150 },
+  { ru: 'фаршем индейки', cap: 'Фарш индейки', k: K.turkeyMince,  g: 150 },
+];
+const PASTA_SAUCES: Array<{ ru: string; ings: SeedIngredient[]; allergens?: string[] }> = [
+  { ru: 'томатном соусе',     ings: [ing('Помидоры в собственном соку', K.tomatoCanned, 200)] },
+  { ru: 'сливочном соусе',    ings: [ing('Молоко 2.5%', K.milkLow, 200), ing('Пармезан', K.parmesan, 20)], allergens: ['lactose'] },
+  { ru: 'песто',              ings: [ing('Песто соус', { calories: 450, protein: 6, fats: 45, carbs: 8 }, 30), ing('Пармезан', K.parmesan, 15)], allergens: ['lactose', 'nuts'] },
+];
+for (const prot of PASTA_PROTEINS) {
+  for (const sauce of PASTA_SAUCES) {
+    GENERATED.push({
+      id: genId(),
+      name: `Паста с ${prot.ru} в ${sauce.ru}`,
+      descriptionRu: `Сбалансированная итальянская паста`,
+      prepTimeMin: 25, servings: 1,
+      ingredients: [
+        ing('Паста цельнозерновая сухая', K.pastaWhole, 80),
+        ing(prot.cap, prot.k, prot.g),
+        ...sauce.ings,
+      ],
+      steps: ['Сварить пасту al dente', `Обжарить ${prot.cap.toLowerCase()} 5-8 мин`, `Добавить ${sauce.ru.replace(/^.+? /,'')}`, 'Смешать с пастой'],
+      tags: ['lunch', 'maintain', 'high-protein'],
+      allergens: [...new Set(['gluten', ...(prot.allergens ?? []), ...(sauce.allergens ?? [])])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 13. СУПЫ (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const SOUPS: Array<{ name: string; desc: string; ings: SeedIngredient[]; steps: string[]; allergens: string[]; tags: string[] }> = [
+  { name: 'Суп-пюре из брокколи', desc: 'Лёгкий зелёный крем-суп',
+    ings: [ing('Брокколи', K.broccoli, 400), ing('Картофель', K.potato, 150), ing('Лук репчатый', K.onion, 80), ing('Молоко 2.5%', K.milkLow, 200)],
+    steps: ['Лук обжарить', 'Добавить брокколи и картофель, залить водой 600 мл', 'Варить 15 мин', 'Влить молоко, пробить блендером'],
+    allergens: ['lactose'], tags: ['lunch', 'weight-loss'] },
+  { name: 'Суп-пюре из тыквы', desc: 'Согревающий осенний суп',
+    ings: [ing('Тыква', K.pumpkin, 500), ing('Морковь', K.carrot, 100), ing('Лук репчатый', K.onion, 80)],
+    steps: ['Овощи нарезать кубиками', 'Залить 700 мл воды, варить 20 мин', 'Пробить блендером'],
+    allergens: [], tags: ['lunch', 'weight-loss'] },
+  { name: 'Суп-пюре из цветной капусты', desc: 'Нежный суп с пользой',
+    ings: [ing('Цветная капуста', K.cauliflower, 400), ing('Картофель', K.potato, 150), ing('Молоко 2.5%', K.milkLow, 200)],
+    steps: ['Капусту и картофель сварить 15 мин', 'Влить молоко', 'Пробить блендером'],
+    allergens: ['lactose'], tags: ['lunch', 'weight-loss'] },
+  { name: 'Чечевичный суп с морковью', desc: 'Растительный белок согревает',
+    ings: [ing('Красная чечевица', K.lentilRedRaw, 150), ing('Морковь', K.carrot, 100), ing('Лук репчатый', K.onion, 80), ing('Помидоры в собственном соку', K.tomatoCanned, 150)],
+    steps: ['Лук и морковь обжарить', 'Добавить чечевицу, томаты, 1 л воды', 'Варить 25 мин'],
+    allergens: [], tags: ['lunch', 'maintain'] },
+  { name: 'Куриный суп с овощами и киноа', desc: 'Полноценный белковый обед',
+    ings: [ing('Куриная грудка', K.chickenBreast, 300), ing('Морковь', K.carrot, 100), ing('Сельдерей', { calories: 16, protein: 0.7, fats: 0.2, carbs: 3 }, 80), ing('Киноа варёная', K.quinoaCooked, 100)],
+    steps: ['Грудку варить 20 мин', 'Достать, вернуть нарезанной', 'Добавить овощи и киноа, варить 10 мин'],
+    allergens: [], tags: ['lunch', 'maintain', 'high-protein'] },
+  { name: 'Грибной суп с перловкой', desc: 'Сытный осенний суп',
+    ings: [ing('Шампиньоны', K.mushroom, 300), ing('Перловка варёная', K.pearlBarleyCooked, 150), ing('Морковь', K.carrot, 100), ing('Лук репчатый', K.onion, 80)],
+    steps: ['Перловку отварить заранее', 'Грибы и овощи обжарить 8 мин', 'Залить 1 л воды, варить 15 мин', 'Добавить перловку, прогреть'],
+    allergens: ['gluten'], tags: ['lunch', 'maintain'] },
+  { name: 'Рассольник с курицей', desc: 'Кисло-солёный согревающий суп',
+    ings: [ing('Куриная грудка', K.chickenBreast, 300), ing('Перловка варёная', K.pearlBarleyCooked, 150), ing('Огурцы солёные', K.cucumber, 200), ing('Морковь', K.carrot, 100)],
+    steps: ['Грудку отварить 20 мин', 'Добавить огурцы, морковь, перловку', 'Варить 15 мин'],
+    allergens: ['gluten'], tags: ['lunch', 'maintain', 'high-protein'] },
+  { name: 'Солянка сборная light', desc: 'Облегчённая версия классики',
+    ings: [ing('Куриная грудка', K.chickenBreast, 200), ing('Ветчина', K.ham, 100), ing('Огурцы солёные', K.cucumber, 150), ing('Помидоры в собственном соку', K.tomatoCanned, 200), ing('Маслины', K.oliveBlack, 50)],
+    steps: ['Мясо нарезать', 'Огурцы и томаты потушить 8 мин', 'Залить 1 л воды, добавить мясо, варить 15 мин', 'Подать с маслинами'],
+    allergens: [], tags: ['lunch', 'maintain', 'high-protein'] },
+  { name: 'Окрошка на кефире', desc: 'Освежающий летний суп',
+    ings: [ing('Кефир 1%', { calories: 38, protein: 3, fats: 1, carbs: 4 }, 500), ing('Огурец', K.cucumber, 200), ing('Картофель варёный', K.potato, 150), egg(2), ing('Куриная грудка варёная', K.chickenBreast, 150)],
+    steps: ['Овощи и мясо нарезать кубиками', 'Залить кефиром', 'Подать охлаждённым'],
+    allergens: ['lactose', 'eggs'], tags: ['lunch', 'weight-loss', 'high-protein'] },
+  { name: 'Холодный свекольник', desc: 'Освежающий красный суп на кефире',
+    ings: [ing('Свёкла варёная', K.beetroot, 200), ing('Огурец', K.cucumber, 150), ing('Кефир 1%', { calories: 38, protein: 3, fats: 1, carbs: 4 }, 400), egg(1)],
+    steps: ['Свёклу натереть', 'Огурец нарезать', 'Залить кефиром', 'Подать с половинкой яйца'],
+    allergens: ['lactose', 'eggs'], tags: ['lunch', 'weight-loss'] },
+  { name: 'Минестроне с фасолью', desc: 'Итальянский густой овощной суп',
+    ings: [ing('Фасоль белая варёная', K.beanWhiteCooked, 200), ing('Морковь', K.carrot, 100), ing('Цуккини', K.zucchini, 150), ing('Помидоры в собственном соку', K.tomatoCanned, 200), ing('Паста цельнозерновая сухая', K.pastaWhole, 50)],
+    steps: ['Овощи нарезать, обжарить 5 мин', 'Залить 1 л воды, варить 15 мин', 'Добавить пасту и фасоль, варить ещё 8 мин'],
+    allergens: ['gluten'], tags: ['lunch', 'maintain'] },
+  { name: 'Том-кха с курицей', desc: 'Тайский кокосовый суп',
+    ings: [ing('Куриная грудка', K.chickenBreast, 250), ing('Кокосовое молоко light', K.coconutMilkLight, 400), ing('Шампиньоны', K.mushroom, 150), ing('Имбирь', { calories: 80, protein: 1.8, fats: 0.7, carbs: 18 }, 10)],
+    steps: ['Курицу нарезать соломкой', 'Залить кокосовым молоком и водой 200 мл', 'Добавить имбирь и грибы, варить 15 мин'],
+    allergens: [], tags: ['lunch', 'maintain', 'high-protein'] },
+  { name: 'Рыбный суп с лососем', desc: 'Лёгкая уха с лососем',
+    ings: [ing('Лосось', K.salmon, 300), ing('Картофель', K.potato, 200), ing('Морковь', K.carrot, 100), ing('Лук репчатый', K.onion, 80)],
+    steps: ['В воде 1.5 л сварить картофель и лук 10 мин', 'Добавить морковь и лосось, варить 12 мин'],
+    allergens: ['fish'], tags: ['lunch', 'weight-loss', 'high-protein'] },
+  { name: 'Куриный суп с лапшой по-домашнему', desc: 'Домашний суп',
+    ings: [ing('Куриная грудка', K.chickenBreast, 300), ing('Лапша яичная', K.pastaReg, 80), ing('Морковь', K.carrot, 100), ing('Лук репчатый', K.onion, 80)],
+    steps: ['Грудку отварить 20 мин', 'Добавить морковь и лук, варить 8 мин', 'Добавить лапшу, варить 5 мин'],
+    allergens: ['gluten', 'eggs'], tags: ['lunch', 'maintain', 'high-protein'] },
+  { name: 'Гаспачо', desc: 'Холодный испанский томатный суп',
+    ings: [ing('Помидоры', K.tomato, 500), ing('Огурец', K.cucumber, 150), ing('Болгарский перец', K.bellPepper, 100), ing('Оливковое масло', K.oliveOil, 15)],
+    steps: ['Все овощи пробить блендером', 'Заправить оливковым маслом', 'Охладить 1 час'],
+    allergens: [], tags: ['lunch', 'weight-loss'] },
+];
+for (const s of SOUPS) {
+  GENERATED.push({
+    id: genId(),
+    name: s.name, descriptionRu: s.desc,
+    prepTimeMin: 35, servings: 3,
+    ingredients: s.ings, steps: s.steps,
+    tags: s.tags, allergens: s.allergens,
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 14. РАГУ И ТУШЁНОЕ (~25)
+// ────────────────────────────────────────────────────────────────────────────
+const STEW_PROTEINS: Item[] = [
+  { ru: 'курицы',     cap: 'Куриные бёдра', k: K.chickenLeg,  g: 400 },
+  { ru: 'индейки',    cap: 'Филе индейки',  k: K.turkeyBreast, g: 400 },
+  { ru: 'говядины',   cap: 'Говядина',      k: K.beef,         g: 400 },
+  { ru: 'свинины',    cap: 'Свинина нежирная', k: K.porkLean,  g: 400 },
+];
+const STEW_VEGS: Array<{ ru: string; ings: SeedIngredient[] }> = [
+  { ru: 'с картофелем и морковью', ings: [ing('Картофель', K.potato, 300), ing('Морковь', K.carrot, 150), ing('Лук репчатый', K.onion, 100)] },
+  { ru: 'с фасолью и томатами',    ings: [ing('Фасоль красная варёная', K.beanRedCooked, 200), ing('Помидоры в собственном соку', K.tomatoCanned, 250), ing('Лук репчатый', K.onion, 100)] },
+  { ru: 'с грибами и луком',       ings: [ing('Шампиньоны', K.mushroom, 250), ing('Лук репчатый', K.onion, 150), ing('Морковь', K.carrot, 100)] },
+  { ru: 'с цуккини и баклажанами', ings: [ing('Цуккини', K.zucchini, 200), ing('Баклажан', K.eggplant, 200), ing('Помидоры', K.tomato, 150)] },
+  { ru: 'с капустой',              ings: [ing('Капуста', K.cabbage, 400), ing('Морковь', K.carrot, 150), ing('Помидоры в собственном соку', K.tomatoCanned, 150)] },
+];
+for (const prot of STEW_PROTEINS) {
+  for (const veg of STEW_VEGS) {
+    GENERATED.push({
+      id: genId(),
+      name: `Рагу из ${prot.ru} ${veg.ru}`,
+      descriptionRu: 'Тушёное мясо с овощами',
+      prepTimeMin: 60, servings: 3,
+      ingredients: [ing(prot.cap, prot.k, prot.g), ...veg.ings],
+      steps: [`${prot.cap} нарезать, обжарить 5 мин`, 'Добавить овощи, тушить 10 мин', 'Влить 200 мл воды, тушить 35 мин под крышкой'],
+      tags: ['dinner', 'maintain', 'high-protein'],
+      allergens: collectAllergens(prot),
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 15. ЗАПЕЧЁННЫЕ БЛЮДА — белок × овощ-микс (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const BAKED_VEGS: Array<{ ru: string; ings: SeedIngredient[] }> = [
+  { ru: 'с брокколи и морковью',     ings: [ing('Брокколи', K.broccoli, 200), ing('Морковь', K.carrot, 150)] },
+  { ru: 'с картофелем и спаржей',    ings: [ing('Картофель', K.potato, 250), ing('Спаржа', K.asparagus, 150)] },
+  { ru: 'с кабачками и помидорами',  ings: [ing('Цуккини', K.zucchini, 200), ing('Помидоры', K.tomato, 150)] },
+  { ru: 'с цветной капустой',        ings: [ing('Цветная капуста', K.cauliflower, 250), ing('Морковь', K.carrot, 100)] },
+  { ru: 'с тыквой и луком',          ings: [ing('Тыква', K.pumpkin, 250), ing('Лук репчатый', K.onion, 100)] },
+];
+for (const prot of PROTEINS.slice(0, 6)) {
+  for (const v of BAKED_VEGS) {
+    if (GENERATED.length >= 720) break;
+    GENERATED.push({
+      id: genId(),
+      name: `${prot.cap} запечённая ${v.ru}`,
+      descriptionRu: 'Запекание в один противень',
+      prepTimeMin: 40, servings: 2,
+      ingredients: [ing(prot.cap, prot.k, prot.g * 1.5), ...v.ings, ing('Оливковое масло', K.oliveOil, 10)],
+      steps: [`${prot.cap} посолить и сбрызнуть маслом`, 'Овощи нарезать', 'Запекать всё при 200°C 30 мин'],
+      tags: ['dinner', 'maintain', 'high-protein'],
+      allergens: collectAllergens(prot),
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 16. ТОСТЫ И ХЛЕБЦЫ-ПЕРЕКУСЫ (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const TOAST_TOPPINGS: Array<{ ru: string; ings: SeedIngredient[]; allergens: string[] }> = [
+  { ru: 'авокадо и яйцом',          ings: [ing('Авокадо', K.avocado, 60), egg(1)], allergens: ['eggs'] },
+  { ru: 'творогом и зеленью',       ings: [ing('Творог 5%', K.curd5, 80), ing('Укроп', K.dill, 10)], allergens: ['lactose'] },
+  { ru: 'хумусом и огурцом',        ings: [ing('Хумус', K.hummus, 50), ing('Огурец', K.cucumber, 60)], allergens: [] },
+  { ru: 'арахисовой пастой и бананом', ings: [ing('Арахисовая паста', K.peanutButter, 20), ing('Банан', K.banana, 80)], allergens: ['nuts'] },
+  { ru: 'тунцом и луком',           ings: [ing('Тунец консервированный', K.tunaCanned, 60), ing('Зелёный лук', K.greenOnion, 15)], allergens: ['fish'] },
+  { ru: 'лососем и творогом',       ings: [ing('Лосось солёный', K.salmon, 50), ing('Творог 5%', K.curd5, 40)], allergens: ['fish', 'lactose'] },
+  { ru: 'моцареллой и томатом',     ings: [ing('Моцарелла', K.mozzarella, 50), ing('Помидор', K.tomato, 80)], allergens: ['lactose'] },
+  { ru: 'фетой и оливками',         ings: [ing('Фета', K.fetaCheese, 50), ing('Маслины', K.oliveBlack, 30)], allergens: ['lactose'] },
+  { ru: 'рикоттой и мёдом',         ings: [ing('Рикотта', K.ricotta, 60), ing('Мёд', K.honey, 10)], allergens: ['lactose'] },
+  { ru: 'сыром и грушей',           ings: [ing('Сыр твёрдый', K.hardCheese20, 40), ing('Груша', K.pear, 80)], allergens: ['lactose'] },
+  { ru: 'арахисовой пастой и яблоком', ings: [ing('Арахисовая паста', K.peanutButter, 20), ing('Яблоко', K.apple, 80)], allergens: ['nuts'] },
+  { ru: 'творогом и ягодами',       ings: [ing('Творог 5%', K.curd5, 80), ing('Ягоды mix', K.blueberry, 50)], allergens: ['lactose'] },
+];
+for (const top of TOAST_TOPPINGS) {
+  for (const breadType of [
+    { cap: 'Цельнозерновой хлеб', k: K.breadWhole, g: 50, type: 'gluten' },
+    { cap: 'Хлебцы цельнозерновые', k: K.crispbread, g: 20, type: 'gluten' },
+  ]) {
+    GENERATED.push({
+      id: genId(),
+      name: `${breadType.cap.includes('Хлебцы') ? 'Хлебец' : 'Тост'} с ${top.ru}`,
+      descriptionRu: 'Быстрый перекус',
+      prepTimeMin: 5, servings: 1,
+      ingredients: [ing(breadType.cap, breadType.k, breadType.g), ...top.ings],
+      steps: [`Подготовить ${breadType.cap.toLowerCase()}`, `Сверху выложить начинку`],
+      tags: ['snack', 'maintain'],
+      allergens: [...new Set([breadType.type, ...top.allergens])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 17. ФРУКТЫ + ОРЕХИ ПЕРЕКУСЫ (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const SNACK_FRUITS: Item[] = [
+  { ru: 'яблоком',     cap: 'Яблоко',     k: K.apple,      g: 150 },
+  { ru: 'грушей',      cap: 'Груша',      k: K.pear,       g: 150 },
+  { ru: 'бананом',     cap: 'Банан',      k: K.banana,     g: 100 },
+  { ru: 'мандарином',  cap: 'Мандарин',   k: K.orange,     g: 150 },
+  { ru: 'грейпфрутом', cap: 'Грейпфрут',  k: K.grapefruit, g: 200 },
+  { ru: 'киви',        cap: 'Киви',       k: K.kiwi,       g: 150 },
+];
+for (const fruit of SNACK_FRUITS) {
+  for (const nut of NUTS.slice(0, 5)) {
+    GENERATED.push({
+      id: genId(),
+      name: `${fruit.cap} с ${nut.ru.includes('семен') ? nut.ru : nut.cap.toLowerCase().split(' ')[0] + 'ом'}`,
+      descriptionRu: 'Быстрый натуральный перекус',
+      prepTimeMin: 2, servings: 1,
+      ingredients: [ing(fruit.cap, fruit.k, fruit.g), ing(nut.cap, nut.k, nut.g)],
+      steps: [`Очистить и нарезать ${fruit.cap.toLowerCase()}`, `Подать с ${nut.cap.toLowerCase()}`],
+      tags: ['snack', 'maintain'],
+      allergens: collectAllergens(nut),
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 18. ЙОГУРТНЫЕ И ТВОРОЖНЫЕ ЧАШИ-ПЕРЕКУСЫ (~30)
+// ────────────────────────────────────────────────────────────────────────────
+const YOGURT_TOPPINGS: Array<{ ru: string; ings: SeedIngredient[]; allergens: string[] }> = [
+  { ru: 'малиной и мёдом',          ings: [ing('Малина', K.raspberry, 80), ing('Мёд', K.honey, 8)], allergens: [] },
+  { ru: 'черникой и гранолой',      ings: [ing('Черника', K.blueberry, 80), ing('Гранола', K.granolaPlain, 25)], allergens: ['gluten'] },
+  { ru: 'клубникой и семенами чиа', ings: [ing('Клубника', K.strawberry, 100), ing('Семена чиа', K.chiaSeed, 8)], allergens: [] },
+  { ru: 'персиком и грецким орехом', ings: [ing('Персик', K.peach, 100), ing('Грецкий орех', K.walnut, 12)], allergens: ['nuts'] },
+  { ru: 'манго и кокосом',          ings: [ing('Манго', K.mango, 100), ing('Кокосовая стружка', { calories: 660, protein: 6.9, fats: 64.5, carbs: 23.7 }, 10)], allergens: [] },
+  { ru: 'ягодами и миндалём',       ings: [ing('Ягоды mix', K.blueberry, 80), ing('Миндаль', K.almond, 12)], allergens: ['nuts'] },
+  { ru: 'грушей и грецким орехом',  ings: [ing('Груша', K.pear, 100), ing('Грецкий орех', K.walnut, 12)], allergens: ['nuts'] },
+  { ru: 'киви и семенами льна',     ings: [ing('Киви', K.kiwi, 100), ing('Льняные семена', K.flaxseed, 8)], allergens: [] },
+  { ru: 'бананом и арахисовой пастой', ings: [ing('Банан', K.banana, 100), ing('Арахисовая паста', K.peanutButter, 15)], allergens: ['nuts'] },
+  { ru: 'инжиром и мёдом',          ings: [ing('Финики', K.date, 30), ing('Мёд', K.honey, 8)], allergens: [] },
+];
+for (const top of YOGURT_TOPPINGS) {
+  for (const base of [
+    { cap: 'Греческий йогурт',  k: K.yogurtGreek, name: 'Греческий йогурт', tag: 'high-protein' as const },
+    { cap: 'Творог обезжиренный', k: K.curd0,    name: 'Творог обезжиренный', tag: 'high-protein' as const },
+    { cap: 'Творог 5%',         k: K.curd5,     name: 'Творог 5%',          tag: 'high-protein' as const },
+  ]) {
+    if (GENERATED.length >= 850) break;
+    GENERATED.push({
+      id: genId(),
+      name: `${base.name} с ${top.ru}`,
+      descriptionRu: 'Белковый перекус',
+      prepTimeMin: 3, servings: 1,
+      ingredients: [ing(base.cap, base.k, 150), ...top.ings],
+      steps: [`Выложить ${base.name.toLowerCase()} в чашу`, 'Сверху добавить начинку'],
+      tags: ['snack', 'maintain', base.tag],
+      allergens: [...new Set(['lactose', ...top.allergens])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 19. ЭНЕРГЕТИЧЕСКИЕ ШАРИКИ И БАТОНЧИКИ (~10)
+// ────────────────────────────────────────────────────────────────────────────
+const BITE_RECIPES: Array<{ name: string; desc: string; ings: SeedIngredient[]; allergens: string[] }> = [
+  { name: 'Овсяные шарики с финиками и какао', desc: 'Натуральные конфеты',
+    ings: [ing('Овсяные хлопья', K.oatsRaw, 100), ing('Финики', K.date, 150), ing('Какао-порошок', K.cocoaPowder, 15)], allergens: ['gluten'] },
+  { name: 'Кокосово-миндальные шарики', desc: 'Сырые конфеты',
+    ings: [ing('Финики', K.date, 200), ing('Миндаль', K.almond, 80), ing('Кокосовая стружка', { calories: 660, protein: 6.9, fats: 64.5, carbs: 23.7 }, 30)], allergens: ['nuts'] },
+  { name: 'Протеиновые шарики с арахисовой пастой', desc: 'Высокобелковый снек',
+    ings: [ing('Сывороточный протеин', K.proteinWhey, 60), ing('Овсяные хлопья', K.oatsRaw, 80), ing('Арахисовая паста', K.peanutButter, 60)], allergens: ['lactose', 'gluten', 'nuts'] },
+  { name: 'Овсяные батончики с курагой', desc: 'Здоровая альтернатива магазинным',
+    ings: [ing('Овсяные хлопья', K.oatsRaw, 150), ing('Курага', K.driedApricot, 100), ing('Мёд', K.honey, 30), ing('Грецкий орех', K.walnut, 50)], allergens: ['gluten', 'nuts'] },
+  { name: 'Шарики из чернослива и грецкого ореха', desc: 'Натуральные сладости',
+    ings: [ing('Чернослив', K.prune, 200), ing('Грецкий орех', K.walnut, 100), ing('Какао-порошок', K.cocoaPowder, 10)], allergens: ['nuts'] },
+  { name: 'Энергетические шарики с инжиром и кешью', desc: 'Сладкий и питательный снек',
+    ings: [ing('Финики', K.date, 150), ing('Кешью', K.cashew, 80), ing('Овсяные хлопья', K.oatsRaw, 50)], allergens: ['nuts', 'gluten'] },
+  { name: 'Орехово-семечковые батончики', desc: 'Без сахара, с растительным белком',
+    ings: [ing('Овсяные хлопья', K.oatsRaw, 100), ing('Тыквенные семечки', K.pumpkinSeed, 50), ing('Льняные семена', K.flaxseed, 30), ing('Мёд', K.honey, 30)], allergens: ['gluten'] },
+  { name: 'Шоколадные шарики с протеином', desc: 'Послетренировочные сладости',
+    ings: [ing('Сывороточный протеин', K.proteinWhey, 50), ing('Финики', K.date, 100), ing('Какао-порошок', K.cocoaPowder, 15), ing('Миндаль', K.almond, 40)], allergens: ['lactose', 'nuts'] },
+];
+for (const b of BITE_RECIPES) {
+  GENERATED.push({
+    id: genId(),
+    name: b.name, descriptionRu: b.desc,
+    prepTimeMin: 15, servings: 4,
+    ingredients: b.ings,
+    steps: ['Все ингредиенты пробить блендером', 'Слепить шарики/батончики', 'Охладить 30 мин в холодильнике'],
+    tags: ['snack', 'maintain'],
+    allergens: b.allergens,
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 20. ПЛОВ / РИС С МЯСОМ — белок × рис × специи (~15)
+// ────────────────────────────────────────────────────────────────────────────
+const PLOV_PROTEINS: Item[] = [
+  { ru: 'курицей',  cap: 'Куриная грудка',  k: K.chickenBreast, g: 400 },
+  { ru: 'индейкой', cap: 'Филе индейки',    k: K.turkeyBreast,  g: 400 },
+  { ru: 'говядиной',cap: 'Говядина',        k: K.beef,          g: 400 },
+];
+for (const prot of PLOV_PROTEINS) {
+  for (const rice of [
+    { cap: 'Бурый рис варёный', k: K.brownRiceCooked, name: 'бурым рисом' },
+    { cap: 'Рис варёный',       k: K.whiteRiceCooked, name: 'белым рисом' },
+  ]) {
+    GENERATED.push({
+      id: genId(),
+      name: `Плов с ${prot.ru} и ${rice.name}`,
+      descriptionRu: 'Облегчённая версия плова',
+      prepTimeMin: 60, servings: 4,
+      ingredients: [
+        ing(prot.cap, prot.k, prot.g),
+        ing(rice.cap, rice.k, 400),
+        ing('Морковь', K.carrot, 200),
+        ing('Лук репчатый', K.onion, 150),
+        ing('Чеснок', K.garlic, 10),
+      ],
+      steps: [`${prot.cap} нарезать, обжарить 5 мин`, 'Лук и морковь обжарить 8 мин', 'Залить водой, тушить 25 мин', 'Добавить рис, варить 20 мин'],
+      tags: ['dinner', 'gain', 'high-protein'],
+      allergens: collectAllergens(prot),
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 21. КОТЛЕТЫ И ТЕФТЕЛИ — фарш × дополнения (~25)
+// ────────────────────────────────────────────────────────────────────────────
+const MINCE_PROTEINS: Item[] = [
+  { ru: 'куриные',   cap: 'Фарш куриный',  k: K.chickenBreast, g: 400 },
+  { ru: 'индюшиные', cap: 'Фарш индейки',  k: K.turkeyMince,   g: 400 },
+  { ru: 'говяжьи',   cap: 'Фарш говяжий',  k: K.beefMince,     g: 400 },
+  { ru: 'из трески', cap: 'Треска',        k: K.cod,           g: 400, allergens: ['fish'] },
+];
+const MINCE_VARIANTS: Array<{ ru: string; cookSteps: string[]; tags: string[] }> = [
+  { ru: 'котлеты на пару',   cookSteps: ['Готовить на пару 20 мин'], tags: ['dinner', 'weight-loss', 'high-protein'] },
+  { ru: 'котлеты в духовке', cookSteps: ['Запекать при 180°C 25 мин'], tags: ['dinner', 'maintain', 'high-protein'] },
+  { ru: 'тефтели в томате',  cookSteps: ['Обжарить 5 мин', 'Залить томатным соусом, тушить 20 мин'], tags: ['dinner', 'maintain', 'high-protein'] },
+];
+for (const prot of MINCE_PROTEINS) {
+  for (const variant of MINCE_VARIANTS) {
+    GENERATED.push({
+      id: genId(),
+      name: `${prot.ru[0].toUpperCase() + prot.ru.slice(1)} ${variant.ru}`,
+      descriptionRu: 'Домашние котлеты',
+      prepTimeMin: 35, servings: 2,
+      ingredients: [
+        ing(prot.cap, prot.k, prot.g),
+        ing('Лук репчатый', K.onion, 60),
+        egg(1),
+        ing('Овсяные хлопья', K.oatsRaw, 30),
+        ...(variant.ru.includes('томат') ? [ing('Помидоры в собственном соку', K.tomatoCanned, 200)] : []),
+      ],
+      steps: [`${prot.cap} смешать с луком, яйцом, хлопьями`, 'Слепить котлеты/тефтели', ...variant.cookSteps],
+      tags: variant.tags,
+      allergens: [...new Set(['eggs', 'gluten', ...(prot.allergens ?? [])])],
+    });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 22. БЛИНЫ И СЫРНИКИ (~15)
+// ────────────────────────────────────────────────────────────────────────────
+const PANCAKE_VARIANTS: Array<{ name: string; desc: string; ings: SeedIngredient[]; allergens: string[]; tags: string[] }> = [
+  { name: 'Овсяные блины с творогом', desc: 'ПП-блины без муки',
+    ings: [ing('Овсяные хлопья', K.oatsRaw, 60), egg(2), ing('Молоко 2.5%', K.milkLow, 150), ing('Творог 5%', K.curd5, 100)],
+    allergens: ['gluten', 'eggs', 'lactose'], tags: ['breakfast', 'maintain', 'high-protein'] },
+  { name: 'Овсяные блины с яблоком', desc: 'Сладкие блины без сахара',
+    ings: [ing('Овсяные хлопья', K.oatsRaw, 60), egg(2), ing('Молоко 2.5%', K.milkLow, 150), ing('Яблоко', K.apple, 100)],
+    allergens: ['gluten', 'eggs', 'lactose'], tags: ['breakfast', 'maintain'] },
+  { name: 'Овсяные блины с бананом', desc: 'Натурально-сладкие блины',
+    ings: [ing('Овсяные хлопья', K.oatsRaw, 60), egg(2), ing('Банан', K.banana, 120)],
+    allergens: ['gluten', 'eggs'], tags: ['breakfast', 'maintain'] },
+  { name: 'Сырники классические', desc: 'Творожные сырники в духовке',
+    ings: [ing('Творог 5%', K.curd5, 300), egg(2), ing('Овсяные хлопья', K.oatsRaw, 50)],
+    allergens: ['lactose', 'eggs', 'gluten'], tags: ['breakfast', 'maintain', 'high-protein'] },
+  { name: 'Сырники с изюмом', desc: 'Сладкие сырники',
+    ings: [ing('Творог 5%', K.curd5, 300), egg(2), ing('Овсяные хлопья', K.oatsRaw, 50), ing('Изюм', K.raisin, 30)],
+    allergens: ['lactose', 'eggs', 'gluten'], tags: ['breakfast', 'maintain', 'high-protein'] },
+  { name: 'Сырники с ягодами', desc: 'Сырники со свежими ягодами',
+    ings: [ing('Творог 5%', K.curd5, 300), egg(2), ing('Овсяные хлопья', K.oatsRaw, 50), ing('Малина', K.raspberry, 80)],
+    allergens: ['lactose', 'eggs', 'gluten'], tags: ['breakfast', 'maintain', 'high-protein'] },
+  { name: 'Творожная запеканка с яблоком', desc: 'Запеканка для всей семьи',
+    ings: [ing('Творог 5%', K.curd5, 500), egg(3), ing('Манная крупа', K.pastaReg, 40), ing('Яблоко', K.apple, 150)],
+    allergens: ['lactose', 'eggs', 'gluten'], tags: ['breakfast', 'maintain', 'high-protein'] },
+  { name: 'Протеиновые блины', desc: 'Высокобелковые блины',
+    ings: [ing('Овсяные хлопья', K.oatsRaw, 60), egg(2), ing('Сывороточный протеин', K.proteinWhey, 30), ing('Молоко 2.5%', K.milkLow, 150)],
+    allergens: ['gluten', 'eggs', 'lactose'], tags: ['breakfast', 'gain', 'high-protein'] },
+];
+for (const p of PANCAKE_VARIANTS) {
+  GENERATED.push({
+    id: genId(),
+    name: p.name, descriptionRu: p.desc,
+    prepTimeMin: 25, servings: 2,
+    ingredients: p.ings,
+    steps: ['Хлопья измельчить', 'Смешать с остальными ингредиентами', 'Жарить блины/сырники на сухой сковороде по 3 мин с каждой стороны'],
+    tags: p.tags, allergens: p.allergens,
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 23. ХУМУС-ВАРИАЦИИ И ОВОЩНЫЕ ПЕРЕКУСЫ (~10)
+// ────────────────────────────────────────────────────────────────────────────
+const HUMMUS_VARIANTS: Array<{ name: string; desc: string; ings: SeedIngredient[] }> = [
+  { name: 'Классический хумус с морковью и огурцом', desc: 'Растительный белок и клетчатка',
+    ings: [ing('Хумус', K.hummus, 100), ing('Морковь', K.carrot, 100), ing('Огурец', K.cucumber, 100)] },
+  { name: 'Свекольный хумус с овощными палочками', desc: 'Розовый хумус с пользой свёклы',
+    ings: [ing('Нут варёный', K.chickpeasCooked, 200), ing('Свёкла варёная', K.beetroot, 100), ing('Морковь', K.carrot, 100), ing('Болгарский перец', K.bellPepper, 80)] },
+  { name: 'Тыквенный хумус с овощами', desc: 'Сезонный осенний хумус',
+    ings: [ing('Нут варёный', K.chickpeasCooked, 200), ing('Тыква запечённая', K.pumpkin, 150), ing('Огурец', K.cucumber, 100)] },
+  { name: 'Авокадо-крем с овощами', desc: 'Жирный белковый дип',
+    ings: [ing('Авокадо', K.avocado, 150), ing('Творог 5%', K.curd5, 80), ing('Морковь', K.carrot, 100), ing('Сельдерей', { calories: 16, protein: 0.7, fats: 0.2, carbs: 3 }, 80)] },
+  { name: 'Гуакамоле с морковью', desc: 'Мексиканский авокадо-дип',
+    ings: [ing('Авокадо', K.avocado, 200), ing('Помидоры', K.tomato, 80), ing('Лук репчатый', K.onion, 30), ing('Морковь', K.carrot, 150)] },
+  { name: 'Творожный дип с зеленью', desc: 'Низкокалорийный дип',
+    ings: [ing('Творог обезжиренный', K.curd0, 200), ing('Укроп', K.dill, 15), ing('Огурец', K.cucumber, 100), ing('Болгарский перец', K.bellPepper, 80)] },
+];
+for (const h of HUMMUS_VARIANTS) {
+  GENERATED.push({
+    id: genId(),
+    name: h.name, descriptionRu: h.desc,
+    prepTimeMin: 10, servings: 2,
+    ingredients: h.ings,
+    steps: ['Нут/творог пробить блендером с лимоном и оливковым маслом', 'Овощи нарезать палочками', 'Подать вместе'],
+    tags: ['snack', 'weight-loss'],
+    allergens: h.name.includes('Творож') || h.name.includes('Авокадо-крем') ? ['lactose'] : [],
+  });
+}
+
+// Combined list — hand-curated 180 + ~820 generated combinations
+const ALL_RECIPES: SeedRecipe[] = [...RECIPES, ...GENERATED];
+
 function totals(ings: SeedIngredient[]) {
   return {
     totalCalories: Math.round(ings.reduce((s, i) => s + i.calories, 0)),
@@ -1762,7 +2667,7 @@ function totals(ings: SeedIngredient[]) {
 async function main() {
   let created = 0;
   let updated = 0;
-  for (const r of RECIPES) {
+  for (const r of ALL_RECIPES) {
     const data = {
       source: 'CURATED' as const,
       userId: null,
@@ -1787,7 +2692,7 @@ async function main() {
     }
   }
   // eslint-disable-next-line no-console
-  console.log(`[seed-recipes] ${created} created, ${updated} updated, ${RECIPES.length} total`);
+  console.log(`[seed-recipes] ${created} created, ${updated} updated, ${ALL_RECIPES.length} total`);
 }
 
 main()
