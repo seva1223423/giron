@@ -335,6 +335,79 @@ describe('extractMemories — round 91 expansions', () => {
   });
 });
 
+describe('extractMemories — round 91 audit fixes (regression pins)', () => {
+  test('audit-A: "мотивируюсь спортом" matches personality_trait (Cyrillic \\w fix)', () => {
+    // Pre-existing bug: the original `мотивируюсь\s+\w+` was unreachable
+    // because JS \w is ASCII-only. After switching to [а-я]+ this matches.
+    const out = extractMemories('я мотивируюсь спортом');
+    expect(out.some((m) => m.key === 'personality_trait' && m.value.startsWith('мотивируюсь'))).toBe(true);
+  });
+
+  test('audit-B: "придерживаюсь интервального голодания" (genitive) matches diet_style', () => {
+    // The genitive-case alternative used `\w+` which couldn't match
+    // Cyrillic. Replaced with `[а-я]+` so all inflections of "интервальное
+    // голодание" land.
+    const out = extractMemories('придерживаюсь интервального голодания уже месяц');
+    const styles = out.filter((m) => m.key === 'diet_style');
+    expect(styles.length).toBeGreaterThanOrEqual(1);
+    expect(styles[0].value).toMatch(/интервальн/);
+  });
+
+  test('audit-C: "сижу на кетогене" captures "кетоген", not just "кето"', () => {
+    // JS alternation is leftmost, not longest match. After reordering so
+    // "кетоген\w*" precedes "кето", inputs containing "кетоген" capture
+    // the full word.
+    const out = extractMemories('сижу на кетогене');
+    const styles = out.filter((m) => m.key === 'diet_style');
+    expect(styles).toHaveLength(1);
+    expect(styles[0].value.startsWith('кетоген')).toBe(true);
+  });
+
+  test('audit-D: "не опытный" does NOT match experience_level=advanced', () => {
+    // Without the (?<!не\s+) lookbehind, "не опытный" matched 'opытный'
+    // and inverted the user's self-description across sessions.
+    const out = extractMemories('я не опытный');
+    expect(out.filter((m) => m.key === 'experience_level')).toEqual([]);
+  });
+
+  test('audit-D: "не новичок" does NOT match experience_level=novice', () => {
+    const out = extractMemories('я уже не новичок');
+    expect(out.filter((m) => m.key === 'experience_level')).toEqual([]);
+  });
+
+  test('audit-D: "я опытный" still matches (positive case unaffected)', () => {
+    const out = extractMemories('я опытный, давно занимаюсь');
+    expect(out.some((m) => m.key === 'experience_level' && m.value === 'advanced')).toBe(true);
+  });
+
+  test('audit-E: "выступал в театре" does NOT match experience_level=advanced', () => {
+    // Removed bare "выступал" alternative — too greedy outside fitness
+    // context. Bodybuilders / powerlifters with competition history will
+    // say "давно занимаюсь" or "опытный" anyway.
+    const out = extractMemories('я выступал в театре прошлым летом');
+    expect(out.filter((m) => m.key === 'experience_level')).toEqual([]);
+  });
+
+  test('audit-F: "не настроен на кето" does NOT match diet_style', () => {
+    // Pre-fix, the bare "на" alternative in the prefix list let
+    // ANY occurrence of "на" before "кето" match — so "не настроен на
+    // кето" was extracted as if the user followed keto. Dropped "на" plus
+    // added (?<!не\s+) lookbehind closes both phrasings.
+    const out = extractMemories('я не настроен на кето, для меня это слишком жёстко');
+    expect(out.filter((m) => m.key === 'diet_style')).toEqual([]);
+  });
+
+  test('audit-F: "не сижу на кето" does NOT match (lookbehind catches strong prefix)', () => {
+    const out = extractMemories('я не сижу на кето, ем нормально');
+    expect(out.filter((m) => m.key === 'diet_style')).toEqual([]);
+  });
+
+  test('audit-F: "сижу на кето" still matches (positive case unaffected)', () => {
+    const out = extractMemories('сижу на кето уже полгода');
+    expect(out.some((m) => m.key === 'diet_style' && m.value === 'кето')).toBe(true);
+  });
+});
+
 describe('extractMemories — round 91 boundary (no false positives)', () => {
   test('"кето" inside an unrelated word does NOT trigger diet_style', () => {
     // "кетамин" / "макет" / "анкета" all share substrings but should NOT match.
