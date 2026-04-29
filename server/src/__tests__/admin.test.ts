@@ -2108,6 +2108,101 @@ describe('PATCH /api/admin/support/:id/assign', () => {
   });
 });
 
+// ─── POST /api/admin/digest/send-now ─────────────────────────────────────────
+
+describe('POST /api/admin/digest/send-now', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/admin/digest/send-now');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .post('/api/admin/digest/send-now')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  // Note: 200 happy-path requires the adminDigestService dynamic import
+  // to fire — the service has its own dedicated tests in
+  // adminDigestService.test.ts. Auth gate alone is sufficient at the
+  // route layer.
+});
+
+// ─── GET /api/admin/logs/export ──────────────────────────────────────────────
+//
+// CSV export of admin audit log. Same CSV-injection guard pattern as
+// /admin/users/export — formula chars get prefixed with '. Was untested.
+
+describe('GET /api/admin/logs/export', () => {
+  beforeEach(() => {
+    (prisma.adminLog.findMany as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/logs/export');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/logs/export')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('400 when from query is malformed', async () => {
+    const res = await request(app)
+      .get('/api/admin/logs/export?from=not-a-date')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when to query is malformed', async () => {
+    const res = await request(app)
+      .get('/api/admin/logs/export?to=not-a-date')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('200 caps export at 5000 rows', async () => {
+    await request(app)
+      .get('/api/admin/logs/export')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.adminLog.findMany as jest.Mock).mock.calls;
+    expect(calls[0][0].take).toBe(5000);
+  });
+
+  it('SECURITY: CSV-injection guard in admin email/name/details cells', async () => {
+    // Same threat model as /admin/users/export — but the audit log row
+    // includes the admin's own email + name + details, all of which can
+    // come from external sources (admin email might have unicode, details
+    // string can include user-supplied content from ban reasons etc.).
+    (prisma.adminLog.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'log1',
+        action: 'BAN_USER',
+        admin: { firstName: '=cmd|"/c calc"!A1', lastName: null, email: 'admin@x.com' },
+        targetId: 't1',
+        details: '+evil_payload',
+        createdAt: new Date('2026-01-01'),
+      },
+    ]);
+
+    const res = await request(app)
+      .get('/api/admin/logs/export')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    // Both '=' and '+' starting cells get the apostrophe prefix
+    expect(res.text).toContain(`"'=cmd|""/c calc""!A1"`);
+    expect(res.text).toContain(`"'+evil_payload"`);
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
