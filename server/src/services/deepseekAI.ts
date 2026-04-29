@@ -435,7 +435,10 @@ export function cleanResponse(content: string): string {
     /^(?:отлично[!,]?\s*)/i,
     /^(?:прекрасно[!,]?\s*)/i,
     /^(?:замечательно[!,]?\s*)/i,
-    /^(?:понимаю[!,]?\s*)/i,
+    // "Понимаю" is too ambiguous (often a legitimate sentence opener like
+    // "Понимаю тебя") — removed in round 141.1 audit. Original pattern
+    // kept commented for diff visibility:
+    //   /^(?:понимаю[!,]?\s*)/i,
     /^(?:ах[!,]?\s*понял[!,]?\s*)/i,
     /^(?:давайте\s+(?:разберёмся|посмотрим|начнём)[!,]?\s*)/i,
     /^(?:вот\s+(?:что|как)\s*\w*[!,:]?\s*)/i,
