@@ -20,7 +20,7 @@ All 10 intents must appear in the handler chain. Flag any referenced in classifi
 grep -c "type: 'function'" C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/routes/ai.ts
 ```
 
-Expected: **26 tools**. For each tool verify: `name` matches its `executeTool` case, `required[]` covers non-optional params, handler validates input before DB write, no `userId` in params (must use `req.userId`).
+Expected: **28 tools** (line ~381–944; last line is a false-positive at ~9911 — ignore it). Tools as of 2026-04-29: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary. For each tool verify: `name` matches its `executeTool` case, `required[]` covers non-optional params, handler validates input before DB write, no `userId` in params (must use `req.userId`).
 
 ## 3 — Per-User Rate Limit
 
@@ -53,10 +53,10 @@ Two `Promise.all` blocks (~180 total queries). Must have:
 ## 5 — Knowledge Modules
 
 ```bash
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/knowledge/ | wc -l
+ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/knowledge/ | grep -v index.ts | wc -l
 ```
 
-Expected: **25 modules**. Flag if count changed without CLAUDE.md update.
+Expected: **25 modules** (index.ts is a barrel export — not a module). `ls | wc -l` = 26 including index.ts. Flag if module count changed without CLAUDE.md update.
 
 ## 6 — Daily Limit & Subscription Gate
 
@@ -91,7 +91,7 @@ Order: Mistral → DeepSeek (if `DEEPSEEK_API_KEY`) → Ollama. Each step logged
 AI VALIDATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Intent coverage:        X/10 [missing: list]
-Tool count:             X (expected 26)
+Tool count:             X (expected 28)
 Per-user rate limit:    PRESENT / MISSING — keyed on: [JWT userId / body (WRONG)]
                         .unref(): YES / NO
 Analytics timing guard: PRESENT / MISSING — threshold: [Xms]

@@ -19,10 +19,10 @@ ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/agents/ | wc -l
 ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/commands/ | wc -l
 
 ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/store/ | grep -v index.ts | wc -l
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/knowledge/ | wc -l
+ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/knowledge/ | grep -v "^index\.ts$" | wc -l
 ```
 
-Expected: 37 models · 31 server suites (~967 tests) · 81 client suites (~2027 tests) · 25 knowledge modules · 5 commands
+Expected: 37 models · 31 server suites (~967 tests) · 81 client suites (~2027 tests) · 25 knowledge modules · 5 commands · 14 stores
 
 ## 2 — Compare With CLAUDE.md
 
@@ -67,6 +67,7 @@ Real facts:
   Server test suites:  X (CLAUDE.md says Y — MATCH / DRIFT)
   Client test suites:  X (CLAUDE.md says Y — MATCH / DRIFT)
   Knowledge modules:   X (expected 25 — MATCH / DRIFT)
+  Stores:              X (expected 14 — MATCH / DRIFT)
   Agents:              X
   Commands:            X
 

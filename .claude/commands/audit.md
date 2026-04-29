@@ -1,5 +1,5 @@
 ---
-description: Full Iron Gym system audit. Spawns all 8 specialist agents in parallel, deduplicates findings, produces a unified risk report sorted by business impact. Run before major releases or after big refactors. Optional argument: focus area ("security", "performance", etc.).
+description: Full Iron Gym system audit. Spawns 8 audit agents in parallel (security, performance, data-integrity, compliance, deployment, monitoring, tests, docs), deduplicates findings, produces a unified risk report sorted by business impact. Run before major releases or after big refactors. Optional argument: focus area ("security", "performance", etc.).
 ---
 
 You are orchestrating a full Iron Gym audit. Argument: **$ARGUMENTS**
@@ -13,7 +13,7 @@ ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/__tests__/*.test.ts | wc -l
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && git status --short
 ```
 
-Expected: 37 models · 20 server suites · 29 client suites
+Expected: 37 models · 31 server suites · 81 client suites (80 files in src/__tests__/ + 1 outside)
 
 ## Phase 2 — Spawn All Agents (parallel)
 
