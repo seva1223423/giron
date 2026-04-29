@@ -5,7 +5,7 @@ import { buildDynamicContext } from '../ai/contextEngine';
 import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload } from '../ai/contextTools';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
-import { recordAIRequest } from '../utils/aiMetrics';
+import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
 import { foodVisionCache } from '../utils/memCache';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
 import { sanitizeInput, sanitizeForPrompt } from '../utils/inputSanitizer';
@@ -10334,6 +10334,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             let resultText: string;
             let actionDescription = '';
             let actionData: Record<string, unknown> | undefined;
+            // Round 96: per-tool latency telemetry. Wraps both branches
+            // (executeContextTool + executeTool) so admin dashboard can spot
+            // which tool is slow / failing without trawling logs.
+            const _t0Tool = Date.now();
+            let toolOk = true;
 
             try {
               const ctxResult = await executeContextTool(tc.name, tc.arguments as Record<string, unknown>, userId, contextPreload);
@@ -10346,8 +10351,11 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
                 actionData = toolResult.actionData;
               }
             } catch (toolError) {
+              toolOk = false;
               logger.error(`Tool ${tc.name} failed:`, toolError);
               resultText = `Не удалось выполнить действие. Попробуй ещё раз.`;
+            } finally {
+              recordToolExecution(tc.name, Date.now() - _t0Tool, toolOk);
             }
 
             return { tc, resultText: resultText!, actionDescription, actionData };
