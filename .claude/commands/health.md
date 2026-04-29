@@ -20,7 +20,7 @@ grep -rn "console\." C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/routes
 
 ```bash
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npm test -- --forceExit 2>&1 | tail -5
-# Expected: 38 suites, ~1379 tests
+# Expected: 38 suites, ~1412 tests
 
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && npm test -- --forceExit 2>&1 | tail -5
 # Expected: 81 suites, ~2030 tests
