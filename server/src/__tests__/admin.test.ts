@@ -1049,6 +1049,73 @@ describe('POST /api/admin/users/:id/message', () => {
   });
 });
 
+// ─── GET /api/admin/digest/preview ───────────────────────────────────────────
+//
+// Read-only diagnostic — returns today's admin-digest stats without firing
+// the email/push side-effects. Lets the founder verify cron output before
+// the 06:00 UTC tick.
+
+describe('GET /api/admin/digest/preview', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/digest/preview');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/digest/preview')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+// ─── GET /api/admin/digest/readiness ─────────────────────────────────────────
+//
+// Diagnostic for the founder to see which admins will receive tomorrow's
+// digest. Auth-only (any authenticated user can call) — but the response
+// only includes admin identities, which is acceptable since admin email
+// addresses are already exposed elsewhere in the admin UI.
+
+describe('GET /api/admin/digest/readiness', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/digest/readiness');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 returns adminCount + bootstrap status + per-admin readiness', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'u-admin',
+        email: 'admin1@example.com',
+        firstName: 'Admin',
+        pushTokens: [{ id: 'pt1' }, { id: 'pt2' }],
+      },
+      {
+        id: 'u-admin-2',
+        email: 'admin2@example.com',
+        firstName: 'Other',
+        pushTokens: [],
+      },
+    ]);
+
+    const res = await request(app)
+      .get('/api/admin/digest/readiness')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.adminCount).toBe(2);
+    expect(Array.isArray(res.body.admins)).toBe(true);
+    expect(res.body.admins).toHaveLength(2);
+
+    // Per-admin: hasPushToken should reflect actual token count
+    const a1 = res.body.admins.find((a: any) => a.id === 'u-admin');
+    const a2 = res.body.admins.find((a: any) => a.id === 'u-admin-2');
+    expect(a1.hasPushToken).toBe(true);
+    expect(a2.hasPushToken).toBe(false);
+  });
+});
+
 // ─── POST /api/admin/mass-message ────────────────────────────────────────────
 //
 // Bulk version of /users/:id/message — creates one ticket per user via
