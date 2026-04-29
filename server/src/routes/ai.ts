@@ -82215,7 +82215,11 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
       prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
       prisma.user.findUnique({ where: { id: userId }, include: { healthRestrictions: true } }),
-      prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference'] } }, take: 15 }),
+      // Round 152: include 'goal' category in memory query so target_weight_kg
+      // / weight_loss_target_kg / weight_gained_kg surface in food-vision
+      // context. The AI can then warn "ты на похудении, а это блюдо ~800
+      // ккал" without re-asking. Bumped take 15 → 20 to accommodate.
+      prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference', 'goal'] } }, take: 20 }),
     ]);
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
