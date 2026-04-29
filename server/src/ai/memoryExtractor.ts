@@ -146,7 +146,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // "с" in "спортом" doesn't satisfy \w). Switched to [а-я]+.
   // Round 93 confidence: weak signal — "перфекционист" might be casual
   // self-description not stable trait. 0.6.
-  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+[а-я]+)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1], confidence: 0.6 },
+  // Round 133: widened personality_trait to capture more self-descriptions:
+  //   соревнующийся / результат-ориентированный → competitive (driven by PRs)
+  //   педант / точный → precision-focused (loves data)
+  //   ленивый (ironic self-label) → low-discipline self-perception
+  //   максималист / минималист → effort/volume preference
+  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+[а-я]+|соревнующ\w*|педант|ленив[а-я]*\s+(?:по\s+натуре|немного)|максималист\w*|минималист\w*|оптимист\w*|пессимист\w*)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1].toLowerCase(), confidence: 0.6 },
 
   // ── Goals ────────────────────────────────────────────────────────────────
   { regex: /хочу?\s*(похудеть|сбросить вес|сжечь жир|снизить вес)/i, category: 'preference', key: 'user_goal', extract: () => 'похудение' },
