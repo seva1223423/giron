@@ -55,6 +55,9 @@ jest.mock('../db', () => ({
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    cardioSession: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     announcement: {
       findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn().mockResolvedValue(null),
@@ -1523,6 +1526,106 @@ describe('GET /api/admin/moderation/search', () => {
     const messageBranch = orClauses.find((c: any) => c.messages?.some?.content);
     expect(messageBranch).toBeDefined();
     expect(messageBranch.messages.some.isStaff).toBe(false);
+  });
+});
+
+// ─── POST /api/admin/announcements/:id/duplicate ─────────────────────────────
+
+describe('POST /api/admin/announcements/:id/duplicate', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post(`/api/admin/announcements/${ANN_ID}/duplicate`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/admin/announcements/bad-id/duplicate')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when source announcement does not exist', async () => {
+    (prisma.announcement.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post(`/api/admin/announcements/${ANN_ID}/duplicate`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+    expect(prisma.announcement.create).not.toHaveBeenCalled();
+  });
+
+  it('201 creates a copy with "(копия)" suffix + isActive=false (no auto-blast)', async () => {
+    (prisma.announcement.findUnique as jest.Mock).mockResolvedValueOnce(sampleAnnouncement);
+    (prisma.announcement.create as jest.Mock).mockResolvedValueOnce({
+      ...sampleAnnouncement,
+      id: 'cnewann000000000000001',
+      title: `${sampleAnnouncement.title} (копия)`,
+      isActive: false,
+    });
+
+    const res = await request(app)
+      .post(`/api/admin/announcements/${ANN_ID}/duplicate`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`);
+
+    expect(res.status).toBe(201);
+
+    const createCalls = (prisma.announcement.create as jest.Mock).mock.calls;
+    const data = createCalls[0][0].data;
+    // Title gets the suffix
+    expect(data.title).toBe(`${sampleAnnouncement.title} (копия)`);
+    // CRITICAL: isActive starts false. Without this, duplicating an
+    // already-active announcement would auto-blast a second copy to
+    // the same audience the moment it's created — UX disaster.
+    expect(data.isActive).toBe(false);
+    // authorId from the duplicating admin (not the original author)
+    expect(data.authorId).toBe('u-admin');
+    // Body, type, endsAt, targetRole carry over
+    expect(data.body).toBe(sampleAnnouncement.body);
+    expect(data.type).toBe(sampleAnnouncement.type);
+  });
+});
+
+// ─── GET /api/admin/activity-feed ────────────────────────────────────────────
+
+describe('GET /api/admin/activity-feed', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/activity-feed');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/activity-feed')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 SECURITY: chat-message branch filters by role=user (no AI replies)', async () => {
+    (prisma.workout.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.chatMessage.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.cardioSession.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/api/admin/activity-feed')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+
+    // Same role-filter rule as moderation/search: feed must show user-
+    // sent AI messages, not AI-generated responses (otherwise the feed
+    // is dominated by AI responses and useless for moderation).
+    const chatCalls = (prisma.chatMessage.findMany as jest.Mock).mock.calls;
+    expect(chatCalls.length).toBe(1);
+    expect(chatCalls[0][0].where.role).toBe('user');
+
+    // Workout filter: only completed workouts
+    const workoutCalls = (prisma.workout.findMany as jest.Mock).mock.calls;
+    expect(workoutCalls[0][0].where.completedAt).toEqual(
+      expect.objectContaining({ not: null }),
+    );
   });
 });
 
