@@ -638,6 +638,22 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
     expect(keys.size).toBe(sports.length);
   });
 
+  // Round 180: city / timezone
+  test('city captures "я в Москве"', () => {
+    const out = extractMemories('я живу в Москве, часовой пояс +3');
+    expect(out.some((m) => m.key === 'city' && /москв/i.test(m.value))).toBe(true);
+  });
+
+  test('city captures "я в Питере"', () => {
+    const out = extractMemories('я в Питере, тренируюсь утром');
+    expect(out.some((m) => m.key === 'city' && /питер/i.test(m.value))).toBe(true);
+  });
+
+  test('city captures "живу в Сочи"', () => {
+    const out = extractMemories('живу в Сочи, на море хожу');
+    expect(out.some((m) => m.key === 'city' && /сочи/i.test(m.value))).toBe(true);
+  });
+
   // Round 167: regular cardio activity
   test('captures "бегаю 3 раза в неделю"', () => {
     const out = extractMemories('бегаю 3 раза в неделю по утрам');
