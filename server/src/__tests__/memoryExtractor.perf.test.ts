@@ -60,6 +60,28 @@ describe('memoryExtractor performance', () => {
     expect(ms).toBeLessThan(50);
   });
 
+  test('extracts >= 12 distinct memories from a comprehensive 200-word message', () => {
+    // Realistic worst-case: a chatty user who recaps their entire profile.
+    const comprehensive = `Привет! Я тренируюсь 4 раза в неделю по утрам, в зале.
+    Сейчас вешу 80 кг, рост 178 см, у меня 18% жира. Хочу сбросить 5 кг к лету.
+    Моя цель — эстетика и кубики на прессе. У меня двое детей и я работаю из дома.
+    Не курю, пью 2.5 литра воды, сплю 7 часов в сутки. Я опытный, давно занимаюсь.
+    Тренируюсь с тренером раз в неделю. Пью креатин и протеин, ещё магний.
+    Был сколиоз и раньше травмировал колено. Болит плечо иногда.
+    Сижу на кето уже месяц. Работаю по сменам, поэтому только по выходным
+    могу делать тяжёлые тренировки. Не люблю до отказа, оставляю запас.
+    Раньше играл в футбол. У меня есть TRX и эспандер дома.`;
+    const out = extractMemories(comprehensive);
+    expect(out.length).toBeGreaterThanOrEqual(12);
+    // Spot-check a few critical facts
+    const keys = new Set(out.map((m) => m.key));
+    expect(keys.has('training_frequency')).toBe(true);
+    expect(keys.has('current_weight_kg')).toBe(true);
+    expect(keys.has('height_cm')).toBe(true);
+    expect(keys.has('weight_loss_target_kg')).toBe(true);
+    expect(keys.has('user_goal')).toBe(true);
+  });
+
   test('pathological repeat-pattern input does not hang (catastrophic-backtracking sanity)', () => {
     // 1000-char string with no extractable signal. If any pattern had
     // catastrophic backtracking (nested quantifiers like (.*)+), this
