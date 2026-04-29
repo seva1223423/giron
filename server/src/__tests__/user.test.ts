@@ -817,6 +817,49 @@ describe('DELETE /api/user/sessions/:id', () => {
   });
 });
 
+// ─── DELETE /api/user/sessions (logout-everywhere) ───────────────────────────
+
+describe('DELETE /api/user/sessions (all)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.refreshToken.updateMany as jest.Mock).mockResolvedValue({ count: 3 });
+    (prisma.securityEvent.create as jest.Mock).mockResolvedValue({});
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).delete('/api/user/sessions');
+    expect(res.status).toBe(401);
+  });
+
+  it('200 revokes ALL refresh tokens for the calling user', async () => {
+    const res = await request(app)
+      .delete('/api/user/sessions')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    // SECURITY: updateMany must scope by req.userId — never accept a userId
+    // from the body. Without this scope a user could revoke ANYONE's
+    // sessions by calling DELETE /sessions.
+    const updateCalls = (prisma.refreshToken.updateMany as jest.Mock).mock.calls;
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0][0].where).toEqual(
+      expect.objectContaining({ userId: 'u-test', revoked: false }),
+    );
+    expect(updateCalls[0][0].data).toEqual({ revoked: true });
+
+    // Audit trail
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const auditCall = seCalls.find(
+      (c) => c[0]?.data?.action === 'TOKEN_REVOKED' && c[0]?.data?.details === 'all_sessions',
+    );
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.userId).toBe('u-test');
+  });
+});
+
 // ─── POST /api/user/onboarding/step ──────────────────────────────────────────
 
 describe('POST /api/user/onboarding/step', () => {
