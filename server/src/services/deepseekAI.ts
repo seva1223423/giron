@@ -396,6 +396,25 @@ export function validateResponse(content: string, userMessage: string): Validati
     }
   }
 
+  // 6.b. Round 143: Russian refusal patterns. The model occasionally
+  // forgets it's Iron Coach and falls back to generic "Я не могу
+  // помочь" / "Это выходит за рамки моих компетенций" — these are
+  // hallucinated refusals that the user reads as the AI breaking
+  // character. Regenerate.
+  const russianRefusalPatterns = [
+    /(?:^|\.\s+)я\s+не\s+могу\s+помочь/i,
+    /(?:^|\.\s+)я\s+не\s+уполномочен/i,
+    /это\s+выходит\s+за\s+рамки\s+(?:моих|моей)/i,
+    /я\s+(?:всего\s+лишь|просто)\s+(?:искусственный\s+интеллект|языковая\s+модель|ИИ)/i,
+    /я\s+не\s+(?:врач|тренер|нутрициолог|специалист)\s+и\s+не\s+(?:могу|должен)/i,
+  ];
+  for (const pattern of russianRefusalPatterns) {
+    if (pattern.test(content)) {
+      issues.push('russian_refusal');
+      return { valid: false, issues, shouldRegenerate: true };
+    }
+  }
+
   // 7. Начинается с запрещённых фраз (из системного промпта)
   const badStarts = ['конечно!', 'отличный вопрос', 'хороший вопрос', 'great question'];
   const lowerStart = content.trim().toLowerCase().slice(0, 30);
