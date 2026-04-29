@@ -2711,6 +2711,16 @@ describe('POST /api/admin/test-notification', () => {
     expect(res.status).toBe(200);
     expect(typeof res.body.pushSent).toBe('boolean');
     expect(typeof res.body.emailSent).toBe('boolean');
+
+    // Audit log: verifies the founder can grep AdminLog for
+    // TEST_NOTIFICATION when debugging SMTP/push issues. Details must
+    // include the channel + per-channel sent flags + (when present) the
+    // list of failed channels.
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const auditCall = logCalls.find((c) => c[0]?.data?.action === 'TEST_NOTIFICATION');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.adminId).toBe('u-admin');
+    expect(auditCall![0].data.details).toContain('channel=both');
   });
 });
 
