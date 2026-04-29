@@ -82,6 +82,13 @@ const sampleTicket = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // mockReset (not just clearAllMocks) so any leftover mockResolvedValueOnce
+  // queue from a prior test doesn't bleed into this one. Round 66 removed
+  // an inline user.findUnique call from the support route — older tests
+  // queued two `.once` returns expecting both to be consumed; with one
+  // consumer the second sits in queue and gets eaten by the NEXT test's
+  // authenticate middleware. Reset → re-seed default = clean slate.
+  (prisma.user.findUnique as jest.Mock).mockReset();
   (prisma.user.findUnique as jest.Mock).mockResolvedValue(baseUser);
   (prisma.supportTicket.count as jest.Mock).mockResolvedValue(0);
 });
@@ -156,10 +163,8 @@ describe('GET /api/support/tickets/:id', () => {
 
   it('200 returns own ticket', async () => {
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce(sampleTicket);
-    // Second call inside handler: user.findUnique to check isStaff
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(baseUser)   // authenticate
-      .mockResolvedValueOnce({ role: 'USER' }); // isStaff check
+    // authenticate sets req.userRole; route reuses it (round 66 dedupe).
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(baseUser);
 
     const res = await request(app)
       .get(`/api/support/tickets/${TICKET_ID}`)
@@ -172,9 +177,7 @@ describe('GET /api/support/tickets/:id', () => {
   it('SECURITY: 404 when ticket belongs to different user (IDOR)', async () => {
     const otherUserTicket = { ...sampleTicket, userId: 'u-victim' };
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce(otherUserTicket);
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(baseUser)
-      .mockResolvedValueOnce({ role: 'USER' }); // not staff
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(baseUser);
 
     const res = await request(app)
       .get(`/api/support/tickets/${TICKET_ID}`)
@@ -372,10 +375,8 @@ describe('POST /api/support/tickets/:id/messages', () => {
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
       ...sampleTicket, status: 'open', assignedToId: null,
     });
-    // Auth middleware sees SUPPORT role; route's role lookup ALSO returns SUPPORT
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(staffUser)
-      .mockResolvedValueOnce({ role: 'SUPPORT' });
+    // authenticate populates req.userRole='SUPPORT'; route reuses it.
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(staffUser);
     (prisma.$transaction as jest.Mock).mockImplementationOnce(async (ops: any[]) => [
       { id: 'cmsg00000000000000002', content: validBody.content, isStaff: true },
       { ...sampleTicket, status: 'in_progress', assignedToId: 'u-staff' },
@@ -392,9 +393,8 @@ describe('POST /api/support/tickets/:id/messages', () => {
 
   it('SECURITY: isStaff is derived from server role, NOT request body', async () => {
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce(sampleTicket);
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(baseUser)
-      .mockResolvedValueOnce({ role: 'USER' }); // explicitly NOT staff
+    // authenticate sets req.userRole='USER'; route reuses it (no inline lookup).
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(baseUser);
     (prisma.$transaction as jest.Mock).mockImplementationOnce(async (ops: any[]) => [
       { id: 'cmsg-evil', content: validBody.content, isStaff: false },
       sampleTicket,
@@ -549,10 +549,8 @@ describe('PATCH /api/support/tickets/:id/status', () => {
   });
 
   it('403 SUPPORT staff cannot update status if not assigned to ticket', async () => {
-    // authenticate → staffUser, route actor check → staffUser (not admin)
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(staffUser)   // authenticate
-      .mockResolvedValueOnce(staffUser);  // actor check in route (role: SUPPORT → not admin)
+    // authenticate sets req.userRole='SUPPORT'; route reuses it (round 66).
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(staffUser);
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
       assignedToId: 'u-other-staff', // assigned to DIFFERENT staff member
     });
@@ -566,9 +564,8 @@ describe('PATCH /api/support/tickets/:id/status', () => {
   });
 
   it('200 ADMIN can update any ticket status regardless of assignment', async () => {
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(adminUser)  // authenticate
-      .mockResolvedValueOnce(adminUser); // actor check → ADMIN (bypasses assignment check)
+    // authenticate sets req.userRole='ADMIN'; route reuses it (round 66).
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(adminUser);
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
       assignedToId: null, // not assigned to anyone
     });
@@ -612,10 +609,8 @@ describe('PATCH /api/support/tickets/:id/assign', () => {
   });
 
   it('403 SUPPORT role cannot assign tickets — admin only', async () => {
-    // authenticate → staffUser, route actor check → staffUser (role: SUPPORT ≠ ADMIN)
-    (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(staffUser)  // authenticate
-      .mockResolvedValueOnce(staffUser); // actor check → not ADMIN → 403
+    // authenticate sets req.userRole='SUPPORT'; route checks it directly (round 66).
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(staffUser);
 
     const res = await request(app)
       .patch(`/api/support/tickets/${TICKET_ID}/assign`)
@@ -626,9 +621,10 @@ describe('PATCH /api/support/tickets/:id/assign', () => {
   });
 
   it('400 when assignedToId belongs to a regular user (not staff)', async () => {
+    // authenticate sets req.userRole='ADMIN'; route checks it directly (round 66).
+    // Assignee lookup is the second user.findUnique call.
     (prisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(adminUser)  // authenticate
-      .mockResolvedValueOnce(adminUser)  // actor check → ADMIN
       .mockResolvedValueOnce(baseUser);  // assignee lookup → USER role → invalid
 
     const res = await request(app)
@@ -641,9 +637,9 @@ describe('PATCH /api/support/tickets/:id/assign', () => {
   });
 
   it('200 admin successfully assigns ticket to a SUPPORT staff member', async () => {
+    // authenticate sets req.userRole='ADMIN'; route checks it directly (round 66).
     (prisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(adminUser)    // authenticate
-      .mockResolvedValueOnce(adminUser)    // actor check → ADMIN
+      .mockResolvedValueOnce(adminUser)      // authenticate
       .mockResolvedValueOnce(staffUserCuid); // assignee → SUPPORT role, not banned
     (prisma.supportTicket.update as jest.Mock).mockResolvedValueOnce({
       ...sampleTicket,

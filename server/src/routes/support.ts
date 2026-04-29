@@ -61,10 +61,10 @@ router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response)
       },
     });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
-    // Regular users can only see their own tickets
-    const isStaff = ['ADMIN', 'SUPPORT'].includes(
-      (await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } }))?.role ?? ''
-    );
+    // Regular users can only see their own tickets. authenticate middleware
+    // already populated req.userRole from a fresh DB read, so reuse it
+    // instead of round-tripping again — saves one query per call.
+    const isStaff = req.userRole === 'ADMIN' || req.userRole === 'SUPPORT';
     if (!isStaff && ticket.userId !== req.userId) {
       return res.status(404).json({ error: 'Тикет не найден' });
     }
@@ -121,8 +121,9 @@ router.post('/tickets/:id/messages', authenticate, async (req: AuthRequest, res:
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
 
-    const userRecord = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
-    const isStaff = ['ADMIN', 'SUPPORT'].includes(userRecord?.role ?? '');
+    // authenticate middleware already loaded the user's role; no need to
+    // re-query for the staff check.
+    const isStaff = req.userRole === 'ADMIN' || req.userRole === 'SUPPORT';
 
     if (!isStaff && ticket.userId !== req.userId) {
       return res.status(404).json({ error: 'Тикет не найден' });
@@ -239,8 +240,8 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
     const parsed = ticketStatusUpdateSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
 
-    const actor = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
-    const isAdmin = actor?.role === 'ADMIN';
+    // authenticate already loaded the role; requireStaff guarantees ADMIN|SUPPORT.
+    const isAdmin = req.userRole === 'ADMIN';
 
     const ticket = await prisma.supportTicket.findUnique({
       where: { id: req.params.id as string },
@@ -269,8 +270,8 @@ router.patch('/tickets/:id/status', authenticate, requireStaff, async (req: Auth
 router.patch('/tickets/:id/assign', authenticate, requireStaff, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
-    const actor = await prisma.user.findUnique({ where: { id: req.userId! }, select: { role: true } });
-    if (actor?.role !== 'ADMIN') return res.status(403).json({ error: 'Только администратор может назначать тикеты' });
+    // authenticate populated req.userRole; no need to re-query for the admin check.
+    if (req.userRole !== 'ADMIN') return res.status(403).json({ error: 'Только администратор может назначать тикеты' });
 
     const parsed = z.object({
       assignedToId: z.string().cuid().nullable().optional(),
