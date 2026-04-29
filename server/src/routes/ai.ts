@@ -82219,7 +82219,10 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       // / weight_loss_target_kg / weight_gained_kg surface in food-vision
       // context. The AI can then warn "ты на похудении, а это блюдо ~800
       // ккал" without re-asking. Bumped take 15 → 20 to accommodate.
-      prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference', 'goal'] } }, take: 20 }),
+      // Round 153: also include 'injury' for health_condition (diabetes,
+      // hypertension, etc.) — these drive food recommendations (low-GI,
+      // low-sodium, etc.) just like allergies. Bumped take 20 → 25.
+      prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference', 'goal', 'injury'] } }, take: 25 }),
     ]);
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
@@ -82238,7 +82241,13 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const profileRestrictions = (user?.healthRestrictions ?? [])
       .map((r) => `- ${sanitizeForPrompt(r.description || r.bodyPart || '', 120)}`.trim())
       .filter((s) => s.length > 1);
-    const allAllergyLines = [...new Set([...memoryAllergyLines, ...profileRestrictions])];
+    // Round 153: include injury-category health_condition memories
+    // (diabetes, hypertension, asthma…) alongside allergies/restrictions.
+    // These drive low-GI / low-sodium / low-fat food recommendations.
+    const memoryHealthLines = userMemories
+      .filter((m) => m.category === 'injury')
+      .map((m) => `- ${sanitizeForPrompt(m.value, 120)}`);
+    const allAllergyLines = [...new Set([...memoryAllergyLines, ...profileRestrictions, ...memoryHealthLines])];
     const prefLines = userMemories
       .filter((m) => m.category === 'preference')
       .map((m) => `- ${sanitizeForPrompt(m.value, 120)}`);
