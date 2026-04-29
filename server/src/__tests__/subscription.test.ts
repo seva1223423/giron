@@ -425,4 +425,46 @@ describe('POST /api/subscription/webhook', () => {
     expect(res.body.skipped).toBe(true);
     expect(prisma.subscription.upsert).not.toHaveBeenCalled();
   });
+
+  it('200 stale subscription_expired is skipped when endDate is still in the future', async () => {
+    // Round 69: a replay of an old `expired` event that arrives AFTER a
+    // fresh `renewed` would otherwise revert the renewal. Guard mirrors
+    // the activated/renewed branch's stale-event protection.
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+      endDate: new Date(Date.now() + 30 * 86_400_000),
+      status: 'active',
+    });
+
+    const res = await webhookPost({
+      provider: 'generic',
+      event: 'subscription_expired',
+      userId: USER_ID,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.skipped).toBe(true);
+    // Critically: updateMany must NOT have been called — the renewal stays.
+    expect(prisma.subscription.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('200 subscription_expired applies when endDate has actually passed', async () => {
+    // Real expiration path: endDate is in the past, so the event is fresh
+    // and the sub should be marked expired.
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+      endDate: new Date(Date.now() - 86_400_000),
+      status: 'active',
+    });
+
+    const res = await webhookPost({
+      provider: 'generic',
+      event: 'subscription_expired',
+      userId: USER_ID,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.skipped).toBeUndefined();
+    expect(prisma.subscription.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'expired' } }),
+    );
+  });
 });
