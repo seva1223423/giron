@@ -407,7 +407,7 @@ describe('HIGH-14 email normalisation in Yandex OAuth', () => {
   });
 });
 
-describe('HIGH-14 email normalisation in VK OAuth', () => {
+describe('VK OAuth email handling (round 79: anti-squatting)', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     jest.clearAllMocks();
@@ -418,17 +418,18 @@ describe('HIGH-14 email normalisation in VK OAuth', () => {
     delete process.env.VK_APP_ID;
   });
 
-  it('normalises mixed-case email at user creation (VK does no email-based lookup)', async () => {
-    // VK's users.get API doesn't return email (post-2018 API change), so the
-    // client passes the email it got from the OAuth scope via request body.
-    // The route deliberately does NOT use this email for user lookup —
-    // see the SECURITY comment in routes/auth.ts:782-786 — because the
-    // client-supplied value can't be trusted as proof of ownership.
+  it('IGNORES client-supplied email at user creation, uses synthetic vk_<id>@irongym.internal', async () => {
+    // Round 79: the client-supplied `email` param is no longer accepted
+    // by the route at all. VK's users.get API doesn't return an email
+    // server-side, so any email field on the request body is purely
+    // client-controlled — an attacker could send their own valid VK
+    // accessToken + userId but `email: victim@example.com` to squat on
+    // the victim's address at user creation. HIGH-3 closed the email-
+    // based auto-link half of the gap; this closes the new-account half.
     //
-    // What HIGH-14 still buys us here: when we DO store the email at user
-    // creation, the Zod transform normalises it so future change-email or
-    // forgot-password flows that look up by email find the right row
-    // regardless of what case/form the original VK token used.
+    // The pre-round-79 test asserted email NORMALISATION (HIGH-14), which
+    // implicitly trusted the client value. That's no longer the contract:
+    // the synthetic internal email is the only thing that lands on disk.
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -437,8 +438,8 @@ describe('HIGH-14 email normalisation in VK OAuth', () => {
     });
     (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce(null); // no user by vkId
     (prisma.user.create as jest.Mock).mockResolvedValue({
-      id: 'new-user-vk-hi14',
-      email: 'test@vk.com',
+      id: 'new-user-vk-79',
+      email: 'vk_12345@irongym.internal',
       firstName: 'Test',
       lastName: 'User',
       vkId: '12345',
@@ -455,16 +456,16 @@ describe('HIGH-14 email normalisation in VK OAuth', () => {
       .send({
         accessToken: 'valid-vk-token',
         userId: 12345,
-        email: 'TEST@VK.COM', // client sends mixed-case
+        email: 'victim@example.com', // attacker-controlled — must be ignored
       });
 
     expect(res.status).toBe(200);
-    // user.create must store the normalised email — that's the column
-    // future flows will use to find this user. Without normalisation
-    // the same VK user could end up with two rows (one cased, one
-    // lowercased) on different sign-ins.
+    // user.create must store the synthetic email — the attacker-supplied
+    // address never reaches the DB.
     const createCall = (prisma.user.create as jest.Mock).mock.calls[0];
-    expect(createCall[0].data.email).toBe('test@vk.com');
+    expect(createCall[0].data.email).toBe('vk_12345@irongym.internal');
+    expect(createCall[0].data.email).not.toContain('victim');
+    expect(createCall[0].data.emailVerified).toBe(false);
   });
 });
 
