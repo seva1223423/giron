@@ -106,6 +106,33 @@ describe('MemCache delete + clear', () => {
     expect(cache.get('short')).toBeUndefined();
     expect(cache.get('long')).toBe(2);
   });
+
+  test('deletePrefix removes only entries whose keys start with the given prefix', () => {
+    const cache = new MemCache<number>();
+    cache.set('u1:abc', 1, 60_000);
+    cache.set('u1:text:def', 2, 60_000);
+    cache.set('u2:xyz', 3, 60_000);
+    cache.set('preview:counts', 4, 60_000);
+
+    const removed = cache.deletePrefix('u1:');
+
+    expect(removed).toBe(2);
+    expect(cache.get('u1:abc')).toBeUndefined();
+    expect(cache.get('u1:text:def')).toBeUndefined();
+    expect(cache.get('u2:xyz')).toBe(3);          // different prefix — kept
+    expect(cache.get('preview:counts')).toBe(4);  // different prefix — kept
+  });
+
+  test('deletePrefix returns 0 and is a no-op when no key matches', () => {
+    const cache = new MemCache<number>();
+    cache.set('a', 1, 60_000);
+    cache.set('b', 2, 60_000);
+
+    const removed = cache.deletePrefix('zzz:');
+
+    expect(removed).toBe(0);
+    expect(cache.size).toBe(2);
+  });
 });
 
 describe('Singleton caches', () => {
