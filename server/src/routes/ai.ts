@@ -3561,6 +3561,20 @@ async function executeTool(
       aggregateWindow(previousStart, currentStart),
     ]);
 
+    // Round 130: early exit when neither window has any signal — avoids
+    // "0% / 0% / 0%" noise that's worse than just saying "no data".
+    const hasAnyData =
+      current.workouts > 0 || previous.workouts > 0 ||
+      current.mealCalories > 0 || previous.mealCalories > 0 ||
+      current.sleepEntries > 0 || previous.sleepEntries > 0;
+    if (!hasAnyData) {
+      return {
+        resultText: `Нет данных в обоих ${safeWindow}-дневных периодах для сравнения. Залогируй несколько тренировок или приёмов пищи и попробуй снова.`,
+        actionDescription: '',
+        actionData: { windowDays: safeWindow, current: { workouts: 0, volume: 0, mealCalories: 0, days: 0 }, previous: { workouts: 0, volume: 0, mealCalories: 0, days: 0 } },
+      };
+    }
+
     const fmtPct = (cur: number, prev: number): string => {
       if (prev === 0) return cur > 0 ? '+∞%' : '0%';
       const pct = Math.round(((cur - prev) / prev) * 100);
