@@ -20,7 +20,7 @@ All 10 intents must appear in the handler chain. Flag any referenced in classifi
 grep -c "type: 'function'" C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/routes/ai.ts
 ```
 
-Expected: **32 tools** (line ~381–1043; last line is a false-positive at ~10106 — ignore it). Tools as of 2026-04-29: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary, search_exercises, explain_exercise, get_pr_history, compare_periods. Note: CONTEXT_TOOL_DEFINITIONS (contextTools.ts) adds 6 additional read-only context tools spread into AI_TOOLS — these are not counted here. For each tool verify: `name` matches its `executeTool` case, `required[]` covers non-optional params, handler validates input before DB write, no `userId` in params (must use `req.userId`).
+Expected: **33 tools** (line ~381–1043; last line is a false-positive at ~10106 — ignore it). Tools as of 2026-04-29: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary, search_exercises, explain_exercise, get_pr_history, compare_periods, update_memory. Note: CONTEXT_TOOL_DEFINITIONS (contextTools.ts) adds 6 additional read-only context tools spread into AI_TOOLS — these are not counted here. For each tool verify: `name` matches its `executeTool` case, `required[]` covers non-optional params, handler validates input before DB write, no `userId` in params (must use `req.userId`).
 
 ## 3 — Per-User Rate Limit
 
@@ -91,7 +91,7 @@ Order: Mistral → DeepSeek (if `DEEPSEEK_API_KEY`) → Ollama. Each step logged
 AI VALIDATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Intent coverage:        X/10 [missing: list]
-Tool count:             X (expected 32, grep=33 — subtract 1 false positive)
+Tool count:             X (expected 33, grep=34 — subtract 1 false positive)
 Per-user rate limit:    PRESENT / MISSING — keyed on: [JWT userId / body (WRONG)]
                         .unref(): YES / NO
 Analytics timing guard: PRESENT / MISSING — threshold: [Xms]
