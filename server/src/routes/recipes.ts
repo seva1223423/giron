@@ -163,8 +163,16 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const existing = await prisma.recipe.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Рецепт не найден' });
-    if (existing.source !== 'USER' || existing.userId !== req.userId) {
-      return res.status(403).json({ error: 'Нельзя редактировать чужие или системные рецепты' });
+    // Leakage protection (mirrors GET /:id at line 118-120 and the round-65
+    // support-close fix): collapse "USER recipe owned by someone else" into
+    // 404 so a probe of CUIDs can't distinguish "exists but not yours" from
+    // "doesn't exist". CURATED recipes are publicly readable via GET /curated
+    // so they keep their honest 403 — the existence isn't a secret.
+    if (existing.source === 'USER' && existing.userId !== req.userId) {
+      return res.status(404).json({ error: 'Рецепт не найден' });
+    }
+    if (existing.source !== 'USER') {
+      return res.status(403).json({ error: 'Нельзя редактировать системные рецепты' });
     }
 
     const parsed = recipeBodySchema.parse(req.body);
@@ -200,8 +208,13 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const existing = await prisma.recipe.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Рецепт не найден' });
-    if (existing.source !== 'USER' || existing.userId !== req.userId) {
-      return res.status(403).json({ error: 'Нельзя удалять чужие или системные рецепты' });
+    // Same leakage-protection split as PATCH above — USER not yours → 404
+    // (don't leak existence), CURATED → 403 (legit "can't delete system").
+    if (existing.source === 'USER' && existing.userId !== req.userId) {
+      return res.status(404).json({ error: 'Рецепт не найден' });
+    }
+    if (existing.source !== 'USER') {
+      return res.status(403).json({ error: 'Нельзя удалять системные рецепты' });
     }
     await prisma.recipe.delete({ where: { id: req.params.id as string } });
     res.json({ ok: true });
