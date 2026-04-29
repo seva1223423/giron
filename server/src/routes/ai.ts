@@ -3455,9 +3455,11 @@ async function executeTool(
     const currentStart = new Date(now.getTime() - windowMs);
     const previousStart = new Date(now.getTime() - 2 * windowMs);
 
-    type Window = { workouts: number; volume: number; mealCalories: number; days: Set<string> };
+    // Round 120: also include sleep avg metric. SleepEntry already stores
+    // durationHours per day; aggregate as average over the window.
+    type Window = { workouts: number; volume: number; mealCalories: number; sleepHours: number; sleepEntries: number; days: Set<string> };
     const aggregateWindow = async (start: Date, end: Date): Promise<Window> => {
-      const [workouts, meals] = await Promise.all([
+      const [workouts, meals, sleep] = await Promise.all([
         prisma.workout.findMany({
           where: {
             userId,
@@ -3479,6 +3481,18 @@ async function executeTool(
           },
           select: { totalCalories: true, createdAt: true },
         }),
+        // SleepEntry.date is a string YYYY-MM-DD; filter via gte/lt on
+        // the same shape. Compare entries directly with date strings.
+        prisma.sleepEntry.findMany({
+          where: {
+            userId,
+            date: {
+              gte: start.toISOString().slice(0, 10),
+              lt: end.toISOString().slice(0, 10),
+            },
+          },
+          select: { durationHours: true, date: true },
+        }),
       ]);
 
       let volume = 0;
@@ -3498,8 +3512,16 @@ async function executeTool(
       }
 
       const mealCalories = meals.reduce((sum, m) => sum + (m.totalCalories || 0), 0);
+      const sleepHours = sleep.reduce((sum, s) => sum + (s.durationHours || 0), 0);
 
-      return { workouts: workouts.length, volume: Math.round(volume), mealCalories: Math.round(mealCalories), days };
+      return {
+        workouts: workouts.length,
+        volume: Math.round(volume),
+        mealCalories: Math.round(mealCalories),
+        sleepHours: Math.round(sleepHours * 10) / 10, // 1 decimal for display
+        sleepEntries: sleep.length,
+        days,
+      };
     };
 
     const [current, previous] = await Promise.all([
@@ -3516,22 +3538,33 @@ async function executeTool(
     const avgKcal = (totalKcal: number, days: number): number =>
       days > 0 ? Math.round(totalKcal / days) : 0;
 
+    const avgSleep = (totalHours: number, entries: number): number =>
+      entries > 0 ? Math.round((totalHours / entries) * 10) / 10 : 0;
+
     const curAvgKcal = avgKcal(current.mealCalories, safeWindow);
     const prevAvgKcal = avgKcal(previous.mealCalories, safeWindow);
+    const curAvgSleep = avgSleep(current.sleepHours, current.sleepEntries);
+    const prevAvgSleep = avgSleep(previous.sleepHours, previous.sleepEntries);
 
-    const summary = [
+    const summaryParts = [
       `${safeWindow} дн.: тренировок ${current.workouts} (${fmtPct(current.workouts, previous.workouts)})`,
       `объём ${current.volume}кг (${fmtPct(current.volume, previous.volume)})`,
       `средн. ${curAvgKcal} ккал/день (${fmtPct(curAvgKcal, prevAvgKcal)})`,
-    ].join('; ');
+    ];
+    // Only mention sleep if the user has logged at least 1 entry in either
+    // window — otherwise it's just noise.
+    if (current.sleepEntries > 0 || previous.sleepEntries > 0) {
+      summaryParts.push(`сон ~${curAvgSleep}ч (${fmtPct(curAvgSleep, prevAvgSleep)})`);
+    }
+    const summary = summaryParts.join('; ');
 
     return {
       resultText: summary,
       actionDescription: '',
       actionData: {
         windowDays: safeWindow,
-        current: { workouts: current.workouts, volume: current.volume, mealCalories: current.mealCalories, days: current.days.size },
-        previous: { workouts: previous.workouts, volume: previous.volume, mealCalories: previous.mealCalories, days: previous.days.size },
+        current: { workouts: current.workouts, volume: current.volume, mealCalories: current.mealCalories, avgSleep: curAvgSleep, days: current.days.size },
+        previous: { workouts: previous.workouts, volume: previous.volume, mealCalories: previous.mealCalories, avgSleep: prevAvgSleep, days: previous.days.size },
       },
     };
   }
