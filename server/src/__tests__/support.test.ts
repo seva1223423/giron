@@ -124,6 +124,21 @@ describe('GET /api/support/tickets', () => {
     expect(res.body).toEqual([]);
   });
 
+  it('round 81: ticket list preview filters out isInternal messages', async () => {
+    // The "last message preview" in the user's ticket list pulled the latest
+    // message of any type. If a staff member added an internal note as the
+    // most recent activity, the user saw it on their inbox screen. Pin the
+    // include-where to { isInternal: false }.
+    (prisma.supportTicket.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/support/tickets')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.supportTicket.findMany as jest.Mock).mock.calls;
+    expect(calls[0][0].include.messages.where).toEqual({ isInternal: false });
+  });
+
   it('SECURITY: findMany filters by req.userId', async () => {
     (prisma.supportTicket.findMany as jest.Mock).mockResolvedValueOnce([]);
 
@@ -184,6 +199,37 @@ describe('GET /api/support/tickets/:id', () => {
       .set('Authorization', `Bearer ${makeToken('u-test')}`);
 
     expect(res.status).toBe(404);
+  });
+
+  it('round 81: filters out isInternal=true messages for non-staff users', async () => {
+    // Internal staff notes (`isInternal: true`) on the ticket are
+    // collaboration context — "this user is being abusive" — and must
+    // never reach the ticket's own owner. Round 81 added a where filter
+    // at include time; pin it via the prisma findUnique mock argument.
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce(sampleTicket);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(baseUser);
+
+    await request(app)
+      .get(`/api/support/tickets/${TICKET_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const findCall = (prisma.supportTicket.findUnique as jest.Mock).mock.calls[0];
+    expect(findCall[0].include.messages.where).toEqual({ isInternal: false });
+  });
+
+  it('round 81: staff sees ALL messages including isInternal', async () => {
+    // Staff users — ADMIN or SUPPORT — keep seeing every message so they
+    // can read each other's internal notes.
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce(sampleTicket);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(staffUser);
+
+    await request(app)
+      .get(`/api/support/tickets/${TICKET_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-staff', 'SUPPORT')}`);
+
+    const findCall = (prisma.supportTicket.findUnique as jest.Mock).mock.calls[0];
+    // No `where` clause for staff → all messages.
+    expect(findCall[0].include.messages.where).toBeUndefined();
   });
 });
 

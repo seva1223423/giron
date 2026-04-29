@@ -28,10 +28,15 @@ const sendMessageSchema = z.object({
 /** GET /support/tickets — my tickets */
 router.get('/tickets', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    // Round 81: filter `isInternal` from the last-message preview. The
+    // ticket list shows each ticket's most recent message as a preview;
+    // without the filter a staff member's internal note ("flagged for
+    // refund abuse") becomes the latest message and leaks straight onto
+    // the user's support inbox screen.
     const tickets = await prisma.supportTicket.findMany({
       where: { userId: req.userId! },
       include: {
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        messages: { where: { isInternal: false }, orderBy: { createdAt: 'desc' }, take: 1 },
         assignedTo: { select: { firstName: true, lastName: true } },
       },
       orderBy: { updatedAt: 'desc' },
@@ -48,10 +53,21 @@ router.get('/tickets', authenticate, async (req: AuthRequest, res: Response) => 
 router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
+    // Regular users can only see their own tickets. authenticate middleware
+    // already populated req.userRole from a fresh DB read, so reuse it
+    // instead of round-tripping again — saves one query per call.
+    const isStaff = req.userRole === 'ADMIN' || req.userRole === 'SUPPORT';
+    // Round 81: filter `isInternal: true` messages out for non-staff. Those
+    // are staff-only collaboration notes added via POST /admin/support/:id/note
+    // (intended for things like "this user has been abusive — escalate" or
+    // "tried to refund twice already"); leaking them to the ticket owner via
+    // GET /tickets/:id was a privacy leak. The where filter is applied at
+    // include time so the user never sees the internal rows.
     const ticket = await prisma.supportTicket.findUnique({
       where: { id: req.params.id as string },
       include: {
         messages: {
+          where: isStaff ? undefined : { isInternal: false },
           include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
           orderBy: { createdAt: 'asc' },
           take: 500,
@@ -61,10 +77,6 @@ router.get('/tickets/:id', authenticate, async (req: AuthRequest, res: Response)
       },
     });
     if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
-    // Regular users can only see their own tickets. authenticate middleware
-    // already populated req.userRole from a fresh DB read, so reuse it
-    // instead of round-tripping again — saves one query per call.
-    const isStaff = req.userRole === 'ADMIN' || req.userRole === 'SUPPORT';
     if (!isStaff && ticket.userId !== req.userId) {
       return res.status(404).json({ error: 'Тикет не найден' });
     }
