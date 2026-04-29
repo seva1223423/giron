@@ -66,6 +66,26 @@ const mockPreRenewalEmail = sendPreRenewalNotificationEmail as jest.Mock;
 const mockActivationEmail = sendActivationReminderEmail as jest.Mock;
 const mockReportError = reportError as jest.Mock;
 
+// Pin "now" to 12:00 UTC = 15:00 MSK so we land in the active (non-quiet)
+// push window for every test. Quiet hours are 19:00..05:00 UTC; if jest
+// happened to run during real quiet hours, retention cohorts would defer
+// instead of sending and dozens of mock-call assertions would break.
+//
+// Use jest.useFakeTimers() with `now` option — modern @sinonjs/fake-timers
+// lets us pin Date without breaking setTimeout/setInterval callers in
+// the production code. We don't fake setImmediate/queueMicrotask so
+// async-then chains in handlers still resolve normally.
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: new Date('2026-04-29T12:00:00Z').getTime(),
+    doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame'],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockSendPush.mockResolvedValue(undefined);
@@ -256,6 +276,59 @@ describe('processActivationCohort', () => {
     // The window must be at least 6 days wide (7 - 1)
     expect(lt.getTime() - gte.getTime()).toBeGreaterThanOrEqual(6 * 86_400_000);
   });
+
+  describe('quiet hours guard', () => {
+    // The retention service skips push during 19:00..05:00 UTC = 22:00..08:00
+    // MSK to avoid waking users with activation pushes at 3am Moscow.
+    // Email always fires (sits in inbox harmlessly until morning).
+    afterEach(() => {
+      // Restore the test-suite default time after per-test overrides
+      jest.setSystemTime(new Date('2026-04-29T12:00:00Z').getTime());
+    });
+
+    test('at 22:30 MSK (19:30 UTC) — push deferred, email still fires', async () => {
+      jest.setSystemTime(new Date('2026-04-29T19:30:00Z').getTime());
+      mockUserFindMany.mockResolvedValueOnce([
+        makeActivationCandidate({ id: 'u-night' }),
+      ]);
+
+      const sent = await processActivationCohort();
+
+      // Email fires (1), push deferred (0)
+      expect(sent).toBe(1);
+      expect(mockSendPush).not.toHaveBeenCalled();
+      expect(mockActivationEmail).toHaveBeenCalledTimes(1);
+      // Critically: push *SentAt must NOT be set so the user is picked up
+      // again at the next non-quiet tick. We assert by counting user.update
+      // calls — only 1 (the email update), not 2 (push + email).
+      expect(mockUserUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    test('at 03:00 MSK (00:00 UTC) — push deferred, email still fires', async () => {
+      jest.setSystemTime(new Date('2026-04-29T00:00:00Z').getTime());
+      mockUserFindMany.mockResolvedValueOnce([
+        makeActivationCandidate({ id: 'u-deep-night' }),
+      ]);
+
+      const sent = await processActivationCohort();
+
+      expect(sent).toBe(1);
+      expect(mockSendPush).not.toHaveBeenCalled();
+      expect(mockActivationEmail).toHaveBeenCalledTimes(1);
+    });
+
+    test('at 09:00 MSK (06:00 UTC) — push fires (just past quiet window)', async () => {
+      jest.setSystemTime(new Date('2026-04-29T06:00:00Z').getTime());
+      mockUserFindMany.mockResolvedValueOnce([
+        makeActivationCandidate({ id: 'u-morning', email: null }), // push only
+      ]);
+
+      const sent = await processActivationCohort();
+
+      expect(sent).toBe(1);
+      expect(mockSendPush).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 // ── processReactivationCohort ─────────────────────────────────────────────────
@@ -314,6 +387,22 @@ describe('processReactivationCohort', () => {
 
     expect(mockUserUpdate).not.toHaveBeenCalled();
     expect(mockReportError).toHaveBeenCalled();
+  });
+
+  test('quiet hours: returns 0 + skips DB query entirely (no candidates fetched)', async () => {
+    // Reactivation cohort defers as a whole during quiet hours (push-only,
+    // no email channel). Verify findMany never gets called — saves a DB
+    // round trip on every quiet-window cron tick.
+    jest.setSystemTime(new Date('2026-04-29T20:00:00Z').getTime()); // 23:00 MSK
+
+    const sent = await processReactivationCohort(7);
+
+    expect(sent).toBe(0);
+    expect(mockUserFindMany).not.toHaveBeenCalled();
+    expect(mockSendPush).not.toHaveBeenCalled();
+
+    // Restore the suite default for subsequent tests
+    jest.setSystemTime(new Date('2026-04-29T12:00:00Z').getTime());
   });
 });
 
