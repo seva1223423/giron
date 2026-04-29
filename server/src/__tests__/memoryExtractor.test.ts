@@ -770,17 +770,22 @@ describe('extractMemories — round 105 expanded equipment list', () => {
 });
 
 describe('extractMemories — round 92 boundary (no false positives)', () => {
-  test('"я не женат" does not match family_partnered (should it though? out of scope — pin current behavior)', () => {
-    // Documenting the current behavior: the partnership pattern doesn't
-    // have a negation guard. "я не женат" still matches as 'true'. This
-    // is a known limitation — partnership is a softer signal and the
-    // negation false positive is acceptable for now. Future work could
-    // add (?<!не\s+) here too, mirroring experience_level.
-    const out = extractMemories('я не женат');
-    // Just assert it produces SOMETHING for partnered (or nothing — both
-    // outcomes are documented).
-    const partnered = out.filter((m) => m.key === 'family_partnered');
-    expect(partnered.length === 0 || partnered.length === 1).toBe(true);
+  test('"я не женат" does NOT match family_partnered (round 124 fix)', () => {
+    // Round 92 originally matched this as 'true' — the pattern had no
+    // negation guard. Round 124 added (?<!не\s+) lookbehind, mirroring
+    // experience_level and diet_style.
+    const out = extractMemories('я не женат, живу один');
+    expect(out.filter((m) => m.key === 'family_partnered')).toEqual([]);
+  });
+
+  test('round 124: "я женат" still matches (positive case unchanged)', () => {
+    const out = extractMemories('я женат, жена тоже занимается');
+    expect(out.some((m) => m.key === 'family_partnered' && m.value === 'true')).toBe(true);
+  });
+
+  test('round 124: "у меня нет детей" does NOT match family_kids', () => {
+    const out = extractMemories('у меня нет детей пока');
+    expect(out.filter((m) => m.key === 'family_kids')).toEqual([]);
   });
 
   test('"вес 78" without "кг" does NOT match current_weight_kg (avoids false positives on rep counts etc)', () => {

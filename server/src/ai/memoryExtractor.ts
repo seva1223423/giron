@@ -314,9 +314,13 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // explains *why* — and the AI can mention it ("у тебя ребёнок, понимаю").
   // Stored as ENUM-ish strings: 'kids', 'spouse', 'remote_work'. Different
   // keys so a user with kids AND a spouse gets both.
-  { regex: /(?:у меня|есть)\s*(?:двое|трое|маленьк[а-я]+|малыш[а-я]+|ребёнок|ребенок|дет[а-я]+|сын|дочь|дочк[а-я]+)/i, category: 'preference', key: 'family_kids', extract: () => 'true' },
-  { regex: /(?:я\s+)?(?:женат|замужем|муж|жена|супруг[а-я]*)/i, category: 'preference', key: 'family_partnered', extract: () => 'true' },
-  { regex: /(?:работаю\s+(?:из\s+)?дома|удал[её]нк[а-я]+|удал[её]нн[а-я]+\s+работ[а-я]+|home\s*office|wfh)/i, category: 'preference', key: 'work_remote', extract: () => 'true' },
+  { regex: /(?<!не\s+)(?:у меня|есть)\s*(?:двое|трое|маленьк[а-я]+|малыш[а-я]+|ребёнок|ребенок|дет[а-я]+|сын|дочь|дочк[а-я]+)/i, category: 'preference', key: 'family_kids', extract: () => 'true' },
+  // Round 124: added (?<!не\s+) lookbehind to fix the documented limitation
+  // from round 92's family tests — "я не женат" / "у меня нет жены"
+  // previously matched as 'true'. Same fix-pattern as experience_level
+  // and diet_style (rounds 91+).
+  { regex: /(?<!не\s+)(?:у меня\s+нет\s+)?(?:я\s+)?(?:женат|замужем|муж|жена|супруг[а-я]*)/i, category: 'preference', key: 'family_partnered', extract: () => 'true' },
+  { regex: /(?<!не\s+)(?:работаю\s+(?:из\s+)?дома|удал[её]нк[а-я]+|удал[её]нн[а-я]+\s+работ[а-я]+|home\s*office|wfh)/i, category: 'preference', key: 'work_remote', extract: () => 'true' },
 
   // ── Round 92: Body composition self-report ──────────────────────────────
   // The User profile already has weightKg/heightCm but those reflect the
