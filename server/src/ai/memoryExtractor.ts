@@ -139,6 +139,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // weight-loss / muscle-gain framing. Stored as kg with no further parsing
   // so a downstream block can compare against current weight.
   { regex: /(?:цель|хочу\s*(?:весить|быть)|мечтаю\s*весить)\s*(\d{2,3})\s*кг/i, category: 'goal', key: 'target_weight_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  // Round 112: weight LOSS DELTA — "хочу сбросить 5 кг", "сбросить 10 кг
+  // к лету". Stored as numeric delta (kg). Different key from
+  // target_weight_kg so the AI can compute target = current - delta when
+  // both are known. Confidence 0.9 (numeric anchored).
+  { regex: /(?:хочу\s*)?сбросить\s*(\d{1,2})\s*кг/i, category: 'goal', key: 'weight_loss_target_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  { regex: /(?:хочу\s*)?(?:набрать|нарастить)\s*(\d{1,2})\s*кг/i, category: 'goal', key: 'weight_gain_target_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
 
   // ── Time budget per session ──────────────────────────────────────────────
   // Round 86: "у меня 40 минут на тренировку", "максимум час", "только полчаса".

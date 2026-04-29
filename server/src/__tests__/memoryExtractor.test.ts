@@ -558,6 +558,46 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
   });
 });
 
+describe('extractMemories — round 112 weight delta targets', () => {
+  test('captures "хочу сбросить 5 кг"', () => {
+    const out = extractMemories('хочу сбросить 5 кг к лету');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'weight_loss_target_kg',
+      value: '5',
+    }));
+  });
+
+  test('captures "сбросить 10 кг" (no хочу)', () => {
+    const out = extractMemories('сбросить 10 кг и удержать');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'weight_loss_target_kg',
+      value: '10',
+    }));
+  });
+
+  test('captures "хочу набрать 8 кг"', () => {
+    const out = extractMemories('хочу набрать 8 кг массы');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'weight_gain_target_kg',
+      value: '8',
+    }));
+  });
+
+  test('captures "нарастить 3 кг"', () => {
+    const out = extractMemories('нарастить 3 кг сухой массы');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'weight_gain_target_kg',
+      value: '3',
+    }));
+  });
+
+  test('weight_loss_target gets confidence 0.9 (numeric anchored)', () => {
+    const out = extractMemories('хочу сбросить 5 кг');
+    const found = out.find((m) => m.key === 'weight_loss_target_kg');
+    expect(found?.confidence).toBe(0.9);
+  });
+});
+
 describe('extractMemories — round 111 expanded diet_restriction', () => {
   test('captures "не ем красное мясо"', () => {
     const out = extractMemories('я не ем красное мясо последние 3 года');
