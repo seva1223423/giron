@@ -897,6 +897,39 @@ export async function buildMemoryBlock(data: ChatContextData): Promise<string> {
       }
     }
 
+    // Round 99: weight + height contradiction warnings.
+    // The User profile is the source of truth for these numbers (used by
+    // every macro / TDEE calc). When the user mentions a different number
+    // in chat ("сейчас вешу 78" vs profile.weightKg=85), memoryExtractor
+    // captures it but no calc updates. Flagging the discrepancy lets the
+    // AI nudge the user to refresh their profile.
+    //
+    // Thresholds:
+    //   - weight: ≥3kg delta (less than 3 is normal hydration / measurement
+    //     noise — not worth a warning every chat).
+    //   - height: ≥2cm delta (height shouldn't change much; ≥2cm is a
+    //     real data-entry mistake or stale fact).
+    const profileWeight = data.user?.weightKg;
+    if (typeof profileWeight === 'number' && profileWeight > 0) {
+      const weightMemory = memories.find((m) => m.key === 'current_weight_kg');
+      if (weightMemory) {
+        const memWeight = parseFloat(weightMemory.value);
+        if (Number.isFinite(memWeight) && memWeight > 0 && Math.abs(memWeight - profileWeight) >= 3) {
+          lines.push(`⚠️ ВЕС: в памяти ${memWeight}кг, в профиле ${profileWeight}кг. Уточни актуальный вес и обнови профиль через update_user_profile.`);
+        }
+      }
+    }
+    const profileHeight = data.user?.heightCm;
+    if (typeof profileHeight === 'number' && profileHeight > 0) {
+      const heightMemory = memories.find((m) => m.key === 'height_cm');
+      if (heightMemory) {
+        const memHeight = parseFloat(heightMemory.value);
+        if (Number.isFinite(memHeight) && memHeight > 0 && Math.abs(memHeight - profileHeight) >= 2) {
+          lines.push(`⚠️ РОСТ: в памяти ${memHeight}см, в профиле ${profileHeight}см. Уточни и обнови через update_user_profile.`);
+        }
+      }
+    }
+
     const grouped: Record<string, string[]> = {};
     for (const m of memories) {
       const safeValue = sanitizeForPrompt(m.value, MAX_MEMORY_VALUE_LEN);

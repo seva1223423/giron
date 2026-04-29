@@ -178,6 +178,49 @@ describe('buildMemoryBlock — round 92 security & quality', () => {
     expect(out).not.toMatch(/ПРОТИВОРЕЧИЕ/);
   });
 
+  test('round 99: weight contradiction warning fires when delta ≥ 3kg', async () => {
+    (prisma.aIMemory.findMany as jest.Mock).mockResolvedValueOnce([
+      { category: 'preference', key: 'current_weight_kg', value: '78', confidence: 0.9 },
+    ]);
+    const out = await buildMemoryBlock({ ...baseData, user: { weightKg: 85 } as never });
+    expect(out).toMatch(/ВЕС/);
+    expect(out).toMatch(/78/);
+    expect(out).toMatch(/85/);
+  });
+
+  test('round 99: weight contradiction NOT triggered when delta < 3kg (normal noise)', async () => {
+    (prisma.aIMemory.findMany as jest.Mock).mockResolvedValueOnce([
+      { category: 'preference', key: 'current_weight_kg', value: '83', confidence: 0.9 },
+    ]);
+    const out = await buildMemoryBlock({ ...baseData, user: { weightKg: 85 } as never });
+    expect(out).not.toMatch(/ВЕС/);
+  });
+
+  test('round 99: height contradiction warning fires when delta ≥ 2cm', async () => {
+    (prisma.aIMemory.findMany as jest.Mock).mockResolvedValueOnce([
+      { category: 'preference', key: 'height_cm', value: '178', confidence: 0.9 },
+    ]);
+    const out = await buildMemoryBlock({ ...baseData, user: { heightCm: 182 } as never });
+    expect(out).toMatch(/РОСТ/);
+  });
+
+  test('round 99: height contradiction NOT triggered when delta < 2cm', async () => {
+    (prisma.aIMemory.findMany as jest.Mock).mockResolvedValueOnce([
+      { category: 'preference', key: 'height_cm', value: '181', confidence: 0.9 },
+    ]);
+    const out = await buildMemoryBlock({ ...baseData, user: { heightCm: 182 } as never });
+    expect(out).not.toMatch(/РОСТ/);
+  });
+
+  test('round 99: invalid memory value (NaN) does not crash contradiction check', async () => {
+    (prisma.aIMemory.findMany as jest.Mock).mockResolvedValueOnce([
+      { category: 'preference', key: 'current_weight_kg', value: 'не указан', confidence: 0.9 },
+      { category: 'preference', key: 'height_cm', value: 'unknown', confidence: 0.9 },
+    ]);
+    const out = await buildMemoryBlock({ ...baseData, user: { weightKg: 85, heightCm: 180 } as never });
+    expect(out).not.toMatch(/ВЕС|РОСТ/);
+  });
+
   test('prisma error returns empty string (no leaked exception)', async () => {
     (prisma.aIMemory.findMany as jest.Mock).mockRejectedValueOnce(new Error('db down'));
     const out = await buildMemoryBlock(baseData);
