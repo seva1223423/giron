@@ -1556,7 +1556,7 @@ export function classifyIntent(message: string): UserIntent {
 
 // ─── Emotion Detection ──────────────────────────────────────────────────────
 
-type UserMood = 'frustrated' | 'excited' | 'anxious' | 'sad' | 'neutral' | 'curious' | 'fatigued';
+type UserMood = 'frustrated' | 'excited' | 'anxious' | 'sad' | 'neutral' | 'curious' | 'fatigued' | 'demotivated';
 
 interface MoodDirective {
   mood: UserMood;
@@ -1594,6 +1594,17 @@ const MOOD_PATTERNS: Array<[UserMood, RegExp[]]> = [
     /(?:зачем\s*(?:всё это|я\s*(?:вообще|тут)|стараюсь))/i,
     /(?:все\s*(?:лучше|сильнее|красивее)\s*(?:меня|чем я))/i,
   ]],
+  // Round 126: 'demotivated' — distinct from 'sad' (depression),
+  // 'frustrated' (anger), and 'fatigued' (physical exhaustion). It's
+  // motivational lethargy: "лень", "не хочу", "забил", "неохота".
+  // The right response is small-step framing + identity / habit cues,
+  // NOT consoling (sad) or recovery talk (fatigued).
+  ['demotivated', [
+    /(?:лень\s*(?:идти|ехать|тренироват|качат))/i,
+    /(?:не\s*хочется|неохот|забил\s*на\s*зал|забил\s*на\s*тренировк)/i,
+    /(?:не\s*могу\s*заставить\s*себя|не\s*могу\s*начать)/i,
+    /(?:скучно\s*(?:в\s*зале|тренироват)|надоело\s*тренироват)/i,
+  ]],
   // Round 106: 'fatigued' mood — distinct from 'frustrated' (anger) and
   // 'sad' (depression). Captures physical/CNS exhaustion that should
   // trigger a recovery / deload conversation, not a motivation pep talk.
@@ -1625,6 +1636,9 @@ const MOOD_DIRECTIVES: Record<UserMood, string> = {
   // worst response here is "ты можешь!" — that ignores the signal. Push
   // toward deload / sleep / recovery talk first.
   fatigued: '😴 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: физически вымотан / признаки выгорания. НЕ давай моралите про "терпи и работай". Сначала проверь: сон, объём за последнюю неделю, давность последней неделя отдыха. Если ACWR > 1.5 — предложи деload. Подскажи 2-3 практики восстановления (сон, белок, растяжка). Тренировку — только лёгкую или совсем пропустить.',
+  // Round 126: demotivated is mental, not physical. NOT "ты устал, отдохни"
+  // (that's fatigued). Use micro-commitment + identity framing.
+  demotivated: '🪜 НАСТРОЕНИЕ ПОЛЬЗОВАТЕЛЯ: лень / нет мотивации (не путать с физической усталостью!). НЕ заставляй и не ругай. Предложи микро-шаг: "начни с 1 подхода, потом увидишь" / "5 минут — и можешь уйти". Напомни про identity ("ты тот, кто тренируется"). Если есть streak — упомяни конкретно сколько дней подряд. Лучше короткая 15-мин тренировка чем пропуск.',
 };
 
 // Exported for unit testing (round 107). Not used externally; the route
