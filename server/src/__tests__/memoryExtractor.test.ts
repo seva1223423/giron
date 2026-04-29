@@ -404,6 +404,12 @@ describe('extractMemories — round 91 expansions', () => {
     }));
   });
 
+  // Round 174: negation guard
+  test('round 174: "не пью 2 литра воды" does NOT match water_intake_liters', () => {
+    const out = extractMemories('я не пью 2 литра воды, обычно меньше');
+    expect(out.filter((m) => m.key === 'water_intake_liters')).toEqual([]);
+  });
+
   test('water_intake_liters captures "пью 2 литра воды"', () => {
     const out = extractMemories('пью 2 литра воды в день');
     expect(out).toContainEqual(expect.objectContaining({

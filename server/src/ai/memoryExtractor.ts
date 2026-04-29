@@ -339,8 +339,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // NB: JS regex `\w` matches only ASCII word chars — Cyrillic suffixes
   // need `[а-я]*` instead. Same convention used elsewhere in this file
   // (see the food_allergy pattern's [\wа-яА-Я]+ catcher).
-  { regex: /пью\s*(\d(?:[.,]\d)?)\s*литр[а-я]*\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.'), confidence: 0.9 },
-  { regex: /(?:выпиваю|потребляю)\s*(\d(?:[.,]\d)?)\s*л(?:итр[а-я]*)?\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.'), confidence: 0.9 },
+  // Round 174: negation guard — "не пью 2 литра воды" shouldn't claim
+  // user drinks 2L. Same fix-pattern as rounds 168-172.
+  { regex: /(?<!не\s+)пью\s*(\d(?:[.,]\d)?)\s*литр[а-я]*\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.'), confidence: 0.9 },
+  { regex: /(?<!не\s+)(?:выпиваю|потребляю)\s*(\d(?:[.,]\d)?)\s*л(?:итр[а-я]*)?\s*воды/i, category: 'habit', key: 'water_intake_liters', extract: (m) => m[1].replace(',', '.'), confidence: 0.9 },
 
   // ── Round 91: Goal deadline ──────────────────────────────────────────────
   // "к лету", "к свадьбе", "к отпуску", "к новому году" — when the user
