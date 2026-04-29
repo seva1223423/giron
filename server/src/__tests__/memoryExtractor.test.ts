@@ -558,6 +558,38 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
   });
 });
 
+describe('extractMemories — round 118 lifestyle / aesthetic goals', () => {
+  test('captures "хочу пляжное тело" → эстетика', () => {
+    const out = extractMemories('хочу пляжное тело к июню');
+    expect(out.some((m) => m.key === 'user_goal' && m.value === 'эстетика')).toBe(true);
+  });
+
+  test('captures "тело к лету" → эстетика', () => {
+    const out = extractMemories('хочу тело к лету');
+    expect(out.some((m) => m.key === 'user_goal' && m.value === 'эстетика')).toBe(true);
+  });
+
+  test('captures "восстановиться после родов" → постнатальное восстановление', () => {
+    const out = extractMemories('хочу восстановиться после родов');
+    expect(out.some((m) => m.key === 'user_goal' && /родов/.test(m.value))).toBe(true);
+  });
+
+  test('captures "сесть на шпагат" → гибкость', () => {
+    const out = extractMemories('мечтаю сесть на шпагат');
+    expect(out.some((m) => m.key === 'user_goal' && m.value === 'гибкость')).toBe(true);
+  });
+
+  test('captures "сильный пресс" → кор и пресс', () => {
+    const out = extractMemories('хочу сильный пресс');
+    expect(out.some((m) => m.key === 'user_goal' && /кор/.test(m.value))).toBe(true);
+  });
+
+  test('captures "вернуть форму" → возврат в форму', () => {
+    const out = extractMemories('хочу вернуть форму после долгого перерыва');
+    expect(out.some((m) => m.key === 'user_goal' && /возврат/.test(m.value))).toBe(true);
+  });
+});
+
 describe('extractMemories — round 116 schedule constraints', () => {
   test('captures "не могу во вторник"', () => {
     const out = extractMemories('не могу во вторник, занят');
