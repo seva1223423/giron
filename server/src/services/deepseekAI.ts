@@ -419,13 +419,26 @@ export function validateResponse(content: string, userMessage: string): Validati
 export function cleanResponse(content: string): string {
   let cleaned = content.trim();
 
-  // Убираем плохие начала
+  // Убираем плохие начала. Round 141 expanded coverage: more "fluff"
+  // openings the LLM emits especially under low-temperature settings.
+  // Each pattern is conservative — strips only when it's the FIRST
+  // word/phrase, never mid-sentence.
   const badStartPatterns = [
-    /^(?:конечно!?\s*)/i,
-    /^(?:отличный вопрос!?\s*)/i,
-    /^(?:хороший вопрос!?\s*)/i,
-    /^(?:рад помочь!?\s*)/i,
-    /^(?:с удовольствием!?\s*)/i,
+    /^(?:конечно[!,]?\s*)/i,
+    /^(?:отличный\s+вопрос[!,]?\s*)/i,
+    /^(?:хороший\s+вопрос[!,]?\s*)/i,
+    /^(?:рад\s+помочь[!,]?\s*)/i,
+    /^(?:с\s+удовольствием[!,]?\s*)/i,
+    // Round 141 additions
+    /^(?:безусловно[!,]?\s*)/i,
+    /^(?:несомненно[!,]?\s*)/i,
+    /^(?:отлично[!,]?\s*)/i,
+    /^(?:прекрасно[!,]?\s*)/i,
+    /^(?:замечательно[!,]?\s*)/i,
+    /^(?:понимаю[!,]?\s*)/i,
+    /^(?:ах[!,]?\s*понял[!,]?\s*)/i,
+    /^(?:давайте\s+(?:разберёмся|посмотрим|начнём)[!,]?\s*)/i,
+    /^(?:вот\s+(?:что|как)\s*\w*[!,:]?\s*)/i,
   ];
   for (const pattern of badStartPatterns) {
     cleaned = cleaned.replace(pattern, '');
