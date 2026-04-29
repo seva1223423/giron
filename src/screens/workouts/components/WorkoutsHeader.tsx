@@ -17,6 +17,7 @@ const SHORTCUTS: Array<{ label: string; icon: IconName; screen: string }> = [
   { label: 'История', icon: 'chart', screen: 'WorkoutHistory' },
   { label: 'Рутины', icon: 'grid', screen: 'Routines' },
   { label: 'Кардио', icon: 'heart', screen: 'Cardio' },
+  { label: 'Шагомер', icon: 'flame', screen: 'Steps' },
   { label: 'Рекорды', icon: 'trophy', screen: 'PersonalRecords' },
   { label: 'Неделя', icon: 'timer', screen: 'WeeklyPlan' },
   { label: '1ПМ', icon: 'target', screen: 'OneRMCalculator' },

@@ -32,6 +32,7 @@ import { RoutineDetailScreen } from '../screens/workouts/RoutineDetailScreen';
 import { OneRMCalculatorScreen } from '../screens/workouts/OneRMCalculatorScreen';
 import { WorkoutCalendarScreen } from '../screens/workouts/WorkoutCalendarScreen';
 import { PersonalRecordsScreen } from '../screens/workouts/PersonalRecordsScreen';
+import { StepsScreen } from '../screens/workouts/StepsScreen';
 import { NutritionScreen } from '../screens/nutrition/NutritionScreen';
 import { FoodScannerScreen } from '../screens/nutrition/FoodScannerScreen';
 import { ManualFoodAddScreen } from '../screens/nutrition/ManualFoodAddScreen';
@@ -166,6 +167,7 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="OneRMCalculator" component={OneRMCalculatorScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <WorkoutsStack.Screen name="WorkoutCalendar" component={WorkoutCalendarScreen} />
       <WorkoutsStack.Screen name="PersonalRecords" component={PersonalRecordsScreen} />
+      <WorkoutsStack.Screen name="Steps" component={StepsScreen} />
       <WorkoutsStack.Screen name="Cardio" component={CardioScreen} />
       <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} options={{ animation: 'slide_from_bottom' }} />
       <WorkoutsStack.Screen name="AIProgramDetail" component={AIProgramDetailScreen} />
