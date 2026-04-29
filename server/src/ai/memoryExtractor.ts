@@ -376,6 +376,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:часто\s*пропускаю|пропускаю\s*(?:часто|тренировки|треньки)|нерегулярно\s*хожу)/i, category: 'preference', key: 'program_adherence', extract: () => 'inconsistent', confidence: 0.8 },
   { regex: /(?:плыву\s*по\s*течению|без\s*плана|тренируюсь\s*как\s*получится|не\s*следую\s*программе)/i, category: 'preference', key: 'program_adherence', extract: () => 'unstructured', confidence: 0.7 },
 
+  // ── Round 161: Vacation / travel state ─────────────────────────────────
+  // Temporary state — captures when the user is unavailable for normal
+  // training. Drives suggestion of bodyweight/travel-friendly programs.
+  // Confidence 0.7 (state changes, soft signal).
+  { regex: /(?:сейчас|пока)\s*(?:в\s*отпуске|на\s*отдыхе|в\s*путешествии|в\s*командировке)/i, category: 'preference', key: 'vacation_mode', extract: () => 'true', confidence: 0.7 },
+
   // ── Round 159: Chronotype self-identification ──────────────────────────
   // Drives workout time recommendation: morning chronotype (жаворонок) gets
   // pre-work AM session suggestions; night owl (сова) gets evening

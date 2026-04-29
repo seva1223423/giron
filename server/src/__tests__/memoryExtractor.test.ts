@@ -1020,6 +1020,23 @@ describe('extractMemories — round 129 gym + coach context', () => {
   });
 });
 
+describe('extractMemories — round 161 vacation_mode', () => {
+  test('captures "сейчас в отпуске"', () => {
+    const out = extractMemories('сейчас в отпуске на море, не могу полноценно заниматься');
+    expect(out.some((m) => m.key === 'vacation_mode' && m.value === 'true')).toBe(true);
+  });
+
+  test('captures "пока в командировке"', () => {
+    const out = extractMemories('пока в командировке две недели');
+    expect(out.some((m) => m.key === 'vacation_mode' && m.value === 'true')).toBe(true);
+  });
+
+  test('captures "сейчас в путешествии"', () => {
+    const out = extractMemories('сейчас в путешествии по Грузии');
+    expect(out.some((m) => m.key === 'vacation_mode' && m.value === 'true')).toBe(true);
+  });
+});
+
 describe('extractMemories — round 159 chronotype', () => {
   test('captures "я жаворонок" → morning', () => {
     const out = extractMemories('я жаворонок, встаю в 5 утра');
