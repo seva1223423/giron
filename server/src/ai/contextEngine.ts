@@ -847,7 +847,17 @@ function buildSleepBlock(data: ChatContextData): string {
  *   6. **Bumped take to 40** to compensate for cat-prioritization. After
  *      cat-cap = 6 × 7 cats = 42 max anyway.
  */
-const MEMORY_CATEGORY_PRIORITY: Record<string, number> = {
+/**
+ * Round-92 priority order for memory categories. The chat memory block
+ * iterates in this order so high-impact facts surface first under the
+ * LLM's attention budget. Unknown categories sort to position 99
+ * (= "last"), which makes drift visible in tests:
+ * memoryCategoryPriority.test.ts asserts every category emitted by the
+ * memory extractor is registered here, so adding a new pattern with a
+ * fresh category WITHOUT bumping this map is a test failure rather than
+ * a silent reorder bug.
+ */
+export const MEMORY_CATEGORY_PRIORITY: Record<string, number> = {
   goal: 0,
   allergy: 1,
   injury: 2,
