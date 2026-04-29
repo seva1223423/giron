@@ -40,6 +40,7 @@ jest.mock('../db', () => ({
     },
     pushToken: {
       findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(1),
     },
     chatMessage: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -2721,6 +2722,32 @@ describe('POST /api/admin/test-notification', () => {
     expect(auditCall).toBeTruthy();
     expect(auditCall![0].data.adminId).toBe('u-admin');
     expect(auditCall![0].data.details).toContain('channel=both');
+  });
+
+  it('200 but pushSent=false when admin has zero push tokens (silent-noop guard)', async () => {
+    // sendPushToUser silently returns when tokenRecords is empty. Before
+    // round 67 the endpoint reported pushSent=true here — masking "no
+    // device registered" as a successful send. The token-count probe
+    // surfaces the real state.
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ...adminUser, email: 'admin@test.com', firstName: 'Founder',
+    });
+    (prisma.pushToken.count as jest.Mock).mockResolvedValueOnce(0);
+
+    const res = await request(app)
+      .post('/api/admin/test-notification')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ channel: 'push' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.pushSent).toBe(false);
+    expect(res.body.errors?.push).toContain('зарегистрированных push-устройств');
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const auditCall = logCalls.find((c) => c[0]?.data?.action === 'TEST_NOTIFICATION');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.details).toContain('push=false');
+    expect(auditCall![0].data.details).toContain('errors=push');
   });
 });
 
