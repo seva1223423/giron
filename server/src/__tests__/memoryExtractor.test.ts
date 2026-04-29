@@ -584,6 +584,22 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
     expect(keys.size).toBe(sports.length);
   });
 
+  test('round 139: supplement captures with optional adjective ("пью сывороточный протеин")', () => {
+    const out = extractMemories('пью сывороточный протеин');
+    const sups = out.filter((m) => m.key.startsWith('supplement_'));
+    expect(sups.some((s) => s.value === 'протеин')).toBe(true);
+  });
+
+  test('round 139: supplement captures bare цитруллин via "принимаю"', () => {
+    const out = extractMemories('принимаю цитруллин перед тренировкой');
+    expect(out.some((m) => m.key.startsWith('supplement_') && /цитруллин/.test(m.value))).toBe(true);
+  });
+
+  test('round 139: supplement captures бета-аланин', () => {
+    const out = extractMemories('пью бета-аланин');
+    expect(out.some((m) => m.key.startsWith('supplement_') && /бета/.test(m.value))).toBe(true);
+  });
+
   test('supplement captures "пью креатин"', () => {
     const out = extractMemories('пью креатин по 5г каждый день');
     const sups = out.filter((m) => m.key.startsWith('supplement_'));
