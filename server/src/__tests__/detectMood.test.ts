@@ -99,6 +99,28 @@ describe('detectMood — fatigued (round 106)', () => {
   });
 });
 
+describe('detectMood — demotivated (round 126)', () => {
+  test.each([
+    'лень идти в зал',
+    'лень тренироваться',
+    'не хочется качаться',
+    'неохота сегодня',
+    'забил на зал',
+    'забил на тренировки',
+    'не могу заставить себя начать',
+    'скучно в зале стало',
+  ])('classifies "%s" as demotivated', (msg) => {
+    expect(detectMood(msg).mood).toBe('demotivated');
+  });
+
+  test('demotivated directive uses micro-commitment framing, not recovery talk', () => {
+    const { directive } = detectMood('лень идти в зал');
+    expect(directive).toMatch(/микро|шаг|короткая|identity|тот/i);
+    // Anti-pattern: should NOT push deload / sleep talk (that's fatigued).
+    expect(directive).not.toMatch(/deload|восстановл|ACWR/i);
+  });
+});
+
 describe('detectMood — curious', () => {
   test.each([
     'а почему так',
