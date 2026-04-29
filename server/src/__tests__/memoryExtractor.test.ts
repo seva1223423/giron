@@ -1327,6 +1327,43 @@ describe('extractMemories — round 93 confidence calibration', () => {
   });
 });
 
+describe('extractMemories — round 178 expanded integration (rounds 91-177)', () => {
+  test('comprehensive 200-word message with NEW patterns (rounds 125-177) extracts >= 18 facts', () => {
+    const longMessage = `Привет! Я опытный, тренируюсь 5 раз в неделю.
+    Люблю PPL. Хожу в World Class, тренируюсь с тренером.
+    Сейчас вешу 80 кг, рост 178 см, хочу сбросить 5 кг к лету.
+    Я жаворонок, тренируюсь утром.
+    Сижу на кето, не курю, пью 2.5 литра воды. Сплю 7 часов в сутки,
+    качество сна 4/5. Не люблю до отказа, оставляю запас.
+    У меня двое детей, работаю из дома. Сейчас в отпуске.
+    У меня астма, раньше травмировал плечо. Уже сбросил 3 кг.
+    Принимаю креатин и протеин. Я пескетарианка.`;
+    const out = extractMemories(longMessage);
+    const keys = new Set(out.map((m) => m.key));
+
+    // New round-91+ keys that should land
+    expect(keys.has('experience_level')).toBe(true);
+    expect(keys.has('split_pref')).toBe(true);
+    expect(keys.has('has_personal_trainer')).toBe(true);
+    expect(keys.has('gym_membership')).toBe(true);
+    expect(keys.has('current_weight_kg')).toBe(true);
+    expect(keys.has('weight_loss_target_kg')).toBe(true);
+    expect(keys.has('chronotype')).toBe(true);
+    expect(keys.has('diet_style')).toBe(true);
+    expect(keys.has('smoking_status')).toBe(true);
+    expect(keys.has('water_intake_liters')).toBe(true);
+    expect(keys.has('sleep_quality_rating')).toBe(true);
+    expect(keys.has('rpe_pref')).toBe(true);
+    expect(keys.has('family_kids')).toBe(true);
+    expect(keys.has('work_remote')).toBe(true);
+    expect(keys.has('vacation_mode')).toBe(true);
+    expect(keys.has('weight_lost_kg')).toBe(true);
+    expect(keys.has('diet_restriction')).toBe(true);
+
+    expect(out.length).toBeGreaterThanOrEqual(18);
+  });
+});
+
 describe('extractMemories — round 127 multi-pattern integration', () => {
   test('long natural message yields multiple distinct memories without crosstalk', () => {
     const message = `Привет! Я тренируюсь 4 раза в неделю по утрам,
