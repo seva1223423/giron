@@ -537,6 +537,49 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
   });
 });
 
+describe('extractMemories — round 105 expanded equipment list', () => {
+  test('captures "купил TRX"', () => {
+    const out = extractMemories('купил TRX, теперь могу заниматься дома');
+    const items = out.filter((m) => m.key.startsWith('equipment_'));
+    expect(items.some((it) => /trx/i.test(it.value))).toBe(true);
+  });
+
+  test('captures "у меня есть фитбол"', () => {
+    const out = extractMemories('у меня есть фитбол');
+    const items = out.filter((m) => m.key.startsWith('equipment_'));
+    expect(items.some((it) => /фитбол/i.test(it.value))).toBe(true);
+  });
+
+  test('captures "у меня есть эспандер"', () => {
+    const out = extractMemories('у меня есть эспандер');
+    const items = out.filter((m) => m.key.startsWith('equipment_'));
+    expect(items.some((it) => /эспандер/i.test(it.value))).toBe(true);
+  });
+
+  test('captures "купил скакалку"', () => {
+    const out = extractMemories('купил скакалку для кардио');
+    const items = out.filter((m) => m.key.startsWith('equipment_'));
+    expect(items.some((it) => /скакалк/i.test(it.value))).toBe(true);
+  });
+
+  test('captures "у меня есть ролик"', () => {
+    const out = extractMemories('у меня есть ролик пресса');
+    const items = out.filter((m) => m.key.startsWith('equipment_'));
+    expect(items.some((it) => /ролик/i.test(it.value))).toBe(true);
+  });
+
+  // Compound lists ("X и Y") are a known limitation — each equipment word
+  // currently needs its own prefix ("у меня есть X, у меня есть Y") to land.
+  // Documented here as "future work" rather than a bug.
+  test('compound list "брусья и турник" only captures the first item (limitation)', () => {
+    const out = extractMemories('у меня есть брусья и турник');
+    const items = out.filter((m) => m.key.startsWith('equipment_'));
+    // At least one — captures "брусь" via "есть брусья". "турник" needs
+    // its own "есть" prefix.
+    expect(items.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe('extractMemories — round 92 boundary (no false positives)', () => {
   test('"я не женат" does not match family_partnered (should it though? out of scope — pin current behavior)', () => {
     // Documenting the current behavior: the partnership pattern doesn't

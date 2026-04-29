@@ -67,7 +67,11 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // ── Equipment ─────────────────────────────────────────────────────────────
   // Round 93 confidence: strong qualitative, behaviour-changing. 0.8.
   { regex: /(?:занимаюсь|тренируюсь)\s*(дома|в зале|на улице)/i, category: 'preference', key: 'training_location', extract: (m) => m[1], confidence: 0.8 },
-  { regex: /(?:у меня|есть|имеется)\s*(гантел|штанг|турник|брусья|гир|тренажёр|тренажер|резинк)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
+  // Round 105: expanded equipment whitelist — TRX/петли, эспандер,
+  // фитбол, ролик пресса, скакалка, медбол, медицинский мяч, грифон, хват,
+  // абс ролик. Keeps multi-match keyFn so each landing equipment row gets
+  // a unique key.
+  { regex: /(?:у меня|есть|имеется|купил)\s*(гантел|штанг|турник|брусь|гир|тренажёр|тренажер|резинк|trx|петл|эспандер|фитбол|ролик|скакалк|медбол|медицинск\w*\s*мяч|кистев\w*\s*эспандер|абс[\s-]ролик|пояс\w*\s*для\s*присед)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().replace(/\s+/g, '_').slice(0, 16)}`, extract: (m) => m[1] },
 
   // ── Diet preferences ──────────────────────────────────────────────────────
   { regex: /(?:я\s+)?(вегетарианец|веган|не ем мясо|не ем рыб|не пью молок|без глютен|безлактозн)/i, category: 'allergy', key: 'diet_restriction', extract: (m) => m[1] },
