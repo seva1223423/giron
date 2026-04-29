@@ -322,6 +322,22 @@ router.post('/webhook', async (req: Request, res: Response) => {
         data: { status: 'cancelled' },
       });
     } else if (event === 'subscription_expired') {
+      // Stale-event guard: an `expired` event replayed AFTER a fresh
+      // `renewed` would otherwise revert the renewal — same shape of bug
+      // the activated/renewed branch above already protects against. If
+      // the current sub still has endDate in the future, the user has
+      // re-paid since the original expiration and this is a stale replay.
+      const current = await prisma.subscription.findUnique({
+        where: { userId },
+        select: { endDate: true, status: true },
+      });
+      if (current && current.endDate && current.endDate > new Date()) {
+        logger.info(
+          `Webhook stale subscription_expired skipped: user=${userId} ` +
+          `currentEnd=${current.endDate.toISOString()} status=${current.status}`,
+        );
+        return res.json({ received: true, skipped: true });
+      }
       await prisma.subscription.updateMany({
         where: { userId },
         data: { status: 'expired' },
