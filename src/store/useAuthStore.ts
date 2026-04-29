@@ -428,7 +428,19 @@ export const useAuthStore = create<AuthStore>()(
             } else {
               // SecureStore empty but store says authenticated — tokens were wiped (device restore,
               // app reinstall, or OS security event). Force a clean logout so the user re-authenticates.
-              useAuthStore.setState({ isAuthenticated: false, user: null, token: null, refreshToken: null });
+              // Also clear per-user data in the sibling stores: AsyncStorage (workouts, meals,
+              // measurements, etc.) survived the device restore even though SecureStore didn't,
+              // so without this the next user to log in on this device flashes the previous
+              // user's data on Home/Progress until the server-side fetch overwrites it. Mirrors
+              // what an explicit logout() does — no reason for the auto-clean path to be lazier.
+              useAuthStore.setState({
+                isAuthenticated: false,
+                user: null,
+                token: null,
+                refreshToken: null,
+                isOnboarded: false,
+              });
+              clearStoreUserData();
             }
           } catch {
             // SecureStore unavailable — leave token null; API will get 401 and handle gracefully
