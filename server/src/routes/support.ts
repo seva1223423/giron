@@ -170,8 +170,13 @@ router.patch('/tickets/:id/close', authenticate, async (req: AuthRequest, res: R
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   try {
     const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id as string } });
-    if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
-    if (ticket.userId !== req.userId) return res.status(403).json({ error: 'Нет доступа' });
+    // Collapse "ticket not mine" into 404 to match GET /tickets/:id — otherwise
+    // an attacker probing CUIDs can distinguish "exists but not yours" (403)
+    // from "doesn't exist" (404). CUID brute-force is impractical but the
+    // inconsistency was real: same resource, two different leakage profiles.
+    if (!ticket || ticket.userId !== req.userId) {
+      return res.status(404).json({ error: 'Тикет не найден' });
+    }
     const updated = await prisma.supportTicket.update({
       where: { id: req.params.id as string },
       data: { status: 'closed', updatedAt: new Date() },
