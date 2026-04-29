@@ -3266,9 +3266,14 @@ async function executeTool(
         }
       : filters;
 
+    // Round 122: deterministic ordering — alphabetical by name. Without
+    // an explicit orderBy, Prisma falls back to insertion order which
+    // varies per seed run. Alphabetical is stable and matches the
+    // exercise-picker UI elsewhere.
     const rows = await prisma.exercise.findMany({
       where: where as never,
       take: 8,
+      orderBy: { name: 'asc' },
       select: {
         id: true,
         name: true,
