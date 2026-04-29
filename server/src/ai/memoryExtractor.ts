@@ -265,6 +265,23 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /к\s*(свадьб[а-я]+|отпуск[а-я]+|новому\s*году|нг|дню\s*рожден[а-я]+)/i, category: 'goal', key: 'goal_deadline', extract: (m) => m[1].toLowerCase() },
   { regex: /(?:за|через)\s*(\d{1,2})\s*(месяц[а-я]*|недел[а-я]*)/i, category: 'goal', key: 'goal_deadline', extract: (m) => `${m[1]} ${m[2]}` },
 
+  // ── Round 125: RPE / perceived intensity preferences ────────────────────
+  // The user's stated effort comfort zone. Drives whether the AI suggests
+  // RPE 7 vs RPE 9 sets, "до отказа" vs "стопов запас", etc.
+  //   "люблю тяжёлые тренировки" → high
+  //   "не люблю до отказа" → low
+  //   "RPE 8" / "до отказа" → high
+  //   "с запасом" / "оставляю в баке" → low
+  // Round 125: 'low' patterns listed FIRST so dedup-by-key (round 90)
+  // picks the safer interpretation when both could match. Lazy class
+  // [\sа-я]{0,20}? allows 1-2 noun-phrase tokens between trigger and
+  // target (e.g. "комфортно работать до отказа").
+  { regex: /(?:не\s*люблю|избегаю|не\s*хочу|не\s*комфортно)[\sа-я]{0,20}?(?:до\s*отказа|тяжёл|тяжел|на\s*максимум|на\s*пределе)/i, category: 'preference', key: 'rpe_pref', extract: () => 'low', confidence: 0.85 },
+  { regex: /(?:работаю\s*(?:с\s*)?запасом|оставля[юе][а-я]*\s*(?:в\s*баке|в\s*запасе|пар[уы]?\s*повтор))/i, category: 'preference', key: 'rpe_pref', extract: () => 'low', confidence: 0.85 },
+  // 'high' pattern uses (?<!не\s+) lookbehind so "не люблю" doesn't
+  // false-match (the "люблю" substring would otherwise trigger high).
+  { regex: /(?<!не\s+)(?:люблю|нравится|комфортно)[\sа-я]{0,20}?(?:тяжёл|тяжел|очень\s*тяжел|на\s*максимум|до\s*отказа|на\s*пределе)/i, category: 'preference', key: 'rpe_pref', extract: () => 'high', confidence: 0.8 },
+
   // ── Round 91: Experience level descriptor ────────────────────────────────
   // The existing experience_stated pattern captures "X лет/месяцев", but
   // most users describe their level qualitatively first ("я новичок", "я
