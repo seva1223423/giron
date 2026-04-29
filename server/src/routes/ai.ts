@@ -10752,6 +10752,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         contextTokens,
         responseTokens,
         toolCalls: performedActions.length,
+        // Round 160: surface AI memory count to client. Lets the UI
+        // optionally show "AI знает 23 факта о тебе" as a personalisation
+        // confidence signal. The chat path already fetches userMemories
+        // count for context — this just propagates it to the response
+        // payload.
+        aiMemoryCount,
         milestones: gamification.milestones.length > 0 ? gamification.milestones : undefined,
         newPRs: gamification.newPRsThisWeek.length > 0
           ? gamification.newPRsThisWeek.map((pr) => `${pr.exercise}: ${pr.weight}кг`)
