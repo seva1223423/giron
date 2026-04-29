@@ -608,6 +608,19 @@ router.post('/test-notification', requireAdmin, async (req: AuthRequest, res: Re
       }
     }
 
+    // Audit-log the action so the founder can grep AdminLog for SMTP/push
+    // outages later. Best-effort write — never fail the test notification
+    // because the audit log itself failed.
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'TEST_NOTIFICATION',
+        targetId: null,
+        details: `channel=${channel} push=${pushSent} email=${emailSent}` +
+          (Object.keys(errors).length > 0 ? ` errors=${Object.keys(errors).join(',')}` : ''),
+      },
+    }).catch(() => { /* best-effort audit */ });
+
     return res.json({
       pushSent,
       emailSent,
