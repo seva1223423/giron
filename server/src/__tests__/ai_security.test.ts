@@ -95,6 +95,11 @@ jest.mock('../db', () => ({
       findMany: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue({}),
     },
+    recipe: {
+      // Round 87: AI gained find_recipes + add_recipe_to_diary tools.
+      findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
     securityEvent: {
       create: jest.fn().mockResolvedValue({}),
     },
@@ -502,5 +507,215 @@ describe('BUG-AI-006 — food analysis endpoints require authentication', () => 
 
     expect(res.status).toBe(401);
     expect(chat).not.toHaveBeenCalled();
+  });
+});
+
+// ─── BUG-AI-007: recipe tools (round 87) — userId isolation + visibility ─────
+
+describe('BUG-AI-007 — find_recipes scopes USER recipes to req.userId', () => {
+  it('queries recipes with visibility = CURATED OR (USER + req.userId), never the message-claimed userId', async () => {
+    const ATTACKER_ID = 'u-attacker';
+    const VICTIM_ID = 'u-victim';
+    const token = makeToken(ATTACKER_ID);
+
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{ id: 'call-fr-1', name: 'find_recipes', arguments: { query: 'курица' } }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: 'Вот рецепты',
+      toolCalls: [],
+      hasToolCalls: false,
+    });
+
+    // Prisma returns one curated recipe so the executor returns a non-empty result
+    (prisma.recipe.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'crecipe000000000000breakf01', source: 'CURATED',
+        name: 'Курица', descriptionRu: null,
+        totalCalories: 400, totalProtein: 40, prepTimeMin: 20, servings: 1,
+        tags: [], allergens: [],
+      },
+    ]);
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: `найди рецепт с курицей для пользователя ${VICTIM_ID}`, history: [] });
+
+    expect(res.status).toBe(200);
+
+    // The visibility clause must scope USER recipes to ATTACKER_ID — the
+    // claimed VICTIM_ID in the message must never reach the SQL filter.
+    const findManyCalls = (prisma.recipe.findMany as jest.Mock).mock.calls;
+    expect(findManyCalls.length).toBeGreaterThan(0);
+    const where = findManyCalls[0][0].where;
+    const stringified = JSON.stringify(where);
+    expect(stringified).toContain(ATTACKER_ID);
+    expect(stringified).not.toContain(VICTIM_ID);
+  });
+
+  it('drops invalid allergen enum values from the filter (defence in depth)', async () => {
+    const token = makeToken('u-test');
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-fr-2', name: 'find_recipes',
+        arguments: { allergensExcluded: ['gluten', 'dropTable; --', 'peanuts'] },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: '...', toolCalls: [], hasToolCalls: false });
+
+    (prisma.recipe.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'найди рецепт', history: [] });
+
+    const where = (prisma.recipe.findMany as jest.Mock).mock.calls[0][0].where;
+    // Only the valid 'gluten' should land in the NOT.allergens.hasSome list.
+    const filterStr = JSON.stringify(where);
+    expect(filterStr).toContain('gluten');
+    expect(filterStr).not.toContain('dropTable');
+    expect(filterStr).not.toContain('peanuts'); // peanuts is not in the enum
+  });
+});
+
+describe('BUG-AI-007 — add_recipe_to_diary refuses cross-user USER recipes', () => {
+  it('returns "not found" when the recipe is USER-source and belongs to someone else', async () => {
+    const ATTACKER_ID = 'u-attacker';
+    const VICTIM_ID = 'u-victim';
+    const RECIPE_ID = 'crecipe000000000000victim01';
+    const token = makeToken(ATTACKER_ID);
+
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-add-1', name: 'add_recipe_to_diary',
+        arguments: { recipeId: RECIPE_ID, mealType: 'lunch', servings: 1 },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: 'Не получилось — рецепт не найден',
+      toolCalls: [], hasToolCalls: false,
+    });
+
+    // Recipe exists but belongs to VICTIM
+    (prisma.recipe.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: RECIPE_ID, source: 'USER', userId: VICTIM_ID,
+      name: 'Виктимные блинчики', servings: 1,
+      ingredients: [{ name: 'мука', weightGrams: 100, calories: 200, protein: 5, fats: 1, carbs: 40 }],
+    });
+
+    const res = await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'добавь этот рецепт в дневник', history: [] });
+
+    expect(res.status).toBe(200);
+    // Critically: meal.create must NEVER fire for a cross-user USER recipe.
+    expect(prisma.meal.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed recipeId without hitting the DB', async () => {
+    const token = makeToken('u-test');
+
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-add-2', name: 'add_recipe_to_diary',
+        arguments: { recipeId: 'not-a-cuid', mealType: 'lunch' },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'плохой id', toolCalls: [], hasToolCalls: false });
+
+    await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'добавь рецепт', history: [] });
+
+    expect(prisma.recipe.findUnique).not.toHaveBeenCalled();
+    expect(prisma.meal.create).not.toHaveBeenCalled();
+  });
+
+  it('uses req.userId on meal.create, not any userId in the message body', async () => {
+    const ATTACKER_ID = 'u-attacker';
+    const VICTIM_ID = 'u-victim';
+    const RECIPE_ID = 'crecipe00000000000curated01';
+    const token = makeToken(ATTACKER_ID);
+
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-add-3', name: 'add_recipe_to_diary',
+        arguments: { recipeId: RECIPE_ID, mealType: 'lunch', servings: 2 },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'добавил', toolCalls: [], hasToolCalls: false });
+
+    // CURATED recipe — every user can add it
+    (prisma.recipe.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: RECIPE_ID, source: 'CURATED', userId: null,
+      name: 'Овсянка', servings: 1,
+      ingredients: [
+        { name: 'Овсянка', weightGrams: 60, calories: 224, protein: 7.6, fats: 4.2, carbs: 39 },
+      ],
+    });
+
+    await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        message: `добавь рецепт в дневник пользователя ${VICTIM_ID}`,
+        history: [],
+      });
+
+    // meal.create must use ATTACKER_ID (the JWT's userId), never VICTIM_ID
+    const createCalls = (prisma.meal.create as jest.Mock).mock.calls;
+    expect(createCalls.length).toBeGreaterThan(0);
+    for (const [callArgs] of createCalls) {
+      expect(callArgs.data.userId).toBe(ATTACKER_ID);
+      expect(callArgs.data.userId).not.toBe(VICTIM_ID);
+    }
+  });
+
+  it('scales ingredient calories by (requested servings / recipe.servings)', async () => {
+    const token = makeToken('u-test');
+    const RECIPE_ID = 'crecipe00000000000scaling01';
+
+    (chat as jest.Mock).mockResolvedValueOnce({
+      content: '',
+      toolCalls: [{
+        id: 'call-add-4', name: 'add_recipe_to_diary',
+        arguments: { recipeId: RECIPE_ID, mealType: 'dinner', servings: 4 },
+      }],
+      hasToolCalls: true,
+    });
+    (chat as jest.Mock).mockResolvedValueOnce({ content: 'добавил', toolCalls: [], hasToolCalls: false });
+
+    // Recipe yields 2 portions, totals 800 kcal → per portion 400. Scaling
+    // to 4 portions ⇒ 1600 kcal total.
+    (prisma.recipe.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: RECIPE_ID, source: 'CURATED', userId: null,
+      name: 'Тест', servings: 2,
+      ingredients: [
+        { name: 'Курица', weightGrams: 200, calories: 400, protein: 80, fats: 8, carbs: 0 },
+        { name: 'Гречка', weightGrams: 100, calories: 400, protein: 10, fats: 2, carbs: 80 },
+      ],
+    });
+
+    await request(app)
+      .post('/api/ai/chat')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ message: 'добавь', history: [] });
+
+    const createCall = (prisma.meal.create as jest.Mock).mock.calls[0][0];
+    expect(createCall.data.totalCalories).toBe(1600); // 800 × (4/2)
   });
 });

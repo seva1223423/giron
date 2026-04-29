@@ -903,6 +903,58 @@ const AI_TOOLS: DeepSeekTool[] = [
       },
     },
   },
+  // ── Recipes (round 87 — bridge AI ↔ recipes feature) ──────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'find_recipes',
+      description: 'Найти подходящие рецепты в библиотеке (курируемые + сохранённые пользователем). Используй когда пользователь спрашивает "что приготовить", "найди рецепт с курицей", "покажи рецепт под ужин", "посоветуй блюдо до 500 ккал". Возвращает до 5 совпадений с id, названием, ккал, временем готовки и тэгами — ты потом предлагаешь варианты пользователю. Не выдумывай id рецептов, используй только из ответа этого инструмента, прежде чем вызвать add_recipe_to_diary.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Свободный текстовый запрос (например, "курица", "овсянка", "белковый завтрак"). Сопоставляется с названием и описанием рецептов. Можно опустить, если пользователь только указал ограничения.' },
+          mealType: {
+            type: 'string',
+            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+            description: 'Тип приёма пищи. Маппится в тэг рецепта (breakfast/lunch/dinner/snack).',
+          },
+          maxCalories: { type: 'number', description: 'Максимум ккал на порцию (totalCalories / servings). Например 500 для лёгкого ужина.' },
+          maxPrepMin: { type: 'number', description: 'Максимум времени готовки в минутах. Например 20 для быстрого блюда.' },
+          allergensExcluded: {
+            type: 'array',
+            items: { type: 'string', enum: ['lactose', 'gluten', 'eggs', 'nuts', 'fish', 'soy'] },
+            description: 'Аллергены, которые НЕ должны присутствовать в рецепте. Если знаешь из памяти про аллергии пользователя — добавь сюда автоматически.',
+          },
+          goal: {
+            type: 'string',
+            enum: ['weight-loss', 'maintain', 'gain'],
+            description: 'Цель пользователя. Маппится в тэг рецепта. Если не уверен — не указывай.',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_recipe_to_diary',
+      description: 'Добавить готовый рецепт в дневник питания пользователя как отдельный приём пищи. Используй ТОЛЬКО после того как пользователь подтвердил выбор конкретного рецепта (по id, который пришёл из find_recipes). Создаёт meal с items, масштабированными по servings. Никогда не угадывай recipeId — если у тебя нет валидного id, сначала позови find_recipes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recipeId: { type: 'string', description: 'CUID рецепта из ответа find_recipes. Должен начинаться с "c".' },
+          mealType: {
+            type: 'string',
+            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+            description: 'Тип приёма пищи в дневнике.',
+          },
+          servings: { type: 'number', description: 'Сколько порций добавить (по умолчанию 1). Целое 1..20.' },
+          date: { type: 'string', description: 'Дата записи YYYY-MM-DD (по умолчанию сегодня).' },
+        },
+        required: ['recipeId', 'mealType'],
+      },
+    },
+  },
   ...CONTEXT_TOOL_DEFINITIONS,
 ];
 
@@ -2769,6 +2821,209 @@ async function executeTool(
       resultText: `Сон записан: ${safeDuration} ч${qualityText}`,
       actionDescription: `Сон: ${safeDuration} ч${qualityText}`,
       actionData: { date: sleepDate, durationHours: safeDuration, quality: safeQuality },
+    };
+  }
+
+  // ─── Recipes (round 87) ──────────────────────────────────────────────────
+  // The two new tools bridge the recipes feature (Phase 2/3) to AI chat.
+  // find_recipes is read-only (search). add_recipe_to_diary mirrors the
+  // logic of POST /recipes/:id/add-to-diary route so we don't drift.
+
+  if (toolName === 'find_recipes') {
+    const {
+      query, mealType, maxCalories, maxPrepMin, allergensExcluded, goal,
+    } = toolInput as {
+      query?: string;
+      mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+      maxCalories?: number;
+      maxPrepMin?: number;
+      allergensExcluded?: string[];
+      goal?: 'weight-loss' | 'maintain' | 'gain';
+    };
+
+    const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+    const VALID_GOALS = ['weight-loss', 'maintain', 'gain'] as const;
+    const VALID_ALLERGENS = ['lactose', 'gluten', 'eggs', 'nuts', 'fish', 'soy'] as const;
+
+    // Tag filter — combines mealType and goal because Recipe.tags is a flat
+    // string[] and Prisma's array operators are AND-of-`has`.
+    const requiredTags: string[] = [];
+    if (typeof mealType === 'string' && (VALID_MEAL_TYPES as readonly string[]).includes(mealType)) requiredTags.push(mealType);
+    if (typeof goal === 'string' && (VALID_GOALS as readonly string[]).includes(goal)) requiredTags.push(goal);
+
+    // Allergen filter — keep only valid enum members.
+    const safeAllergens = Array.isArray(allergensExcluded)
+      ? allergensExcluded.filter((a): a is typeof VALID_ALLERGENS[number] =>
+          typeof a === 'string' && (VALID_ALLERGENS as readonly string[]).includes(a))
+      : [];
+
+    // Visibility: every CURATED row + this user's own USER rows.
+    const visibilityClause = {
+      OR: [{ source: 'CURATED' as const }, { source: 'USER' as const, userId }],
+    };
+
+    const filters: Record<string, unknown> = { ...visibilityClause };
+    if (requiredTags.length > 0) {
+      // Each required tag must be present.
+      filters.AND = requiredTags.map((tag) => ({ tags: { has: tag } }));
+    }
+    if (safeAllergens.length > 0) {
+      filters.NOT = { allergens: { hasSome: safeAllergens } };
+    }
+    if (typeof maxPrepMin === 'number' && Number.isFinite(maxPrepMin) && maxPrepMin > 0) {
+      filters.prepTimeMin = { lte: Math.min(600, Math.max(1, Math.floor(maxPrepMin))) };
+    }
+
+    // Free-text query — case-insensitive contains on name + description.
+    // Sanitize to drop control/bidi chars so the LLM can't smuggle directives
+    // back into the next-turn tool result via crafted query echoes.
+    const safeQuery = typeof query === 'string' ? sanitizeForPrompt(query, 100) : '';
+    const queryFilter = safeQuery.length >= 2
+      ? {
+          OR: [
+            { name: { contains: safeQuery, mode: 'insensitive' as const } },
+            { descriptionRu: { contains: safeQuery, mode: 'insensitive' as const } },
+          ],
+        }
+      : null;
+
+    const where = queryFilter
+      ? { AND: [filters, queryFilter] }
+      : filters;
+
+    const rows = await prisma.recipe.findMany({
+      // The composed where mixes Prisma's logical operators (AND/OR/NOT) with
+      // typed scalar/array filters; Prisma's static type for `findMany` args
+      // doesn't accept the synthesized union shape, so cast at the call site
+      // — the fields are all valid Recipe filters individually.
+      where: where as never,
+      orderBy: [{ source: 'asc' }, { createdAt: 'desc' }],
+      take: 5,
+      select: {
+        id: true, source: true, name: true, descriptionRu: true,
+        totalCalories: true, totalProtein: true, prepTimeMin: true,
+        servings: true, tags: true, allergens: true,
+      },
+    });
+
+    if (rows.length === 0) {
+      return {
+        resultText: 'Не нашёл рецептов под эти ограничения. Попробуй ослабить фильтры или предложи AI-генерацию.',
+        actionDescription: '',
+      };
+    }
+
+    // Apply maxCalories per-portion filter (post-query, since totalCalories
+    // is per-recipe and servings ≥ 1 — we want kcal per portion). Doing this
+    // in SQL would need a computed column or runtime division.
+    const filtered = (typeof maxCalories === 'number' && Number.isFinite(maxCalories) && maxCalories > 0)
+      ? rows.filter((r) => (r.totalCalories / Math.max(1, r.servings)) <= maxCalories)
+      : rows;
+    if (filtered.length === 0) {
+      return {
+        resultText: `Нашёл ${rows.length} рецептов, но все выше ${maxCalories} ккал на порцию. Сними ограничение или подними лимит.`,
+        actionDescription: '',
+      };
+    }
+
+    const summary = filtered.map((r) => {
+      const perPortionCal = Math.round(r.totalCalories / Math.max(1, r.servings));
+      const perPortionProtein = Math.round((r.totalProtein / Math.max(1, r.servings)) * 10) / 10;
+      // Sanitize name/description before embedding into the tool result —
+      // recipe content from CURATED is trusted, but USER recipes could
+      // hold attempted prompt-injection markers ([USER]:, [SYSTEM]:, …).
+      // sanitizeForPrompt neutralizes those markers + strips control chars.
+      const safeName = sanitizeForPrompt(r.name, 120);
+      const safeDesc = r.descriptionRu ? sanitizeForPrompt(r.descriptionRu, 200) : null;
+      return {
+        id: r.id,
+        source: r.source,
+        name: safeName,
+        descriptionRu: safeDesc,
+        perPortionKcal: perPortionCal,
+        perPortionProteinG: perPortionProtein,
+        prepTimeMin: r.prepTimeMin,
+        servings: r.servings,
+        tags: r.tags,
+        allergens: r.allergens,
+      };
+    });
+
+    return {
+      resultText: `Найдено ${filtered.length} рецепт(ов): ${JSON.stringify(summary)}`,
+      actionDescription: `Поиск рецептов: найдено ${filtered.length}`,
+      actionData: { recipes: summary },
+    };
+  }
+
+  if (toolName === 'add_recipe_to_diary') {
+    const { recipeId, mealType, servings, date } = toolInput as {
+      recipeId?: string;
+      mealType?: string;
+      servings?: number;
+      date?: string;
+    };
+
+    const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+    if (!recipeId || typeof recipeId !== 'string' || !/^c[a-z0-9]{20,30}$/.test(recipeId)) {
+      return { resultText: 'Некорректный recipeId. Сначала позови find_recipes и используй id из ответа.', actionDescription: '' };
+    }
+    if (typeof mealType !== 'string' || !(VALID_MEAL_TYPES as readonly string[]).includes(mealType)) {
+      return { resultText: 'Укажи mealType: breakfast | lunch | dinner | snack.', actionDescription: '' };
+    }
+
+    const safeServings = Math.max(1, Math.min(20, Math.floor(Number(servings) || 1)));
+    const today = clientDate ?? new Date().toISOString().split('T')[0];
+    const safeDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T00:00:00Z').getTime())) ? date : today;
+
+    const recipe = await prisma.recipe.findUnique({ where: { id: recipeId } });
+    if (!recipe) {
+      return { resultText: 'Рецепт не найден. Возможно, он был удалён — повтори find_recipes.', actionDescription: '' };
+    }
+    // Visibility — same shape as routes/recipes.ts:341. CURATED is public,
+    // USER must belong to the calling user.
+    if (recipe.source === 'USER' && recipe.userId !== userId) {
+      return { resultText: 'Рецепт не найден. Возможно, он был удалён — повтори find_recipes.', actionDescription: '' };
+    }
+
+    // Ingredients: trust the per-row Json, scale by (requested / recipe.servings).
+    const ingredients = (recipe.ingredients as unknown) as Array<{
+      name: string; weightGrams: number; calories: number;
+      protein: number; fats: number; carbs: number;
+    }>;
+    if (!Array.isArray(ingredients) || ingredients.length === 0) {
+      return { resultText: 'У рецепта нет ингредиентов — добавить нечего.', actionDescription: '' };
+    }
+    const scale = safeServings / Math.max(1, recipe.servings);
+    const items = ingredients.map((ing) => ({
+      name: String(ing.name ?? '').slice(0, 200),
+      weightGrams: (Number(ing.weightGrams) || 0) * scale,
+      calories: (Number(ing.calories) || 0) * scale,
+      protein: (Number(ing.protein) || 0) * scale,
+      fats: (Number(ing.fats) || 0) * scale,
+      carbs: (Number(ing.carbs) || 0) * scale,
+    }));
+    const totalCalories = Math.round(items.reduce((s, i) => s + i.calories, 0));
+    const totalProtein = Math.round(items.reduce((s, i) => s + i.protein, 0) * 10) / 10;
+    const totalFats = Math.round(items.reduce((s, i) => s + i.fats, 0) * 10) / 10;
+    const totalCarbs = Math.round(items.reduce((s, i) => s + i.carbs, 0) * 10) / 10;
+
+    const meal = await prisma.meal.create({
+      data: {
+        type: mealType,
+        date: safeDate,
+        totalCalories, totalProtein, totalFats, totalCarbs,
+        userId,
+        items: { create: items },
+      },
+      include: { items: true },
+    });
+
+    const safeRecipeName = sanitizeForPrompt(recipe.name, 120);
+    return {
+      resultText: `Рецепт "${safeRecipeName}" добавлен в дневник: ${mealType}, ${safeServings} порц., ${totalCalories} ккал`,
+      actionDescription: `«${safeRecipeName}» в ${mealType}: ${totalCalories} ккал, ${totalProtein}г белка`,
+      actionData: { mealId: meal.id, recipeId, mealType, date: safeDate, servings: safeServings, totalCalories, totalProtein },
     };
   }
 
