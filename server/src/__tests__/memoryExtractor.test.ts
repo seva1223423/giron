@@ -657,6 +657,12 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
     expect(out.some((m) => m.key.startsWith('supplement_') && /бета/.test(m.value))).toBe(true);
   });
 
+  // Round 169: negation guard
+  test('round 169: "не пью креатин" does NOT match supplement', () => {
+    const out = extractMemories('не пью креатин, не вижу смысла');
+    expect(out.filter((m) => m.key.startsWith('supplement_'))).toEqual([]);
+  });
+
   test('supplement captures "пью креатин"', () => {
     const out = extractMemories('пью креатин по 5г каждый день');
     const sups = out.filter((m) => m.key.startsWith('supplement_'));
