@@ -27,7 +27,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx tsc --noEmit
 ```
 src/
   screens/           — all screens by feature area
-  store/             — 13 Zustand stores (all persist via AsyncStorage)
+  store/             — 14 Zustand stores (all persist via AsyncStorage)
     index.ts         — re-exports all stores + FREE_LIMITS constant
   services/
     api.ts           — axios with JWT auto-refresh interceptor
@@ -35,6 +35,7 @@ src/
   components/        — Button, Card, Input, FadeIn, AnimatedPressable,
                        ProgressRing, MacroBar, PaywallModal,
                        ErrorBoundary, SkeletonLoader, Tooltip,
+                       GoogleAuthButton (mode: login|link), ForceUpdateModal,
                        Icon (SVG icon set, Direction A — see below), Spinner
   navigation/
     AppNavigator.tsx — 3-tier: Auth → Onboarding → MainTabs (7 tabs)

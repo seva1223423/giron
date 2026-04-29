@@ -52,7 +52,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run client tests
-        # 79+ suites (~1996 tests). All use mocked AsyncStorage + mocked services.
+        # 81+ suites (~2030 tests). All use mocked AsyncStorage + mocked services.
         # No device or Expo runtime needed — jest-expo preset handles RN mocking.
         run: npm test -- --no-coverage --forceExit
         env:

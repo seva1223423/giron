@@ -18,7 +18,7 @@ RESULT:
 ## Test Locations
 
 ```
-server/src/__tests__/           — server integration tests (Jest + Supertest, 20 suites, 719 tests)
+server/src/__tests__/           — server integration tests (Jest + Supertest, 38 suites, 1379 tests)
   cardio.test.ts                — GET/POST/DELETE cardio sessions; type enum validation, all Zod boundary conditions, IDOR isolation (22 tests)
   nutrition.test.ts             — POST/GET/PATCH/DELETE meals; macro calc, IDOR isolation, ownership checks (23 tests)
   trainer.test.ts               — GET/POST/DELETE/PATCH trainer clients+sessions; requireTrainerRole, sub access, IDOR isolation (37 tests)
@@ -42,7 +42,7 @@ server/src/__tests__/           — server integration tests (Jest + Supertest, 
   __mocks__/
     expo-server-sdk.ts          — mock for push notification SDK
 
-src/__tests__/                  — client tests (Jest, 71 suites, 1701 tests)
+src/__tests__/                  — client tests (Jest, 81 suites, 2030 tests)
 
   — Store unit tests —
   workoutStore.test.ts          — 100+ tests: PR detection, superset, history merge
@@ -133,7 +133,7 @@ cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx jest --no-coverage --forceEx
 cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit --verbose
 ```
 
-**Expected baseline:** 719 server tests pass (20 suites), 1701 client tests pass (71 suites).
+**Expected baseline:** 1379 server tests pass (38 suites), 2030 client tests pass (81 suites).
 
 ## Server Test Boilerplate — CRITICAL MOCKING ORDER
 
@@ -542,4 +542,4 @@ describe('useSubscriptionStore', () => {
 - **New route needs tests** → `backend` agent implements the route; `tests` agent writes the test file. When spawning `tests` agent, provide: route path, HTTP method, Prisma models touched, expected status codes (200/201/400/401/404/402).
 - **Failing test due to store shape change** → `frontend` agent changed a Zustand store shape without bumping `version` or updating `partialize`. Tests can simulate this by calling `setState` with old shape in `beforeEach`.
 - **Coverage gaps** → `security` agent audits routes; `tests` agent writes the missing test cases. If `security` flags "no test for 403 on ownership check", spawn `tests` agent with that specific case.
-- **Test count reference** — as of 2026-04-23: 719 server tests (20 suites), 1675 client tests (70 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.
+- **Test count reference** — as of 2026-04-29: 1379 server tests (38 suites), 2030 client tests (81 suites). Before adding a new test suite, confirm the file doesn't already exist in the relevant `__tests__/` directory.
