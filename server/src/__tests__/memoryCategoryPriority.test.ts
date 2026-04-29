@@ -44,4 +44,39 @@ describe('MEMORY_CATEGORY_PRIORITY consistency', () => {
     // ordering for tied categories.
     expect(new Set(values).size).toBe(values.length);
   });
+
+  // Round 131: dead-pattern catcher.
+  test('no two patterns share both the same regex source AND the same key (dead-pattern catcher)', () => {
+    const seen = new Map<string, number>();
+    for (const p of MEMORY_PATTERNS) {
+      const sig = `${p.regex.source}::${p.key}`;
+      seen.set(sig, (seen.get(sig) ?? 0) + 1);
+    }
+    const duplicates = Array.from(seen.entries()).filter(([, count]) => count > 1);
+    expect(duplicates).toEqual([]);
+  });
+
+  test('every pattern has a non-empty regex source and a non-empty key', () => {
+    for (const p of MEMORY_PATTERNS) {
+      expect(p.regex.source.length).toBeGreaterThan(0);
+      expect(p.key.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('multiMatch patterns must define keyFn (otherwise they overwrite each other)', () => {
+    for (const p of MEMORY_PATTERNS) {
+      if (p.multiMatch) {
+        expect(typeof p.keyFn).toBe('function');
+      }
+    }
+  });
+
+  test('confidence values stay in (0, 1) when explicitly set', () => {
+    for (const p of MEMORY_PATTERNS) {
+      if (typeof p.confidence === 'number') {
+        expect(p.confidence).toBeGreaterThan(0);
+        expect(p.confidence).toBeLessThanOrEqual(1);
+      }
+    }
+  });
 });
