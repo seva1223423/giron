@@ -886,6 +886,33 @@ describe('GET /api/admin/announcements/active', () => {
     // that does nothing but burns a round-trip)
     expect(prisma.announcement.updateMany).not.toHaveBeenCalled();
   });
+
+  it('round 80: targetRole match accepts user ROLE in addition to subscription PLAN', async () => {
+    // Pre-round-80 the where filter only matched targetRole against userPlan,
+    // so an admin who set targetRole='ADMIN' silently delivered to no one
+    // because userPlan is always 'free' or a plan name. /announcements/preview
+    // already accepted both shapes — this test pins that /active matches
+    // them too.
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(adminUser);
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.announcement.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/announcements/active')
+      .set('Authorization', `Bearer ${makeToken('u-admin', 'ADMIN')}`);
+
+    const calls = (prisma.announcement.findMany as jest.Mock).mock.calls;
+    const where = calls[0][0].where;
+    const targetClause = where.AND.find((c: any) => c.OR && c.OR[0]?.targetRole !== undefined);
+    expect(targetClause).toBeDefined();
+    const targetRoleValues = targetClause.OR.map((o: any) => o.targetRole);
+    // Must include `null` (broadcast), `'free'` (the admin's plan, no sub),
+    // and `'ADMIN'` (the user's role) so an ADMIN-targeted announcement
+    // actually reaches admins.
+    expect(targetRoleValues).toContain(null);
+    expect(targetRoleValues).toContain('free');
+    expect(targetRoleValues).toContain('ADMIN');
+  });
 });
 
 // ─── GET /api/admin/announcements/preview ────────────────────────────────────
