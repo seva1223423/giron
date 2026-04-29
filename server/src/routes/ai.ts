@@ -222,6 +222,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **add_recipe_to_diary** — добавить выбранный рецепт в дневник питания (использовать только id из find_recipes, после подтверждения юзера)
 - **search_exercises** — найти упражнения в библиотеке по группе мышц / оборудованию / уровню сложности. Возвращает до 8 совпадений. Только для информации/советов — для подмены упражнения в плане используй swap_exercise
 - **explain_exercise** — детальное описание упражнения (техника, какие мышцы, видеоурок). Используй когда юзер спрашивает «как делать жим», «техника становой»
+- **get_pr_history** — личные рекорды (e1RM по формуле Эпли) за 6 месяцев. Используй когда юзер спрашивает про PR / рекорды / максимум
+- **compare_periods** — сравнить тренировочную активность и питание за два смежных периода. Используй для «как изменилось за неделю / месяц»
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
@@ -246,6 +248,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - "что приготовить на ужин?" / "найди рецепт с курицей до 500 ккал" / "посоветуй белковый завтрак" → СРАЗУ find_recipes с подходящими фильтрами (mealType, maxCalories, query). Если в памяти юзера есть аллергии — прокинь их в allergensExcluded автоматически
 - "что делать на грудь?" / "упражнения дома без оборудования" / "новичковые упражнения на спину" → search_exercises с фильтрами (muscle, equipment="bodyweight", difficulty="beginner")
 - "как делать жим лёжа" / "техника становой тяги" / "какие мышцы работают в подтягиваниях" → explain_exercise(name: ...)
+- "какие у меня PR?" / "мои рекорды" / "сколько максимум жал" → get_pr_history(limit: 8)
+- "как я тренировался за неделю" / "что изменилось за месяц" / "стало больше калорий?" → compare_periods(windowDays: 7) или compare_periods(windowDays: 30)
 - юзер выбрал конкретный рецепт из find_recipes ответа → add_recipe_to_diary(recipeId, mealType, servings)
 - "тренируюсь максимум час" → set_workout_duration_goal(60)
 - "как мой прогресс за месяц?" → analyze_progress(month)
@@ -1002,6 +1006,37 @@ const AI_TOOLS: DeepSeekTool[] = [
           name: { type: 'string', description: 'Название упражнения на русском или английском (например "жим лёжа", "становая тяга", "deadlift"). Поиск частичного совпадения.' },
         },
         required: ['name'],
+      },
+    },
+  },
+  // ── Analytics tools (round 95) ───────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'get_pr_history',
+      description: 'Получить историю личных рекордов (PR) пользователя по основным упражнениям. Считает est1RM по формуле Эпли (вес × (1 + повторения / 30)) для каждого подхода и возвращает максимум на упражнение. Используй когда пользователь спрашивает "какие у меня PR?", "мои рекорды", "сколько максимум жал", "вспомни мой лучший приседание".',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Сколько PR показать (1-20). По умолчанию 8.' },
+          exerciseName: { type: 'string', description: 'Если указан — вернуть PR только по этому упражнению (поиск частичного совпадения).' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'compare_periods',
+      description: 'Сравнить две временные периоды по тренировочной активности и питанию. Используй когда пользователь спрашивает "что изменилось за неделю?", "как я тренировался в этом месяце по сравнению с прошлым", "стало больше/меньше калорий?". Метрики: количество тренировок, общий объём (вес × повторения), средние ккал в день. По умолчанию сравнивает последние 7 дней с предыдущими 7.',
+      parameters: {
+        type: 'object',
+        properties: {
+          windowDays: {
+            type: 'number',
+            description: 'Размер окна сравнения в днях (1-90, по умолчанию 7). Окно "сейчас" — последние windowDays дней; окно "до" — те же windowDays перед ними.',
+          },
+        },
       },
     },
   },
@@ -3237,6 +3272,185 @@ async function executeTool(
       ].filter(Boolean).join('\n'),
       actionDescription: '',
       actionData: { exerciseId: ex.id, name: ex.name, videoUrl: ex.videoUrl ?? null },
+    };
+  }
+
+  // ─── Analytics tools (round 95) ──────────────────────────────────────────
+  // Two read-only analytics tools that summarise the user's history. Both
+  // use req.userId for the query — never any userId from the LLM tool args
+  // (BUG-AI-009 in ai_security.test.ts pins this).
+
+  if (toolName === 'get_pr_history') {
+    const { limit, exerciseName } = toolInput as { limit?: number; exerciseName?: string };
+    const safeLimit = Math.min(20, Math.max(1, Math.floor(Number(limit) || 8)));
+    const safeExName = typeof exerciseName === 'string' ? sanitizeForPrompt(exerciseName, 80) : '';
+
+    // Pull all completed sets across all completed workouts for this user.
+    // Guard the result set: 6 months back is enough for "lifetime PR" without
+    // pulling unbounded history. cap is a defence against a user who has
+    // logged tens of thousands of sets.
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const exerciseFilter = safeExName.length >= 2
+      ? { exercise: { name: { contains: safeExName, mode: 'insensitive' as const } } }
+      : {};
+
+    const sets = await prisma.workoutSet.findMany({
+      where: {
+        completed: true,
+        weight: { not: null, gt: 0 },
+        reps: { not: null, gt: 0 },
+        workoutExercise: {
+          workout: {
+            userId,
+            completedAt: { not: null, gte: sixMonthsAgo },
+          },
+          ...exerciseFilter,
+        },
+      },
+      select: {
+        weight: true,
+        reps: true,
+        workoutExercise: {
+          select: {
+            exercise: { select: { name: true } },
+            workout: { select: { completedAt: true } },
+          },
+        },
+      },
+      take: 5000,
+    });
+
+    if (sets.length === 0) {
+      return {
+        resultText: safeExName
+          ? `Не нашёл подходов с весом и повторениями для упражнения «${safeExName}» за последние 6 месяцев.`
+          : 'Пока нет завершённых подходов с весом за последние 6 месяцев. Запиши пару тренировок и я смогу посчитать рекорды.',
+        actionDescription: '',
+      };
+    }
+
+    // Compute est1RM per set (Epley) and track the max per exercise name.
+    type PR = { exercise: string; est1RM: number; weight: number; reps: number; date: Date };
+    const prByExercise = new Map<string, PR>();
+    for (const s of sets) {
+      const w = Number(s.weight);
+      const r = Number(s.reps);
+      if (!Number.isFinite(w) || !Number.isFinite(r) || w <= 0 || r <= 0) continue;
+      const est1RM = r <= 1 ? w : Math.round(w * (1 + r / 30));
+      const exerciseName2 = s.workoutExercise?.exercise?.name ?? 'unknown';
+      const date = s.workoutExercise?.workout?.completedAt ?? new Date();
+      const existing = prByExercise.get(exerciseName2);
+      if (!existing || est1RM > existing.est1RM) {
+        prByExercise.set(exerciseName2, { exercise: exerciseName2, est1RM, weight: w, reps: r, date });
+      }
+    }
+
+    const sortedPRs = Array.from(prByExercise.values())
+      .sort((a, b) => b.est1RM - a.est1RM)
+      .slice(0, safeLimit);
+
+    const summary = sortedPRs
+      .map((pr) => `${sanitizeForPrompt(pr.exercise, 60)}: ${pr.weight}кг × ${pr.reps} (e1RM ${pr.est1RM}кг)`)
+      .join('; ');
+
+    return {
+      resultText: `${sortedPRs.length} PR за 6 мес: ${summary}`,
+      actionDescription: '',
+      actionData: { prs: sortedPRs.map((p) => ({ ...p, date: p.date.toISOString() })) },
+    };
+  }
+
+  if (toolName === 'compare_periods') {
+    const { windowDays } = toolInput as { windowDays?: number };
+    const safeWindow = Math.min(90, Math.max(1, Math.floor(Number(windowDays) || 7)));
+
+    // Two contiguous windows: [now - 2W .. now - W) vs [now - W .. now]
+    const now = new Date();
+    const dayMs = 86_400_000;
+    const windowMs = safeWindow * dayMs;
+    const currentStart = new Date(now.getTime() - windowMs);
+    const previousStart = new Date(now.getTime() - 2 * windowMs);
+
+    type Window = { workouts: number; volume: number; mealCalories: number; days: Set<string> };
+    const aggregateWindow = async (start: Date, end: Date): Promise<Window> => {
+      const [workouts, meals] = await Promise.all([
+        prisma.workout.findMany({
+          where: {
+            userId,
+            completedAt: { not: null, gte: start, lt: end },
+          },
+          select: {
+            completedAt: true,
+            exercises: {
+              select: {
+                sets: { select: { weight: true, reps: true, completed: true } },
+              },
+            },
+          },
+        }),
+        prisma.meal.findMany({
+          where: {
+            userId,
+            createdAt: { gte: start, lt: end },
+          },
+          select: { totalCalories: true, createdAt: true },
+        }),
+      ]);
+
+      let volume = 0;
+      const days = new Set<string>();
+      for (const w of workouts) {
+        if (w.completedAt) days.add(w.completedAt.toISOString().slice(0, 10));
+        for (const ex of w.exercises) {
+          for (const s of ex.sets) {
+            if (!s.completed) continue;
+            const weight = Number(s.weight);
+            const reps = Number(s.reps);
+            if (Number.isFinite(weight) && Number.isFinite(reps) && weight > 0 && reps > 0) {
+              volume += weight * reps;
+            }
+          }
+        }
+      }
+
+      const mealCalories = meals.reduce((sum, m) => sum + (m.totalCalories || 0), 0);
+
+      return { workouts: workouts.length, volume: Math.round(volume), mealCalories: Math.round(mealCalories), days };
+    };
+
+    const [current, previous] = await Promise.all([
+      aggregateWindow(currentStart, now),
+      aggregateWindow(previousStart, currentStart),
+    ]);
+
+    const fmtPct = (cur: number, prev: number): string => {
+      if (prev === 0) return cur > 0 ? '+∞%' : '0%';
+      const pct = Math.round(((cur - prev) / prev) * 100);
+      return pct >= 0 ? `+${pct}%` : `${pct}%`;
+    };
+
+    const avgKcal = (totalKcal: number, days: number): number =>
+      days > 0 ? Math.round(totalKcal / days) : 0;
+
+    const curAvgKcal = avgKcal(current.mealCalories, safeWindow);
+    const prevAvgKcal = avgKcal(previous.mealCalories, safeWindow);
+
+    const summary = [
+      `${safeWindow} дн.: тренировок ${current.workouts} (${fmtPct(current.workouts, previous.workouts)})`,
+      `объём ${current.volume}кг (${fmtPct(current.volume, previous.volume)})`,
+      `средн. ${curAvgKcal} ккал/день (${fmtPct(curAvgKcal, prevAvgKcal)})`,
+    ].join('; ');
+
+    return {
+      resultText: summary,
+      actionDescription: '',
+      actionData: {
+        windowDays: safeWindow,
+        current: { workouts: current.workouts, volume: current.volume, mealCalories: current.mealCalories, days: current.days.size },
+        previous: { workouts: previous.workouts, volume: previous.volume, mealCalories: previous.mealCalories, days: previous.days.size },
+      },
     };
   }
 
