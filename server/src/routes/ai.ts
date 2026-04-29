@@ -1447,6 +1447,11 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /(?:не могу делать|болит при|замена для)/i,
     /(?:увеличь|уменьши|снизь|подними)\s*(?:вес|нагрузк|повтор|подход)/i,
     /(?:поменяй|замени|свопни)\s*(?:жим|присед|тяг|упражнение)/i,
+    // Round 104: widen verb→noun pairing so "убери жим", "убери становую",
+    // "убери приседания" all route to workout_modify. The original pattern
+    // required упражнен/подход/сет after the verb — too narrow for natural
+    // Russian. Now we accept canonical lift nouns directly.
+    /(?:убери|удали|замени|поменяй)\s*(?:жим|присед|тяг|становую|становой|разведен|подъ[её]м|румын|гак)/i,
     /(?:добавь|включи)\s*(?:суперсет|суперсеты)/i,
     /(?:переставь|переупорядочи|измени\s*порядок)\s*(?:упражнен)/i,
     /(?:активируй|включи|запусти|начни|переключись\s*на)\s*(?:программу?|трен\w+)/i,
@@ -1456,6 +1461,16 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
   ['technique_question', [
     /(?:как\s*(?:делать|правильно|выполнять|научиться))/i,
     /(?:техник[аеу]?\s*(?:выполнения|жим|присед|тяг|упражнен))/i,
+    // Round 104: widen "техника <X тяги/жима/приседа>" so "техника
+    // становой тяги" / "техника подтягивания" / "техника румынской тяги"
+    // match. Original pattern required the lift root immediately after
+    // "техника"; widened to allow up to 2 noun-phrase tokens between.
+    //
+    // NB: dropped the \b after "техник[аеу]?" because JS \b is ASCII-only
+    // — it doesn't fire between Cyrillic word chars and whitespace, so
+    // "техника становой" never matched. Without \b the rest of the regex
+    // is anchored by the literal Cyrillic match anyway.
+    /(?:техник[аеу]?)[\sа-яё-]{0,30}?(?:жим|присед|тяг|подтягиван|становой|становую|румын|подъ[её]м|разведен|выпад)/i,
     /(?:покажи|объясни|расскажи)\s*(?:технику|как делать)/i,
     /(?:ошибк[иа]\s*(?:в|при|на)\s*(?:жим|присед|тяг))/i,
     /(?:чем\s*заменить|аналог|альтернатив)/i,
