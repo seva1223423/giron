@@ -1679,12 +1679,15 @@ function getTimeContext(clientHour?: number, clientDate?: string): string {
   } else if (hour >= 17 && hour < 21) {
     timeOfDay = 'вечер';
     timeHint = 'Если пользователь ещё не тренировался сегодня — это последний шанс. Если тренировался — спроси как прошло.';
-  } else if (hour >= 21 || hour < 5) {
+  } else {
+    // All hours 0-23 covered by the if/else-if chain above (5-9, 10-13,
+    // 14-16, 17-20, 21+ or <5). The final else is just hour >= 21 || hour
+    // < 5 — kept as `else` for clarity. Round 146 cleanup: removed dead
+    // branch that had `else if (hour >= 21 || hour < 5) ... else { ... }`
+    // — the second else was unreachable since the elif covered every
+    // remaining hour.
     timeOfDay = 'ночь';
     timeHint = 'Поздно для тренировки. Фокус на восстановление и сон. Если пользователь не спит — мягко напомни что сон = рост мышц.';
-  } else {
-    timeOfDay = 'раннее утро';
-    timeHint = '';
   }
 
   return `\n## ВРЕМЯ И ДАТА\nСейчас: ${dateStr}, ${dayName}, ${timeOfDay} (${hour}:${String(now.getMinutes()).padStart(2, '0')})\n${timeHint}`;
