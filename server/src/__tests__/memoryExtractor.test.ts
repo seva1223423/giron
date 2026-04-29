@@ -1020,6 +1020,23 @@ describe('extractMemories — round 129 gym + coach context', () => {
   });
 });
 
+describe('extractMemories — round 154 program adherence', () => {
+  test('captures "строго соблюдаю программу" → strict', () => {
+    const out = extractMemories('строго соблюдаю программу 4 раза в неделю');
+    expect(out.some((m) => m.key === 'program_adherence' && m.value === 'strict')).toBe(true);
+  });
+
+  test('captures "часто пропускаю тренировки" → inconsistent', () => {
+    const out = extractMemories('часто пропускаю тренировки из-за работы');
+    expect(out.some((m) => m.key === 'program_adherence' && m.value === 'inconsistent')).toBe(true);
+  });
+
+  test('captures "тренируюсь как получится" → unstructured', () => {
+    const out = extractMemories('тренируюсь как получится, без плана');
+    expect(out.some((m) => m.key === 'program_adherence' && m.value === 'unstructured')).toBe(true);
+  });
+});
+
 describe('extractMemories — round 125 RPE / intensity preference', () => {
   test('captures "люблю тяжёлые тренировки" → high', () => {
     const out = extractMemories('люблю тяжёлые тренировки до отказа');
