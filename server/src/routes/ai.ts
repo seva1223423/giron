@@ -10573,7 +10573,15 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
               logger.error(`Tool ${tc.name} failed:`, toolError);
               resultText = `Не удалось выполнить действие. Попробуй ещё раз.`;
             } finally {
-              recordToolExecution(tc.name, Date.now() - _t0Tool, toolOk);
+              const _toolMs = Date.now() - _t0Tool;
+              recordToolExecution(tc.name, _toolMs, toolOk);
+              // Round 163: warn-log slow tool calls (> 3s) so operators
+              // see them in Sentry without trawling per-tool metrics.
+              // Threshold matches Mistral's typical p99 — anything past
+              // that is likely a Prisma query gone wrong.
+              if (_toolMs > 3000) {
+                logger.warn(`Slow tool: ${tc.name} took ${_toolMs}ms`);
+              }
             }
 
             return { tc, resultText: resultText!, actionDescription, actionData };
