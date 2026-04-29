@@ -3130,14 +3130,27 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       });
     }
 
-    // Build program context
+    // Build program context. activeProgram.name/type/level + workout.name +
+    // program.name are all user-supplied via create_program tool or
+    // POST /workouts/programs (Zod-validated for length but no char
+    // whitelist). Sanitize before stitching into the prompt so newlines +
+    // fake [USER]: markers can't poison the system prompt — same anti-
+    // injection rule as rounds 56-62.
     let programContext = '\n## ТЕКУЩАЯ ПРОГРАММА\n';
     if (activeProgram) {
-      programContext += `Активная программа: "${activeProgram.name}" (тип: ${activeProgram.type}, ${activeProgram.daysPerWeek} дней/нед, уровень: ${activeProgram.level || 'не указан'})\n`;
+      const safeProgName = sanitizeForPrompt(activeProgram.name, 80);
+      const safeProgType = sanitizeForPrompt(activeProgram.type ?? '', 40);
+      const safeProgLevel = sanitizeForPrompt(activeProgram.level ?? 'не указан', 30);
+      programContext += `Активная программа: "${safeProgName}" (тип: ${safeProgType}, ${activeProgram.daysPerWeek} дней/нед, уровень: ${safeProgLevel})\n`;
       if (activeProgram.workouts.length > 0) {
         programContext += 'Тренировки в программе:\n';
         activeProgram.workouts.forEach((w) => {
-          programContext += `- ${w.name}: ${w.exercises.filter((e) => e.exercise).map((e) => `${e.exercise?.name} ${e.sets.length}×${e.sets[0]?.reps || '?'}`).join(', ')}\n`;
+          const safeWName = sanitizeForPrompt(w.name, 80);
+          const exList = w.exercises
+            .filter((e) => e.exercise)
+            .map((e) => `${sanitizeForPrompt(e.exercise?.name ?? '', 60)} ${e.sets.length}×${e.sets[0]?.reps || '?'}`)
+            .join(', ');
+          programContext += `- ${safeWName}: ${exList}\n`;
         });
       }
     } else {
@@ -3145,7 +3158,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     }
     const inactivePrograms = userPrograms.filter((p) => !p.isActive);
     if (inactivePrograms.length > 0) {
-      programContext += `Другие программы (неактивные): ${inactivePrograms.map((p) => `"${p.name}" (${p.type}, ${p.daysPerWeek} дн/нед)`).join(', ')}\n`;
+      programContext += `Другие программы (неактивные): ${inactivePrograms
+        .map((p) => `"${sanitizeForPrompt(p.name, 80)}" (${sanitizeForPrompt(p.type ?? '', 40)}, ${p.daysPerWeek} дн/нед)`)
+        .join(', ')}\n`;
       programContext += `→ Чтобы переключиться на другую программу — используй activate_program.\n`;
     }
 
