@@ -3282,7 +3282,12 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       statsContext += 'Приёмы пищи (используй id для delete_meal / modify_meal):\n';
       for (const meal of todayMeals) {
         const label = MEAL_TYPE_LABELS[meal.type] || meal.type;
-        const itemList = meal.items.map((i) => `${i.name} (${Math.round(i.calories)} ккал, ${i.weightGrams}г)`).join(', ');
+        // Meal item name is user-supplied (Zod max 200 + no char whitelist).
+        // Sanitize before injection — same anti-prompt-injection rule as
+        // rounds 56-58 (firstName, exercise.name, workout.notes).
+        const itemList = meal.items
+          .map((i) => `${sanitizeForPrompt(i.name, 80)} (${Math.round(i.calories)} ккал, ${i.weightGrams}г)`)
+          .join(', ');
         statsContext += `- [id:${meal.id}] ${label}: ${Math.round(meal.totalCalories)} ккал — ${itemList || 'без деталей'}\n`;
       }
     }
