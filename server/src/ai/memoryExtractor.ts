@@ -101,7 +101,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // express scheduling negatively: "не могу во вторник", "не получится в
   // среду", "только не пятница". Stored separately so the program planner
   // can avoid those days specifically.
-  { regex: /(?:не\s*могу|не\s*получится|занят[а-я]*)\s*(?:во?\s*|по\s*)?(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)\w*/gi, category: 'schedule', key: 'unavailable_days', multiMatch: true, keyFn: (m) => `unavail_${m[1].toLowerCase().slice(0, 6)}`, extract: (m) => m[1].toLowerCase() },
+  { regex: /(?:не\s*могу|не\s*получится|занят[а-я]*)\s*(?:во?\s*|по\s*)?(понедельник|вторник|сред|четверг|пятниц|суббот|воскресень)[а-я]*/gi, category: 'schedule', key: 'unavailable_days', multiMatch: true, keyFn: (m) => `unavail_${m[1].toLowerCase().slice(0, 6)}`, extract: (m) => m[1].toLowerCase() },
   // Round 116: weekend-only / weekday-only constraints
   { regex: /(?:только\s*по\s*выходн[а-я]*|занимаюсь\s*(?:только\s*)?(?:в\s*)?выходн[а-я]+)/i, category: 'schedule', key: 'training_window', extract: () => 'weekends_only', confidence: 0.85 },
   { regex: /(?:только\s*по\s*будн[а-я]+|только\s*в\s*будн[а-я]+|занимаюсь\s*только\s*в\s*будн[а-я]+)/i, category: 'schedule', key: 'training_window', extract: () => 'weekdays_only', confidence: 0.85 },
@@ -116,7 +116,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // фитбол, ролик пресса, скакалка, медбол, медицинский мяч, грифон, хват,
   // абс ролик. Keeps multi-match keyFn so each landing equipment row gets
   // a unique key.
-  { regex: /(?:у меня|есть|имеется|купил)\s*(гантел|штанг|турник|брусь|гир|тренажёр|тренажер|резинк|trx|петл|эспандер|фитбол|ролик|скакалк|медбол|медицинск\w*\s*мяч|кистев\w*\s*эспандер|абс[\s-]ролик|пояс\w*\s*для\s*присед)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().replace(/\s+/g, '_').slice(0, 16)}`, extract: (m) => m[1] },
+  { regex: /(?:у меня|есть|имеется|купил)\s*(гантел|штанг|турник|брусь|гир|тренажёр|тренажер|резинк|trx|петл|эспандер|фитбол|ролик|скакалк|медбол|медицинск[а-я]*\s*мяч|кистев[а-я]*\s*эспандер|абс[\s-]ролик|пояс[а-я]*\s*для\s*присед)/gi, category: 'preference', key: 'available_equipment', multiMatch: true, keyFn: (m) => `equipment_${m[1].toLowerCase().replace(/\s+/g, '_').slice(0, 16)}`, extract: (m) => m[1] },
 
   // ── Round 129: Gym membership / coach context ────────────────────────────
   // Whether the user has a personal trainer changes the AI's coaching
@@ -142,7 +142,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // require precaution / modification) under key health_condition.
   // Confidence 0.85 (strong qualitative — health conditions don't change
   // casually).
-  { regex: /(?:у меня|имеется|диагноз|страдаю)\s*(?:есть\s*)?(гипертони|диабет|астм|тахикард|варикоз|плоскостоп|остеохондроз|радикулит|ишиас|подагр|тиреоидит|гипотиреоз|гипертиреоз|анеми)\w*/gi, category: 'injury', key: 'health_condition', multiMatch: true, keyFn: (m) => `health_${m[1].toLowerCase().slice(0, 12)}`, extract: (m) => m[1].toLowerCase(), confidence: 0.85 },
+  { regex: /(?:у меня|имеется|диагноз|страдаю)\s*(?:есть\s*)?(гипертони|диабет|астм|тахикард|варикоз|плоскостоп|остеохондроз|радикулит|ишиас|подагр|тиреоидит|гипотиреоз|гипертиреоз|анеми)[а-я]*/gi, category: 'injury', key: 'health_condition', multiMatch: true, keyFn: (m) => `health_${m[1].toLowerCase().slice(0, 12)}`, extract: (m) => m[1].toLowerCase(), confidence: 0.85 },
   { regex: /(?:болит|травмирова|проблемы с)\s*(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп)/gi, category: 'injury', key: 'pain_area', multiMatch: true, keyFn: (m) => `pain_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
   // Round 136: PAST injuries (healed). Distinct from pain_area (currently
   // hurts) so the AI knows to be cautious-but-not-restrictive. Common
@@ -173,7 +173,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 170: added (?<!не\s+) lookbehind so "не тренируюсь утром" no
   // longer matches as if user trains mornings.
   { regex: /(?<!не\s+)(?:тренируюсь|хожу\s*в\s*зал|занимаюсь|тренировка)\s*(утром|вечером|днём|ночью|после\s*работы|до\s*работы|по\s*утрам|по\s*вечерам|по\s*выходн[а-я]+|до\s*завтрак[а-я]*|после\s*ужин[а-я]*|на\s*обед[а-я]*|в\s*обед[а-я]*\s*перерыв|в\s*выходн[а-я]+)/i, category: 'habit', key: 'workout_time_pref', extract: (m) => m[1].toLowerCase().replace(/\s+/g, ' ') },
-  { regex: /(?:тренируюсь|хожу\s*в\s*зал|занимаюсь)\s*в\s*(\d{1,2})(?:[:\.](\d{2}))?\s*(?:час\w*|утра|вечера)?/i, category: 'habit', key: 'workout_time_hour', extract: (m) => `${m[1]}:${m[2] || '00'}` },
+  { regex: /(?:тренируюсь|хожу\s*в\s*зал|занимаюсь)\s*в\s*(\d{1,2})(?:[:\.](\d{2}))?\s*(?:час[а-я]*|утра|вечера)?/i, category: 'habit', key: 'workout_time_hour', extract: (m) => `${m[1]}:${m[2] || '00'}` },
 
   // ── Sleep ─────────────────────────────────────────────────────────────────
   { regex: /(?:сплю|ложусь)\s*(?:в|около)?\s*(\d{1,2})[:\.]?(\d{2})?\s*(?:час|ночи)?/i, category: 'habit', key: 'sleep_time', extract: (m) => `${m[1]}:${m[2] || '00'}` },
@@ -202,7 +202,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   //   педант / точный → precision-focused (loves data)
   //   ленивый (ironic self-label) → low-discipline self-perception
   //   максималист / минималист → effort/volume preference
-  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+[а-я]+|соревнующ\w*|педант|ленив[а-я]*\s+(?:по\s+натуре|немного)|максималист\w*|минималист\w*|оптимист\w*|пессимист\w*)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1].toLowerCase(), confidence: 0.6 },
+  { regex: /(?:я\s+)?(интроверт|экстраверт|перфекционист|прокрастинирую|мотивируюсь\s+[а-я]+|соревнующ[а-я]*|педант|ленив[а-я]*\s+(?:по\s+натуре|немного)|максималист[а-я]*|минималист[а-я]*|оптимист[а-я]*|пессимист[а-я]*)/i, category: 'personality', key: 'personality_trait', extract: (m) => m[1].toLowerCase(), confidence: 0.6 },
 
   // ── Goals ────────────────────────────────────────────────────────────────
   { regex: /хочу?\s*(похудеть|сбросить вес|сжечь жир|снизить вес)/i, category: 'preference', key: 'user_goal', extract: () => 'похудение' },
@@ -282,7 +282,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // dedup-by-key picks the safer interpretation. Also fixed \w (ASCII)
   // to [а-я] for Cyrillic correctness.
   { regex: /(?:не\s*пью\s*алкогол|совсем\s*не\s*пью|трезвенник|без\s*алкогол)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'none', confidence: 0.85 },
-  { regex: /(?:пью\s*каждый\s*день|пью\s*ежедневно|алкоголик|зависим\w*\s*от\s*алкогол)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'daily', confidence: 0.85 },
+  { regex: /(?:пью\s*каждый\s*день|пью\s*ежедневно|алкоголик|зависим[а-я]*\s*от\s*алкогол)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'daily', confidence: 0.85 },
   { regex: /(?:по\s*выходн[а-я]*\s*(?:выпиваю|пью)|(?:выпиваю|пью)\s*пиво|(?:выпиваю|пью)\s*по\s*выходн|алкоголь\s*по\s*выходн)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'weekend' },
   { regex: /(?:редко\s*пью|пью\s*редко|раз\s*в\s*(?:месяц|два\s*месяца|пару\s*месяцев)\s*алкогол)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'rare', confidence: 0.8 },
 
@@ -319,7 +319,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   //   4. Replaced \w+ in the genitive-case alternative (was dead code
   //      because \w is ASCII-only) so "интервального голодания" and other
   //      inflections of "интервальное голодание" now match.
-  { regex: /(?<!не\s+)(?:соблюдаю|сижу\s*на|придерживаюсь|держу)\s*(интервальн[а-я]+\s*голодан[а-я]*|интервальное\s*голодание|кетоген\w*|кето|lchf|низкоуглеводн[а-я]*|дукан[а-я]*|средиземноморск[а-я]*|палео|карнивор[а-я]*)/i, category: 'preference', key: 'diet_style', extract: (m) => m[1].toLowerCase(), confidence: 0.85 },
+  { regex: /(?<!не\s+)(?:соблюдаю|сижу\s*на|придерживаюсь|держу)\s*(интервальн[а-я]+\s*голодан[а-я]*|интервальное\s*голодание|кетоген[а-я]*|кето|lchf|низкоуглеводн[а-я]*|дукан[а-я]*|средиземноморск[а-я]*|палео|карнивор[а-я]*)/i, category: 'preference', key: 'diet_style', extract: (m) => m[1].toLowerCase(), confidence: 0.85 },
   // "16:8" / "18:6" / "20:4" — IF window notations that often appear without
   // the word "интервальное". Stored verbatim so the AI can echo it back.
   { regex: /(?:голодание|пощусь|ем\s*в\s*окне)\s*(\d{1,2}[:\/]\d{1,2})/i, category: 'preference', key: 'diet_style', extract: (m) => `IF ${m[1].replace('/', ':')}` },
@@ -380,7 +380,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:ppl|пуш[\s-]*пул[\s-]*легс|push[\s-]*pull[\s-]*legs)/i, category: 'preference', key: 'split_pref', extract: () => 'ppl', confidence: 0.85 },
   { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:верх[\s\/-]*низ|upper[\s\/-]*lower|сплит\s*верх[\s\/-]*низ)/i, category: 'preference', key: 'split_pref', extract: () => 'upper_lower', confidence: 0.85 },
   { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:фулбоди|full[\s-]*body|полное\s*тело)/i, category: 'preference', key: 'split_pref', extract: () => 'full_body', confidence: 0.85 },
-  { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:бро[\s-]*сплит|bro[\s-]*split|по\s*мышечн\w*\s*групп)/i, category: 'preference', key: 'split_pref', extract: () => 'bro_split', confidence: 0.85 },
+  { regex: /(?:люблю|предпочитаю|нравится|тренируюсь\s*по)\s*(?:бро[\s-]*сплит|bro[\s-]*split|по\s*мышечн[а-я]*\s*групп)/i, category: 'preference', key: 'split_pref', extract: () => 'bro_split', confidence: 0.85 },
 
   // ── Round 154: Program adherence self-report ────────────────────────────
   // Whether the user follows their training program religiously, casually,
@@ -448,7 +448,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Whitelist trades recall for precision — niche sports get missed, but
   // the AI catches the common 80% without falsely tagging "раньше играл
   // на пианино" as a fitness sport.
-  { regex: /(?:раньше|до\s*этого|в\s*детстве|занимался|играл|боксировал|бегал|плавал|танцевал|тренировался)\s.{0,20}?(футбол\w*|хоккей|баскетбол\w*|бокс\w*|плаван\w*|танц\w*|кроссфит\w*|карат\w*|самбо|дзюдо|тенис\w*|единоборств\w*|пауэрлифт\w*|бодибилдинг\w*|кикбоксинг\w*|мма|регби|волейбол\w*|джиу-джитсу|муай-тай|тяж[её]л\w*\s*атлетик\w*|лёгк\w*\s*атлетик\w*|легк\w*\s*атлетик\w*|велоспорт|лыж\w*|сноуборд\w*)/gi, category: 'preference', key: 'past_sport', multiMatch: true, keyFn: (m) => `past_sport_${m[1].toLowerCase().slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
+  { regex: /(?:раньше|до\s*этого|в\s*детстве|занимался|играл|боксировал|бегал|плавал|танцевал|тренировался)\s.{0,20}?(футбол[а-я]*|хоккей|баскетбол[а-я]*|бокс[а-я]*|плаван[а-я]*|танц[а-я]*|кроссфит[а-я]*|карат[а-я]*|самбо|дзюдо|тенис[а-я]*|единоборств[а-я]*|пауэрлифт[а-я]*|бодибилдинг[а-я]*|кикбоксинг[а-я]*|мма|регби|волейбол[а-я]*|джиу-джитсу|муай-тай|тяж[её]л[а-я]*\s*атлетик[а-я]*|лёгк[а-я]*\s*атлетик[а-я]*|легк[а-я]*\s*атлетик[а-я]*|велоспорт|лыж[а-я]*|сноуборд[а-я]*)/gi, category: 'preference', key: 'past_sport', multiMatch: true, keyFn: (m) => `past_sport_${m[1].toLowerCase().slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
 
   // ── Round 92: Supplements / nutrition stack ──────────────────────────────
   // Lets the AI reason about timing & interactions without re-asking. Each
@@ -489,7 +489,7 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 147: shift work / rotational work. Drives circadian-aware
   // sleep advice and meal timing.
   { regex: /(?:работаю\s+(?:по\s+)?(?:сменам|сменно|в\s+ночн[а-я]+\s+смен|посменно)|ночн[а-я]+\s+смен|шифт)/i, category: 'preference', key: 'shift_work', extract: () => 'true', confidence: 0.85 },
-  { regex: /(?:работаю\s+(?:на\s+)?вахт[а-я]*|вахтов\w+\s+метод)/i, category: 'preference', key: 'rotation_work', extract: () => 'true', confidence: 0.85 },
+  { regex: /(?:работаю\s+(?:на\s+)?вахт[а-я]*|вахтов[а-я]+\s+метод)/i, category: 'preference', key: 'rotation_work', extract: () => 'true', confidence: 0.85 },
   // Round 148: pregnancy / breastfeeding state. Critical safety
   // signal — drives exercise restrictions and macro adjustments.
   // Stored under injury category since it requires precaution-driven
