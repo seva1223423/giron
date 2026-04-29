@@ -769,6 +769,37 @@ describe('extractMemories — round 105 expanded equipment list', () => {
   });
 });
 
+describe('extractMemories — round 132 systemic health conditions', () => {
+  test('captures "у меня диабет"', () => {
+    const out = extractMemories('у меня диабет 2 типа');
+    expect(out.some((m) => m.key.startsWith('health_') && /диабет/.test(m.value))).toBe(true);
+  });
+
+  test('captures "у меня гипертония"', () => {
+    const out = extractMemories('у меня гипертония, принимаю лекарства');
+    expect(out.some((m) => m.key.startsWith('health_') && /гипертон/.test(m.value))).toBe(true);
+  });
+
+  test('captures multiple conditions under unique keys', () => {
+    const out = extractMemories('у меня астма и плоскостопие');
+    const conditions = out.filter((m) => m.key.startsWith('health_'));
+    expect(conditions.length).toBeGreaterThanOrEqual(1);
+    const keys = new Set(conditions.map((c) => c.key));
+    expect(keys.size).toBe(conditions.length);
+  });
+
+  test('captures "диагноз тахикардия"', () => {
+    const out = extractMemories('диагноз тахикардия по утрам');
+    expect(out.some((m) => m.key.startsWith('health_') && /тахикард/.test(m.value))).toBe(true);
+  });
+
+  test('health_condition confidence is 0.85', () => {
+    const out = extractMemories('у меня астма');
+    const c = out.find((m) => m.key.startsWith('health_'));
+    expect(c?.confidence).toBe(0.85);
+  });
+});
+
 describe('extractMemories — round 129 gym + coach context', () => {
   test('captures "тренируюсь с тренером" → has_personal_trainer=true', () => {
     const out = extractMemories('тренируюсь с тренером 2 раза в неделю');

@@ -101,6 +101,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
 
   // ── Injuries and limitations ─────────────────────────────────────────────
   { regex: /(?:у меня|имеется|была?)\s*(грыж|протрузи|сколиоз|артрит|артроз)/gi, category: 'injury', key: 'chronic_condition', multiMatch: true, keyFn: (m) => `condition_${m[1].toLowerCase().slice(0, 10)}`, extract: (m) => m[1] },
+  // Round 132: broader systemic conditions that affect training tolerance.
+  // Stored as category=injury (closest existing category — these all
+  // require precaution / modification) under key health_condition.
+  // Confidence 0.85 (strong qualitative — health conditions don't change
+  // casually).
+  { regex: /(?:у меня|имеется|диагноз|страдаю)\s*(?:есть\s*)?(гипертони|диабет|астм|тахикард|варикоз|плоскостоп|остеохондроз|радикулит|ишиас|подагр|тиреоидит|гипотиреоз|гипертиреоз|анеми)\w*/gi, category: 'injury', key: 'health_condition', multiMatch: true, keyFn: (m) => `health_${m[1].toLowerCase().slice(0, 12)}`, extract: (m) => m[1].toLowerCase(), confidence: 0.85 },
   { regex: /(?:болит|травмирова|проблемы с)\s*(плеч|колен|поясниц|спин|шей|локт|запясть|голеностоп)/gi, category: 'injury', key: 'pain_area', multiMatch: true, keyFn: (m) => `pain_${m[1].toLowerCase().slice(0, 8)}`, extract: (m) => m[1] },
 
   // ── Exercise preferences ─────────────────────────────────────────────────
