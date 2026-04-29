@@ -22,8 +22,13 @@ beforeEach(() => {
   useCardioStore.setState({ sessions: [] });
 });
 
-describe('syncFromServer merge bug', () => {
-  test('BUG FIX: keeps local-only sessions when syncing (was replacing all)', async () => {
+describe('syncFromServer merge', () => {
+  test('round 71: local- sessions promote to server (no longer kept verbatim)', async () => {
+    // Round 71 changed the merge contract: instead of preserving 'local-'
+    // entries forever (data-loss bug — they NEVER reached the backend), the
+    // sync now pushes them via createSession first. The original BUG FIX
+    // test asserted the old "keep local verbatim" contract, which by design
+    // accumulated unsynced sessions until the user reinstalled.
     const localSession = {
       id: 'local-123', type: 'running' as const, date: '2026-04-08',
       durationMinutes: 30, distanceKm: 5, createdAt: '2026-04-08T10:00:00Z',
@@ -34,15 +39,24 @@ describe('syncFromServer merge bug', () => {
       id: 'server-456', type: 'cycling' as const, date: '2026-04-07',
       durationMinutes: 45, createdAt: '2026-04-07T10:00:00Z',
     };
+    const promotedSession = {
+      id: 'server-promoted', type: 'running' as const, date: '2026-04-08',
+      durationMinutes: 30, distanceKm: 5, createdAt: '2026-04-08T10:00:00Z',
+    };
     const { cardioService } = require('../services/cardioService');
+    cardioService.createSession.mockResolvedValueOnce(promotedSession);
     cardioService.getSessions.mockResolvedValueOnce([serverSession]);
 
     await useCardioStore.getState().syncFromServer();
 
     const sessions = useCardioStore.getState().sessions;
-    expect(sessions.length).toBe(2);
-    expect(sessions.find((s: any) => s.id === 'local-123')).toBeDefined();
+    // local-123 is gone (promoted to server-promoted)
+    expect(sessions.find((s: any) => s.id === 'local-123')).toBeUndefined();
+    // The promoted entry stays (read-after-write protection — server hasn't
+    // included it in getSessions yet on this tick)
+    expect(sessions.find((s: any) => s.id === 'server-promoted')).toBeDefined();
     expect(sessions.find((s: any) => s.id === 'server-456')).toBeDefined();
+    expect(cardioService.createSession).toHaveBeenCalledTimes(1);
   });
 
   test('server sync failure keeps local sessions', async () => {

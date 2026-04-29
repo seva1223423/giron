@@ -219,7 +219,7 @@ describe('syncFromServer', () => {
     expect(sessions.map((s) => s.id)).toContain('s-server-1');
   });
 
-  test('preserves local- sessions not on server', async () => {
+  test('promotes local- sessions to server during sync (round 71 — was data-loss otherwise)', async () => {
     useCardioStore.setState({
       sessions: [
         session({ id: 'local-pending' }), // pending local session
@@ -227,14 +227,35 @@ describe('syncFromServer', () => {
       ],
     });
 
+    // createSession returns the promoted server version
+    mockCreate.mockResolvedValueOnce(session({ id: 's-promoted' }));
     mockGetSessions.mockResolvedValueOnce([session({ id: 's-server-new' })]);
 
     await useCardioStore.getState().syncFromServer();
 
     const ids = useCardioStore.getState().sessions.map((s) => s.id);
-    expect(ids).toContain('local-pending');   // kept
-    expect(ids).toContain('s-server-new');    // new from server
-    expect(ids).not.toContain('s-server-old'); // replaced
+    expect(ids).not.toContain('local-pending');  // promoted away
+    expect(ids).toContain('s-promoted');         // promoted result kept (read-after-write)
+    expect(ids).toContain('s-server-new');       // new from server
+    expect(ids).not.toContain('s-server-old');   // replaced
+    // createSession must have been called once for the local-pending entry
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  test('local- sessions stay local when promotion fails (server rejects)', async () => {
+    useCardioStore.setState({
+      sessions: [session({ id: 'local-bad-payload' })],
+    });
+
+    // Promotion fails (e.g., 400 validation reject). syncFromServer should
+    // keep the local entry visible so the user can see + delete it manually.
+    mockCreate.mockRejectedValueOnce(new Error('400 validation'));
+    mockGetSessions.mockResolvedValueOnce([]);
+
+    await useCardioStore.getState().syncFromServer();
+
+    const ids = useCardioStore.getState().sessions.map((s) => s.id);
+    expect(ids).toContain('local-bad-payload');
   });
 
   test('keeps local data unchanged if server call fails', async () => {

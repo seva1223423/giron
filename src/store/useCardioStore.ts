@@ -64,11 +64,53 @@ export const useCardioStore = create<CardioStore>()(
 
       syncFromServer: async () => {
         try {
+          // Phase 1 — push offline-created sessions to the server BEFORE we
+          // replace state with the server snapshot. Otherwise the local-
+          // prefixed entries from addSession's offline-fallback path would
+          // never reach the backend (the original behaviour was data loss
+          // after the user came back online: getSessions returned just the
+          // server set and the local-only filter at the end happened to
+          // re-include them locally, so they accumulated forever and never
+          // synced). Mirrors the workoutStore.pendingSync retry pattern.
+          const localPending = get().sessions.filter((s) => s.id.startsWith('local-'));
+          const promoted: CardioSession[] = [];
+          const promotedLocalIds = new Set<string>();
+          for (const local of localPending) {
+            try {
+              const newServerSession = await cardioService.createSession({
+                type: local.type,
+                date: local.date,
+                durationMinutes: local.durationMinutes,
+                distanceKm: local.distanceKm,
+                caloriesBurned: local.caloriesBurned,
+                avgHeartRate: local.avgHeartRate,
+                notes: local.notes,
+              });
+              promoted.push(newServerSession);
+              promotedLocalIds.add(local.id);
+            } catch {
+              // Validation reject (400) or transient — leave the local entry
+              // in place; next syncFromServer tick will retry. Indefinite
+              // retries are tolerable because addSession only takes the
+              // local path on NETWORK failure (line 35 already throws on
+              // 4xx), so a stuck local-prefixed row is a real desync that
+              // the user can also delete manually.
+            }
+          }
+
           const serverSessions = await cardioService.getSessions();
-          // Merge: keep local-only sessions (prefixed with 'local-')
           const serverIds = new Set(serverSessions.map((s) => s.id));
-          const localOnly = get().sessions.filter((s) => s.id.startsWith('local-') && !serverIds.has(s.id));
-          set({ sessions: [...serverSessions, ...localOnly] });
+          // Read-after-write race protection: if a promoted entry isn't yet
+          // in serverSessions (replication lag, eventual consistency), keep
+          // the row we got back from createSession so the user doesn't see
+          // their freshly-pushed cardio session vanish for a tick.
+          const missingPromoted = promoted.filter((p) => !serverIds.has(p.id));
+          // Local-only entries that didn't promote this round (rejected by
+          // server) stay visible so the user can still see + delete them.
+          const localOnly = get().sessions.filter(
+            (s) => s.id.startsWith('local-') && !promotedLocalIds.has(s.id) && !serverIds.has(s.id),
+          );
+          set({ sessions: [...serverSessions, ...missingPromoted, ...localOnly] });
         } catch {
           // Keep local sessions if server unreachable
         }
