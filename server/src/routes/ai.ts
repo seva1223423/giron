@@ -81602,9 +81602,14 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
       });
     }
 
+    // Description is user-supplied free-text (Zod max 2000) and gets
+    // interpolated directly into the prompt. Sanitize to neutralise
+    // newlines + fake [USER]/[SYSTEM] turn markers without trimming
+    // legit content (max 2000 matches the Zod cap).
+    const safeDescription = sanitizeForPrompt(description, 2000);
     const prompt = `Ты — нутрициолог-эксперт. Распарси описание еды и верни точные КБЖУ по каждой позиции.
 
-ОПИСАНИЕ: ${description}
+ОПИСАНИЕ: ${safeDescription}
 
 ═══ ПРАВИЛА ═══
 1. РАЗДЕЛЕНИЕ: выдели отдельные продукты/блюда из текста.
