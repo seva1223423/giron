@@ -317,6 +317,31 @@ describe('extractMemories — round 86 expansions', () => {
       value: 'low',
     }));
   });
+
+  // Round 151: numeric sleep quality rating
+  test('sleep_quality_rating captures "сон 3/5"', () => {
+    const out = extractMemories('сон 3/5 последнюю неделю');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'sleep_quality_rating',
+      value: '3',
+    }));
+  });
+
+  test('sleep_quality_rating captures "качество сна 4/5"', () => {
+    const out = extractMemories('качество сна 4/5 в среднем');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'sleep_quality_rating',
+      value: '4',
+    }));
+  });
+
+  test('sleep_quality_rating captures "сон: 5/10"', () => {
+    const out = extractMemories('сон: 5/10');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'sleep_quality_rating',
+      value: '5',
+    }));
+  });
 });
 
 describe('extractMemories — round 91 expansions', () => {
