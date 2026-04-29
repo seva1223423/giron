@@ -67,8 +67,13 @@ describe('addEntry', () => {
     expect(entries[0].id).toBe('server-2026-04-20');
   });
 
-  test('rolls back entry on sync failure', async () => {
-    mockSave.mockRejectedValueOnce(new Error('Network error'));
+  test('keeps entry locally on network error (round 72 — was data-loss)', async () => {
+    // Round 72 changed the contract: a network error keeps the meas-prefixed
+    // entry so syncFromServer can promote it later. Previously every failure
+    // dropped the row, including transient offline saves the user thought
+    // they had successfully logged. Server-side 4xx still drops (covered
+    // by the test below).
+    mockSave.mockRejectedValueOnce(new Error('Network error')); // no `response.status` → treated as offline
 
     useMeasurementsStore.getState().addEntry({ date: '2026-04-20', waist: 80 });
     expect(useMeasurementsStore.getState().entries).toHaveLength(1); // optimistic
@@ -76,7 +81,23 @@ describe('addEntry', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(useMeasurementsStore.getState().entries).toHaveLength(0); // rolled back
+    // Entry retained with meas- prefix; sync will retry it on next online tick
+    expect(useMeasurementsStore.getState().entries).toHaveLength(1);
+    expect(useMeasurementsStore.getState().entries[0].id).toMatch(/^meas-/);
+  });
+
+  test('drops entry on 4xx server reject (validation failure is permanent)', async () => {
+    // Bad payload — server responded 400. Retrying won't help, so the
+    // entry should be removed. Mirrors cardio's addSession 4xx branch.
+    mockSave.mockRejectedValueOnce({ response: { status: 400 } });
+
+    useMeasurementsStore.getState().addEntry({ date: '2026-04-20', waist: 80 });
+    expect(useMeasurementsStore.getState().entries).toHaveLength(1); // optimistic
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(useMeasurementsStore.getState().entries).toHaveLength(0); // dropped
   });
 
   test('calls saveMeasurement with correct fields', async () => {

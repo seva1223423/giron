@@ -38,10 +38,21 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         const serverId = `server-${data.date}`;
         userService.saveMeasurement({ date: data.date, chest: data.chest, waist: data.waist, hips: data.hips, bicep: data.bicep, thigh: data.thigh, calf: data.calf, neck: data.neck }).then(() => {
           set((s) => ({ entries: s.entries.map((e) => e.id === entry.id ? { ...e, id: serverId } : e) }));
-        }).catch(() => {
-          // Remove only this specific entry on failure — restoring a full snapshot would
-          // erase any entries added by the user while this sync was in-flight
-          set((s) => ({ entries: s.entries.filter((e) => e.id !== entry.id) }));
+        }).catch((err: any) => {
+          // Distinguish "server rejected this payload" (4xx — drop, the data
+          // was bad) from "we couldn't reach the server" (network — keep
+          // the entry locally for syncFromServer to retry). The original
+          // behaviour dropped the entry on EVERY failure mode, so a user
+          // measuring themselves on the subway watched the row vanish even
+          // though the data was perfectly valid. Same shape as cardio's
+          // addSession 4xx-vs-network split (round 71 fixed cardio's sync-
+          // back too — measurements now mirrors that contract).
+          const status = err?.response?.status;
+          if (status && status >= 400 && status < 500) {
+            set((s) => ({ entries: s.entries.filter((e) => e.id !== entry.id) }));
+          }
+          // else: keep the meas-prefixed entry; syncFromServer will push it
+          // to the backend on the next online tick (idempotent upsert by date).
         });
       },
 
@@ -79,27 +90,66 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
 
       syncFromServer: async () => {
         try {
-          const serverEntries = await userService.getMeasurements();
-          if (serverEntries.length > 0) {
-            const mapped: BodyMeasurement[] = serverEntries.map((e) => {
-              const dateStr = typeof e.date === 'string' ? e.date.split('T')[0] : e.date;
-              return {
-                id: `server-${dateStr}`,
-                date: dateStr,
-                chest: e.chest,
-                waist: e.waist,
-                hips: e.hips,
-                bicep: e.bicep,
-                thigh: e.thigh,
-                calf: e.calf,
-                neck: e.neck,
-              };
-            });
-            // Merge: keep local-only entries (by date) that server doesn't have
-            const serverDates = new Set(mapped.map((e) => e.date));
-            const localOnly = get().entries.filter((e) => !serverDates.has(e.date) && !e.id.startsWith('server-'));
-            set({ entries: [...localOnly, ...mapped].sort((a, b) => b.date.localeCompare(a.date)) });
+          // Phase 1 — push offline-saved (`meas-` prefixed) entries to the
+          // backend. Without this they accumulate forever on the device and
+          // never count toward server-side analytics or AI memory. Idempotent
+          // on the server (upsert keyed on userId+date), so retrying after a
+          // partial failure is safe. Mirrors cardioStore round 71.
+          const localPending = get().entries.filter((e) => e.id.startsWith('meas-'));
+          const promotedDates = new Set<string>();
+          const promotedRows: BodyMeasurement[] = [];
+          for (const local of localPending) {
+            try {
+              await userService.saveMeasurement({
+                date: local.date,
+                chest: local.chest,
+                waist: local.waist,
+                hips: local.hips,
+                bicep: local.bicep,
+                thigh: local.thigh,
+                calf: local.calf,
+                neck: local.neck,
+              });
+              promotedDates.add(local.date);
+              // Stash the upgraded row (now with `server-{date}` id) so the
+              // user sees it under its new identity even if getMeasurements
+              // hasn't propagated the write yet — same read-after-write
+              // protection as cardio's `missingPromoted` in round 71.
+              promotedRows.push({ ...local, id: `server-${local.date}` });
+            } catch {
+              // Validation reject (server returned 4xx) or transient — leave
+              // the local entry for the next sync tick to retry.
+            }
           }
+
+          const serverEntries = await userService.getMeasurements();
+          const mapped: BodyMeasurement[] = serverEntries.map((e) => {
+            const dateStr = typeof e.date === 'string' ? e.date.split('T')[0] : e.date;
+            return {
+              id: `server-${dateStr}`,
+              date: dateStr,
+              chest: e.chest,
+              waist: e.waist,
+              hips: e.hips,
+              bicep: e.bicep,
+              thigh: e.thigh,
+              calf: e.calf,
+              neck: e.neck,
+            };
+          });
+          const serverDates = new Set(mapped.map((e) => e.date));
+          const missingPromoted = promotedRows.filter((p) => !serverDates.has(p.date));
+          // Local-only entries that didn't promote this round (e.g. server
+          // rejected them) stay visible so the user can retry / delete them.
+          const localOnly = get().entries.filter(
+            (e) => e.id.startsWith('meas-')
+              && !serverDates.has(e.date)
+              && !promotedDates.has(e.date),
+          );
+          set({
+            entries: [...localOnly, ...missingPromoted, ...mapped]
+              .sort((a, b) => b.date.localeCompare(a.date)),
+          });
         } catch {
           // Keep local data if server unreachable
         }
