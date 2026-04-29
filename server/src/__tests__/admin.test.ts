@@ -26,6 +26,7 @@ jest.mock('../db', () => ({
     },
     refreshToken: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({}),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -66,6 +67,7 @@ jest.mock('../db', () => ({
     },
     securityEvent: {
       create: jest.fn().mockResolvedValue({}),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     $transaction: jest.fn(),
   },
@@ -707,6 +709,94 @@ describe('DELETE /api/admin/announcements/:id', () => {
     const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
     expect(logCalls[0][0].data.action).toBe('DELETE_ANNOUNCEMENT');
     expect(logCalls[0][0].data.adminId).toBe('u-admin');
+  });
+});
+
+// ─── GET /api/admin/users/:id/security-events ────────────────────────────────
+
+describe('GET /api/admin/users/:id/security-events', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get(`/api/admin/users/${TARGET_ID}/security-events`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .get('/api/admin/users/bad-id/security-events')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('200 returns target user\'s security events scoped to that userId', async () => {
+    const events = [
+      { id: 'se1', action: 'LOGIN_SUCCESS', ip: '192.0.2.1', userAgent: 'iOS', details: null, createdAt: new Date() },
+      { id: 'se2', action: 'PUSH_TOKEN_TAKEOVER_BLOCKED', ip: null, userAgent: null, details: 'target', createdAt: new Date() },
+    ];
+    (prisma.securityEvent.findMany as jest.Mock).mockResolvedValueOnce(events);
+
+    const res = await request(app)
+      .get(`/api/admin/users/${TARGET_ID}/security-events`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+
+    // SECURITY: findMany must scope by the path-param userId, not the
+    // calling admin's own userId — otherwise the page would show the
+    // admin's own events when looking up someone else.
+    const calls = (prisma.securityEvent.findMany as jest.Mock).mock.calls;
+    expect(calls[0][0].where.userId).toBe(TARGET_ID);
+  });
+
+  it('200 caps result to 50 rows (sanity bound)', async () => {
+    (prisma.securityEvent.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get(`/api/admin/users/${TARGET_ID}/security-events`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.securityEvent.findMany as jest.Mock).mock.calls;
+    expect(calls[0][0].take).toBe(50);
+  });
+});
+
+// ─── GET /api/admin/users/:id/sessions ───────────────────────────────────────
+
+describe('GET /api/admin/users/:id/sessions', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get(`/api/admin/users/${TARGET_ID}/sessions`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .get('/api/admin/users/bad-id/sessions')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('200 returns only active sessions (revoked=false AND expiresAt>=now)', async () => {
+    const sessions = [
+      { id: 'rt1', createdAt: new Date(), expiresAt: new Date(Date.now() + 86400000), userAgent: 'iOS', ip: '192.0.2.1' },
+    ];
+    (prisma.refreshToken.findMany as jest.Mock).mockResolvedValueOnce(sessions);
+
+    const res = await request(app)
+      .get(`/api/admin/users/${TARGET_ID}/sessions`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+
+    // Verify the active-only filter — without revoked=false the page
+    // would show all historic sessions, including revoked ones, which
+    // is misleading when an admin is investigating "who's currently
+    // logged in as this user?"
+    const calls = (prisma.refreshToken.findMany as jest.Mock).mock.calls;
+    const where = calls[0][0].where;
+    expect(where.userId).toBe(TARGET_ID);
+    expect(where.revoked).toBe(false);
+    expect(where.expiresAt).toEqual(expect.objectContaining({ gte: expect.any(Date) }));
   });
 });
 
