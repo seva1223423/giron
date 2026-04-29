@@ -14,6 +14,7 @@ import { trainerRouter } from './routes/trainer';
 import { cardioRouter } from './routes/cardio';
 import { supportRouter } from './routes/support';
 import { adminRouter } from './routes/admin';
+import { recipesRouter } from './routes/recipes';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
 import { reportError } from './utils/errorReporter';
@@ -324,6 +325,7 @@ app.use('/api/trainer', userRateLimiter, trainerRouter);
 app.use('/api/cardio', userRateLimiter, cardioRouter);
 app.use('/api/support', userRateLimiter, supportRouter);
 app.use('/api/admin', adminRateLimiter, adminRouter);
+app.use('/api/recipes', userRateLimiter, recipesRouter);
 
 // Global error handler (catches both sync and async errors forwarded via next()).
 // reportError routes to Sentry when SENTRY_DSN + @sentry/node are active,
