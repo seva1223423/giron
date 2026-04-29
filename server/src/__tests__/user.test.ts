@@ -52,6 +52,7 @@ jest.mock('../db', () => ({
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     pushToken: {
+      findUnique: jest.fn().mockResolvedValue(null),
       upsert: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
@@ -123,6 +124,16 @@ jest.mock('bcryptjs', () => ({
   default: { compare: jest.fn().mockResolvedValue(true), hash: jest.fn().mockResolvedValue('hashed') },
   compare: jest.fn().mockResolvedValue(true),
   hash: jest.fn().mockResolvedValue('hashed'),
+}));
+
+// Mock expo-server-sdk used by /user/push-token to validate Expo token
+// shape (HIGH-10). Default isExpoPushToken returns true; tests flip per
+// case to exercise the malformed-token reject path.
+const mockIsExpoPushToken = jest.fn().mockReturnValue(true);
+jest.mock('expo-server-sdk', () => ({
+  __esModule: true,
+  default: { isExpoPushToken: mockIsExpoPushToken },
+  Expo: { isExpoPushToken: mockIsExpoPushToken },
 }));
 
 // Step 4: import app
@@ -1028,6 +1039,99 @@ describe('POST /api/user/change-password', () => {
 
     // Sessions wiped via $transaction (atomic) — verify it was called
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+});
+
+// ─── POST /api/user/push-token ───────────────────────────────────────────────
+//
+// Sec audit HIGH-10: refuses silent reassignment of a token already owned by
+// another user. Without this guard, an authenticated attacker could submit
+// the victim's push token (obtained from a leaked log, shared device etc.),
+// hijack notification delivery (DoS the victim's security alerts) AND
+// receive crafted security pushes meant for the victim (phishing primitive).
+
+describe('POST /api/user/push-token', () => {
+  const VALID_EXPO_TOKEN = 'ExponentPushToken[abcdefghij1234567890]';
+
+  beforeEach(() => {
+    mockIsExpoPushToken.mockReturnValue(true); // assume valid by default
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/user/push-token').send({ token: VALID_EXPO_TOKEN });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 INVALID_PUSH_TOKEN when format check fails', async () => {
+    mockIsExpoPushToken.mockReturnValueOnce(false);
+
+    const res = await request(app)
+      .post('/api/user/push-token')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ token: 'not-an-expo-token' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_PUSH_TOKEN');
+    expect(prisma.pushToken.upsert).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY HIGH-10: 409 PUSH_TOKEN_OWNED when token already belongs to another user', async () => {
+    (prisma.pushToken.findUnique as jest.Mock).mockResolvedValueOnce({ userId: 'u-victim' });
+
+    const res = await request(app)
+      .post('/api/user/push-token')
+      .set('Authorization', `Bearer ${makeToken('u-attacker')}`)
+      .send({ token: VALID_EXPO_TOKEN });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('PUSH_TOKEN_OWNED');
+    expect(prisma.pushToken.upsert).not.toHaveBeenCalled();
+
+    // Both sides get a security event so the legit owner can see the
+    // attempted takeover via /user/security-events
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const attemptCall = seCalls.find(
+      (c) => c[0]?.data?.action === 'PUSH_TOKEN_TAKEOVER_BLOCKED' && c[0]?.data?.details === 'attempt',
+    );
+    const targetCall = seCalls.find(
+      (c) => c[0]?.data?.action === 'PUSH_TOKEN_TAKEOVER_BLOCKED' && c[0]?.data?.details === 'target',
+    );
+    expect(attemptCall).toBeTruthy();
+    expect(targetCall).toBeTruthy();
+    // Attempt event lands on the attacker, target event on the legit owner
+    expect(attemptCall![0].data.userId).toBe('u-attacker');
+    expect(targetCall![0].data.userId).toBe('u-victim');
+  });
+
+  it('200 succeeds when token is unowned (new device registration)', async () => {
+    (prisma.pushToken.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post('/api/user/push-token')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ token: VALID_EXPO_TOKEN });
+
+    expect(res.status).toBe(200);
+    expect(prisma.pushToken.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { token: VALID_EXPO_TOKEN },
+        create: expect.objectContaining({ token: VALID_EXPO_TOKEN, userId: 'u-test' }),
+      }),
+    );
+  });
+
+  it('200 succeeds when token already belongs to caller (reauth/refresh path)', async () => {
+    // Same user re-registering — common after an OS-level token rotation
+    (prisma.pushToken.findUnique as jest.Mock).mockResolvedValueOnce({ userId: 'u-test' });
+
+    const res = await request(app)
+      .post('/api/user/push-token')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ token: VALID_EXPO_TOKEN });
+
+    expect(res.status).toBe(200);
+    // Should hit the upsert path (no takeover block)
+    expect(prisma.pushToken.upsert).toHaveBeenCalled();
   });
 });
 
