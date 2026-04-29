@@ -35,6 +35,7 @@ jest.mock('../db', () => ({
     subscription: {
       findUnique: jest.fn().mockResolvedValue(null),
       findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
       upsert: jest.fn(),
     },
     pushToken: {
@@ -1720,6 +1721,72 @@ describe('GET /api/admin/users/churn-risk', () => {
     const cutoff = churnCall![0].where.workouts.none.completedAt.gte;
     const expected = Date.now() - 14 * 86400 * 1000;
     expect(Math.abs(cutoff.getTime() - expected)).toBeLessThan(1000);
+  });
+});
+
+// ─── GET /api/admin/subscriptions/forecast ───────────────────────────────────
+//
+// 4-week subscription-expiration forecast, used to project upcoming MRR
+// and churn windows. Buckets expiring subs by week and sums revenue.
+
+describe('GET /api/admin/subscriptions/forecast', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/subscriptions/forecast');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/subscriptions/forecast')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 returns 4 weekly buckets with correct revenue per plan', async () => {
+    const now = Date.now();
+    // Two pro subs expiring in week 1, one club expiring in week 3
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([
+      { plan: 'pro', endDate: new Date(now + 2 * 86400 * 1000) },   // week 1
+      { plan: 'pro', endDate: new Date(now + 5 * 86400 * 1000) },   // week 1
+      { plan: 'club', endDate: new Date(now + 16 * 86400 * 1000) }, // week 3
+    ]);
+
+    const res = await request(app)
+      .get('/api/admin/subscriptions/forecast')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(4); // 4 weekly buckets
+
+    // Week 1: 2 pro × $9.99 = $19.98
+    expect(res.body[0].count).toBe(2);
+    expect(res.body[0].revenue).toBe(19.98);
+    // Week 2: empty
+    expect(res.body[1].count).toBe(0);
+    expect(res.body[1].revenue).toBe(0);
+    // Week 3: 1 club × $29.99
+    expect(res.body[2].count).toBe(1);
+    expect(res.body[2].revenue).toBe(29.99);
+    // Week 4: empty
+    expect(res.body[3].count).toBe(0);
+  });
+
+  it('200 SECURITY: only counts active paid subs (excludes free + cancelled)', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/subscriptions/forecast')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.subscription.findMany as jest.Mock).mock.calls;
+    const forecastCall = calls.find((c) => c[0]?.where?.endDate?.gte instanceof Date);
+    expect(forecastCall).toBeDefined();
+    expect(forecastCall![0].where.status).toBe('active');
+    expect(forecastCall![0].where.plan.not).toBe('free');
+    // 50k cap on the take is the safety bound — without it a future
+    // 100k-paying-user state could OOM the server on this endpoint.
+    expect(forecastCall![0].take).toBe(50000);
   });
 });
 
