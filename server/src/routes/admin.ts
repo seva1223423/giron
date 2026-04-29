@@ -2542,12 +2542,26 @@ router.get('/announcements/active', authenticate, async (req: AuthRequest, res: 
     const userSub = await prisma.subscription.findFirst({ where: { userId: req.userId! }, select: { plan: true, status: true, endDate: true } });
     const subActive = (userSub?.status === 'active' || userSub?.status === 'cancelled') && (!userSub.endDate || userSub.endDate >= now);
     const userPlan = subActive ? userSub!.plan : 'free';
+    // Round 80: targeting matches by EITHER subscription plan ('free' / 'pro' /
+    // 'trainer' / 'club') OR user role ('USER' / 'TRAINER' / 'SUPPORT' /
+    // 'ADMIN'). The /announcements/preview audience-sizer at line 2569 already
+    // accepts both, but this delivery endpoint only matched plans — so an
+    // admin who set targetRole='ADMIN' silently delivered to no one because
+    // userPlan is always 'free' or a plan name, never a role string.
+    // req.userRole is set by the authenticate middleware, no extra query.
+    const userRole = req.userRole ?? null;
     const list = await prisma.announcement.findMany({
       where: {
         isActive: true,
         AND: [
           { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
-          { OR: [{ targetRole: null }, { targetRole: userPlan }] },
+          {
+            OR: [
+              { targetRole: null },
+              { targetRole: userPlan },
+              ...(userRole ? [{ targetRole: userRole }] : []),
+            ],
+          },
         ],
       },
       orderBy: { createdAt: 'desc' },
