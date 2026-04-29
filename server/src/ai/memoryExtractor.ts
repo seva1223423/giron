@@ -14,24 +14,32 @@
  *
  * Categories (priority order from contextEngine.MEMORY_CATEGORY_PRIORITY):
  *   • goal       — target_weight_kg, weight_loss_target_kg,
- *                  weight_gain_target_kg, goal_deadline
+ *                  weight_gain_target_kg, goal_deadline,
+ *                  weight_lost_kg, weight_gained_kg, milestone_pr_kg
  *   • allergy    — food_allergy (multi), diet_restriction
  *   • injury     — chronic_condition (multi), pain_area (multi),
- *                  past_injury (multi), health_condition (multi)
+ *                  past_injury (multi), health_condition (multi),
+ *                  pregnancy, breastfeeding
  *   • preference — training_location, available_equipment (multi),
  *                  favorite_exercise, disliked_exercise, user_goal,
  *                  experience_stated, experience_level, session_minutes_max,
  *                  diet_style, current_weight_kg, height_cm,
- *                  bodyfat_percent, family_kids, family_partnered,
- *                  work_remote, past_sport (multi), rpe_pref,
- *                  has_personal_trainer, gym_membership
+ *                  bodyfat_percent, age_years, family_kids,
+ *                  family_partnered, work_remote, past_sport (multi),
+ *                  rpe_pref, has_personal_trainer, gym_membership,
+ *                  shift_work, rotation_work, vacation_mode,
+ *                  chronotype, program_adherence, split_pref,
+ *                  city
  *   • schedule   — training_frequency, training_days (multi),
  *                  unavailable_days (multi), training_window
  *   • habit      — sleep_time, wake_time, sleep_duration_hours,
  *                  workout_time_pref, workout_time_hour,
  *                  caffeine_high, alcohol_pattern, smoking_status,
  *                  water_intake_liters, stress_high, sleep_quality_low,
- *                  supplement (multi)
+ *                  sleep_quality_rating, supplement (multi),
+ *                  supplement_timing, last_workout_feel,
+ *                  cardio_running_freq, cardio_swimming_freq,
+ *                  cardio_cycling_freq, session_minutes_typical
  *   • personality — personality_trait
  *
  * Pattern conventions (gotchas learned across rounds 91-137):
