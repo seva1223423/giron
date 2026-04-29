@@ -454,6 +454,12 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Lets the AI reason about timing & interactions without re-asking. Each
   // supplement gets its own keyed entry so a user can drop one without
   // losing the rest. Excludes "пью кофе" (caffeine_high handles that).
+  // ── Round 180: Timezone / region — for time-aware reminders ────────────
+  // Captures "я в МСК", "часовой пояс +3", "живу в Питере". Drives the
+  // /starters endpoint's hour-aware suggestions correctly when the user's
+  // device timezone is wrong.
+  { regex: /(?:(?:я\s+)?(?:живу\s+)?в\s+(?:москв[а-я]+|мск|питер[а-я]*|спб|санкт-?петербург[а-я]*|новосибирск[а-я]*|екатеринбург[а-я]*|казан[а-я]*|нижн[а-я]+\s+новгород[а-я]*|сочи|калининград[а-я]*|владивосток[а-я]*|ростов[а-я]*-на-дону|краснодар[а-я]*))/i, category: 'preference', key: 'city', extract: (m) => m[0].replace(/^(?:я\s+)?(?:живу\s+)?в\s+/i, '').toLowerCase(), confidence: 0.85 },
+
   // ── Round 167: Cardio activity self-report ─────────────────────────────
   // Captures regular cardio practice. Different from log_cardio tool
   // (single-session) — this is the habitual pattern.
