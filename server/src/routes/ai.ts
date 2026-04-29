@@ -218,6 +218,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **analyze_progress** — подробный анализ прогресса за период
 - **suggest_next_workout** — предложить следующую тренировку
 - **activate_program** — активировать существующую программу по имени
+- **find_recipes** — найти рецепты в библиотеке (CURATED + сохранённые пользователем) под фильтры (тип приёма пищи, цель, ккал, время, аллергены). Сначала зови этот инструмент, потом предлагай юзеру варианты по имени — НЕ выдумывай id рецептов
+- **add_recipe_to_diary** — добавить выбранный рецепт в дневник питания (использовать только id из find_recipes, после подтверждения юзера)
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
@@ -239,6 +241,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - "замени жим штанги на гантели" → swap_exercise("Жим штанги лёжа", "Жим гантелей лёжа")
 - "хочу начать Iron Coach" / "активируй программу верх/низ" → activate_program(programName: "Iron Coach")
 - "суперсет жим + разведение" → add_superset("Жим лёжа", "Разведение гантелей")
+- "что приготовить на ужин?" / "найди рецепт с курицей до 500 ккал" / "посоветуй белковый завтрак" → СРАЗУ find_recipes с подходящими фильтрами (mealType, maxCalories, query). Если в памяти юзера есть аллергии — прокинь их в allergensExcluded автоматически
+- юзер выбрал конкретный рецепт из find_recipes ответа → add_recipe_to_diary(recipeId, mealType, servings)
 - "тренируюсь максимум час" → set_workout_duration_goal(60)
 - "как мой прогресс за месяц?" → analyze_progress(month)
 - "что тренировать сегодня?" → suggest_next_workout
@@ -2891,14 +2895,25 @@ async function executeTool(
       ? { AND: [filters, queryFilter] }
       : filters;
 
+    // Round 90: pull a wider candidate set (was take: 5) BEFORE applying the
+    // per-portion calorie filter, then trim to the top 5. Otherwise we'd
+    // truncate too early — if all 5 first-pass rows were over `maxCalories`
+    // we returned "all over limit" even when 50 lower-calorie recipes were
+    // sitting underneath. 30 is generous enough that goal+mealType+allergen
+    // intersections still leave headroom for the post-filter to find hits.
+    //
+    // Sort: USER recipes (alphabetically 'USER' > 'CURATED' so source desc
+    // pulls them first), then most-recent within each source. Showing the
+    // user's own saved recipes ahead of the curated catalogue is the right
+    // surfacing — they curated them for themselves.
     const rows = await prisma.recipe.findMany({
       // The composed where mixes Prisma's logical operators (AND/OR/NOT) with
       // typed scalar/array filters; Prisma's static type for `findMany` args
       // doesn't accept the synthesized union shape, so cast at the call site
       // — the fields are all valid Recipe filters individually.
       where: where as never,
-      orderBy: [{ source: 'asc' }, { createdAt: 'desc' }],
-      take: 5,
+      orderBy: [{ source: 'desc' }, { createdAt: 'desc' }],
+      take: 30,
       select: {
         id: true, source: true, name: true, descriptionRu: true,
         totalCalories: true, totalProtein: true, prepTimeMin: true,
@@ -2916,15 +2931,18 @@ async function executeTool(
     // Apply maxCalories per-portion filter (post-query, since totalCalories
     // is per-recipe and servings ≥ 1 — we want kcal per portion). Doing this
     // in SQL would need a computed column or runtime division.
-    const filtered = (typeof maxCalories === 'number' && Number.isFinite(maxCalories) && maxCalories > 0)
+    const filteredAll = (typeof maxCalories === 'number' && Number.isFinite(maxCalories) && maxCalories > 0)
       ? rows.filter((r) => (r.totalCalories / Math.max(1, r.servings)) <= maxCalories)
       : rows;
-    if (filtered.length === 0) {
+    if (filteredAll.length === 0) {
       return {
         resultText: `Нашёл ${rows.length} рецептов, но все выше ${maxCalories} ккал на порцию. Сними ограничение или подними лимит.`,
         actionDescription: '',
       };
     }
+    // Now trim to the AI-friendly window — 5 entries fit comfortably in the
+    // tool result without bloating the next-turn context.
+    const filtered = filteredAll.slice(0, 5);
 
     const summary = filtered.map((r) => {
       const perPortionCal = Math.round(r.totalCalories / Math.max(1, r.servings));
