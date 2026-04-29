@@ -360,6 +360,14 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // false-match (the "люблю" substring would otherwise trigger high).
   { regex: /(?<!не\s+)(?:люблю|нравится|комфортно)[\sа-я]{0,20}?(?:тяжёл|тяжел|очень\s*тяжел|на\s*максимум|до\s*отказа|на\s*пределе)/i, category: 'preference', key: 'rpe_pref', extract: () => 'high', confidence: 0.8 },
 
+  // ── Round 154: Program adherence self-report ────────────────────────────
+  // Whether the user follows their training program religiously, casually,
+  // or not at all. Drives whether the AI emphasizes consistency or
+  // flexibility in recommendations.
+  { regex: /(?:строго|чётко)\s*(?:соблюдаю|следую|придерживаюсь)\s*(?:программ|план)/i, category: 'preference', key: 'program_adherence', extract: () => 'strict', confidence: 0.8 },
+  { regex: /(?:часто\s*пропускаю|пропускаю\s*(?:часто|тренировки|треньки)|нерегулярно\s*хожу)/i, category: 'preference', key: 'program_adherence', extract: () => 'inconsistent', confidence: 0.8 },
+  { regex: /(?:плыву\s*по\s*течению|без\s*плана|тренируюсь\s*как\s*получится|не\s*следую\s*программе)/i, category: 'preference', key: 'program_adherence', extract: () => 'unstructured', confidence: 0.7 },
+
   // ── Round 91: Experience level descriptor ────────────────────────────────
   // The existing experience_stated pattern captures "X лет/месяцев", but
   // most users describe their level qualitatively first ("я новичок", "я
