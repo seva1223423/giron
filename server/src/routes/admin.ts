@@ -2056,9 +2056,12 @@ router.get('/digest/readiness', authenticate, async (_req: AuthRequest, res: Res
       bootstrapEmailRegistered = exists > 0;
     }
 
-    const smtpConfigured = Boolean(
-      process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
-    );
+    // Single source of truth for SMTP-configured detection. Was previously
+    // a duplicate of the same env-var check in emailService.ts, which
+    // would have drifted if the rule ever changed (e.g. requiring SMTP_FROM
+    // too). Now both paths read isSmtpConfigured() from one place.
+    const { isSmtpConfigured } = await import('../services/emailService');
+    const smtpConfigured = isSmtpConfigured();
 
     res.json({
       adminCount: admins.length,
