@@ -515,6 +515,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:у меня|мой|во мне)\s*(\d{1,2})\s*%\s*жира/i, category: 'preference', key: 'bodyfat_percent', extract: (m) => `${m[1]}`, confidence: 0.9 },
   { regex: /(?:вешу|вес\s*мой|сейчас\s*вешу)\s*(\d{2,3})\s*кг/i, category: 'preference', key: 'current_weight_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
   { regex: /(?:рост|мой\s*рост|у меня\s*рост)\s*(\d{3})\s*см/i, category: 'preference', key: 'height_cm', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  // Round 181: explicit age self-report. The User profile already has
+  // dateOfBirth but users mention age in chat ("мне 30"). Stored so the
+  // AI can confirm against profile + raise contradiction if inconsistent.
+  { regex: /(?:мне|мой\s*возраст)\s*(\d{1,2})\s*(?:лет|года?)?/i, category: 'preference', key: 'age_years', extract: (m) => `${m[1]}`, confidence: 0.9 },
 ];
 
 /**

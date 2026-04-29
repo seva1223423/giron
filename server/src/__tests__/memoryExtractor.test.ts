@@ -790,6 +790,23 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
     }));
   });
 
+  // Round 181: age self-report
+  test('age_years captures "мне 30 лет"', () => {
+    const out = extractMemories('мне 30 лет, занимаюсь 5 лет');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'age_years',
+      value: '30',
+    }));
+  });
+
+  test('age_years captures "мой возраст 25"', () => {
+    const out = extractMemories('мой возраст 25');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'age_years',
+      value: '25',
+    }));
+  });
+
   test('height_cm captures "мой рост 180 см"', () => {
     const out = extractMemories('мой рост 180 см, вес 78');
     expect(out).toContainEqual(expect.objectContaining({
