@@ -856,3 +856,78 @@ describe('GET /api/workouts/routines/:id', () => {
     expect(res.body.name).toBe('Силовая рутина');
   });
 });
+
+// ─── DELETE /api/workouts/routines/:id ───────────────────────────────────────
+
+describe('DELETE /api/workouts/routines/:id', () => {
+  it('401 without token', async () => {
+    const res = await request(app).delete(`/api/workouts/routines/${ROUTINE_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .delete('/api/workouts/routines/bad-id')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when delete affects 0 rows (IDOR — routine belongs to other user)', async () => {
+    // SECURITY: deleteMany scoping by userId means an attacker trying to
+    // delete someone else's routine gets count=0 and 404 (not silent
+    // success). Without the userId filter in deleteMany, an admin token
+    // could blow away any routine.
+    (prisma.routine.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+    const res = await request(app)
+      .delete(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('200 deletes owned routine + uses userId-scoped deleteMany', async () => {
+    (prisma.routine.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    const res = await request(app)
+      .delete(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-test')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    // Critical: deleteMany.where MUST include userId — without it any
+    // user could delete any routine by ID guess. Pin the where shape.
+    const calls = (prisma.routine.deleteMany as jest.Mock).mock.calls;
+    expect(calls[0][0].where).toEqual({ id: ROUTINE_ID, userId: 'u-test' });
+  });
+});
+
+// ─── POST /api/workouts/routines/:id/start ───────────────────────────────────
+
+describe('POST /api/workouts/routines/:id/start', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post(`/api/workouts/routines/${ROUTINE_ID}/start`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/workouts/routines/bad-id/start')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when routine belongs to different user (IDOR)', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValueOnce({
+      ...sampleRoutine,
+      userId: 'u-other',
+    });
+
+    const res = await request(app)
+      .post(`/api/workouts/routines/${ROUTINE_ID}/start`)
+      .set('Authorization', `Bearer ${makeToken('u-test')}`);
+
+    expect(res.status).toBe(404);
+  });
+});
