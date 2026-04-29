@@ -376,6 +376,13 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:часто\s*пропускаю|пропускаю\s*(?:часто|тренировки|треньки)|нерегулярно\s*хожу)/i, category: 'preference', key: 'program_adherence', extract: () => 'inconsistent', confidence: 0.8 },
   { regex: /(?:плыву\s*по\s*течению|без\s*плана|тренируюсь\s*как\s*получится|не\s*следую\s*программе)/i, category: 'preference', key: 'program_adherence', extract: () => 'unstructured', confidence: 0.7 },
 
+  // ── Round 159: Chronotype self-identification ──────────────────────────
+  // Drives workout time recommendation: morning chronotype (жаворонок) gets
+  // pre-work AM session suggestions; night owl (сова) gets evening
+  // suggestions. Confidence 0.8 (qualitative but stable trait).
+  { regex: /(?:я\s+)?(?:жаворонок|утренний\s+тип|рано\s+встаю|просыпаюсь\s+рано)/i, category: 'preference', key: 'chronotype', extract: () => 'morning', confidence: 0.8 },
+  { regex: /(?:я\s+)?(?:сова|ночной\s+тип|поздно\s+ложусь|поздно\s+встаю|тяжело\s+вставать)/i, category: 'preference', key: 'chronotype', extract: () => 'evening', confidence: 0.8 },
+
   // ── Round 91: Experience level descriptor ────────────────────────────────
   // The existing experience_stated pattern captures "X лет/месяцев", but
   // most users describe their level qualitatively first ("я новичок", "я
