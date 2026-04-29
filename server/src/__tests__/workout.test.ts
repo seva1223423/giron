@@ -857,6 +857,94 @@ describe('GET /api/workouts/routines/:id', () => {
   });
 });
 
+// ─── PUT /api/workouts/routines/:id ──────────────────────────────────────────
+
+describe('PUT /api/workouts/routines/:id', () => {
+  const validBody = {
+    name: 'Updated split',
+    exercises: [
+      {
+        order: 0,
+        exerciseId: 'cexercise00000000000001',
+        restSeconds: 120,
+        sets: [{ setNumber: 1, targetReps: 10, targetWeight: 80 }],
+      },
+    ],
+  };
+
+  it('401 without token', async () => {
+    const res = await request(app)
+      .put(`/api/workouts/routines/${ROUTINE_ID}`)
+      .send(validBody);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .put('/api/workouts/routines/bad-id')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send(validBody);
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when body fails Zod validation (empty name)', async () => {
+    const res = await request(app)
+      .put(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, name: '' });
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when routine belongs to different user (IDOR)', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValueOnce({
+      userId: 'u-other',
+    });
+
+    const res = await request(app)
+      .put(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken('u-test')}`)
+      .send(validBody);
+
+    expect(res.status).toBe(404);
+    // Critical: $transaction MUST NOT run when ownership check fails.
+    // Without the userId comparison, the route would proceed to delete
+    // someone else's routineExercises and update their routine.
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+// ─── GET /api/workouts/routines/:id/history ──────────────────────────────────
+
+describe('GET /api/workouts/routines/:id/history', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get(`/api/workouts/routines/${ROUTINE_ID}/history`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .get('/api/workouts/routines/bad-id/history')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when routine belongs to different user (IDOR)', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValueOnce({
+      userId: 'u-other',
+      exercises: [],
+    });
+
+    const res = await request(app)
+      .get(`/api/workouts/routines/${ROUTINE_ID}/history`)
+      .set('Authorization', `Bearer ${makeToken('u-test')}`);
+
+    expect(res.status).toBe(404);
+    // Workout query must not fire if the ownership check fails — would
+    // leak completedAt timestamps for another user's training.
+    expect(prisma.workout.findMany).not.toHaveBeenCalled();
+  });
+});
+
 // ─── DELETE /api/workouts/routines/:id ───────────────────────────────────────
 
 describe('DELETE /api/workouts/routines/:id', () => {
