@@ -132,12 +132,19 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     }
 
+    // Round 90: when the streak fills the whole lookback window, the user
+    // probably has a longer real-world streak we just can't see (we only
+    // queried HISTORY_DAYS). Surface this as "30+" so a user with a
+    // 60-day actual streak doesn't read the tile as "started 30 days ago".
+    const streakAtWindowEdge = streak >= historySteps.length;
+
     return {
       avg,
       total,
       bestDay,
       bestDayLabel: historyDayLabels[bestIdx] ?? '—',
       streak,
+      streakAtWindowEdge,
       daysHitGoal,
     };
   }, [historySteps, historyDayLabels, stepsDailyGoal]);
@@ -311,7 +318,15 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               icon="flame"
               tint={colors.calories}
               label="Серия"
-              value={`${aggregates.streak} ${aggregates.streak === 1 ? 'день' : aggregates.streak >= 2 && aggregates.streak <= 4 ? 'дня' : 'дней'}`}
+              // Round 90: append "+" when the streak fills the lookback
+              // window — actual streak might be longer than HISTORY_DAYS,
+              // and "30 days" reads like "started exactly 30 days ago"
+              // when in fact we just can't see further back.
+              value={
+                aggregates.streakAtWindowEdge
+                  ? `${aggregates.streak}+ ${aggregates.streak === 1 ? 'день' : 'дней'}`
+                  : `${aggregates.streak} ${aggregates.streak === 1 ? 'день' : aggregates.streak >= 2 && aggregates.streak <= 4 ? 'дня' : 'дней'}`
+              }
               hint={aggregates.streak > 0 ? `≥ ${Math.round(STREAK_THRESHOLD_RATIO * 100)}% от цели подряд` : 'Сделай 80% цели сегодня'}
             />
             <StatTile
@@ -326,10 +341,14 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               colors={colors}
               icon="check"
               tint={colors.primary}
-              label="Дней с целью"
+              // Round 90: clarify the 100%-of-goal threshold so the user
+              // doesn't conflate this tile with the streak tile (which
+              // counts the looser ≥80%-of-goal days). Same denominator
+              // (historySteps.length), different numerator definition.
+              label="100% цели"
               value={`${aggregates.daysHitGoal} / ${historySteps.length}`}
               hint={historySteps.length > 0
-                ? `${Math.round((aggregates.daysHitGoal / historySteps.length) * 100)}% дней`
+                ? `${Math.round((aggregates.daysHitGoal / historySteps.length) * 100)}% дней закрыли цель полностью`
                 : '—'}
             />
             <StatTile

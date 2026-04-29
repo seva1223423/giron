@@ -107,8 +107,17 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 86: caffeine and alcohol intake correlate with sleep / recovery.
   // The recovery score block already exists; persisting these lets it adjust
   // its ceiling without re-asking every chat.
-  { regex: /(?:пью\s*много\s*коф|кофе\s*литрами|зависим\s*от\s*коф)/i, category: 'habit', key: 'caffeine_high', extract: () => 'high' },
+  //
+  // Round 90: 'none' pattern listed FIRST so it wins on conflicting inputs
+  // like "пью много кофе утром, но на ночь не пью" — both old patterns could
+  // match, and DB upsert under the same `caffeine_high` key just lets the
+  // last write win arbitrarily. Negation is the conservative branch (it
+  // means "doesn't drink" — most likely true if any negative phrasing
+  // appears) so we yield to it deterministically. The MEMORY_PATTERNS
+  // walker is in array order, so first hit on this key sticks via the
+  // upsert ordering in saveMemories.
   { regex: /(?:не\s*пью\s*коф|без\s*коф|кофе\s*не\s*пью)/i, category: 'habit', key: 'caffeine_high', extract: () => 'none' },
+  { regex: /(?:пью\s*много\s*коф|кофе\s*литрами|зависим\s*от\s*коф)/i, category: 'habit', key: 'caffeine_high', extract: () => 'high' },
   // Match both "пью пиво по выходным" and "по выходным выпиваю пиво" word
   // orders — Russian doesn't pin SVO so either reads naturally.
   { regex: /(?:по\s*выходн\w*\s*(?:выпиваю|пью)|(?:выпиваю|пью)\s*пиво|(?:выпиваю|пью)\s*по\s*выходн|алкоголь\s*по\s*выходн)/i, category: 'habit', key: 'alcohol_pattern', extract: () => 'weekend' },
@@ -124,9 +133,23 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
 /**
  * Extract memorable facts from a user message.
  * Pure function — no DB, no I/O. Safe to call on every chat hit.
+ *
+ * Round 90: deduplicate by `key` so the FIRST matching pattern wins.
+ * Without this, ambiguous inputs ("пью много кофе утром, но на ночь не
+ * пью") could match both branches of a binary key like caffeine_high,
+ * push two entries, and the `Promise.all` upsert in saveMemories would
+ * non-deterministically commit one or the other (last write to land in
+ * Postgres wins, but the "last" parallel upsert isn't fixed by JS
+ * ordering). Keeping only the first hit per key matches what the
+ * MEMORY_PATTERNS array order already implies — the array is the
+ * priority list, and we yield to whichever pattern is listed first.
+ *
+ * multiMatch patterns are exempt because they generate UNIQUE keys per
+ * match (via keyFn) — those entries don't collide with each other.
  */
 export function extractMemories(message: string): MemoryExtraction[] {
   const memories: MemoryExtraction[] = [];
+  const seenKeys = new Set<string>();
 
   for (const pattern of MEMORY_PATTERNS) {
     if (pattern.multiMatch) {
@@ -134,6 +157,8 @@ export function extractMemories(message: string): MemoryExtraction[] {
       const globalRegex = new RegExp(pattern.regex.source, 'gi');
       for (const match of message.matchAll(globalRegex)) {
         const key = pattern.keyFn ? pattern.keyFn(match as RegExpMatchArray) : pattern.key;
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
         memories.push({
           category: pattern.category,
           key,
@@ -143,8 +168,10 @@ export function extractMemories(message: string): MemoryExtraction[] {
         });
       }
     } else {
+      if (seenKeys.has(pattern.key)) continue;
       const match = message.match(pattern.regex);
       if (match) {
+        seenKeys.add(pattern.key);
         memories.push({
           category: pattern.category,
           key: pattern.key,

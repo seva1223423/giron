@@ -254,4 +254,26 @@ describe('extractMemories — output contract', () => {
   test('returns an empty array for whitespace-only input', () => {
     expect(extractMemories('     \n\t   ')).toEqual([]);
   });
+
+  test('round 90: deduplicates by key — first matching pattern wins on conflicts', () => {
+    // Ambiguous input that historically matched both caffeine_high('none')
+    // and caffeine_high('high'). With the round-90 dedup the FIRST listed
+    // pattern (which is now 'none' — see MEMORY_PATTERNS array order)
+    // wins deterministically. Without it, the parallel saveMemories
+    // upserts would race and either value could land in the DB.
+    const out = extractMemories('пью много кофе утром, но на ночь не пью кофе');
+    const cafs = out.filter((m) => m.key === 'caffeine_high');
+    expect(cafs).toHaveLength(1);
+    expect(cafs[0].value).toBe('none');
+  });
+
+  test('round 90: multiMatch keys (per-match keyFn) are NOT deduplicated', () => {
+    // food_allergy uses keyFn so each allergen lands under a unique key
+    // (allergy_орех, allergy_лактоз...). Dedup must NOT collapse them.
+    const out = extractMemories('у меня аллергия на орехи и непереносимость лактозы');
+    const allergies = out.filter((m) => m.key.startsWith('allergy_'));
+    expect(allergies.length).toBeGreaterThanOrEqual(2);
+    const keys = new Set(allergies.map((m) => m.key));
+    expect(keys.size).toBe(allergies.length);
+  });
 });

@@ -48,11 +48,41 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
   useEffect(() => {
     AsyncStorage.getItem(OVERRIDES_KEY).then((raw) => {
       if (!raw) return;
-      try { setOverrides(JSON.parse(raw) ?? {}); } catch {}
+      try {
+        const parsed = JSON.parse(raw) ?? {};
+        // Round 90: prune overrides for abbrs that no longer exist in
+        // BASE_QUICK_MEALS — happens after a future preset rename. Keeps
+        // AsyncStorage tidy without surprising the user (a vanished abbr
+        // never showed up to be edited in the first place).
+        const validAbbrs = new Set(BASE_QUICK_MEALS.map((m) => m.abbr));
+        const pruned: Record<string, Partial<QuickMealItem>> = {};
+        let changed = false;
+        for (const [k, v] of Object.entries(parsed)) {
+          if (validAbbrs.has(k as typeof BASE_QUICK_MEALS[number]['abbr'])) {
+            pruned[k] = v as Partial<QuickMealItem>;
+          } else {
+            changed = true;
+          }
+        }
+        setOverrides(pruned);
+        if (changed) AsyncStorage.setItem(OVERRIDES_KEY, JSON.stringify(pruned)).catch(() => {});
+      } catch {}
     });
     AsyncStorage.getItem(HIDDEN_KEY).then((raw) => {
       if (!raw) return;
-      try { setHidden(JSON.parse(raw) ?? []); } catch {}
+      try {
+        const parsed: string[] = JSON.parse(raw) ?? [];
+        // Round 90: same garbage-collection on the hidden list. A future
+        // preset rename would otherwise leave dangling abbrs in storage
+        // forever — the "Вернуть скрытые (N)" badge would still show a
+        // count even though the user can't see what's hidden.
+        const validAbbrs = new Set(BASE_QUICK_MEALS.map((m) => m.abbr));
+        const pruned = parsed.filter((a) => validAbbrs.has(a as typeof BASE_QUICK_MEALS[number]['abbr']));
+        setHidden(pruned);
+        if (pruned.length !== parsed.length) {
+          AsyncStorage.setItem(HIDDEN_KEY, JSON.stringify(pruned)).catch(() => {});
+        }
+      } catch {}
     });
   }, []);
 
@@ -405,7 +435,7 @@ const PresetEditor: React.FC<{
                 onPress={onDelete}
                 style={[mStyles.btn, { backgroundColor: 'transparent' }]}
               >
-                <Text style={[typography.button, { color: colors.danger ?? '#E5484D' }]}>Скрыть из быстрого добавления</Text>
+                <Text style={[typography.button, { color: colors.error }]}>Скрыть из быстрого добавления</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
