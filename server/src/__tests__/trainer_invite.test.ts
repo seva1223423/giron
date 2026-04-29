@@ -373,6 +373,36 @@ describe('POST /trainer/accept-invite', () => {
 
     expect(res.status).toBe(200);
   });
+
+  test('409 INVITE_ALREADY_USED when atomic updateMany returns count=0 (TOCTOU race)', async () => {
+    // The test case the existing suite was missing: in-memory check
+    // passes (acceptedAt: null, clientUserId: null at read time) AND
+    // composite-unique check passes, but between read and write a
+    // concurrent caller already accepted. The atomic conditional
+    // updateMany at routes/trainer.ts:362-371 returns count=0 and the
+    // route must surface INVITE_ALREADY_USED instead of 200 — without
+    // that fallback the second caller would silently get 200 with
+    // bogus trainerClientId and no actual link in the DB.
+    (prisma.trainerClient.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: CLIENT_ROW_ID,
+      trainerId: 'u-trainer',
+      clientUserId: null,
+      acceptedAt: null,
+      name: 'Ivan Petrov',
+      invitedAt: new Date(),
+    });
+    (prisma.trainerClient.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    // Concurrent caller already won the race — atomic update finds nothing
+    (prisma.trainerClient.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+
+    const res = await request(app)
+      .post('/api/trainer/accept-invite')
+      .set('Authorization', `Bearer ${makeToken('u-client', 'USER')}`)
+      .send({ code: VALID_CODE });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('INVITE_ALREADY_USED');
+  });
 });
 
 // ── DELETE /trainer/clients/:id/link ────────────────────────────────────────
