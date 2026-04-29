@@ -1042,6 +1042,122 @@ describe('POST /api/user/change-password', () => {
   });
 });
 
+// ─── DELETE /api/user/2fa ────────────────────────────────────────────────────
+//
+// 2FA disable accepts EITHER current TOTP code OR password (whichever the
+// user provides). If 2FA is enabled, a stolen access token alone must NOT
+// be enough to disable it. Was untested.
+//
+// Note: tests below avoid mocking otpauth's TOTP.validate by exercising
+// only the password-based path (the route's `else if (password && ...)`
+// branch). The TOTP branch is covered indirectly via /admin/users/:id/
+// force-disable-2fa tests.
+
+describe('DELETE /api/user/2fa', () => {
+  const userWith2FA = {
+    id: 'u-test',
+    totpEnabled: true,
+    totpSecret: 'JBSWY3DPEHPK3PXP',
+    passwordHash: 'bcrypt-hash',
+  };
+
+  beforeEach(() => {
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValue(true);
+    bcrypt.default.compare.mockResolvedValue(true);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).delete('/api/user/2fa').send({ password: 'pw' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 TOTP_NOT_ENABLED when 2FA is currently off', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce({
+        ...userWith2FA,
+        totpEnabled: false,
+        totpSecret: null,
+      });
+
+    const res = await request(app)
+      .delete('/api/user/2fa')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'pw' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('TOTP_NOT_ENABLED');
+  });
+
+  it('401 VERIFICATION_FAILED when password is wrong (no code provided)', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWith2FA);
+    const bcrypt = require('bcryptjs');
+    bcrypt.compare.mockResolvedValueOnce(false);
+    bcrypt.default.compare.mockResolvedValueOnce(false);
+
+    const res = await request(app)
+      .delete('/api/user/2fa')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'wrong' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('VERIFICATION_FAILED');
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('401 VERIFICATION_FAILED when neither code nor password is provided', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWith2FA);
+
+    const res = await request(app)
+      .delete('/api/user/2fa')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({});
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('VERIFICATION_FAILED');
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('200 disables 2FA when correct password provided + writes TOTP_DISABLED event', async () => {
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWith2FA);
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
+
+    const res = await request(app)
+      .delete('/api/user/2fa')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'correct' });
+
+    expect(res.status).toBe(200);
+
+    // Verify 2FA state fully wiped
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    const wipeCall = updateCalls.find(
+      (c) => c[0]?.where?.id === 'u-test' && c[0]?.data?.totpEnabled === false,
+    );
+    expect(wipeCall).toBeTruthy();
+    expect(wipeCall![0].data).toEqual(
+      expect.objectContaining({
+        totpEnabled: false,
+        totpSecret: null,
+        totpBackupCodes: null,
+      }),
+    );
+
+    // SecurityEvent for the user's own audit trail
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const auditCall = seCalls.find((c) => c[0]?.data?.action === 'TOTP_DISABLED');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.userId).toBe('u-test');
+  });
+});
+
 // ─── POST /api/user/push-token ───────────────────────────────────────────────
 //
 // Sec audit HIGH-10: refuses silent reassignment of a token already owned by
