@@ -110,7 +110,8 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 93 confidence: strong qualitative, behaviour-changing. 0.8.
   // Round 137: widened locations — "в качалке", "в спортзале", "в гараже",
   // "в подвале", "на даче", "в парке", "в офисе" (some companies have gyms).
-  { regex: /(?:занимаюсь|тренируюсь)\s*(дома|в\s*зале|на\s*улице|в\s*качалке|в\s*спортзале|в\s*гараже|в\s*подвале|на\s*даче|в\s*парке|в\s*офисе|в\s*фитнес-?центре|в\s*фитнес\s*клубе)/i, category: 'preference', key: 'training_location', extract: (m) => m[1].toLowerCase().replace(/\s+/g, ' '), confidence: 0.8 },
+  // Round 171: negation guard — "не тренируюсь дома" no longer matches.
+  { regex: /(?<!не\s+)(?:занимаюсь|тренируюсь)\s*(дома|в\s*зале|на\s*улице|в\s*качалке|в\s*спортзале|в\s*гараже|в\s*подвале|на\s*даче|в\s*парке|в\s*офисе|в\s*фитнес-?центре|в\s*фитнес\s*клубе)/i, category: 'preference', key: 'training_location', extract: (m) => m[1].toLowerCase().replace(/\s+/g, ' '), confidence: 0.8 },
   // Round 105: expanded equipment whitelist — TRX/петли, эспандер,
   // фитбол, ролик пресса, скакалка, медбол, медицинский мяч, грифон, хват,
   // абс ролик. Keeps multi-match keyFn so each landing equipment row gets

@@ -39,6 +39,12 @@ describe('extractMemories — original (pre-round-86) coverage still passes', ()
     expect(keys.size).toBe(days.length);
   });
 
+  // Round 171: negation guard
+  test('round 171: "не тренируюсь дома" does NOT match training_location', () => {
+    const out = extractMemories('не тренируюсь дома, мне нужен зал');
+    expect(out.filter((m) => m.key === 'training_location')).toEqual([]);
+  });
+
   test('training_location captures "тренируюсь дома"', () => {
     const out = extractMemories('тренируюсь дома');
     expect(out).toContainEqual(expect.objectContaining({
