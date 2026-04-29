@@ -113,6 +113,11 @@ router.get('/saved', authenticate, async (req: AuthRequest, res: Response) => {
 router.post('/refresh', authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
   try {
     const result = await refreshNews(true);
+    // Round 84: drop the cache so the next GET /news doesn't keep serving
+    // the stale 5-min-old list. Without this clear, the admin clicks
+    // "refresh news" and watches the feed not change for up to 5 minutes
+    // — exactly the opposite of what the button promises.
+    if ((result?.added ?? 0) > 0) newsCache.clear();
     res.json({ success: true, ...result });
   } catch (e) {
     logger.error(e);
