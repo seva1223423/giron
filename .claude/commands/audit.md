@@ -13,7 +13,7 @@ ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/__tests__/*.test.ts | wc -l
 cd C:/Users/sevka/Desktop/1223/work/iron-gym && git status --short
 ```
 
-Expected: 37 models · 31 server suites · 81 client suites (80 files in src/__tests__/ + 1 outside)
+Expected: 37 models · 38 server suites · 81 client suites (80 files in src/__tests__/ + 1 outside)
 
 ## Phase 2 — Spawn All Agents (parallel)
 
