@@ -212,6 +212,39 @@ describe('extractMemories — round 86 expansions', () => {
     }));
   });
 
+  // Round 134 expansions
+  test('alcohol_pattern captures "не пью алкоголь" → none', () => {
+    const out = extractMemories('я совсем не пью алкоголь');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'alcohol_pattern',
+      value: 'none',
+    }));
+  });
+
+  test('alcohol_pattern captures "трезвенник" → none', () => {
+    const out = extractMemories('я трезвенник');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'alcohol_pattern',
+      value: 'none',
+    }));
+  });
+
+  test('alcohol_pattern captures "пью каждый день" → daily', () => {
+    const out = extractMemories('пью каждый день, надо завязывать');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'alcohol_pattern',
+      value: 'daily',
+    }));
+  });
+
+  test('alcohol_pattern captures "редко пью" → rare', () => {
+    const out = extractMemories('редко пью, по особым случаям');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'alcohol_pattern',
+      value: 'rare',
+    }));
+  });
+
   test('stress_high captures "много стресса"', () => {
     const out = extractMemories('у меня много стресса на работе');
     expect(out).toContainEqual(expect.objectContaining({
