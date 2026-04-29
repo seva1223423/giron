@@ -272,7 +272,10 @@ describe('PATCH /api/recipes/:id', () => {
     expect(res.body.name).toBe('Updated name');
   });
 
-  it('SECURITY: 403 on cross-user PATCH', async () => {
+  it('SECURITY: cross-user PATCH returns 404, not 403 (leakage protection)', async () => {
+    // Round 76: matches GET /:id at line 197 — collapse "USER recipe owned
+    // by someone else" into 404 so a CUID probe via PATCH can't distinguish
+    // existence. CURATED stays 403 below since it's publicly-readable.
     (prisma.recipe.findUnique as jest.Mock).mockResolvedValueOnce({
       ...sampleRecipeRow,
       userId: 'someone-else',
@@ -281,7 +284,8 @@ describe('PATCH /api/recipes/:id', () => {
       .patch(`/api/recipes/${RECIPE_ID}`)
       .set('Authorization', `Bearer ${makeToken('u-test')}`)
       .send(sampleRecipeBody);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Рецепт не найден');
   });
 
   it('SECURITY: 403 on patching CURATED', async () => {
@@ -291,6 +295,8 @@ describe('PATCH /api/recipes/:id', () => {
       .set('Authorization', `Bearer ${makeToken()}`)
       .send(sampleRecipeBody);
     expect(res.status).toBe(403);
+    // Honest message — CURATED IDs are public via /curated, no info leak.
+    expect(res.body.error).toContain('системные');
   });
 });
 
@@ -307,7 +313,9 @@ describe('DELETE /api/recipes/:id', () => {
     expect(res.body.ok).toBe(true);
   });
 
-  it('SECURITY: 403 cross-user DELETE', async () => {
+  it('SECURITY: cross-user DELETE returns 404, not 403 (leakage protection)', async () => {
+    // Round 76: same fix as PATCH above — don't leak existence of another
+    // user's USER recipe via DELETE response code.
     (prisma.recipe.findUnique as jest.Mock).mockResolvedValueOnce({
       ...sampleRecipeRow,
       userId: 'someone-else',
@@ -315,7 +323,17 @@ describe('DELETE /api/recipes/:id', () => {
     const res = await request(app)
       .delete(`/api/recipes/${RECIPE_ID}`)
       .set('Authorization', `Bearer ${makeToken('u-test')}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Рецепт не найден');
+  });
+
+  it('SECURITY: 403 deleting CURATED (existence is public, message is honest)', async () => {
+    (prisma.recipe.findUnique as jest.Mock).mockResolvedValueOnce(curatedRecipeRow);
+    const res = await request(app)
+      .delete(`/api/recipes/${CURATED_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
     expect(res.status).toBe(403);
+    expect(res.body.error).toContain('системные');
   });
 });
 
