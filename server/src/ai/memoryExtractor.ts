@@ -11,6 +11,39 @@
  * When extending: add a new pattern, then a corresponding test in
  * __tests__/memoryExtractor.test.ts. Keep extract() functions cheap —
  * they run on every /ai/chat hit.
+ *
+ * Categories (priority order from contextEngine.MEMORY_CATEGORY_PRIORITY):
+ *   • goal       — target_weight_kg, weight_loss_target_kg,
+ *                  weight_gain_target_kg, goal_deadline
+ *   • allergy    — food_allergy (multi), diet_restriction
+ *   • injury     — chronic_condition (multi), pain_area (multi),
+ *                  past_injury (multi), health_condition (multi)
+ *   • preference — training_location, available_equipment (multi),
+ *                  favorite_exercise, disliked_exercise, user_goal,
+ *                  experience_stated, experience_level, session_minutes_max,
+ *                  diet_style, current_weight_kg, height_cm,
+ *                  bodyfat_percent, family_kids, family_partnered,
+ *                  work_remote, past_sport (multi), rpe_pref,
+ *                  has_personal_trainer, gym_membership
+ *   • schedule   — training_frequency, training_days (multi),
+ *                  unavailable_days (multi), training_window
+ *   • habit      — sleep_time, wake_time, sleep_duration_hours,
+ *                  workout_time_pref, workout_time_hour,
+ *                  caffeine_high, alcohol_pattern, smoking_status,
+ *                  water_intake_liters, stress_high, sleep_quality_low,
+ *                  supplement (multi)
+ *   • personality — personality_trait
+ *
+ * Pattern conventions (gotchas learned across rounds 91-137):
+ *   • JS \w is ASCII-only; use [а-я] for Cyrillic suffix matches.
+ *   • JS \b doesn't fire between Cyrillic word chars + whitespace; use
+ *     explicit (?:^|[^а-яё]) or (?:^|\s) anchors instead.
+ *   • Variable-length lookbehind (?<!не\s+) is supported in V8 since
+ *     Node 10+ — used to guard against negation false positives.
+ *   • Order matters when two patterns can match the same key: the FIRST
+ *     match wins via the dedup-by-key logic in extractMemories().
+ *   • multiMatch=true patterns MUST set keyFn (otherwise they shadow
+ *     each other on the same key).
  */
 
 export interface MemoryExtraction {
