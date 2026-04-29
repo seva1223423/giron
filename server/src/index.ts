@@ -18,7 +18,7 @@ import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
 import { reportError } from './utils/errorReporter';
 import { clientVersionGate } from './middleware/clientVersion';
-import { adminStatsCache, newsCache } from './utils/memCache';
+import { adminStatsCache, newsCache, foodVisionCache } from './utils/memCache';
 import { prisma } from './db';
 import { trackCron } from './utils/cronHealth';
 
@@ -426,10 +426,14 @@ setInterval(async () => {
   }
 }, 6 * 60 * 60 * 1000).unref();
 
-// Prune expired in-memory cache entries every 10 minutes to prevent memory growth
+// Prune expired in-memory cache entries every 10 minutes to prevent memory growth.
+// foodVisionCache (24h TTL, 100 entries, 200KB/entry) was missing from this list —
+// without proactive pruning, cold entries that never get read again sit until
+// capacity-eviction kicks them out (a minor leak — up to ~20MB worst-case).
 setInterval(() => {
   adminStatsCache.prune();
   newsCache.prune();
+  foodVisionCache.prune();
 }, 10 * 60 * 1000).unref();
 
 // DB keep-warm ping (PERF-01). Render free tier sleeps the service after
