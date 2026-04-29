@@ -62,7 +62,7 @@
 
 ### AI система (server/src/routes/ai.ts + services/)
 - Intent: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
-- 32 tools: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary, search_exercises, explain_exercise, get_pr_history, compare_periods
+- 33 tools: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary, search_exercises, explain_exercise, get_pr_history, compare_periods, update_memory
 - 25 модулей знаний (server/src/knowledge/, 6547 строк)
 - AI Memory (категории: preference, habit, injury, allergy, schedule, personality)
 - Кэш: TTL 4ч, max 200

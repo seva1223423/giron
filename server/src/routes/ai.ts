@@ -224,6 +224,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **explain_exercise** — детальное описание упражнения (техника, какие мышцы, видеоурок). Используй когда юзер спрашивает «как делать жим», «техника становой»
 - **get_pr_history** — личные рекорды (e1RM по формуле Эпли) за 6 месяцев. Используй когда юзер спрашивает про PR / рекорды / максимум
 - **compare_periods** — сравнить тренировочную активность и питание за два смежных периода. Используй для «как изменилось за неделю / месяц»
+- **update_memory** — явно записать или удалить факт о юзере в памяти. Только когда юзер сам говорит «запомни что…» / «забудь про…». НЕ вызывай из своих выводов — авто-извлечение работает через memoryExtractor
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
@@ -250,6 +251,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - "как делать жим лёжа" / "техника становой тяги" / "какие мышцы работают в подтягиваниях" → explain_exercise(name: ...)
 - "какие у меня PR?" / "мои рекорды" / "сколько максимум жал" → get_pr_history(limit: 8)
 - "как я тренировался за неделю" / "что изменилось за месяц" / "стало больше калорий?" → compare_periods(windowDays: 7) или compare_periods(windowDays: 30)
+- "запомни что у меня TRX дома" → update_memory(action: "set", category: "preference", key: "equipment_trx", value: "true")
+- "забудь про мою старую цель" → update_memory(action: "forget", key: "user_goal")
 - юзер выбрал конкретный рецепт из find_recipes ответа → add_recipe_to_diary(recipeId, mealType, servings)
 - "тренируюсь максимум час" → set_workout_duration_goal(60)
 - "как мой прогресс за месяц?" → analyze_progress(month)
@@ -1037,6 +1040,38 @@ const AI_TOOLS: DeepSeekTool[] = [
             description: 'Размер окна сравнения в днях (1-90, по умолчанию 7). Окно "сейчас" — последние windowDays дней; окно "до" — те же windowDays перед ними.',
           },
         },
+      },
+    },
+  },
+  // ── Explicit memory management (round 100) ───────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'update_memory',
+      description: 'Явно записать или удалить факт о пользователе в долгосрочной памяти ИИ. Используй ТОЛЬКО когда пользователь явно просит «запомни что …» / «забудь что …». Авто-извлечение из обычной речи уже работает через memoryExtractor — этот tool для прямых команд. Не вызывай из своих собственных выводов.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['set', 'forget'],
+            description: 'set — запомнить факт (с category, key, value). forget — удалить факт по key.',
+          },
+          category: {
+            type: 'string',
+            enum: ['preference', 'habit', 'injury', 'allergy', 'schedule', 'personality', 'goal'],
+            description: 'Категория факта. Только для action=set.',
+          },
+          key: {
+            type: 'string',
+            description: 'Ключ факта. Используй snake_case английские имена (training_partner, gym_membership, custom_pr_goal). Для action=forget — точное совпадение с ранее сохранённым ключом.',
+          },
+          value: {
+            type: 'string',
+            description: 'Текстовое значение факта. Только для action=set. До 200 символов.',
+          },
+        },
+        required: ['action', 'key'],
       },
     },
   },
@@ -3452,6 +3487,52 @@ async function executeTool(
         previous: { workouts: previous.workouts, volume: previous.volume, mealCalories: previous.mealCalories, days: previous.days.size },
       },
     };
+  }
+
+  // ─── update_memory (round 100) — explicit memory write/delete ───────────
+  // Invoked only when the user explicitly says "запомни / забудь".
+  // Auto-extraction from natural speech happens via memoryExtractor — this
+  // tool handles direct commands from the LLM, not automatic inference.
+  // userId always comes from JWT (req.userId) — never from toolInput.
+  if (toolName === 'update_memory') {
+    const updateMemSchema = z.object({
+      action: z.enum(['set', 'forget']),
+      category: z.enum(['preference', 'habit', 'injury', 'allergy', 'schedule', 'personality', 'goal']).optional(),
+      key: z.string().min(1).max(80).regex(/^[a-z0-9_]+$/, 'key must be snake_case').transform((k) => k.toLowerCase()),
+      value: z.string().min(0).max(200).transform((v) => sanitizeForPrompt(v, 200)).optional(),
+    });
+
+    const parsed = updateMemSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров update_memory: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+
+    const { action, category, key, value } = parsed.data;
+
+    if (action === 'set') {
+      if (!category || value == null) {
+        return { resultText: 'Для action=set нужны category и value.', actionDescription: '' };
+      }
+      await prisma.aIMemory.upsert({
+        where: { userId_key: { userId, key } },
+        create: { userId, category, key, value, confidence: 1.0, source: 'explicit' },
+        update: { value, category, confidence: 1.0, source: 'explicit' },
+      });
+      return {
+        resultText: `Запомнено: [${category}] ${key} = "${value}".`,
+        actionDescription: `Сохранён факт ${key}`,
+      };
+    } else {
+      // action === 'forget'
+      const deleted = await prisma.aIMemory.deleteMany({ where: { userId, key } });
+      if (deleted.count === 0) {
+        return { resultText: `Факт "${key}" не найден в памяти — возможно, уже удалён.`, actionDescription: '' };
+      }
+      return {
+        resultText: `Факт "${key}" удалён из памяти.`,
+        actionDescription: `Удалён факт ${key}`,
+      };
+    }
   }
 
   return { resultText: 'Неизвестный инструмент', actionDescription: '' };
