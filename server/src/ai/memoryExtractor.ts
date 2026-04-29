@@ -391,7 +391,10 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Lets the AI reason about timing & interactions without re-asking. Each
   // supplement gets its own keyed entry so a user can drop one without
   // losing the rest. Excludes "пью кофе" (caffeine_high handles that).
-  { regex: /(?:пью|принимаю|использую|ем)\s*(креатин|протеин|казеин|омега[\s-]?3|витамин\s*[ABCDE]|d3|омега|bcaa|всаа|еаа|изолят|гейнер|магний|цинк|пред[\s-]?тренировочн[а-я]*|жиросжигател[а-я]*)/gi, category: 'habit', key: 'supplement', multiMatch: true, keyFn: (m) => `supplement_${m[1].toLowerCase().replace(/[\s-]+/g, '').slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
+  // Round 139: optional Cyrillic adjective between trigger and supplement
+  // name so "пью сывороточный протеин" / "принимаю порошковый креатин"
+  // both match. Lazy [а-я]+ class with mandatory whitespace.
+  { regex: /(?:пью|принимаю|использую|ем)\s+(?:[а-я]+\s+)?(креатин|протеин|казеин|омега[\s-]?3|витамин\s*[ABCDE]|d3|омега|bcaa|всаа|еаа|изолят|гейнер|магний|цинк|пред[\s-]?тренировочн[а-я]*|жиросжигател[а-я]*|кофеин|таурин|карнитин|глютамин|аргинин|цитруллин|бета-?аланин)/gi, category: 'habit', key: 'supplement', multiMatch: true, keyFn: (m) => `supplement_${m[1].toLowerCase().replace(/[\s-]+/g, '').slice(0, 14)}`, extract: (m) => m[1].toLowerCase() },
 
   // ── Round 92: Family / lifestyle constraints ─────────────────────────────
   // Time budget per session is already extracted, but family context
