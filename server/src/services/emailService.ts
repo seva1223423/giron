@@ -32,6 +32,17 @@ function warnSmtpDisabledOnce(): void {
   logger.warn('[Email] SMTP_HOST/SMTP_USER/SMTP_PASS not all set — outbound email is disabled. Set all three in env to re-enable.');
 }
 
+/**
+ * Read-only SMTP-configured flag. Lets diagnostic endpoints
+ * (test-notification, digest/readiness) report accurately when email
+ * is intentionally disabled — without this, the test-notification UI
+ * showed "✓ email sent" because the transporter wrapper silently
+ * succeeds with a fake messageId when SMTP is unset.
+ */
+export function isSmtpConfigured(): boolean {
+  return SMTP_CONFIGURED;
+}
+
 const realTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587', 10),

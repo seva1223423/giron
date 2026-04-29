@@ -600,9 +600,18 @@ router.post('/test-notification', requireAdmin, async (req: AuthRequest, res: Re
 
     if ((channel === 'email' || channel === 'both') && user.email) {
       try {
-        const { sendActivationReminderEmail } = await import('../services/emailService');
-        await sendActivationReminderEmail(user.email, user.firstName ?? null);
-        emailSent = true;
+        const { sendActivationReminderEmail, isSmtpConfigured } = await import('../services/emailService');
+        // Detect the silent-noop case (SMTP env vars not all set).
+        // Without this guard, the test would report emailSent=true even
+        // though the transporter wrapper just returned a fake messageId
+        // and nothing actually left the server. The founder would see
+        // "✓ Email отправлено" and assume SMTP works when it doesn't.
+        if (!isSmtpConfigured()) {
+          errors.email = 'SMTP не настроен (SMTP_HOST/SMTP_USER/SMTP_PASS)';
+        } else {
+          await sendActivationReminderEmail(user.email, user.firstName ?? null);
+          emailSent = true;
+        }
       } catch (e: any) {
         errors.email = String(e?.message ?? e).slice(0, 200);
       }
