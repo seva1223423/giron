@@ -62,7 +62,7 @@
 
 ### AI система (server/src/routes/ai.ts + services/)
 - Intent: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
-- 28 tools: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary
+- 30 tools: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary, search_exercises, explain_exercise
 - 25 модулей знаний (server/src/knowledge/, 6547 строк)
 - AI Memory (категории: preference, habit, injury, allergy, schedule, personality)
 - Кэш: TTL 4ч, max 200
@@ -101,7 +101,7 @@
 src/
   screens/       — admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts (15 областей)
   store/         — 14 Zustand-сторов (все persist через AsyncStorage)
-  components/    — 11 переиспользуемых компонентов
+  components/    — 15 переиспользуемых компонентов
   navigation/    — AppNavigator.tsx (трёхступенчатый: Auth/Onboarding/Main)
   services/      — 14 API-сервисов
   hooks/         — useHaptic.ts, useSafeTop.ts, useAchievementCheck.ts, usePedometer.ts
@@ -137,18 +137,23 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 80 суитов, ~2027 тестов)
+npm test               # jest (client unit tests, 81 суитов, ~2030 тестов)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 35 суитов, ~1228 тестов)
+npm test               # jest (server integration tests, 38 суитов, ~1379 тестов)
                        # Новые суиты добавлены в rounds 2-18 (2026-04-28):
                        # retentionService, adminDigestService, cronHealth,
                        # aiMetrics, memCache, activityTracker
                        # Test backfill rounds 19-47 brought existing suites
                        # (admin, user, auth.social, workout) to ~full
                        # endpoint coverage with HIGH-* audit guards pinned.
+                       # Rounds 48-92 added: memoryExtractor, recipes, routines,
+                       # subscription_gating, webhook, validation, leaderboard,
+                       # llmRouter, promptInjectionDetector, inputSanitizer,
+                       # contextEngine.memoryBlock, otp, foodVision, errorReporter,
+                       # aiMemoryService, trainer_invite, user.link, bugs_regression
 npm run prisma:studio  # GUI для БД
 npm run prisma:generate # генерация Prisma client
 # НЕ запускать: npm run prisma:migrate (prisma migrate dev) — проект использует `prisma db push`
