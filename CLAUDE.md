@@ -25,11 +25,11 @@
 
 **7 вкладок:** Главная, Тренировки (12 экранов), Питание (5), Прогресс, ИИ, Новости, Профиль (6)
 
-**13 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support
+**14 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support, recipes
 
-**13 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip, GoogleAuthButton (mode: `login|link`), ForceUpdateModal
+**15 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip, GoogleAuthButton (mode: `login|link`), ForceUpdateModal, Icon, Spinner
 
-**13 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater
+**14 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater, recipe
 
 **Области экранов (15):** admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts
 
@@ -100,10 +100,10 @@
 ```
 src/
   screens/       — admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts (15 областей)
-  store/         — 13 Zustand-сторов (все persist через AsyncStorage)
+  store/         — 14 Zustand-сторов (все persist через AsyncStorage)
   components/    — 11 переиспользуемых компонентов
   navigation/    — AppNavigator.tsx (трёхступенчатый: Auth/Onboarding/Main)
-  services/      — 12 API-сервисов
+  services/      — 14 API-сервисов
   hooks/         — useHaptic.ts, useSafeTop.ts, useAchievementCheck.ts, usePedometer.ts
   theme/         — colors (light/dark), typography (16 стилей), spacing, borderRadius
   types/         — index.ts (все типы: User, Exercise, Workout, Program, Meal, NewsArticle, ChatMessage...)
