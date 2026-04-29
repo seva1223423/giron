@@ -710,6 +710,124 @@ describe('DELETE /api/admin/announcements/:id', () => {
   });
 });
 
+// ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
+
+describe('PATCH /api/admin/users/:id/note', () => {
+  it('401 without token', async () => {
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/note`)
+      .send({ note: 'spam history' });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .patch('/api/admin/users/bad-id/note')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ note: 'test' });
+    expect(res.status).toBe(400);
+  });
+
+  it('200 sets note + writes UPDATE_NOTE adminLog with adminId from JWT', async () => {
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({
+      id: TARGET_ID, adminNote: 'flagged for spam',
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/note`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ note: 'flagged for spam' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.adminNote).toBe('flagged for spam');
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const auditCall = logCalls.find((c) => c[0]?.data?.action === 'UPDATE_NOTE');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.targetId).toBe(TARGET_ID);
+    expect(auditCall![0].data.adminId).toBe('u-admin');
+    // details must distinguish "set" vs "cleared" — useful for audit grep
+    expect(auditCall![0].data.details).toContain('note set');
+  });
+
+  it('200 clears note when empty string passed (records "note cleared")', async () => {
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({
+      id: TARGET_ID, adminNote: null,
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/note`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ note: '' });
+
+    expect(res.status).toBe(200);
+    // Cleared note → adminNote: null in update payload
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    const updateCall = updateCalls.find((c) => c[0]?.where?.id === TARGET_ID);
+    expect(updateCall![0].data.adminNote).toBeNull();
+    // Audit log distinguishes the cleared variant
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const auditCall = logCalls.find((c) => c[0]?.data?.action === 'UPDATE_NOTE');
+    expect(auditCall![0].data.details).toBe('note cleared');
+  });
+});
+
+// ─── POST /api/admin/users/:id/force-verify-email ────────────────────────────
+
+describe('POST /api/admin/users/:id/force-verify-email', () => {
+  it('401 without token', async () => {
+    const res = await request(app).post(`/api/admin/users/${TARGET_ID}/force-verify-email`);
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when id is not a valid CUID', async () => {
+    const res = await request(app)
+      .post('/api/admin/users/bad-id/force-verify-email')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when target user does not exist (Prisma P2025)', async () => {
+    const notFound = new Error('NotFoundError') as any;
+    notFound.code = 'P2025';
+    (prisma.user.update as jest.Mock).mockRejectedValueOnce(notFound);
+
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-verify-email`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('200 marks email verified + writes FORCE_VERIFY_EMAIL audit log', async () => {
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce({
+      id: TARGET_ID,
+      email: 'target@example.com',
+      emailVerified: true,
+    });
+
+    const res = await request(app)
+      .post(`/api/admin/users/${TARGET_ID}/force-verify-email`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.emailVerified).toBe(true);
+
+    // Update touches only emailVerified — must not silently flip other fields
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    const updateCall = updateCalls.find((c) => c[0]?.where?.id === TARGET_ID);
+    expect(updateCall![0].data).toEqual({ emailVerified: true });
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const auditCall = logCalls.find((c) => c[0]?.data?.action === 'FORCE_VERIFY_EMAIL');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.adminId).toBe('u-admin');
+    expect(auditCall![0].data.targetId).toBe(TARGET_ID);
+    // details must include the email so admins can grep audits by address
+    expect(auditCall![0].data.details).toContain('target@example.com');
+  });
+});
+
 // ─── POST /api/admin/users/:id/force-disable-2fa ─────────────────────────────
 //
 // Destructive op for 2FA recovery. Step-up re-auth required (sec audit
