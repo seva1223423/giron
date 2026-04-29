@@ -80,6 +80,22 @@ describe('cleanResponse — round 156 closing fluff', () => {
     expect(out).toBe('Тренируйся 3 раза.');
   });
 
+  // Round 175: more closings
+  test('strips "Если хочешь могу рассказать..." at end', () => {
+    const out = cleanResponse('Программа готова. Если хочешь, могу расскажу про прогрессию.');
+    expect(out).toBe('Программа готова.');
+  });
+
+  test('strips "Буду рад помочь" at end', () => {
+    const out = cleanResponse('Делай 5 подходов. Буду рад помочь.');
+    expect(out).toBe('Делай 5 подходов.');
+  });
+
+  test('strips "Готов помочь" at end', () => {
+    const out = cleanResponse('Программа готова. Готов помочь с любыми вопросами.');
+    expect(out).toBe('Программа готова.');
+  });
+
   test('does NOT strip mid-sentence "если у тебя"', () => {
     const out = cleanResponse('Если у тебя болит, остановись и отдохни.');
     expect(out).toBe('Если у тебя болит, остановись и отдохни.');
