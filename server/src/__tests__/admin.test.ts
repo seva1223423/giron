@@ -2355,6 +2355,75 @@ describe('GET /api/admin/analytics/export', () => {
   });
 });
 
+// ─── GET /api/admin/metrics/key ──────────────────────────────────────────────
+//
+// The "5 ключевых чисел" screen — payingUsers, monthlyChurn, ARPU,
+// activation rate, signup→paid funnel. Plus the round-2 onboarding
+// funnel block. The 200 happy path runs many parallel queries with
+// 5-min cache; auth gate is the critical regression guard.
+
+describe('GET /api/admin/metrics/key', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/metrics/key');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/metrics/key')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 with refresh=1 bypasses cache (verified via X-Cache header)', async () => {
+    // Both refresh=1 AND a fresh cache entry should land MISS on the
+    // header — the route bumps to MISS whenever it actually computed.
+    // We can't easily force a cache HIT in tests without polluting the
+    // singleton, but we can confirm refresh=1 always lands MISS.
+    (prisma.subscription.count as jest.Mock).mockResolvedValue(0);
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.user.count as jest.Mock).mockResolvedValue(0);
+    (prisma as any).$queryRaw = jest.fn().mockResolvedValue([{ cohort_size: 0n, activated_24h: 0n, median_minutes: null }]);
+
+    const res = await request(app)
+      .get('/api/admin/metrics/key?refresh=1')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['x-cache']).toBe('MISS');
+  });
+
+  it('200 with days=7 returns windowDays=7 in payload', async () => {
+    (prisma.subscription.count as jest.Mock).mockResolvedValue(0);
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.user.count as jest.Mock).mockResolvedValue(0);
+    (prisma as any).$queryRaw = jest.fn().mockResolvedValue([{ cohort_size: 0n, activated_24h: 0n, median_minutes: null }]);
+
+    const res = await request(app)
+      .get('/api/admin/metrics/key?days=7&refresh=1')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.windowDays).toBe(7);
+  });
+
+  it('200 with garbage days falls back to 30', async () => {
+    (prisma.subscription.count as jest.Mock).mockResolvedValue(0);
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.user.count as jest.Mock).mockResolvedValue(0);
+    (prisma as any).$queryRaw = jest.fn().mockResolvedValue([{ cohort_size: 0n, activated_24h: 0n, median_minutes: null }]);
+
+    const res = await request(app)
+      .get('/api/admin/metrics/key?days=garbage&refresh=1')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    // ALLOWED_DAYS = [7, 14, 30, 60, 90] — anything else coerces to 30
+    expect(res.body.windowDays).toBe(30);
+  });
+});
+
 // ─── PATCH /api/admin/users/:id/note ─────────────────────────────────────────
 
 describe('PATCH /api/admin/users/:id/note', () => {
