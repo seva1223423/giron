@@ -1049,6 +1049,126 @@ describe('POST /api/admin/users/:id/message', () => {
   });
 });
 
+// ─── GET /api/admin/users/export ─────────────────────────────────────────────
+//
+// CSV export of user list. Two security properties pinned:
+//   - admin gate (the data leak risk is enormous — every user's email,
+//     subscription state, and workout count in one file)
+//   - CSV-injection prevention: cells starting with =, +, -, @, tab, CR
+//     get prefixed with ' so Excel/Google Sheets don't execute them as
+//     formulas. A malicious user with an email like "+CMD|'/c calc'" would
+//     otherwise auto-execute a payload when the founder opens the export.
+
+describe('GET /api/admin/users/export', () => {
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/users/export');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/users/export')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 returns CSV with header line', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'u1',
+        email: 'normal@example.com',
+        firstName: 'Ivan',
+        lastName: 'P',
+        role: 'CLIENT',
+        createdAt: new Date('2026-01-01'),
+        isBanned: false,
+        subscription: { plan: 'pro', status: 'active', endDate: null },
+        _count: { workouts: 5, chatMessages: 10 },
+      },
+    ]);
+
+    const res = await request(app)
+      .get('/api/admin/users/export')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('id,email,firstName,lastName');
+    expect(res.text).toContain('normal@example.com');
+  });
+
+  it('SECURITY: CSV-injection guard prefixes formula chars with apostrophe', async () => {
+    // A malicious user registered with firstName="=cmd|'/c calc'!A1" — when
+    // Excel opens the CSV it would auto-execute the formula. The csvCell
+    // sanitiser must prefix it with ' so Excel treats the cell as text.
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'u-evil',
+        email: 'evil@example.com',
+        firstName: '=cmd|"/c calc"!A1', // formula-injection payload
+        lastName: '+evil',
+        role: 'CLIENT',
+        createdAt: new Date('2026-01-01'),
+        isBanned: false,
+        subscription: null,
+        _count: { workouts: 0, chatMessages: 0 },
+      },
+    ]);
+
+    const res = await request(app)
+      .get('/api/admin/users/export')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    // Both '=' and '+' starting cells must have a leading apostrophe
+    // (still wrapped in quotes per CSV spec). The double-quote inside
+    // the formula gets escaped to "" per RFC 4180.
+    expect(res.text).toContain(`"'=cmd|""/c calc""!A1"`);
+    expect(res.text).toContain(`"'+evil"`);
+    // Negative check: must NOT contain the raw "=cmd" without the
+    // leading apostrophe (would mean the sanitiser didn't fire)
+    expect(res.text).not.toMatch(/^"=cmd/m);
+  });
+
+  it('200 caps export at 5000 rows (sanity bound)', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/users/export')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const exportCall = calls.find((c) => c[0]?.take === 5000);
+    expect(exportCall).toBeDefined();
+  });
+
+  it('200 applies role filter when query param matches valid role', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/users/export?role=trainer')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const exportCall = calls.find((c) => c[0]?.take === 5000);
+    // Role gets uppercased before applying
+    expect(exportCall![0].where.role).toBe('TRAINER');
+  });
+
+  it('200 ignores garbage role values (safe fallback)', async () => {
+    (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await request(app)
+      .get('/api/admin/users/export?role=DROP_TABLE')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const calls = (prisma.user.findMany as jest.Mock).mock.calls;
+    const exportCall = calls.find((c) => c[0]?.take === 5000);
+    // Garbage role is silently dropped — no role filter applied
+    expect(exportCall![0].where.role).toBeUndefined();
+  });
+});
+
 // ─── GET /api/admin/digest/preview ───────────────────────────────────────────
 //
 // Read-only diagnostic — returns today's admin-digest stats without firing
