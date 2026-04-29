@@ -558,6 +558,33 @@ describe('extractMemories — round 92 expansions (sport history, supplements, f
   });
 });
 
+describe('extractMemories — round 113 workout time patterns', () => {
+  test('captures "тренируюсь по утрам"', () => {
+    const out = extractMemories('тренируюсь по утрам перед работой');
+    expect(out.some((m) => m.key === 'workout_time_pref' && /утра/.test(m.value))).toBe(true);
+  });
+
+  test('captures "хожу в зал по выходным"', () => {
+    const out = extractMemories('хожу в зал по выходным');
+    expect(out.some((m) => m.key === 'workout_time_pref' && /выходн/.test(m.value))).toBe(true);
+  });
+
+  test('captures "тренируюсь до завтрака"', () => {
+    const out = extractMemories('тренируюсь до завтрака');
+    expect(out.some((m) => m.key === 'workout_time_pref' && /завтрак/.test(m.value))).toBe(true);
+  });
+
+  test('captures explicit hour "тренируюсь в 7"', () => {
+    const out = extractMemories('тренируюсь в 7 утра');
+    expect(out.some((m) => m.key === 'workout_time_hour' && /^7:00$/.test(m.value))).toBe(true);
+  });
+
+  test('captures "тренируюсь в 18:30"', () => {
+    const out = extractMemories('тренируюсь в 18:30');
+    expect(out.some((m) => m.key === 'workout_time_hour' && /^18:30$/.test(m.value))).toBe(true);
+  });
+});
+
 describe('extractMemories — round 112 weight delta targets', () => {
   test('captures "хочу сбросить 5 кг"', () => {
     const out = extractMemories('хочу сбросить 5 кг к лету');
