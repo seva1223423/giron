@@ -156,7 +156,13 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // Round 86 expansion: previously only 7 favourite / 4 disliked exercises.
   // Added пуш-/отжимания, подтягивания, планка, скакалка, выпады, бёрпи,
   // отжимания на брусьях / отжимания, и общий «качаю / тренирую <часть тела>».
-  { regex: /(?:люблю|нравится|предпочитаю)\s*(присед|жим|тяг|кардио|йог|бег|плаван|подтягиван|отжиман|планк|скакалк|выпад|бёрпи|берпи|брусь|пресс)/i, category: 'preference', key: 'favorite_exercise', extract: (m) => m[1] },
+  // Round 172: negation guard. The disliked_exercise pattern has its own
+  // explicit "не люблю" trigger (line below), but favorite_exercise was
+  // shadow-matching due to "люблю" appearing inside "не люблю". Same fix
+  // as the rpe_pref pattern (round 125) — use first-match-wins by listing
+  // disliked BEFORE favorite (already done) AND add (?<!не\s+) here as
+  // belt-and-suspenders.
+  { regex: /(?<!не\s+)(?:люблю|нравится|предпочитаю)\s*(присед|жим|тяг|кардио|йог|бег|плаван|подтягиван|отжиман|планк|скакалк|выпад|бёрпи|берпи|брусь|пресс)/i, category: 'preference', key: 'favorite_exercise', extract: (m) => m[1] },
   { regex: /(?:не люблю|ненавижу|не хочу делать|избегаю)\s*(кардио|присед|жим|тяг|бег|планк|подтягиван|отжиман|скакалк|выпад|бёрпи|берпи|пресс)/i, category: 'preference', key: 'disliked_exercise', extract: (m) => m[1] },
 
   // ── Workout timing preference ────────────────────────────────────────────
