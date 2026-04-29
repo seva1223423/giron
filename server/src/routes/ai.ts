@@ -1422,6 +1422,13 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /\d+\s*мин(?:ут)?\s*(?:бег[аа]?|кардио|вело|бежал|плавани)/i,
     // "на завтрак/обед/ужин ел/было/было" — meal reporting without explicit verb
     /(?:на\s*завтрак|на\s*обед|на\s*ужин|на\s*перекус)\s+(?:ел[аи]?|поел[аи]?|съел[аи]?|было?|был[аи]?|выпил[аи]?|перекусил[аи]?)/i,
+    // Round 102: explicit memory commands. Falling through to update_memory
+    // tool dispatch when the LLM picks it up. Without this hint these
+    // sentences classified as 'general' which still has tools enabled
+    // but no priority modules — the LLM was less reliably choosing the
+    // memory tool.
+    /(?:запомни|запиши\s*в\s*память|сохрани\s*факт)/i,
+    /(?:забудь(?:\s*про|\s*о)?|удали\s*из\s*памяти|сотри\s*факт)/i,
   ]],
   ['program_creation', [
     /(?:составь|создай|сделай|придумай|напиши|разработай)\s*(?:програм|план|сплит|тренировк)/i,
