@@ -58,6 +58,10 @@ jest.mock('../db', () => ({
     },
     cardioSession: {
       findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    meal: {
+      count: jest.fn().mockResolvedValue(0),
     },
     announcement: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -1969,6 +1973,138 @@ describe('GET /api/admin/staff', () => {
     expect(staffCall![0].where.isBanned).toBe(false);
     // Sort: firstName asc — predictable order in the dropdown
     expect(staffCall![0].orderBy).toEqual({ firstName: 'asc' });
+  });
+});
+
+// ─── GET /api/admin/report/daily ─────────────────────────────────────────────
+
+describe('GET /api/admin/report/daily', () => {
+  beforeEach(() => {
+    // Wire up all the count/findMany mocks the daily-report aggregator hits
+    (prisma.user.count as jest.Mock).mockResolvedValue(0);
+    (prisma.workout.count as jest.Mock) = jest.fn().mockResolvedValue(0);
+    (prisma.chatMessage.count as jest.Mock) = jest.fn().mockResolvedValue(0);
+    (prisma.subscription.count as jest.Mock) = jest.fn().mockResolvedValue(0);
+    (prisma.supportTicket.count as jest.Mock) = jest.fn().mockResolvedValue(0);
+    (prisma.cardioSession.count as jest.Mock) = jest.fn().mockResolvedValue(0);
+    (prisma.meal.count as jest.Mock) = jest.fn().mockResolvedValue(0);
+    (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).get('/api/admin/report/daily');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 for non-admin', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+    const res = await request(app)
+      .get('/api/admin/report/daily')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('400 when date is malformed (not YYYY-MM-DD)', async () => {
+    const res = await request(app)
+      .get('/api/admin/report/daily?date=2026/04/28')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when date is invalid (e.g. 2026-13-01)', async () => {
+    // Note: regex catches obviously-bad formats. The Date.parse check
+    // catches 'valid format, invalid value' like 2026-13-01.
+    const res = await request(app)
+      .get('/api/admin/report/daily?date=2026-13-01')
+      .set('Authorization', `Bearer ${makeToken()}`);
+    expect(res.status).toBe(400);
+  });
+});
+
+// ─── PATCH /api/admin/support/:id/assign ─────────────────────────────────────
+
+describe('PATCH /api/admin/support/:id/assign', () => {
+  const TICKET_ID = 'cticket0000000000000001';
+  const STAFF_ID = 'cstaff00000000000000001';
+
+  beforeEach(() => {
+    (prisma.supportTicket.findUnique as jest.Mock) = jest.fn().mockResolvedValue(null);
+    (prisma.supportTicket.update as jest.Mock) = jest.fn().mockResolvedValue({});
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app)
+      .patch(`/api/admin/support/${TICKET_ID}/assign`)
+      .send({ assignedToId: STAFF_ID });
+    expect(res.status).toBe(401);
+  });
+
+  it('400 when ticket id is not a valid CUID', async () => {
+    const res = await request(app)
+      .patch('/api/admin/support/bad-id/assign')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ assignedToId: STAFF_ID });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when assignedToId is not a valid CUID (Zod cuid())', async () => {
+    const res = await request(app)
+      .patch(`/api/admin/support/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ assignedToId: 'not-a-cuid' });
+    expect(res.status).toBe(400);
+  });
+
+  it('404 when ticket does not exist', async () => {
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .patch(`/api/admin/support/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ assignedToId: STAFF_ID });
+    expect(res.status).toBe(404);
+  });
+
+  it('400 when assignee is a regular USER (not staff)', async () => {
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: TICKET_ID, userId: 'u-customer', status: 'open',
+    });
+    // Auth middleware gets adminUser; the assignee role lookup gets a USER
+    (prisma.user.findUnique as jest.Mock).mockImplementation(({ where }: { where: { id?: string } }) => {
+      if (where?.id === 'u-admin') return Promise.resolve(adminUser);
+      if (where?.id === STAFF_ID) return Promise.resolve({ role: 'CLIENT' });
+      return Promise.resolve(null);
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/support/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ assignedToId: STAFF_ID });
+
+    expect(res.status).toBe(400);
+    expect(prisma.supportTicket.update).not.toHaveBeenCalled();
+  });
+
+  it('200 unassigns when assignedToId=null + writes ASSIGN_TICKET log', async () => {
+    (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: TICKET_ID, userId: 'u-customer', status: 'open',
+    });
+    (prisma.supportTicket.update as jest.Mock).mockResolvedValueOnce({
+      id: TICKET_ID, assignedToId: null,
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/support/${TICKET_ID}/assign`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ assignedToId: null });
+
+    expect(res.status).toBe(200);
+    // Audit log records "Unassigned" details so the action is greppable
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const auditCall = logCalls.find((c) => c[0]?.data?.action === 'ASSIGN_TICKET');
+    expect(auditCall).toBeTruthy();
+    expect(auditCall![0].data.details).toBe('Unassigned');
+    expect(auditCall![0].data.adminId).toBe('u-admin');
   });
 });
 
