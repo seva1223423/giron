@@ -1020,6 +1020,23 @@ describe('extractMemories — round 129 gym + coach context', () => {
   });
 });
 
+describe('extractMemories — round 162 last workout feel', () => {
+  test('captures "вчерашняя тренировка была тяжёлой" → hard', () => {
+    const out = extractMemories('вчерашняя тренировка была тяжёлой');
+    expect(out.some((m) => m.key === 'last_workout_feel' && m.value === 'hard')).toBe(true);
+  });
+
+  test('captures "последняя тренировка была лёгкой" → easy', () => {
+    const out = extractMemories('последняя тренировка была лёгкой');
+    expect(out.some((m) => m.key === 'last_workout_feel' && m.value === 'easy')).toBe(true);
+  });
+
+  test('captures "вчерашняя тренировка норм" → normal', () => {
+    const out = extractMemories('вчерашняя тренировка норм, ничего особенного');
+    expect(out.some((m) => m.key === 'last_workout_feel' && m.value === 'normal')).toBe(true);
+  });
+});
+
 describe('extractMemories — round 161 vacation_mode', () => {
   test('captures "сейчас в отпуске"', () => {
     const out = extractMemories('сейчас в отпуске на море, не могу полноценно заниматься');

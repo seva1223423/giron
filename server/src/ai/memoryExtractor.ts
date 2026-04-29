@@ -376,6 +376,13 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   { regex: /(?:часто\s*пропускаю|пропускаю\s*(?:часто|тренировки|треньки)|нерегулярно\s*хожу)/i, category: 'preference', key: 'program_adherence', extract: () => 'inconsistent', confidence: 0.8 },
   { regex: /(?:плыву\s*по\s*течению|без\s*плана|тренируюсь\s*как\s*получится|не\s*следую\s*программе)/i, category: 'preference', key: 'program_adherence', extract: () => 'unstructured', confidence: 0.7 },
 
+  // ── Round 162: Last workout feel — captures the user's perception of
+  // the most recent session. Different from rpe_pref (general preference)
+  // — this is a state-of-the-day signal. Confidence 0.6 (transient).
+  { regex: /(?:вчера(?:шняя)?\s*тренировк|последняя\s*тренировк)[а-я]*\s*(?:была\s*)?(?:тяжёл|тяжел|жёстк|жестк|очень\s*тяжел)/i, category: 'habit', key: 'last_workout_feel', extract: () => 'hard', confidence: 0.6 },
+  { regex: /(?:вчера(?:шняя)?\s*тренировк|последняя\s*тренировк)[а-я]*\s*(?:была\s*)?(?:лёгк|легк|просто)/i, category: 'habit', key: 'last_workout_feel', extract: () => 'easy', confidence: 0.6 },
+  { regex: /(?:вчера(?:шняя)?\s*тренировк|последняя\s*тренировк)[а-я]*\s*(?:была\s*)?(?:норм|нормально|ок|неплох)/i, category: 'habit', key: 'last_workout_feel', extract: () => 'normal', confidence: 0.5 },
+
   // ── Round 161: Vacation / travel state ─────────────────────────────────
   // Temporary state — captures when the user is unavailable for normal
   // training. Drives suggestion of bodyweight/travel-friendly programs.
