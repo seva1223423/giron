@@ -946,7 +946,13 @@ describe('GET /api/admin/announcements/preview', () => {
     expect(where.isBanned).toBe(false);
   });
 
-  it('200 filters by subscription plan when targetRole=pro', async () => {
+  it('200 filters by subscription plan when targetRole=pro (round 83: includes cancelled-not-expired)', async () => {
+    // Round 83: the count must match the actual delivery audience —
+    // /announcements/active sees the announcement for users whose
+    // subscription is active OR cancelled-but-not-yet-expired (the
+    // `subActive` ternary). The pre-round-83 preview filter restricted
+    // to status='active' alone, which under-reported the audience by
+    // however many users had cancelled and were riding out their period.
     (prisma.user.count as jest.Mock).mockResolvedValueOnce(42);
 
     const res = await request(app)
@@ -958,10 +964,18 @@ describe('GET /api/admin/announcements/preview', () => {
 
     const calls = (prisma.user.count as jest.Mock).mock.calls;
     const where = calls[calls.length - 1][0].where;
-    // Must include the subscription nested filter — without this, an admin
-    // sending a "pro-only" announcement might over- or under-count their
-    // audience.
-    expect(where.subscription).toEqual({ plan: 'pro', status: 'active' });
+    // The new filter shape: plan match + status in {active, cancelled} +
+    // endDate null OR future. Match the structure rather than the exact
+    // Date instance (`now` is computed at request time).
+    expect(where.subscription.plan).toBe('pro');
+    expect(where.subscription.status).toEqual({ in: ['active', 'cancelled'] });
+    expect(Array.isArray(where.subscription.OR)).toBe(true);
+    expect(where.subscription.OR).toEqual(
+      expect.arrayContaining([
+        { endDate: null },
+        expect.objectContaining({ endDate: expect.objectContaining({ gte: expect.any(Date) }) }),
+      ]),
+    );
   });
 
   it('200 filters by user role when targetRole=ADMIN', async () => {

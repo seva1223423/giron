@@ -2596,7 +2596,18 @@ router.get('/announcements/preview', requireAdmin, async (req: AuthRequest, res:
       const VALID_PLANS = ['free', 'pro', 'trainer', 'club'];
       const VALID_ROLES = ['GUEST', 'VISITOR', 'CLIENT', 'TRAINER', 'SUPPORT', 'ADMIN'];
       if (VALID_PLANS.includes(targetRole)) {
-        where.subscription = { plan: targetRole, status: 'active' };
+        // Round 83: match the same "is paying / has access" semantics that
+        // /announcements/active uses (the `subActive` ternary above), so the
+        // preview number doesn't undercount the actual delivery audience.
+        // active = currently paying; cancelled-not-yet-expired = still has
+        // access until endDate. Both see the announcement at delivery time;
+        // the previous filter only counted the `active` half.
+        const now = new Date();
+        where.subscription = {
+          plan: targetRole,
+          status: { in: ['active', 'cancelled'] },
+          OR: [{ endDate: null }, { endDate: { gte: now } }],
+        };
       } else if (VALID_ROLES.includes(targetRole.toUpperCase())) {
         where.role = targetRole.toUpperCase();
       }
