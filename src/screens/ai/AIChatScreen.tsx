@@ -29,6 +29,13 @@ const FALLBACK_PROMPTS = [
   { emoji: '◈', text: 'Как не бросить тренировки и держать мотивацию?' },
   { emoji: '◉', text: 'Как совмещать кардио и силовые?' },
   { emoji: '◫', text: 'Болит плечо при жиме — что делать?' },
+  // Round 128: prompts that exercise the new analytics + memory tools
+  // (rounds 94-100). Surfacing them in the welcome chip list nudges
+  // users to discover features that otherwise only fire when the user
+  // already knows to ask.
+  { emoji: '◇', text: 'Покажи мои личные рекорды за последние месяцы' },
+  { emoji: '◇', text: 'Сравни мои тренировки за этот месяц с прошлым' },
+  { emoji: '◇', text: 'Что приготовить под лёгкий ужин до 500 ккал?' },
 ];
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
