@@ -581,6 +581,58 @@ describe('processPreRenewalNotices', () => {
     expect(sent).toBe(0);
     expect(mockReportError).toHaveBeenCalled();
   });
+
+  describe('quiet hours guard', () => {
+    // 376-ФЗ §4 is satisfied by the email (legal channel that lands in
+    // inbox harmlessly at any hour). The push is a UX nudge and gets
+    // skipped during 22:00..08:00 MSK so we don't wake users at 03:00
+    // with a charging warning. Mirrors the activation cohort's behaviour.
+    afterEach(() => {
+      jest.setSystemTime(new Date('2026-04-29T12:00:00Z').getTime());
+    });
+
+    test('at 22:30 MSK (19:30 UTC) — push deferred, email + gate still set', async () => {
+      jest.setSystemTime(new Date('2026-04-29T19:30:00Z').getTime());
+      mockSubFindMany.mockResolvedValueOnce([makeSubscription()]);
+
+      const sent = await processPreRenewalNotices();
+
+      expect(sent).toBe(1);
+      expect(mockSendPush).not.toHaveBeenCalled();
+      expect(mockPreRenewalEmail).toHaveBeenCalledTimes(1);
+      // Gate must still be set so the user doesn't get a duplicate email
+      // on the next tick — email already satisfied the legal requirement.
+      expect(mockSubUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'sub-1' },
+          data: { renewalNoticeSentAt: expect.any(Date) },
+        }),
+      );
+    });
+
+    test('at 03:00 MSK (00:00 UTC) — push deferred, email + gate still set', async () => {
+      jest.setSystemTime(new Date('2026-04-29T00:00:00Z').getTime());
+      mockSubFindMany.mockResolvedValueOnce([makeSubscription()]);
+
+      const sent = await processPreRenewalNotices();
+
+      expect(sent).toBe(1);
+      expect(mockSendPush).not.toHaveBeenCalled();
+      expect(mockPreRenewalEmail).toHaveBeenCalledTimes(1);
+      expect(mockSubUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    test('at 09:00 MSK (06:00 UTC) — push fires (just past quiet window)', async () => {
+      jest.setSystemTime(new Date('2026-04-29T06:00:00Z').getTime());
+      mockSubFindMany.mockResolvedValueOnce([makeSubscription()]);
+
+      const sent = await processPreRenewalNotices();
+
+      expect(sent).toBe(1);
+      expect(mockSendPush).toHaveBeenCalledTimes(1);
+      expect(mockPreRenewalEmail).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 // ── runAllRetentionCohorts ────────────────────────────────────────────────────
