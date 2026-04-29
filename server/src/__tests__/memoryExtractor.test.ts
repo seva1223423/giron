@@ -769,6 +769,34 @@ describe('extractMemories — round 105 expanded equipment list', () => {
   });
 });
 
+describe('extractMemories — round 129 gym + coach context', () => {
+  test('captures "тренируюсь с тренером" → has_personal_trainer=true', () => {
+    const out = extractMemories('тренируюсь с тренером 2 раза в неделю');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'has_personal_trainer',
+      value: 'true',
+    }));
+  });
+
+  test('captures "сам тренируюсь" → has_personal_trainer=false', () => {
+    const out = extractMemories('сам тренируюсь, без помощи');
+    expect(out).toContainEqual(expect.objectContaining({
+      key: 'has_personal_trainer',
+      value: 'false',
+    }));
+  });
+
+  test('captures "хожу в World Class" → gym_membership', () => {
+    const out = extractMemories('хожу в World Class на Тверской');
+    expect(out.some((m) => m.key === 'gym_membership' && /world\s*class/.test(m.value))).toBe(true);
+  });
+
+  test('captures "хожу в качалку" → gym_membership generic', () => {
+    const out = extractMemories('хожу в качалку рядом с домом');
+    expect(out.some((m) => m.key === 'gym_membership' && /качалк/.test(m.value))).toBe(true);
+  });
+});
+
 describe('extractMemories — round 125 RPE / intensity preference', () => {
   test('captures "люблю тяжёлые тренировки" → high', () => {
     const out = extractMemories('люблю тяжёлые тренировки до отказа');
