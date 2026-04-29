@@ -12930,7 +12930,8 @@ ${plans.join('\n')}
 // ─── Block 44: Response Quality Guard ───────────────────────────────────────
 // Post-processing to ensure AI response meets quality standards
 
-function validateAIResponse(response: string, intent: string): { cleaned: string; warnings: string[] } {
+// Exported for unit testing (round 173).
+export function validateAIResponse(response: string, intent: string): { cleaned: string; warnings: string[] } {
   let cleaned = response;
   const warnings: string[] = [];
 
