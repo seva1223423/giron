@@ -232,6 +232,14 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // both are known. Confidence 0.9 (numeric anchored).
   { regex: /(?:хочу\s*)?сбросить\s*(\d{1,2})\s*кг/i, category: 'goal', key: 'weight_loss_target_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
   { regex: /(?:хочу\s*)?(?:набрать|нарастить)\s*(\d{1,2})\s*кг/i, category: 'goal', key: 'weight_gain_target_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  // Round 150: PAST achievements — "уже сбросил 5 кг" / "уже набрал 3 кг" /
+  // "достиг 100 кг в жиме". Captures progress milestones so the AI can
+  // congratulate + factor into future programming. Different keys from
+  // weight_loss_target_kg / weight_gain_target_kg (which are TARGETS, not
+  // accomplishments).
+  { regex: /уже\s*(?:сбросил[аи]?|потерял[аи]?|сжёг)\s*(\d{1,2})\s*кг/i, category: 'goal', key: 'weight_lost_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  { regex: /уже\s*(?:набрал[аи]?|нарастил[аи]?|поднял[аи]?\s*вес\s*на)\s*(\d{1,2})\s*кг/i, category: 'goal', key: 'weight_gained_kg', extract: (m) => `${m[1]}`, confidence: 0.9 },
+  { regex: /(?:достиг(?:ла)?|преодолел[аи]?|пробил[аи]?)\s*(\d{2,3})\s*кг\s*(?:в\s*(?:жиме|приседе|тяге|становой))?/i, category: 'goal', key: 'milestone_pr_kg', extract: (m) => `${m[1]}`, confidence: 0.85 },
 
   // ── Time budget per session ──────────────────────────────────────────────
   // Round 86: "у меня 40 минут на тренировку", "максимум час", "только полчаса".
