@@ -439,7 +439,7 @@ describe('PATCH /api/support/tickets/:id/close', () => {
     expect(res.status).toBe(404);
   });
 
-  it('403 when ticket belongs to another user', async () => {
+  it('404 when ticket belongs to another user (leakage protection — matches GET)', async () => {
     (prisma.supportTicket.findUnique as jest.Mock).mockResolvedValueOnce({
       ...sampleTicket,
       userId: 'u-other-user',
@@ -449,7 +449,10 @@ describe('PATCH /api/support/tickets/:id/close', () => {
       .patch(`/api/support/tickets/${TICKET_ID}/close`)
       .set('Authorization', `Bearer ${makeToken('u-test')}`);
 
-    expect(res.status).toBe(403);
+    // GET /support/tickets/:id already returned 404 in this case; close was
+    // inconsistent with 403, letting an attacker probe ticket existence.
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Тикет не найден');
   });
 
   it('200 closes own ticket', async () => {
