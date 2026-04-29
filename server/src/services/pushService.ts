@@ -41,10 +41,21 @@ export async function sendPushToUser(
         const receipts = await expo.sendPushNotificationsAsync(chunk);
         receipts.forEach((receipt, i) => {
           if (receipt.status === 'error') {
-            if (receipt.details?.error === 'DeviceNotRegistered') {
+            const errCode = receipt.details?.error;
+            if (errCode === 'DeviceNotRegistered') {
               const badToken = (chunk[i] as ExpoPushMessage | undefined)?.to as string;
               const record = tokenRecords.find((r) => r.token === badToken);
               if (record) invalidTokenIds.push(record.id);
+            } else {
+              // Surface non-DeviceNotRegistered errors so MessageTooBig
+              // (over 4kb), MessageRateExceeded, InvalidCredentials, and
+              // mismatched-sender failures aren't silently swallowed.
+              // Tokens stay in the DB — these are transient/config issues,
+              // not "device unregistered".
+              const r = receipt as { message?: string };
+              logger.warn(
+                `[Push] Receipt error for user ${userId}: code=${errCode ?? 'unknown'} message=${r.message ?? '(none)'}`,
+              );
             }
           }
         });
