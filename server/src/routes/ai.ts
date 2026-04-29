@@ -84159,24 +84159,33 @@ router.post('/workout-insights', authenticate, async (req: AuthRequest, res: Res
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
-    // Build a compact workout summary
+    // Build a compact workout summary. Exercise names are user-supplied
+    // via the request body (Zod max(200) but no char whitelist), so each
+    // interpolated string goes through sanitizeForPrompt — same anti-
+    // injection rule as round 57's firstName fix.
     const exerciseSummaries = workout.exercises.map((ex) => {
+      const safeName = sanitizeForPrompt(ex.name, 100);
       const done = ex.sets.filter((s) => s.completed !== false && (s.weight || s.reps));
       const avgRpe = done.filter((s) => s.rpe).length > 0
         ? (done.reduce((sum, s) => sum + (s.rpe ?? 0), 0) / done.filter((s) => s.rpe).length).toFixed(1)
         : null;
       const best = done.length > 0 ? done.reduce((b, s) => (!b || (s.weight || 0) > (b.weight || 0) ? s : b), done[0]) : null;
-      return `${ex.name}: ${done.length} подходов${best ? `, лучший ${best.weight} кг × ${best.reps} повт.` : ''}${avgRpe ? `, RPE ${avgRpe}` : ''}`;
+      return `${safeName}: ${done.length} подходов${best ? `, лучший ${best.weight} кг × ${best.reps} повт.` : ''}${avgRpe ? `, RPE ${avgRpe}` : ''}`;
     }).join('\n');
 
     const userGoal = user?.goal ? { WEIGHT_LOSS: 'похудение', MUSCLE_GAIN: 'набор массы', STRENGTH: 'сила', ENDURANCE: 'выносливость', FLEXIBILITY: 'гибкость', GENERAL_FITNESS: 'общая форма' }[user.goal] ?? user.goal : null;
 
+    // Sanitize all user-controlled strings before stitching into the prompt.
+    const safeWorkoutName = sanitizeForPrompt(workout.name, 100);
+    const safeFirstName = sanitizeForPrompt(user?.firstName ?? 'неизвестен', 60);
+    const safeNotes = workout.notes ? sanitizeForPrompt(workout.notes, 500) : '';
+
     const prompt = `Дай краткий профессиональный анализ тренировки (2-3 абзаца, максимум 200 слов). Будь конкретным и мотивирующим.
 
-ТРЕНИРОВКА: ${workout.name}
+ТРЕНИРОВКА: ${safeWorkoutName}
 Длительность: ${workout.durationMinutes} мин | Объём: ${Math.round(workout.totalVolume || 0)} кг
-Атлет: ${user?.firstName || 'неизвестен'}, цель — ${userGoal || 'не указана'}
-${workout.notes ? `Заметки атлета: "${workout.notes}"` : ''}
+Атлет: ${safeFirstName}, цель — ${userGoal || 'не указана'}
+${safeNotes ? `Заметки атлета: "${safeNotes}"` : ''}
 
 УПРАЖНЕНИЯ:
 ${exerciseSummaries}
