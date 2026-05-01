@@ -6,6 +6,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { useThemeStore } from './src/store';
 import { ErrorBoundary, ForceUpdateModal } from './src/components';
+import {
+  AppModalProvider,
+  _AppModalGlobalBridge,
+  ToastHost,
+  installAppAlert,
+} from './src/components/app-modal';
 // Touching the wrapper at module load triggers the lazy Sentry init the
 // first time reportError() / setUser() / addBreadcrumb() runs. We call
 // addBreadcrumb here to mark "app booted" with no PII so the very first
@@ -14,6 +20,12 @@ import { addBreadcrumb } from './src/utils/errorReporter';
 import { checkAndApplyUpdate } from './src/services/otaUpdater';
 
 addBreadcrumb('app:boot', { ts: new Date().toISOString() });
+
+// Patch RN.Alert.alert globally so all 270+ existing call sites render in
+// the Direction A modal (graphite + gold) instead of the OS default. Safe
+// to call at module scope: idempotent, and a no-op until the bridge inside
+// <AppModalProvider> mounts and wires up the show() handle.
+installAppAlert();
 
 export default function App() {
   const { isDark } = useThemeStore();
@@ -43,11 +55,20 @@ export default function App() {
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <StatusBar style={isDark ? 'light' : 'dark'} />
-          <AppNavigator />
-          {/* Sits at the root so the modal overlays every screen, including
-              auth/onboarding. Mounts once for the lifetime of the app and
-              is internally driven by the api.ts event bus. */}
-          <ForceUpdateModal />
+          {/* AppModalProvider wraps the navigator so its <Modal> overlay
+              sits above every screen. _AppModalGlobalBridge captures the
+              provider's show() handle into module scope so the patched
+              Alert.alert (and the toast.* helpers) can fire from anywhere
+              — even outside the React tree (axios interceptors, etc.). */}
+          <AppModalProvider>
+            <_AppModalGlobalBridge />
+            <AppNavigator />
+            {/* Sits at the root so the modal overlays every screen, including
+                auth/onboarding. Mounts once for the lifetime of the app and
+                is internally driven by the api.ts event bus. */}
+            <ForceUpdateModal />
+            <ToastHost />
+          </AppModalProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </ErrorBoundary>

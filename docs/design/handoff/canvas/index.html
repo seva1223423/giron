@@ -33,6 +33,9 @@
 <script type="text/babel" src="src/stickers.jsx"></script>
 <script type="text/babel" src="src/adaptive-showcase.jsx"></script>
 <script type="text/babel" src="src/responsive-contexts.jsx"></script>
+<script type="text/babel" src="src/modal-screens.jsx"></script>
+<script type="text/babel" src="src/giron-icons.jsx"></script>
+<script type="text/babel" src="src/giron-icons-2.jsx"></script>
 
 <script type="text/babel">
   const { useState } = React;
@@ -70,6 +73,17 @@
           { id: 'a-stk',  label: '19 · Стикеры',         c: window.A_Stickers },
           { id: 'a-adapt', label: '20 · Адаптивность · все устройства', c: window.A_AdaptiveShowcase, w: 1600, h: 900 },
           { id: 'a-rctx',  label: '21 · Адаптивность · keyboard / type / tablet', c: window.A_ResponsiveContexts, w: 1480, h: 1100 },
+          { id: 'a-mod-sys', label: '22 · Системные уведомления · обзор', c: window.A_ModalSystem, w: 1280, h: 1000 },
+          { id: 'a-mod-err', label: '23 · Модалка · ошибка',        c: window.A_ModalError },
+          { id: 'a-mod-ses', label: '24 · Модалка · сессия истекла', c: window.A_ModalSession },
+          { id: 'a-mod-suc', label: '25 · Модалка · успех',          c: window.A_ModalSuccess },
+          { id: 'a-mod-cnf', label: '26 · Модалка · подтверждение',  c: window.A_ModalConfirm },
+          { id: 'a-mod-del', label: '27 · Модалка · удаление',       c: window.A_ModalDestructive },
+          { id: 'a-tst-suc', label: '28 · Toast · успех',             c: window.A_ToastSuccess },
+          { id: 'a-tst-err', label: '29 · Toast · ошибка',            c: window.A_ToastError },
+          { id: 'a-tst-wrn', label: '30 · Toast · предупреждение',    c: window.A_ToastWarn },
+          { id: 'a-icons',   label: '31 · Giron · иконки приложения',  c: window.A_GironIcons, w: 1500, h: 1700 },
+          { id: 'a-icons2',  label: '32 · Giron · иконки · серия 2',   c: window.A_GironIcons2, w: 1500, h: 1300 },
         ],
       },
     ];
