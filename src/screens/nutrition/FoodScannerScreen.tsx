@@ -767,6 +767,17 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         // "Попробовать снова" which reuses the AI call without consuming twice.
         if (e?.retryable === false) refundFoodScan();
         haptic.error();
+      } else if (e?.code === 'ERR_NETWORK' || (e?.message && !e?.response)) {
+        // Round 204: explicit network-failure path. Cellular dropout,
+        // wifi loss, DNS hiccup all surface as ERR_NETWORK or as an
+        // axios error with no `response`. The generic "Ошибка сети"
+        // message hid this — now we tell the user what to actually
+        // check, refund the optimistically consumed scan, and keep
+        // the image visible for retry once they're reconnected.
+        setError('Нет соединения с сервером. Проверь интернет и нажми «Попробовать снова».');
+        setErrorRetryable(true);
+        haptic.error();
+        refundFoodScan();
       } else {
         setError(getApiError(e).message);
         setErrorRetryable(true);
