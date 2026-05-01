@@ -123,16 +123,84 @@ async function fetchStepsForDay(date: Date): Promise<number> {
   }
 }
 
+/**
+ * Cross-instance permission broadcast. The hook is mounted independently
+ * by StepsCard (home), StepsSection (progress), and StepsScreen — each
+ * with its own React state. Without a broadcast bus, granting permission
+ * via the StepsScreen prompt left the home StepsCard hook frozen at
+ * 'denied' (the value it probed when it first mounted), so the card
+ * stayed hidden until the next AppState background→active transition
+ * happened to fire the per-instance permission re-check listener.
+ *
+ * This bus carries permission/canAskAgain/hasHardware updates only —
+ * step data stays per-instance because different consumers can request
+ * different history windows. Whenever any hook learns the permission
+ * state has changed (autoRequest, refresh, requestPermission, AppState
+ * re-check), it calls `publishPermission`; every mounted hook then
+ * syncs its local state from the snapshot.
+ */
+type PermissionSnapshot = {
+  permission: PedometerPermission;
+  canAskAgain: boolean;
+  hasHardware: boolean;
+};
+
+let permissionSnapshot: PermissionSnapshot = {
+  permission: 'unknown',
+  canAskAgain: true,
+  hasHardware: false,
+};
+
+const permissionSubscribers = new Set<(s: PermissionSnapshot) => void>();
+
+function publishPermission(update: Partial<PermissionSnapshot>) {
+  const next = { ...permissionSnapshot, ...update };
+  if (
+    next.permission === permissionSnapshot.permission &&
+    next.canAskAgain === permissionSnapshot.canAskAgain &&
+    next.hasHardware === permissionSnapshot.hasHardware
+  ) {
+    return;
+  }
+  permissionSnapshot = next;
+  permissionSubscribers.forEach((cb) => cb(next));
+}
+
 export function usePedometer(historyDays: number = 7, options?: PedometerOptions): PedometerData {
   const safeDays = Math.max(1, Math.min(90, Math.floor(historyDays)));
   const autoRequest = options?.autoRequest ?? false;
   const [todaySteps, setTodaySteps] = useState(0);
   const [historySteps, setHistorySteps] = useState<number[]>([]);
   const [historyDayLabels, setHistoryDayLabels] = useState<string[]>([]);
-  const [hasHardware, setHasHardware] = useState(false);
-  const [permission, setPermission] = useState<PedometerPermission>('unknown');
-  const [canAskAgain, setCanAskAgain] = useState(true);
+  // Permission/hardware state mirrors the module-level snapshot so newly
+  // mounted instances start from the latest known truth instead of
+  // re-probing from scratch. Subscribed below for cross-instance
+  // updates.
+  const [hasHardware, setHasHardware] = useState(permissionSnapshot.hasHardware);
+  const [permission, setPermission] = useState<PedometerPermission>(permissionSnapshot.permission);
+  const [canAskAgain, setCanAskAgain] = useState(permissionSnapshot.canAskAgain);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Subscribe to cross-instance permission changes. Whenever any mounted
+  // hook publishes (autoRequest, refresh, requestPermission, AppState
+  // re-check), every other instance syncs here — fixes the home
+  // StepsCard staying frozen at 'denied' after the user grants via
+  // StepsScreen without backgrounding the app in between.
+  useEffect(() => {
+    const listener = (s: PermissionSnapshot) => {
+      setPermission(s.permission);
+      setCanAskAgain(s.canAskAgain);
+      setHasHardware(s.hasHardware);
+    };
+    permissionSubscribers.add(listener);
+    // Sync once from the current snapshot — covers the rare case where
+    // another instance published between this hook's first render
+    // (where useState seeded from the snapshot) and this subscribe
+    // effect committing. setState bails out via Object.is when nothing
+    // actually changed, so the redundant call is free.
+    listener(permissionSnapshot);
+    return () => { permissionSubscribers.delete(listener); };
+  }, []);
   // Guard the mount-time auto-request so re-renders triggered by state
   // updates don't fire a second prompt before the OS has finished the
   // first one. StrictMode double-invocation would otherwise cause two
@@ -202,20 +270,18 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
       try {
         const available = await Pedometer.isAvailableAsync();
         if (cancelled) return;
-        setHasHardware(available);
         if (!available) {
-          setPermission('unavailable');
+          publishPermission({ hasHardware: false, permission: 'unavailable' });
           setIsLoading(false);
           return;
         }
         const perm = await Pedometer.getPermissionsAsync();
         if (cancelled) return;
-        setCanAskAgain(perm.canAskAgain);
         if (perm.status === 'granted') {
-          setPermission('granted');
+          publishPermission({ hasHardware: true, permission: 'granted', canAskAgain: perm.canAskAgain });
           // Steps load happens in the [permission, loadSteps] effect below.
         } else if (perm.status === 'denied') {
-          setPermission('denied');
+          publishPermission({ hasHardware: true, permission: 'denied', canAskAgain: perm.canAskAgain });
           setIsLoading(false);
         } else {
           // undetermined. Fire the prompt only when the consumer opted in
@@ -225,22 +291,20 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
             didAutoRequestRef.current = true;
             const requested = await Pedometer.requestPermissionsAsync();
             if (cancelled) return;
-            setCanAskAgain(requested.canAskAgain);
             if (requested.status === 'granted') {
-              setPermission('granted');
+              publishPermission({ hasHardware: true, permission: 'granted', canAskAgain: requested.canAskAgain });
             } else {
-              setPermission('denied');
+              publishPermission({ hasHardware: true, permission: 'denied', canAskAgain: requested.canAskAgain });
               setIsLoading(false);
             }
           } else {
-            setPermission('denied');
+            publishPermission({ hasHardware: true, permission: 'denied', canAskAgain: perm.canAskAgain });
             setIsLoading(false);
           }
         }
       } catch {
         if (!cancelled) {
-          setHasHardware(false);
-          setPermission('unavailable');
+          publishPermission({ hasHardware: false, permission: 'unavailable' });
           setIsLoading(false);
         }
       }
@@ -354,11 +418,10 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
       if (state !== 'active') return;
       try {
         const perm = await Pedometer.getPermissionsAsync();
-        setCanAskAgain(perm.canAskAgain);
         if (perm.status === 'granted') {
-          setPermission('granted');
+          publishPermission({ permission: 'granted', canAskAgain: perm.canAskAgain });
         } else if (perm.status === 'denied') {
-          setPermission('denied');
+          publishPermission({ permission: 'denied', canAskAgain: perm.canAskAgain });
         }
       } catch { /* ignore */ }
     });
@@ -369,24 +432,21 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
     setIsLoading(true);
     try {
       const available = await Pedometer.isAvailableAsync();
-      setHasHardware(available);
       if (!available) {
-        setPermission('unavailable');
+        publishPermission({ hasHardware: false, permission: 'unavailable' });
         return;
       }
       const perm = await Pedometer.getPermissionsAsync();
-      setCanAskAgain(perm.canAskAgain);
       if (perm.status === 'granted') {
-        setPermission('granted');
+        publishPermission({ hasHardware: true, permission: 'granted', canAskAgain: perm.canAskAgain });
         await loadSteps();
       } else if (perm.status === 'denied') {
-        setPermission('denied');
+        publishPermission({ hasHardware: true, permission: 'denied', canAskAgain: perm.canAskAgain });
       } else {
-        setPermission('unknown');
+        publishPermission({ hasHardware: true, permission: 'unknown', canAskAgain: perm.canAskAgain });
       }
     } catch {
-      setHasHardware(false);
-      setPermission('unavailable');
+      publishPermission({ hasHardware: false, permission: 'unavailable' });
     } finally {
       setIsLoading(false);
     }
@@ -395,22 +455,19 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
   const requestPermission = useCallback(async (): Promise<PedometerPermission> => {
     try {
       const available = await Pedometer.isAvailableAsync();
-      setHasHardware(available);
       if (!available) {
-        setPermission('unavailable');
+        publishPermission({ hasHardware: false, permission: 'unavailable' });
         return 'unavailable';
       }
       const perm = await Pedometer.requestPermissionsAsync();
-      setCanAskAgain(perm.canAskAgain);
       if (perm.status === 'granted') {
-        setPermission('granted');
+        publishPermission({ hasHardware: true, permission: 'granted', canAskAgain: perm.canAskAgain });
         return 'granted';
       }
-      setPermission('denied');
+      publishPermission({ hasHardware: true, permission: 'denied', canAskAgain: perm.canAskAgain });
       return 'denied';
     } catch {
-      setHasHardware(false);
-      setPermission('unavailable');
+      publishPermission({ hasHardware: false, permission: 'unavailable' });
       return 'unavailable';
     }
   }, []);
