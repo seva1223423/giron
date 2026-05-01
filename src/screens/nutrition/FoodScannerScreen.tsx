@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions, Modal, Platform, AppState } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions, Modal, Platform, AppState, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCameraPermissions } from 'expo-camera';
@@ -702,7 +702,31 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       // Permission denied — don't keep the append flag set, or the next
       // *fresh* photo would incorrectly merge into old items.
       appendNextRef.current = false;
-      Alert.alert('Нужен доступ', 'Разрешите доступ к камере/галерее в настройках');
+      // Round 195: when the user has dismissed the OS prompt with
+      // "Don't ask again" (Android) or denied once on iOS,
+      // canAskAgain flips to false and `requestCameraPermissionsAsync`
+      // becomes a no-op — calling it again won't show the dialog. We
+      // detect this and offer a one-tap jump straight into the app's
+      // permissions page in system settings, matching the pedometer
+      // flow (round 185). When the prompt is still re-promptable, a
+      // single explanation is enough — re-tapping the scan button will
+      // re-fire the dialog.
+      const subject = useCamera ? 'камере' : 'галерее';
+      if (permission.canAskAgain) {
+        Alert.alert(
+          'Нужен доступ',
+          `Для AI-анализа фото нужен доступ к ${subject}. Нажми ещё раз и разреши доступ во всплывающем окне.`,
+        );
+      } else {
+        Alert.alert(
+          'Доступ заблокирован',
+          `Доступ к ${subject} отключён в настройках. Открой настройки и разреши приложению использовать ${subject}.`,
+          [
+            { text: 'Отмена', style: 'cancel' },
+            { text: 'Открыть настройки', onPress: () => Linking.openSettings() },
+          ],
+        );
+      }
       return;
     }
     const result = useCamera
