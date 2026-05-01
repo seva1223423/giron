@@ -221,7 +221,7 @@ export default function AdminAnalyticsScreen() {
       {/* Summary cards */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Text style={[styles.summaryNum, { color: '#6366F1' }]}>{totalSignups}</Text>
+          <Text style={[styles.summaryNum, { color: '#6366F1' }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{totalSignups}</Text>
           <Text style={styles.summaryLabel}>Регистраций</Text>
           {data.previous && (
             <Text style={[styles.deltaText, { color: pctColor(totalSignups, data.previous.signups) }]}>
@@ -230,7 +230,7 @@ export default function AdminAnalyticsScreen() {
           )}
         </View>
         <View style={styles.summaryCard}>
-          <Text style={[styles.summaryNum, { color: '#F59E0B' }]}>{totalWorkoutsInPeriod}</Text>
+          <Text style={[styles.summaryNum, { color: '#F59E0B' }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{totalWorkoutsInPeriod}</Text>
           <Text style={styles.summaryLabel}>Тренировок</Text>
           {data.previous && (
             <Text style={[styles.deltaText, { color: pctColor(totalWorkoutsInPeriod, data.previous.workouts) }]}>
@@ -239,7 +239,7 @@ export default function AdminAnalyticsScreen() {
           )}
         </View>
         <View style={styles.summaryCard}>
-          <Text style={[styles.summaryNum, { color: '#8B5CF6' }]}>{totalAiInPeriod}</Text>
+          <Text style={[styles.summaryNum, { color: '#8B5CF6' }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{totalAiInPeriod}</Text>
           <Text style={styles.summaryLabel}>ИИ запросов</Text>
           {data.previous && (
             <Text style={[styles.deltaText, { color: pctColor(totalAiInPeriod, data.previous.ai) }]}>
@@ -248,7 +248,7 @@ export default function AdminAnalyticsScreen() {
           )}
         </View>
         <View style={styles.summaryCard}>
-          <Text style={[styles.summaryNum, { color: '#10B981' }]}>{totalCardioInPeriod}</Text>
+          <Text style={[styles.summaryNum, { color: '#10B981' }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{totalCardioInPeriod}</Text>
           <Text style={styles.summaryLabel}>Кардио</Text>
           {data.previous && (
             <Text style={[styles.deltaText, { color: pctColor(totalCardioInPeriod, data.previous.cardio) }]}>
@@ -322,11 +322,11 @@ export default function AdminAnalyticsScreen() {
         />
         <View style={styles.kpiRow}>
           <View style={styles.kpiItem}>
-            <Text style={[styles.kpiNum, { color: '#F59E0B' }]}>{data.funnel.conversionRate}%</Text>
+            <Text style={[styles.kpiNum, { color: '#F59E0B' }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{data.funnel.conversionRate}%</Text>
             <Text style={styles.kpiLabel}>Конверсия</Text>
           </View>
           <View style={styles.kpiItem}>
-            <Text style={[styles.kpiNum, { color: '#10B981' }]}>{data.funnel.retentionRate}%</Text>
+            <Text style={[styles.kpiNum, { color: '#10B981' }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{data.funnel.retentionRate}%</Text>
             <Text style={styles.kpiLabel}>Ретеншн (7д)</Text>
           </View>
         </View>

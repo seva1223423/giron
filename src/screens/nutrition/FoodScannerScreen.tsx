@@ -2438,7 +2438,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
   imageContainer: { marginBottom: spacing.lg, borderRadius: borderRadius.lg, overflow: 'hidden' },
-  image: { width: '100%', height: 250, borderRadius: borderRadius.lg },
+  // 4:3 aspect ratio scales image with screen width while capping at
+  // 320pt for tablet-class devices. On iPhone SE (320pt wide) → 240pt
+  // tall (was 250 hardcoded — too aggressive). On iPhone 14 Pro Max
+  // (430pt wide) → 320pt capped. Prevents the photo card from eating
+  // half the viewport on narrow phones.
+  image: { width: '100%', aspectRatio: 4 / 3, maxHeight: 320, borderRadius: borderRadius.lg },
   retakeBtn: { position: 'absolute', top: spacing.md, right: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm },
   mealTypeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl, flexWrap: 'wrap' },
   mealTypeBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1, flex: 1 },

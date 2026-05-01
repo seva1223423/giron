@@ -129,6 +129,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
           <TextInput
             ref={inputRef}
             style={styles.pinInput}
+            allowFontScaling={false}
             value={input}
             onChangeText={(t) => { setInput(t.replace(/\D/g, '').slice(0, 6)); setError(''); }}
             keyboardType="number-pad"
@@ -137,6 +138,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
             placeholder="••••••"
             placeholderTextColor="#4B5563"
             autoFocus
+            accessibilityLabel="6-значный PIN-код"
           />
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -214,6 +216,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
         <TextInput
           ref={inputRef}
           style={[styles.pinInput, isLocked && { opacity: 0.4 }]}
+          allowFontScaling={false}
           value={input}
           onChangeText={(t) => { if (!isLocked) { setInput(t.replace(/\D/g, '').slice(0, 6)); setError(''); } }}
           keyboardType="number-pad"
@@ -222,6 +225,7 @@ export const AdminGuard: React.FC<Props> = ({ children, requireVerified = false 
           placeholder="••••••"
           placeholderTextColor="#4B5563"
           autoFocus
+          accessibilityLabel="6-значный PIN-код для разблокировки админ-панели"
           editable={!isLocked}
           onSubmitEditing={verify}
         />
@@ -286,6 +290,10 @@ const styles = StyleSheet.create({
 
   pinInput: {
     backgroundColor: '#1C1C1E', borderRadius: 16, borderWidth: 1.5, borderColor: '#374151',
+    // 6-digit PIN: fontSize matches typography.h2 (28pt). letterSpacing
+    // 12 spaces dots/digits visibly. allowFontScaling=false on the
+    // TextInput prevents AX5 (310%) Dynamic Type from blowing this past
+    // the 320pt iPhone SE width.
     color: '#FFFFFF', fontSize: 28, letterSpacing: 12, textAlign: 'center',
     paddingVertical: 18, paddingHorizontal: 32, width: '100%', marginBottom: 12,
   },

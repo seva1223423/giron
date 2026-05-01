@@ -234,7 +234,7 @@ export default function AdminMetricsKeyScreen() {
         />
         <View style={styles.funnelTotal}>
           <Text style={styles.funnelTotalLabel}>Конверсия signup → платящий</Text>
-          <Text style={styles.funnelTotalValue}>{metrics.funnel.signupToPaidPct}%</Text>
+          <Text style={styles.funnelTotalValue} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{metrics.funnel.signupToPaidPct}%</Text>
         </View>
       </View>
 
@@ -288,7 +288,7 @@ export default function AdminMetricsKeyScreen() {
           />
           <View style={styles.funnelTotal}>
             <Text style={styles.funnelTotalLabel}>Завершили онбординг</Text>
-            <Text style={styles.funnelTotalValue}>{metrics.onboardingFunnel.completionRatePct}%</Text>
+            <Text style={styles.funnelTotalValue} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{metrics.onboardingFunnel.completionRatePct}%</Text>
           </View>
         </View>
       )}
@@ -324,7 +324,7 @@ function MetricCard({
         <Text style={styles.cardIndex}>{index}</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardLabel}>{label}</Text>
-          <Text style={[styles.cardValue, { color: accentColor }]}>{value}</Text>
+          <Text style={[styles.cardValue, { color: accentColor }]} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
           {healthLabel && (
             <Text style={[styles.healthBadge, { color: accentColor }]}>{healthLabel}</Text>
           )}

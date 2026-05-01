@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { adminService } from '../../services/adminService';
@@ -124,6 +125,7 @@ type SupportMetrics = {
 export default function AdminSupportScreen() {
   const navigation = useNavigation<AdminNav>();
   const myId = useAuthStore((s) => s.user?.id);
+  const insets = useSafeAreaInsets();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -492,9 +494,12 @@ export default function AdminSupportScreen() {
         />
       )}
 
-      {/* Bulk action bar */}
+      {/* Bulk action bar — paddingBottom respects home indicator (34pt
+          on notched iPhones) so the bar's content doesn't sit under the
+          gesture handle. Math.max(insets.bottom, 12) — 12pt floor for
+          devices with no inset (Android edge-to-edge or older iOS). */}
       {selectMode && selected.size > 0 && (
-        <View style={styles.bulkBar}>
+        <View style={[styles.bulkBar, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
           {bulkBusy ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
@@ -568,7 +573,8 @@ const styles = StyleSheet.create({
   bulkBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: '#1C1C1E', borderTopWidth: 1, borderTopColor: '#2C2C2E',
-    flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 24,
+    flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12,
+    // paddingBottom is overridden inline via insets.bottom — see render
   },
   bulkBtn: { flex: 1, backgroundColor: '#10B98122', borderRadius: 10, borderWidth: 1, borderColor: '#10B98150', paddingVertical: 10, alignItems: 'center' },
   bulkBtnClose: { backgroundColor: '#EF444415', borderColor: '#EF444440' },
