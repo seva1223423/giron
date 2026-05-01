@@ -1,0 +1,70 @@
+// Iron Gym — Design tokens for three visual directions
+// A: Graphite + Gold (premium, warm)
+// B: Neon Dark (tech, Whoop-style)
+// C: Energy (motivational, saturated)
+
+window.IG_TOKENS = {
+  A: {
+    name: 'Premium Graphite',
+    bg: '#0E0E0F',
+    surface: '#17171A',
+    surfaceHi: '#1E1E22',
+    line: 'rgba(255,255,255,0.08)',
+    lineStrong: 'rgba(255,255,255,0.14)',
+    text: '#F4F1EA',
+    textSub: '#A8A49C',
+    textDim: '#6B6860',
+    accent: '#D4B07A',        // champagne gold
+    accent2: '#8E6B3E',
+    good: '#9AC28C',
+    warn: '#E8A36A',
+    danger: '#E07A6B',
+    chipBg: 'rgba(212,176,122,0.10)',
+    chipText: '#D4B07A',
+    fontH: `'PP Neue Montreal', 'Involve', 'Manrope', -apple-system, sans-serif`,
+    fontB: `'Inter', -apple-system, system-ui, sans-serif`,
+    fontM: `'JetBrains Mono', 'SF Mono', monospace`,
+  },
+  B: {
+    name: 'Neon Dark',
+    bg: '#07070A',
+    surface: '#0F0F14',
+    surfaceHi: '#17171F',
+    line: 'rgba(180,200,255,0.08)',
+    lineStrong: 'rgba(180,200,255,0.16)',
+    text: '#EDEFF5',
+    textSub: '#8C90A0',
+    textDim: '#555866',
+    accent: '#C6FF3D',        // lime neon
+    accent2: '#7AE6FF',
+    good: '#C6FF3D',
+    warn: '#FFB547',
+    danger: '#FF5C6C',
+    chipBg: 'rgba(198,255,61,0.12)',
+    chipText: '#C6FF3D',
+    fontH: `'Druk Wide', 'Manrope', -apple-system, sans-serif`,
+    fontB: `'Inter', -apple-system, system-ui, sans-serif`,
+    fontM: `'JetBrains Mono', 'SF Mono', monospace`,
+  },
+  C: {
+    name: 'Energy',
+    bg: '#0A0710',
+    surface: '#15101F',
+    surfaceHi: '#1E1630',
+    line: 'rgba(255,255,255,0.08)',
+    lineStrong: 'rgba(255,255,255,0.16)',
+    text: '#FFFFFF',
+    textSub: '#B0A8C2',
+    textDim: '#6B6480',
+    accent: '#FF5A36',        // electric orange
+    accent2: '#A855F7',
+    good: '#5EE6A8',
+    warn: '#FFBE3D',
+    danger: '#FF5A36',
+    chipBg: 'rgba(255,90,54,0.14)',
+    chipText: '#FF5A36',
+    fontH: `'PP Neue Montreal', 'Manrope', -apple-system, sans-serif`,
+    fontB: `'Inter', -apple-system, system-ui, sans-serif`,
+    fontM: `'JetBrains Mono', 'SF Mono', monospace`,
+  },
+};
