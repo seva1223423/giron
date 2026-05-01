@@ -69,7 +69,6 @@ App Password создаётся за 1 минуту:
 |---|---|---|
 | `VK_APP_ID` | id из vk.com/editapp | Login через VK |
 | `YANDEX_CLIENT_ID` | id из oauth.yandex.ru | Login через Яндекс |
-| `MAILRU_CLIENT_ID` | id из portal.mail.ru | Login через Mail.ru |
 | `GOOGLE_CLIENT_ID_WEB`, `_IOS`, `_ANDROID` | id из console.cloud.google.com | Login через Google |
 
 Без них соответствующие кнопки просто не показываются на экране логина.

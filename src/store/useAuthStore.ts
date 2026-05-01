@@ -59,7 +59,6 @@ interface AuthStore {
   loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
   loginWithYandex: (accessToken: string) => Promise<void>;
-  loginWithMailru: (accessToken: string) => Promise<void>;
   loginByPhone: (phone: string, code: string) => Promise<void>;
   register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string }) => Promise<void>;
   logout: () => Promise<void>;
@@ -240,29 +239,6 @@ export const useAuthStore = create<AuthStore>()(
           await tokenStorage.setTokens(ar.token, ar.refreshToken);
           const normalizedY = normalizeUser(ar.user);
           set({ user: normalizedY, token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedY), isLoading: false });
-        } catch (e) {
-          if ((e as any).code !== 'TOTP_REQUIRED') {
-            const apiError = getApiError(e);
-            set({ isLoading: false, error: apiError.message });
-          }
-          throw e;
-        }
-      },
-
-      loginWithMailru: async (accessToken) => {
-        set({ isLoading: true, error: null });
-        try {
-          const response = await authService.loginWithMailru(accessToken);
-          if ('requiresTOTP' in response && response.requiresTOTP) {
-            set({ isLoading: false, totpPendingToken: response.pendingToken });
-            const err: any = new Error('TOTP_REQUIRED');
-            err.code = 'TOTP_REQUIRED';
-            throw err;
-          }
-          const ar = response as AuthResponse;
-          await tokenStorage.setTokens(ar.token, ar.refreshToken);
-          const normalizedM = normalizeUser(ar.user);
-          set({ user: normalizedM, token: ar.token, refreshToken: ar.refreshToken, isAuthenticated: true, isOnboarded: deriveOnboarded(normalizedM), isLoading: false });
         } catch (e) {
           if ((e as any).code !== 'TOTP_REQUIRED') {
             const apiError = getApiError(e);

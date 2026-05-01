@@ -144,25 +144,24 @@ describe('Pattern F: 3-segment selector (light/dark/auto)', () => {
   });
 });
 
-// ─── Pattern G: 4 OAuth buttons stacked ─────────────────────────────────────
+// ─── Pattern G: 3 OAuth buttons stacked ─────────────────────────────────────
 
-describe('Pattern G: 4 OAuth buttons stacked vertically', () => {
-  // OAuth: Google, VK, Yandex, Mail.ru. Stacked vertical buttons,
-  // each full-width.
-  test.each([SE, FOLD_CLOSED])('OAuth button at %ipt has 200+ pt for "Войти через Mail.ru"', (w) => {
+describe('Pattern G: 3 OAuth buttons stacked vertically', () => {
+  // OAuth: Google, VK, Yandex. Stacked vertical buttons, each full-width.
+  test.each([SE, FOLD_CLOSED])('OAuth button at %ipt has 200+ pt for "Войти через Яндекс"', (w) => {
     const content = w - 2 * SCREEN_PAD;
-    const label = ruWidth('Войти через Mail.ru', 15);
+    const label = ruWidth('Войти через Яндекс', 15);
     expect(content).toBeGreaterThanOrEqual(label + 32);
   });
 
-  test('4 OAuth + email-password stack height fits SE 568pt', () => {
+  test('3 OAuth + email-password stack height fits SE 568pt', () => {
     const buttonH = 48;
     const gap = 12;
-    const totalStack = 4 * buttonH + 3 * gap; // 4 OAuth buttons
-    expect(totalStack).toBe(228);
+    const totalStack = 3 * buttonH + 2 * gap; // 3 OAuth buttons
+    expect(totalStack).toBe(168);
     // SE has 568pt - safeTop 20 - keyboard 270 = 278pt remaining
     // With email + password fields above (104) — stack must scroll
-    expect(totalStack + 104).toBeGreaterThan(278);
+    expect(totalStack + 104).toBeGreaterThan(228);
   });
 });
 

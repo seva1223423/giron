@@ -19,7 +19,6 @@ const googleConfigured = !!(
 );
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
-const MAILRU_APP_ID = process.env.EXPO_PUBLIC_MAILRU_APP_ID;
 
 type Step = 'form' | 'otp';
 
@@ -69,7 +68,6 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   const [vkLoading, setVkLoading] = useState(false);
   const [yandexLoading, setYandexLoading] = useState(false);
-  const [mailruLoading, setMailruLoading] = useState(false);
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
@@ -117,7 +115,6 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         if (check.hasGoogle) methods.push('Google');
         if (check.hasVk) methods.push('VK');
         if (check.hasYandex) methods.push('Яндекс');
-        if (check.hasMailru) methods.push('Mail.ru');
         const hint = methods.length > 0
           ? ` Войдите через ${methods.join(' / ')}.`
           : '';
@@ -249,32 +246,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     }
   };
 
-  const handleMailruPress = async () => {
-    if (!MAILRU_APP_ID) return;
-    clearErrors();
-    setMailruLoading(true);
-    try {
-      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/mailru' });
-      const authUrl = `https://oauth.mail.ru/login?client_id=${MAILRU_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=userinfo&state=${state}`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      if (result.type !== 'success') return;
-      const fragment = result.url.split('#')[1] ?? '';
-      const params = new URLSearchParams(fragment);
-      const returnedState = params.get('state');
-      if (returnedState !== state) { setLocalError('Ошибка безопасности: невалидный state'); return; }
-      const accessToken = params.get('access_token');
-      if (!accessToken) { setLocalError('Не удалось получить токен от Mail.ru'); return; }
-      await useAuthStore.getState().loginWithMailru(accessToken);
-    } catch (e: any) {
-      if (e?.code === 'TOTP_REQUIRED') { navigation.navigate('Login'); return; }
-      setLocalError(e?.response?.data?.error ?? 'Ошибка регистрации через Mail.ru');
-    } finally {
-      setMailruLoading(false);
-    }
-  };
-
-  const anyLoading = isLoading || otpSending || vkLoading || yandexLoading || mailruLoading;
+  const anyLoading = isLoading || otpSending || vkLoading || yandexLoading;
   const displayError = localError || error;
 
   // ── OTP step ─────────────────────────────────────────────────────────────────
@@ -476,21 +448,6 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
               : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>Я</Text>
             }
             <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через Яндекс</Text>
-          </TouchableOpacity>
-        )}
-
-        {!!MAILRU_APP_ID && (
-          <TouchableOpacity
-            style={[styles.socialBtn, { backgroundColor: '#FF6600', borderColor: '#FF6600', marginTop: spacing.sm }, anyLoading && { opacity: 0.5 }]}
-            onPress={handleMailruPress}
-            disabled={anyLoading}
-            activeOpacity={0.8}
-          >
-            {mailruLoading
-              ? <ActivityIndicator color="#fff" size="small" style={{ marginRight: spacing.sm }} />
-              : <Text style={{ fontSize: 16, marginRight: spacing.sm, color: '#FFF', fontWeight: '800' }}>M</Text>
-            }
-            <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Регистрация через Mail.ru</Text>
           </TouchableOpacity>
         )}
 

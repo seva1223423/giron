@@ -270,7 +270,7 @@ describe('Auth flows × every device', () => {
     expect(content).toBeGreaterThanOrEqual(232);
   });
 
-  test.each(DEVICES)('$name: 4 OAuth buttons (Google/VK/Yandex/Mail.ru) fit when stacked', (d) => {
+  test.each(DEVICES)('$name: 3 OAuth buttons (Google/VK/Yandex) fit when stacked', (d) => {
     const content = d.width - 2 * 20;
     expect(content).toBeGreaterThanOrEqual(232);
   });

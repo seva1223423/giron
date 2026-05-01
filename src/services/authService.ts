@@ -18,7 +18,6 @@ export interface CheckEmailResponse {
   hasGoogle?: boolean;
   hasVk?: boolean;
   hasYandex?: boolean;
-  hasMailru?: boolean;
 }
 
 export interface TotpVerifyResponse extends AuthResponse {
@@ -91,11 +90,6 @@ export const authService = {
 
   async loginWithYandex(accessToken: string): Promise<AuthResponse | TOTPLoginResponse> {
     const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/yandex', { accessToken });
-    return data;
-  },
-
-  async loginWithMailru(accessToken: string): Promise<AuthResponse | TOTPLoginResponse> {
-    const { data } = await api.post<AuthResponse | TOTPLoginResponse>('/auth/mailru', { accessToken });
     return data;
   },
 

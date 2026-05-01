@@ -11,7 +11,6 @@ import { userService } from '../../services';
 
 const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
 const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
-const MAILRU_APP_ID = process.env.EXPO_PUBLIC_MAILRU_APP_ID;
 const googleConfigured = !!(
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
   process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
@@ -22,7 +21,7 @@ const googleConfigured = !!(
  * Отдельный экран «Привязанные аккаунты».
  * Раньше эта секция жила прямо в ProfileScreen — теперь вынесена сюда,
  * чтобы профиль был чище, а у пользователя было одно понятное место
- * для управления всеми соцсетями (VK, Яндекс, Google, Mail.ru).
+ * для управления всеми соцсетями (VK, Яндекс, Google).
  */
 export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
@@ -32,7 +31,7 @@ export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
   const [linkingProvider, setLinkingProvider] = useState<string | null>(null);
 
-  const handleUnlink = (provider: 'yandex' | 'vk' | 'google' | 'mailru', label: string) => {
+  const handleUnlink = (provider: 'yandex' | 'vk' | 'google', label: string) => {
     Alert.alert(
       `Отвязать ${label}?`,
       'Вы больше не сможете входить через этот аккаунт.',
@@ -106,30 +105,6 @@ export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation
     }
   };
 
-  const handleLinkMailru = async () => {
-    if (!MAILRU_APP_ID) { Alert.alert('Ошибка', 'Mail.ru OAuth не настроен'); return; }
-    setLinkingProvider('mailru');
-    try {
-      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/mailru' });
-      const authUrl = `https://oauth.mail.ru/login?client_id=${MAILRU_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=userinfo&state=${state}`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      if (result.type !== 'success') return;
-      const fragment = result.url.split('#')[1] ?? '';
-      const params = new URLSearchParams(fragment);
-      const returnedState = params.get('state');
-      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
-      const accessToken = params.get('access_token');
-      if (!accessToken) { Alert.alert('Ошибка', 'Не удалось получить токен от Mail.ru'); return; }
-      await userService.linkProvider('mailru', { accessToken });
-      await useAuthStore.getState().fetchProfile();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Mail.ru');
-    } finally {
-      setLinkingProvider(null);
-    }
-  };
-
   const handleGoogleLinkSuccess = async (idToken: string) => {
     setLinkingProvider('google');
     try {
@@ -143,9 +118,9 @@ export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation
   };
 
   // Список провайдеров с привязкой статуса/цвета. Описываем
-  // декларативно — один компонент-строка, цикл вместо 4×копипаста.
+  // декларативно — один компонент-строка, цикл вместо 3×копипаста.
   const providers: Array<{
-    key: 'vk' | 'yandex' | 'google' | 'mailru';
+    key: 'vk' | 'yandex' | 'google';
     title: string;
     badge: string;
     badgeColor: string;
@@ -190,14 +165,6 @@ export const LinkedAccountsScreen: React.FC<{ navigation: any }> = ({ navigation
           <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
         </TouchableOpacity>
       ),
-    },
-    {
-      key: 'mailru',
-      title: 'Mail.ru',
-      badge: 'M',
-      badgeColor: '#FF6600',
-      isLinked: !!user?.hasMailru,
-      onLink: handleLinkMailru,
     },
   ];
 

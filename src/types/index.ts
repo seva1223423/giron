@@ -36,11 +36,9 @@ export interface User {
   vkId?: string | null;
   googleId?: string | null;
   yandexId?: string | null;
-  mailruId?: string | null;
   hasVk?: boolean;
   hasYandex?: boolean;
   hasGoogle?: boolean;
-  hasMailru?: boolean;
   isBanned?: boolean;
   banReason?: string | null;
   lockedUntil?: string | null;
