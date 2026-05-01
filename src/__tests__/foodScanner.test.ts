@@ -804,3 +804,57 @@ describe('OFF_HOSTS', () => {
     expect(OFF_HOSTS[1]).toBe('world.openfoodfacts.org');
   });
 });
+
+// ─── isOFFDataPlausible ───────────────────────────────────────────────────────
+
+describe('isOFFDataPlausible', () => {
+  test('accepts a typical real-world product (apple)', () => {
+    expect(isOFFDataPlausible(52, 0.3, 0.2, 14)).toBe(true);
+  });
+
+  test('accepts pure olive oil (near the natural ceiling)', () => {
+    expect(isOFFDataPlausible(884, 0, 100, 0)).toBe(true);
+  });
+
+  test('accepts whey protein isolate (high protein, normal kcal)', () => {
+    expect(isOFFDataPlausible(380, 90, 5, 4)).toBe(true);
+  });
+
+  test('rejects kJ-as-kcal mistake (1500+ kcal/100g)', () => {
+    // Common OFF data-entry error: contributor pasted kJ value into
+    // the kcal field. 1500 kcal/100g exceeds any real food.
+    expect(isOFFDataPlausible(1500, 5, 5, 70)).toBe(false);
+  });
+
+  test('rejects per-serving values posted as per-100g', () => {
+    // 350g of protein per 100g would mean a 30g sachet contains
+    // 105g of protein. Physically impossible — a typical mis-post.
+    expect(isOFFDataPlausible(380, 350, 5, 4)).toBe(false);
+  });
+
+  test('rejects when macros sum exceeds 1100 kcal/100g', () => {
+    // p=50, f=50, c=50 → 4*50 + 9*50 + 4*50 = 600 — fine.
+    // p=80, f=80, c=80 → 4*80 + 9*80 + 4*80 = 1360 — impossible.
+    expect(isOFFDataPlausible(800, 80, 80, 80)).toBe(false);
+  });
+
+  test('allows 10% slack on carbs (rounding noise on isomalt-heavy)', () => {
+    // 105g/100g carbs is rounding noise on certain sweeteners.
+    expect(isOFFDataPlausible(420, 0, 0, 105)).toBe(true);
+    // 115g is past the slack — reject.
+    expect(isOFFDataPlausible(460, 0, 0, 115)).toBe(false);
+  });
+
+  test('boundary: exactly 900 kcal/100g passes', () => {
+    expect(isOFFDataPlausible(900, 0, 100, 0)).toBe(true);
+  });
+
+  test('boundary: 901 kcal/100g rejected', () => {
+    expect(isOFFDataPlausible(901, 0, 100, 0)).toBe(false);
+  });
+
+  test('rejects single-macro overflow', () => {
+    expect(isOFFDataPlausible(500, 101, 5, 5)).toBe(false);
+    expect(isOFFDataPlausible(500, 5, 101, 5)).toBe(false);
+  });
+});
