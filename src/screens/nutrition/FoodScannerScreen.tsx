@@ -31,6 +31,8 @@ import {
   DRAFT_TTL_MS,
   computeTypicalPortions,
   typicalPortionFor,
+  sanitizeBarcode,
+  fetchBarcodeFromOFF,
   type SanityFlag,
   type ScannerDraft,
 } from '../../utils/foodScanner';
@@ -853,9 +855,26 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     haptic.success();
   };
 
-  const lookupBarcode = async (barcode: string) => {
+  const lookupBarcode = async (barcodeRaw: string) => {
     if (barcodeProcessingRef.current) return;
     barcodeProcessingRef.current = true;
+
+    // Reject malformed reads up front. The native decoder occasionally
+    // emits a partial code when the label is creased or in low light;
+    // sanitizeBarcode strips non-digits and verifies the EAN-13
+    // checksum, so we don't burn a network round-trip (and a row in the
+    // negative cache) on garbage input.
+    const barcode = sanitizeBarcode(barcodeRaw);
+    if (!barcode) {
+      barcodeProcessingRef.current = false;
+      Alert.alert(
+        'Невалидный штрих-код',
+        'Не удалось разобрать код — попробуй ещё раз, держа камеру ровно над этикеткой.',
+        [{ text: 'ОК', onPress: () => setBarcodeScanned(false) }],
+        { cancelable: false },
+      );
+      return;
+    }
 
     setLastBarcode(barcode);
     setNotFound(false);
@@ -870,64 +889,69 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     }
 
     setBarcodeLoading(true);
-    const fetchController = new AbortController();
-    const fetchTimeout = setTimeout(() => fetchController.abort(), 15_000);
 
     // Request only the fields we need to reduce payload size
     const OFF_FIELDS = 'product_name,product_name_ru,product_name_en,brands,nutriments,serving_size,serving_quantity,quantity';
 
     try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=${OFF_FIELDS}&lc=ru`,
-        { signal: fetchController.signal },
-      );
-      const data = await response.json();
+      // ru.openfoodfacts.org first (faster + more resilient from RF
+      // networks), with world.openfoodfacts.org as the fallback if the
+      // RU mirror is wedged or the API replies with a transient 5xx.
+      // Each host carries its own 8s budget — a hung primary doesn't
+      // eat into the secondary's window.
+      const result = await fetchBarcodeFromOFF(barcode, OFF_FIELDS, 8_000);
 
-      if (data.status === 1 && data.product) {
-        const p = data.product;
-        const n: Record<string, any> = p.nutriments || {};
-        const cal = extractKcal(n);
-        const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
-        const fats = Math.round((n.fat_100g || 0) * 10) / 10;
-        const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
-        const productName = buildBarcodeDisplayName({
-          product_name: p.product_name,
-          product_name_ru: p.product_name_ru,
-          product_name_en: p.product_name_en,
-          brands: p.brands,
-          quantity: p.quantity,
-        });
-
-        // Skip products with no usable nutrition data — don't charge a scan
-        if (cal === 0 && prot === 0 && fats === 0 && carbs === 0) {
-          setShowBarcodeScanner(false);
-          setNotFound(true);
-          return;
-        }
-
-        // Credit consumed only when we have actual nutrition data to return
-        if (!isPremiumActive() && !consumeFoodScan()) {
-          setShowBarcodeScanner(false);
-          setShowPaywall(true);
-          return;
-        }
-
-        const product: BarcodeProduct = { name: productName, cal, prot, fats, carbs };
-        const servingGrams = parseServingGrams(p.serving_size || p.serving_quantity || '');
-
-        await cacheProduct(barcode, product);
-        const scan: RecentScan = { barcode, ...product, ...(servingGrams ? { servingGrams } : {}) };
-        await saveRecentScan(scan);
-        loadRecentScans().then(setRecentScans);
-
-        applyBarcodeProduct(product, servingGrams ?? undefined);
-      } else {
+      if ('notFound' in result) {
         setShowBarcodeScanner(false);
         setNotFound(true);
-        // No credit consumed — product not in database
+        return;
       }
+
+      const p = result.data.product;
+      if (!p) {
+        setShowBarcodeScanner(false);
+        setNotFound(true);
+        return;
+      }
+
+      const n: Record<string, any> = p.nutriments || {};
+      const cal = extractKcal(n);
+      const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
+      const fats = Math.round((n.fat_100g || 0) * 10) / 10;
+      const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
+      const productName = buildBarcodeDisplayName({
+        product_name: p.product_name,
+        product_name_ru: p.product_name_ru,
+        product_name_en: p.product_name_en,
+        brands: p.brands,
+        quantity: p.quantity,
+      });
+
+      // Skip products with no usable nutrition data — don't charge a scan
+      if (cal === 0 && prot === 0 && fats === 0 && carbs === 0) {
+        setShowBarcodeScanner(false);
+        setNotFound(true);
+        return;
+      }
+
+      // Credit consumed only when we have actual nutrition data to return
+      if (!isPremiumActive() && !consumeFoodScan()) {
+        setShowBarcodeScanner(false);
+        setShowPaywall(true);
+        return;
+      }
+
+      const product: BarcodeProduct = { name: productName, cal, prot, fats, carbs };
+      const servingGrams = parseServingGrams(p.serving_size || p.serving_quantity || '');
+
+      await cacheProduct(barcode, product);
+      const scan: RecentScan = { barcode, ...product, ...(servingGrams ? { servingGrams } : {}) };
+      await saveRecentScan(scan);
+      loadRecentScans().then(setRecentScans);
+
+      applyBarcodeProduct(product, servingGrams ?? undefined);
     } catch (e: any) {
-      if (e?.name === 'AbortError') {
+      if (e?.name === 'AbortError' || /abort/i.test(String(e?.message))) {
         Alert.alert('Тайм-аут', 'База продуктов не ответила. Попробуй ещё раз.', [
           { text: 'ОК', onPress: () => setBarcodeScanned(false) },
         ], { cancelable: false });
@@ -937,7 +961,6 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         ], { cancelable: false });
       }
     } finally {
-      clearTimeout(fetchTimeout);
       setBarcodeLoading(false);
       barcodeProcessingRef.current = false;
     }

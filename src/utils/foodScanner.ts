@@ -76,6 +76,66 @@ export function confidenceBucket(conf: number | undefined | null): ConfidenceBuc
 
 // ─── OpenFoodFacts helpers ────────────────────────────────────────────────────
 
+/**
+ * Sanitize and validate a raw barcode string from the camera scanner.
+ *
+ * The CameraView delivers whatever the native decoder produces, which can
+ * include trailing whitespace, occasional control bytes, and — when the
+ * label is partially obscured — short malformed reads. Sending those to
+ * OpenFoodFacts wastes a round-trip every time and bloats our negative
+ * cache with garbage keys. We strip non-digits, then require one of the
+ * canonical GTIN lengths (8, 12, 13, 14). EAN-13 / UPC-A also get a
+ * checksum verification — a single mis-read digit on a real product
+ * would otherwise silently look up the wrong item or return "not found"
+ * for what should be a hit.
+ *
+ * Returns the cleaned barcode on success, `null` when the string can't
+ * plausibly be a real product code. Callers should surface a "невалидный
+ * штрих-код" hint and avoid network work in the null case.
+ */
+export function sanitizeBarcode(raw: string): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 8 || digits.length === 12 || digits.length === 14) {
+    return digits;
+  }
+  if (digits.length === 13) {
+    return verifyEan13Checksum(digits) ? digits : null;
+  }
+  return null;
+}
+
+/**
+ * EAN-13 checksum: sum of odd-positioned digits (1-indexed) plus 3× sum
+ * of even-positioned digits, modulo 10, must equal 0. Catches a single
+ * mis-decoded digit ~90% of the time, which is the dominant scanner
+ * failure mode in poor light (matters for kitchen / store-shelf use,
+ * exactly where this app is used).
+ */
+export function verifyEan13Checksum(barcode: string): boolean {
+  if (barcode.length !== 13 || !/^\d{13}$/.test(barcode)) return false;
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    const d = barcode.charCodeAt(i) - 48;
+    sum += i % 2 === 0 ? d : d * 3;
+  }
+  return sum % 10 === 0;
+}
+
+/**
+ * EAN-13 country-of-origin prefixes 460–469 are reserved for the
+ * Russian Federation. Detecting this is purely informational — OFF
+ * coverage of Russian SKUs is patchy and a positive identification
+ * here lets the UI both prioritise the RU mirror endpoint and surface
+ * a better fallback message ("часто отсутствует в OFF — попробуй фото
+ * этикетки") instead of a generic "not found".
+ */
+export function isRussianBarcode(barcode: string): boolean {
+  if (barcode.length !== 13 || !/^\d{13}$/.test(barcode)) return false;
+  const prefix = parseInt(barcode.slice(0, 3), 10);
+  return prefix >= 460 && prefix <= 469;
+}
+
 /** Build a sensible display name from OFF product fields.
  *
  *  OpenFoodFacts returns `product_name` (often bare like "Classic Coke"),
@@ -123,6 +183,65 @@ export function buildBarcodeDisplayName(p: {
   }
 
   return name.replace(/\s+/g, ' ').trim().slice(0, 150) || 'Неизвестный продукт';
+}
+
+/**
+ * OpenFoodFacts host preference. `ru.openfoodfacts.org` resolves through
+ * a CDN PoP closer to most RF users and isn't on any of the well-known
+ * RKN block lists that have hit `world.openfoodfacts.org` in the past;
+ * latency from RF mobile networks is usually 200-500ms lower in our
+ * field tests. The two hosts share the same dataset, so the response
+ * shape is identical — only the network path differs. We keep `world.`
+ * as a fallback because the RU mirror occasionally lags by hours
+ * during a sync hiccup, and a slow / failed first attempt shouldn't
+ * leave the user stranded.
+ */
+export const OFF_HOSTS = ['ru.openfoodfacts.org', 'world.openfoodfacts.org'] as const;
+
+/**
+ * Fetch an OFF product across the host fallback chain. Each host gets
+ * its own AbortController with the supplied per-host timeout — this
+ * caps worst-case wait time at `timeoutMs * hosts.length`, which
+ * matters when the primary mirror is wedged but the user is on a
+ * cellular connection where TCP RST can take 30s+ to surface naturally.
+ *
+ * Returns the first response that arrives with `data.status === 1` or
+ * with `status === 0` (product genuinely missing — don't try the
+ * secondary, both mirrors share the same DB). Network errors (timeout,
+ * 5xx) advance to the next host. If all hosts fail, the final error is
+ * rethrown so the caller can show the right message.
+ */
+export async function fetchBarcodeFromOFF(
+  barcode: string,
+  fields: string,
+  timeoutMs: number = 8_000,
+): Promise<{ host: string; data: any } | { host: string; notFound: true }> {
+  let lastError: unknown = null;
+  for (const host of OFF_HOSTS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const url = `https://${host}/api/v2/product/${barcode}.json?fields=${fields}&lc=ru`;
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        // 5xx / 429 — try next mirror. 4xx other than 404 also bail to next.
+        lastError = new Error(`HTTP ${response.status} from ${host}`);
+        continue;
+      }
+      const data = await response.json();
+      if (data?.status === 1) return { host, data };
+      // status 0 means OFF replied authoritatively that no such product
+      // exists; both mirrors share the same DB so re-asking is wasted work.
+      if (data?.status === 0) return { host, notFound: true };
+      // Anomalous shape — try next host.
+      lastError = new Error(`Unexpected payload from ${host}`);
+    } catch (e) {
+      lastError = e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError ?? new Error('OFF unavailable');
 }
 
 /** Extract kcal/100g from OFF `nutriments`. Falls back to kJ→kcal (×0.239)

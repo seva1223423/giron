@@ -24,6 +24,10 @@ import {
   SANITY_MAX_KCAL_PER_100G,
   SANITY_MAX_KCAL_PER_ITEM,
   SANITY_MAX_TOTAL_KCAL,
+  sanitizeBarcode,
+  verifyEan13Checksum,
+  isRussianBarcode,
+  OFF_HOSTS,
   type ScannerDraft,
 } from '../utils/foodScanner';
 
@@ -674,5 +678,128 @@ describe('defaultMealType', () => {
   test('snack after 20', () => {
     expect(defaultMealType(at(20))).toBe('snack');
     expect(defaultMealType(at(23))).toBe('snack');
+  });
+});
+
+// ─── verifyEan13Checksum ──────────────────────────────────────────────────────
+
+describe('verifyEan13Checksum', () => {
+  test('accepts a known-valid EAN-13 (Coca-Cola RU 0.5L)', () => {
+    // 5449000000996 — Coca-Cola classic, widely scannable in RF
+    expect(verifyEan13Checksum('5449000000996')).toBe(true);
+  });
+
+  test('accepts a known-valid 460-prefix RU EAN-13', () => {
+    // 4607034570316 — Простоквашино молоко, standard RF SKU
+    expect(verifyEan13Checksum('4607034570316')).toBe(true);
+  });
+
+  test('rejects EAN-13 with bad check digit', () => {
+    // Last digit changed from 6 → 0 — should fail checksum
+    expect(verifyEan13Checksum('5449000000990')).toBe(false);
+  });
+
+  test('rejects wrong-length input', () => {
+    expect(verifyEan13Checksum('123')).toBe(false);
+    expect(verifyEan13Checksum('12345678901234')).toBe(false);
+  });
+
+  test('rejects non-digit input', () => {
+    expect(verifyEan13Checksum('abcdefghijklm')).toBe(false);
+    expect(verifyEan13Checksum('5449000-00996')).toBe(false);
+  });
+
+  test('rejects empty string', () => {
+    expect(verifyEan13Checksum('')).toBe(false);
+  });
+});
+
+// ─── sanitizeBarcode ──────────────────────────────────────────────────────────
+
+describe('sanitizeBarcode', () => {
+  test('strips whitespace and returns clean digits', () => {
+    expect(sanitizeBarcode('  5449000000996 ')).toBe('5449000000996');
+  });
+
+  test('strips embedded non-digits (e.g. control bytes from decoder)', () => {
+    expect(sanitizeBarcode('5449\x00000000996')).toBe('5449000000996');
+    expect(sanitizeBarcode('5449-0000-0099-6')).toBe('5449000000996');
+  });
+
+  test('accepts EAN-8 (8 digits, no checksum check on this length)', () => {
+    expect(sanitizeBarcode('12345670')).toBe('12345670');
+  });
+
+  test('accepts UPC-A (12 digits)', () => {
+    expect(sanitizeBarcode('012345678905')).toBe('012345678905');
+  });
+
+  test('accepts GTIN-14 (14 digits)', () => {
+    expect(sanitizeBarcode('00012345678905')).toBe('00012345678905');
+  });
+
+  test('rejects EAN-13 with invalid checksum', () => {
+    expect(sanitizeBarcode('5449000000990')).toBeNull();
+  });
+
+  test('accepts EAN-13 with valid checksum', () => {
+    expect(sanitizeBarcode('5449000000996')).toBe('5449000000996');
+  });
+
+  test('rejects malformed lengths (partial reads from creased labels)', () => {
+    expect(sanitizeBarcode('1234')).toBeNull();
+    expect(sanitizeBarcode('12345678901')).toBeNull(); // 11 digits
+    expect(sanitizeBarcode('123456789012345')).toBeNull(); // 15 digits
+  });
+
+  test('rejects empty / whitespace-only', () => {
+    expect(sanitizeBarcode('')).toBeNull();
+    expect(sanitizeBarcode('    ')).toBeNull();
+    expect(sanitizeBarcode('---')).toBeNull();
+  });
+});
+
+// ─── isRussianBarcode ─────────────────────────────────────────────────────────
+
+describe('isRussianBarcode', () => {
+  test('detects 460 prefix (RU)', () => {
+    expect(isRussianBarcode('4607034570316')).toBe(true);
+  });
+
+  test('detects 469 prefix (RU)', () => {
+    // Synthetic — sum check designed to pass: digits 4,6,9,0,0,0,0,0,0,0,0,0
+    // Use a real valid 469-prefix instead: 4690228000004 (some RU local SKU
+    // pattern). Verify it passes EAN-13 first or just check that prefix
+    // detection works regardless of checksum.
+    // Note: isRussianBarcode internally requires 13 digits and digit-only.
+    // It does NOT require checksum to pass — it just inspects the prefix.
+    // So we can use any 469-prefix synthetic string.
+    expect(isRussianBarcode('4690000000000')).toBe(true);
+  });
+
+  test('rejects non-RU prefixes', () => {
+    expect(isRussianBarcode('5449000000996')).toBe(false); // BE Coca-Cola
+    expect(isRussianBarcode('4012345678901')).toBe(false); // DE 401
+    expect(isRussianBarcode('4590000000000')).toBe(false); // 459 — just under
+    expect(isRussianBarcode('4700000000000')).toBe(false); // 470 — just over
+  });
+
+  test('rejects wrong-length input (sanity)', () => {
+    expect(isRussianBarcode('46012345')).toBe(false);
+    expect(isRussianBarcode('4607034570316123')).toBe(false);
+    expect(isRussianBarcode('')).toBe(false);
+  });
+});
+
+// ─── OFF_HOSTS ordering ───────────────────────────────────────────────────────
+
+describe('OFF_HOSTS', () => {
+  test('ru.openfoodfacts.org is the primary endpoint', () => {
+    // Order matters — fetchBarcodeFromOFF iterates in array order, so
+    // the first entry is the one we hit on the happy path. Locking the
+    // RU mirror first protects RF users from RKN-style block events
+    // that have hit the world. domain in the past.
+    expect(OFF_HOSTS[0]).toBe('ru.openfoodfacts.org');
+    expect(OFF_HOSTS[1]).toBe('world.openfoodfacts.org');
   });
 });
