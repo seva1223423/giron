@@ -34,6 +34,8 @@ import {
   sanitizeBarcode,
   fetchBarcodeFromOFF,
   isOFFDataPlausible,
+  isImageDimensionsValid,
+  MIN_IMAGE_SHORT_SIDE,
   type SanityFlag,
   type ScannerDraft,
 } from '../../utils/foodScanner';
@@ -260,23 +262,6 @@ const MEAL_TYPES = [
 const MAX_IMAGE_SIDE = 1280;
 const COMPRESS_QUALITY = 0.82;
 
-/**
- * Minimum shortest-side resolution we'll accept for a food photo.
- *
- * Below ~400px the Mistral vision model can still parse "is this
- * food", but the calibration rules in the system prompt (plate
- * sizes, utensils, hand for scale) need enough pixels to be
- * resolved — under 400px those features compress into a few-pixel
- * blobs and the model falls back to wild guessing on portion size.
- *
- * Phone cameras produce at minimum 1080px on the shortest side, so
- * the tiny-image path only fires for: heavily cropped screenshots,
- * very old gallery photos, or images relayed through aggressive
- * messenger compression. Rejecting them up front costs nothing
- * (we know dimensions before consuming a scan credit) and saves
- * the user a wasted analyse + a confusing low-confidence result.
- */
-const MIN_IMAGE_SHORT_SIDE = 400;
 
 /**
  * Compress + resize a captured photo for the AI vision endpoint.
@@ -824,18 +809,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     if (result.assets[0]) {
       const asset = result.assets[0];
       // Reject obviously-too-small images BEFORE we set the image URI,
-      // start the loader, or consume any scan credit. The server-side
-      // model can technically run on 256-px images, but the calibration
-      // rules in the prompt need ≥400 px of resolution to read plate
-      // sizes / utensils / scale references — anything smaller produces
-      // garbage portion estimates.
-      const shortSide = Math.min(asset.width ?? 0, asset.height ?? 0);
-      if (shortSide > 0 && shortSide < MIN_IMAGE_SHORT_SIDE) {
+      // start the loader, or consume any scan credit. See helper docs
+      // — calibration rules in the system prompt need ≥400 px on the
+      // shortest side to actually resolve their reference features.
+      if (!isImageDimensionsValid(asset.width, asset.height)) {
         appendNextRef.current = false;
         haptic.warning();
         Alert.alert(
           'Фото слишком маленькое',
-          'Для надёжного определения порций нужно фото минимум 400 пикселей по короткой стороне. Попробуй сделать новый кадр или выбрать другое изображение.',
+          `Для надёжного определения порций нужно фото минимум ${MIN_IMAGE_SHORT_SIDE} пикселей по короткой стороне. Попробуй сделать новый кадр или выбрать другое изображение.`,
         );
         return;
       }

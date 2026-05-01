@@ -268,6 +268,35 @@ export async function fetchBarcodeFromOFF(
  *  - Σ(p·4 + f·9 + c·4) ≤ 1100 — anything higher is physically
  *    impossible regardless of the per-field values.
  */
+/**
+ * Minimum shortest-side resolution accepted for the food vision
+ * pipeline. Below this threshold the calibration rules in the system
+ * prompt (plate sizes, utensils, hand for scale) need the reference
+ * features to actually resolve into recognisable shapes — below
+ * ~400 px those features compress into a few-pixel blobs and the
+ * model falls back to wild-guess portion estimates.
+ *
+ * Phone cameras produce ≥1080 px on the shortest side, so the
+ * tiny-image path only fires for: heavily cropped screenshots,
+ * very old gallery photos, or messenger-relayed images mangled by
+ * aggressive downsizing.
+ */
+export const MIN_IMAGE_SHORT_SIDE = 400;
+
+/**
+ * Returns true when image dimensions look plausible for food vision.
+ *
+ * Used to reject obviously-too-small images BEFORE consuming a scan
+ * credit — paired with ImagePicker's asset.width/height which are
+ * cheap to read. When either dimension is missing/zero we return true
+ * (skip the check) so callers that don't have dimensions handy don't
+ * accidentally block legitimate scans.
+ */
+export function isImageDimensionsValid(width: number | undefined | null, height: number | undefined | null): boolean {
+  if (!width || !height) return true;
+  return Math.min(width, height) >= MIN_IMAGE_SHORT_SIDE;
+}
+
 export function isOFFDataPlausible(cal: number, prot: number, fats: number, carbs: number): boolean {
   if (cal > 900) return false;
   if (prot > 100 || fats > 100 || carbs > 110) return false;

@@ -28,6 +28,8 @@ import {
   verifyEan13Checksum,
   isRussianBarcode,
   isOFFDataPlausible,
+  isImageDimensionsValid,
+  MIN_IMAGE_SHORT_SIDE,
   OFF_HOSTS,
   type ScannerDraft,
 } from '../utils/foodScanner';
@@ -850,6 +852,47 @@ describe('OFF_HOSTS', () => {
     // that have hit the world. domain in the past.
     expect(OFF_HOSTS[0]).toBe('ru.openfoodfacts.org');
     expect(OFF_HOSTS[1]).toBe('world.openfoodfacts.org');
+  });
+});
+
+// ─── isImageDimensionsValid ───────────────────────────────────────────────────
+
+describe('isImageDimensionsValid', () => {
+  test('accepts a typical iPhone capture (4032x3024)', () => {
+    expect(isImageDimensionsValid(4032, 3024)).toBe(true);
+  });
+
+  test('accepts dimensions exactly at the minimum threshold', () => {
+    expect(isImageDimensionsValid(MIN_IMAGE_SHORT_SIDE, MIN_IMAGE_SHORT_SIDE)).toBe(true);
+    expect(isImageDimensionsValid(MIN_IMAGE_SHORT_SIDE, 1000)).toBe(true);
+    expect(isImageDimensionsValid(1000, MIN_IMAGE_SHORT_SIDE)).toBe(true);
+  });
+
+  test('rejects images with shortest side under threshold', () => {
+    expect(isImageDimensionsValid(200, 200)).toBe(false);
+    expect(isImageDimensionsValid(MIN_IMAGE_SHORT_SIDE - 1, 1000)).toBe(false);
+    expect(isImageDimensionsValid(1000, MIN_IMAGE_SHORT_SIDE - 1)).toBe(false);
+  });
+
+  test('rejects panoramic crops with one tiny side', () => {
+    // 8000×100 panoramic — the long side passes any size test, but the
+    // short side is too small for portion calibration.
+    expect(isImageDimensionsValid(8000, 100)).toBe(false);
+  });
+
+  test('skips check when either dimension is missing/zero/null', () => {
+    // Defensive: callers without dimensions shouldn't get blocked.
+    expect(isImageDimensionsValid(0, 0)).toBe(true);
+    expect(isImageDimensionsValid(null, 1000)).toBe(true);
+    expect(isImageDimensionsValid(1000, undefined)).toBe(true);
+    expect(isImageDimensionsValid(undefined, undefined)).toBe(true);
+  });
+
+  test('threshold constant is exposed and matches expected default', () => {
+    // Regression guard — anyone who lowers MIN_IMAGE_SHORT_SIDE without
+    // grasping that the calibration rules degrade rapidly under 400 px
+    // should fail this test and read the helper's docstring.
+    expect(MIN_IMAGE_SHORT_SIDE).toBe(400);
   });
 });
 
