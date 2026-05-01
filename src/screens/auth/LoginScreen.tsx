@@ -301,7 +301,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.primary, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md }}>
             <Text style={{ fontSize: 24, fontWeight: '800', color: '#FFF' }}>IG</Text>
           </View>
-          <Text style={{ fontSize: 34, fontWeight: '800', color: colors.text, letterSpacing: -1 }}>Iron Gym</Text>
+          <Text style={{ fontSize: 34, fontWeight: '800', color: colors.text, letterSpacing: -1 }}>Giron</Text>
           <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.xs }]}>
             Твой персональный AI-тренер
           </Text>

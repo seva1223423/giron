@@ -48,7 +48,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
       const durationDays = trialUsed ? (selectedPlan === 'annual' ? 365 : 30) : 7;
       await activateOnBackend('pro', durationDays, consentTimestamp);
       Alert.alert(
-        'Iron Gym Pro активирован!',
+        'Giron Pro активирован!',
         trialUsed ? `Подписка активна на ${durationDays} дней` : 'Пробный период 7 дней активирован. Все функции Pro открыты!',
         [{ text: 'Отлично!', onPress: () => navigation.goBack() }]
       );
@@ -95,7 +95,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 60 }}>
           <Text style={[typography.body, { color: colors.primary }]}>← Назад</Text>
         </TouchableOpacity>
-        <Text style={[typography.h4, { color: colors.text }]}>Iron Gym Pro</Text>
+        <Text style={[typography.h4, { color: colors.text }]}>Giron Pro</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -108,7 +108,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
             </View>
             {isActivePro ? (
               <>
-                <Text style={[typography.h1, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>Iron Gym Pro{'\n'}активен</Text>
+                <Text style={[typography.h1, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>Giron Pro{'\n'}активен</Text>
                 <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>Все функции открыты без ограничений</Text>
               </>
             ) : (
@@ -152,7 +152,7 @@ export const SubscriptionScreen: React.FC<{ navigation: any }> = ({ navigation }
         <FadeIn delay={300}>
           <View style={styles.socialProof}>
             <Text style={[typography.number, { color: colors.text }]}>4.9</Text>
-            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>Средняя оценка от пользователей Iron Gym</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>Средняя оценка от пользователей Giron</Text>
           </View>
         </FadeIn>
 

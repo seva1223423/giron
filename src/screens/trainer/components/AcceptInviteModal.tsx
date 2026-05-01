@@ -14,7 +14,7 @@ interface Props {
 
 /**
  * Client-side entry point for the invite flow (Product-01). Authenticated
- * Iron Gym users paste the 10-char code their trainer shared and the
+ * Giron users paste the 10-char code their trainer shared and the
  * accounts get linked. Wired into the profile/settings stack at the
  * caller's discretion — this component doesn't own Navigation.
  *

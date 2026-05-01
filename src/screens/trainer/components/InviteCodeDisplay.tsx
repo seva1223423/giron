@@ -53,7 +53,7 @@ export const InviteCodeDisplay: React.FC<Props> = ({ clientId, clientName }) => 
     haptic.light();
     try {
       await Share.share({
-        message: `Твой код для подключения к тренировкам Iron Gym: ${client.inviteCode}\n\nОткрой приложение → Профиль → Подключить тренера.`,
+        message: `Твой код для подключения к тренировкам Giron: ${client.inviteCode}\n\nОткрой приложение → Профиль → Подключить тренера.`,
       });
     } catch {
       // User dismissed the share sheet — no action.
@@ -132,7 +132,7 @@ export const InviteCodeDisplay: React.FC<Props> = ({ clientId, clientName }) => 
         ПРИГЛАШЕНИЕ В ПРИЛОЖЕНИЕ
       </Text>
       <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-        Свяжи {clientName} с его аккаунтом Iron Gym — программа и прогресс появятся у него в приложении.
+        Свяжи {clientName} с его аккаунтом Giron — программа и прогресс появятся у него в приложении.
       </Text>
       <Button
         title="Сгенерировать код"

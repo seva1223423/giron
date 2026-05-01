@@ -1,7 +1,7 @@
 import { Dimensions, PixelRatio, Platform, ScaledSize, StyleSheet } from 'react-native';
 
 /**
- * Iron Gym responsive system.
+ * Giron responsive system.
  *
  * Brejkpoints based on real device widths (logical pixels / "points"):
  *   xs       <360   — iPhone SE (1st gen 320), Galaxy Z Fold cover (~280)

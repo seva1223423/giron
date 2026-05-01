@@ -122,12 +122,12 @@ export const WorkoutSummaryScreen: React.FC<{ route: any; navigation: any }> = (
           lines.push('', `Личные рекорды (${newPRs.length}):`);
           newPRs.forEach((pr) => lines.push(`  • ${pr.name}: ${pr.weight}кг × ${pr.reps} = ~${pr.est1rm}кг 1ПМ`));
         }
-        lines.push('', 'Тренировки с Iron Gym');
+        lines.push('', 'Тренировки с Giron');
         await Share.share({ message: lines.join('\n') });
       }
     } catch {
       await Share.share({
-        message: `${workout.name}\n${workout.durationMinutes || 0} мин  •  ${totalSets} подходов\nТренировки с Iron Gym`,
+        message: `${workout.name}\n${workout.durationMinutes || 0} мин  •  ${totalSets} подходов\nТренировки с Giron`,
       });
     }
   };

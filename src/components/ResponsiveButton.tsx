@@ -26,7 +26,7 @@ const SIZE_FONT: Record<Size, number> = { sm: 13, md: 15, lg: 17 };
 const SIZE_PAD: Record<Size, number> = { sm: 12, md: 18, lg: 22 };
 
 /**
- * Universal Iron Gym button — adaptive height/font and theme-aware colors.
+ * Universal Giron button — adaptive height/font and theme-aware colors.
  * Always at least 44pt tall (md/lg) to satisfy hit-area guidelines.
  */
 export function ResponsiveButton({

@@ -69,7 +69,7 @@ export async function scheduleDailyWorkoutReminder(hour: number, minute: number)
     await cancelWorkoutReminders();
 
     const messages = [
-      { title: 'Время тренироваться!', body: 'Открой Iron Gym и сделай тренировку — ты уже почти там.' },
+      { title: 'Время тренироваться!', body: 'Открой Giron и сделай тренировку — ты уже почти там.' },
       { title: 'Сегодня день тренировки', body: 'Маленький шаг каждый день = большой результат через год.' },
       { title: 'Iron Coach ждёт', body: 'Не пропускай — дисциплина строит тело, мотивация только запускает.' },
       { title: 'Пора в зал', body: 'Твоё будущее тело скажет спасибо. Открой приложение!' },
@@ -151,7 +151,7 @@ export async function scheduleStreakRiskNotification(): Promise<void> {
       identifier: NOTIFICATION_IDS.STREAK_RISK,
       content: {
         title: 'Серия под угрозой!',
-        body: 'Ты не тренировался 2 дня. Не дай серии прерваться — открой Iron Gym!',
+        body: 'Ты не тренировался 2 дня. Не дай серии прерваться — открой Giron!',
         sound: 'default',
         ...(Platform.OS === 'android' && { channelId: 'reminders' }),
       },
@@ -397,7 +397,7 @@ export async function showTodayPlanNotification(
         identifier: 'today-plan',
         content: {
           title: `Сегодня: ${planName}${streak > 0 ? ` | ${streak} дн.` : ''}`,
-          body: exerciseCount > 0 ? `${exerciseCount} упражнений. Открой Iron Gym чтобы начать!` : 'Тренировка запланирована. Готов?',
+          body: exerciseCount > 0 ? `${exerciseCount} упражнений. Открой Giron чтобы начать!` : 'Тренировка запланирована. Готов?',
           sound: undefined,
           sticky: true,
           priority: Notifications.AndroidNotificationPriority.LOW,
@@ -438,7 +438,7 @@ export async function scheduleInactivityReminder(daysSinceLastWorkout: number): 
       body = 'Серия прервалась. Начни заново сегодня — одна тренировка сбросит счётчик.';
     } else {
       title = 'Пора в зал!';
-      body = `Ты не тренировался ${daysSinceLastWorkout} дня. Открой Iron Gym и запусти тренировку.`;
+      body = `Ты не тренировался ${daysSinceLastWorkout} дня. Открой Giron и запусти тренировку.`;
     }
 
     await Notifications.scheduleNotificationAsync({

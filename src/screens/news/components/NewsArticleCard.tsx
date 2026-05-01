@@ -55,7 +55,7 @@ interface Props {
  *     left (currently only save is wired to real actions), bookmark on
  *     the right (filled when saved)
  *
- * Removes the redundant "Источник: Iron Gym" badge that was cluttering
+ * Removes the redundant "Источник: Giron" badge that was cluttering
  * the old card — every article in the feed is already "our" feed.
  */
 export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, onToggleSave }) => {
@@ -65,7 +65,7 @@ export const NewsArticleCard: React.FC<Props> = ({ article, isSaved, onPress, on
   const handleShare = async () => {
     try {
       haptic.selection();
-      await Share.share({ message: `${article.title}\n\n${article.summary}\n\nIron Gym` });
+      await Share.share({ message: `${article.title}\n\n${article.summary}\n\nGiron` });
     } catch {}
   };
 

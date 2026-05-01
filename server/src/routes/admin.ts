@@ -600,7 +600,7 @@ router.post('/test-notification', requireAdmin, async (req: AuthRequest, res: Re
         try {
           const { sendPushToUser } = await import('../services/pushService');
           await sendPushToUser(req.userId!, {
-            title: 'Iron Gym — тест',
+            title: 'Giron — тест',
             body: 'Это тестовое уведомление из админки. Если ты его видишь — push работает.',
             data: { url: 'irongym://admin', cohort: 'admin-test' },
           });
@@ -2771,7 +2771,7 @@ router.get('/report/daily', requireAdmin, async (req: AuthRequest, res: Response
 
     const dateLabel = dayStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
     const lines = [
-      `📊 Iron Gym — Отчёт за ${dateLabel}`,
+      `📊 Giron — Отчёт за ${dateLabel}`,
       ``,
       `👤 Новых пользователей: ${signups}${delta(signups, prevSignups)}`,
       `💪 Тренировок завершено: ${workouts}${delta(workouts, prevWorkouts)}`,

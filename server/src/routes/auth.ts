@@ -648,7 +648,7 @@ router.post('/google', async (req: Request, res: Response) => {
     // `email_verified` MUST be true before we trust `payload.email` for
     // user creation or auto-linking — otherwise a Google Workspace admin
     // who controls a domain can mint an ID token with arbitrary `email`
-    // and unverified flag, taking over an existing Iron Gym account.
+    // and unverified flag, taking over an existing Giron account.
     if (payload.email_verified !== true) {
       return res.status(401).json({ error: 'Email Google не подтверждён', code: 'EMAIL_NOT_VERIFIED' });
     }
@@ -660,7 +660,7 @@ router.post('/google', async (req: Request, res: Response) => {
     const avatarUrl = (payload.picture as string) || undefined;
 
     // Lookup by googleId first (the strong identifier). Email-based linking
-    // is only allowed when the existing Iron Gym account already verified
+    // is only allowed when the existing Giron account already verified
     // the same email — otherwise an attacker who registered a victim's
     // address without verification could be silently linked.
     let user = await prisma.user.findFirst({
@@ -792,7 +792,7 @@ router.post('/vk', async (req: Request, res: Response) => {
     // SECURITY: Only look up by vkId — never by email.
     // VK does not return email via the users.get API; vkEmail comes from the client payload
     // and cannot be trusted. Auto-linking by a client-supplied email would let any VK user
-    // claim an arbitrary email address and take over the matching Iron Gym account.
+    // claim an arbitrary email address and take over the matching Giron account.
     let user = await prisma.user.findFirst({
       where: { vkId },
       include: { healthRestrictions: true },
@@ -839,7 +839,7 @@ router.post('/vk', async (req: Request, res: Response) => {
 
 /**
  * POST /auth/yandex
- * Exchange a Yandex OAuth access token for Iron Gym JWT tokens.
+ * Exchange a Yandex OAuth access token for Giron JWT tokens.
  * The client obtains the Yandex token via OAuth 2.0 (WebBrowser or Yandex SDK),
  * then sends it here for server-side validation.
  */
@@ -885,7 +885,7 @@ router.post('/yandex', async (req: Request, res: Response) => {
     const avatarUrl = avatarId && avatarId !== '0' ? `https://avatars.yandex.net/get-yapic/${avatarId}/islands-200` : undefined;
 
     // Lookup by yandexId first (the strong identifier). Email-based linking
-    // requires the existing Iron Gym account to have a verified email —
+    // requires the existing Giron account to have a verified email —
     // otherwise an attacker who registered the victim's address without
     // verification could be silently linked (sec audit 2026-04: HIGH-3).
     let user: any = await prisma.user.findFirst({

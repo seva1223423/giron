@@ -2,7 +2,7 @@
  * TOP 90% DEVICE MATRIX — REAL-WORLD COVERAGE
  * ───────────────────────────────────────────
  * Goal: prove the design works on 90%+ of phones globally and in
- * the RU/CIS market specifically (Iron Gym primary market).
+ * the RU/CIS market specifically (Giron primary market).
  *
  * Methodology:
  *   • Devices selected from real market-share data 2023-2025

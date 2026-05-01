@@ -24,7 +24,7 @@ import { reportError } from '../utils/errorReporter';
  * reportError but never thrown — the cron must be self-healing.
  *
  * Quiet hours: pushes (NOT emails — emails sit in inbox harmlessly) are
- * skipped during sleep hours. Iron Gym is RU-focused so we approximate
+ * skipped during sleep hours. Giron is RU-focused so we approximate
  * Moscow time (UTC+3): no pushes between 22:00 and 08:00 Moscow =
  * 19:00..05:00 UTC. Eligible users are deferred to the next cron tick;
  * the *SentAt gate isn't set so they're picked up cleanly later.

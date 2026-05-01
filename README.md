@@ -1,4 +1,4 @@
-# Iron Gym — AI Fitness App
+# Giron — AI Fitness App
 
 Фитнес-приложение с AI-тренером для российского рынка (RuStore + Google Play + App Store).
 

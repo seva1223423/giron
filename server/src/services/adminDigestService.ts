@@ -179,7 +179,7 @@ export async function sendDailyAdminDigest(): Promise<number> {
     // Compact push body: one line per metric, no fluff. The push title
     // carries the date so timestamps in lock-screen history stay obvious
     // even after 3 days of accumulated digests.
-    const pushTitle = `📊 Iron Gym — ${stats.date}`;
+    const pushTitle = `📊 Giron — ${stats.date}`;
     const pushBody = [
       `Платят: ${stats.payingNow}${stats.payingDelta30d >= 0 ? ` (+${stats.payingDelta30d}` : ` (${stats.payingDelta30d}`} за 30д)`,
       `Регистраций: ${stats.signupsToday}${fmtDelta(stats.signupsToday, stats.signupsYesterday)}`,

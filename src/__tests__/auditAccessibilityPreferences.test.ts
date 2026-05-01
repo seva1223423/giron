@@ -2,7 +2,7 @@
  * ACCESSIBILITY PREFERENCES AUDIT
  * ───────────────────────────────
  * Users with accessibility preferences enabled are 15-20% of all
- * users (per Apple/Google data). Iron Gym must respect:
+ * users (per Apple/Google data). Giron must respect:
  *
  *   1. **Dynamic Type / Font Scale** — iOS allows 80% to 310% text
  *      size; Android 85%-130% on standard, 85%-200% with font

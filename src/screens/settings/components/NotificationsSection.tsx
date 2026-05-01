@@ -37,7 +37,7 @@ export const NotificationsSection: React.FC = () => {
           setNotificationsEnabled(true);
           Alert.alert('Уведомления включены', `Напоминание каждый день в ${reminderHour}:00.`);
         } else {
-          Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства:\nНастройки → Iron Gym → Уведомления.');
+          Alert.alert('Нет доступа', 'Разреши уведомления в настройках устройства:\nНастройки → Giron → Уведомления.');
         }
       } else {
         await cancelWorkoutReminders();

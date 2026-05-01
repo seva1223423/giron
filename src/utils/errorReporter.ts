@@ -73,7 +73,7 @@ function tryLoadSentry(): SentryModule | null {
       // dev build). When the user runs through EAS-built binaries this is
       // automatically true; in Expo Go it would silently no-op anyway.
       enableNative: true,
-      // Keep PII scrubbing strict — Iron Gym handles health data which counts
+      // Keep PII scrubbing strict — Giron handles health data which counts
       // as спец-категория under 152-ФЗ. We never want goal/weight/height
       // strings landing in Sentry breadcrumbs.
       beforeSend(event: any) {
