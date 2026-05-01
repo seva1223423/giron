@@ -44,11 +44,30 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
 
   const handleRequestPermission = async () => {
     const result = await requestPermission();
-    if (!result.granted) {
-      Alert.alert('Доступ к камере', 'Для сканирования штрих-кода нужен доступ к камере.', [
-        { text: 'Отмена', style: 'cancel', onPress: onClose },
-        { text: 'Настройки', onPress: () => { Linking.openSettings(); onClose(); } },
-      ]);
+    if (result.granted) return;
+    // Round 199: branch on canAskAgain. The previous flow always
+    // offered "Настройки" even when the OS would still happily show
+    // the permission dialog on the next open, which was confusing —
+    // users who tapped Cancel didn't realise they could just re-open
+    // the scanner to get the prompt again. Now we only push toward
+    // settings when the prompt has been disabled (Android "Don't ask
+    // again" / iOS post-first-denial); otherwise we just nudge them
+    // to retry.
+    if (result.canAskAgain) {
+      Alert.alert(
+        'Нужен доступ',
+        'Для сканирования штрих-кода нужен доступ к камере. Открой сканер ещё раз и разреши доступ во всплывающем окне.',
+        [{ text: 'ОК', onPress: onClose }],
+      );
+    } else {
+      Alert.alert(
+        'Доступ заблокирован',
+        'Доступ к камере отключён в настройках. Открой настройки и разреши приложению использовать камеру.',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: onClose },
+          { text: 'Открыть настройки', onPress: () => { Linking.openSettings(); onClose(); } },
+        ],
+      );
     }
   };
 
