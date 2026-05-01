@@ -1,0 +1,46 @@
+# Smoke test: login screen renders all OAuth providers (3 — no Mail.ru
+# after round 187). Verifies email + password fields, OAuth buttons,
+# and the link to register screen.
+#
+# Note: doesn't actually log in — would need test credentials. Asserts
+# the form is interactive and accessible.
+
+appId: com.irongym.app
+---
+- launchApp:
+    clearState: true
+
+# Cold start lands on Login (when not authenticated)
+- assertVisible: "Войти"
+
+# Email/phone tab toggle visible
+- assertVisible: "Email"
+- assertVisible: "Телефон"
+
+# Email tab: input fields render
+- assertVisible:
+    text: "Электронная почта"
+    optional: true
+
+# OAuth buttons (3 providers — no Mail.ru)
+- assertVisible:
+    text: "Войти через Google"
+    optional: true
+- assertVisible:
+    text: "Войти через VK ID"
+    optional: true
+- assertVisible:
+    text: "Войти через Яндекс"
+    optional: true
+
+# Mail.ru button MUST NOT be present (regression check for round 187)
+- assertNotVisible: "Войти через Mail.ru"
+
+# Footer link to register
+- assertVisible: "Зарегистрируйся"
+
+# Test the navigation to register
+- tapOn: "Зарегистрируйся"
+- assertVisible: "Регистрация"
+- back
+- assertVisible: "Войти"

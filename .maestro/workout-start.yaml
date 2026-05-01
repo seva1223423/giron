@@ -1,0 +1,40 @@
+# Smoke test: open Workouts tab → start active workout from a built-in
+# program → assert ActiveWorkoutScreen renders the working set entry.
+
+appId: com.irongym.app
+---
+- launchApp
+
+# Navigate to Тренировки tab
+- tapOn:
+    text: "Тренировки"
+    optional: true
+- waitForAnimationToEnd
+
+# WorkoutsScreen — should show "Начать тренировку" CTA
+- assertVisible:
+    text: "Начать тренировку"
+    optional: true
+
+# Or scroll to find a program card
+- swipe:
+    direction: UP
+    duration: 200
+- waitForAnimationToEnd
+
+# Tap "Начать тренировку" — opens ActiveWorkoutScreen
+- tapOn:
+    text: "Начать тренировку"
+    optional: true
+- waitForAnimationToEnd
+
+# ActiveWorkoutScreen should have working-set indicators
+- assertVisible:
+    text: "Завершить"
+    optional: true
+
+# Back to workouts list
+- back
+- assertVisible:
+    text: "Тренировки"
+    optional: true

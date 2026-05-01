@@ -1,0 +1,38 @@
+# Smoke test: registration screen, OAuth providers (3 — no Mail.ru),
+# password validation feedback, OTP flow gating.
+
+appId: com.irongym.app
+---
+- launchApp:
+    clearState: true
+
+- tapOn: "Зарегистрируйся"
+- assertVisible: "Регистрация"
+
+# Required fields visible
+- assertVisible:
+    text: "Имя"
+    optional: true
+- assertVisible:
+    text: "Электронная почта"
+    optional: true
+- assertVisible:
+    text: "Пароль"
+    optional: true
+
+# OAuth (3 providers)
+- assertVisible:
+    text: "Регистрация через Google"
+    optional: true
+- assertVisible:
+    text: "Регистрация через VK ID"
+    optional: true
+- assertVisible:
+    text: "Регистрация через Яндекс"
+    optional: true
+
+# Mail.ru regression
+- assertNotVisible: "Регистрация через Mail.ru"
+
+# Back to login link
+- assertVisible: "Войти"

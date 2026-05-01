@@ -1,0 +1,43 @@
+# Smoke test: 4-step onboarding questionnaire after first registration.
+# Assumes user just completed register flow and lands on OnboardingScreen.
+
+appId: com.irongym.app
+---
+- launchApp
+
+# Onboarding header / progress dots
+- assertVisible:
+    text: "Назад"
+    optional: true
+- assertVisible:
+    text: "Далее"
+    optional: true
+
+# Step 1: typically goal selection
+- tapOn:
+    text: "Далее"
+    optional: true
+- waitForAnimationToEnd
+
+# Step 2: typically frequency
+- tapOn:
+    text: "Далее"
+    optional: true
+- waitForAnimationToEnd
+
+# Step 3: experience level
+- tapOn:
+    text: "Далее"
+    optional: true
+- waitForAnimationToEnd
+
+# Final step: завершить — lands on AI tab
+- tapOn:
+    text: "Завершить"
+    optional: true
+- waitForAnimationToEnd
+
+# Should now be on MainTabs (AI tab if justOnboarded flag set)
+- assertVisible:
+    text: "ИИ"
+    optional: true

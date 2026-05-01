@@ -1,0 +1,13 @@
+# Maestro project config — applies defaults to every flow in this dir.
+# Reference: https://maestro.mobile.dev/cli/configuration
+
+flows:
+  - "*.yaml"
+
+# Per-flow timeout. Iron Gym flows are short (≤2 min); cap so a hung flow
+# fails fast in CI rather than burning the whole job slot.
+timeoutMs: 120000
+
+# Output: include video recording for failure diagnosis. Maestro Cloud
+# preserves these for the run; local runs save to ~/.maestro.
+includeRecordings: true
