@@ -1011,7 +1011,32 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     haptic.selection();
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
-      if (!result.granted) { Alert.alert('Нет доступа', 'Разрешите доступ к камере в настройках устройства'); haptic.warning(); return; }
+      if (!result.granted) {
+        haptic.warning();
+        // Round 210: same canAskAgain branch the food picker (round
+        // 195) and the BarcodeScannerModal (round 199) use. The
+        // previous flat alert told users to "разрешите в настройках"
+        // even when the OS would happily re-prompt; users who tapped
+        // OK and didn't realise re-tapping the scan-button would
+        // re-fire the dialog assumed the only path was a settings
+        // detour and gave up.
+        if (result.canAskAgain) {
+          Alert.alert(
+            'Нужен доступ',
+            'Для сканирования штрих-кода нужен доступ к камере. Нажми кнопку «Сканировать» ещё раз и разреши доступ во всплывающем окне.',
+          );
+        } else {
+          Alert.alert(
+            'Доступ заблокирован',
+            'Доступ к камере отключён в настройках. Открой настройки и разреши приложению использовать камеру.',
+            [
+              { text: 'Отмена', style: 'cancel' },
+              { text: 'Открыть настройки', onPress: () => Linking.openSettings() },
+            ],
+          );
+        }
+        return;
+      }
     }
     setBarcodeScanned(false);
     setError('');
