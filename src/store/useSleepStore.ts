@@ -164,7 +164,7 @@ export const useSleepStore = create<SleepStore>()(
       clearUserData: () => set({ entries: [] }),
     }),
     {
-      name: 'iron-gym-sleep',
+      name: 'giron-sleep',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (state: any) => state,

@@ -244,7 +244,7 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
       }),
     }),
     {
-      name: 'iron-gym-subscription',
+      name: 'giron-subscription',
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
       migrate: (state: any, _version: number) => state,

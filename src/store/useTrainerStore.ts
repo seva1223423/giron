@@ -317,7 +317,7 @@ export const useTrainerStore = create<TrainerStore>()(
       clearUserData: () => set({ clients: [], sessions: [], isLoading: false, myTrainers: [] }),
     }),
     {
-      name: 'iron-gym-trainer',
+      name: 'giron-trainer',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ clients: state.clients, sessions: state.sessions, myTrainers: state.myTrainers }),
       version: 1,

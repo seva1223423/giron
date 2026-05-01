@@ -166,7 +166,7 @@ import { Icon } from '../../components';
 // 'heart' | 'bolt' | 'target' | 'plus' | 'play' | 'pause' | 'refresh' |
 // 'send' | 'search' | 'logo' | 'dumbbell' | 'apple' | 'chart' | 'user' |
 // 'home' | 'message' | 'bookmark' | 'more' | 'settings' | 'lock' |
-// 'grid' | 'news' | 'water' | 'moon' | 'rouble'
+// 'grid' | 'news' | 'water' | 'moon' | 'rouble' | 'link'
 //
 // Usage: <Icon name="dumbbell" size={20} color={colors.primary} />
 
@@ -175,7 +175,7 @@ import { Icon } from '../../components';
 // colors.text           — Warm graphite #F4F1EA / #17171A
 // colors.background     — #0E0E0F (dark) / #F4F1EA (light) — warm cream
 // colors.surface        — #17171A (dark) / #FFFFFF (light)
-// colors.card           — #1E1E22 (dark) / #FFFFFF (light)
+// colors.card           — #17171A (dark) / #FFFFFF (light)  [surfaceElevated = #1E1E22]
 // colors.border         — #2C2C30 (dark) / #E5DFD2 (light) — warm tan
 // colors.textSecondary  — warm grey subtext
 // protein macro color   — same as primary (gold) — replaces old purple #8B5CF6
@@ -294,8 +294,8 @@ import { typography } from '../../theme';
 //         small, smallMedium, caption, captionMedium, numberSmall
 
 import { spacing, borderRadius } from '../../theme/spacing';
-// spacing: xs=4 sm=8 md=12 lg=16 xl=20 xxl=24 huge=40
-// borderRadius: sm=8 md=12 lg=16 xl=20 full=999
+// spacing: xs=4 sm=8 md=12 lg=16 xl=20 xxl=24 xxxl=32 huge=48
+// borderRadius: sm=8 md=12 lg=16 xl=20 xxl=24 full=9999
 ```
 
 ## Navigation

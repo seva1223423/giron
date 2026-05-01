@@ -351,7 +351,7 @@ export const useAuthStore = create<AuthStore>()(
       },
     }),
     {
-      name: 'iron-gym-auth',
+      name: 'giron-auth',
       storage: createJSONStorage(() => AsyncStorage),
       version: 3,
       migrate: async (persistedState: any, version: number) => {

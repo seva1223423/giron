@@ -789,7 +789,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
     }),
     {
-      name: 'iron-gym-workouts',
+      name: 'giron-workouts',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         programs: state.programs,

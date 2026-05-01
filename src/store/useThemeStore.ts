@@ -47,7 +47,7 @@ export const useThemeStore = create<ThemeStore>()(
       resetToDefaults: () => set({ mode: 'light', isDark: false, colors: lightColors }),
     }),
     {
-      name: 'iron-gym-theme',
+      name: 'giron-theme',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ mode: state.mode }),
       onRehydrateStorage: () => (state) => {

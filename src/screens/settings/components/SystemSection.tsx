@@ -61,9 +61,9 @@ export const SystemSection: React.FC = () => {
         { text: 'Отмена', style: 'cancel' },
         { text: 'Восстановить', style: 'destructive', onPress: async () => {
           try {
-            if (data.workouts) await AsyncStorage.setItem('iron-gym-workouts', JSON.stringify(data.workouts));
-            if (data.nutrition) await AsyncStorage.setItem('iron-gym-nutrition', JSON.stringify(data.nutrition));
-            if (data.settings) await AsyncStorage.setItem('iron-gym-settings', JSON.stringify(data.settings));
+            if (data.workouts) await AsyncStorage.setItem('giron-workouts', JSON.stringify(data.workouts));
+            if (data.nutrition) await AsyncStorage.setItem('giron-nutrition', JSON.stringify(data.nutrition));
+            if (data.settings) await AsyncStorage.setItem('giron-settings', JSON.stringify(data.settings));
             Alert.alert('Готово', 'Данные восстановлены. Перезапустите приложение для применения.');
           } catch {
             Alert.alert('Ошибка', 'Не удалось записать данные. Проверь свободное место на устройстве.');
@@ -78,9 +78,9 @@ export const SystemSection: React.FC = () => {
   const handleExport = async () => {
     try {
       const [workouts, nutrition, settings] = await Promise.all([
-        AsyncStorage.getItem('iron-gym-workouts'),
-        AsyncStorage.getItem('iron-gym-nutrition'),
-        AsyncStorage.getItem('iron-gym-settings'),
+        AsyncStorage.getItem('giron-workouts'),
+        AsyncStorage.getItem('giron-nutrition'),
+        AsyncStorage.getItem('giron-settings'),
       ]);
       const data = {
         exportedAt: new Date().toISOString(),

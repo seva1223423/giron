@@ -19,6 +19,6 @@ export const useOnboardingTipsStore = create<OnboardingTipsStore>()(
       hasShown: (tipId) => get().shownTips.includes(tipId),
       resetAll: () => set({ shownTips: [] }),
     }),
-    { name: 'iron-gym-tips', storage: createJSONStorage(() => AsyncStorage), version: 1, migrate: (state: any) => state },
+    { name: 'giron-tips', storage: createJSONStorage(() => AsyncStorage), version: 1, migrate: (state: any) => state },
   ),
 );

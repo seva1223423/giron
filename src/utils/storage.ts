@@ -1,14 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORE_KEYS = [
-  'iron-gym-workouts',
-  'iron-gym-nutrition',
-  'iron-gym-auth',
-  'iron-gym-settings',
-  'iron-gym-theme',
-  'iron-gym-sleep',
+  'giron-workouts',
+  'giron-nutrition',
+  'giron-auth',
+  'giron-settings',
+  'giron-theme',
+  'giron-sleep',
   'cardio-store',
-  'iron-gym-tips',
+  'giron-tips',
 ];
 
 export interface StorageUsage {
