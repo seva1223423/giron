@@ -134,12 +134,26 @@ export const BarcodeScannerModal: React.FC<Props> = ({ visible, loading, scanned
 
           <View style={styles.bottomArea}>
             {loading ? (
-              <View style={{ alignItems: 'center', gap: spacing.sm }}>
+              // accessibilityLiveRegion="polite" makes TalkBack /
+              // VoiceOver announce the lookup state when the spinner
+              // appears — without it, blind users get no feedback that
+              // their scan was registered (the camera viewfinder is
+              // silent), and they keep moving the phone trying to
+              // re-trigger a scan that's already in flight.
+              <View
+                style={{ alignItems: 'center', gap: spacing.sm }}
+                accessibilityLiveRegion="polite"
+                accessibilityRole="progressbar"
+                accessibilityLabel="Ищем продукт в базе данных"
+              >
                 <ActivityIndicator color="#FFF" />
                 <Text style={[typography.small, { color: '#FFF' }]}>Ищем продукт в базе данных...</Text>
               </View>
             ) : (
-              <Text style={[typography.small, { color: 'rgba(255,255,255,0.7)', textAlign: 'center' }]}>
+              <Text
+                style={[typography.small, { color: 'rgba(255,255,255,0.7)', textAlign: 'center' }]}
+                accessibilityLabel="Поддерживаемые форматы: EAN-13, EAN-8, UPC, Code 128"
+              >
                 EAN-13 / EAN-8 / UPC / Code 128
               </Text>
             )}
