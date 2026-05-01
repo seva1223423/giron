@@ -280,6 +280,16 @@ const COMPRESS_QUALITY = 0.82;
  * compression step alone — same output bytes, no upscale, no
  * unnecessary scale-down.
  */
+/**
+ * Server's payload cap for /ai/analyze-food (matches the Zod max).
+ * Base64 inflates raw bytes by ~33%, so a 9 MB base64 string
+ * represents about 6.75 MB of JPEG — comfortably above what a
+ * 1280-px JPEG@0.82 ever produces in practice (~500 KB-1 MB). The
+ * fallback only fires for genuinely pathological inputs (HEIC depth
+ * data, screenshots with full-page text, etc.).
+ */
+const MAX_UPLOAD_BASE64_BYTES = 9_000_000;
+
 async function compressImageForUpload(
   uri: string,
   srcW?: number,
@@ -292,16 +302,44 @@ async function compressImageForUpload(
     w = info.width;
     h = info.height;
   }
-  const longer = Math.max(w, h);
-  const ops: ImageManipulator.Action[] = longer > MAX_IMAGE_SIDE
-    ? [{ resize: w > h ? { width: MAX_IMAGE_SIDE } : { height: MAX_IMAGE_SIDE } }]
-    : [];
-  const result = await ImageManipulator.manipulateAsync(
-    uri,
-    ops,
-    { compress: COMPRESS_QUALITY, format: ImageManipulator.SaveFormat.JPEG, base64: true },
-  );
-  return { base64: result.base64 ?? '', mimeType: 'image/jpeg' };
+  // Round 203: progressive fallback. The previous single-pass
+  // compress relied on the caller's "too big → bail with error" check,
+  // which kicked the user out without recourse for rare oversized
+  // outputs. Now we retry with progressively smaller dimensions and
+  // lower JPEG quality, keeping any successful pass before the budget
+  // is exceeded. Each fallback step costs one additional decode-encode
+  // cycle (~150-300 ms on mid-range Android), which is much better
+  // than the alternative of surfacing "Фото слишком большое" and
+  // making the user re-pick a different photo.
+  const passes: Array<{ side: number; quality: number }> = [
+    { side: MAX_IMAGE_SIDE, quality: COMPRESS_QUALITY }, // 1280 / 0.82
+    { side: 1024, quality: 0.78 },
+    { side: 768, quality: 0.72 },
+  ];
+  let last: { base64: string } = { base64: '' };
+  for (const pass of passes) {
+    const longer = Math.max(w, h);
+    const ops: ImageManipulator.Action[] = longer > pass.side
+      ? [{ resize: w > h ? { width: pass.side } : { height: pass.side } }]
+      : [];
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      ops,
+      { compress: pass.quality, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+    );
+    const b64 = result.base64 ?? '';
+    last = { base64: b64 };
+    if (b64.length > 0 && b64.length <= MAX_UPLOAD_BASE64_BYTES) {
+      return { base64: b64, mimeType: 'image/jpeg' };
+    }
+    // If the source's longer side was already smaller than this pass's
+    // target, further passes won't shrink dimensions any more — only
+    // lower the JPEG quality. Worth continuing because the quality
+    // drop alone often gets us under the cap on label-heavy photos.
+  }
+  // Fall through with the smallest pass result; caller's hard size
+  // check will surface a friendly error if even 768/0.72 stayed huge.
+  return { base64: last.base64, mimeType: 'image/jpeg' };
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
