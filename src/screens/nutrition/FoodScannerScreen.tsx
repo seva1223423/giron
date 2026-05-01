@@ -715,6 +715,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         // No items parsed → applyAIItems never ran → append flag never
         // got consumed. Clear it so the next fresh scan isn't contaminated.
         appendNextRef.current = false;
+        // Round 205: this is the deterministic "AI saw no food" outcome,
+        // not a transient failure. Re-running analyze with the same
+        // base64 hits the server-side cache and returns 0 items again,
+        // so the "Попробовать снова" button is useless here. Hide it.
+        // The fallback row (text / barcode / manual) stays visible
+        // unconditionally and is what the user actually needs.
+        setErrorRetryable(false);
+        // Drop the cached base64 too — it can't be retried into a
+        // useful result, and keeping a 5-7 MB string alive blocks GC.
+        lastBase64Ref.current = '';
         haptic.warning();
       } else {
         // Cache the successful result by the image fingerprint — next re-scan is free.
