@@ -77,7 +77,7 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
             <TouchableOpacity
               onPress={() => {
                 Share.share({
-                  message: `${message.content}\n\n— Iron Coach (Iron Gym)\nhttps://irongym.app`,
+                  message: `${message.content}\n\n— Iron Coach (Giron)\nhttps://irongym.app`,
                 }).catch(() => {});
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

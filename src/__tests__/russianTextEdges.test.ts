@@ -118,10 +118,10 @@ describe('Long Russian word clamp', () => {
   });
 
   test('Moscow / Saint Petersburg fit within the gym location label', () => {
-    // The design shows "Iron Gym Центр" in news posts. Moscow/SPb
-    // branch names would be "Iron Gym · Москва" — stay under 40.
-    expect('Iron Gym · Москва'.length).toBeLessThanOrEqual(40);
-    expect('Iron Gym · Санкт-Петербург'.length).toBeLessThanOrEqual(40);
+    // The design shows "Giron Центр" in news posts. Moscow/SPb
+    // branch names would be "Giron · Москва" — stay under 40.
+    expect('Giron · Москва'.length).toBeLessThanOrEqual(40);
+    expect('Giron · Санкт-Петербург'.length).toBeLessThanOrEqual(40);
   });
 });
 

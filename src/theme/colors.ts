@@ -1,5 +1,5 @@
 /**
- * Iron Gym Color System — Premium Graphite + Gold
+ * Giron Color System — Premium Graphite + Gold
  *
  * Design philosophy: Premium dark product with champagne gold accent.
  * Tokens match Claude Design "Direction A" export (2026-04-22 handoff):

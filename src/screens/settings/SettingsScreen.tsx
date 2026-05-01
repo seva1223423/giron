@@ -38,7 +38,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
       <FadeIn delay={300}>
         <View style={styles.appInfo}>
-          <Text style={[typography.caption, { color: colors.textTertiary }]}>Iron Gym</Text>
+          <Text style={[typography.caption, { color: colors.textTertiary }]}>Giron</Text>
           <Text style={[typography.caption, { color: colors.textTertiary }]}>Версия 1.0.0</Text>
         </View>
       </FadeIn>

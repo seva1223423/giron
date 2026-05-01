@@ -24,7 +24,7 @@ export const LastWorkoutCard: React.FC<Props> = ({ lastWorkout, daysSinceLastWor
       `Моя тренировка: ${lastWorkout.name}`,
       `${lastWorkout.durationMinutes || 0} мин - ${Math.round(lastWorkout.totalVolume || 0)} кг`,
       `${lastWorkout.exercises.length} упражнений - ${totalSets} подходов`,
-      `Тренируйся с Iron Gym`,
+      `Тренируйся с Giron`,
     ].join('\n');
     try {
       await Share.share({ message });

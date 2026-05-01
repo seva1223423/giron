@@ -40,7 +40,7 @@ export const ArticleDetailModal: React.FC<Props> = ({ article, isSaved, onClose,
   const handleShare = async () => {
     if (!article) return;
     try {
-      await Share.share({ message: `${article.title}\n\n${article.summary}\n\nIron Gym — лучшее фитнес-приложение для зала` });
+      await Share.share({ message: `${article.title}\n\n${article.summary}\n\nGiron — лучшее фитнес-приложение для зала` });
     } catch {}
   };
 

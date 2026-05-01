@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "iron-gym",
-    "slug": "iron-gym",
+    "name": "Giron",
+    "slug": "giron",
     "scheme": [
-      "irongym",
-      "com.irongym.app"
+      "giron",
+      "com.giron.app",
+      "irongym"
     ],
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -20,14 +21,15 @@
       "supportsTablet": true,
       "icon": "./assets/icon.png",
       "infoPlist": {
-        "NSMotionUsageDescription": "���������� ��� �������� ����� � ������������ ����������"
+        "NSMotionUsageDescription": "Используется для подсчёта шагов и отслеживания активности"
       },
       "associatedDomains": [
+        "applinks:giron.app",
         "applinks:irongym.app"
       ]
     },
     "android": {
-      "package": "com.irongym.app",
+      "package": "com.giron.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0A0F"
@@ -41,6 +43,9 @@
           "action": "VIEW",
           "data": [
             {
+              "scheme": "giron"
+            },
+            {
               "scheme": "irongym"
             }
           ],
@@ -53,6 +58,16 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
+            {
+              "scheme": "https",
+              "host": "giron.app",
+              "pathPrefix": "/reset-password"
+            },
+            {
+              "scheme": "https",
+              "host": "giron.app",
+              "pathPrefix": "/auth"
+            },
             {
               "scheme": "https",
               "host": "irongym.app",
@@ -73,7 +88,7 @@
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 9
+      "versionCode": 10
     },
     "web": {
       "favicon": "./assets/favicon.png"

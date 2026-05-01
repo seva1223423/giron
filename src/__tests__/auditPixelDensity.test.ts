@@ -109,7 +109,7 @@ describe('Image assets present in 2x and 3x', () => {
   });
 
   test('SVG icons preferred for unlimited DPR scaling', () => {
-    // Iron Gym uses react-native-svg via Icon component — DPR-independent
+    // Giron uses react-native-svg via Icon component — DPR-independent
     expect(true).toBe(true);
   });
 });

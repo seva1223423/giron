@@ -90,12 +90,16 @@ export function clientVersionGate(req: Request, res: Response, next: NextFunctio
       clientVersion,
       minVersion,
       // Hint for the client UI — direct it to the right store. Falls
-      // back to a generic prompt if platform is unknown.
+      // back to a generic prompt if platform is unknown. Round 191:
+      // bundle id changed to com.giron.app — old APK users will still
+      // get a valid RuStore link (the page may 404 until the new
+      // listing publishes; old com.irongym.app listing was never
+      // published, so no break).
       updateUrl:
         platform === 'android'
-          ? 'https://www.rustore.ru/catalog/app/com.irongym.app'
+          ? 'https://www.rustore.ru/catalog/app/com.giron.app'
           : platform === 'ios'
-            ? 'https://apps.apple.com/app/iron-gym/id000000000'
+            ? 'https://apps.apple.com/app/giron/id000000000'
             : null,
     });
   }

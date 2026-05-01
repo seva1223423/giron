@@ -510,7 +510,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           iconBg={colors.accent + '18'}
           iconColor={colors.accent}
           title="Подписка"
-          subtitle="Iron Gym Pro — 7 дней бесплатно"
+          subtitle="Giron Pro — 7 дней бесплатно"
           badge="PRO"
           badgeColor={colors.accent}
           onPress={() => { haptic.selection(); navigation.navigate('Subscription'); }}

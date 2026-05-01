@@ -6,7 +6,7 @@ interface TextProps extends RNTextProps {
 }
 
 /**
- * Iron Gym Text wrapper with two safety defaults:
+ * Giron Text wrapper with two safety defaults:
  *
  *   1. `maxFontSizeMultiplier={1.4}` — caps Dynamic Type / fontScale at +40%
  *      so accessibility users still get bigger fonts but our layouts don't

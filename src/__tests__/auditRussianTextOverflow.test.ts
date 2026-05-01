@@ -3,7 +3,7 @@
  * ────────────────────────────────
  * Russian words tend to be 1.2-1.4× longer than the English equivalent.
  * This audit catches overflow risks on narrow devices for the most
- * frequently-shown labels in Iron Gym.
+ * frequently-shown labels in Giron.
  *
  * The math is approximate — character × ~7pt at 14pt font, ~9pt at
  * 17pt font, etc. — which matches typical Cyrillic average glyph

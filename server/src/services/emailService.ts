@@ -71,8 +71,8 @@ const transporter = {
   },
 };
 
-const FROM = process.env.SMTP_FROM || 'Iron Gym <noreply@irongym.app>';
-const APP_NAME = 'Iron Gym';
+const FROM = process.env.SMTP_FROM || 'Giron <noreply@irongym.app>';
+const APP_NAME = 'Giron';
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
   // Sec audit 2026-04: HIGH-8. Use the verified https:// universal/app link

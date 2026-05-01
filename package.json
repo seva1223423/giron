@@ -1,6 +1,6 @@
 {
-  "name": "iron-gym",
-  "version": "1.0.0",
+  "name": "giron",
+  "version": "1.2.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",

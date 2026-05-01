@@ -1,5 +1,5 @@
 /**
- * Tests for 1RM formulas used throughout Iron Gym:
+ * Tests for 1RM formulas used throughout Giron:
  *  - Epley   (achievements.ts, SetRow, ExerciseProgressionModal, RecordsTab)
  *  - Brzycki (OneRMCalculatorTab)
  *  - Lander  (OneRMCalculatorTab)

@@ -88,7 +88,7 @@ async function sendViaTwilio(phone: string, text: string): Promise<boolean> {
  */
 export async function sendSmsOtp(phone: string, code: string): Promise<void> {
   const normalized = normalizePhone(phone);
-  const text = `Iron Gym: код ${code}. Действителен 10 мин. Никому не сообщайте.`;
+  const text = `Giron: код ${code}. Действителен 10 мин. Никому не сообщайте.`;
 
   if (await sendViaSmsRu(normalized, text)) return;
   if (await sendViaTwilio(normalized, text)) return;

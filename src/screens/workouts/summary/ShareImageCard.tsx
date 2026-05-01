@@ -109,7 +109,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Тренируйся с Iron Gym</Text>
+            <Text style={styles.footerText}>Тренируйся с Giron</Text>
           </View>
         </View>
       </View>

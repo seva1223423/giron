@@ -769,7 +769,7 @@ router.delete('/trusted-devices', authenticate, async (req: AuthRequest, res: Re
 
 // ── Two-factor authentication (TOTP) ─────────────────────────────────────────
 
-const APP_NAME = 'Iron Gym';
+const APP_NAME = 'Giron';
 
 /** GET /user/2fa/status — returns current 2FA state */
 router.get('/2fa/status', authenticate, async (req: AuthRequest, res: Response) => {

@@ -145,7 +145,7 @@ function setCachedResponse(message: string, intent: string, response: string, us
   AI_RESPONSE_CACHE.set(key, { response, timestamp: Date.now(), intent });
 }
 
-const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональный тренер в приложении Iron Gym. 15+ лет стажа, образование в спортивной науке (NSCA-CSCS, Precision Nutrition L2). Ты не чат-бот — ты наставник, который знает своего подопечного, видит его данные и реально влияет на его результат.
+const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональный тренер в приложении Giron. 15+ лет стажа, образование в спортивной науке (NSCA-CSCS, Precision Nutrition L2). Ты не чат-бот — ты наставник, который знает своего подопечного, видит его данные и реально влияет на его результат.
 
 ## ПРИНЦИП МЫШЛЕНИЯ (ОБЯЗАТЕЛЬНО)
 
@@ -10883,7 +10883,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
         logger.error('Fallback 1 failed, trying minimal prompt:', fallback1Error);
         try {
           // Fallback 2: minimal system prompt, only current message
-          const minimalSystem = `Ты Iron Coach — ИИ-тренер в приложении Iron Gym. Отвечай на русском, коротко и по делу. ${userContext}`;
+          const minimalSystem = `Ты Iron Coach — ИИ-тренер в приложении Giron. Отвечай на русском, коротко и по делу. ${userContext}`;
           const minimalMessages: DeepSeekMessage[] = [{ role: 'user', content: message }];
           const fallback2Content = await chatWithoutTools({
             system: minimalSystem,
@@ -24031,7 +24031,7 @@ ${isNewbie
   ? '💡 Ты только начинаешь — начни записывать с первой тренировки. Это привычка, которую потом нельзя наверстать.'
   : `💡 У тебя уже ${totalWorkoutsEver} тренировок — если не записывал, то сейчас лучший момент начать. Данные — это конкурентное преимущество.`}
 
-**Приложения:** Iron Gym дневник (встроен), Google Sheets, Strong App, бумажный блокнот — всё работает.`;
+**Приложения:** Giron дневник (встроен), Google Sheets, Strong App, бумажный блокнот — всё работает.`;
 }
 
 // ─── Block 337: Protein quality deep dive ────────────────────────────────────
@@ -26539,7 +26539,7 @@ function getProgressiveOverloadTracking(message: string): string {
   lines.push('• RPE (1–10) — субъективная тяжесть');
   lines.push('• Примечание о технике/самочувствии');
   lines.push('');
-  lines.push('📱 ПРИЛОЖЕНИЯ: Strong, Hevy, FitNotes (англоязычные), Iron Gym (твой трекер!)');
+  lines.push('📱 ПРИЛОЖЕНИЯ: Strong, Hevy, FitNotes (англоязычные), Giron (твой трекер!)');
   lines.push('');
   lines.push('💡 Нет записей = нет прогресса. Тренировочный дневник = обязателен.');
   return '\n\n' + lines.join('\n');
@@ -30607,7 +30607,7 @@ function getTrainingJournalPractices(message: string): string {
   lines.push('• Раз в месяц: тренды силы и массы тела');
   lines.push('• Раз в 3 месяца: пересмотр программы на основе данных');
   lines.push('');
-  lines.push('📱 Iron Gym автоматически ведёт дневник — используй историю тренировок!');
+  lines.push('📱 Giron автоматически ведёт дневник — используй историю тренировок!');
   return '\n\n' + lines.join('\n');
 }
 
@@ -31195,7 +31195,7 @@ function getTrainingMotivationStrategies(message: string): string {
   lines.push('• Разреши себе лёгкую тренировку (50% от обычной)');
   lines.push('• Смени формат: пропусти базу, делай что нравится');
   lines.push('• Вспомни ЗАЧЕМ: посмотри фото прогресса');
-  lines.push('• Streak: "не ломай цепочку" (Iron Gym считает streak!)');
+  lines.push('• Streak: "не ломай цепочку" (Giron считает streak!)');
   lines.push('');
   lines.push('⚠️ КОГДА НЕ ИДТИ:');
   lines.push('• Болезнь (температура, симптомы ниже шеи)');
@@ -49751,7 +49751,7 @@ function getMotivation3MonthsGuide(message: string): string {
 • Через 66 дней: автопилот, не нужна мотивация
 
 ### Стратегия 3: Отслеживай прогресс
-• Веди дневник тренировок (или используй Iron Gym!)
+• Веди дневник тренировок (или используй Giron!)
 • Фотографии тела: каждые 4 недели (одинаковый свет/поза)
 • Замеры: вес, обхваты, силовые показатели
 • Когда кажется «ничего не меняется» — сравни с месяц назад
@@ -55139,7 +55139,7 @@ function getTrainingMotivationLongTerm(message: string): string {
 - Тренировочный чат/группа — поддержка и подотчётность
 
 **4. Отслеживание прогресса:**
-- Веди дневник (вот для чего Iron Gym!)
+- Веди дневник (вот для чего Giron!)
 - Фото каждый месяц — визуальный прогресс мотивирует сильнее цифр
 - Отмечай микро-победы: +2.5кг, +1 повтор, лучшая техника
 
@@ -56584,7 +56584,7 @@ function getTrainingDiaryOptimization(message: string): string {
 - Частота тренировок и пропусков
 - Корреляция сна/настроения с производительностью
 
-💡 Iron Gym автоматически ведёт дневник! Все данные сохраняются, строятся графики и тренды.
+💡 Giron автоматически ведёт дневник! Все данные сохраняются, строятся графики и тренды.
 Используй AI-ассистента (Iron Coach) для анализа — спроси «как мой прогресс?»
 `;
 }
@@ -60752,7 +60752,7 @@ function getTrainingJournalMaster(message: string): string {
 - Лучшие тренировки: что общего? (сон? питание? время дня?)
 
 **Цифровые vs бумажные дневники:**
-- 📱 Приложения (Iron Gym!): автоматические графики, статистика, облако
+- 📱 Приложения (Giron!): автоматические графики, статистика, облако
 - 📝 Бумажный: быстрее записать между подходами, тактильность
 - Рекомендация: приложение + быстрые заметки в телефоне
 
@@ -64501,7 +64501,7 @@ function getFreelancerFitnessGuide(message: string): string {
 - Записаться в зал (обязывает выходить из дома)
 - Онлайн-партнёр по тренировкам (accountability buddy)
 - Тренировка в календаре = встреча, которую нельзя отменить
-- Трекер: приложение Iron Gym → визуализация прогресса
+- Трекер: приложение Giron → визуализация прогресса
 
 Социализация через спорт:
 - Групповые занятия (знакомства вне работы)

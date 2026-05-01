@@ -1,6 +1,6 @@
 # Maestro E2E smoke tests
 
-Iron Gym uses [Maestro](https://maestro.mobile.dev/) for mobile end-to-end
+Giron uses [Maestro](https://maestro.mobile.dev/) for mobile end-to-end
 smoke tests. Maestro is the lightest E2E option for React Native — no
 native module changes, no Detox setup, just YAML flows that drive a real
 device or emulator.

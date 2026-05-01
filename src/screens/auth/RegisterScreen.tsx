@@ -307,7 +307,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={[typography.h1, { color: colors.primary }]}>Iron Gym</Text>
+          <Text style={[typography.h1, { color: colors.primary }]}>Giron</Text>
           <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm }]}>Создай аккаунт</Text>
         </View>
 

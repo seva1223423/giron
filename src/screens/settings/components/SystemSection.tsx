@@ -40,7 +40,7 @@ export const SystemSection: React.FC = () => {
     const csv = [headers, ...rows].join('\n');
 
     try {
-      await Share.share({ message: csv, title: 'Iron Gym Workouts.csv' });
+      await Share.share({ message: csv, title: 'Giron Workouts.csv' });
     } catch {}
   };
 
@@ -88,7 +88,7 @@ export const SystemSection: React.FC = () => {
         nutrition: nutrition ? JSON.parse(nutrition) : null,
         settings: settings ? JSON.parse(settings) : null,
       };
-      await Share.share({ message: JSON.stringify(data, null, 2), title: 'Iron Gym Backup' });
+      await Share.share({ message: JSON.stringify(data, null, 2), title: 'Giron Backup' });
     } catch {
       Alert.alert('Ошибка', 'Не удалось экспортировать данные.');
     }

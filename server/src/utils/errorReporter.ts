@@ -107,7 +107,7 @@ function tryLoadSentry(): SentryModule | null {
       release: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT,
       // 10% perf sample rate — enough to spot regressions, cheap on quota.
       tracesSampleRate: 0.1,
-      // Scrub obvious PII from event payloads. Iron Gym stores health data
+      // Scrub obvious PII from event payloads. Giron stores health data
       // (pulse, injuries, goals) which counts as spec-category PD under
       // 152-ФЗ — never send it to Sentry servers. Recursive scrub covers
       // request body, headers/cookies, extra context, and breadcrumb data

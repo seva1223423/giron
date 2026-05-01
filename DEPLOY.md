@@ -1,4 +1,4 @@
-# Iron Gym — Deploy & First-Run Setup
+# Giron — Deploy & First-Run Setup
 
 Однократная настройка после следующего пула этого репозитория. Всё что нужно от тебя — один раз. После этого автодеплой Render и обычный workflow `git push` берут на себя остальное.
 
@@ -44,12 +44,12 @@ ADMIN_BOOTSTRAP_EMAIL = osipovvsevolod01@gmail.com
 | `SMTP_PORT` | `587` | TLS-порт |
 | `SMTP_USER` | `osipovvsevolod01@gmail.com` | От кого |
 | `SMTP_PASS` | App Password из Google | Не основной пароль аккаунта |
-| `SMTP_FROM` | `Iron Gym <osipovvsevolod01@gmail.com>` | Заголовок From |
+| `SMTP_FROM` | `Giron <osipovvsevolod01@gmail.com>` | Заголовок From |
 | `APP_URL` | `https://irongym.app` | База для ссылок в письмах |
 
 App Password создаётся за 1 минуту:
 1. https://myaccount.google.com/security → включить 2FA
-2. https://myaccount.google.com/apppasswords → создать пароль для "Iron Gym Server"
+2. https://myaccount.google.com/apppasswords → создать пароль для "Giron Server"
 3. Скопировать 16 символов в `SMTP_PASS`
 
 **Без SMTP** все email-отправки проходят через no-op (молча возвращают success), сервер не падает, в Sentry ничего не льётся. Push-уведомления работают независимо. Но email-отчёты, password reset, верификация email тогда не приходят.
@@ -166,7 +166,7 @@ eas build --platform android --profile rustore
 ## 6. Daily admin digest — проверка работы
 
 Cron `06:00 UTC = 09:00 МСК`. Каждый день автоматически:
-- Push на лок-скрин: «📊 Iron Gym — 2026-04-28 · Платят: 247 (+3 за 30д) · Регистраций: 12 (+2) · Тренировок: 89 (-5) · Активация: 42%»
+- Push на лок-скрин: «📊 Giron — 2026-04-28 · Платят: 247 (+3 за 30д) · Регистраций: 12 (+2) · Тренировок: 89 (-5) · Активация: 42%»
 - Email с цвето-кодированными дельтами и большой картой «ПЛАТЯТ СЕЙЧАС»
 
 Тап по push открывает `irongym://admin/metrics-key` → экран с пятью числами (платящие, churn, ARPU, активация, signup→paid воронка).
@@ -191,7 +191,7 @@ Backlog ≥6 месяцев — не трогать пока MRR не дойдё
 
 ## 8. Контакты / debug
 
-- Render dashboard: https://dashboard.render.com → My project → Iron Gym
+- Render dashboard: https://dashboard.render.com → My project → Giron
 - GitHub: https://github.com/seva1223423/iron-gym
 - Sentry (после активации): https://sentry.io
 - Health check live: https://iron-gym-swoe.onrender.com/health

@@ -579,7 +579,7 @@ setInterval(async () => {
 let isShuttingDown = false;
 
 const server = app.listen(PORT, () => {
-  logger.info(`Iron Gym API server running on port ${PORT}`);
+  logger.info(`Giron API server running on port ${PORT}`);
   startNewsRefreshScheduler();
 
   // ── Admin bootstrap (ADMIN-BOOTSTRAP-01) ──────────────────────────────

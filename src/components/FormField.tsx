@@ -28,7 +28,7 @@ export interface FormFieldProps extends Omit<TextInputProps, 'style'> {
 }
 
 /**
- * Iron Gym's universal text input. Solves repeated boilerplate:
+ * Giron's universal text input. Solves repeated boilerplate:
  *   - label + required asterisk
  *   - helper text and error state with consistent colors
  *   - leading / trailing adornments (icon, unit, clear)

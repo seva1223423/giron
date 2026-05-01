@@ -4,7 +4,7 @@
  * Apple HIG: minimum touch target is 44×44pt.
  * Material Design: minimum is 48×48dp.
  *
- * Iron Gym uses 44pt as the floor (HIG-compliant, slightly smaller than
+ * Giron uses 44pt as the floor (HIG-compliant, slightly smaller than
  * Material spec but acceptable on Android given hit-slop expansion).
  *
  * This audit:

@@ -1,7 +1,7 @@
 {
-  "name": "iron-gym-server",
-  "version": "1.0.0",
-  "description": "Iron Gym backend API server",
+  "name": "giron-server",
+  "version": "1.2.0",
+  "description": "Giron backend API server",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
