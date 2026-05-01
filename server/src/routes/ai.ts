@@ -1770,10 +1770,104 @@ for (const [, keywords] of KEYWORD_MAPPINGS) {
  * 5. Profile-based implicit relevance boosting
  * 6. Anti-overlap: penalize selecting modules with heavily overlapping topics
  */
+/**
+ * Round 190: Intent → preferred module boost map. The TF-IDF scoring
+ * gets the right module ~75% of the time but fails on polysemy: "жим"
+ * appears in EXERCISE_TECHNIQUE, TRAINING_PRINCIPLES, POWERLIFTING,
+ * WOMENS_PROGRAMMING — all score equally high. When the user's intent
+ * is "technique question" (form check, not programming), we want
+ * EXERCISE_TECHNIQUE to win over POWERLIFTING (which is about meet
+ * prep, not form). The priorityModules mechanism (line 1388-1395)
+ * appends modules AFTER scoring; this map BOOSTS them DURING scoring
+ * so the relative order changes.
+ *
+ * Boost = ×1.5 (less than the diversity bonus ×1.2 stacked, more than
+ * the position bonus ×1.2 alone). Intent-preferred modules can leapfrog
+ * a higher-keyword-count module that's wrong-topic.
+ */
+/**
+ * Round 190: Russian fitness synonym graph. The TF-IDF retrieval
+ * matches keywords by exact substring — query "ноги" misses keywords
+ * like "присед" because they share no characters even though they
+ * refer to the same training topic. This map expands the query with
+ * synonym keywords BEFORE scoring so query "упражнения на ноги"
+ * scores POWERLIFTING (which has "присед" but no "ноги") higher.
+ *
+ * Each entry maps a USER-FACING term to the canonical KEYWORD set
+ * that should also score for that query. Bidirectional intent: if
+ * the keyword list contains "присед" and the user types "ноги", we
+ * expand "ноги" → ["ноги", "присед", "приседан", "квадрицепс"].
+ *
+ * Limits: up to 4 synonyms per term to keep score budget bounded.
+ * Curated to high-precision pairs only (no semantic stretches).
+ */
+const KEYWORD_SYNONYMS: Record<string, string[]> = {
+  // Lower body
+  'ноги': ['присед', 'приседан', 'квадрицепс', 'выпад'],
+  'квадрицепс': ['ноги', 'присед'],
+  'ягодицы': ['присед', 'тяг', 'выпад', 'ягодиц'],
+  'попа': ['ягодицы', 'присед'],
+  'икры': ['голень', 'икроножн'],
+  'присед': ['ноги', 'квадрицепс', 'присеб'],
+  // Upper body push
+  'грудь': ['жим', 'отжиман', 'грудн'],
+  'плечи': ['жим', 'разводк', 'дельт', 'плечев'],
+  'дельты': ['плечи', 'жим'],
+  'жим': ['грудь', 'плечи', 'трицепс'],
+  // Upper body pull
+  'спина': ['тяг', 'подтягиван', 'тяга'],
+  'тяга': ['спина', 'становая'],
+  'становая': ['тяга', 'спина'],
+  'подтягиван': ['спина', 'руки', 'бицепс'],
+  // Arms
+  'руки': ['бицепс', 'трицепс', 'предплечь'],
+  'бицепс': ['руки', 'сгибан'],
+  'трицепс': ['руки', 'жим'],
+  // Core
+  'пресс': ['кор', 'плотн', 'кубик', 'живот'],
+  'кор': ['пресс', 'стабильн'],
+  // Cardio
+  'кардио': ['пульс', 'выносливост', 'аэробн', 'бег'],
+  'бег': ['кардио', 'выносливост'],
+  // Goals
+  'похудение': ['дефицит', 'жиросжиган', 'сушк', 'кутт'],
+  'сушка': ['дефицит', 'похудение', 'жиросжиган'],
+  'набор': ['массонабор', 'профицит', 'булк', 'гипертрофи'],
+  'масса': ['набор', 'мышц', 'гипертрофи'],
+  // Recovery
+  'восстановление': ['отдых', 'сон', 'разгрузк'],
+  'отдых': ['восстановление', 'сон', 'дни покоя'],
+  'сон': ['восстановление', 'отдых'],
+};
+
+/**
+ * Expand a single token into its synonyms (incl. itself, dedup).
+ * Used before tokenization so the keyword scoring step sees both
+ * the original term AND the synonyms.
+ */
+function expandSynonyms(token: string): string[] {
+  const lower = token.toLowerCase();
+  const syns = KEYWORD_SYNONYMS[lower];
+  if (!syns) return [lower];
+  return Array.from(new Set([lower, ...syns]));
+}
+
+const INTENT_MODULE_BOOSTS: Record<string, string[]> = {
+  technique_question: ['EXERCISE_TECHNIQUE'],
+  program_creation: ['TRAINING_PRINCIPLES', 'PROGRAMMING'],
+  workout_modify: ['TRAINING_PRINCIPLES', 'PROGRAMMING'],
+  nutrition_query: ['NUTRITION', 'NUTRITION_DATABASE'],
+  analytics_query: ['TRAINING_PRINCIPLES'],
+  complaint: ['INJURY_AND_REHAB', 'RECOVERY'],
+  motivation: ['PSYCHOLOGY'],
+  data_logging: ['NUTRITION'],  // most logging is meals
+};
+
 function getRelevantKnowledge(
   message: string,
   recentHistory: DeepSeekMessage[] = [],
   userContext?: { goal?: string; gender?: string },
+  intent?: string,
 ): { content: string; topics: string[] } {
   // Build weighted text: current message has highest weight, older messages decay
   const weights = [1.0, 0.5, 0.3, 0.2];
@@ -1799,8 +1893,21 @@ function getRelevantKnowledge(
         const lower = text.toLowerCase();
         const words = lower.split(/\s+/);
 
+        // Round 190: expand each user word into its synonym set so
+        // query "ноги" also matches keywords like "присед". The
+        // synonyms add to the searchable text — so when the keyword
+        // list has "присед" and user typed "ноги", `expanded` will
+        // contain "присед" and the keyword.includes() check below
+        // matches. Bounded set: ~4 synonyms × 30 words = 120 strings,
+        // negligible cost.
+        const expandedSet = new Set<string>(words);
+        for (const w of words) {
+          for (const syn of expandSynonyms(w)) expandedSet.add(syn);
+        }
+        const expandedText = Array.from(expandedSet).join(' ');
+
         for (const keyword of keywords) {
-          if (!lower.includes(keyword)) continue;
+          if (!expandedText.includes(keyword) && !lower.includes(keyword)) continue;
 
           const idf = getKeywordIDF(keyword);
 
@@ -1833,6 +1940,16 @@ function getRelevantKnowledge(
       if (userContext?.goal === 'MUSCLE_GAIN' && module === 'CUTTING_BULKING') score += 1.5;
       if (userContext?.goal === 'STRENGTH' && module === 'POWERLIFTING') score += 1.5;
       if (userContext?.goal === 'ENDURANCE' && module === 'ENDURANCE_SPORTS') score += 1.5;
+
+      // Round 190: Intent-aware multiplicative boost. When user's
+      // classified intent matches the module's domain, boost by ×1.5
+      // so polysemic keywords (e.g. "жим" in technique vs powerlifting)
+      // get sorted by topic, not just keyword count. Multiplicative so
+      // a module with zero keyword matches doesn't get artificially
+      // promoted — it has to have at least some signal first.
+      if (intent && score > 0 && INTENT_MODULE_BOOSTS[intent]?.includes(module)) {
+        score *= 1.5;
+      }
 
       // Diversity bonus: number of distinct matched keywords matters
       const uniqueMatches = new Set(matchedKeywords).size;
@@ -4414,6 +4531,7 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       message,
       rawMessages.slice(0, -1), // история без текущего сообщения
       { goal: user?.goal || undefined, gender: user?.gender || undefined },
+      intent, // Round 190: enable intent-aware module boosting
     );
 
     // Force-include priority modules from intent config (if not already selected)
