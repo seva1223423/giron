@@ -423,6 +423,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   // pressing Cancel, so the photo stays visible when they return — wiping
   // it on every multi-task event was hostile.
   const bgInterruptRef = useRef(false);
+  // Guards against rapid double-taps on the camera/gallery button. Without
+  // it, two taps in quick succession could each fire the offline / quota /
+  // paywall checks and stack two Alert dialogs (annoying), and
+  // launchCameraAsync would open the native UI for one tap while the
+  // second tap is still inside the JS pre-checks. Mirrors the existing
+  // barcodeProcessingRef pattern.
+  const pickInFlightRef = useRef(false);
   const lastBase64Ref = useRef<string>('');
   const lastMimeRef = useRef<string>('image/jpeg');
   // Prevent double barcode scan consumption
@@ -740,6 +747,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const pickImage = async (useCamera: boolean) => {
+    if (pickInFlightRef.current) return;
+    pickInFlightRef.current = true;
+    try {
+      await pickImageImpl(useCamera);
+    } finally {
+      pickInFlightRef.current = false;
+    }
+  };
+
+  const pickImageImpl = async (useCamera: boolean) => {
     haptic.selection();
     if (foodScansLeft() === 0 && !isPremiumActive()) {
       // Clear the append flag here too — a failed pre-check shouldn't leak
