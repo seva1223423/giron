@@ -31,6 +31,7 @@ export const lightColors = {
   text: '#17171A',          // Graphite
   textSecondary: '#6B6860',
   textTertiary: '#A8A49C',
+  textMuted: '#A8A49C',     // Round 184: alias for responsive-package — same as textTertiary in light mode
   textInverse: '#F4F1EA',
 
   border: '#E5DFD2',        // Warm tan separator
@@ -79,6 +80,7 @@ export const darkColors: typeof lightColors = {
   text: '#F4F1EA',          // Warm cream
   textSecondary: '#A8A49C',
   textTertiary: '#6B6860',
+  textMuted: '#6B6860',     // Round 184: alias for responsive-package — same as textTertiary in dark mode
   textInverse: '#0E0E0F',
 
   border: 'rgba(255, 255, 255, 0.08)',       // tokens.A.line
