@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  Linking,
 } from 'react-native';
 import { useThemeStore, useSettingsStore, useAuthStore } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
@@ -70,7 +71,11 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     isAvailable,
     isLoading,
     refresh,
-  } = usePedometer(HISTORY_DAYS);
+    permission,
+    canAskAgain,
+    hasHardware,
+    requestPermission,
+  } = usePedometer(HISTORY_DAYS, { autoRequest: true });
 
   const [refreshing, setRefreshing] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -179,22 +184,71 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setShowGoalModal(false);
   };
 
-  // Permissions / unavailable state — handled separately so the rest of
-  // the screen can assume isAvailable is true.
-  if (!isLoading && !isAvailable) {
+  // Permission / hardware state — handled separately so the rest of the
+  // screen can assume permission === 'granted'.
+  //
+  // Round 185: distinguish "no hardware" (terminal — show explanation
+  // only) from "permission needed" (recoverable — show a button that
+  // either re-prompts or jumps straight to system settings, depending
+  // on `canAskAgain`). Previously we showed a single static message
+  // telling the user to fix it themselves, which forced them to dig
+  // through their OS settings on their own.
+  if (!isLoading && permission !== 'granted') {
+    const hardwareMissing = permission === 'unavailable' || !hasHardware;
+    const needsSettings = permission === 'denied' && !canAskAgain;
+
+    const onPressAction = async () => {
+      haptic.selection();
+      if (hardwareMissing) return;
+      if (needsSettings) {
+        // canAskAgain became false (Android: "Don't ask again", iOS:
+        // post-first-denial). The OS prompt is now a no-op, so jump
+        // straight into the app's system settings page where one tap
+        // toggles the permission. The hook's AppState listener picks up
+        // the change when the user returns.
+        Linking.openSettings();
+        return;
+      }
+      // 'unknown' or 'denied' with canAskAgain still true — fire the
+      // OS prompt. If the user denies and Android flips canAskAgain
+      // off, the next render will switch the button label to
+      // "Открыть настройки" automatically.
+      await requestPermission();
+    };
+
+    const iconTint = hardwareMissing ? colors.warning : colors.primary;
+    const iconName: 'bolt' | 'lock' = hardwareMissing ? 'bolt' : 'lock';
+
+    const title = hardwareMissing
+      ? 'Шагомер недоступен'
+      : 'Доступ к шагомеру';
+
+    const desc = hardwareMissing
+      ? 'На этом устройстве нет датчика шагов или он не поддерживается системой.'
+      : needsSettings
+        ? 'Доступ заблокирован. Открой настройки и разреши приложению считывать данные о движении — мы вернёмся к шагам автоматически.'
+        : 'Разреши доступ к данным о движении, чтобы считать шаги, километры и активные минуты.';
+
+    const buttonTitle = needsSettings ? 'Открыть настройки' : 'Разрешить доступ';
+
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: safeTop }]}>
         <Header colors={colors} onBack={() => navigation.goBack()} onSettings={openGoalModal} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl }}>
-          <View style={[styles.iconBox, { backgroundColor: colors.warning + '15', borderColor: colors.warning + '40', width: 64, height: 64, borderRadius: 18 }]}>
-            <Icon name="bolt" size={28} color={colors.warning} />
+          <View style={[styles.iconBox, { backgroundColor: iconTint + '15', borderColor: iconTint + '40', width: 64, height: 64, borderRadius: 18 }]}>
+            <Icon name={iconName} size={28} color={iconTint} />
           </View>
           <Text style={[typography.h3, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>
-            Шагомер недоступен
+            {title}
           </Text>
-          <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
-            Разреши доступ к движению в настройках устройства, чтобы видеть статистику шагов.
+          <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center', lineHeight: 20 }]}>
+            {desc}
           </Text>
+          {!hardwareMissing && (
+            <View style={{ marginTop: spacing.xl, width: '100%' }}>
+              <Button title={buttonTitle} onPress={onPressAction} fullWidth size="lg" />
+            </View>
+          )}
         </View>
       </View>
     );
