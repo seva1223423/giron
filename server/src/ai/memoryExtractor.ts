@@ -643,3 +643,95 @@ export function extractMemories(message: string): MemoryExtraction[] {
 
   return memories;
 }
+
+/**
+ * Round 190: Cross-turn contradiction detection.
+ *
+ * When the user states a fact in a current message that contradicts
+ * a stored AIMemory fact (different value for the same key + both
+ * high-confidence), surface it so the AI can ask the user to clarify
+ * rather than silently overwriting the older fact OR keeping both.
+ *
+ * Common scenarios this catches:
+ *   • Goal changed: stored user_goal=похудение, new message says
+ *     "хочу набрать массу" → flag: user changed goal mid-program
+ *   • Target weight changed: stored target_weight_kg=75, new "цель 80"
+ *   • Schedule changed: stored training_frequency=3, new "тренируюсь
+ *     5 раз в неделю"
+ *   • Equipment changed: stored has_personal_trainer=true, new "сам
+ *     тренируюсь" — could mean trainer left
+ *
+ * Returns a list of conflicts the AI should acknowledge in its
+ * response. Empty list when no conflicts found.
+ *
+ * NOT meant to penalize the user — change is normal — but to make
+ * the AI explicitly notice and adjust ("раньше ты хотел похудеть, а
+ * теперь набирать массу — давай разберёмся, какая цель приоритет?")
+ * instead of pretending nothing changed.
+ *
+ * Confidence gate: both the new and stored fact must be >= 0.8 to
+ * avoid noise from low-confidence extractions (e.g. personality
+ * traits at 0.6).
+ */
+export interface MemoryConflict {
+  key: string;
+  oldValue: string;
+  newValue: string;
+  category: string;
+}
+
+export function detectContradictions(
+  newExtractions: MemoryExtraction[],
+  storedMemories: Array<{ key: string; value: string; category: string; confidence: number }>,
+): MemoryConflict[] {
+  const conflicts: MemoryConflict[] = [];
+  const storedByKey = new Map(storedMemories.map((m) => [m.key, m]));
+
+  for (const ext of newExtractions) {
+    if ((ext.confidence ?? 0.7) < 0.8) continue; // skip noisy extractions
+    const stored = storedByKey.get(ext.key);
+    if (!stored) continue;
+    if ((stored.confidence ?? 0) < 0.8) continue; // skip noisy storage
+
+    // Skip multi-match keys that are append-only (e.g. allergy_*,
+    // equipment_*, condition_*) — those don't conflict by design.
+    if (
+      ext.key.startsWith('allergy_') ||
+      ext.key.startsWith('equipment_') ||
+      ext.key.startsWith('condition_') ||
+      ext.key.startsWith('past_injury_') ||
+      ext.key.startsWith('pain_') ||
+      ext.key.startsWith('training_day_') ||
+      ext.key.startsWith('unavail_') ||
+      ext.key.startsWith('health_') ||
+      ext.key.startsWith('pr_target_')
+    ) {
+      continue;
+    }
+
+    if (stored.value !== ext.value) {
+      conflicts.push({
+        key: ext.key,
+        oldValue: stored.value,
+        newValue: ext.value,
+        category: ext.category,
+      });
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Build a short human-readable directive for the AI to acknowledge
+ * detected conflicts. Used by the chat pipeline to inject a
+ * contradiction-aware instruction so the AI doesn't silently update
+ * facts without telling the user.
+ */
+export function formatConflictsDirective(conflicts: MemoryConflict[]): string {
+  if (conflicts.length === 0) return '';
+  const lines = conflicts.slice(0, 3).map(
+    (c) => `• ${c.key}: было "${c.oldValue}", сейчас "${c.newValue}"`,
+  );
+  return `🔄 ОБНОВЛЕНИЕ ФАКТОВ: пользователь сказал что-то отличное от прошлого. Уточни мягко:\n${lines.join('\n')}\nНе перезаписывай молча — спроси, какая версия актуальна.`;
+}

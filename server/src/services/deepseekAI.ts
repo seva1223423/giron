@@ -483,6 +483,45 @@ export function cleanResponse(content: string): string {
   }
   cleaned = cleaned.trim();
 
+  // Round 190: Russian transliteration consistency. AI sometimes
+  // emits English fitness abbreviations (PR, 1RM, 1PM, RPE, BMR,
+  // TDEE) when our knowledge base / app UI consistently uses Cyrillic
+  // versions (1ПМ, ИИ, БЖУ, etc.). Normalize so the user sees one
+  // form everywhere — reduces cognitive load and the "what is 1PM?"
+  // question. Uses word-boundary anchors to avoid breaking longer
+  // tokens (e.g. "PR-предсказание" stays as is, "PR " → "ПР ").
+  // Conservative substitutions only — leaves Latin acronyms in
+  // proper nouns and brand names unchanged.
+  cleaned = cleaned
+    // 1RM / 1PM (one-rep max) — Russian uses 1ПМ
+    .replace(/\b1\s?[RP]M\b/g, '1ПМ')
+    // PR (personal record) → ПР, but only outside compound words
+    .replace(/(^|[\s.,;:!?])PR(\s|[.,;:!?]|$)/g, '$1ПР$2')
+    // PB (personal best) → ПР (rec consolidation)
+    .replace(/(^|[\s.,;:!?])PB(\s|[.,;:!?]|$)/g, '$1ПР$2');
+
+  // Round 190: profanity passthrough guard. Mood detection (line 1572)
+  // catches user profanity to detect frustration mood — but the AI
+  // sometimes ECHOES the profanity back in its response when keeping
+  // tone. For an app users may show to family/coworkers, we strip
+  // the most-egregious words. Keep the AI's emotional intent but
+  // sanitize the form. Conservative list only — coarse swearing.
+  //
+  // Note: JavaScript \b doesn't work for Cyrillic, so we use explicit
+  // non-letter boundary lookaround. The (^|[^а-яА-Я]) capture group
+  // is preserved in the replacement.
+  const profanityPatterns: Array<[RegExp, string]> = [
+    [/(^|[^а-яА-Я])бл[яа](?:ть|дь)?(?=[^а-яА-Я]|$)/gi, '$1***'],
+    [/(^|[^а-яА-Я])сук[аи](?=[^а-яА-Я]|$)/gi, '$1***'],
+    [/(^|[^а-яА-Я])пизд[аеёы][цнк]?(?=[^а-яА-Я]|$)/gi, '$1***'],
+    [/(^|[^а-яА-Я])хуй[нм]?[аеёиы]?(?=[^а-яА-Я]|$)/gi, '$1***'],
+    [/(^|[^а-яА-Я])ебать(?=[^а-яА-Я]|$)/gi, '$1***'],
+    [/(^|[^а-яА-Я])ёб(?:ан[ыоа]й|нут[ыоа]й)(?=[^а-яА-Я]|$)/gi, '$1***'],
+  ];
+  for (const [pattern, replacement] of profanityPatterns) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+
   // Обрезаем слишком длинные ответы (оставляем первые ~2000 слов + добавляем многоточие)
   const words = cleaned.split(/\s+/);
   if (words.length > 2000) {
