@@ -31,6 +31,7 @@ import {
   isImageDimensionsValid,
   MIN_IMAGE_SHORT_SIDE,
   OFF_HOSTS,
+  fetchBarcodeFromOFF,
   type ScannerDraft,
 } from '../utils/foodScanner';
 
@@ -852,6 +853,110 @@ describe('OFF_HOSTS', () => {
     // that have hit the world. domain in the past.
     expect(OFF_HOSTS[0]).toBe('ru.openfoodfacts.org');
     expect(OFF_HOSTS[1]).toBe('world.openfoodfacts.org');
+  });
+});
+
+// ─── fetchBarcodeFromOFF (multi-host fallback) ────────────────────────────────
+//
+// We mock global.fetch per test. Each call records its URL so we can
+// assert which host was actually queried. Restored in afterEach so
+// other suites get the real fetch.
+
+describe('fetchBarcodeFromOFF', () => {
+  const originalFetch = global.fetch;
+  let calls: string[] = [];
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    calls = [];
+  });
+
+  function mockFetch(handler: (url: string) => Response | Promise<Response>) {
+    global.fetch = jest.fn((url: any) => {
+      const u = typeof url === 'string' ? url : url.toString();
+      calls.push(u);
+      return Promise.resolve(handler(u));
+    }) as any;
+  }
+
+  test('returns data from RU mirror on happy path (single network call)', async () => {
+    mockFetch(() => new Response(JSON.stringify({ status: 1, product: { product_name: 'Хлеб' } })));
+    const r = await fetchBarcodeFromOFF('4607034570316', 'product_name');
+    expect('data' in r ? r.data?.product?.product_name : null).toBe('Хлеб');
+    expect('host' in r ? r.host : '').toBe('ru.openfoodfacts.org');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('ru.openfoodfacts.org');
+  });
+
+  test('returns notFound when OFF replies status:0 — no fallback hit', async () => {
+    mockFetch(() => new Response(JSON.stringify({ status: 0 })));
+    const r = await fetchBarcodeFromOFF('5449000000996', 'product_name');
+    expect('notFound' in r && r.notFound).toBe(true);
+    // Both mirrors share the same DB — re-asking is wasted work,
+    // so the function MUST stop after the first authoritative miss.
+    expect(calls).toHaveLength(1);
+  });
+
+  test('falls back to world. when RU mirror returns 5xx', async () => {
+    mockFetch((url) => {
+      if (url.includes('ru.openfoodfacts.org')) return new Response('Bad Gateway', { status: 502 });
+      return new Response(JSON.stringify({ status: 1, product: { product_name: 'Coke' } }));
+    });
+    const r = await fetchBarcodeFromOFF('5449000000996', 'product_name');
+    expect('data' in r ? r.data?.product?.product_name : null).toBe('Coke');
+    expect('host' in r ? r.host : '').toBe('world.openfoodfacts.org');
+    expect(calls).toHaveLength(2);
+  });
+
+  test('falls back to world. when RU mirror throws (timeout / network error)', async () => {
+    let attempts = 0;
+    global.fetch = jest.fn((url: any) => {
+      attempts++;
+      const u = typeof url === 'string' ? url : url.toString();
+      if (u.includes('ru.openfoodfacts.org')) {
+        return Promise.reject(new Error('Network request failed'));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ status: 1, product: {} })));
+    }) as any;
+    const r = await fetchBarcodeFromOFF('5449000000996', 'product_name');
+    expect('data' in r).toBe(true);
+    expect(attempts).toBe(2);
+  });
+
+  test('throws when both hosts fail', async () => {
+    mockFetch(() => new Response('boom', { status: 500 }));
+    await expect(fetchBarcodeFromOFF('5449000000996', 'product_name')).rejects.toThrow();
+    // Walked the full host array.
+    expect(calls).toHaveLength(2);
+  });
+
+  test('honours per-host timeout — short timeout abort triggers fallback', async () => {
+    let attempts = 0;
+    global.fetch = jest.fn((_url: any, opts: any) => new Promise((_resolve, reject) => {
+      attempts++;
+      const sig: AbortSignal | undefined = opts?.signal;
+      // First host: never resolve, but abort on signal — that's how
+      // a hung mirror behaves and is exactly what the per-host
+      // timeout is supposed to escape from.
+      if (attempts === 1) {
+        if (sig) sig.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        return;
+      }
+      // Second host: respond promptly with valid data.
+      _resolve(new Response(JSON.stringify({ status: 1, product: {} })));
+    })) as any;
+    // Tight 50 ms budget so the test doesn't drag.
+    const r = await fetchBarcodeFromOFF('5449000000996', 'product_name', 50);
+    expect('data' in r).toBe(true);
+    expect(attempts).toBe(2);
+  });
+
+  test('embeds the requested fields and lc=ru in the URL', async () => {
+    mockFetch(() => new Response(JSON.stringify({ status: 1, product: {} })));
+    await fetchBarcodeFromOFF('4607034570316', 'product_name,nutriments');
+    expect(calls[0]).toContain('fields=product_name,nutriments');
+    expect(calls[0]).toContain('lc=ru');
+    expect(calls[0]).toContain('/api/v2/product/4607034570316');
   });
 });
 
