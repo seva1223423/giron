@@ -15,3 +15,4 @@ export { useSupportStore } from './useSupportStore';
 export { useMeasurementsStore } from './useMeasurementsStore';
 export type { BodyMeasurement } from './useMeasurementsStore';
 export { useRecipesStore } from './useRecipesStore';
+export { useDensityStore } from './useDensityStore';
