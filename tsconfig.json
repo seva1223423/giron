@@ -10,6 +10,7 @@
     "jest.config.js",
     "android",
     "ios",
-    "server"
+    "server",
+    "docs"
   ]
 }
