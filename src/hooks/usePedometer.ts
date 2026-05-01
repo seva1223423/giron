@@ -123,8 +123,22 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
   // first one. StrictMode double-invocation would otherwise cause two
   // back-to-back dialogs in development.
   const didAutoRequestRef = useRef(false);
+  // Monotonic counter — every loadSteps call captures its own version
+  // and discards results once a newer call has started. Without this,
+  // a slow first load (e.g. 30-day) finishing AFTER a fast second load
+  // (e.g. 7-day) would overwrite the newer data with stale numbers.
+  // Triggered in practice by the period-toggle plan and by pull-to-
+  // refresh issued mid-load.
+  const loadVersionRef = useRef(0);
+  // Local-date string of when historySteps was last built. Drives
+  // midnight-rollover detection in the polling interval below: if the
+  // calendar day has changed since the last full build, patching the
+  // last array slot would incorrectly overwrite *yesterday's* finalized
+  // count with today's tiny just-after-midnight number. Reload instead.
+  const lastBuildDayRef = useRef<string>('');
 
   const loadSteps = useCallback(async () => {
+    const myVersion = ++loadVersionRef.current;
     const now = new Date();
 
     // Today's steps via a single pinpoint call (00:00 → now). Cheaper
@@ -133,6 +147,7 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
     // iOS HealthKit accepts them.
     const todayStart = startOfDay(now);
     const todayRes = await Pedometer.getStepCountAsync(todayStart, now);
+    if (loadVersionRef.current !== myVersion) return;
     setTodaySteps(todayRes.steps);
 
     // Backfill the historical window in parallel. The previous version
@@ -152,9 +167,14 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
         isToday ? Promise.resolve(todayRes.steps) : fetchStepsForDay(date),
       ),
     );
+    if (loadVersionRef.current !== myVersion) return;
     const labels = dates.map(({ date }) => DAY_SHORT[date.getDay()]);
     setHistorySteps(days);
     setHistoryDayLabels(labels);
+    // en-CA locale gives the canonical YYYY-MM-DD shape we need for
+    // cheap day-equality checks; we don't rely on the locale for any
+    // user-visible string.
+    lastBuildDayRef.current = now.toLocaleDateString('en-CA');
   }, [safeDays]);
 
   // Initial mount: probe hardware + permission, optionally fire prompt.
@@ -252,12 +272,23 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
     const fetchNow = async () => {
       try {
         const now = new Date();
+        const todayKey = now.toLocaleDateString('en-CA');
+        // Day rolled over while the app was open. Patching the last
+        // array slot would silently overwrite yesterday's finalized
+        // count with today's tiny post-midnight number; fully reload
+        // instead so the window shifts and a fresh today-slot appears.
+        if (lastBuildDayRef.current && todayKey !== lastBuildDayRef.current) {
+          await loadSteps();
+          return;
+        }
         const res = await Pedometer.getStepCountAsync(startOfDay(now), now);
-        setTodaySteps(res.steps);
-        // Patch today's slot in the historical array so consumers that
-        // visualise the last bar don't get a stale read mid-day.
+        // Bail out when the count hasn't moved — the array setter's
+        // `prev.slice()` would otherwise allocate a new reference every
+        // minute and wake every consumer's render path for nothing.
+        setTodaySteps((prev) => (prev === res.steps ? prev : res.steps));
         setHistorySteps((prev) => {
           if (prev.length === 0) return prev;
+          if (prev[prev.length - 1] === res.steps) return prev;
           const next = prev.slice();
           next[next.length - 1] = res.steps;
           return next;
@@ -293,7 +324,10 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
       stop();
       sub.remove();
     };
-  }, [permission]);
+    // loadSteps identity changes with safeDays; the polling closure must
+    // see the current version so the midnight-rollover branch reloads
+    // for the right window.
+  }, [permission, loadSteps]);
 
   // Re-check permission when the app returns to foreground. Covers the
   // flow where the user taps "Open settings", toggles the permission,
