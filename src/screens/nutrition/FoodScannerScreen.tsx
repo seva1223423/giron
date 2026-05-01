@@ -433,6 +433,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   const abortRef = useRef<AbortController | null>(null);
   const timedOutRef = useRef(false);
+  // Set by the AppState listener when an in-flight analyse aborts because
+  // the app went to background. Distinguishes that path from the user
+  // pressing Cancel, so the photo stays visible when they return — wiping
+  // it on every multi-task event was hostile.
+  const bgInterruptRef = useRef(false);
   const lastBase64Ref = useRef<string>('');
   const lastMimeRef = useRef<string>('image/jpeg');
   // Prevent double barcode scan consumption
@@ -508,6 +513,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'background' && loading && abortRef.current) {
+        bgInterruptRef.current = true;
         abortRef.current.abort();
       }
     });
@@ -636,6 +642,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     // was slow). Differentiated copy lets us nudge the user to retry
     // for slow-server cases instead of looking like the app gave up.
     timedOutRef.current = false;
+    bgInterruptRef.current = false;
     const timeoutId = setTimeout(() => {
       timedOutRef.current = true;
       controller.abort();
@@ -698,6 +705,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           setError('Анализ занял слишком долго. Сервер перегружен — попробуй ещё раз через минуту.');
           setErrorRetryable(true);
           haptic.error();
+          refundFoodScan();
+        } else if (bgInterruptRef.current) {
+          // Aborted because the app went to background mid-analyse.
+          // Keep the photo visible — the user didn't ask to throw it
+          // away, they just multi-tasked. They'll come back, see the
+          // image, and tap "попробовать снова" to resume. No haptic;
+          // user isn't looking at the screen at the moment of fire.
+          setError('Анализ прерван — приложение свернули.');
+          setErrorRetryable(true);
           refundFoodScan();
         } else {
           // User pressed Cancel — clear the image, this is the deliberate
