@@ -194,11 +194,27 @@ Force-update flow (когда старая версия должна обнов�
 4. Кнопка «Перезапустить» — пробует OTA из кэша; «Открыть в магазине» — RuStore/App Store
 ```
 
-## Бренд
-- Primary: #8B5CF6 (фиолетовый) / dark mode: #A78BFA
-- Background light: #F5F5F7, dark: #0A0A0F
-- Макросы: калории #FF3B30, белки #8B5CF6, жиры #FF9F0A, углеводы #34C759
-- Дизайн: Apple-style минимализм, единый стиль иконок, без случайных эмодзи
+## Бренд (Direction A — Premium Graphite + Gold, 2026-04-22)
+- Primary (gold): `#D4B07A` (dark) / `#B08A4E` (light)
+- Background: `#0E0E0F` (dark, warm graphite) / `#F4F1EA` (light, warm cream)
+- Surfaces: `#17171A` (surface/card) → `#1E1E22` (surfaceElevated)
+- Text: `#F4F1EA` (warm cream on dark) / `#17171A` (graphite on light)
+- Макросы (dark): калории `#E07A6B`, белки `#D4B07A` (= primary), жиры `#E8A36A`, углеводы `#9AC28C`
+- Макросы (light): калории `#C76558`, белки `#B08A4E`, жиры `#C9824E`, углеводы `#6FA66A`
+- Дизайн: Premium dark с champagne gold акцентом (заменил старый фиолетовый `#8B5CF6` 2026-04-22). 38 SVG-иконок в `Icon` компоненте, без эмодзи, без unicode-глифов.
+- Banned legacy palette: `#8B5CF6`, `#A78BFA`, `#7C3AED`, `#6366F1`, `#F59E0B`, `#EF4444`, `#10B981` — нигде в `src/` не должны встречаться (исключение: `src/theme/colors.ts` — источник истины).
+
+## Дизайн-агент — ОБЯЗАТЕЛЬНО спавнить
+
+**Перед любой UI-работой главный агент должен спавнить `design` sub-agent.** Триггеры:
+- Изменения в `src/components/**`, `src/screens/**`, `src/theme/**`, `src/hooks/useResponsive.ts`
+- Запросы пользователя про внешний вид: «сделай красивее», «не нравится как выглядит», «поправь экран», «темная тема», «иконка», «кнопка», «цвет», «шрифт», «отступ»
+- Миграция legacy-экрана на Direction A
+- Code review коммитов, затрагивающих UI
+
+Не спавнить для: чисто backend, Prisma, AI tools, серверных маршрутов, type-only изменений без визуального эффекта, test-only изменений (кроме визуальных снапшотов).
+
+Полное определение агента: `.claude/agents/design.md`. Он знает все 38 иконок, 18 стилей типографики, точные hex Direction A, банлист старой палитры, audit-команды grep, паттерны миграции legacy → Direction A.
 
 ## Язык
 Пользователь общается на русском. Комментарии и коммиты на английском.
