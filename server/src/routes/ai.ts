@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { buildDynamicContext } from '../ai/contextEngine';
 import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload } from '../ai/contextTools';
+import { NAV_WHITELIST, validateNavigation } from '../ai/navigationWhitelist';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
@@ -4096,6 +4097,32 @@ async function executeTool(
         actionDescription: `Удалён факт ${key}`,
       };
     }
+  }
+
+  // Round 192 — App navigation control. AI can move the user to a
+  // whitelisted screen (see ai/navigationWhitelist.ts). Server side
+  // ALWAYS validates against the whitelist, even though the client
+  // does its own check (defense in depth). NEVER passes a screen
+  // not in the whitelist into actionData.
+  if (toolName === 'navigate_to_screen') {
+    const { target, params } = toolInput as {
+      target?: string;
+      params?: Record<string, unknown>;
+    };
+    const result = validateNavigation(target, params);
+    if ('error' in result) {
+      return { resultText: result.error, actionDescription: '' };
+    }
+    return {
+      resultText: `Открываю экран «${result.label}».`,
+      actionDescription: `Навигация: ${result.label}`,
+      actionData: {
+        // Client (AIChatScreen) reads `navigation` and calls
+        // navigation.navigate(stack, { screen, params }) AFTER
+        // running its own FORBIDDEN_SCREENS check.
+        navigation: result.payload,
+      },
+    };
   }
 
   return { resultText: 'Неизвестный инструмент', actionDescription: '' };

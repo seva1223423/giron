@@ -9,6 +9,7 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { PaywallModal } from '../../components';
 import { ChatMessage } from '../../types';
 import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionService, workoutService } from '../../services';
+import { applyAINavigation } from '../../utils/aiNavigation';
 import {
   ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
@@ -362,6 +363,25 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               thigh: toNum(d.thigh),
               calf: toNum(d.calf),
             });
+          }
+        }
+
+        // Round 192 — AI app navigation. The server's `navigate_to_screen`
+        // tool returns actionData.navigation = { stack, screen, params }
+        // ONLY for whitelisted screens. We run our own FORBIDDEN_SCREENS
+        // check (defense in depth) before triggering React Navigation.
+        // Only ONE navigation per response (the first valid one) — guards
+        // against AI calling the tool multiple times in a single turn.
+        const navAction = actions.find((act) => act.type === 'navigate_to_screen');
+        if (navAction?.data?.navigation) {
+          const result = applyAINavigation(navigation, navAction.data.navigation);
+          if (!result.ok) {
+            // Navigation rejected by client safety check — log to debugging
+            // surface but don't show user (they'd be confused). The AI's
+            // resultText already mentions the screen, so the chat reply
+            // hints at the intent without the actual nav happening.
+            // eslint-disable-next-line no-console
+            console.warn('[AINav] rejected:', result.reason);
           }
         }
       }
