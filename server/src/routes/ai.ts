@@ -711,6 +711,22 @@ const AI_TOOLS: DeepSeekTool[] = [
   {
     type: 'function',
     function: {
+      name: 'delete_cardio',
+      description: 'Удалить кардио сессию. Используй когда пользователь говорит "удали кардио вчера", "уберу пробежку в среду", "ошибся, удали бег". Может удалить по ID (если AI знает его из контекста) ИЛИ по дате+типу — последняя сессия этого типа в эту дату.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'ID конкретной сессии (если известно из контекста)' },
+          date: { type: 'string', description: 'Дата YYYY-MM-DD сессии для удаления' },
+          type: { type: 'string', enum: ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'], description: 'Тип кардио, если несколько в одну дату' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'modify_meal',
       description: 'Изменить существующий приём пищи — обновить вес порции, заменить продукт, добавить продукт. Используй когда пользователь говорит "на самом деле было 200г", "замени курицу на рыбу", "добавь ещё хлеб".',
       parameters: {
@@ -901,6 +917,34 @@ const AI_TOOLS: DeepSeekTool[] = [
           date: { type: 'string', description: 'Дата YYYY-MM-DD (сегодня по умолчанию, вчера если контекст подходит)' },
         },
         required: ['durationHours'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_sleep',
+      description: 'Удалить запись сна за конкретную дату. Используй когда пользователь говорит "удали сон вчера", "ошибся, убери запись сна за понедельник".',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Дата YYYY-MM-DD записи для удаления' },
+        },
+        required: ['date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_body_measurement',
+      description: 'Удалить запись обмеров тела за конкретную дату. Используй когда пользователь говорит "удали обмеры за вчера", "убери замер от 5 числа".',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Дата YYYY-MM-DD записи для удаления' },
+        },
+        required: ['date'],
       },
     },
   },
@@ -2937,6 +2981,103 @@ async function executeTool(
     };
   }
 
+  // Round 191 — Tool coverage gap fix. Was: AI could log_cardio but
+  // user could only delete via UI. "Удали кардио вчера" → AI had no
+  // tool, fell back to "не могу — удали через приложение". Now: AI
+  // can resolve session by id OR (date + type), apply 6-point
+  // reliability checklist (validate, bounds, existence, classifyToolError,
+  // post-write verify, Russian message).
+  if (toolName === 'delete_cardio') {
+    const { sessionId, date, type } = toolInput as {
+      sessionId?: string;
+      date?: string;
+      type?: string;
+    };
+
+    // 1. Validate: must have sessionId OR (date+type) OR just date
+    if (!sessionId && !date) {
+      return {
+        resultText: 'Не могу удалить — нужен либо ID сессии, либо дата. Спроси у пользователя какую именно удалить.',
+        actionDescription: '',
+      };
+    }
+
+    // 2. Resolve target session
+    let target: { id: string; type: string; date: string; durationMinutes: number } | null = null;
+
+    if (sessionId) {
+      // 3. Existence + ownership check
+      const found = await prisma.cardioSession.findFirst({
+        where: { id: sessionId, userId },
+        select: { id: true, type: true, date: true, durationMinutes: true },
+      });
+      if (!found) {
+        return {
+          resultText: 'Сессия не найдена. Возможно уже удалена или ID неверный.',
+          actionDescription: '',
+        };
+      }
+      target = found;
+    } else if (date) {
+      // Validate date shape
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return {
+          resultText: `Дата "${date}" в неправильном формате. Нужно YYYY-MM-DD.`,
+          actionDescription: '',
+        };
+      }
+      const VALID_CARDIO_TYPES = ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'];
+      const safeType = type && VALID_CARDIO_TYPES.includes(type) ? type : undefined;
+      const candidates = await prisma.cardioSession.findMany({
+        where: { userId, date, ...(safeType ? { type: safeType } : {}) },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, type: true, date: true, durationMinutes: true },
+      });
+      if (candidates.length === 0) {
+        return {
+          resultText: `Не нашёл кардио ${safeType ? safeType + ' ' : ''}за ${date}.`,
+          actionDescription: '',
+        };
+      }
+      if (candidates.length > 1 && !safeType) {
+        // Ambiguous — ask user to specify type
+        const list = candidates.map((c) => `${c.type} (${c.durationMinutes} мин)`).join(', ');
+        return {
+          resultText: `Несколько сессий за ${date}: ${list}. Уточни какую удалить — назови тип.`,
+          actionDescription: '',
+        };
+      }
+      target = candidates[0]!;
+    }
+
+    if (!target) {
+      return {
+        resultText: 'Не смог определить какую сессию удалить.',
+        actionDescription: '',
+      };
+    }
+
+    // 4. Execute (wrapped in caller's try/catch — classifyToolError handles)
+    await prisma.cardioSession.delete({ where: { id: target.id } });
+
+    // 5. Post-write verify: confirm row no longer exists
+    const stillThere = await prisma.cardioSession.findUnique({
+      where: { id: target.id },
+      select: { id: true },
+    });
+    if (stillThere) {
+      throw new Error('delete_cardio: row still exists after delete; transaction may have been rolled back');
+    }
+
+    // 6. Russian success message that confirms what was deleted
+    return {
+      resultText: `Удалил кардио: ${target.type} ${target.durationMinutes} мин за ${target.date}.`,
+      actionDescription: `Удалено кардио: ${target.type} ${target.durationMinutes} мин`,
+      actionData: { sessionId: target.id, type: target.type, date: target.date },
+    };
+  }
+
   if (toolName === 'modify_meal') {
     const { mealId, items } = toolInput as { mealId: string; items: Array<{ name: string; weightGrams: number; calories: number; protein: number; fats: number; carbs: number }> };
     const meal = await prisma.meal.findFirst({ where: { id: mealId, userId } });
@@ -3211,6 +3352,89 @@ async function executeTool(
       resultText: `Сон записан: ${safeDuration} ч${qualityText}`,
       actionDescription: `Сон: ${safeDuration} ч${qualityText}`,
       actionData: { date: sleepDate, durationHours: safeDuration, quality: safeQuality },
+    };
+  }
+
+  // Round 191 — companion to log_sleep. Same 6-point reliability
+  // checklist applied (validate, exists, classifyToolError-friendly,
+  // post-write verify, Russian message).
+  if (toolName === 'delete_sleep') {
+    const { date } = toolInput as { date: string };
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return {
+        resultText: `Дата "${date ?? 'не указана'}" в неправильном формате. Нужно YYYY-MM-DD.`,
+        actionDescription: '',
+      };
+    }
+
+    const existing = await prisma.sleepEntry.findUnique({
+      where: { userId_date: { userId, date } },
+      select: { date: true, durationHours: true },
+    });
+    if (!existing) {
+      return {
+        resultText: `Не нашёл запись сна за ${date}.`,
+        actionDescription: '',
+      };
+    }
+
+    await prisma.sleepEntry.delete({
+      where: { userId_date: { userId, date } },
+    });
+
+    const stillThere = await prisma.sleepEntry.findUnique({
+      where: { userId_date: { userId, date } },
+      select: { date: true },
+    });
+    if (stillThere) {
+      throw new Error('delete_sleep: row still exists after delete');
+    }
+
+    return {
+      resultText: `Удалил запись сна за ${date} (${existing.durationHours} ч).`,
+      actionDescription: `Удалена запись сна за ${date}`,
+      actionData: { date },
+    };
+  }
+
+  // Round 191 — companion to log_body_measurement. BodyMeasurement
+  // model is keyed by (userId, date) — one row per date.
+  if (toolName === 'delete_body_measurement') {
+    const { date } = toolInput as { date: string };
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return {
+        resultText: `Дата "${date ?? 'не указана'}" в неправильном формате. Нужно YYYY-MM-DD.`,
+        actionDescription: '',
+      };
+    }
+
+    const existing = await prisma.bodyMeasurement.findUnique({
+      where: { userId_date: { userId, date } },
+      select: { date: true },
+    });
+    if (!existing) {
+      return {
+        resultText: `Не нашёл обмеры за ${date}.`,
+        actionDescription: '',
+      };
+    }
+
+    await prisma.bodyMeasurement.delete({
+      where: { userId_date: { userId, date } },
+    });
+
+    const stillThere = await prisma.bodyMeasurement.findUnique({
+      where: { userId_date: { userId, date } },
+      select: { date: true },
+    });
+    if (stillThere) {
+      throw new Error('delete_body_measurement: row still exists after delete');
+    }
+
+    return {
+      resultText: `Удалил обмеры за ${date}.`,
+      actionDescription: `Удалены обмеры за ${date}`,
+      actionData: { date },
     };
   }
 
