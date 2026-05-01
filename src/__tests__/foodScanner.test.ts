@@ -180,6 +180,22 @@ describe('extractKcal', () => {
   test('ignores zero / negative energy values', () => {
     expect(extractKcal({ 'energy-kcal_100g': 0, 'energy-kj_100g': 500 })).toBe(120);
   });
+
+  test('prefers per-100g kJ over bare per-serving kcal when they disagree', () => {
+    // OFF often carries both `energy-kj_100g` (canonical per-100g) and
+    // a bare `energy-kcal` (contextual — could be per-serving when the
+    // product's `nutrition_data_per === 'serving'`). The old field order
+    // returned the bare field, silently importing per-serving numbers
+    // as per-100g and inflating the diary. Now per-100g variants win.
+    // 753 kJ/100g ≈ 180 kcal/100g; bare kcal of 250 would have been a
+    // per-serving figure for a >100g serving — taking it would have
+    // misrepresented the canonical density.
+    expect(extractKcal({ 'energy-kj_100g': 753, 'energy-kcal': 250 })).toBe(180);
+  });
+
+  test('still uses bare energy-kcal as last-resort when no per-100g exists', () => {
+    expect(extractKcal({ 'energy-kcal': 180 })).toBe(180);
+  });
 });
 
 // ─── parseServingGrams ────────────────────────────────────────────────────────
