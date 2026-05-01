@@ -104,7 +104,7 @@ src/
   navigation/    — AppNavigator.tsx (трёхступенчатый: Auth/Onboarding/Main)
   services/      — 14 API-сервисов
   hooks/         — useHaptic.ts, useSafeTop.ts, useAchievementCheck.ts, usePedometer.ts
-  theme/         — colors (light/dark), typography (16 стилей), spacing, borderRadius
+  theme/         — colors (light/dark), typography (18 стилей), spacing, borderRadius
   types/         — index.ts (все типы: User, Exercise, Workout, Program, Meal, NewsArticle, ChatMessage...)
   data/          — exercises.ts (71), programs.ts (6 built-in)
   utils/         — achievements.ts (20 ачивок)

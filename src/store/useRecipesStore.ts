@@ -128,7 +128,7 @@ export const useRecipesStore = create<RecipesState>()(
       clearUserData: () => set({ curated: [], mine: [], filter: { allergens: [] } }),
     }),
     {
-      name: 'iron-gym-recipes',
+      name: 'giron-recipes',
       storage: createJSONStorage(() => AsyncStorage),
       // Keep filter + cached lists across sessions; transient flags don't persist.
       partialize: (s) => ({

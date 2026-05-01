@@ -158,7 +158,7 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       clearUserData: () => set({ entries: [] }),
     }),
     {
-      name: 'iron-gym-measurements',
+      name: 'giron-measurements',
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
       migrate: (state: any) => state,

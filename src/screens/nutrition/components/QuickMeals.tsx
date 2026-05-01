@@ -28,9 +28,9 @@ type QuickMealItem = {
   cal: number; protein: number; fats: number; carbs: number; weight: number;
 };
 
-// AsyncStorage keys (namespaced under iron-gym/nutrition)
-const OVERRIDES_KEY = 'iron-gym/nutrition/quickMeals/overrides/v1';
-const HIDDEN_KEY    = 'iron-gym/nutrition/quickMeals/hidden/v1';
+// AsyncStorage keys (namespaced under giron/nutrition)
+const OVERRIDES_KEY = 'giron/nutrition/quickMeals/overrides/v1';
+const HIDDEN_KEY    = 'giron/nutrition/quickMeals/hidden/v1';
 
 interface Props {
   selectedDate?: string;

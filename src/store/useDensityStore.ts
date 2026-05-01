@@ -28,7 +28,7 @@ export const useDensityStore = create<DensityStore>()(
       },
     }),
     {
-      name: 'iron-gym-density',
+      name: 'giron-density',
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
     },
