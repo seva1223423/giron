@@ -1865,8 +1865,14 @@ function getRelevantKnowledge(
       maxOverlap = Math.max(maxOverlap, overlapRatio);
     }
 
-    // Skip if >60% keyword overlap with an already selected module (too similar)
-    if (maxOverlap > 0.6 && selected.length > 0) continue;
+    // Skip if >40% keyword overlap with an already selected module.
+    // Round 189: was 60% — too permissive. CUTTING_BULKING +
+    // NUTRITION_KNOWLEDGE share macros/TDEE/deficit concepts (~50%
+    // overlap), and both got selected, wasting ~400 tokens on
+    // duplicate content. Lowering to 40% prunes the redundant
+    // second module so a third, more diverse one (e.g. RECOVERY
+    // for nutrition+training questions) can take its slot.
+    if (maxOverlap > 0.4 && selected.length > 0) continue;
 
     selected.push(candidate.module);
     selectedKeywordSets.push(candidateKeywords);
@@ -1901,6 +1907,83 @@ const EN_TO_RU_EXERCISES: Record<string, string> = {
   'french press': 'французский жим лёжа', 'hammer curl': 'молотковые сгибания',
   'front raise': 'махи гантелями перед собой',
 };
+
+/**
+ * Classify a tool execution error and produce a message the AI can act on.
+ * Was: generic "Не удалось выполнить действие" — AI couldn't distinguish
+ * "exercise not found" from "DB hiccup" from "validation error", so it
+ * just told the user "something went wrong" and gave up. Now we surface
+ * the actual constraint so the AI can either retry with corrected input
+ * or explain to the user what went wrong.
+ *
+ * Error types caught (most specific first):
+ *   • Prisma P2025 — record not found → tell AI to suggest alternatives
+ *   • Prisma P2002 — unique constraint → already exists, no need to retry
+ *   • Prisma P2003 — foreign key → invalid reference
+ *   • Zod ZodError — validation failed → tell AI which field is bad
+ *   • Custom "not found" / "не найдено" → specific lookup miss
+ *   • Timeout / connect errors → transient, suggest retry later
+ *   • Anything else → generic but log for forensics
+ *
+ * The returned string is fed back into the AI conversation as a tool
+ * result, so phrasing matters — short, actionable, doesn't leak DB
+ * internals. AI sees: "TOOL_ERROR(create_workout): exercise 'жим лёжа со
+ * штангой 200кг' not found in catalog; suggest alternative or ask user."
+ */
+export function classifyToolError(toolName: string, err: unknown): string {
+  // Prisma errors have a .code field on PrismaClientKnownRequestError
+  if (err && typeof err === 'object' && 'code' in err) {
+    const code = (err as { code?: string }).code;
+    const meta = (err as { meta?: Record<string, unknown> }).meta ?? {};
+    if (code === 'P2025') {
+      return `TOOL_ERROR(${toolName}): record not found. ${describeMissing(meta)} Suggest a similar alternative to the user, or ask them to clarify.`;
+    }
+    if (code === 'P2002') {
+      return `TOOL_ERROR(${toolName}): already exists (unique constraint on ${meta.target ?? 'unknown'}). Tell the user this record is already saved — no need to log again.`;
+    }
+    if (code === 'P2003') {
+      return `TOOL_ERROR(${toolName}): invalid reference (foreign key on ${meta.field_name ?? 'unknown'}). The linked entity does not exist.`;
+    }
+    if (code === 'P2024') {
+      return `TOOL_ERROR(${toolName}): database connection timed out. Tell the user to try again in a moment.`;
+    }
+  }
+
+  // Zod validation errors have an .errors array
+  if (err && typeof err === 'object' && 'errors' in err && Array.isArray((err as { errors: unknown[] }).errors)) {
+    const issues = (err as { errors: Array<{ path?: (string | number)[]; message?: string }> }).errors
+      .slice(0, 3)
+      .map((e) => `${(e.path ?? []).join('.')}: ${e.message ?? 'invalid'}`)
+      .join(', ');
+    return `TOOL_ERROR(${toolName}): validation failed [${issues}]. Tell the user which input was wrong and what's expected.`;
+  }
+
+  // Plain Error with message — preserve it verbatim, capped to 200 chars
+  if (err instanceof Error && err.message) {
+    const msg = err.message.slice(0, 200);
+    // Common pattern: "Exercise X not found" — tell AI explicitly
+    if (/not found|не найден|не существует|missing/i.test(msg)) {
+      return `TOOL_ERROR(${toolName}): ${msg}. Suggest the user pick from related items or clarify their intent.`;
+    }
+    if (/timeout|timed out|ECONNREFUSED|ECONNRESET/i.test(msg)) {
+      return `TOOL_ERROR(${toolName}): transient network/timeout. Tell the user to retry in a moment, don't promise success.`;
+    }
+    if (/rate limit|too many/i.test(msg)) {
+      return `TOOL_ERROR(${toolName}): rate-limited. Tell the user to wait a minute before trying again.`;
+    }
+    return `TOOL_ERROR(${toolName}): ${msg}. Acknowledge to the user that this didn't work and offer an alternative.`;
+  }
+
+  // Truly unknown
+  return `TOOL_ERROR(${toolName}): unexpected failure. Apologize to the user and offer a different approach (don't keep retrying the same call).`;
+}
+
+/** Best-effort string description of a Prisma "not found" meta payload. */
+function describeMissing(meta: Record<string, unknown>): string {
+  if (typeof meta.cause === 'string') return `Cause: ${meta.cause}.`;
+  if (typeof meta.modelName === 'string') return `Model: ${meta.modelName}.`;
+  return '';
+}
 
 // Execute an AI tool call and return the result string + performed action info
 async function executeTool(
@@ -10572,8 +10655,17 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
               }
             } catch (toolError) {
               toolOk = false;
+              // Round 189: typed tool error recovery. Was: generic
+              // "Не удалось выполнить действие. Попробуй ещё раз" —
+              // AI couldn't tell why and would parrot the same message
+              // to the user, leaving them stuck. Now: classify the
+              // error and pass enough context for the AI to either
+              // retry with corrected input OR explain the constraint
+              // to the user (e.g., "exercise not found — пред­лагаю
+              // подобрать аналог"). Audit identified this as the
+              // top-of-list silent-degradation gap.
               logger.error(`Tool ${tc.name} failed:`, toolError);
-              resultText = `Не удалось выполнить действие. Попробуй ещё раз.`;
+              resultText = classifyToolError(tc.name, toolError);
             } finally {
               const _toolMs = Date.now() - _t0Tool;
               recordToolExecution(tc.name, _toolMs, toolOk);
@@ -14880,13 +14972,27 @@ function estimateCaloricBalance(
 ): string {
   if (!userWeightKg || todayMeals.length === 0) return '';
 
+  // Round 189: clamp inputs before BMR calc to prevent garbage-in-
+  // garbage-out. Without these clamps a user with heightCm=10 (typo) or
+  // weightKg=300 (typo) would get a BMR of 200 or 4500 respectively,
+  // which then gets multiplied by 1.55 = TDEE of 310 or 6975 — neither
+  // is plausible. Clamping to physiological ranges keeps the AI from
+  // hallucinating absurd targets in nutrition advice.
+  const safeWeight = Math.min(Math.max(userWeightKg, 35), 250);
+  const safeAge = Math.min(Math.max(userAge ?? 25, 14), 100);
+
   // Estimate BMR using Mifflin-St Jeor
   let bmr: number;
   if (userGender === 'MALE') {
-    bmr = 10 * userWeightKg + 6.25 * 175 - 5 * (userAge || 25) + 5; // assume 175cm if unknown
+    bmr = 10 * safeWeight + 6.25 * 175 - 5 * safeAge + 5; // assume 175cm if unknown
   } else {
-    bmr = 10 * userWeightKg + 6.25 * 165 - 5 * (userAge || 25) - 161;
+    bmr = 10 * safeWeight + 6.25 * 165 - 5 * safeAge - 161;
   }
+
+  // Final BMR sanity clamp — typical adult range is 1100-2400 kcal/day.
+  // Wider band accounts for outliers (very large athletes, very small
+  // older adults).
+  bmr = Math.min(Math.max(bmr, 900), 3000);
 
   // Activity multiplier
   const activityMultiplier = hasWorkoutToday ? 1.55 : 1.3;
