@@ -334,11 +334,18 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   Введите 6-значный код из приложения-аутентификатора.
                 </Text>
                 <TextInput
-                  style={[{
+                  // 6-digit code display — fontSize matches typography.h2
+                  // (28pt) for visual hierarchy. allowFontScaling=false
+                  // prevents AX5 (310%) Dynamic Type from blowing the
+                  // letter-spaced row past the screen width on iPhone SE
+                  // (320pt). The code is fixed-width by design — digits
+                  // need to stay legible but bounded.
+                  style={[typography.h2, {
                     height: 64, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16,
-                    textAlign: 'center', fontSize: 28, fontWeight: '700', letterSpacing: 8,
+                    textAlign: 'center', fontWeight: '700', letterSpacing: 8,
                     backgroundColor: colors.card, color: colors.text, borderColor: colors.border,
                   }]}
+                  allowFontScaling={false}
                   placeholder="------"
                   placeholderTextColor={colors.textTertiary}
                   value={totpCode}
@@ -346,6 +353,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   keyboardType="number-pad"
                   maxLength={6}
                   autoFocus
+                  accessibilityLabel="Шестизначный код двухфакторной аутентификации"
                 />
                 <TouchableOpacity
                   onPress={() => setRememberDevice((v) => !v)}

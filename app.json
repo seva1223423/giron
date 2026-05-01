@@ -6,7 +6,7 @@
       "irongym",
       "com.irongym.app"
     ],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -73,7 +73,7 @@
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 7
+      "versionCode": 8
     },
     "web": {
       "favicon": "./assets/favicon.png"
