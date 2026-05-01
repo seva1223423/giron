@@ -414,6 +414,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const timedOutRef = useRef(false);
   const lastBase64Ref = useRef<string>('');
   const lastMimeRef = useRef<string>('image/jpeg');
   // Prevent double barcode scan consumption
@@ -610,7 +611,17 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     abortRef.current = controller;
     lastBase64Ref.current = base64;
     lastMimeRef.current = mimeType;
-    const timeoutId = setTimeout(() => controller.abort(), 50_000);
+    // Round 197: track whether the abort came from our timeout vs the
+    // user pressing Cancel. AbortError's name doesn't carry that info,
+    // so the previous catch branch lumped both into "Анализ отменён",
+    // which is wrong for timeouts (the user did NOT cancel — Mistral
+    // was slow). Differentiated copy lets us nudge the user to retry
+    // for slow-server cases instead of looking like the app gave up.
+    timedOutRef.current = false;
+    const timeoutId = setTimeout(() => {
+      timedOutRef.current = true;
+      controller.abort();
+    }, 50_000);
 
     setLoading(true);
     setError('');
@@ -662,11 +673,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       // once up here to cover all cases below.
       appendNextRef.current = false;
       if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {
-        setError('Анализ отменён.');
-        setImageUri(null);
-        lastBase64Ref.current = '';
-        // User bailed before we got anything useful — refund.
-        refundFoodScan();
+        if (timedOutRef.current) {
+          // Server-side slowness — Mistral occasionally takes >50s under
+          // load, especially during peak hours. Keep the image visible
+          // and offer retry rather than wiping the user's progress.
+          setError('Анализ занял слишком долго. Сервер перегружен — попробуй ещё раз через минуту.');
+          setErrorRetryable(true);
+          haptic.error();
+          refundFoodScan();
+        } else {
+          // User pressed Cancel — clear the image, this is the deliberate
+          // "I changed my mind" path.
+          setError('Анализ отменён.');
+          setImageUri(null);
+          lastBase64Ref.current = '';
+          refundFoodScan();
+        }
       } else if (e?.response?.status === 402) {
         // Server quota exceeded (e.g. scanned on another device) — show paywall.
         // Don't refund: the server counted this against quota.
