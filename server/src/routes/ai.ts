@@ -167,6 +167,22 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - Мотивируй через данные: "За последний месяц твой присед вырос на 10 кг — отличная динамика".
 - Эмодзи — максимум 1-2 на сообщение, только если уместно.
 
+## ЧЕСТНОСТЬ И ИСТОЧНИКИ (round 193 — критично)
+
+- **Не выдумывай цифры.** Если не уверен в проценте, граммах, килограммах — скажи "точно не скажу" / "зависит от" / "попробуй и засеки результат". Лучше "обычно 0.3-0.5 кг/нед" чем выдуманное "0.42 кг/нед".
+- **Не придумывай авторов и годы исследований.** Используй "по данным научной литературы" или "по практическому опыту атлетов" вместо "Schoenfeld 2017 показал что...". Если фамилия попадается в базе знаний — цитируй БЕЗ года, если год там не указан.
+- **Цифры пользователя — из его данных.** Когда говоришь "у тебя X" — это X должен быть из контекста (профиль, история, рекордов). Не выдумывай "у тебя жим 80 кг" если в данных нет.
+- **Если данных недостаточно — попроси.** "Не вижу твоего веса за последнюю неделю — взвесься, тогда посчитаю точно." Лучше попросить чем угадать.
+- **При действии через инструмент — подтверди фактами.** После log_meal не пиши "отлично записал!", пиши "Записал: куриная грудка 200г = 330 ккал, 62г белка". Юзер должен видеть что именно зафиксировано.
+
+## ЗНАНИЯ ИЗ БАЗЫ (round 193)
+
+Если используешь информацию из приложенных модулей знаний:
+- **Перефразируй своими словами**, не цитируй абзацами. Юзер говорит с тренером, а не читает учебник.
+- **Один-два конкретных факта** > пересказ всего модуля.
+- **Привязывай к контексту юзера**: не "белок важен для гипертрофии", а "при твоём весе 80 кг и цели набор массы — нужно ~144г белка/день".
+- Если в модуле есть число, формула, диапазон — используй конкретно. Если только общая теория — лучше сделай из неё ОДИН сжатый совет вместо длинного объяснения.
+
 ## ПРОАКТИВНЫЙ АНАЛИЗ ДАННЫХ
 
 Ты ВИДИШЬ данные пользователя. Используй их активно:
@@ -2042,12 +2058,111 @@ function getRelevantKnowledge(
 
   const finalSelection = selected.length > 0 ? selected : DEFAULT_MODULES;
 
+  // Round 195: subsection extraction. Knowledge modules are 1-3KB
+  // each but the user's question usually maps to ONE topic inside the
+  // module. Instead of dumping the full module, find the highest-
+  // relevance window of ~600 chars and use only that. Saves ~1KB per
+  // request × 100k req/day = ~$1.4/day on Mistral cost. Still falls
+  // back to full module if the keyword density is uniform (no clear
+  // peak).
+  const queryKeywords = collectQueryKeywords(message, recentHistory);
   const content = finalSelection
-    .map((name) => KNOWLEDGE_MODULES[name])
+    .map((name) => {
+      const fullText = KNOWLEDGE_MODULES[name];
+      if (!fullText) return null;
+      // For short modules (<800 chars), don't bother — return full
+      if (fullText.length < 800) return fullText;
+      // For longer ones, find the best subsection window
+      const subsection = extractRelevantSubsection(fullText, queryKeywords);
+      return subsection || fullText;
+    })
     .filter(Boolean)
     .join('\n\n---\n\n');
 
   return { content, topics: finalSelection };
+}
+
+/**
+ * Round 195: collect lowercased keywords from current message + last
+ * 3 user messages, expanded with synonyms. Used by extractRelevantSubsection
+ * to score windows in module text.
+ */
+function collectQueryKeywords(message: string, history: DeepSeekMessage[]): string[] {
+  const userTexts = [
+    message,
+    ...history
+      .filter((m) => m.role === 'user' && m.content)
+      .slice(-3)
+      .map((m) => m.content!),
+  ];
+  const tokens = new Set<string>();
+  for (const text of userTexts) {
+    const words = text.toLowerCase().split(/\s+/);
+    for (const w of words) {
+      if (w.length < 3) continue;
+      // Strip Russian noise: leading/trailing punctuation
+      const clean = w.replace(/[^а-яёa-z]/g, '');
+      if (clean.length < 3) continue;
+      tokens.add(clean);
+      // Add synonyms (defined in KEYWORD_SYNONYMS map)
+      for (const syn of expandSynonyms(clean)) tokens.add(syn);
+    }
+  }
+  return Array.from(tokens);
+}
+
+/**
+ * Round 195: find the highest-relevance window inside a knowledge
+ * module. Slides a 600-char window through the text in 100-char
+ * steps, scoring each by # of distinct keywords matched. Returns the
+ * best-scoring window (with surrounding context) OR null if no
+ * window scores meaningfully better than baseline.
+ *
+ * This keeps relevant teaching while cutting token cost ~60%.
+ */
+function extractRelevantSubsection(
+  fullText: string,
+  keywords: string[],
+  windowSize = 600,
+  step = 100,
+): string | null {
+  if (keywords.length === 0) return null;
+  const lower = fullText.toLowerCase();
+  const maxStart = Math.max(0, lower.length - windowSize);
+  let bestStart = 0;
+  let bestScore = 0;
+
+  // Build candidate start positions: 0, step, 2*step, ..., maxStart
+  // The boundary `maxStart` is included even if not divisible by step
+  // — without this, keywords near the end of the text get missed when
+  // step doesn't divide maxStart evenly (e.g. text 750 chars, window
+  // 600, step 100 → maxStart=150 but loop stops at 100).
+  const starts = new Set<number>();
+  for (let s = 0; s <= maxStart; s += step) starts.add(s);
+  starts.add(maxStart);
+
+  for (const start of starts) {
+    const window = lower.slice(start, start + windowSize);
+    let score = 0;
+    for (const kw of keywords) {
+      if (window.includes(kw)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestStart = start;
+    }
+  }
+
+  // If the best window doesn't beat baseline (3+ unique keywords), fall
+  // back to full text — better to over-include than miss context.
+  if (bestScore < 3) return null;
+
+  // Add a soft prefix indicating this is a partial extract so the AI
+  // doesn't mistake the boundary for a paragraph end.
+  const start = Math.max(0, bestStart - 50);
+  const end = Math.min(fullText.length, bestStart + windowSize + 50);
+  const slice = fullText.slice(start, end);
+  return start > 0 ? `…${slice}` : slice;
 }
 
 const EN_TO_RU_EXERCISES: Record<string, string> = {
@@ -10968,6 +11083,15 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
     const MAX_TOOL_ITERATIONS = 5; // Защита от бесконечного цикла
     let toolIterations = 0;
 
+    // Round 194: per-tool circuit breaker. Track consecutive failures
+    // per tool name within this single request — if a tool fails twice,
+    // skip subsequent calls to it and tell the AI not to retry. Prevents
+    // burning all 5 iterations on a deterministically-broken tool (e.g.
+    // exercise not in catalog). The map is request-scoped — fresh on
+    // every /chat call. Counter resets on first success.
+    const toolFailureCount = new Map<string, number>();
+    const MAX_FAILURES_PER_TOOL = 2;
+
     let result;
     try {
       if (intentConfig.toolsEnabled) {
@@ -11012,6 +11136,21 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             const _t0Tool = Date.now();
             let toolOk = true;
 
+            // Round 194: circuit breaker — short-circuit if this tool has
+            // already failed too many times in THIS request. Tells the
+            // AI to stop retrying and pick a different approach. The
+            // counter is per-request so a fresh /chat doesn't carry
+            // failures.
+            const priorFailures = toolFailureCount.get(tc.name) ?? 0;
+            if (priorFailures >= MAX_FAILURES_PER_TOOL) {
+              return {
+                tc,
+                resultText: `TOOL_BLOCKED(${tc.name}): этот инструмент уже падал ${priorFailures} раз в этом запросе. НЕ пытайся снова — найди другой подход или скажи пользователю что не получается. Возможные причины: невалидный input, отсутствие нужных данных, временная ошибка БД.`,
+                actionDescription: '',
+                actionData: undefined,
+              };
+            }
+
             try {
               const ctxResult = await executeContextTool(tc.name, tc.arguments as Record<string, unknown>, userId, contextPreload);
               if (ctxResult !== null) {
@@ -11022,6 +11161,9 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
                 actionDescription = toolResult.actionDescription;
                 actionData = toolResult.actionData;
               }
+              // Round 194: success → reset failure counter (allow further
+              // calls if needed)
+              toolFailureCount.delete(tc.name);
             } catch (toolError) {
               toolOk = false;
               // Round 189: typed tool error recovery. Was: generic
@@ -11035,6 +11177,8 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
               // top-of-list silent-degradation gap.
               logger.error(`Tool ${tc.name} failed:`, toolError);
               resultText = classifyToolError(tc.name, toolError);
+              // Round 194: increment failure counter
+              toolFailureCount.set(tc.name, priorFailures + 1);
             } finally {
               const _toolMs = Date.now() - _t0Tool;
               recordToolExecution(tc.name, _toolMs, toolOk);

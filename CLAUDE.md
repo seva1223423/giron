@@ -27,7 +27,7 @@
 
 **14 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support, recipes
 
-**15 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip, GoogleAuthButton (mode: `login|link`), ForceUpdateModal, Icon, Spinner
+**25 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip, GoogleAuthButton (mode: `login|link`), ForceUpdateModal, Icon, Spinner, ScreenContainer + ScreenScroll, SafeModal, AdaptiveGrid, HitTarget, ResponsiveText, FormField, Skeleton + SkeletonText, EmptyState, Toast (ToastProvider/useToast), ResponsiveButton, NavBar + SectionHeader, IconButton + IconLabel
 
 **14 сервисов:** api.ts (axios + JWT auto-refresh), admin, ai, auth, cardio, news, notification, nutrition, support, trainer, user, workout, otaUpdater, recipe
 

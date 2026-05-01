@@ -1527,7 +1527,276 @@ These are concerns that aren't strictly visual but break UX in real conditions.
 - Multiple notification badges in one tab → consolidate to one count
 - Multiple "NEW" / "BETA" / promo badges → audit; max 1 per screen
 
-## 27 — Cross-agent coordination
+## 27 — Visual regression / pixel snapshots
+
+**Status:** roadmap. Set up after Direction A migration of admin + home is complete (currently many P0 hardcoded-hex violations would create false positives in snapshots).
+
+### Why pixel snapshots earn their place in this codebase
+
+- Direction A drift compounds invisibly — token audit catches code, snapshots catch *rendered output*. A theme token that resolves wrong, a font that doesn't load, a shadow that gets clipped — only a screenshot sees these.
+- Russian text wraps differently from English at the same width. We've already had `letterSpacing: 10` overflow on iPhone SE — a snapshot test would catch that automatically.
+- Theme parity: take dark + light snapshot of every component story; diff between them must show ONLY recoloring, no layout shifts.
+
+### Toolchain (already partially in stack)
+
+- `react-native-view-shot` — already a dependency, captures any view to PNG
+- `pixelmatch` or `looks-same` — pixel diff with threshold tolerance
+- `jest-image-snapshot` — Jest matcher that wraps the above
+- Storage: snapshots in `__image_snapshots__/` per test file (gitignored after first commit if too large; otherwise commit as baseline)
+
+### Scope rules
+
+- **Snapshot components, not screens.** Whole screens are too volatile (data, scroll position, time-of-day text). Components are stable.
+- **One snapshot per (component × variant × theme × device-width).** For Button alone that's roughly 5 variants × 3 sizes × 2 themes × 2 widths (iPhone SE 375 + iPhone 14 390) = 60 baselines. Don't go finer.
+- **Threshold tolerance: 0.1% pixel diff.** Lower causes flakes from font rasterization; higher misses real bugs.
+- **No animation snapshots.** Capture a frozen end-state only.
+
+### When to update baselines vs flag as regression
+
+- Updating intentionally → run `npm run test:visual -- --updateSnapshot`, commit baselines in same PR as the visual change
+- Diff appears unintentionally → block PR, treat as design regression, fix to match baseline
+- Baseline drift over 3 PRs without update → re-baseline with explicit "design refresh" PR + screenshot comparison in description
+
+### Setup checklist (when greenlighting)
+
+- [ ] All admin screens migrated off old palette (current blocker — would generate ~30 false-positive snapshots)
+- [ ] HomeScreen ANN_COLORS / ANN_ICONS migrated
+- [ ] Test runner allocated extra memory: Jest `--maxWorkers=2 --workerIdleMemoryLimit=512MB`
+- [ ] CI runner OS pinned (snapshots are pixel-fragile across macOS/Linux)
+- [ ] Reviewer workflow defined: open PR shows baseline + actual + diff side-by-side
+
+### What pixel snapshots WILL NOT replace
+
+- Token audit (§7) — still cheaper, runs in 1 sec
+- UX quality audit (§24) — humans still need to judge thumb-zone, clutter
+- Accessibility audit — VoiceOver flow can't be screenshotted
+
+Pixel snapshots are the **last** line of design defense, not the first.
+
+## 28 — Lottie animations specification
+
+**Status:** add when first Lottie animation ships. None currently in `src/assets/lottie/`.
+
+### When to choose Lottie vs Reanimated worklet
+
+| Need                                 | Tool                  | Reason                                  |
+|--------------------------------------|-----------------------|-----------------------------------------|
+| Press feedback, scale, opacity       | Reanimated 4 worklet  | 60fps native, < 200 bytes               |
+| Page transitions                     | Reanimated 4          | predictable, easy to coordinate         |
+| Loading spinner (basic)              | `<Spinner>`           | branded, theme-aware                    |
+| Hero illustration (onboarding)       | Lottie                | designer-authored, complex paths        |
+| Confetti / PR celebration            | Lottie                | particle systems too tedious in worklet |
+| Water-fill, complex morph            | Lottie                | shape morphs are Lottie's strength      |
+| AI thinking / typing indicator       | Lottie OR worklet     | depends on visual complexity            |
+
+If a worklet can do it in ≤ 30 lines, prefer worklet. Otherwise Lottie.
+
+### Required deps when adding Lottie
+
+```bash
+npx expo install lottie-react-native
+```
+
+Already supported by Expo SDK 54. No native rebuild needed.
+
+### File conventions
+
+- Folder: `src/assets/lottie/`
+- Filename: `<purpose>.json` (e.g., `pr-celebration.json`, `onboarding-hero.json`)
+- One file per visual; theme variants handled at runtime (see below), not as separate files
+
+### Theme-aware Lottie (CRITICAL)
+
+Lottie JSON has hardcoded colors. We have two themes. Solution: runtime color injection via `colorFilters` prop.
+
+```typescript
+import LottieView from 'lottie-react-native';
+import { useThemeStore } from '../../store';
+
+const colors = useThemeStore((s) => s.colors);
+
+<LottieView
+  source={require('../../assets/lottie/pr-celebration.json')}
+  autoPlay
+  loop={false}
+  colorFilters={[
+    { keypath: 'gold-stroke', color: colors.primary },
+    { keypath: 'background', color: colors.surface },
+    { keypath: 'success', color: colors.success },
+  ]}
+  style={{ width: 240, height: 240 }}
+/>
+```
+
+**Designer handoff requirement:** every layer that should be theme-aware MUST be named with a `keypath` (in After Effects: layer name). Without keypaths, color injection silently no-ops and the animation breaks in light mode.
+
+When auditing a Lottie file, open the JSON and grep for unique colors:
+```bash
+grep -oE '"k":\s*\[[0-9.,\s]+\]' file.json | sort -u
+```
+If you see > 5 distinct colors, that's a complexity smell — push back to designer.
+
+### Performance budget
+
+- File size: ≤ 60 KB. Most issues come from rasterized images embedded in JSON; export with shapes only.
+- Frame rate: target 30fps in JSON, Lottie player upscales to 60fps. Higher source rate inflates file size.
+- Duration: ≤ 3 seconds for celebrations, ≤ 8 seconds for onboarding heroes. Anything longer = video, use `expo-av`.
+- Concurrent animations on screen: 1. Multiple Lottie instances tank low-end Android.
+- Don't autoplay above the fold without user gesture on metered networks (data-cost).
+
+### Loading strategy
+
+```typescript
+// LAZY load — don't bundle every Lottie in main JS
+const PRCelebration = lazy(() => import('./PRCelebration'));
+
+// Inside the screen:
+<Suspense fallback={<Spinner />}>
+  {showCelebration && <PRCelebration />}
+</Suspense>
+```
+
+Static `require('./animation.json')` is fine for files < 30 KB. Above that, use dynamic `require` + caching key.
+
+### Reduce-motion accessibility
+
+```typescript
+import { AccessibilityInfo } from 'react-native';
+const [reduceMotion, setReduceMotion] = useState(false);
+useEffect(() => {
+  AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+  return () => sub?.remove();
+}, []);
+
+if (reduceMotion) return <StaticHeroIcon />;
+return <LottieView ... />;
+```
+
+Required for any decorative Lottie. Functional ones (loading state) — keep but reduce loop count.
+
+### Dark/light parity for Lottie
+
+When you add the first Lottie:
+1. Render in dark mode → screenshot. Render in light mode → screenshot. Compare side-by-side.
+2. Both must be brand-coherent. If light mode looks "wrong", missing keypaths or designer used hardcoded `#fff` — fix in source, not at runtime.
+3. Add to §25 theme parity per-component table.
+
+### Checklist for shipping a Lottie
+
+- [ ] File ≤ 60 KB
+- [ ] All theme-bound layers have named keypaths
+- [ ] `colorFilters` injects theme colors at runtime
+- [ ] Reduce-motion fallback present
+- [ ] Lazy-loaded if > 30 KB
+- [ ] Dark + light render side-by-side approved
+- [ ] Doesn't autoplay on metered network without consent
+- [ ] No more than 1 instance on screen at a time
+- [ ] CLAUDE.md updated under "Stack" if `lottie-react-native` added as dep
+
+## 29 — Storybook / component playground
+
+**Status:** add when component count crosses 30 (currently 25-28, getting close). Driven by tooling cost vs benefit threshold.
+
+### Why Storybook earns its place
+
+- 25+ components × 3-5 variants each = ~100 visual states. Without a playground, a developer must build a temp screen to see how `Button variant="danger" size="sm" loading` looks. Wastes time and stale demo screens accumulate.
+- Theme parity verification — load any component in a story, flip the theme switcher, see both at once.
+- Storybook stories double as the input for §27 pixel snapshots — kill two birds.
+- Onboarding new contributor: send them to `/storybook` and they see the whole component vocabulary in one place.
+
+### Tool: `@storybook/react-native` (Expo-compatible)
+
+```bash
+npx expo install @storybook/react-native @storybook/addon-ondevice-actions @storybook/addon-ondevice-controls
+```
+
+Runs as a separate Expo entry point. Switch via `expo start` env: `STORYBOOK=1 expo start`.
+
+### Scope — what gets a story
+
+- ✅ Every export from `src/components/*` (currently 25 — yes, all of them)
+- ✅ Every variant + size combination
+- ✅ Both themes
+- ✅ Loading / error / empty states (for stateful components like SkeletonLoader, EmptyState)
+- ❌ NOT screens — those have data dependencies; use real app for screen QA
+- ❌ NOT one-off compositions — those go in regular tests
+
+### Story file convention
+
+```
+src/components/Button.tsx
+src/components/Button.stories.tsx   ← right next to component
+```
+
+Template:
+```typescript
+import { Button } from './Button';
+
+export default { title: 'Components/Button', component: Button };
+
+export const Primary = () => <Button title="Начать" variant="primary" onPress={() => {}} />;
+export const PrimaryLoading = () => <Button title="..." variant="primary" loading onPress={() => {}} />;
+export const Outline = () => <Button title="Отмена" variant="outline" onPress={() => {}} />;
+export const Ghost = () => <Button title="Пропустить" variant="ghost" onPress={() => {}} />;
+export const Danger = () => <Button title="Удалить" variant="danger" onPress={() => {}} />;
+export const SmallSize = () => <Button title="OK" size="sm" onPress={() => {}} />;
+export const Disabled = () => <Button title="Заблокировано" disabled onPress={() => {}} />;
+export const WithIcon = () => <Button title="Старт" icon={<Icon name="play" size={16} color="#000" />} onPress={() => {}} />;
+```
+
+### Theme switcher addon (mandatory for Direction A)
+
+Wrap stories in a decorator that toggles `useThemeStore`:
+```typescript
+// .storybook/preview.tsx
+export const decorators = [
+  (Story, ctx) => {
+    const setTheme = useThemeStore((s) => s.setTheme);
+    useEffect(() => { setTheme(ctx.globals.theme); }, [ctx.globals.theme]);
+    return <Story />;
+  }
+];
+export const globalTypes = {
+  theme: {
+    name: 'Theme',
+    defaultValue: 'dark',
+    toolbar: { items: ['dark', 'light'] },
+  },
+};
+```
+
+Now a single tap in Storybook UI shows the same component in both themes.
+
+### Coverage rule
+
+- New component MUST ship with stories in the same PR — no story = PR rejected
+- Existing component changes: if visual state changed (new prop, new variant), story must cover it
+- Removed component: delete its `.stories.tsx`
+
+### CI integration
+
+When set up:
+1. PR build runs `npm run storybook:build` (static export)
+2. Pixel snapshot CI captures every story in dark + light → §27 pipeline
+3. Reviewers get a Storybook URL preview as PR comment
+
+### What Storybook WILL NOT solve
+
+- Real-screen UX issues (thumb-zone, clutter, hierarchy) — §19, §21, §22 humans still required
+- Accessibility flow — VoiceOver/TalkBack still needs real-device testing
+- Performance under load — long-list scrolling, memory pressure — not a Storybook concern
+
+### Setup checklist (when greenlighting)
+
+- [ ] Component count ≥ 30 (cost-benefit threshold)
+- [ ] Direction A migration done in admin + home (otherwise stories full of banned palette)
+- [ ] Theme decorator wired in `.storybook/preview.tsx`
+- [ ] Stories template reviewed and one component (Button) ported as proof
+- [ ] CI runner can build Storybook static export
+- [ ] PR template updated: "Stories added/updated for visual changes"
+
+## 30 — Cross-agent coordination
 
 | Concern                              | Spawn agent                                          |
 |--------------------------------------|------------------------------------------------------|
