@@ -135,23 +135,24 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
     const todayRes = await Pedometer.getStepCountAsync(todayStart, now);
     setTodaySteps(todayRes.steps);
 
-    // Backfill the historical window — i = safeDays-1 is the OLDEST
-    // day, i = 0 is today. Today's slot uses todayRes so we don't pay
-    // for two calls covering the same window.
-    const days: number[] = [];
-    const labels: string[] = [];
+    // Backfill the historical window in parallel. The previous version
+    // awaited each day sequentially, so a 90-day load took 90× the
+    // per-call latency (≈3-4s on mid-range Android). With Promise.all
+    // the native bridge fires all queries concurrently and the wall
+    // time collapses to ~one per-call latency. Today's slot reuses
+    // todayRes so we don't pay for two calls covering the same window.
+    const dates: { date: Date; isToday: boolean }[] = [];
     for (let i = safeDays - 1; i >= 0; i--) {
-      if (i === 0) {
-        days.push(todayRes.steps);
-        labels.push(DAY_SHORT[now.getDay()]);
-      } else {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i);
-        const steps = await fetchStepsForDay(d);
-        days.push(steps);
-        labels.push(DAY_SHORT[d.getDay()]);
-      }
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      dates.push({ date: d, isToday: i === 0 });
     }
+    const days = await Promise.all(
+      dates.map(({ date, isToday }) =>
+        isToday ? Promise.resolve(todayRes.steps) : fetchStepsForDay(date),
+      ),
+    );
+    const labels = dates.map(({ date }) => DAY_SHORT[date.getDay()]);
     setHistorySteps(days);
     setHistoryDayLabels(labels);
   }, [safeDays]);
@@ -233,12 +234,22 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
   }, [permission, loadSteps]);
 
   // Live refresh of today's count every minute — only while permission
-  // is granted. We deliberately don't re-query the historical window
-  // here: those days don't change, and re-fetching N days every minute
-  // would be wasteful on Android.
+  // is granted AND the app is in the foreground. We deliberately don't
+  // re-query the historical window here: those days don't change, and
+  // re-fetching N days every minute would be wasteful on Android.
+  //
+  // Round 186: pause polling when AppState != 'active'. setInterval
+  // keeps firing on backgrounded RN apps (the JS thread isn't suspended
+  // until OS-level freeze) — that was burning ~1 native call/min for
+  // every user with the app open in the recents tray. On foreground we
+  // also fire one immediate read to close the gap from however long the
+  // app sat in the background.
   useEffect(() => {
     if (permission !== 'granted') return;
-    const interval = setInterval(async () => {
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const fetchNow = async () => {
       try {
         const now = new Date();
         const res = await Pedometer.getStepCountAsync(startOfDay(now), now);
@@ -252,9 +263,36 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
           return next;
         });
       } catch { /* ignore */ }
-    }, 60_000);
+    };
 
-    return () => clearInterval(interval);
+    const start = () => {
+      if (interval !== null) return;
+      interval = setInterval(fetchNow, 60_000);
+    };
+    const stop = () => {
+      if (interval !== null) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    if (AppState.currentState === 'active') start();
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        // Catch up on however many minutes the app spent in the
+        // background, then resume the regular cadence.
+        fetchNow();
+        start();
+      } else {
+        stop();
+      }
+    });
+
+    return () => {
+      stop();
+      sub.remove();
+    };
   }, [permission]);
 
   // Re-check permission when the app returns to foreground. Covers the
