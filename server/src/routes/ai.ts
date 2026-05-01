@@ -4,6 +4,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { buildDynamicContext } from '../ai/contextEngine';
 import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload } from '../ai/contextTools';
 import { NAV_WHITELIST, validateNavigation } from '../ai/navigationWhitelist';
+import { computeWeightTrend } from '../ai/weightProjection';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
@@ -2496,7 +2497,7 @@ async function executeTool(
     const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
     const safeMealType = VALID_MEAL_TYPES.includes(mealType) ? mealType : 'snack';
 
-    await prisma.meal.create({
+    const created = await prisma.meal.create({
       data: {
         type: safeMealType,
         date: clientDate ?? new Date().toISOString().split('T')[0],
@@ -2518,6 +2519,30 @@ async function executeTool(
       },
     });
 
+    // Round 197: post-write verification. Read back the row + items
+    // and confirm the totals stored in DB match what we computed.
+    // Catches: silent transaction rollback, type-coercion mismatch,
+    // replication lag (fewer items committed than expected). If the
+    // verify fails, throw — classifyToolError will surface a typed
+    // error to the AI rather than letting it claim success on a
+    // half-broken write. Cheap query (single row + items) compared
+    // to the trust the user puts in "Записал X ккал".
+    const verified = await prisma.meal.findUnique({
+      where: { id: created.id },
+      include: { items: true },
+    });
+    if (!verified) {
+      throw new Error('log_meal: written meal not found in verify (transaction rollback?)');
+    }
+    const itemCountMatch = verified.items.length === safeItems.length;
+    const calMatch = Math.abs((verified.totalCalories ?? 0) - totalCalories) < 1;
+    const protMatch = Math.abs((verified.totalProtein ?? 0) - totalProtein) < 0.5;
+    if (!itemCountMatch || !calMatch || !protMatch) {
+      throw new Error(
+        `log_meal: stored values diverge from input — items ${verified.items.length}/${safeItems.length}, kcal ${verified.totalCalories}/${totalCalories}, protein ${verified.totalProtein}/${totalProtein}`,
+      );
+    }
+
     const MEAL_LABELS: Record<string, string> = {
       breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус',
     };
@@ -2528,7 +2553,7 @@ async function executeTool(
     return {
       resultText: `Приём пищи "${label}" добавлен: ${itemSummary}. Итого: ${totalCalories} ккал, Б${totalProtein}г, Ж${totalFats}г, У${totalCarbs}г`,
       actionDescription: description,
-      actionData: { mealType: safeMealType, totalCalories },
+      actionData: { mealId: created.id, mealType: safeMealType, totalCalories, totalProtein, totalFats, totalCarbs },
     };
   }
 
@@ -3404,12 +3429,33 @@ async function executeTool(
     const weights = await prisma.bodyWeight.findMany({ where: { userId, date: { gte: since } }, orderBy: { date: 'asc' } });
     const weightChange = weights.length >= 2 ? (weights[weights.length - 1].weightKg - weights[0].weightKg).toFixed(1) : null;
 
+    // Round 196: ground weight talk in actual trend. Use least-squares
+    // fit instead of just (last - first) which is noisy for any single
+    // data point. Embedded in analysis so AI sees the real number.
+    const trend = computeWeightTrend(
+      weights.map((w) => ({ weightKg: w.weightKg, date: w.date.toISOString().split('T')[0] })),
+    );
+
     const periodLabel = period === 'week' ? 'неделю' : period === '3months' ? '3 месяца' : 'месяц';
     let analysis = `📊 Прогресс за ${periodLabel}:\n\nТренировок: ${totalWorkouts}\nОбщий объём: ${Math.round(totalVolume)} кг\nСреднее время: ${totalWorkouts > 0 ? Math.round(totalDuration / totalWorkouts) : 0} мин\nСредний объём: ${avgVolume} кг/тренировка`;
     if (weightChange) analysis += `\nИзменение веса: ${parseFloat(weightChange) > 0 ? '+' : ''}${weightChange} кг`;
+    if (trend.trend !== 'insufficient_data') {
+      const dir = trend.trend === 'gain' ? 'набор' : trend.trend === 'loss' ? 'потеря' : 'стабильно';
+      analysis += `\nТренд (${trend.sampleCount} замеров): ${dir} ${Math.abs(trend.weeklyDeltaKg).toFixed(2)} кг/нед`;
+    }
     if (topPRs.length > 0) analysis += `\n\nТоп рекорды:\n${prText}`;
 
-    return { resultText: analysis, actionDescription: `Анализ прогресса за ${periodLabel}`, actionData: { totalWorkouts, totalVolume, period } };
+    return {
+      resultText: analysis,
+      actionDescription: `Анализ прогресса за ${periodLabel}`,
+      actionData: {
+        totalWorkouts,
+        totalVolume,
+        period,
+        weightTrendKgPerWeek: trend.weeklyDeltaKg,
+        weightTrendBucket: trend.trend,
+      },
+    };
   }
 
   if (toolName === 'suggest_next_workout') {
