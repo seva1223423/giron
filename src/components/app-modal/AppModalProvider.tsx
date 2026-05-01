@@ -95,12 +95,22 @@ function inferKind(
   const hasDestructive = buttons.some((b) => b?.style === 'destructive');
   const hasCancel = buttons.some((b) => b?.style === 'cancel');
 
+  // Explicit signal — destructive button style — wins over text inference.
   if (hasDestructive) return 'destructive';
-  if (/удал|отмен|выйти|сброс|очист|закрыть тикет/.test(blob)) return 'destructive';
+
+  // Error/info BEFORE destructive substring check: "не удалось" otherwise
+  // matches `/удал/` (substring of "удалось") and gets a trash-can icon
+  // for what is actually a load failure. The "истек" subcase peels off
+  // session-expired prompts (info, not error — user-facing tone is
+  // "your session timed out" rather than "something broke").
   if (/ошиб|не удалось|нет доступа|тайм-аут|неверн|истек/.test(blob)) {
     if (/истек/.test(blob)) return 'info';
     return 'error';
   }
+  // Word-anchored destructive verbs. `удали` (not `удал`) so that
+  // "удалось" / "удалённый" don't false-positive — see test spec for
+  // the locked contract.
+  if (/удали|отмен|выйти|сброс|очист|закрыть тикет/.test(blob)) return 'destructive';
   if (/готово|успешн|сохранен|отправлен|разблокирован|активирован|восстановлен|подтверж/.test(blob)) return 'success';
   if (hasCancel || buttons.length >= 2) return 'confirm';
   return 'info';

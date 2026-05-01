@@ -100,7 +100,7 @@
 src/
   screens/       — admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts (15 областей)
   store/         — 14 Zustand-сторов (все persist через AsyncStorage)
-  components/    — 15 переиспользуемых компонентов
+  components/    — 15 переиспользуемых компонентов + components/app-modal/ (AppModalProvider, ToastHost, installAppAlert)
   navigation/    — AppNavigator.tsx (трёхступенчатый: Auth/Onboarding/Main)
   services/      — 14 API-сервисов
   hooks/         — useHaptic.ts, useSafeTop.ts, useAchievementCheck.ts, usePedometer.ts
@@ -215,6 +215,20 @@ Force-update flow (когда старая версия должна обнов�
 Не спавнить для: чисто backend, Prisma, AI tools, серверных маршрутов, type-only изменений без визуального эффекта, test-only изменений (кроме визуальных снапшотов).
 
 Полное определение агента: `.claude/agents/design.md`. Он знает все 38 иконок, 18 стилей типографики, точные hex Direction A, банлист старой палитры, audit-команды grep, паттерны миграции legacy → Direction A.
+
+## Системные модалки и тосты — `src/components/app-modal/`
+
+Все ~270 вызовов `Alert.alert(...)` в коде рендерятся через брендированный `AppModalProvider` (Direction A: графит + золото, hero-иконка из Ionicons, animated scale-in). Подмена работает через `installAppAlert()` в `App.tsx`, которая один раз патчит `RN.Alert.alert` — переписывать существующие `Alert.alert(...)` не нужно.
+
+- `AppModalProvider` — обёртка над приложением, владеет состоянием модалки
+- `_AppModalGlobalBridge` — захватывает `show()` в module scope, чтобы `Alert.alert` мог стрелять из любого места (axios interceptors, error reporter)
+- `installAppAlert()` — идемпотентная подмена, вызывается один раз на бут (`App.tsx`)
+- `ToastHost` + `toast.success(...) / .error / .warn / .info` — top-toast (комплементарно к существующему bottom-`useToast` для блокирующих Alert'ов с экшеном)
+- `useAppModal()` — императивный API: `m.show({ kind, title, message, buttons })`
+
+5 видов модалок: `error / success / info / confirm / destructive`. Если `kind` не указан, классифицируется эвристикой `inferKind` по тексту title+message и стилям кнопок. Контракт эвристики залочен тестом `src/__tests__/appModalProvider.test.ts` (пин 18 кейсов).
+
+Дизайн в канвасе: `docs/design/handoff/canvas/index.html` — артборды 22-30 (модалки и тосты).
 
 ## Язык
 Пользователь общается на русском. Комментарии и коммиты на английском.
