@@ -56,8 +56,9 @@ const DEVICES: RealDevice[] = [
   { name: 'iPhone 12 / 12 Pro / 13 / 13 Pro / 14', width: 390, height: 844, dpr: 3, family: 'iphone' },
   { name: 'iPhone 12 Pro Max / 13 Pro Max / 14 Plus', width: 428, height: 926, dpr: 3, family: 'iphone' },
   { name: 'iPhone 14 Pro / 15 / 15 Pro / 16', width: 393, height: 852, dpr: 3, family: 'iphone' },
-  { name: 'iPhone 14 Pro Max / 15 Plus / 15 Pro Max', width: 430, height: 932, dpr: 3, family: 'iphone' },
-  { name: 'iPhone 16 Plus / 16 Pro Max', width: 440, height: 956, dpr: 3, family: 'iphone' },
+  { name: 'iPhone 14 Pro Max / 15 Plus / 15 Pro Max / 16 Plus', width: 430, height: 932, dpr: 3, family: 'iphone' },
+  { name: 'iPhone 16 Pro (NEW size, 6.3")', width: 402, height: 874, dpr: 3, family: 'iphone' },
+  { name: 'iPhone 16 Pro Max (NEW size, 6.9")', width: 440, height: 956, dpr: 3, family: 'iphone' },
 
   // ────── Samsung Galaxy S (premium) ──────
   { name: 'Galaxy S8 / S9', width: 360, height: 740, dpr: 4, family: 'samsung', era: 'legacy' },
@@ -122,6 +123,8 @@ const DEVICES: RealDevice[] = [
   { name: 'Pixel 7 / 7a', width: 412, height: 915, dpr: 2.625, family: 'pixel' },
   { name: 'Pixel 8 / 8a', width: 412, height: 915, dpr: 2.625, family: 'pixel' },
   { name: 'Pixel 8 Pro', width: 448, height: 998, dpr: 3, family: 'pixel' },
+  { name: 'Pixel 9 / 9 Pro', width: 412, height: 915, dpr: 3, family: 'pixel' },
+  { name: 'Pixel 9 Pro XL', width: 448, height: 998, dpr: 3, family: 'pixel' },
 
   // ────── OnePlus / Nord ──────
   { name: 'OnePlus 9 / 10 / 11 / 12', width: 412, height: 915, dpr: 3, family: 'oneplus' },
@@ -130,13 +133,18 @@ const DEVICES: RealDevice[] = [
 
   // ────── Foldables ──────
   { name: 'Galaxy Z Fold 3 (closed)', width: 374, height: 832, dpr: 3.5, family: 'foldable' },
-  { name: 'Galaxy Z Fold 3 (open)', width: 768, height: 768, dpr: 2.625, family: 'foldable' },
+  { name: 'Galaxy Z Fold 3 (open)', width: 673, height: 841, dpr: 2.625, family: 'foldable' },
   { name: 'Galaxy Z Fold 4 (closed)', width: 374, height: 832, dpr: 3.5, family: 'foldable' },
+  { name: 'Galaxy Z Fold 4 (open)', width: 712, height: 870, dpr: 2.625, family: 'foldable' },
   { name: 'Galaxy Z Fold 5/6 (closed)', width: 384, height: 832, dpr: 3.5, family: 'foldable' },
-  { name: 'Galaxy Z Fold 5/6 (open)', width: 819, height: 768, dpr: 2.625, family: 'foldable' },
+  { name: 'Galaxy Z Fold 5/6 (open)', width: 819, height: 879, dpr: 2.625, family: 'foldable' },
   { name: 'Galaxy Z Flip 4/5/6 (open)', width: 412, height: 919, dpr: 2.625, family: 'foldable' },
   { name: 'Pixel Fold (closed)', width: 384, height: 841, dpr: 3, family: 'foldable' },
-  { name: 'Pixel Fold (open)', width: 841, height: 712, dpr: 2.625, family: 'foldable' },
+  { name: 'Pixel Fold (open)', width: 841, height: 700, dpr: 2.625, family: 'foldable' },
+  // ────── More foldables ──────
+  { name: 'OnePlus Open', width: 757, height: 826, dpr: 2.625, family: 'foldable' },
+  { name: 'Honor Magic V2 (open)', width: 822, height: 884, dpr: 2.625, family: 'foldable' },
+  { name: 'Huawei Mate X3 (open)', width: 778, height: 868, dpr: 2.625, family: 'foldable' },
 
   // ────── Tecno / Infinix (emerging markets, growing in CIS) ──────
   { name: 'Tecno Spark 8 / 9 / 10', width: 360, height: 800, dpr: 2, family: 'other' },
@@ -144,11 +152,43 @@ const DEVICES: RealDevice[] = [
   { name: 'Infinix Hot 11 / 12', width: 360, height: 800, dpr: 2, family: 'other' },
   { name: 'Infinix Note 11 / 12', width: 393, height: 851, dpr: 2.75, family: 'other' },
 
+  // ────── Newer 2024-2025 Chinese-market phones ──────
+  { name: 'Oppo Find X7 / X7 Ultra', width: 412, height: 919, dpr: 3.5, family: 'other' },
+  { name: 'Oppo Reno 11 / 12', width: 412, height: 915, dpr: 2.625, family: 'other' },
+  { name: 'Vivo X100 / X100 Pro', width: 412, height: 919, dpr: 3.5, family: 'vivo' },
+  { name: 'Vivo S18 / S19', width: 393, height: 873, dpr: 2.75, family: 'vivo' },
+  { name: 'Realme GT 6 / GT Neo 6', width: 412, height: 915, dpr: 3, family: 'realme' },
+  { name: 'Xiaomi 14 / 14 Pro', width: 393, height: 873, dpr: 3.5, family: 'xiaomi' },
+  { name: 'Xiaomi 14 Ultra', width: 412, height: 915, dpr: 3.5, family: 'xiaomi' },
+  { name: 'Honor 100 / 100 Pro', width: 412, height: 915, dpr: 2.75, family: 'honor' },
+  { name: 'Honor Magic 6 Pro', width: 412, height: 919, dpr: 3.5, family: 'honor' },
+
+  // ────── Tablets (10% of users — needed for Galaxy Tab market) ──────
+  { name: 'Galaxy Tab A7 / A8', width: 800, height: 1280, dpr: 1.5, family: 'samsung' },
+  { name: 'Galaxy Tab S6 Lite', width: 800, height: 1280, dpr: 2, family: 'samsung' },
+  { name: 'Galaxy Tab S7 / S8', width: 753, height: 1193, dpr: 2.25, family: 'samsung' },
+  { name: 'Galaxy Tab S9 / S9 FE', width: 800, height: 1280, dpr: 2, family: 'samsung' },
+  { name: 'Galaxy Tab S9 Ultra', width: 1024, height: 1536, dpr: 2.75, family: 'samsung' },
+  { name: 'Galaxy Tab S10 / S10+', width: 800, height: 1280, dpr: 2.5, family: 'samsung' },
+  { name: 'Lenovo Tab P11 / P12', width: 800, height: 1280, dpr: 1.5, family: 'other' },
+  { name: 'Huawei MatePad 11', width: 800, height: 1280, dpr: 2, family: 'other' },
+  { name: 'Xiaomi Pad 6 / 6 Pro', width: 800, height: 1280, dpr: 2.25, family: 'xiaomi' },
+  { name: 'Redmi Pad / Redmi Pad SE', width: 800, height: 1280, dpr: 2, family: 'xiaomi' },
+  { name: 'iPad mini 6/7 (8.3")', width: 744, height: 1133, dpr: 2, family: 'iphone' },
+  { name: 'iPad 10th gen (10.9")', width: 820, height: 1180, dpr: 2, family: 'iphone' },
+  { name: 'iPad Air (10.9")', width: 820, height: 1180, dpr: 2, family: 'iphone' },
+  { name: 'iPad Pro 11" (M2/M4)', width: 834, height: 1194, dpr: 2, family: 'iphone' },
+  { name: 'iPad Pro 13" (M2/M4)', width: 1024, height: 1366, dpr: 2, family: 'iphone' },
+
   // ────── Misc legacy / niche ──────
   { name: 'Lenovo K-series (K8/K9)', width: 360, height: 640, dpr: 2, family: 'other', era: 'legacy' },
   { name: 'Motorola G-series (G8/G9)', width: 393, height: 851, dpr: 2.75, family: 'other' },
+  { name: 'Motorola Edge 30 / 40', width: 412, height: 915, dpr: 2.625, family: 'other' },
   { name: 'Sony Xperia 1 / 5', width: 411, height: 960, dpr: 3.5, family: 'other' },
+  { name: 'Sony Xperia 10 V', width: 360, height: 800, dpr: 2.75, family: 'other' },
   { name: 'Asus Zenfone', width: 393, height: 851, dpr: 2.75, family: 'other' },
+  { name: 'Asus ROG Phone 7 / 8', width: 412, height: 915, dpr: 2.625, family: 'other' },
+  { name: 'Nokia G50 / G60', width: 360, height: 800, dpr: 2, family: 'other' },
 ];
 
 // ─── Sanity ──────────────────────────────────────────────────────────────────
@@ -178,9 +218,11 @@ describe('Top-90% device matrix coverage', () => {
     expect(Math.max(...widths)).toBeGreaterThanOrEqual(800);
   });
 
-  test('DPR range spans 2x to 4x', () => {
+  test('DPR range spans 1.5x (budget tablets) to 4x (Galaxy S8/S9)', () => {
     const dprs = DEVICES.map((d) => d.dpr);
-    expect(Math.min(...dprs)).toBeGreaterThanOrEqual(2);
+    // Budget tablets like Galaxy Tab A7/A8 use 1.5x DPR — lower than
+    // any phone but valid for the tablet form factor.
+    expect(Math.min(...dprs)).toBeGreaterThanOrEqual(1.5);
     expect(Math.max(...dprs)).toBeGreaterThanOrEqual(3.5);
   });
 
