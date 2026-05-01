@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 
 /**
@@ -99,7 +99,22 @@ function endOfDay(d: Date): Date {
   return r;
 }
 
+/**
+ * iOS HealthKit retains pedometer history for 7 days only; CMPedometer
+ * returns 0 for any range whose start is older than that. Skipping the
+ * native trip up front saves 22 zero-yield calls on a 30-day refresh
+ * and 82 on a 90-day refresh, with no observable change to the UI
+ * (those slots already came back as 0). Android has no documented
+ * universal limit — Health Connect can return data for years and the
+ * legacy fallback is device-specific — so we don't clamp there.
+ */
+const IOS_PEDOMETER_HISTORY_DAYS = 7;
+
 async function fetchStepsForDay(date: Date): Promise<number> {
+  if (Platform.OS === 'ios') {
+    const ageDays = Math.floor((Date.now() - date.getTime()) / 86_400_000);
+    if (ageDays >= IOS_PEDOMETER_HISTORY_DAYS) return 0;
+  }
   try {
     const result = await Pedometer.getStepCountAsync(startOfDay(date), endOfDay(date));
     return result.steps;
