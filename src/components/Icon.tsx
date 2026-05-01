@@ -21,7 +21,7 @@ export type IconName =
   | 'timer' | 'camera' | 'mic' | 'scan' | 'heart' | 'bolt' | 'target'
   | 'plus' | 'play' | 'pause' | 'refresh' | 'send' | 'search' | 'logo'
   | 'dumbbell' | 'apple' | 'chart' | 'user' | 'home' | 'message' | 'bookmark' | 'more'
-  | 'settings' | 'lock' | 'grid' | 'news' | 'water' | 'moon' | 'rouble';
+  | 'settings' | 'lock' | 'grid' | 'news' | 'water' | 'moon' | 'rouble' | 'link';
 
 interface Props {
   name: IconName;
@@ -202,6 +202,14 @@ const PATHS: Record<IconName, (color: string, sw: number) => React.ReactNode> = 
   ),
   rouble: (c, sw) => (
     <Path d="M7 20V4h5a4.5 4.5 0 0 1 0 9H5M5 16h8" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  // Скрепка-цепь — обозначение «привязанные аккаунты». Две переплетённые петли,
+  // canonical link icon (Feather/Lucide style) выглядит органично рядом с lock/settings.
+  link: (c, sw) => (
+    <>
+      <Path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </>
   ),
 };
 

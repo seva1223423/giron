@@ -1,12 +1,10 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
-import { Card, Button, AnimatedPressable, Icon, type IconName, GoogleAuthButton } from '../../components';
+import { Card, Button, AnimatedPressable, Icon, type IconName } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
@@ -32,15 +30,6 @@ const LEVEL_LABELS: Record<string, string> = {
   ADVANCED: 'Продвинутый', advanced: 'Продвинутый',
   EXPERT: 'Эксперт', expert: 'Эксперт',
 };
-
-const VK_APP_ID = process.env.EXPO_PUBLIC_VK_APP_ID;
-const YANDEX_CLIENT_ID = process.env.EXPO_PUBLIC_YANDEX_CLIENT_ID;
-const MAILRU_APP_ID = process.env.EXPO_PUBLIC_MAILRU_APP_ID;
-const googleConfigured = !!(
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS ||
-  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID
-);
 
 const ProfileRow: React.FC<{ label: string; value: string; colors: any; isLast?: boolean }> = ({ label, value, colors, isLast }) => (
   <View style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md }, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
@@ -100,8 +89,6 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const { dailyLog } = useNutritionStore();
 
   const [weightHistory, setWeightHistory] = useState<BodyWeight[]>([]);
-  const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
-  const [linkingProvider, setLinkingProvider] = useState<string | null>(null);
   const [resendingVerif, setResendingVerif] = useState(false);
   const [showEmailVerifModal, setShowEmailVerifModal] = useState(false);
   const [emailVerifCode, setEmailVerifCode] = useState('');
@@ -159,116 +146,6 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   }, [workoutHistory, dailyLog]);
 
   const unlockedAchievements = achievements.filter((a) => a.unlockedAt);
-
-  const handleUnlink = (provider: 'yandex' | 'vk' | 'google' | 'mailru', label: string) => {
-    Alert.alert(
-      `Отвязать ${label}?`,
-      'Вы больше не сможете входить через этот аккаунт.',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Отвязать',
-          style: 'destructive',
-          onPress: async () => {
-            setUnlinkingProvider(provider);
-            try {
-              await userService.unlinkProvider(provider);
-              await useAuthStore.getState().fetchProfile();
-            } catch (e: any) {
-              Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось отвязать аккаунт');
-            } finally {
-              setUnlinkingProvider(null);
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const handleLinkVk = async () => {
-    if (!VK_APP_ID) { Alert.alert('Ошибка', 'VK OAuth не настроен'); return; }
-    setLinkingProvider('vk');
-    try {
-      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/vk' });
-      const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email&state=${state}`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      if (result.type !== 'success') return;
-      const fragment = result.url.split('#')[1] ?? '';
-      const params = new URLSearchParams(fragment);
-      const returnedState = params.get('state');
-      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
-      const accessToken = params.get('access_token');
-      const userId = params.get('user_id');
-      if (!accessToken || !userId) { Alert.alert('Ошибка', 'Не удалось получить данные от VK'); return; }
-      await userService.linkProvider('vk', { accessToken, userId });
-      await useAuthStore.getState().fetchProfile();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать VK');
-    } finally {
-      setLinkingProvider(null);
-    }
-  };
-
-  const handleLinkYandex = async () => {
-    if (!YANDEX_CLIENT_ID) { Alert.alert('Ошибка', 'Yandex OAuth не настроен'); return; }
-    setLinkingProvider('yandex');
-    try {
-      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/yandex' });
-      const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      if (result.type !== 'success') return;
-      const fragment = result.url.split('#')[1] ?? '';
-      const params = new URLSearchParams(fragment);
-      const returnedState = params.get('state');
-      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
-      const accessToken = params.get('access_token');
-      if (!accessToken) { Alert.alert('Ошибка', 'Не удалось получить токен от Яндекса'); return; }
-      await userService.linkProvider('yandex', { accessToken });
-      await useAuthStore.getState().fetchProfile();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Яндекс');
-    } finally {
-      setLinkingProvider(null);
-    }
-  };
-
-  const handleLinkMailru = async () => {
-    if (!MAILRU_APP_ID) { Alert.alert('Ошибка', 'Mail.ru OAuth не настроен'); return; }
-    setLinkingProvider('mailru');
-    try {
-      const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/mailru' });
-      const authUrl = `https://oauth.mail.ru/login?client_id=${MAILRU_APP_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=userinfo&state=${state}`;
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-      if (result.type !== 'success') return;
-      const fragment = result.url.split('#')[1] ?? '';
-      const params = new URLSearchParams(fragment);
-      const returnedState = params.get('state');
-      if (returnedState !== state) { Alert.alert('Ошибка безопасности', 'Невалидный state'); return; }
-      const accessToken = params.get('access_token');
-      if (!accessToken) { Alert.alert('Ошибка', 'Не удалось получить токен от Mail.ru'); return; }
-      await userService.linkProvider('mailru', { accessToken });
-      await useAuthStore.getState().fetchProfile();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Mail.ru');
-    } finally {
-      setLinkingProvider(null);
-    }
-  };
-
-  const handleGoogleLinkSuccess = async (idToken: string) => {
-    setLinkingProvider('google');
-    try {
-      await userService.linkProvider('google', { accessToken: idToken });
-      await useAuthStore.getState().fetchProfile();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось привязать Google');
-    } finally {
-      setLinkingProvider(null);
-    }
-  };
 
   const handleLogout = () => {
     Alert.alert('Выйти из аккаунта?', '', [
@@ -741,145 +618,30 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
         </View>
 
-        {/* Linked social accounts — VK */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.hasVk ? '#0077FF18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.hasVk ? '#0077FF40' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.hasVk ? '#0077FF' : colors.textSecondary }}>ВК</Text>
+        {/* Привязанные аккаунты — отдельный экран. Раньше тут были 4 строки
+            (VK / Яндекс / Google / Mail.ru) inline; вынесли в LinkedAccountsScreen,
+            чтобы профиль не превращался в простыню. */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}
+          onPress={() => navigation.navigate('LinkedAccountsScreen')}
+        >
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: colors.primary + '18', borderWidth: 1, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+            <Icon name="link" size={16} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[typography.smallMedium, { color: colors.text }]}>VK ID</Text>
-            <Text style={[typography.caption, { color: user?.hasVk ? '#34C759' : colors.textTertiary }]}>
-              {user?.hasVk ? 'Привязан' : 'Не привязан'}
-            </Text>
+            <Text style={[typography.smallMedium, { color: colors.text }]}>Привязанные аккаунты</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>VK · Яндекс · Google · Mail.ru</Text>
           </View>
-          {user?.hasVk ? (
-            <TouchableOpacity
-              onPress={() => handleUnlink('vk', 'VK')}
-              disabled={unlinkingProvider === 'vk'}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
-                {unlinkingProvider === 'vk' ? '...' : 'Отвязать'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleLinkVk}
-              disabled={linkingProvider === 'vk'}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
-                {linkingProvider === 'vk' ? '...' : 'Привязать'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Linked social accounts — Yandex */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user?.yandexId || user?.hasYandex) ? '#FC3F1D18' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: (user?.yandexId || user?.hasYandex) ? '#FC3F1D40' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: (user?.yandexId || user?.hasYandex) ? '#FC3F1D' : colors.textSecondary }}>Я</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.smallMedium, { color: colors.text }]}>Яндекс ID</Text>
-            <Text style={[typography.caption, { color: (user?.yandexId || user?.hasYandex) ? '#34C759' : colors.textTertiary }]}>
-              {(user?.yandexId || user?.hasYandex) ? 'Привязан' : 'Не привязан'}
-            </Text>
-          </View>
-          {(user?.yandexId || user?.hasYandex) ? (
-            <TouchableOpacity
-              onPress={() => handleUnlink('yandex', 'Яндекс')}
-              disabled={unlinkingProvider === 'yandex'}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
-                {unlinkingProvider === 'yandex' ? '...' : 'Отвязать'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleLinkYandex}
-              disabled={linkingProvider === 'yandex'}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
-                {linkingProvider === 'yandex' ? '...' : 'Привязать'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Linked social accounts — Google */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: (user?.googleId || user?.hasGoogle) ? '#4285F418' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: (user?.googleId || user?.hasGoogle) ? '#4285F440' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: (user?.googleId || user?.hasGoogle) ? '#4285F4' : colors.textSecondary }}>G</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.smallMedium, { color: colors.text }]}>Google</Text>
-            <Text style={[typography.caption, { color: (user?.googleId || user?.hasGoogle) ? '#34C759' : colors.textTertiary }]}>
-              {(user?.googleId || user?.hasGoogle) ? 'Привязан' : 'Не привязан'}
-            </Text>
-          </View>
-          {(user?.googleId || user?.hasGoogle) ? (
-            <TouchableOpacity
-              onPress={() => handleUnlink('google', 'Google')}
-              disabled={unlinkingProvider === 'google'}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
-                {unlinkingProvider === 'google' ? '...' : 'Отвязать'}
-              </Text>
-            </TouchableOpacity>
-          ) : googleConfigured ? (
-            <GoogleAuthButton
-              mode="link"
-              onSuccess={handleGoogleLinkSuccess}
-              onError={(msg) => Alert.alert('Ошибка', msg)}
-              disabled={linkingProvider === 'google'}
-            />
-          ) : (
-            <TouchableOpacity
-              onPress={() => Alert.alert('Ошибка', 'Google OAuth не настроен')}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>Привязать</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Linked social accounts — Mail.ru */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: user?.hasMailru ? '#FF660018' : colors.border, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, borderWidth: 1, borderColor: user?.hasMailru ? '#FF660040' : 'transparent' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: user?.hasMailru ? '#FF6600' : colors.textSecondary }}>M</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.smallMedium, { color: colors.text }]}>Mail.ru</Text>
-            <Text style={[typography.caption, { color: user?.hasMailru ? '#34C759' : colors.textTertiary }]}>
-              {user?.hasMailru ? 'Привязан' : 'Не привязан'}
-            </Text>
-          </View>
-          {user?.hasMailru ? (
-            <TouchableOpacity
-              onPress={() => handleUnlink('mailru', 'Mail.ru')}
-              disabled={unlinkingProvider === 'mailru'}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.error + '10', borderWidth: 1, borderColor: colors.error + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.error, fontWeight: '600' }]}>
-                {unlinkingProvider === 'mailru' ? '...' : 'Отвязать'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleLinkMailru}
-              disabled={linkingProvider === 'mailru'}
-              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '10', borderWidth: 1, borderColor: colors.primary + '30' }}
-            >
-              <Text style={[typography.caption, { color: colors.primary, fontWeight: '600' }]}>
-                {linkingProvider === 'mailru' ? '...' : 'Привязать'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+          {(() => {
+            const linkedCount = [user?.hasVk, (user?.yandexId || user?.hasYandex), (user?.googleId || user?.hasGoogle), user?.hasMailru].filter(Boolean).length;
+            return (
+              <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: linkedCount > 0 ? '#34C75920' : colors.border, marginRight: spacing.sm }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: linkedCount > 0 ? '#34C759' : colors.textTertiary }}>{linkedCount}/4</Text>
+              </View>
+            );
+          })()}
+          <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
 
         {/* Change password */}
         <TouchableOpacity

@@ -574,7 +574,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               icon: 'chart',
               label: 'Добавить вес',
               subtitle: 'Утреннее взвешивание',
-              onPress: () => navigation.navigate('ProgressTab'),
+              onPress: () => navigation.navigate('WorkoutsTab', { screen: 'Progress' }),
+            },
+            {
+              icon: 'spark',
+              label: 'Прогресс',
+              subtitle: 'Графики и статистика',
+              onPress: () => navigation.navigate('WorkoutsTab', { screen: 'Progress' }),
             },
           ]}
         />

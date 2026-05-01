@@ -62,6 +62,7 @@ import { SecurityEventsScreen } from '../screens/profile/SecurityEventsScreen';
 import { ChangePhoneScreen } from '../screens/profile/ChangePhoneScreen';
 import { TwoFactorScreen } from '../screens/profile/TwoFactorScreen';
 import { ChangeEmailScreen } from '../screens/profile/ChangeEmailScreen';
+import { LinkedAccountsScreen } from '../screens/profile/LinkedAccountsScreen';
 import { CardioScreen } from '../screens/cardio/CardioScreen';
 import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
 import SupportScreen from '../screens/support/SupportScreen';
@@ -92,7 +93,6 @@ const TAB_ICONS: Record<string, string> = {
   HomeTab: '◉',
   WorkoutsTab: '◎',
   NutritionTab: '◑',
-  ProgressTab: '◧',
   AITab: '◈',
   ProfileTab: '○',
 };
@@ -171,6 +171,9 @@ function WorkoutsStackNavigator() {
       <WorkoutsStack.Screen name="Cardio" component={CardioScreen} />
       <WorkoutsStack.Screen name="AddCardio" component={AddCardioScreen} options={{ animation: 'slide_from_bottom' }} />
       <WorkoutsStack.Screen name="AIProgramDetail" component={AIProgramDetailScreen} />
+      {/* Прогресс перенесён сюда из таб-бара. Доступен по навигации
+          (Home → quick action), но не показывается в WorkoutsScreen. */}
+      <WorkoutsStack.Screen name="Progress" component={ProgressScreen} options={{ animation: 'slide_from_right' }} />
     </WorkoutsStack.Navigator>
   );
 }
@@ -198,7 +201,7 @@ function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator
       screenOptions={({ route }) => ({
-        headerShown: ['SupportScreen','CreateTicketScreen','SupportTicketScreen',
+        headerShown: ['SupportScreen','CreateTicketScreen','SupportTicketScreen','LinkedAccountsScreen',
           'AdminDashboardScreen','AdminUsersScreen','AdminUserDetailScreen',
           'AdminSupportScreen','AdminTicketScreen','AdminLogsScreen','AdminAnalyticsScreen',
           'AdminMetricsKeyScreen',
@@ -224,6 +227,8 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ChangePhoneScreen" component={ChangePhoneScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="TwoFactorScreen" component={TwoFactorScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="ChangeEmailScreen" component={ChangeEmailScreen} options={{ headerShown: false }} />
+      {/* Привязанные аккаунты — отдельный экран; раньше жил inline в ProfileScreen */}
+      <ProfileStack.Screen name="LinkedAccountsScreen" component={LinkedAccountsScreen} options={{ title: 'Привязанные аккаунты' }} />
       {/* Support */}
       <ProfileStack.Screen name="NewsScreen" component={NewsScreen} options={{ headerShown: false }} />
       <ProfileStack.Screen name="SupportScreen" component={SupportScreen} options={{ title: 'Поддержка' }} />
@@ -345,14 +350,6 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="ProgressTab"
-        component={ProgressScreen}
-        options={{
-          tabBarAccessibilityLabel: 'Прогресс',
-          tabBarIcon: ({ focused }) => <TabIcon iconName="chart" label="Прогресс" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}
         options={{
@@ -401,7 +398,6 @@ const linking: any = {
               NutritionMain: 'nutrition',
             },
           },
-          ProgressTab: 'progress',
           AITab: 'ai',
         },
       },
