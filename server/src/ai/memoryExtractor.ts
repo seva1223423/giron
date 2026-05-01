@@ -527,6 +527,65 @@ export const MEMORY_PATTERNS: MemoryPattern[] = [
   // dateOfBirth but users mention age in chat ("мне 30"). Stored so the
   // AI can confirm against profile + raise contradiction if inconsistent.
   { regex: /(?:мне|мой\s*возраст)\s*(\d{1,2})\s*(?:лет|года?)?/i, category: 'preference', key: 'age_years', extract: (m) => `${m[1]}`, confidence: 0.9 },
+
+  // ─── Round 189: gaps from AI audit ───────────────────────────────────────
+  //
+  // Compliance signals — "не выполнил" / "пропустил" / "не сходил".
+  // Critical for retention coaching: when user admits a missed workout,
+  // the AI should pick that up next session and address it ("на прошлой
+  // неделе ты пропустил две тренировки — давай разберёмся почему")
+  // rather than blindly suggesting the next session. Stored as count
+  // hint so the AI can compare across sessions.
+  { regex: /(?:не\s*выполнил[аи]?|пропустил[аи]?|не\s*сходил[аи]?|сорвал[ся]+|забил[аи]?)\s*(?:на\s*)?(?:последн[а-я]+\s*)?(?:тренировк|зал|неделю)/i, category: 'habit', key: 'missed_workout_recently', extract: () => 'true', confidence: 0.85 },
+  { regex: /пропустил[аи]?\s*(\d+)\s*(?:тренировк|раз)/i, category: 'habit', key: 'missed_workouts_count', extract: (m) => `${m[1]}`, confidence: 0.9 },
+
+  // Exercise-tied pain — "болит спина когда жму" — captures the exercise
+  // that triggers the pain, not just the body part. Critical safety
+  // input: the AI should suggest a substitute or form check, not just
+  // tell the user to "rest spine" when the trigger is bench-press form.
+  // Two-stage capture: pain area + exercise trigger in same pattern.
+  // Pain verbs: болит/боли/тянет/стрел; exercise stems: жим/тяг/присед/
+  // становой/подтягива/отжима/бег (full stems, not abbreviations).
+  { regex: /(?:болит|боли|тянет|стрел[а-я]+)\s*(спин|поясниц|плеч|колен|шей|локт)[а-я]*\s*(?:когда|при)\s*(?:я\s*)?(жим|тяг|тян|присед|становой|подтягива|отжима|бег)/gi, category: 'injury', key: 'exercise_triggered_pain', multiMatch: true, keyFn: (m) => `pain_${m[1].toLowerCase().slice(0, 5)}_${m[2].toLowerCase().slice(0, 5)}`, extract: (m) => `${m[1]} при ${m[2]}`, confidence: 0.9 },
+
+  // Seasonal training — "только летом", "зимой не тренируюсь", "сезон
+  // с сентября". Captures users with cyclical schedules (outdoor sports,
+  // climbing, cycling) so the AI doesn't push winter strength programs
+  // to someone who only does summer cardio.
+  { regex: /(?:только\s*)?(?:тренируюсь|занимаюсь|хожу\s*в\s*зал)\s*(?:только\s*)?(?:летом|зимой|осенью|весной)/i, category: 'schedule', key: 'seasonal_training_window', extract: (m) => m[0].match(/летом|зимой|осенью|весной/i)?.[0]?.toLowerCase() ?? '', confidence: 0.85 },
+  { regex: /(?:зимой|осенью)\s*не\s*(?:тренируюсь|занимаюсь|хожу)/i, category: 'schedule', key: 'inactive_season', extract: (m) => m[0].match(/зимой|осенью/i)?.[0]?.toLowerCase() ?? '', confidence: 0.9 },
+
+  // Returning after a break — "вернулся после паузы", "не тренировался
+  // полгода". Important so AI doesn't prescribe pre-break loads to a
+  // detrained user (injury risk).
+  { regex: /(?:не\s*(?:тренировался[а-я]*|занимался[а-я]*))\s*(\d+)\s*(?:месяц|год|нед)/i, category: 'habit', key: 'detrain_duration', extract: (m) => `${m[1]}+ ${m[0].includes('месяц') ? 'мес' : m[0].includes('нед') ? 'нед' : 'лет'}`, confidence: 0.9 },
+  { regex: /(?:вернул[ся]+|возвращаюсь|после\s*паузы|после\s*перерыва)\s*(?:в\s*спорт|к\s*тренировкам|в\s*зал)/i, category: 'habit', key: 'recently_returned', extract: () => 'true', confidence: 0.8 },
+
+  // Lifestyle constraints that affect programming —
+  //   "много работы" → time-poor, recovery-poor → suggest LISS/short HIIT
+  //   "много стресса" → cortisol-elevated → reduce frequency, focus mobility
+  //   "плохой сон" → recovery deficit → push sleep coaching
+  { regex: /(?:много\s*работы|постоянно\s*работаю|работа\s*забирает|вкалываю)/i, category: 'preference', key: 'lifestyle_busy', extract: () => 'true', confidence: 0.7 },
+  { regex: /(?:много\s*стресса|постоянный?\s*стресс|сильно\s*стрессую|нервный?\s*период)/i, category: 'preference', key: 'lifestyle_stressed', extract: () => 'true', confidence: 0.75 },
+  { regex: /(?:плохо\s*сплю|плохой\s*сон|мало\s*сплю|не\s*высыпаюсь)/i, category: 'habit', key: 'sleep_quality_poor', extract: () => 'true', confidence: 0.8 },
+
+  // Implicit favorite/disliked exercise — handled by line 173-174 with
+  // explicit "люблю/нравится" prefix. Add comparative form: "X лучше
+  // чем Y" → favorite is X. This catches users who don't lead with
+  // explicit emotion but compare exercises.
+  { regex: /(жим|присед|тяг|подтягиван|отжиман)\w*\s*(?:мне\s*)?(?:гораздо\s*)?(?:лучше|интересне[ея]|приятне[ея])\s*(?:чем\s*)?(жим|присед|тяг|подтягиван|отжиман|кардио)/i, category: 'preference', key: 'favorite_exercise', extract: (m) => m[1], confidence: 0.7 },
+
+  // Body part focus — "хочу руки", "хочу больше качать руки",
+  // "тренирую только ноги", "работаю над ягодицами". Different from
+  // goal (которая похудение/масса/сила) — this is the muscle group
+  // the user obsesses over. Drives split selection.
+  // Permissive intermediate phrasing: "хочу [больше] [качать] [большие] X".
+  { regex: /(?:хочу|мечтаю|тренирую|качаю|работаю\s+над|нагружаю)\s*(?:больше\s*)?(?:качать|нараст\w+|развит\w+|уделя\w+\s+внимани[ея])?\s*(?:только\s*)?(?:большие\s*)?(плечи|руки|ноги|спину|пресс|грудь|икры|бицепс[а-я]*|трицепс[а-я]*|ягодиц[а-я]+)/i, category: 'preference', key: 'focus_muscle_group', extract: (m) => m[1].toLowerCase().slice(0, 12), confidence: 0.7 },
+
+  // Specific PR / 1RM goals — "хочу 100 кг в жиме", "цель 200 в становой".
+  // Different from milestone_pr_kg (line 259) which captures already-
+  // achieved milestones. This is the FUTURE target.
+  { regex: /(?:хочу|цель)\s*(\d{2,3})\s*(?:кг)?\s*(?:в|на)\s*(жим|присед|становой|тяге|тяга|становая)/i, category: 'goal', key: 'lift_pr_target', multiMatch: true, keyFn: (m) => `pr_target_${m[2].toLowerCase().slice(0, 6)}`, extract: (m) => `${m[1]} кг (${m[2]})`, confidence: 0.9 },
 ];
 
 /**
