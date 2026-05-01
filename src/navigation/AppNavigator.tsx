@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, AppState, Platform, Linking } from 'react-native';
+import { createMaterialTopTabNavigator, type MaterialTopTabBarProps } from '@react-navigation/material-top-tabs';
+import { Text, View, AppState, Platform, Linking, Pressable, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore, useAuthStore } from '../store';
 import { useConnectionStore } from '../store/useConnectionStore';
@@ -83,7 +83,7 @@ import { AdminGuard } from '../screens/admin/AdminGuard';
 import { AIProgramDetailScreen } from '../screens/workouts/AIProgramDetailScreen';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab = createMaterialTopTabNavigator();
 const WorkoutsStack = createNativeStackNavigator();
 const NutritionStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
@@ -272,10 +272,109 @@ function ProfileStackNavigator() {
   );
 }
 
-// Main Tab Navigator
-function MainTabs() {
+// Tab metadata: icon name, label, accessibility label, and whether
+// it's the gold center variant (AI). Lookup keyed by route name so
+// PremiumTabBar can render any subset/order without hard-coding indexes.
+type TabMeta = {
+  iconName: IconSetName;
+  label: string;
+  accessibilityLabel: string;
+  center?: boolean;
+};
+const TAB_META: Record<string, TabMeta> = {
+  HomeTab: { iconName: 'home', label: 'Главная', accessibilityLabel: 'Главная' },
+  WorkoutsTab: { iconName: 'dumbbell', label: 'Тренировки', accessibilityLabel: 'Тренировки' },
+  AITab: { iconName: 'spark', label: 'ИИ', accessibilityLabel: 'ИИ-тренер', center: true },
+  NutritionTab: { iconName: 'apple', label: 'Питание', accessibilityLabel: 'Питание' },
+  ProfileTab: { iconName: 'user', label: 'Профиль', accessibilityLabel: 'Профиль' },
+};
+
+/**
+ * Custom tab bar for the material-top-tabs navigator. We use the top-tabs
+ * navigator with `tabBarPosition="bottom"` so users get native horizontal
+ * swipes between tabs (powered by react-native-pager-view) — that's the
+ * "качественный приятный свайп" feel the design called for. The visual
+ * shell of the bar (translucent background, gold AI center pill, 88pt
+ * height with safe-area bottom inset) is preserved 1:1 from the previous
+ * bottom-tab-navigator implementation, so the swap is invisible to users
+ * except for the new gesture.
+ *
+ * Hides itself while the keyboard is up — the previous bottom-tab impl
+ * relied on `tabBarHideOnKeyboard`, which top-tabs doesn't expose, so we
+ * reproduce that behavior with a Keyboard listener.
+ */
+const PremiumTabBar: React.FC<MaterialTopTabBarProps> = ({ state, navigation }) => {
   const { colors } = useThemeStore();
   const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  if (keyboardVisible) return null;
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: colors.tabBar,
+        borderTopColor: colors.tabBarBorder,
+        borderTopWidth: 1,
+        height: 88,
+        paddingBottom: Math.max(insets.bottom, 8),
+        paddingTop: 10,
+      }}
+    >
+      {state.routes.map((route, index) => {
+        const meta = TAB_META[route.name];
+        if (!meta) return null;
+        const focused = state.index === index;
+
+        const onPress = () => {
+          // Mirror React Navigation's tab-bar onPress contract: emit a
+          // tabPress event so listeners (e.g. scroll-to-top, refresh) can
+          // intercept; only navigate if no listener prevented default and
+          // we're not already on this tab.
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!focused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={focused ? { selected: true } : {}}
+            accessibilityLabel={meta.accessibilityLabel}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <TabIcon
+              iconName={meta.iconName}
+              label={meta.label}
+              focused={focused}
+              center={meta.center}
+            />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
+
+// Main Tab Navigator
+function MainTabs() {
   // Read once at first render so the tab navigator initialRouteName is
   // stable for this mount; clearing the flag on mount prevents repeat
   // routing if the user later returns to MainTabs from a deep-linked
@@ -297,66 +396,26 @@ function MainTabs() {
     <ErrorBoundary>
     <Tab.Navigator
       initialRouteName={justOnboarded ? 'AITab' : 'HomeTab'}
+      tabBarPosition="bottom"
+      tabBar={(props) => <PremiumTabBar {...props} />}
+      // Material top tabs use react-native-pager-view under the hood,
+      // which gives the "premium" horizontal swipe between tabs:
+      // rubber-band overscroll on the edges, finger-tracking with
+      // velocity-based settle, and inertia. swipeEnabled defaults to
+      // true — set explicitly so future readers see the intent.
       screenOptions={{
-        headerShown: false,
-        tabBarHideOnKeyboard: true,
-        // Translucent premium tab bar per Direction A — same alpha and
-        // blur treatment the design export spec'd on the primitives
-        // TabBar. Border top gives it a faint edge against content.
-        tabBarStyle: {
-          backgroundColor: colors.tabBar,
-          borderTopColor: colors.tabBarBorder,
-          borderTopWidth: 1,
-          height: 88,
-          paddingBottom: Math.max(insets.bottom, 8),
-          paddingTop: 10,
-        },
-        tabBarShowLabel: false,
+        swipeEnabled: true,
+        animationEnabled: true,
+        lazy: true,
       }}
     >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeScreen}
-        options={{
-          tabBarAccessibilityLabel: 'Главная',
-          tabBarIcon: ({ focused }) => <TabIcon iconName="home" label="Главная" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="WorkoutsTab"
-        component={WorkoutsStackNavigator}
-        options={{
-          tabBarAccessibilityLabel: 'Тренировки',
-          tabBarIcon: ({ focused }) => <TabIcon iconName="dumbbell" label="Тренировки" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="AITab"
-        component={AIChatScreen}
-        options={{
-          // Центральная золотая кнопка-акцент. Signature element — stays
-          // visually dominant regardless of active state so the user
-          // always sees the AI coach as the app's core.
-          tabBarAccessibilityLabel: 'ИИ-тренер',
-          tabBarIcon: () => <TabIcon iconName="spark" label="ИИ" focused center />,
-        }}
-      />
-      <Tab.Screen
-        name="NutritionTab"
-        component={NutritionStackNavigator}
-        options={{
-          tabBarAccessibilityLabel: 'Питание',
-          tabBarIcon: ({ focused }) => <TabIcon iconName="apple" label="Питание" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileStackNavigator}
-        options={{
-          tabBarAccessibilityLabel: 'Профиль',
-          tabBarIcon: ({ focused }) => <TabIcon iconName="user" label="Профиль" focused={focused} />,
-        }}
-      />
+      <Tab.Screen name="HomeTab" component={HomeScreen} />
+      <Tab.Screen name="WorkoutsTab" component={WorkoutsStackNavigator} />
+      {/* Центральная золотая кнопка-акцент. Visual treatment is applied
+          inside PremiumTabBar via TAB_META[AITab].center=true. */}
+      <Tab.Screen name="AITab" component={AIChatScreen} />
+      <Tab.Screen name="NutritionTab" component={NutritionStackNavigator} />
+      <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} />
     </Tab.Navigator>
     </ErrorBoundary>
   );
