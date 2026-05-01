@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Giron",
-    "slug": "giron",
+    "slug": "iron-gym",
     "scheme": [
       "giron",
       "com.giron.app",
@@ -88,7 +88,7 @@
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 10
+      "versionCode": 11
     },
     "web": {
       "favicon": "./assets/favicon.png"
