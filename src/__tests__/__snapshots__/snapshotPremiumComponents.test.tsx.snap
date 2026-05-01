@@ -1,0 +1,324 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Icon snapshots — premium icon set apple (nutrition) icon renders 1`] = `
+{
+  "$$typeof": Symbol(react.transitional.element),
+  "props": {
+    "children": {
+      "$$typeof": Symbol(react.transitional.element),
+      "props": {
+        "children": [
+          {
+            "$$typeof": Symbol(react.transitional.element),
+            "props": {
+              "d": "M12 7c1-2 3-3 5-3-.3 2-1.5 4-3 4M12 7c-1-1.5-2.5-3-5-3 .3 2 1.3 3.3 3 4",
+              "fill": "none",
+              "stroke": "currentColor",
+              "strokeLinecap": "round",
+              "strokeLinejoin": "round",
+              "strokeWidth": 1.6,
+            },
+          },
+          {
+            "$$typeof": Symbol(react.transitional.element),
+            "props": {
+              "d": "M5 12c0 5 3 9 7 9s7-4 7-9c0-2.5-2-5-5-5-1 0-1.7.4-2 1-.3-.6-1-1-2-1-3 0-5 2.5-5 5Z",
+              "fill": "none",
+              "stroke": "currentColor",
+              "strokeLinecap": "round",
+              "strokeLinejoin": "round",
+              "strokeWidth": 1.6,
+            },
+          },
+        ],
+      },
+      "type": Symbol(react.fragment),
+    },
+    "height": 22,
+    "viewBox": "0 0 24 24",
+    "width": 22,
+  },
+}
+`;
+
+exports[`Icon snapshots — premium icon set dumbbell icon renders 1`] = `
+{
+  "$$typeof": Symbol(react.transitional.element),
+  "props": {
+    "children": {
+      "$$typeof": Symbol(react.transitional.element),
+      "props": {
+        "d": "M2 10v4M22 10v4M6 7v10M18 7v10M6 12h12",
+        "stroke": "currentColor",
+        "strokeLinecap": "round",
+        "strokeWidth": 1.6,
+      },
+    },
+    "height": 22,
+    "viewBox": "0 0 24 24",
+    "width": 22,
+  },
+}
+`;
+
+exports[`Icon snapshots — premium icon set home icon renders 1`] = `
+{
+  "$$typeof": Symbol(react.transitional.element),
+  "props": {
+    "children": {
+      "$$typeof": Symbol(react.transitional.element),
+      "props": {
+        "children": [
+          {
+            "$$typeof": Symbol(react.transitional.element),
+            "props": {
+              "d": "M3 11.5 12 4l9 7.5",
+              "fill": "none",
+              "stroke": "currentColor",
+              "strokeLinecap": "round",
+              "strokeLinejoin": "round",
+              "strokeWidth": 1.6,
+            },
+          },
+          {
+            "$$typeof": Symbol(react.transitional.element),
+            "props": {
+              "d": "M5 10v10h14V10",
+              "fill": "none",
+              "stroke": "currentColor",
+              "strokeLinecap": "round",
+              "strokeLinejoin": "round",
+              "strokeWidth": 1.6,
+            },
+          },
+        ],
+      },
+      "type": Symbol(react.fragment),
+    },
+    "height": 22,
+    "viewBox": "0 0 24 24",
+    "width": 22,
+  },
+}
+`;
+
+exports[`Icon snapshots — premium icon set icon supports custom strokeWidth 1`] = `
+{
+  "$$typeof": Symbol(react.transitional.element),
+  "props": {
+    "children": {
+      "$$typeof": Symbol(react.transitional.element),
+      "props": {
+        "children": {
+          "$$typeof": Symbol(react.transitional.element),
+          "props": {
+            "d": "M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8",
+            "stroke": "currentColor",
+            "strokeLinecap": "round",
+            "strokeWidth": 2,
+          },
+        },
+      },
+      "type": Symbol(react.fragment),
+    },
+    "height": 26,
+    "viewBox": "0 0 24 24",
+    "width": 26,
+  },
+}
+`;
+
+exports[`Icon snapshots — premium icon set spark icon (AI tab) renders 1`] = `
+{
+  "$$typeof": Symbol(react.transitional.element),
+  "props": {
+    "children": {
+      "$$typeof": Symbol(react.transitional.element),
+      "props": {
+        "children": {
+          "$$typeof": Symbol(react.transitional.element),
+          "props": {
+            "d": "M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8",
+            "stroke": "#D4B07A",
+            "strokeLinecap": "round",
+            "strokeWidth": 1.6,
+          },
+        },
+      },
+      "type": Symbol(react.fragment),
+    },
+    "height": 26,
+    "viewBox": "0 0 24 24",
+    "width": 26,
+  },
+}
+`;
+
+exports[`Icon snapshots — premium icon set user (profile) icon renders 1`] = `
+{
+  "$$typeof": Symbol(react.transitional.element),
+  "props": {
+    "children": {
+      "$$typeof": Symbol(react.transitional.element),
+      "props": {
+        "children": [
+          {
+            "$$typeof": Symbol(react.transitional.element),
+            "props": {
+              "cx": 12,
+              "cy": 8,
+              "fill": "none",
+              "r": 4,
+              "stroke": "currentColor",
+              "strokeWidth": 1.6,
+            },
+          },
+          {
+            "$$typeof": Symbol(react.transitional.element),
+            "props": {
+              "d": "M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8",
+              "fill": "none",
+              "stroke": "currentColor",
+              "strokeLinecap": "round",
+              "strokeWidth": 1.6,
+            },
+          },
+        ],
+      },
+      "type": Symbol(react.fragment),
+    },
+    "height": 22,
+    "viewBox": "0 0 24 24",
+    "width": 22,
+  },
+}
+`;
+
+exports[`Responsive breakpoints snapshot breakpoints exact values 1`] = `
+{
+  "desktop": 1024,
+  "lg": 430,
+  "md": 390,
+  "sm": 360,
+  "tablet": 640,
+  "xs": 0,
+}
+`;
+
+exports[`Spacing scale snapshots borderRadius tokens have all expected sizes 1`] = `
+{
+  "full": 9999,
+  "lg": 16,
+  "md": 12,
+  "sm": 8,
+  "xl": 20,
+  "xxl": 24,
+}
+`;
+
+exports[`Spacing scale snapshots spacing tokens have all expected sizes 1`] = `
+{
+  "huge": 48,
+  "lg": 16,
+  "md": 12,
+  "sm": 8,
+  "xl": 20,
+  "xs": 4,
+  "xxl": 24,
+  "xxxl": 32,
+}
+`;
+
+exports[`Theme palette snapshots — Direction A (graphite + gold) dark theme has full token set 1`] = `
+{
+  "accent": "#D4B07A",
+  "background": "#0E0E0F",
+  "border": "rgba(255, 255, 255, 0.08)",
+  "borderLight": "rgba(255, 255, 255, 0.04)",
+  "calories": "#E07A6B",
+  "carbs": "#9AC28C",
+  "card": "#17171A",
+  "divider": "rgba(255, 255, 255, 0.08)",
+  "error": "#E07A6B",
+  "fats": "#E8A36A",
+  "info": "#8BA8BF",
+  "inputBackground": "#1E1E22",
+  "inputBorder": "rgba(255, 255, 255, 0.14)",
+  "inputPlaceholder": "#6B6860",
+  "inputText": "#F4F1EA",
+  "overlay": "rgba(0, 0, 0, 0.6)",
+  "primary": "#D4B07A",
+  "primaryDark": "#B08A4E",
+  "primaryLight": "#E5C896",
+  "progressBar": "#D4B07A",
+  "progressBarBackground": "rgba(255, 255, 255, 0.08)",
+  "protein": "#D4B07A",
+  "secondary": "#F4F1EA",
+  "shadow": "rgba(0, 0, 0, 0.4)",
+  "success": "#9AC28C",
+  "surface": "#17171A",
+  "surfaceElevated": "#1E1E22",
+  "tabBar": "rgba(20, 20, 24, 0.82)",
+  "tabBarActive": "#D4B07A",
+  "tabBarBorder": "rgba(255, 255, 255, 0.14)",
+  "tabBarInactive": "#A8A49C",
+  "text": "#F4F1EA",
+  "textInverse": "#0E0E0F",
+  "textMuted": "#6B6860",
+  "textSecondary": "#A8A49C",
+  "textTertiary": "#6B6860",
+  "warning": "#E8A36A",
+}
+`;
+
+exports[`Theme palette snapshots — Direction A (graphite + gold) light theme has full token set 1`] = `
+{
+  "accent": "#B08A4E",
+  "background": "#F4F1EA",
+  "border": "#E5DFD2",
+  "borderLight": "#EEE8DC",
+  "calories": "#C76558",
+  "carbs": "#6FA66A",
+  "card": "#FFFFFF",
+  "divider": "#E5DFD2",
+  "error": "#C76558",
+  "fats": "#C9824E",
+  "info": "#6B91B0",
+  "inputBackground": "#EEE8DC",
+  "inputBorder": "#E5DFD2",
+  "inputPlaceholder": "#A8A49C",
+  "inputText": "#17171A",
+  "overlay": "rgba(14, 14, 15, 0.4)",
+  "primary": "#B08A4E",
+  "primaryDark": "#8E6B3E",
+  "primaryLight": "#D4B07A",
+  "progressBar": "#B08A4E",
+  "progressBarBackground": "#E5DFD2",
+  "protein": "#B08A4E",
+  "secondary": "#17171A",
+  "shadow": "rgba(14, 14, 15, 0.08)",
+  "success": "#6FA66A",
+  "surface": "#FFFFFF",
+  "surfaceElevated": "#FFFFFF",
+  "tabBar": "#FFFFFF",
+  "tabBarActive": "#B08A4E",
+  "tabBarBorder": "#E5DFD2",
+  "tabBarInactive": "#A8A49C",
+  "text": "#17171A",
+  "textInverse": "#F4F1EA",
+  "textMuted": "#A8A49C",
+  "textSecondary": "#6B6860",
+  "textTertiary": "#A8A49C",
+  "warning": "#C9824E",
+}
+`;
+
+exports[`Typography scale snapshots h1 hero font size is 36pt with -1.2 letter-spacing 1`] = `
+{
+  "fontFamily": "System",
+  "fontSize": 36,
+  "fontWeight": "600",
+  "letterSpacing": -1.2,
+  "lineHeight": 42,
+}
+`;

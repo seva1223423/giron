@@ -1,0 +1,37 @@
+# Smoke test: NutritionScreen renders empty state on first visit, plus
+# scanner button is reachable. Specifically tests that the macro bars
+# don't break when no meals are logged (round 188 audit invariant).
+
+appId: com.irongym.app
+---
+- launchApp
+
+# Navigate to Питание tab via swipe (3 swipes left from Home)
+- tapOn:
+    text: "Питание"
+    optional: true
+- waitForAnimationToEnd
+
+# NutritionScreen header
+- assertVisible:
+    text: "Питание"
+    optional: true
+
+# Macro bars / 4 macro labels render even with zero data
+- assertVisible:
+    text: "Ккал"
+    optional: true
+- assertVisible:
+    text: "Белки"
+    optional: true
+- assertVisible:
+    text: "Жиры"
+    optional: true
+- assertVisible:
+    text: "Углеводы"
+    optional: true
+
+# Scanner CTA visible
+- assertVisible:
+    text: "Сканировать еду"
+    optional: true

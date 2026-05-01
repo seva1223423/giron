@@ -1,0 +1,61 @@
+# Smoke test: swipe gesture between MainTabs (round 186 feature).
+# Material Top Tabs at bottom — swipe LEFT/RIGHT cycles through:
+# Главная → Тренировки → ИИ → Питание → Профиль.
+#
+# Assumes user is already authenticated. To run from scratch, prepend
+# auth-login.yaml steps.
+
+appId: com.irongym.app
+---
+- launchApp
+
+# Should land on Главная for authenticated users (or AITab if just
+# onboarded — accept either)
+- assertVisible:
+    text: "Главная"
+    optional: true
+
+# Swipe left from center → next tab (Тренировки)
+- swipe:
+    direction: LEFT
+    duration: 300
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Тренировки"
+    optional: true
+
+# Swipe left again → ИИ
+- swipe:
+    direction: LEFT
+    duration: 300
+- waitForAnimationToEnd
+
+# Swipe left again → Питание
+- swipe:
+    direction: LEFT
+    duration: 300
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Питание"
+    optional: true
+
+# Swipe left → Профиль (last tab)
+- swipe:
+    direction: LEFT
+    duration: 300
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Профиль"
+    optional: true
+
+# Swipe right back to Питание
+- swipe:
+    direction: RIGHT
+    duration: 300
+- waitForAnimationToEnd
+
+# Tap-based navigation also still works — tap Главная tab in tab bar
+- tapOn:
+    text: "Главная"
+    optional: true

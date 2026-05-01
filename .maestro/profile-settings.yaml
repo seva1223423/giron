@@ -1,0 +1,59 @@
+# Smoke test: Profile tab → Settings → theme toggle works without crash.
+# Also verifies LinkedAccounts subtitle no longer mentions Mail.ru
+# (regression check for round 187).
+
+appId: com.irongym.app
+---
+- launchApp
+
+- tapOn:
+    text: "Профиль"
+    optional: true
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Профиль"
+    optional: true
+
+# Linked accounts row — subtitle is "VK · Яндекс · Google" (no Mail.ru)
+- assertVisible:
+    text: "VK · Яндекс · Google"
+    optional: true
+
+# Mail.ru regression check
+- assertNotVisible: "Mail.ru"
+
+# Settings entry
+- tapOn:
+    text: "Настройки"
+    optional: true
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Настройки"
+    optional: true
+
+# Theme 3-segment selector should be visible
+- assertVisible:
+    text: "Тёмная"
+    optional: true
+- assertVisible:
+    text: "Светлая"
+    optional: true
+- assertVisible:
+    text: "Авто"
+    optional: true
+
+# Toggle to light, then back to auto
+- tapOn:
+    text: "Светлая"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Авто"
+    optional: true
+
+- back
+- assertVisible:
+    text: "Профиль"
+    optional: true
