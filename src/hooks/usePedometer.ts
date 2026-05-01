@@ -372,7 +372,27 @@ export function usePedometer(historyDays: number = 7, options?: PedometerOptions
           next[next.length - 1] = res.steps;
           return next;
         });
-      } catch { /* ignore */ }
+      } catch {
+        // getStepCountAsync rejected. The most common cause while the
+        // hook is in the granted branch is that the user revoked the
+        // permission externally (system settings) while the app was
+        // backgrounded — without a re-probe, polling would keep
+        // failing silently every minute and the UI would stay stuck on
+        // stale step counts. Probe once; if access really is gone, the
+        // resulting publish flips every consumer to the denied state
+        // (which tears this interval down). On a transient OS hiccup
+        // the probe still says 'granted' and we just no-op until the
+        // next tick.
+        try {
+          const perm = await Pedometer.getPermissionsAsync();
+          if (perm.status !== 'granted') {
+            publishPermission({
+              permission: perm.status === 'denied' ? 'denied' : 'unknown',
+              canAskAgain: perm.canAskAgain,
+            });
+          }
+        } catch { /* ignore — next tick will retry */ }
+      }
     };
 
     const start = () => {
