@@ -276,13 +276,27 @@ export function isOFFDataPlausible(cal: number, prot: number, fats: number, carb
   return true;
 }
 
-/** Extract kcal/100g from OFF `nutriments`. Falls back to kJ→kcal (×0.239)
- *  for products that only carry kJ in their labelling (very common in EU/RU). */
+/**
+ * Extract kcal/100g from OFF `nutriments`.
+ *
+ * Field priority — _100g-suffixed fields first, bare fields LAST. The
+ * bare `energy-kcal` is contextual: when the product's
+ * `nutrition_data_per` is `'serving'`, OFF stores per-serving values
+ * there, and treating those as per-100g silently inflates the user's
+ * diary by (100 / serving_size_g)× — a 30g protein bar listed as 350
+ * kcal would read as "350 kcal/100g" before the round-192 plausibility
+ * gate caught it. Reordering means we only fall through to the bare
+ * field when no per-100g variant of any kind is available, so the
+ * canonical per-100g data wins whenever both exist.
+ *
+ * The 100-threshold heuristic on `energy_100g` (legacy field) treats
+ * values >100 as kJ — almost universal for that field in OFF.
+ */
 export function extractKcal(n: Record<string, any>): number {
   if (n['energy-kcal_100g'] != null && n['energy-kcal_100g'] > 0) return Math.round(n['energy-kcal_100g']);
-  if (n['energy-kcal'] != null && n['energy-kcal'] > 0) return Math.round(n['energy-kcal']);
   if (n['energy-kj_100g'] != null && n['energy-kj_100g'] > 0) return Math.round(n['energy-kj_100g'] / 4.184);
   if (n['energy_100g'] != null && n['energy_100g'] > 100) return Math.round(n['energy_100g'] / 4.184);
+  if (n['energy-kcal'] != null && n['energy-kcal'] > 0) return Math.round(n['energy-kcal']);
   return 0;
 }
 
