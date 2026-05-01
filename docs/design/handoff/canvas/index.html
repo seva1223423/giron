@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Iron Gym — Редизайн приложения</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  #root { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="src/tokens.js"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="src/primitives.jsx"></script>
+<script type="text/babel" src="src/interactive-chart.jsx"></script>
+<script type="text/babel" src="src/variation-a-1.jsx"></script>
+<script type="text/babel" src="src/variation-a-2.jsx"></script>
+<script type="text/babel" src="src/variation-a-3.jsx"></script>
+<script type="text/babel" src="src/upgraded-a.jsx"></script>
+<script type="text/babel" src="src/upgraded-a-2.jsx"></script>
+<script type="text/babel" src="src/upgraded-a-3.jsx"></script>
+<script type="text/babel" src="src/stickers.jsx"></script>
+<script type="text/babel" src="src/adaptive-showcase.jsx"></script>
+<script type="text/babel" src="src/responsive-contexts.jsx"></script>
+
+<script type="text/babel">
+  const { useState } = React;
+
+  function App() {
+    const P = window.Phone;
+    const T = window.IG_TOKENS;
+
+    const dirs = [
+      {
+        id: 'a',
+        key: 'A',
+        title: 'Направление A — Премиум графит',
+        subtitle: 'Тёплое золото на графите, заголовки Manrope, геометрические акценты — дорогой продукт',
+        theme: T.A,
+        screens: [
+          { id: 'a-onb',  label: '01 · Онбординг',     c: window.A_Onboarding },
+          { id: 'a-home', label: '02 · Главная',        c: window.A_Home },
+          { id: 'a-wo',   label: '03 · Тренировки',     c: window.A_Workouts },
+          { id: 'a-prog-det', label: '04 · Программа · детали', c: window.A_Program },
+          { id: 'a-act',  label: '05 · Активная (сеты)',c: window.A_Active },
+          { id: 'a-rest', label: '06 · Таймер отдыха',  c: window.A_Rest },
+          { id: 'a-cardio', label: '07 · HIIT · кардио', c: window.A_Cardio },
+          { id: 'a-nut',  label: '08 · Питание',        c: window.A_Nutrition },
+          { id: 'a-scan', label: '09 · Сканер еды',     c: window.A_Scanner },
+          { id: 'a-diary', label: '10 · Дневник питания', c: window.A_Diary },
+          { id: 'a-exer', label: '11 · Упражнение · детали', c: window.A_Exercise },
+          { id: 'a-sum',  label: '12 · Итоги тренировки', c: window.A_Summary },
+          { id: 'a-prog', label: '13 · Прогресс',       c: window.A_Progress },
+          { id: 'a-ai',   label: '14 · ИИ‑тренер',      c: window.A_AI },
+          { id: 'a-news', label: '15 · Лента (базовая)',c: window.A_News },
+          { id: 'a-news2', label: '16 · Лента · расшир.', c: window.A_NewsV2 },
+          { id: 'a-pay',  label: '17 · Paywall',        c: window.A_Paywall },
+          { id: 'a-prf',  label: '18 · Профиль',        c: window.A_Profile },
+          { id: 'a-stk',  label: '19 · Стикеры',         c: window.A_Stickers },
+          { id: 'a-adapt', label: '20 · Адаптивность · все устройства', c: window.A_AdaptiveShowcase, w: 1600, h: 900 },
+          { id: 'a-rctx',  label: '21 · Адаптивность · keyboard / type / tablet', c: window.A_ResponsiveContexts, w: 1480, h: 1100 },
+        ],
+      },
+    ];
+
+    return (
+      <DesignCanvas>
+        {dirs.map(d => (
+          <DCSection key={d.id} id={d.id} title={d.title} subtitle={d.subtitle}>
+            {d.screens.map(s => {
+              const Comp = s.c;
+              return (
+                <DCArtboard key={s.id} id={s.id} label={s.label} width={s.w || 390} height={s.h || 844}>
+                  {Comp ? <Comp/> : (
+                    <div style={{ background: d.theme.bg, color: d.theme.textSub, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' }}>
+                      скоро
+                    </div>
+                  )}
+                </DCArtboard>
+              );
+            })}
+          </DCSection>
+        ))}
+      </DesignCanvas>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
