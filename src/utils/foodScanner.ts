@@ -300,12 +300,39 @@ export function extractKcal(n: Record<string, any>): number {
   return 0;
 }
 
-/** Parse serving-size strings like "100g", "30 g", "1 portion (45g)", "250ml"
- *  into grams (treating ml as grams for liquids, a reasonable approximation).
- *  Returns null if no plausible weight can be extracted. Clamps to a sane
- *  range so pathological strings like "1000000g" don't leak through. */
-export function parseServingGrams(servingSize: string): number | null {
-  if (!servingSize) return null;
+/**
+ * Parse a serving-size value into grams.
+ *
+ * Accepts:
+ *  - strings like "100g", "30 g", "1 portion (45g)", "250ml" — extracts
+ *    the numeric portion via regex; treats ml as grams for liquids
+ *    (close enough for water-based products, the common case).
+ *  - numbers — OFF's `serving_quantity` field comes through this way
+ *    (the API sometimes serializes it as a number, sometimes a string).
+ *    Unit is implied: OFF stores grams there for solids and ml for
+ *    liquids; we treat numerics as grams since `serving_quantity_unit`
+ *    isn't requested in the OFF_FIELDS list.
+ *  - null / undefined / empty string — returns null cleanly.
+ *
+ * Round 194: hardened against `serving_quantity` being a number. The
+ * old signature only typed `string`, but `p.serving_size ||
+ * p.serving_quantity || ''` propagated the raw OFF value, which
+ * produced `(30).match is not a function` runtime crashes mid-lookup
+ * on products that had only `serving_quantity` populated. The crash
+ * surfaced as "Ошибка / Не удалось получить данные" even though the
+ * fetch had succeeded — confusing for users and operators alike.
+ *
+ * Returns null if no plausible weight can be extracted. Clamps to a
+ * sane range so pathological values like 1_000_000 don't leak through.
+ */
+export function parseServingGrams(servingSize: string | number | null | undefined): number | null {
+  if (servingSize == null || servingSize === '') return null;
+  if (typeof servingSize === 'number') {
+    if (!isFinite(servingSize)) return null;
+    const g = Math.round(servingSize);
+    if (g >= 5 && g <= 2000) return g;
+    return null;
+  }
   const gMatch = servingSize.match(/(\d+(?:[.,]\d+)?)\s*g(?!\w)/i);
   if (gMatch) {
     const g = Math.round(parseFloat(gMatch[1].replace(',', '.')));

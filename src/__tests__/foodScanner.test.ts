@@ -240,6 +240,38 @@ describe('parseServingGrams', () => {
     // The "g" in "gmbh" should not be interpreted as grams
     expect(parseServingGrams('100 gmbh')).toBeNull();
   });
+
+  // ── Numeric input (OFF `serving_quantity`) ──
+  // OFF's API sometimes serializes serving_quantity as a number, not
+  // a string. The lookup site does `serving_size || serving_quantity ||
+  // ''`, which propagates the raw value — pre-194 that crashed
+  // mid-lookup with `(30).match is not a function`.
+
+  test('accepts a numeric serving_quantity (grams)', () => {
+    expect(parseServingGrams(30)).toBe(30);
+    expect(parseServingGrams(100)).toBe(100);
+    expect(parseServingGrams(250)).toBe(250);
+  });
+
+  test('rounds non-integer numeric input', () => {
+    expect(parseServingGrams(45.7)).toBe(46);
+  });
+
+  test('clamps numeric input outside 5–2000g range', () => {
+    expect(parseServingGrams(2)).toBeNull();
+    expect(parseServingGrams(99999)).toBeNull();
+  });
+
+  test('rejects NaN / Infinity numeric inputs', () => {
+    expect(parseServingGrams(NaN)).toBeNull();
+    expect(parseServingGrams(Infinity)).toBeNull();
+    expect(parseServingGrams(-Infinity)).toBeNull();
+  });
+
+  test('returns null for null / undefined inputs (not a crash)', () => {
+    expect(parseServingGrams(null)).toBeNull();
+    expect(parseServingGrams(undefined)).toBeNull();
+  });
 });
 
 // ─── normalizeFoodName ────────────────────────────────────────────────────────
