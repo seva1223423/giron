@@ -618,8 +618,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
         </View>
 
-        {/* Привязанные аккаунты — отдельный экран. Раньше тут были 4 строки
-            (VK / Яндекс / Google / Mail.ru) inline; вынесли в LinkedAccountsScreen,
+        {/* Привязанные аккаунты — отдельный экран. Раньше тут были 3 строки
+            (VK / Яндекс / Google) inline; вынесли в LinkedAccountsScreen,
             чтобы профиль не превращался в простыню. */}
         <TouchableOpacity
           style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}
@@ -630,13 +630,13 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Привязанные аккаунты</Text>
-            <Text style={[typography.caption, { color: colors.textTertiary }]}>VK · Яндекс · Google · Mail.ru</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]}>VK · Яндекс · Google</Text>
           </View>
           {(() => {
-            const linkedCount = [user?.hasVk, (user?.yandexId || user?.hasYandex), (user?.googleId || user?.hasGoogle), user?.hasMailru].filter(Boolean).length;
+            const linkedCount = [user?.hasVk, (user?.yandexId || user?.hasYandex), (user?.googleId || user?.hasGoogle)].filter(Boolean).length;
             return (
               <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: linkedCount > 0 ? '#34C75920' : colors.border, marginRight: spacing.sm }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: linkedCount > 0 ? '#34C759' : colors.textTertiary }}>{linkedCount}/4</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: linkedCount > 0 ? '#34C759' : colors.textTertiary }}>{linkedCount}/3</Text>
               </View>
             );
           })()}

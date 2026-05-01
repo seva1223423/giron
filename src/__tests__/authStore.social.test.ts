@@ -1,6 +1,6 @@
 /**
  * Unit tests for social login actions in useAuthStore:
- * loginWithVk, loginWithYandex, loginWithMailru
+ * loginWithVk, loginWithYandex
  *
  * Covers: success path, TOTP gate (requiresTOTP response), and error path.
  */
@@ -48,7 +48,6 @@ jest.mock('../services', () => ({
     loginWithGoogle: jest.fn(),
     loginWithVk: jest.fn(),
     loginWithYandex: jest.fn(),
-    loginWithMailru: jest.fn(),
     loginByPhone: jest.fn(),
   },
   userService: {
@@ -214,98 +213,3 @@ describe('loginWithYandex', () => {
   });
 });
 
-// ── loginWithMailru ───────────────────────────────────────────────────────────
-
-describe('loginWithMailru', () => {
-  beforeEach(() => {
-    resetState();
-    jest.clearAllMocks();
-  });
-
-  test('success: sets isAuthenticated, user, and tokens', async () => {
-    const { authService } = require('../services');
-    authService.loginWithMailru.mockResolvedValueOnce(mockAuthResponse);
-
-    await useAuthStore.getState().loginWithMailru('mr-access-token');
-
-    const state = useAuthStore.getState();
-    expect(state.isAuthenticated).toBe(true);
-    expect(state.token).toBe('access-token-123');
-    expect(state.refreshToken).toBe('refresh-token-456');
-    expect(state.user?.firstName).toBe('Test');
-    expect(state.user?.gender).toBe('male');
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-    expect(mockTokenStorage.setTokens).toHaveBeenCalledWith('access-token-123', 'refresh-token-456');
-  });
-
-  test('error: sets error message, clears isLoading, rethrows', async () => {
-    const { authService } = require('../services');
-    const err: any = new Error('Mail.ru error');
-    err.response = { status: 401, data: { error: 'Не удалось проверить токен Mail.ru', code: 'INVALID_TOKEN' } };
-    authService.loginWithMailru.mockRejectedValueOnce(err);
-
-    await expect(useAuthStore.getState().loginWithMailru('bad-token')).rejects.toThrow();
-
-    const state = useAuthStore.getState();
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBe('Не удалось проверить токен Mail.ru');
-  });
-
-  test('TOTP gate: sets totpPendingToken, throws TOTP_REQUIRED, does not set error', async () => {
-    const { authService } = require('../services');
-    authService.loginWithMailru.mockResolvedValueOnce({ requiresTOTP: true, pendingToken: 'pending-mr' });
-
-    const thrown = await useAuthStore.getState().loginWithMailru('mr-token').catch((e) => e);
-
-    expect(thrown.code).toBe('TOTP_REQUIRED');
-    const state = useAuthStore.getState();
-    expect(state.totpPendingToken).toBe('pending-mr');
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-
-  test('network error: sets generic error message and rethrows', async () => {
-    const { authService } = require('../services');
-    const networkErr: any = new Error('Network Error');
-    networkErr.code = 'ERR_NETWORK';
-    authService.loginWithMailru.mockRejectedValueOnce(networkErr);
-
-    await expect(useAuthStore.getState().loginWithMailru('mr-token')).rejects.toThrow();
-
-    const state = useAuthStore.getState();
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBe('Network Error');
-  });
-
-  test('server ban: error propagates from service', async () => {
-    const { authService } = require('../services');
-    const bannedErr: any = new Error('Banned');
-    bannedErr.response = { status: 403, data: { error: 'Аккаунт заблокирован. Обратитесь в поддержку.', code: 'BANNED' } };
-    authService.loginWithMailru.mockRejectedValueOnce(bannedErr);
-
-    await expect(useAuthStore.getState().loginWithMailru('mr-token')).rejects.toThrow();
-
-    const state = useAuthStore.getState();
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.error).toBe('Аккаунт заблокирован. Обратитесь в поддержку.');
-  });
-
-  test('isLoading is true during async call, false after', async () => {
-    const { authService } = require('../services');
-    let resolveAuth!: (val: any) => void;
-    authService.loginWithMailru.mockImplementationOnce(
-      () => new Promise((res) => { resolveAuth = res; }),
-    );
-
-    const promise = useAuthStore.getState().loginWithMailru('mr-token');
-    expect(useAuthStore.getState().isLoading).toBe(true);
-
-    resolveAuth(mockAuthResponse);
-    await promise;
-    expect(useAuthStore.getState().isLoading).toBe(false);
-  });
-});

@@ -169,11 +169,11 @@ const FEATURES: FeatureCheck[] = [
     },
   },
   {
-    feature: 'Auth: 4 OAuth buttons (Google/VK/Yandex/Mail.ru)',
+    feature: 'Auth: 3 OAuth buttons (Google/VK/Yandex)',
     description: 'Each OAuth button label fits',
     invariant: (d) => {
       const btn = d.w - 2 * 20;
-      // "Войти через Mail.ru" at 15pt = ~167pt + 2×16 padding = 199pt
+      // "Войти через Яндекс" at 15pt = ~150pt + 2×16 padding = 182pt
       return btn >= 200 ? null : `OAuth btn ${btn} can't fit longest provider`;
     },
   },
@@ -1170,12 +1170,12 @@ describe('Critical user flow paths', () => {
     expect(code).toMatch(/irongym/);
   });
 
-  test('OAuth providers: Google, VK, Yandex, Mail.ru', () => {
+  test('OAuth providers: Google, VK, Yandex', () => {
     const f = path.join(SRC, 'screens/auth/LoginScreen.tsx');
     if (!fs.existsSync(f)) return;
     const code = fs.readFileSync(f, 'utf8');
     // Look for at least 1 OAuth provider integration
-    const hasOAuth = /google|vk|yandex|mailru|GoogleAuthButton/i.test(code);
+    const hasOAuth = /google|vk|yandex|GoogleAuthButton/i.test(code);
     expect(hasOAuth).toBe(true);
   });
 });

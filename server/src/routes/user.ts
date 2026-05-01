@@ -91,7 +91,7 @@ const USER_PROFILE_SELECT = {
   // shape change when banner-style nudges show up.
   firstChatAt: true,
   lastActiveAt: true,
-  googleId: true, vkId: true, yandexId: true, mailruId: true,
+  googleId: true, vkId: true, yandexId: true,
   healthRestrictions: true,
 } as const;
 
@@ -116,13 +116,12 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const { googleId, vkId, yandexId, mailruId, ...safeProfile } = user;
+    const { googleId, vkId, yandexId, ...safeProfile } = user;
     res.json({
       ...safeProfile,
       hasGoogle: !!googleId,
       hasVk: !!vkId,
       hasYandex: !!yandexId,
-      hasMailru: !!mailruId,
     });
   } catch (e) {
     logger.error(e);
@@ -173,8 +172,8 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       select: USER_PROFILE_SELECT,
     });
 
-    const { googleId, vkId, yandexId, mailruId, ...safeProfile } = user;
-    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId, hasMailru: !!mailruId });
+    const { googleId, vkId, yandexId, ...safeProfile } = user;
+    res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId });
   } catch (e: any) {
     if (e?.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' });
     logger.error(e);
@@ -1254,7 +1253,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
  */
 router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'google', 'mailru']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'google']).parse(req.params.provider);
     const { accessToken, userId: claimedUserId, currentPassword, totpCode } = z.object({
       accessToken: z.string().min(1, 'accessToken обязателен'),
       userId: z.string().optional(),
@@ -1305,7 +1304,7 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
     }
 
     let providerId: string;
-    let fieldName: 'vkId' | 'yandexId' | 'googleId' | 'mailruId';
+    let fieldName: 'vkId' | 'yandexId' | 'googleId';
 
     if (provider === 'vk') {
       if (!process.env.VK_APP_ID) {
@@ -1378,40 +1377,11 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
       }
       fieldName = 'googleId';
       providerId = String(googlePayload.sub);
-
     } else {
-      // provider === 'mailru'
-      // Sec audit 2026-04: HIGH-13. Refuse without configured client id +
-      // verify audience so a token from another Mail.ru OAuth app can't
-      // be used to attach a malicious mailruId to the user's account.
-      if (!process.env.MAILRU_CLIENT_ID) {
-        return res.status(503).json({ error: 'Mail.ru OAuth не настроен на сервере' });
-      }
-      let mailruData: { id?: string; error?: string; message?: string; client_id?: string; aud?: string };
-      try {
-        const mailruResp = await fetch(
-          `https://oauth.mail.ru/userinfo?access_token=${encodeURIComponent(accessToken)}`,
-          { signal: AbortSignal.timeout(10_000) },
-        );
-        if (!mailruResp.ok) throw new Error(`Mail.ru API error: ${mailruResp.status}`);
-        mailruData = await mailruResp.json() as typeof mailruData;
-      } catch (e: any) {
-        logger.warn('Mail.ru token validation failed (link):', e.message);
-        return res.status(401).json({ error: 'Не удалось проверить токен Mail.ru', code: 'INVALID_TOKEN' });
-      }
-      if (mailruData.error || !mailruData.id) {
-        return res.status(401).json({ error: 'Недействительный токен Mail.ru', code: 'INVALID_TOKEN' });
-      }
-      if (mailruData.client_id && mailruData.client_id !== process.env.MAILRU_CLIENT_ID) {
-        logger.warn(`[SECURITY] Mail.ru link token client_id mismatch: expected=${process.env.MAILRU_CLIENT_ID} got=${mailruData.client_id}`);
-        return res.status(401).json({ error: 'Токен выдан для другого приложения', code: 'WRONG_APP' });
-      }
-      if (mailruData.aud && mailruData.aud !== process.env.MAILRU_CLIENT_ID) {
-        logger.warn(`[SECURITY] Mail.ru link token aud mismatch: expected=${process.env.MAILRU_CLIENT_ID} got=${mailruData.aud}`);
-        return res.status(401).json({ error: 'Токен выдан для другого приложения', code: 'WRONG_APP' });
-      }
-      fieldName = 'mailruId';
-      providerId = String(mailruData.id);
+      // Exhaustive guard: zod already restricts provider to vk|yandex|google,
+      // but TS can't narrow `let fieldName` after the if-chain. Throw to make
+      // the compiler happy and surface a runtime error if the enum changes.
+      return res.status(400).json({ error: 'Неподдерживаемый провайдер', code: 'UNSUPPORTED_PROVIDER' });
     }
 
     // Check the provider ID is not already linked to a DIFFERENT account
@@ -1452,11 +1422,11 @@ router.post('/linked-accounts/:provider', authenticate, async (req: AuthRequest,
  */
 router.delete('/linked-accounts/:provider', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const provider = z.enum(['yandex', 'vk', 'google', 'mailru']).parse(req.params.provider);
+    const provider = z.enum(['yandex', 'vk', 'google']).parse(req.params.provider);
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true, mailruId: true },
+      select: { passwordHash: true, googleId: true, vkId: true, yandexId: true },
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
@@ -1464,7 +1434,6 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
       yandex: 'yandexId',
       vk: 'vkId',
       google: 'googleId',
-      mailru: 'mailruId',
     };
 
     if (!user[fieldMap[provider]]) {
@@ -1472,7 +1441,7 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
     }
 
     // Ensure user won't lose all login methods
-    const otherProviders = (['google', 'vk', 'yandex', 'mailru'] as const)
+    const otherProviders = (['google', 'vk', 'yandex'] as const)
       .filter((p) => p !== provider)
       .filter((p) => !!user[fieldMap[p]]);
     if (!user.passwordHash && otherProviders.length === 0) {

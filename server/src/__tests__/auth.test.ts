@@ -735,7 +735,6 @@ describe('Auth Routes', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        mailruId: null,
       });
 
       const res = await request(app)

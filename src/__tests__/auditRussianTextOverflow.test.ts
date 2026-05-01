@@ -79,7 +79,6 @@ describe('Button labels fit standard button widths', () => {
     'Войти через Google',
     'Войти через VK ID',
     'Войти через Яндекс',
-    'Войти через Mail.ru',
   ];
 
   test.each(DEVICES)('all CTAs fit full-width button at %ipt', (w) => {

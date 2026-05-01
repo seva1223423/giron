@@ -98,11 +98,11 @@ export const userService = {
     await api.delete('/user/trusted-devices');
   },
 
-  async unlinkProvider(provider: 'yandex' | 'vk' | 'google' | 'mailru'): Promise<void> {
+  async unlinkProvider(provider: 'yandex' | 'vk' | 'google'): Promise<void> {
     await api.delete(`/user/linked-accounts/${provider}`);
   },
 
-  async linkProvider(provider: 'vk' | 'yandex' | 'google' | 'mailru', params: { accessToken: string; userId?: string }): Promise<void> {
+  async linkProvider(provider: 'vk' | 'yandex' | 'google', params: { accessToken: string; userId?: string }): Promise<void> {
     await api.post(`/user/linked-accounts/${provider}`, params);
   },
 

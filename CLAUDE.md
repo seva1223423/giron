@@ -39,13 +39,13 @@
 
 ### API маршруты (server/src/routes/)
 - `auth.ts` — register, login, refresh, 2FA (TOTP), forgot/reset password, sessions, change email/phone
-  - Социальный OAuth: `POST /auth/google`, `/auth/vk`, `/auth/yandex`, `/auth/mailru`
-  - `GET /auth/check-email` — возвращает `{ hasPassword, hasGoogle, hasVk, hasYandex, hasMailru }`
+  - Социальный OAuth: `POST /auth/google`, `/auth/vk`, `/auth/yandex`
+  - `GET /auth/check-email` — возвращает `{ hasPassword, hasGoogle, hasVk, hasYandex }`
   - Безопасность: SHA-256 хэш refresh-токенов, Google `email_verified` guard, CSRF state в клиенте
 - `user.ts` — profile CRUD, weight log, body measurements, sleep, trusted devices, push tokens
   - `POST /user/linked-accounts/:provider` — привязать OAuth (step-up re-auth требует currentPassword/TOTP)
   - `DELETE /user/linked-accounts/:provider` — отвязать OAuth (защита последнего метода входа)
-  - provider: `google | vk | yandex | mailru`
+  - provider: `google | vk | yandex`
   - `POST /user/onboarding/step` — first-touch step telemetry (step 0..4) into User.onboardingStepLog Json + onboardingCompletedAt; idempotent re-submissions preserve original timestamp
 - `workout.ts` — programs CRUD, start/complete workout, history, leaderboard (top-100 по est1RM), exercises, routines CRUD + progressive overload start
 - `nutrition.ts` — meals CRUD (фильтр по дате)
@@ -90,10 +90,9 @@
 | Google    | `POST /auth/google` | google-auth-library `verifyIdToken`      | `googleId` | `GOOGLE_CLIENT_IDS`         |
 | VK ID     | `POST /auth/vk`   | `api.vk.com/method/users.get?access_token` | `vkId`     | `VK_APP_ID`                 |
 | Яндекс    | `POST /auth/yandex` | `login.yandex.ru/info?format=json`       | `yandexId` | `YANDEX_CLIENT_ID`          |
-| Mail.ru   | `POST /auth/mailru` | `oauth.mail.ru/userinfo`               | `mailruId` | `MAILRU_CLIENT_ID`          |
 
 Все провайдеры проверяют `TOTP gate` перед созданием/привязкой аккаунта.
-Клиентские env-переменные (для показа кнопки): `EXPO_PUBLIC_VK_APP_ID`, `EXPO_PUBLIC_YANDEX_CLIENT_ID`, `EXPO_PUBLIC_MAILRU_APP_ID`.
+Клиентские env-переменные (для показа кнопки): `EXPO_PUBLIC_VK_APP_ID`, `EXPO_PUBLIC_YANDEX_CLIENT_ID`.
 
 ## Структура
 
@@ -127,7 +126,7 @@ server/
                     NewsArticle, SavedNews, Subscription, TrainerClient, TrainerSession,
                     SupportTicket, SupportMessage, AdminLog, Announcement,
                     Routine, RoutineExercise, RoutineSet, Recipe)
-    User model OAuth fields: googleId, vkId, yandexId, mailruId (все @unique, nullable)
+    User model OAuth fields: googleId, vkId, yandexId (все @unique, nullable)
     seed.ts       — 150+ упражнений, начальные данные
 ```
 

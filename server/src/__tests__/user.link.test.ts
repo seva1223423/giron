@@ -190,21 +190,6 @@ describe('POST /api/user/linked-accounts/:provider', () => {
     expect(res.body.error).toBeDefined();
   });
 
-  it('returns 403 STEPUP_REQUIRED for mailru provider when user has no auth method', async () => {
-    // 'mailru' IS in the POST provider enum. With no password and no TOTP set
-    // the step-up gate fires before any OAuth call is made.
-    (mockPrisma.user.findUnique as jest.Mock)
-      .mockResolvedValueOnce(authUserRow)   // authenticate middleware
-      .mockResolvedValueOnce(stepUpNoAuth); // step-up check inside route
-
-    const res = await request(app)
-      .post('/api/user/linked-accounts/mailru')
-      .set('Authorization', `Bearer ${makeToken()}`)
-      .send({ accessToken: 'tok' }); // no currentPassword supplied
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('STEPUP_REQUIRED');
-  });
-
   it('returns 403 when user has no password and no TOTP (step-up required)', async () => {
     (mockPrisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(authUserRow)     // authenticate middleware ban check
@@ -367,7 +352,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        mailruId: null,
       });
 
     const res = await request(app)
@@ -386,7 +370,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        mailruId: null,
       });
 
     const res = await request(app)
@@ -405,7 +388,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: null,
-        mailruId: null,
       });
 
     const res = await request(app)
@@ -426,7 +408,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: 'vk-123',
         yandexId: null,
-        mailruId: null,
       });
 
     const res = await request(app)
@@ -445,7 +426,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: null,
         yandexId: 'yandex-uid-999',
-        mailruId: null,
       });
 
     const res = await request(app)
@@ -464,7 +444,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: 'vk-123',
         yandexId: null,
-        mailruId: null,
       });
 
     const res = await request(app)
@@ -485,7 +464,6 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
         googleId: null,
         vkId: 'vk-123',
         yandexId: 'yandex-uid-999',
-        mailruId: null,
       });
 
     const res = await request(app)
@@ -496,20 +474,19 @@ describe('DELETE /api/user/linked-accounts/:provider', () => {
     expect(res.body.ok).toBe(true);
   });
 
-  it('returns 400 NOT_LINKED when mailru provider is not linked', async () => {
-    // DELETE accepts yandex|vk|google|mailru. When mailruId is null → NOT_LINKED.
+  it('returns 400 NOT_LINKED when yandex provider is not linked', async () => {
+    // DELETE accepts yandex|vk|google. When yandexId is null → NOT_LINKED.
     (mockPrisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(authUserRow)
       .mockResolvedValueOnce({
         passwordHash: 'somehash',
-        googleId: null,
+        googleId: 'g-123', // another method present, so unlink is allowed
         vkId: null,
         yandexId: null,
-        mailruId: null,
       });
 
     const res = await request(app)
-      .delete('/api/user/linked-accounts/mailru')
+      .delete('/api/user/linked-accounts/yandex')
       .set('Authorization', `Bearer ${makeToken()}`);
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('NOT_LINKED');
