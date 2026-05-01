@@ -1150,6 +1150,18 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         Alert.alert('Тайм-аут', 'База продуктов не ответила. Попробуй ещё раз.', [
           { text: 'ОК', onPress: () => setBarcodeScanned(false) },
         ], { cancelable: false });
+      } else if (!isOnline) {
+        // Round 206: offline-aware error path. The barcode flow checks
+        // local cache before going to OFF, so a cache miss while
+        // offline is what brings us here. The previous generic
+        // "Не удалось получить данные" hid the actual cause and led
+        // users to retry pointlessly. Tell them exactly what to fix.
+        Alert.alert(
+          'Нет соединения',
+          'Этот штрих-код не в локальном кеше, а интернет недоступен. Подключись к сети и отсканируй ещё раз — или введи продукт вручную.',
+          [{ text: 'ОК', onPress: () => setBarcodeScanned(false) }],
+          { cancelable: false },
+        );
       } else {
         Alert.alert('Ошибка', 'Не удалось получить данные.', [
           { text: 'ОК', onPress: () => setBarcodeScanned(false) },
