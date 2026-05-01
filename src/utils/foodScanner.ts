@@ -244,6 +244,38 @@ export async function fetchBarcodeFromOFF(
   throw lastError ?? new Error('OFF unavailable');
 }
 
+/**
+ * Reject OFF nutriments that are physically implausible. OFF is
+ * crowd-sourced and Russian SKUs in particular suffer from two recurring
+ * data-entry errors that get past OFF's own checks:
+ *
+ *  - kJ value entered into the kcal field (so 1500 kJ → "1500 kcal/100g",
+ *    which exceeds the maximum any real food can hit — pure oils top out
+ *    near 900 kcal/100g).
+ *  - Per-serving values posted into the per-100g field on supplements
+ *    or single-portion sachets (so a 30g protein bar reads as 350g of
+ *    protein per 100g).
+ *
+ * Letting either through poisons the user's diary with macros that
+ * silently bust their daily targets. Treating implausible OFF data as
+ * "not found" prompts the user toward photo scan / manual entry, which
+ * for a corrupt entry is the right move.
+ *
+ * Limits:
+ *  - kcal/100g ≤ 900 (oils ~884 is the natural ceiling).
+ *  - Each macro ≤ 100g/100g, with a 10% slack on carbs to absorb the
+ *    rounding noise OFF sometimes carries on isomalt-heavy products.
+ *  - Σ(p·4 + f·9 + c·4) ≤ 1100 — anything higher is physically
+ *    impossible regardless of the per-field values.
+ */
+export function isOFFDataPlausible(cal: number, prot: number, fats: number, carbs: number): boolean {
+  if (cal > 900) return false;
+  if (prot > 100 || fats > 100 || carbs > 110) return false;
+  const macroCal = prot * 4 + fats * 9 + carbs * 4;
+  if (macroCal > 1100) return false;
+  return true;
+}
+
 /** Extract kcal/100g from OFF `nutriments`. Falls back to kJ→kcal (×0.239)
  *  for products that only carry kJ in their labelling (very common in EU/RU). */
 export function extractKcal(n: Record<string, any>): number {

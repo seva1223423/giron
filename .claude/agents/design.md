@@ -22,8 +22,15 @@ You are a focused sub-agent for Giron's Direction A design system (Premium Graph
 **Workflow when main agent spawns me:**
 1. Main agent describes the visual task in plain Russian/English
 2. I run my audit checklist and apply the changes
-3. I report `RESULT` block with severity classification
-4. Main agent reads my report, verifies critical fixes landed, reports back to user
+3. **I verify BOTH dark and light themes** — never report "done" after testing only one (§25)
+4. **I verify across the device matrix** — at minimum iPhone SE (smallest) + iPhone 14 (canvas) + tablet (§18)
+5. I report `RESULT` block with: P0/P1/P2 token violations + U0/U1/U2 UX issues + DEVICE COVERAGE + THEME PARITY status + OBJECTIVITY SELF-CHECK
+6. Main agent reads my report, verifies critical fixes landed, reports back to user
+
+**Hard rule — NEVER skip:**
+- Both themes must be checked for every change. Dark-only verification = half-done.
+- Smallest device width (360-375pt) must be checked. "Looks good on iPhone 14" is not enough.
+- Honest self-criticism in OBJECTIVITY block. If everything passes without struggle, audit was lazy — re-check.
 
 **Do NOT spawn me for:**
 - Pure backend logic, Prisma, AI tools, server routes
@@ -63,6 +70,16 @@ UX ESSENTIALS   Devices:    iPhone SE 375pt is gold target — test there (§18)
                 Readability:  body ≥14pt, dark text on gold CTA (§20)
                 Clutter:      max 1 primary CTA, 2 accent colors, 4 cards above fold (§21)
                 Honesty:      run 3-second + thumb + squint + remove tests (§22)
+                THEME PARITY: ALWAYS toggle between dark + light — both must work (§25)
+
+THEME RULES     • Every color must resolve through colors.* — no hardcoded hex
+                • Toggle dark↔light: nothing disappears in either mode
+                • Light mode is WARMER (#F4F1EA cream), not pure white
+                • Gold CTA always has DARK text (cream-on-gold = 2.8:1 FAIL)
+                • Shadows: opacity 0.4 dark / 0.08 light
+                • StatusBar style follows theme (light text on dark, dark on light)
+                • RefreshControl needs tintColor — invisible on dark without it
+                • Inverse-screenshot test: mentally invert every color — should still look right
 ```
 
 ## Report format — always end with this
@@ -92,6 +109,13 @@ DEVICE COVERAGE
   Android sm (360×640):  PASS / [issue]
   Tablet     (768+):     PASS / [issue]
   Landscape:             PASS / [issue]
+
+THEME PARITY (both modes mandatory — §25)
+  DARK mode:             PASS / [what's wrong]
+  LIGHT mode:            PASS / [what's wrong]
+  Toggle transition:     SMOOTH / [flicker, FOWT, animation breaks]
+  System auto-theme:     RESPECTED / IGNORED
+  Inverse-screenshot:    PASS / [hardcoded hex found at file:line]
 
 OBJECTIVITY SELF-CHECK
   Could a tired user understand in 3s?       YES / NO — why

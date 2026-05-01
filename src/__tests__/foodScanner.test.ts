@@ -27,6 +27,7 @@ import {
   sanitizeBarcode,
   verifyEan13Checksum,
   isRussianBarcode,
+  isOFFDataPlausible,
   OFF_HOSTS,
   type ScannerDraft,
 } from '../utils/foodScanner';

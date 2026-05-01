@@ -33,6 +33,7 @@ import {
   typicalPortionFor,
   sanitizeBarcode,
   fetchBarcodeFromOFF,
+  isOFFDataPlausible,
   type SanityFlag,
   type ScannerDraft,
 } from '../../utils/foodScanner';
@@ -929,6 +930,17 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
       // Skip products with no usable nutrition data — don't charge a scan
       if (cal === 0 && prot === 0 && fats === 0 && carbs === 0) {
+        setShowBarcodeScanner(false);
+        setNotFound(true);
+        return;
+      }
+
+      // Skip products with corrupted nutriments (kJ-as-kcal data-entry
+      // errors, per-serving values mis-posted into per-100g fields).
+      // Showing them would silently inflate the user's daily totals,
+      // which is worse than a "not found" prompt that nudges them
+      // toward photo or manual entry. No credit consumed.
+      if (!isOFFDataPlausible(cal, prot, fats, carbs)) {
         setShowBarcodeScanner(false);
         setNotFound(true);
         return;
