@@ -35,6 +35,7 @@ import {
   fetchBarcodeFromOFF,
   isOFFDataPlausible,
   isImageDimensionsValid,
+  isRussianBarcode,
   MIN_IMAGE_SHORT_SIDE,
   type SanityFlag,
   type ScannerDraft,
@@ -1937,7 +1938,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           <Card style={{ marginTop: spacing.lg }}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Продукт не найден</Text>
             <Text style={[typography.body, { color: colors.textSecondary, marginBottom: spacing.md }]}>
-              Штрих-код {lastBarcode} не в базе OpenFoodFacts. Выбери самый быстрый для тебя способ:
+              {/* Round 208: contextualize the not-found message for RU SKUs.
+                  EAN-13 prefixes 460-469 are Russia's GS1 range, and OFF
+                  coverage of Russian products is patchy — most Магнит /
+                  Пятёрочка own-brands and regional dairies are missing.
+                  Telling the user up front nudges them straight to the
+                  label-photo path (which works regardless of OFF coverage)
+                  rather than letting them think the scan failed. */}
+              {isRussianBarcode(lastBarcode)
+                ? `Штрих-код ${lastBarcode} не в базе OpenFoodFacts. Российские продукты часто там отсутствуют — самое надёжное решение это сфотографировать этикетку:`
+                : `Штрих-код ${lastBarcode} не в базе OpenFoodFacts. Выбери самый быстрый для тебя способ:`}
             </Text>
             <View style={{ gap: spacing.sm }}>
               <TouchableOpacity
