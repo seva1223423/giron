@@ -15,6 +15,8 @@ jest.mock('../db', () => ({
     subscription: {
       findMany: jest.fn(),
       update: jest.fn(),
+      // Round 253: pre-renewal notice now uses updateMany for atomic CAS.
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     workout: {
       findMany: jest.fn(),
@@ -63,6 +65,8 @@ const mockUserUpdate = prisma.user.update as jest.Mock;
 const mockUserUpdateMany = (prisma.user as any).updateMany as jest.Mock;
 const mockSubFindMany = prisma.subscription.findMany as jest.Mock;
 const mockSubUpdate = prisma.subscription.update as jest.Mock;
+// Round 253: pre-renewal notice now uses updateMany for atomic claim.
+const mockSubUpdateMany = (prisma.subscription as any).updateMany as jest.Mock;
 const mockWorkoutFindMany = prisma.workout.findMany as jest.Mock;
 const mockWorkoutCount = prisma.workout.count as jest.Mock;
 const mockSendPush = sendPushToUser as jest.Mock;
@@ -99,6 +103,7 @@ beforeEach(() => {
   // pre-existing tests treat the new atomic-claim path as a no-op.
   mockUserUpdateMany.mockResolvedValue({ count: 1 });
   mockSubUpdate.mockResolvedValue({});
+  mockSubUpdateMany.mockResolvedValue({ count: 1 });
   mockWeeklyEmail.mockResolvedValue(undefined);
   mockPreRenewalEmail.mockResolvedValue(undefined);
   mockActivationEmail.mockResolvedValue(undefined);
@@ -347,13 +352,16 @@ describe('processActivationCohort', () => {
 // ── processReactivationCohort ─────────────────────────────────────────────────
 
 describe('processReactivationCohort', () => {
+  // Round 253: reactivation cohorts now use updateMany for atomic
+  // claim-then-send. Tests assert against updateMany instead of update.
   test('updates reactivation7dSentAt for 7-day cohort', async () => {
     mockUserFindMany.mockResolvedValueOnce([{ id: 'u-1', firstName: 'Test' }]);
 
     await processReactivationCohort(7);
 
-    expect(mockUserUpdate).toHaveBeenCalledWith(
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({ id: 'u-1', reactivation7dSentAt: null }),
         data: { reactivation7dSentAt: expect.any(Date) },
       }),
     );
@@ -364,8 +372,9 @@ describe('processReactivationCohort', () => {
 
     await processReactivationCohort(14);
 
-    expect(mockUserUpdate).toHaveBeenCalledWith(
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({ id: 'u-1', reactivation14dSentAt: null }),
         data: { reactivation14dSentAt: expect.any(Date) },
       }),
     );
@@ -376,8 +385,9 @@ describe('processReactivationCohort', () => {
 
     await processReactivationCohort(30);
 
-    expect(mockUserUpdate).toHaveBeenCalledWith(
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({ id: 'u-1', reactivation30dSentAt: null }),
         data: { reactivation30dSentAt: expect.any(Date) },
       }),
     );
@@ -565,21 +575,30 @@ describe('processPreRenewalNotices', () => {
 
     await processPreRenewalNotices();
 
-    expect(mockSubUpdate).toHaveBeenCalledWith(
+    // Round 253: now uses updateMany for atomic CAS — assert against
+    // the claim call (renewalNoticeSentAt: null in WHERE, Date in data).
+    expect(mockSubUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'sub-1' },
+        where: expect.objectContaining({ id: 'sub-1', renewalNoticeSentAt: null }),
         data: { renewalNoticeSentAt: expect.any(Date) },
       }),
     );
   });
 
-  test('renewalNoticeSentAt NOT set when email fails', async () => {
+  test('renewalNoticeSentAt rolled back when email fails', async () => {
     mockSubFindMany.mockResolvedValueOnce([makeSubscription()]);
     mockPreRenewalEmail.mockRejectedValueOnce(new Error('SMTP error'));
 
     await processPreRenewalNotices();
 
-    expect(mockSubUpdate).not.toHaveBeenCalled();
+    // Round 253: claim succeeds (set→Date) → email fails → rollback (set→null).
+    // So updateMany is called twice: once to claim, once to rollback.
+    expect(mockSubUpdateMany).toHaveBeenCalledTimes(2);
+    expect(mockSubUpdateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: { renewalNoticeSentAt: null },
+      }),
+    );
     expect(mockReportError).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({ userId: 'u-1' }),
@@ -615,9 +634,10 @@ describe('processPreRenewalNotices', () => {
       expect(mockPreRenewalEmail).toHaveBeenCalledTimes(1);
       // Gate must still be set so the user doesn't get a duplicate email
       // on the next tick — email already satisfied the legal requirement.
-      expect(mockSubUpdate).toHaveBeenCalledWith(
+      // Round 253: claim flows through updateMany now.
+      expect(mockSubUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'sub-1' },
+          where: expect.objectContaining({ id: 'sub-1', renewalNoticeSentAt: null }),
           data: { renewalNoticeSentAt: expect.any(Date) },
         }),
       );
@@ -632,7 +652,7 @@ describe('processPreRenewalNotices', () => {
       expect(sent).toBe(1);
       expect(mockSendPush).not.toHaveBeenCalled();
       expect(mockPreRenewalEmail).toHaveBeenCalledTimes(1);
-      expect(mockSubUpdate).toHaveBeenCalledTimes(1);
+      expect(mockSubUpdateMany).toHaveBeenCalledTimes(1);
     });
 
     test('at 09:00 MSK (06:00 UTC) — push fires (just past quiet window)', async () => {
