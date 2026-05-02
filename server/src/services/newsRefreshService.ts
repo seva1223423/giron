@@ -94,7 +94,17 @@ async function fetchRssFeed(url: string): Promise<string> {
     signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
-  return response.text();
+  // Round 256: enforce a 5MB body cap. Without this, a hostile or
+  // misbehaving RSS source could return hundreds of MB of XML and the
+  // downstream regex parser would either exhaust memory or trigger
+  // catastrophic backtracking on the `[\s\S]*?` patterns. 5MB covers
+  // 99% of legitimate RSS feeds (Google News, ТАСС max ~500KB).
+  const text = await response.text();
+  const MAX_RSS_BYTES = 5 * 1024 * 1024;
+  if (text.length > MAX_RSS_BYTES) {
+    throw new Error(`RSS body too large: ${text.length} bytes from ${url} (max ${MAX_RSS_BYTES})`);
+  }
+  return text;
 }
 
 export async function refreshNews(force = false): Promise<{ added: number; skipped: number }> {
