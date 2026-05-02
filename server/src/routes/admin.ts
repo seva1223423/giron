@@ -2106,10 +2106,23 @@ router.get('/digest/readiness', authenticate, async (_req: AuthRequest, res: Res
  * Use sparingly; meant for manual testing right after deploy. Returns the
  * delivery count.
  */
-router.post('/digest/send-now', requireAdmin, async (_req: AuthRequest, res: Response) => {
+router.post('/digest/send-now', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { sendDailyAdminDigest } = await import('../services/adminDigestService');
     const sent = await sendDailyAdminDigest();
+    // Round 233 (security audit): the only mutating admin endpoint that
+    // wasn't writing to AdminLog. Sending the digest pushes notifications
+    // and emails to every admin — must show up in /admin/logs alongside
+    // bans, role changes, etc., so we can audit "who triggered the 03:00
+    // notification storm" later.
+    await prisma.adminLog.create({
+      data: {
+        adminId: req.userId!,
+        action: 'DIGEST_SEND_NOW',
+        targetId: null,
+        details: `sent=${sent}`,
+      },
+    }).catch(() => { /* best-effort audit */ });
     res.json({ sent });
   } catch (e) {
     logger.error('POST /admin/digest/send-now:', e);

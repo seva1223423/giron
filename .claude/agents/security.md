@@ -32,7 +32,7 @@ RESULT:
 - Suspicious login detection: new IP/device → `SecurityEvent` + email alert
 - Trusted device tokens (`TrustedDevice` model, `deviceToken` field)
 - OAuth CSRF protection: `state` param on Google/VK/Yandex flows
-- Email normalization on all auth paths: `.trim().toLowerCase().normalize('NFKC')` applied at Zod transform layer and in OAuth token handlers (Yandex `default_email`, Mail.ru `email`). Prevents duplicate-account bypass via mixed-case / Unicode lookalike addresses. (`normalizeEmail()` helper in `server/src/routes/auth.ts:220`). Regression-tested in `auth.social.test.ts` HIGH-14 blocks.
+- Email normalization on all auth paths: `.trim().toLowerCase().normalize('NFKC')` applied at Zod transform layer and in OAuth token handlers (Yandex `default_email`). Prevents duplicate-account bypass via mixed-case / Unicode lookalike addresses. (`normalizeEmail()` helper in `server/src/routes/auth.ts:220`). Regression-tested in `auth.social.test.ts` HIGH-14 blocks. (Mail.ru OAuth was scoped out per round-187 product decision — no handler exists; maestro tests assert the button is absent.)
 - Password history: last N passwords blocked on reset (`PasswordHistory` model)
 - Strong password Zod validation: min 8, max 128, uppercase + lowercase + digit (no special char required — intentional to reduce friction)
 
@@ -124,7 +124,7 @@ When auditing any file, check every item:
 
 ~~**3. No audit log for admin mutations**~~ — **RESOLVED** as of 2026-04-22
 ~~**14. Email normalization missing on OAuth + change-email flows**~~ — **RESOLVED** as of 2026-04-28
-- `normalizeEmail()` helper (`.trim().toLowerCase().normalize('NFKC')`) applied to: Yandex OAuth `default_email` (auth.ts:854), Mail.ru email field (auth.ts:981), VK optional client email (Zod transform), change-email Zod transform in `user.ts`.
+- `normalizeEmail()` helper (`.trim().toLowerCase().normalize('NFKC')`) applied to: Yandex OAuth `default_email` (auth.ts:854), VK optional client email (Zod transform), change-email Zod transform in `user.ts`. (Mail.ru OAuth removed in round 187 — no handler in current `auth.ts`.)
 - Regression tests: `auth.social.test.ts` — two HIGH-14 describe blocks verify the email passed to `prisma.user.findUnique` and `prisma.user.create` is lowercase/normalized.
 - `server/src/routes/admin.ts` has `prisma.adminLog.create` on 20+ mutation paths (ban, subscription activate, announcement, data deletion, etc.). Full audit trail exists via the `AdminLog` model.
 
