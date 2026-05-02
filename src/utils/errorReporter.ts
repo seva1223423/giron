@@ -32,13 +32,18 @@ let initialized = false;
 const EXACT_TOKENS = new Set<string>([
   'password', 'passwd', 'secret', 'token', 'authorization', 'cookie', 'session',
   'totp', 'otp', 'pin',
-  'email', 'phone', 'address', 'fullname', 'firstname', 'lastname',
+  'email', 'phone', 'address',
   'weight', 'height', 'pulse', 'bmi', 'bodyfat', 'goal',
   'healthrestriction', 'healthrestrictions', 'disease',
   'card', 'cvv', 'iban', 'pan',
 ]);
 const PREFIX_TOKENS = ['injur', 'allerg', 'medicat'];
-const CONCAT_PATTERNS = ['apikey', 'api_key', 'totpsecret', 'idtoken'];
+// firstName/lastName/fullName tokenize to ['first','name'] etc. — none of
+// the parts is sensitive on its own, so we match the concat form instead.
+const CONCAT_PATTERNS = [
+  'apikey', 'api_key', 'totpsecret', 'idtoken',
+  'firstname', 'lastname', 'fullname', 'givenname', 'surname',
+];
 const MAX_SCRUB_DEPTH = 6;
 
 function tokenizeKey(key: string): string[] {
