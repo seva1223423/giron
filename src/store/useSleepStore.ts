@@ -25,6 +25,8 @@ interface SleepStore {
   getAverageDuration: (days: number) => number;
   getAverageQuality: (days: number) => number;
   clearUserData: () => void;
+  /** Round 279: session-epoch (R249 pattern). */
+  _sessionEpoch: number;
 }
 
 const computeDuration = (bedtime: string, wakeTime: string): number => {
@@ -41,6 +43,7 @@ export const useSleepStore = create<SleepStore>()(
   persist(
     (set, get) => ({
       entries: [],
+      _sessionEpoch: 0,
 
       addEntry: (entry) => {
         const durationHours = computeDuration(entry.bedtime, entry.wakeTime);
@@ -85,6 +88,8 @@ export const useSleepStore = create<SleepStore>()(
       },
 
       syncFromServer: async () => {
+        // Round 279: session-epoch (R249 pattern).
+        const epoch = get()._sessionEpoch ?? 0;
         try {
           // Phase 1 — flush any entries marked pendingSync (offline-saved
           // but never reached the backend). Server upsert is keyed on
@@ -161,7 +166,10 @@ export const useSleepStore = create<SleepStore>()(
         return parseFloat((last.reduce((sum, e) => sum + (e.quality ?? 0), 0) / last.length).toFixed(1));
       },
 
-      clearUserData: () => set({ entries: [] }),
+      clearUserData: () => set((s) => ({
+        entries: [],
+        _sessionEpoch: ((s as any)._sessionEpoch ?? 0) + 1,
+      })),
     }),
     {
       name: 'giron-sleep',

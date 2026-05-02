@@ -24,12 +24,15 @@ interface MeasurementsStore {
   getLatest: () => BodyMeasurement | null;
   syncFromServer: () => Promise<void>;
   clearUserData: () => void;
+  /** Round 279: session-epoch (R249 pattern). */
+  _sessionEpoch: number;
 }
 
 export const useMeasurementsStore = create<MeasurementsStore>()(
   persist(
     (set, get) => ({
       entries: [],
+      _sessionEpoch: 0,
 
       addEntry: (data) => {
         const entry: BodyMeasurement = { ...data, id: `meas-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
@@ -89,6 +92,9 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
       },
 
       syncFromServer: async () => {
+        // Round 279: capture session epoch (R249 pattern) — drops result
+        // if user logs out mid-sync.
+        const epoch = get()._sessionEpoch ?? 0;
         try {
           // Phase 1 — push offline-saved (`meas-` prefixed) entries to the
           // backend. Without this they accumulate forever on the device and
@@ -146,6 +152,8 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
               && !serverDates.has(e.date)
               && !promotedDates.has(e.date),
           );
+          // Round 279: drop result if session changed mid-await.
+          if ((get()._sessionEpoch ?? 0) !== epoch) return;
           set({
             entries: [...localOnly, ...missingPromoted, ...mapped]
               .sort((a, b) => b.date.localeCompare(a.date)),
@@ -155,7 +163,10 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
         }
       },
 
-      clearUserData: () => set({ entries: [] }),
+      clearUserData: () => set((s) => ({
+        entries: [],
+        _sessionEpoch: ((s as any)._sessionEpoch ?? 0) + 1,
+      })),
     }),
     {
       name: 'giron-measurements',
