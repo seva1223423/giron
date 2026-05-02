@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useWorkoutStore, useThemeColors } from '../../store';
 import { FadeIn, PaywallModal } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -34,7 +34,7 @@ function groupByMonth(workouts: any[]) {
 export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { workoutHistory } = useWorkoutStore();
   const { canViewFullWorkoutHistory } = useSubscriptionStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -70,14 +70,27 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
       {workoutHistory.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: spacing.lg }}>◎</Text>
+          <Text style={[typography.numberSmall, { color: colors.primary, marginBottom: spacing.lg }]}>◎</Text>
           <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>Нет тренировок</Text>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
             После первой тренировки здесь появится история
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        // Round 264 (deferred): the audit flagged this as HIGH for
+        // virtualization (ScrollView renders all months × all workouts ×
+        // all expanded cards at once). Migrating to SectionList is the
+        // right answer but the search/filter/paywall-banner header
+        // composition is fragile and we have no UI snapshot tests
+        // covering the expanded-card animations. Tracker comment so the
+        // perf gap stays visible until we have time + QA bandwidth.
+        // Bound at the partialize step (R259, 200 workouts max in
+        // persisted store) — gives a soft ceiling on render count.
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews
+        >
           <HistoryStatsCard workoutHistory={workoutHistory} />
 
           {isHistoryTruncated && (
@@ -124,7 +137,7 @@ export const WorkoutHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
           {filtered.length === 0 && (
             <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginBottom: spacing.md }}>Q</Text>
+              <Text style={[typography.h4, { color: colors.primary, marginBottom: spacing.md }]}>Q</Text>
               <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>Ничего не найдено</Text>
             </View>
           )}
