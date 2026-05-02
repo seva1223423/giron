@@ -2169,7 +2169,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             </Text>
             <View style={{ gap: spacing.sm }}>
               <TouchableOpacity
-                onPress={() => { haptic.selection(); setNotFound(false); pickImage(true); }}
+                onPress={() => {
+                  haptic.selection();
+                  setNotFound(false);
+                  // Audit: if the user already has items in the meal
+                  // (e.g. they scanned a yogurt earlier in the same
+                  // session, then tried a barcode for a second product
+                  // that wasn't in OFF), the label-photo result should
+                  // ADD to the meal, not wipe it. Set appendNextRef so
+                  // applyAIItems merges with existing recognizedItems
+                  // instead of replacing — only when there's actually
+                  // something to merge into.
+                  if (recognizedItems.length > 0) {
+                    appendNextRef.current = true;
+                  }
+                  pickImage(true);
+                }}
                 style={[styles.fallbackRow, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}
                 accessibilityLabel="Сфотографировать этикетку продукта"
                 accessibilityHint="AI считает КБЖУ прямо с таблицы пищевой ценности"
