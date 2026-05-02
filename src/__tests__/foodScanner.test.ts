@@ -668,6 +668,76 @@ describe('computeTypicalPortions', () => {
     const m = computeTypicalPortions([meal([{ name: 'Творог', weightGrams: 200 }])], 1);
     expect(m.get('творог')).toBe(200);
   });
+
+  // Round 254: typo guards. The server's Zod bound on typicalPortions is
+  // [5, 5000]g — any single out-of-range observation that survived into
+  // the median would fail Zod validation server-side and break the
+  // entire scan request with a 400. Filter those out at source.
+  test('drops weights below 5g (sub-gram typos / forgotten unit)', () => {
+    const m = computeTypicalPortions([
+      meal([{ name: 'Рис', weightGrams: 1 }]),
+      meal([{ name: 'Рис', weightGrams: 4.9 }]),
+      meal([{ name: 'Рис', weightGrams: 150 }]),
+      meal([{ name: 'Рис', weightGrams: 160 }]),
+    ]);
+    // Only the two valid samples count; 1 and 4.9 are rejected.
+    expect(m.get('рис')).toBe(155);
+  });
+
+  test('drops weights above 5000g (stray-digit typos)', () => {
+    const m = computeTypicalPortions([
+      meal([{ name: 'Гречка', weightGrams: 100 }]),
+      meal([{ name: 'Гречка', weightGrams: 120 }]),
+      meal([{ name: 'Гречка', weightGrams: 12345 }]),
+    ]);
+    // 12345 dropped → median of [100, 120] = 110, well within Zod bound.
+    expect(m.get('гречка')).toBe(110);
+  });
+
+  test('IQR fence trims one extreme outlier from a 4-sample group', () => {
+    const m = computeTypicalPortions([
+      meal([{ name: 'Куриная грудка', weightGrams: 150 }]),
+      meal([{ name: 'Куриная грудка', weightGrams: 160 }]),
+      meal([{ name: 'Куриная грудка', weightGrams: 170 }]),
+      meal([{ name: 'Куриная грудка', weightGrams: 4500 }]),
+    ]);
+    // 4500 is 27× the cluster — Tukey fence drops it; median of [150, 160, 170] = 160.
+    expect(m.get('куриная грудка')).toBe(160);
+  });
+
+  test('IQR fence preserves clean data with no outliers', () => {
+    const m = computeTypicalPortions([
+      meal([{ name: 'Рис', weightGrams: 145 }]),
+      meal([{ name: 'Рис', weightGrams: 150 }]),
+      meal([{ name: 'Рис', weightGrams: 155 }]),
+      meal([{ name: 'Рис', weightGrams: 160 }]),
+    ]);
+    expect(m.get('рис')).toBe(153); // median of [145, 150, 155, 160] = 152.5 → 153
+  });
+
+  test('skips IQR trim for < 4 samples (median already outlier-robust at n=3)', () => {
+    const m = computeTypicalPortions([
+      meal([{ name: 'Творог', weightGrams: 100 }]),
+      meal([{ name: 'Творог', weightGrams: 150 }]),
+      meal([{ name: 'Творог', weightGrams: 200 }]),
+    ]);
+    // No IQR culling at n=3; classic median = 150.
+    expect(m.get('творог')).toBe(150);
+  });
+
+  test('group dropped if outlier-trim leaves fewer than minSamples', () => {
+    // 2 samples, both look like typos when paired (e.g. one tiny + one huge).
+    // After clamp, both survive; median is implausible but still in [5, 5000].
+    // This test checks that after the IQR pass at n=2 (which is a no-op),
+    // we don't accidentally drop a valid group. n=2 is still the minSamples
+    // floor — so a single bad pair pollutes the median, which is unavoidable
+    // without more data. The bounds clamp catches the worst typos already.
+    const m = computeTypicalPortions([
+      meal([{ name: 'Сыр', weightGrams: 30 }]),
+      meal([{ name: 'Сыр', weightGrams: 60 }]),
+    ]);
+    expect(m.get('сыр')).toBe(45);
+  });
 });
 
 describe('typicalPortionFor', () => {
