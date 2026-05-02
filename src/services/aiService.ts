@@ -208,6 +208,7 @@ export const aiService = {
     signal?: AbortSignal,
     mimeType = 'image/jpeg',
     typicalPortions?: Record<string, number>,
+    mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack',
   ): Promise<FoodAnalysisResult> {
     try {
       // Vision API call — same long-latency category as /ai/chat. Pass
@@ -235,7 +236,7 @@ export const aiService = {
         : undefined;
       const { data } = await api.post(
         '/ai/analyze-food',
-        { imageBase64, mimeType, clientTzOffsetMinutes, typicalPortions: typicalPortionsBody },
+        { imageBase64, mimeType, clientTzOffsetMinutes, typicalPortions: typicalPortionsBody, mealType },
         { signal, timeout: AI_REQUEST_TIMEOUT_MS },
       );
       return data;
@@ -275,6 +276,7 @@ export const aiService = {
     description: string,
     signal?: AbortSignal,
     typicalPortions?: Record<string, number>,
+    mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack',
   ): Promise<FoodAnalysisResult> {
     try {
       // See analyzeFood for rationale on clientTzOffsetMinutes.
@@ -289,7 +291,7 @@ export const aiService = {
         : undefined;
       const { data } = await api.post(
         '/ai/analyze-food-text',
-        { description, clientTzOffsetMinutes, typicalPortions: typicalPortionsBody },
+        { description, clientTzOffsetMinutes, typicalPortions: typicalPortionsBody, mealType },
         { signal, timeout: AI_REQUEST_TIMEOUT_MS },
       );
       return data;

@@ -83983,9 +83983,14 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       // the photo's portion is ambiguous. Cap key length 120 / value
       // [5, 5000g] to keep payload bounded against malformed input.
       typicalPortions: z.record(z.string().min(1).max(120), z.number().finite().min(5).max(5000)).optional(),
+      // Round 252: which meal the user is scanning for. Lets the AI bias
+      // toward realistic per-meal portion ranges — breakfast is lighter
+      // than lunch, snacks are smaller than mains. Only consulted when
+      // the photo's portion is ambiguous (no calibration objects).
+      mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-    const { imageBase64, mimeType = 'image/jpeg', clientTzOffsetMinutes, typicalPortions } = parsed.data;
+    const { imageBase64, mimeType = 'image/jpeg', clientTzOffsetMinutes, typicalPortions, mealType } = parsed.data;
 
     const userId = req.userId!;
 
@@ -84307,6 +84312,22 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
   if (tpEntries.length === 0) return '';
   const tpLines = tpEntries.map(([name, grams]) => `- ${sanitizeForPrompt(name, 80)} ≈ ${Math.round(grams)}г`);
   return `\n\nОБЫЧНЫЕ ПОРЦИИ ПОЛЬЗОВАТЕЛЯ (медиана за последние 30 дней — если на фото это блюдо и порция выглядит близко к норме, ставь именно эти граммы):\n${tpLines.join('\n')}`;
+})()}${(() => {
+  // Round 252: meal-context hint. The AI prompt already lists portion
+  // standards, but it can't pick between "медленный завтрак: 200г каши"
+  // and "плотный обед: 280г каши" without knowing which meal this is.
+  // The user picks the meal type before scanning, so threading it in
+  // lets the AI nudge ambiguous portions toward realistic per-meal
+  // ranges. Only consulted when the photo's portion is ambiguous —
+  // explicit calibration objects (fork, hand, packaging) still win.
+  if (!mealType) return '';
+  const map = {
+    breakfast: 'ЗАВТРАК — порции легче (200–280г каши, 100–150г творога, 1–2 яйца, 30–60г хлеба). Если еда выглядит как полноценный обед — это, вероятно, обед, доверяй визуалу.',
+    lunch: 'ОБЕД — полные порции (300–450г суп, 150–250г гарнир + 100–150г белок, или 350–500г одно блюдо типа плова). Самая большая трапеза дня для большинства.',
+    dinner: 'УЖИН — средние порции (200–350г, часто белок + овощи без крупного гарнира). Обычно меньше обеда.',
+    snack: 'ПЕРЕКУС — маленькие порции (30–150г: фрукт, батончик, горсть орехов, йогурт 100–150г). Если на фото полноценное блюдо 300г+ — это не перекус, верни как есть, но снизь confidence.',
+  } as const;
+  return `\n\nКОНТЕКСТ ТРАПЕЗЫ: ${map[mealType]}`;
 })()}
 
 Ответь СТРОГО JSON без комментариев:
@@ -84497,9 +84518,13 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
       // weights — "съел курицу" gets the user's habitual 200g instead
       // of a generic 150g default.
       typicalPortions: z.record(z.string().min(1).max(120), z.number().finite().min(5).max(5000)).optional(),
+      // Round 252: parity with /analyze-food. Lets the AI bias portion
+      // estimates by meal context when the description is gram-less
+      // ("съел кашу" → breakfast = 200g, lunch = 280g).
+      mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-    const { description, clientTzOffsetMinutes, typicalPortions } = parsed.data;
+    const { description, clientTzOffsetMinutes, typicalPortions, mealType } = parsed.data;
 
     const userId = req.userId!;
 
@@ -84569,6 +84594,19 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
       const tpLines = tpEntries.map(([name, grams]) => `- ${sanitizeForPrompt(name, 80)} ≈ ${Math.round(grams)}г`);
       return `\n\nОБЫЧНЫЕ ПОРЦИИ ПОЛЬЗОВАТЕЛЯ (медиана за 30 дней — если описание упоминает блюдо без веса, ставь именно эти граммы по умолчанию):\n${tpLines.join('\n')}`;
     })();
+    // Round 252: meal-context hint, parity with vision path. When the
+    // description omits weight, the meal type narrows the realistic
+    // portion range — "съел кашу" at breakfast = 200g, at lunch = 280g.
+    const mealTypeBlockText = ((): string => {
+      if (!mealType) return '';
+      const map = {
+        breakfast: 'ЗАВТРАК — порции легче (200–280г каши, 100–150г творога, 1–2 яйца, 30–60г хлеба).',
+        lunch: 'ОБЕД — полные порции (300–450г суп, 150–250г гарнир + 100–150г белок, или 350–500г одно блюдо).',
+        dinner: 'УЖИН — средние порции (200–350г, часто белок + овощи без крупного гарнира).',
+        snack: 'ПЕРЕКУС — маленькие порции (30–150г: фрукт, батончик, горсть орехов, йогурт 100–150г).',
+      } as const;
+      return `\n\nКОНТЕКСТ ТРАПЕЗЫ: ${map[mealType]}`;
+    })();
     const prompt = `Ты — нутрициолог-эксперт. Распарси описание еды и верни точные КБЖУ по каждой позиции.
 
 ОПИСАНИЕ: ${safeDescription}
@@ -84622,7 +84660,7 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
    • 0.9–1.0 — точный вес указан + знакомое блюдо
    • 0.7–0.89 — блюдо чёткое, вес прикинут по стандарту
    • 0.5–0.69 — размытое описание ("что-то мясное", "немного каши")
-   • < 0.5 — НЕ ВОЗВРАЩАЙ, лучше пропусти.${recipesBlockText}${typicalPortionsBlockText}
+   • < 0.5 — НЕ ВОЗВРАЩАЙ, лучше пропусти.${recipesBlockText}${typicalPortionsBlockText}${mealTypeBlockText}
 
 Ответь СТРОГО JSON:
 {
