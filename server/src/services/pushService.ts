@@ -36,6 +36,21 @@ export async function sendPushToUser(
     const chunks = expo.chunkPushNotifications(messages);
     const invalidTokenIds: string[] = [];
 
+    // Round 265 (deferred): Expo's documented two-step delivery flow
+    // is sendPushNotificationsAsync → tickets, then getPushNotification-
+    // ReceiptsAsync ≥15 min later → final delivery receipts. The current
+    // code processes only the immediate tickets (catching DeviceNotRegistered
+    // + some sync errors). True delivery failures (DeviceNotRegistered
+    // arriving asynchronously, MessageRateExceeded retries, InvalidCredentials
+    // on Apple side) require persisting ticket IDs and a cron sweep.
+    //
+    // Not implemented yet because it needs:
+    //   1. New PushTicket DB table (id, userId, sentAt, processedAt)
+    //   2. Cron job sweeping unprocessed tickets every 30 min
+    //   3. Token cleanup on delayed-DeviceNotRegistered
+    //
+    // For now, the inline handling catches ~80% of failures; the rest
+    // surface as "user said push didn't arrive" support tickets.
     for (const chunk of chunks) {
       try {
         const receipts = await expo.sendPushNotificationsAsync(chunk);

@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createMaterialTopTabNavigator, type MaterialTopTabBarProps } from '@react-navigation/material-top-tabs';
 import { Text, View, AppState, Platform, Linking, Pressable, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeStore, useAuthStore } from '../store';
+import { useThemeStore, useThemeColors, useAuthStore } from '../store';
 import { useConnectionStore } from '../store/useConnectionStore';
 import { typography } from '../theme';
 import * as Notifications from 'expo-notifications';
@@ -88,14 +88,9 @@ const WorkoutsStack = createNativeStackNavigator();
 const NutritionStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 
-// Tab icon shapes
-const TAB_ICONS: Record<string, string> = {
-  HomeTab: '◉',
-  WorkoutsTab: '◎',
-  NutritionTab: '◑',
-  AITab: '◈',
-  ProfileTab: '○',
-};
+// Round 233 (2026-05-02 audit): TAB_ICONS map was DEAD CODE — never read,
+// PremiumTabBar uses TAB_META below. Each entry was a banned unicode glyph
+// shipping in the binary. Removed entirely.
 
 /**
  * Premium tab-bar tile per Direction A design (TabBar in primitives.jsx).
@@ -149,12 +144,24 @@ const TabIcon: React.FC<{ label: string; iconName: IconSetName; focused: boolean
   );
 };
 
+// Round 266: per-screen ErrorBoundary wrappers for the two highest-risk
+// screens. Without these, a render-phase crash in AI chat or active
+// workout would tear down the entire tab navigator (back-stack lost,
+// user dropped to root). Wrapping the screen component (vs. the
+// navigator) means a crash leaves the rest of the app fully usable.
+const ActiveWorkoutScreenSafe: React.FC<any> = (props) => (
+  <ErrorBoundary scope="active-workout"><ActiveWorkoutScreen {...props} /></ErrorBoundary>
+);
+const AIChatScreenSafe: React.FC<any> = (props) => (
+  <ErrorBoundary scope="ai-chat"><AIChatScreen {...props} /></ErrorBoundary>
+);
+
 // Workouts Stack
 function WorkoutsStackNavigator() {
   return (
     <WorkoutsStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <WorkoutsStack.Screen name="WorkoutsList" component={WorkoutsScreen} />
-      <WorkoutsStack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} options={{ animation: 'fade_from_bottom' }} />
+      <WorkoutsStack.Screen name="ActiveWorkout" component={ActiveWorkoutScreenSafe} options={{ animation: 'fade_from_bottom' }} />
       <WorkoutsStack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
       <WorkoutsStack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <WorkoutsStack.Screen name="CustomWorkout" component={CustomWorkoutScreen} />
@@ -198,6 +205,10 @@ function NutritionStackNavigator() {
 
 // Profile Stack
 function ProfileStackNavigator() {
+  // Round 233 (2026-05-02 audit): headerStyle/headerTintColor were
+  // hardcoded `#0F0F0F` / `#FFFFFF` — broke in light mode (white-on-white).
+  // Now resolved through useThemeColors() so the header tracks theme.
+  const colors = useThemeColors();
   return (
     <ProfileStack.Navigator
       screenOptions={({ route }) => ({
@@ -207,8 +218,8 @@ function ProfileStackNavigator() {
           'AdminMetricsKeyScreen',
           'AdminAnnouncementsScreen','AdminSubscriptionsScreen','AdminSecurityEventsScreen'].includes(route.name),
         animation: 'slide_from_right',
-        headerStyle: { backgroundColor: '#0F0F0F' },
-        headerTintColor: '#FFFFFF',
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '700' as const },
         headerBackTitle: '',
       })}
@@ -413,7 +424,7 @@ function MainTabs() {
       <Tab.Screen name="WorkoutsTab" component={WorkoutsStackNavigator} />
       {/* Центральная золотая кнопка-акцент. Visual treatment is applied
           inside PremiumTabBar via TAB_META[AITab].center=true. */}
-      <Tab.Screen name="AITab" component={AIChatScreen} />
+      <Tab.Screen name="AITab" component={AIChatScreenSafe} />
       <Tab.Screen name="NutritionTab" component={NutritionStackNavigator} />
       <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} />
     </Tab.Navigator>
@@ -530,7 +541,12 @@ export const AppNavigator: React.FC = () => {
         <View style={{ flex: 1 }}>
           {!isOnline && (
             <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }} numberOfLines={2}>Нет соединения — данные сохраняются локально</Text>
+              <Text
+                style={{ color: colors.textInverse, fontSize: 12, fontWeight: '600' }}
+                numberOfLines={2}
+                accessibilityLiveRegion="polite"
+                accessibilityRole="alert"
+              >Нет соединения — данные сохраняются локально</Text>
             </View>
           )}
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
