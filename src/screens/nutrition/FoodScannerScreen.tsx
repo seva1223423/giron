@@ -37,6 +37,7 @@ import {
   isOFFDataPlausible,
   isImageDimensionsValid,
   isRussianBarcode,
+  deriveKcalFromMacros,
   MIN_IMAGE_SHORT_SIDE,
   type SanityFlag,
   type ScannerDraft,
@@ -1151,27 +1152,11 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
       const fats = Math.round((n.fat_100g || 0) * 10) / 10;
       const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
-      // Round 213: derive kcal from Atwater factors when OFF lists macros
-      // without an energy field. About 6% of OFF-RU products carry only
-      // protein/fat/carb numbers (the contributor stopped before adding
-      // energy), and the previous flow saved those at cal=0 — diary
-      // showed "0 ккал, 12г белка, 4г жиров", which the user rightly
-      // distrusted. Atwater (4×p + 9×f + 4×c) is exact for whole foods
-      // and within ±10% for processed; the plausibility gate below
-      // still catches absurd outputs.
-      //
-      // Round 214: subtract fiber from carbs when OFF carries it. Fiber
-      // contributes ~2 kcal/g (per regulation) but Atwater treats carbs
-      // uniformly at 4 — so high-fiber Russian staples (гречка ≈ 10 g
-      // fiber/100 g, овсянка ≈ 11) had their derived calories
-      // overstated by 20-40 kcal/100 g. Subtracting fiber from carbs
-      // before applying the carb factor is a closer approximation.
-      // When fiber data is absent (the more common case) we fall
-      // through to the original 4×c calculation unchanged.
+      // Round 213/214: derive kcal from macros when OFF lacks an
+      // energy field. The full rationale (Atwater factors, fiber
+      // adjustment, RU staples context) lives on the helper.
       if (cal === 0 && (prot + fats + carbs) > 0) {
-        const fiber = Math.max(0, Math.min(carbs, Number(n.fiber_100g) || 0));
-        const netCarbs = Math.max(0, carbs - fiber);
-        cal = Math.round(prot * 4 + fats * 9 + netCarbs * 4 + fiber * 2);
+        cal = deriveKcalFromMacros(prot, fats, carbs, Number(n.fiber_100g) || 0);
       }
       const productName = buildBarcodeDisplayName({
         product_name: p.product_name,
