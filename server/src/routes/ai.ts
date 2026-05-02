@@ -83976,9 +83976,16 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       // offset (signed minutes from UTC, matching `-getTimezoneOffset()`
       // convention) and the floor lands on the user's local midnight.
       clientTzOffsetMinutes: z.number().int().min(-14 * 60).max(14 * 60).optional(),
+      // Round 248: user's median-portion map from their last-30-days
+      // meal history (computed client-side via computeTypicalPortions).
+      // Used as a portion-calibration hint in the prompt — AI defers
+      // to user's habitual gram size instead of generic defaults when
+      // the photo's portion is ambiguous. Cap key length 120 / value
+      // [5, 5000g] to keep payload bounded against malformed input.
+      typicalPortions: z.record(z.string().min(1).max(120), z.number().finite().min(5).max(5000)).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-    const { imageBase64, mimeType = 'image/jpeg', clientTzOffsetMinutes } = parsed.data;
+    const { imageBase64, mimeType = 'image/jpeg', clientTzOffsetMinutes, typicalPortions } = parsed.data;
 
     const userId = req.userId!;
 
@@ -84289,6 +84296,17 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
     return `- ${safeName} (~${per100} ккал/100г)`;
   });
   return `\n\nСОХРАНЁННЫЕ РЕЦЕПТЫ ПОЛЬЗОВАТЕЛЯ (если на фото видишь похожее блюдо — назови ТАК ЖЕ как в этом списке, пользователь увидит в ответе свои собственные точные КБЖУ из рецепта вместо моей оценки):\n${lines.join('\n')}`;
+})()}${(() => {
+  // Round 248: surface the user's habitual portion sizes (median grams
+  // per food name from last 30 days) as a calibration hint. When the
+  // photo's portion is ambiguous (no calibration objects, top-down
+  // shot of a heaped plate), the AI should default to the user's
+  // measured median rather than the model's generic guess.
+  if (!typicalPortions) return '';
+  const tpEntries = Object.entries(typicalPortions).slice(0, 30);
+  if (tpEntries.length === 0) return '';
+  const tpLines = tpEntries.map(([name, grams]) => `- ${sanitizeForPrompt(name, 80)} ≈ ${Math.round(grams)}г`);
+  return `\n\nОБЫЧНЫЕ ПОРЦИИ ПОЛЬЗОВАТЕЛЯ (медиана за последние 30 дней — если на фото это блюдо и порция выглядит близко к норме, ставь именно эти граммы):\n${tpLines.join('\n')}`;
 })()}
 
 Ответь СТРОГО JSON без комментариев:
