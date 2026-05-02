@@ -307,10 +307,18 @@ const passwordResetRateLimiter = rateLimit({
 
 /** Account-existence probes (check-email / check-phone) — stricter than the
  * generic auth limiter to slow mass enumeration. The UI login picker only needs
- * these once per form submit, so 15 per 15 minutes is plenty for real users. */
+ * these once per form submit, so 10 per 15 minutes is plenty for real users.
+ *
+ * Round 237: tightened from 15 to 10 — still enough for legit users (a typical
+ * login flow probes once per attempt; 10 attempts in 15 min is plenty). The
+ * audit identified these as enumeration oracles since both endpoints leak
+ * "user exists" / which auth methods are linked. The endpoints can't be
+ * removed without breaking the auth picker UX, so the strict rate limit
+ * + the `account_enumeration_probe` audit log (added below) are the
+ * mitigations. */
 const enumRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов. Подождите 15 минут.' },
