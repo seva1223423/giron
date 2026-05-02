@@ -1053,6 +1053,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setSanityFlags([]);
     try {
       const result = await aiService.analyzeFoodText(desc);
+      // Same defensive shape check as analyzeFood (round 223). Without
+      // this, a malformed 200 response crashes applyAIItems with an
+      // opaque TypeError.
+      if (!result || !Array.isArray(result.items)) {
+        setTextModalOpen(false);
+        setError('Сервер вернул неожиданный ответ. Попробуй ещё раз через минуту.');
+        setErrorRetryable(true);
+        haptic.error();
+        return;
+      }
       // Same shape as /analyze-food — reuse applyAIItems so all the derived
       // state (bases, totalWeight, sanity flags) gets computed the same way.
       const items = applyAIItems(result.items);
