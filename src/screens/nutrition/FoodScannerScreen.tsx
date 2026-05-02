@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput, useWindowDimensions, Modal, Platform, AppState, Linking } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, TextInput, useWindowDimensions, Modal, Platform, AppState, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useThemeStore, useNutritionStore, useSubscriptionStore, useConnectionStore, useAuthStore, FREE_LIMITS } from '../../store';
+import { useNutritionStore, useSubscriptionStore, useConnectionStore, useAuthStore, useRecipesStore, FREE_LIMITS, useThemeColors } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useHaptic } from '../../hooks/useHaptic';
 import { Button, Card, PaywallModal, FadeIn, Spinner } from '../../components';
@@ -407,9 +407,18 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const { height: screenHeight } = useWindowDimensions();
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addMeal, getDayLog, savedFoods, dailyLog } = useNutritionStore();
   const userId = useAuthStore((s) => s.user?.id);
+  // Round 245: pull user's saved recipes (mine) + curated catalog so the AI
+  // photo / text path can match against them, not just savedFoods + FOOD_DB.
+  // When a user has saved "Овсянка с бананом" with their actual measured
+  // macros, the AI's per-image guess for the same dish is wrong by 10-30%
+  // because it can't know the user's exact банан size or молоко жирность.
+  // Recipe matching delivers the user's known truth instead of the model's
+  // approximation.
+  const myRecipes = useRecipesStore((s) => s.mine);
+  const curatedRecipes = useRecipesStore((s) => s.curated);
   const isOnline = useConnectionStore((s) => s.isOnline);
   const today = todayDate();
   const dayLog = getDayLog(today);
@@ -644,10 +653,25 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   // ─── AI photo analysis ──────────────────────────────────────────────────────
 
-  /** Combined known-foods pool — user's savedFoods FIRST (highest trust),
-   *  then the built-in FOOD_DB (Skurikhin-ish reference values). Wraps
-   *  FOOD_DB entries with a synthetic id + weightGrams:100 so they match
-   *  the MatchableFood signature that findSavedFoodMatch expects. */
+  /** Combined known-foods pool — trust-ordered:
+   *   1. user's savedFoods (highest — manually entered, recently used)
+   *   2. user's recipes "mine" (high — manually entered with full
+   *      ingredient breakdown, totalCalories already computed)
+   *   3. curated recipes (medium — vetted by us, but not user-specific)
+   *   4. built-in FOOD_DB (lowest — generic Skurikhin defaults)
+   *
+   *  findSavedFoodMatch returns the FIRST match by normalised name, so
+   *  ordering matters: a "Овсянка с бананом" saved by the user beats
+   *  the curated version, which beats the FOOD_DB generic. Recipes are
+   *  converted to per-100g equivalents using their summed ingredient
+   *  weight as the basis — this lets findSavedFoodMatch's standard
+   *  scaling math work correctly when the AI sees a different portion
+   *  size than the recipe's serving size.
+   *
+   *  Round 245: recipes added to the pool. Without this, a user who
+   *  spent time entering their granola recipe with exact macros still
+   *  got the AI's per-image approximation when they photographed it.
+   */
   const knownFoods = React.useMemo(() => {
     const dbFoods = FOOD_DB.map((f, i) => ({
       id: `db-${i}`,
@@ -658,8 +682,29 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       carbs: f.carbs,
       weightGrams: 100,
     }));
-    return [...savedFoods, ...dbFoods];
-  }, [savedFoods]);
+    // Convert each recipe to a MatchableFood. The recipe's total*
+    // fields cover the entire dish (all servings); we use the sum of
+    // ingredient weights as the basis so findSavedFoodMatch can scale
+    // correctly (per-100g math = total / weight × 100). Recipes
+    // without ingredients (or with zero total weight) are skipped —
+    // we have no basis to scale them to AI's portion estimate.
+    const toMatchable = (r: typeof myRecipes[number], prefix: string) => {
+      const totalWeight = r.ingredients.reduce((s, ing) => s + (ing.weightGrams || 0), 0);
+      if (totalWeight <= 0) return null;
+      return {
+        id: `${prefix}-${r.id}`,
+        name: r.name,
+        calories: r.totalCalories,
+        protein: r.totalProtein,
+        fats: r.totalFats,
+        carbs: r.totalCarbs,
+        weightGrams: totalWeight,
+      };
+    };
+    const mineMatchable = myRecipes.map((r) => toMatchable(r, 'mine')).filter((x): x is NonNullable<typeof x> => x != null);
+    const curatedMatchable = curatedRecipes.map((r) => toMatchable(r, 'curated')).filter((x): x is NonNullable<typeof x> => x != null);
+    return [...savedFoods, ...mineMatchable, ...curatedMatchable, ...dbFoods];
+  }, [savedFoods, myRecipes, curatedRecipes]);
 
   /** When true, the next analyzeFood result will APPEND to existing
    *  recognizedItems instead of replacing them. Used by the "+ Ещё фото"
@@ -2000,7 +2045,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                     accessibilityRole="button"
                     accessibilityState={{ disabled: !enabled }}
                   >
-                    {barcodeLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>}
+                    {barcodeLoading ? <Spinner color="#FFF" size={20} /> : <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>}
                   </TouchableOpacity>
                 );
               })()}
@@ -2459,7 +2504,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             {isBarcodeResult && (
               <View style={[{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.md }, { backgroundColor: colors.accent + '15' }]}>
                 <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: colors.accent + '18', borderWidth: 1, borderColor: colors.accent + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.accent }}>i</Text>
+                  <Text style={[typography.micro, { color: colors.accent }]}>i</Text>
                 </View>
                 <Text style={[typography.small, { color: colors.accent, flex: 1 }]}>
                   Данные из базы продуктов. При необходимости измените вес порции.
@@ -2827,7 +2872,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 ].map(({ label, value }) => (
                   <View key={label} style={{ alignItems: 'center' }}>
                     <Text style={[typography.numberSmall, { color: colors.textInverse }]}>{value}</Text>
-                    <Text style={{ color: colors.textInverse, opacity: 0.6, fontSize: 11, fontWeight: '500', marginTop: 2 }}>{label}</Text>
+                    <Text style={[typography.micro, { color: colors.textInverse, opacity: 0.6, marginTop: 2 }]}>{label}</Text>
                   </View>
                 ))}
               </View>
@@ -2856,7 +2901,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                       <View style={{ width: `${pctF}%`, height: '100%', backgroundColor: 'rgba(0,0,0,0.32)' }} />
                       <View style={{ width: `${pctC}%`, height: '100%', backgroundColor: 'rgba(0,0,0,0.18)' }} />
                     </View>
-                    <Text style={{ color: colors.textInverse, opacity: 0.65, fontSize: 11, marginTop: 4, textAlign: 'center', fontWeight: '500' }}>
+                    <Text style={[typography.micro, { color: colors.textInverse, opacity: 0.65, marginTop: 4, textAlign: 'center' }]}>
                       Б {pctP}% · Ж {pctF}% · У {pctC}%
                     </Text>
                   </View>
@@ -3029,7 +3074,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
               />
               {textLoading ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Spinner color={colors.primary} size={20} />
                 </View>
               ) : (
                 <Button
