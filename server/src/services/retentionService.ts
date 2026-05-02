@@ -267,18 +267,28 @@ export async function processReactivationCohort(
     let sent = 0;
     for (const user of candidates) {
       const { title, body } = copy(user.firstName ?? null);
+      // Round 253: atomic claim-then-send — same pattern as R251
+      // applied to the activation cohort. Without this, two cron
+      // ticks running concurrently (deploy overlap, replica scale)
+      // would both pass the null-filter and double-send.
+      const claim = await prisma.user.updateMany({
+        where: { id: user.id, [sentAtField]: null },
+        data: { [sentAtField]: now },
+      });
+      if (claim.count === 0) continue; // another tick claimed
       try {
         await sendPushToUser(user.id, {
           title,
           body,
           data: { url: 'irongym://ai', cohort: `reactivation-${daysInactive}d` },
         });
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { [sentAtField]: now },
-        });
         sent++;
       } catch (err) {
+        // Roll back so a future tick retries this user
+        await prisma.user.updateMany({
+          where: { id: user.id, [sentAtField]: now },
+          data: { [sentAtField]: null },
+        }).catch(() => {});
         reportError(err as Error, {
           userId: user.id,
           tags: { origin: `retention-reactivation-${daysInactive}d` },
@@ -479,6 +489,17 @@ export async function processPreRenewalNotices(): Promise<number> {
       if (sub.user?.isBanned) continue;
       if (!sub.user?.email || !sub.endDate) continue;
 
+      // Round 253: atomic claim before sending. The 376-ФЗ obligation
+      // is "exactly one notice per renewal cycle"; a double-tick under
+      // deploy overlap previously could send two emails because both
+      // ticks saw renewalNoticeSentAt=null. updateMany with the null-
+      // condition is a CAS — only one tick wins.
+      const claim = await prisma.subscription.updateMany({
+        where: { id: sub.id, renewalNoticeSentAt: null },
+        data: { renewalNoticeSentAt: now },
+      });
+      if (claim.count === 0) continue; // another tick beat us
+
       try {
         // Push first (instant) when allowed, then email (slower SMTP, the
         // legally-required channel). Push is best-effort — failures are
@@ -500,13 +521,14 @@ export async function processPreRenewalNotices(): Promise<number> {
           sub.endDate,
           sub.renewalAmountRub ?? 0,
         );
-
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { renewalNoticeSentAt: now },
-        });
         sent++;
       } catch (err) {
+        // Email failed — roll back the claim so a future tick retries.
+        // This is critical for 376-ФЗ: missing notice has legal weight.
+        await prisma.subscription.updateMany({
+          where: { id: sub.id, renewalNoticeSentAt: now },
+          data: { renewalNoticeSentAt: null },
+        }).catch(() => {});
         reportError(err as Error, {
           userId: sub.userId,
           tags: { origin: '376-fz-pre-renewal' },
