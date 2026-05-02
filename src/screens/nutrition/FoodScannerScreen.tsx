@@ -1159,8 +1159,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       // distrusted. Atwater (4×p + 9×f + 4×c) is exact for whole foods
       // and within ±10% for processed; the plausibility gate below
       // still catches absurd outputs.
+      //
+      // Round 214: subtract fiber from carbs when OFF carries it. Fiber
+      // contributes ~2 kcal/g (per regulation) but Atwater treats carbs
+      // uniformly at 4 — so high-fiber Russian staples (гречка ≈ 10 g
+      // fiber/100 g, овсянка ≈ 11) had their derived calories
+      // overstated by 20-40 kcal/100 g. Subtracting fiber from carbs
+      // before applying the carb factor is a closer approximation.
+      // When fiber data is absent (the more common case) we fall
+      // through to the original 4×c calculation unchanged.
       if (cal === 0 && (prot + fats + carbs) > 0) {
-        cal = Math.round(prot * 4 + fats * 9 + carbs * 4);
+        const fiber = Math.max(0, Math.min(carbs, Number(n.fiber_100g) || 0));
+        const netCarbs = Math.max(0, carbs - fiber);
+        cal = Math.round(prot * 4 + fats * 9 + netCarbs * 4 + fiber * 2);
       }
       const productName = buildBarcodeDisplayName({
         product_name: p.product_name,
