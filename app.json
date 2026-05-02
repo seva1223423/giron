@@ -88,7 +88,7 @@
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 12
+      "versionCode": 13
     },
     "web": {
       "favicon": "./assets/favicon.png"
