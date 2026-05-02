@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Alert,
 } from 'react-native';
-import { useThemeStore, useAuthStore } from '../../store';
-import { Button, Input } from '../../components';
+import { useAuthStore, useThemeColors } from '../../store';
+import { Button, Input, Icon } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import { userService } from '../../services/userService';
 import { api } from '../../services/api';
 
 export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const logout = useAuthStore((s) => s.logout);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [hasTwoFactor, setHasTwoFactor] = useState(false);
@@ -20,13 +20,21 @@ export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation 
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Round 273: cancel-on-unmount guard. Without it, the Promise.all's
+    // .then() could call setState on an unmounted component if user
+    // navigated away while the password+TOTP check was in flight. Both
+    // inner promises catch their own errors, so the outer .catch is
+    // belt-and-braces against unmount-time setState issues.
+    let cancelled = false;
     Promise.all([
       userService.hasPassword().catch(() => false),
       api.get<{ enabled: boolean }>('/user/2fa/status').then(({ data }) => data.enabled).catch(() => false),
     ]).then(([hp, totp]) => {
+      if (cancelled) return;
       setHasPassword(hp);
       setHasTwoFactor(totp);
-    });
+    }).catch(() => { /* both inner branches already caught */ });
+    return () => { cancelled = true; };
   }, []);
 
   const handleDelete = () => {
@@ -87,8 +95,17 @@ export const DeleteAccountScreen: React.FC<{ navigation: any }> = ({ navigation 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'flex-start', marginBottom: spacing.xl }}>
-          <Text style={[typography.body, { color: colors.primary }]}>← Назад</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Назад"
+          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: spacing.xs, paddingVertical: spacing.xs, marginBottom: spacing.xl }}
+        >
+          <View style={{ transform: [{ rotate: '180deg' }] }}>
+            <Icon name="chev" size={18} color={colors.primary} />
+          </View>
+          <Text style={[typography.body, { color: colors.primary }]}>Назад</Text>
         </TouchableOpacity>
 
         <Text style={{ fontSize: 48, textAlign: 'center', marginBottom: spacing.lg }}>⚠</Text>
