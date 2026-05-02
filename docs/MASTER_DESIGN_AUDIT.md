@@ -259,25 +259,153 @@ Convert 327 reads across 127 files from `useThemeStore()` to `useThemeColors()`/
 
 ---
 
-## Wave 2 in progress
+## Wave 2 results
 
-Three additional audit agents launched, results pending:
-1. Services + stores UI bleed-through (api.ts errors, push notifications, toast helpers)
-2. End-to-end flow consistency (Auth→Onboarding→Home, Workout journey, Nutrition journey, AI conversation, Subscription, Profile)
-3. Cross-reference with 107 existing audit-tests in `src/__tests__/`
+### W2-A — Services + stores UI bleed-through (36 findings)
 
-**Existing test infrastructure (DISCOVERED):** `src/__tests__/` contains 107 test files including 24 `audit*.test.ts` and 22 `design*.test.ts`. The design agent's §27 "Visual regression" section currently treats this as future work — this is an existing gap to fix.
+Critical: push-notification system has emoji `💦 🫗 ✅ 📉` in titles, NO `lightColor` brand on Android channel, 5 wrong Russian plurals, `STATUS_MESSAGES` missing 400/408/410/413/415/423/451 codes. 12+ notifications/day with no rate-limit. "Iron Coach" legacy brand name appears alongside "Giron". `useSubscriptionStore` swallows errors silently. Default theme is `'light'` despite Premium-dark brand. Push notifications don't have deep-links (4 of 5 types).
+
+### W2-B — End-to-end flow consistency (47 findings)
+
+**Most critical cross-cutting findings:**
+- **`NavBar` component used in 0 screens** of 48 (only in tracker internals)
+- **`ScreenContainer` / `ScreenScroll` used in 0 screens** — every screen rolls its own header
+- **5 distinct back-navigation affordances**: `'‹'`, `'← Назад'`, `Button "Назад"`, `'✕'`, no back at all
+- **Version label drift**: `app.json` = 1.2.0, but `LoginScreen.tsx:594` and `SettingsScreen.tsx:42` hardcode "1.0.0"
+- **Same achievement event, different UX**: bare `Alert.alert` in NutritionScreen vs lavish `AchievementsCard + PRCelebration` in WorkoutSummaryScreen
+- **Subscription success uses bare native Alert** vs animated PRCelebration — paying $30 gets less ceremony than completing a workout
+- **Padding drift**: Auth/Onboarding use `spacing.xxl` (24), Home/Workouts/Profile use `spacing.xl` (20) — visible gutter shift between flow steps
+- **Sub-tab pill radii drift**: `999` (NutritionScreen), `borderRadius.full` (WorkoutsHeader), `borderRadius.sm` (ProgramDetailScreen tag) — same visual element, three different radii
+- **Units don't propagate** — settings UnitsSection toggle has no effect on `WorkoutSummaryScreen` (hardcoded "т")
+- **Onboarding has no numeric step counter** — only dots, no "Шаг 2 / 5"
+
+### W2-C — Existing test infrastructure (14 gaps)
+
+107 test files exist, none catch the 749 violations. The token tests (`designPalette`, `designColorTokenValidity`) only scan `src/theme/colors.ts`, never JSX. **14 new tests recommended:**
+
+1. `designBannedPaletteSweep.test.ts` — fail on banned hex in screens/components
+2. `designHexLiteralScan.test.ts` — fail on raw hex outside `src/theme/`
+3. `designInlineTypographyScan.test.ts` — fail on inline `fontSize:` / `fontWeight:`
+4. `designGlyphSweep.test.ts` — fail on emoji + decorative unicode in JSX
+5. `designLightThemeParity.test.tsx` — render-snapshot every screen in light mode
+6. `designScreenContrastSweep.test.ts` — pair contrast ≥ 3:1 per screen
+7. `designEmptyStatePresence.test.ts` — every list has empty state
+8. `designPaywallMountTest.test.tsx` — modal mounts after `setShowPaywall(true)`
+9. `designSplashThemeMatch.test.ts` — splash bg === `darkColors.background`
+10. `designThemeStoreSelectorPattern.test.ts` — ban full destructure
+11. `designRussianPluralsBatch.test.ts` — 8 word forms × 24 cases
+12. `designUnusedComponentScan.test.ts` — ban orphaned exports
+13. `designAdminPaletteCompliance.test.ts` — focused admin scan
+14. `snapshotEveryScreen.test.tsx` — full screen snapshots in dark + light
+
+Tests 1-4 alone would convert ~500 violations into CI failures.
 
 ---
 
-## Outstanding gaps (will check after wave 2)
+## FINAL TOTALS
 
-- Asset PNG colors (splash, icon, adaptive-icon) vs theme bg
-- Snapshot baselines in `__snapshots__/` — stale?
-- Test coverage on PaywallModal render path
-- Lottie animations — not yet added; spec ready in design.md §28
-- Storybook — not set up; component count 25-28, threshold 30 close
+| Wave | Source | Findings |
+|---|---|---|
+| 1 | Admin (12 files) | 140 |
+| 1 | Auth + Profile + Settings + Onboarding (28 files) | 97 |
+| 1 | Workouts + Tracker + AI (~50 files) | 99 |
+| 1 | Nutrition + Cardio + News + Progress + Support + Trainer (73 files) | 118 |
+| 1 | Shared components (29 files) | 76 |
+| 1 | HomeScreen + components (24 files) | 115 |
+| 1 | Theme + Nav + Hooks + Utils + Data | 51 |
+| 1 | Launch surfaces (App.tsx, app.json) | 3 |
+| 2 | Services + stores UI bleed-through | 36 |
+| 2 | End-to-end flow consistency | 47 |
+| 2 | Existing test infrastructure gaps | 14 |
+| **TOTAL** | | **782** + 14 new test recommendations |
 
 ---
 
-*Document continues to grow as wave 2 reports arrive.*
+## Critical cross-cutting summary
+
+**Things broken in MULTIPLE areas (worst-blast-radius):**
+
+1. **`#8B5CF6` old purple** — 20+ files (admin/auth/profile/workouts/tracker/AI/recipes/global components)
+2. **Apple-style palette** (`#6366F1 #F59E0B #EF4444 #10B981 #34C759`) — 40+ files (every area)
+3. **`useThemeStore()` without selector** — 327 reads across 127 files
+4. **Hardcoded `#FFFFFF`/`#000`** — 100+ occurrences (light-mode invisibility)
+5. **`ActivityIndicator`** instead of `<Spinner>` — 70+ occurrences
+6. **Emoji in JSX text** — 50+ occurrences
+7. **Unicode glyph icons** — 100+ occurrences (incl. 25 in `programs.ts`, 20 in `achievements.ts`)
+8. **`'← Назад'` / `'‹'`** text-based back navigation — 15+ screens
+9. **Inline `fontSize:` / `fontWeight:`** — hundreds of occurrences (every area)
+10. **Literal pixel padding/margin** — hundreds of occurrences
+11. **`NavBar`/`ScreenContainer`/`ScreenScroll` existed but unused in production** — 0 of 48 screens use them
+12. **Hardcoded overlays `'rgba(0,0,0,0.X)'`** instead of `colors.overlay` — 10+ screens
+13. **Wrong Russian plurals** hand-rolled `'дня' / 'дней'` — 5+ files (HomeScreen, StreakWarningCard, notificationService)
+14. **Tap targets < 44pt** — 20+ surfaces
+15. **Light-theme parity broken** in: admin (entire), AppModalProvider, Toast, Tooltip, ErrorBoundary, ForceUpdateModal, BarcodeScannerModal, MuscleHeatmapCard, all Macro components, all gold CTAs with `'#FFF'`
+
+---
+
+## Recommended work order (12 weeks of refactoring)
+
+**WEEK 1 — Stop the bleeding (global components)**
+- ErrorBoundary, ForceUpdateModal, AppModalProvider, Toast, Tooltip — fix banned palette + theme-aware
+- Add `<Spinner>` to Button + ResponsiveButton (replace ActivityIndicator)
+- Add `useThemeColors()` and `useThemeIsDark()` selector hooks
+
+**WEEK 2 — Test infrastructure gates**
+- Add tests 1-4 from §27 list (banned palette sweep, hex scan, inline typography, glyph sweep)
+- Set baselines = current count, ratchet down weekly
+- Add `designSplashThemeMatch.test.ts` to lock splash color
+
+**WEEK 3 — Tab bar + Navigator**
+- AppNavigator: theme `headerStyle`/`headerTintColor`/tabBar/offlineBanner
+- Delete dead TAB_ICONS unicode glyph map
+- Add `useColorScheme()` listener (fix `isNightTime()` clock-based bug)
+
+**WEEK 4 — Color maps**
+- Replace 6 banned color arrays in workouts/tracker
+- ProfileScreen Security card unified to `colors.primary + '18'`
+- STRENGTH_COLORS in Auth + ChangePassword → semantic tokens
+
+**WEEK 5 — HomeScreen rewrite**
+- Delete 11 unused components
+- Fix paddingBottom safe-area
+- One sticky banner (not 5 stacking)
+- Floating CTA contrast fix
+- Replace ANN_COLORS/ANN_ICONS with theme + Icon
+- Replace 6 hand-rolled plurals with `pluralizeDaysRu`
+
+**WEEK 6-8 — Admin migration**
+- 12 admin screens, one PR each
+- Smallest first (AdminGuard) → largest last (AdminDashboardScreen)
+
+**WEEK 9 — Auth + Profile + Settings + Onboarding**
+- Use `<Icon name="chev">` for all back navigation (15+ replacements)
+- Step counter in Onboarding ("Шаг N / 5")
+- Hero glyphs `◈` → `<Icon>` in 6 screens
+- 12 ActivityIndicator → Spinner
+
+**WEEK 10 — Domain screens**
+- Nutrition Macro components → `colors.protein/calories/fats/carbs`
+- Support area full rewrite
+- Progress weight/sleep/strength tabs
+- Trainer InviteCodeDisplay 28pt → 44pt
+- News emoji removal
+- MuscleHeatmapCard bgColor logic fix
+
+**WEEK 11 — Cross-cutting**
+- `useThemeStore` selector codemod (327 sites)
+- `NavBar`/`ScreenContainer`/`ScreenScroll` adoption — pick 5 simple screens, migrate
+- Achievement/Programs `emoji` field → `iconName: IconName`
+- Push notification: theme channel, fix plurals, deep-links
+- API error mapping: add 400/408/410/413/415/423/451
+
+**WEEK 12 — Polish**
+- All overlays `'rgba(0,0,0,X)'` → `colors.overlay`
+- Splash bg `#0A0A0F` → `#0E0E0F`
+- Default theme `'light'` → `'auto'`
+- Subscription success: PRCelebration-style instead of native Alert
+- Version label single source of truth (app.json)
+- Add Storybook (count crosses 30 by then)
+
+---
+
+*Audit complete. 8 wave-1 + 3 wave-2 = 11 sub-agents, 782 findings, ~165k tokens of analysis.*

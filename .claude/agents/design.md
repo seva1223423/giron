@@ -1527,9 +1527,78 @@ These are concerns that aren't strictly visual but break UX in real conditions.
 - Multiple notification badges in one tab → consolidate to one count
 - Multiple "NEW" / "BETA" / promo badges → audit; max 1 per screen
 
-## 27 — Visual regression / pixel snapshots
+## 27 — Visual regression / pixel snapshots + existing test infrastructure
 
 **Status:** roadmap. Set up after Direction A migration of admin + home is complete (currently many P0 hardcoded-hex violations would create false positives in snapshots).
+
+### Existing test infrastructure (107 files in `src/__tests__/`)
+
+Discovered during 2026-05-02 audit. The project already ships extensive test coverage:
+
+- **21 audit tests** (`audit*.test.ts`) — device matrix, touch targets, hardcoded layout, RU text overflow, keyboard safe area, landscape, notch clearance, etc.
+- **37 design tests** (`design*.test.ts`) — color contrast (WCAG), color-token validity, theme parity (KEYS only), regression locks, button contracts, accessibility, animation timing, math invariants, etc.
+- **49 other tests** — store unit tests, helpers (date, plates, macros), snapshots (1 only — snapshotPremiumComponents), accessibility labels, navigation, Russian text edges
+- **2 snapshot files only** (very limited visual regression) — most surface area uncovered
+
+### Critical gap: existing tests miss most JSX violations
+
+The 2026-05-02 audit found 749+ violations. The existing tests would catch **almost none** of them because:
+
+- `designPalette.test.ts` and `designColorTokenValidity.test.ts` scan ONLY `src/theme/colors.ts` — never JSX
+- `auditHardcodedLayout.test.ts` catches `fontSize ≥ 28` only, with permissive cap of 70 hazard files
+- `designThemeParity.test.ts` checks only KEY parity between dark/light token maps — not actual screen rendering
+- No test scans `src/screens/` or `src/components/` for raw `#XXXXXX` hex literals
+- No test bans emoji or unicode glyphs in JSX
+- No test enforces `useThemeStore` selector pattern
+- No test verifies PaywallModal mounts after `setShowPaywall(true)`
+- No test renders any screen in light mode for visual parity
+- No test covers screen-level WCAG (only token-pair contrast)
+
+### 14 recommended new tests (priority order)
+
+```
+1.  designBannedPaletteSweep.test.ts       — fail on #8B5CF6/#A78BFA/#7C3AED/
+                                              #6366F1/#F59E0B/#EF4444/#10B981
+                                              in src/screens + src/components
+2.  designHexLiteralScan.test.ts           — fail on raw #XXXXXX outside src/theme
+3.  designInlineTypographyScan.test.ts     — fail on `fontSize:` / `fontWeight:`
+                                              in screens (typography.* required)
+4.  designGlyphSweep.test.ts               — fail on emoji ranges + decorative
+                                              unicode (◈ △ ‹ ◎ ▶ ●) in JSX text
+5.  designLightThemeParity.test.tsx        — render-snapshot every screen with
+                                              theme=light; fail on missing keys
+6.  designScreenContrastSweep.test.ts      — for each screen, parse colors.X
+                                              usages, check pair contrast ≥ 3:1
+7.  designEmptyStatePresence.test.ts       — every FlatList/SectionList must have
+                                              ListEmptyComponent OR `.empty` branch
+8.  designPaywallMountTest.test.tsx        — mount paywall-bearing screen, flip
+                                              setShowPaywall(true), assert visible
+9.  designSplashThemeMatch.test.ts         — assert app.json splash bg ===
+                                              darkColors.background
+10. designThemeStoreSelectorPattern.test.ts — static scan banning
+                                              useThemeStore() destructure
+11. designRussianPluralsBatch.test.ts      — extend pluralize: тренировка,
+                                              упражнение, минута, час, раз,
+                                              подход, день, неделя × 24 cases
+12. designUnusedComponentScan.test.ts      — ImportScan; fail if any export
+                                              from src/screens/home has 0 importers
+13. designAdminPaletteCompliance.test.ts   — focused scan src/screens/admin/*
+                                              for any hex literal (140 known)
+14. snapshotEveryScreen.test.tsx           — single-frame render snapshot of
+                                              every screen in dark + light
+```
+
+Adding tests 1-4 alone would convert ~500 of the current 749 violations into a CI failure on next commit. They are:
+- Small (each ≤ 30 LOC, just `glob + read + regex`)
+- Fast (parses TS files, no rendering)
+- Idempotent (no flakes)
+- Have natural ratchet (count baseline + decrement weekly)
+
+### Why this matters in the context of Visual Regression
+
+Pixel snapshots (the original §27 topic) are **the last** line of defense — useful but expensive (250+ baselines × 2 themes × multiple devices). The 14 tests above are **the first** line — they catch the violations cheaply at the source-code level. Snapshots only earn their place after the source-level violations are migrated; otherwise every snapshot ratchet would lock a banned-palette mistake.
+
+### Why pixel snapshots earn their place in this codebase
 
 ### Why pixel snapshots earn their place in this codebase
 

@@ -95,8 +95,16 @@ export function validateFoodItems(items: FoodItem[]): FoodItem[] {
   const normalized = items
     .filter((item) => item.name && typeof item.name === 'string' && item.name.trim().length > 0)
     .filter((item) => {
+      // Audit: previously dropped items where weightGrams > 5000 entirely.
+      // For a holiday meal ("целая индейка 7 кг") the AI's reasonable
+      // 7000g answer disappeared from the response, which read as if
+      // the AI hadn't seen the dish at all. Now we accept any non-
+      // negative number (and NaN/undefined for "AI didn't say") and
+      // let the .map step below clamp to 5000g; the sanity-flag pass
+      // surfaces the implausible-portion warning to the user, who can
+      // edit the weight down. Better-visible data > silent loss.
       const w = Number(item.weightGrams);
-      return isNaN(w) || w === 0 || (w > 0 && w <= 5000);
+      return isNaN(w) || w >= 0;
     })
     .map((item) => {
       const w = Math.round(Math.max(1, Math.min(5000, Number(item.weightGrams) || 100)));
