@@ -1503,6 +1503,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     return () => clearInterval(id);
   }, [loading]);
 
+  // Audit: recompute client-side sanity flags whenever the items list
+  // changes (rename, weight edit, delete, scale-all, merge-duplicates).
+  // Without this the flags went stale: e.g. AI returned 3000 kcal for
+  // a single item → 'kcal_per_item' flag visible → user edited the
+  // weight down to 100 g (item now 300 kcal) → flag stayed up,
+  // confusing the user into thinking their edit didn't fix the issue.
+  // Server-supplied flags merged via setSanityFlags(prev => [...prev,
+  // ...result.sanityFlags]) get re-derived here too; the server
+  // flag set is a superset of what the client computes from the same
+  // items, so the recompute can lose flags only when the user's edits
+  // genuinely brought the values back into the plausible range — the
+  // intended behaviour.
+  useEffect(() => {
+    setSanityFlags(flagSanity(recognizedItems));
+  }, [recognizedItems]);
+
   /** Rename a recognized item — lets the user correct AI misidentifications
    *  (e.g. AI said "рис", user knows it's actually "плов"). */
   const renameItem = useCallback((id: string, newName: string) => {
