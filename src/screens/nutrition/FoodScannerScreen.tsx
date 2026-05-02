@@ -1134,7 +1134,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     const controller = new AbortController();
     textAbortRef.current = controller;
     try {
-      const result = await aiService.analyzeFoodText(desc, controller.signal);
+      // Round 249: parity with photo path — pass typicalPortions so
+      // the AI's gram estimation defers to user's median when the
+      // description omits weights ("съел курицу с гречкой").
+      const typicalPortionsObj = typicalPortions.size > 0
+        ? Object.fromEntries(typicalPortions)
+        : undefined;
+      const result = await aiService.analyzeFoodText(desc, controller.signal, typicalPortionsObj);
       // Same defensive shape check as analyzeFood (round 223). Without
       // this, a malformed 200 response crashes applyAIItems with an
       // opaque TypeError.

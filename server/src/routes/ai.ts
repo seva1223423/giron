@@ -84448,9 +84448,15 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
       // Same TZ-offset accommodation as /analyze-food — quota reset
       // honours the user's local midnight rather than UTC.
       clientTzOffsetMinutes: z.number().int().min(-14 * 60).max(14 * 60).optional(),
+      // Round 249: parity with /analyze-food (round 248). User's median
+      // gram-per-food map from the last 30 days. AI uses it as a portion
+      // calibration when the description doesn't include explicit
+      // weights — "съел курицу" gets the user's habitual 200g instead
+      // of a generic 150g default.
+      typicalPortions: z.record(z.string().min(1).max(120), z.number().finite().min(5).max(5000)).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-    const { description, clientTzOffsetMinutes } = parsed.data;
+    const { description, clientTzOffsetMinutes, typicalPortions } = parsed.data;
 
     const userId = req.userId!;
 
@@ -84511,6 +84517,15 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
       });
       return `\n\nСОХРАНЁННЫЕ РЕЦЕПТЫ ПОЛЬЗОВАТЕЛЯ (если описание похоже на одно из них — назови ТАК ЖЕ для авто-подстановки точных КБЖУ из рецепта):\n${lines.join('\n')}`;
     })();
+    // Round 249: typical-portions block parity with vision path. AI uses
+    // user's median gram size when description omits weights.
+    const typicalPortionsBlockText = ((): string => {
+      if (!typicalPortions) return '';
+      const tpEntries = Object.entries(typicalPortions).slice(0, 30);
+      if (tpEntries.length === 0) return '';
+      const tpLines = tpEntries.map(([name, grams]) => `- ${sanitizeForPrompt(name, 80)} ≈ ${Math.round(grams)}г`);
+      return `\n\nОБЫЧНЫЕ ПОРЦИИ ПОЛЬЗОВАТЕЛЯ (медиана за 30 дней — если описание упоминает блюдо без веса, ставь именно эти граммы по умолчанию):\n${tpLines.join('\n')}`;
+    })();
     const prompt = `Ты — нутрициолог-эксперт. Распарси описание еды и верни точные КБЖУ по каждой позиции.
 
 ОПИСАНИЕ: ${safeDescription}
@@ -84564,7 +84579,7 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
    • 0.9–1.0 — точный вес указан + знакомое блюдо
    • 0.7–0.89 — блюдо чёткое, вес прикинут по стандарту
    • 0.5–0.69 — размытое описание ("что-то мясное", "немного каши")
-   • < 0.5 — НЕ ВОЗВРАЩАЙ, лучше пропусти.${recipesBlockText}
+   • < 0.5 — НЕ ВОЗВРАЩАЙ, лучше пропусти.${recipesBlockText}${typicalPortionsBlockText}
 
 Ответь СТРОГО JSON:
 {
