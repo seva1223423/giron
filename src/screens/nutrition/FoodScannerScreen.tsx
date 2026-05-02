@@ -820,7 +820,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setCachedResult(false);
 
     try {
-      const result = await aiService.analyzeFood(base64, controller.signal, mimeType);
+      // Round 248: pass the user's median portion sizes so the AI can
+      // calibrate ambiguous portions to user's actual eating habits.
+      // typicalPortions is a Map<normalizedName, medianGrams> already
+      // memoized for the per-item edit hint — convert to plain object
+      // for JSON serialization.
+      const typicalPortionsObj = typicalPortions.size > 0
+        ? Object.fromEntries(typicalPortions)
+        : undefined;
+      const result = await aiService.analyzeFood(base64, controller.signal, mimeType, typicalPortionsObj);
       // Audit: previously fed `result.items` straight into applyAIItems.
       // If the server returned 200 with a malformed body (e.g. proxy
       // ate the items array, or a future server change forgets to
@@ -1878,7 +1886,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 accessibilityLabel="Скрыть подсказку"
                 accessibilityRole="button"
               >
-                <Text style={{ fontSize: 16, color: colors.textTertiary }}>×</Text>
+                <Text style={[typography.body, { color: colors.textTertiary }]}>×</Text>
               </TouchableOpacity>
             </View>
             <Text style={[typography.small, { color: colors.textSecondary, lineHeight: 20 }]}>
@@ -1904,7 +1912,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             >
               <Image source={{ uri: imageUri }} style={[styles.image, { height: Math.min(250, screenHeight * 0.3) }]} />
               <View style={styles.zoomHint}>
-                <Text style={{ fontSize: 14, color: '#FFF' }}>⤢</Text>
+                <Text style={[typography.small, { color: '#FFF' }]}>⤢</Text>
               </View>
             </TouchableOpacity>
             {cachedResult && (

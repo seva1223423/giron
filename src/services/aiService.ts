@@ -203,7 +203,12 @@ export const aiService = {
     }
   },
 
-  async analyzeFood(imageBase64: string, signal?: AbortSignal, mimeType = 'image/jpeg'): Promise<FoodAnalysisResult> {
+  async analyzeFood(
+    imageBase64: string,
+    signal?: AbortSignal,
+    mimeType = 'image/jpeg',
+    typicalPortions?: Record<string, number>,
+  ): Promise<FoodAnalysisResult> {
     try {
       // Vision API call — same long-latency category as /ai/chat. Pass
       // both the AbortSignal (for user cancellation via the cancel
@@ -217,9 +222,20 @@ export const aiService = {
       // (JS getTimezoneOffset returns inverted sign by historical
       // accident; we negate so positive = east of UTC).
       const clientTzOffsetMinutes = -new Date().getTimezoneOffset();
+      // Round 248: send the user's median portion sizes (per food name)
+      // from their last 30 days of meal history. AI uses this as a
+      // calibration signal when the photo's portion is ambiguous —
+      // a user who consistently logs 200g chicken should get 200g
+      // estimated for their next photo, not the model's generic 150g
+      // default. Cap at 30 most-relevant entries to keep the prompt
+      // block ≤1KB.
+      const tpEntries = typicalPortions ? Object.entries(typicalPortions).slice(0, 30) : null;
+      const typicalPortionsBody = tpEntries && tpEntries.length > 0
+        ? Object.fromEntries(tpEntries)
+        : undefined;
       const { data } = await api.post(
         '/ai/analyze-food',
-        { imageBase64, mimeType, clientTzOffsetMinutes },
+        { imageBase64, mimeType, clientTzOffsetMinutes, typicalPortions: typicalPortionsBody },
         { signal, timeout: AI_REQUEST_TIMEOUT_MS },
       );
       return data;
