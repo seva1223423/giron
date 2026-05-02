@@ -12,7 +12,8 @@ interface Props {
 // Confetti particle
 interface Particle { x: Animated.Value; y: Animated.Value; opacity: Animated.Value; color: string; size: number }
 
-const CONFETTI_COLORS = ['#F59E0B', '#EF4444', '#8B5CF6', '#10B981', '#3B82F6', '#EC4899'];
+// Round 242: replaced legacy purple confetti with Direction A gold
+const CONFETTI_COLORS = ['#F59E0B', '#EF4444', '#D4B07A', '#10B981', '#3B82F6', '#EC4899'];
 
 function useConfetti(active: boolean) {
   const particles = useRef<Particle[]>(

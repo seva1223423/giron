@@ -202,9 +202,9 @@ const styles = StyleSheet.create({
   expandIcon: { color: '#FFF', fontSize: 16, fontWeight: '700', lineHeight: 18 },
   playCircle: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#D4B07A',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#D4B07A', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.55, shadowRadius: 12, elevation: 8,
   },
   stepsBadge: {

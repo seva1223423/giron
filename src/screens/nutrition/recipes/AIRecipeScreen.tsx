@@ -188,7 +188,7 @@ export const AIRecipeScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 <Text style={[typography.smallMedium, { color: colors.textSecondary, marginBottom: spacing.md }]}>На рецепт</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Macro label="Ккал" value={Math.round(draft.totalCalories)} color="#FF3B30" />
-                  <Macro label="Б" value={Math.round(draft.totalProtein)} unit="г" color="#8B5CF6" />
+                  <Macro label="Б" value={Math.round(draft.totalProtein)} unit="г" color="#D4B07A" />
                   <Macro label="Ж" value={Math.round(draft.totalFats)} unit="г" color="#FF9F0A" />
                   <Macro label="У" value={Math.round(draft.totalCarbs)} unit="г" color="#34C759" />
                 </View>
