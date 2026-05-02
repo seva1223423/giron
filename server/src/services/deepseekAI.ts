@@ -565,7 +565,15 @@ export async function analyzeImage(
         },
       ],
       stream: false,
-      max_tokens: 2048,
+      // Round 241: bumped from 2048 → 3072 to fit complex plate scans
+      // (Russian holiday spreads commonly have 12-15 items: оливье, селёдка
+      // под шубой, мимоза, винегрет, нарезка, рыба, мясо, гарниры, торт).
+      // Each item averages ~120 tokens (name + 6 numeric fields + JSON
+      // syntax + confidence). 2048 was tight at ~17 items; 3072 buys
+      // headroom up to ~25. Cost per call rises ≤15% on complex shots
+      // and is unchanged for typical 3-5 item meals (Mistral charges per
+      // generated token, not per max_tokens budget).
+      max_tokens: 3072,
       temperature: 0.2,
     }),
   };
