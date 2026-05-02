@@ -2290,6 +2290,28 @@ async function executeTool(
     if (Object.keys(updateData).length === 0) return { resultText: 'Нет корректных данных для обновления профиля', actionDescription: '' };
     await prisma.user.update({ where: { id: userId }, data: updateData });
 
+    // Round 200: post-write verify (extends R197-199 pattern). Read
+    // back the user row, confirm each updated field matches.
+    const verified = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { weightKg: true, heightCm: true, goal: true, fitnessLevel: true },
+    });
+    if (!verified) {
+      throw new Error('update_user_profile: user not found after update');
+    }
+    if (updateData.weightKg !== undefined && Math.abs((verified.weightKg ?? 0) - (updateData.weightKg as number)) > 0.05) {
+      throw new Error(`update_user_profile: weightKg DB=${verified.weightKg} expected=${updateData.weightKg}`);
+    }
+    if (updateData.heightCm !== undefined && (verified.heightCm ?? 0) !== updateData.heightCm) {
+      throw new Error(`update_user_profile: heightCm DB=${verified.heightCm} expected=${updateData.heightCm}`);
+    }
+    if (updateData.goal !== undefined && verified.goal !== updateData.goal) {
+      throw new Error(`update_user_profile: goal DB=${verified.goal} expected=${updateData.goal}`);
+    }
+    if (updateData.fitnessLevel !== undefined && verified.fitnessLevel !== updateData.fitnessLevel) {
+      throw new Error(`update_user_profile: fitnessLevel DB=${verified.fitnessLevel} expected=${updateData.fitnessLevel}`);
+    }
+
     const parts: string[] = [];
     if (updateData.weightKg !== undefined) parts.push(`вес ${updateData.weightKg} кг`);
     if (updateData.heightCm !== undefined) parts.push(`рост ${updateData.heightCm} см`);
@@ -2299,6 +2321,7 @@ async function executeTool(
     return {
       resultText: `Профиль обновлён: ${parts.join(', ')}`,
       actionDescription: `Профиль обновлён: ${parts.join(', ')}`,
+      actionData: updateData,
     };
   }
 
@@ -2322,9 +2345,24 @@ async function executeTool(
       prisma.user.update({ where: { id: userId }, data: { weightKg } }),
     ]);
 
+    // Round 198: post-write verify (same pattern as log_meal R197).
+    // Confirms both rows landed: BodyWeight has the new value AND
+    // User.weightKg matches. If not, throw — classifyToolError
+    // (R189) surfaces typed error to AI.
+    const verified = await prisma.bodyWeight.findUnique({
+      where: { userId_date: { userId, date: logDate } },
+      select: { weightKg: true },
+    });
+    if (!verified || Math.abs(verified.weightKg - weightKg) > 0.05) {
+      throw new Error(
+        `log_body_weight: stored value diverges — DB has ${verified?.weightKg ?? 'null'}, expected ${weightKg}`,
+      );
+    }
+
     return {
       resultText: `Вес записан: ${weightKg} кг`,
       actionDescription: `Вес ${weightKg} кг записан в дневник`,
+      actionData: { date: effectiveDateStr, weightKg },
     };
   }
 
@@ -3113,12 +3151,26 @@ async function executeTool(
     const session = await prisma.cardioSession.create({
       data: { userId, type: safeType, date: sessionDate, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories },
     });
+
+    // Round 198: post-write verify (extends R197 pattern across all
+    // log_* tools). Single-row read-back; throw on mismatch so AI
+    // doesn't claim success on a half-broken write.
+    const verified = await prisma.cardioSession.findUnique({
+      where: { id: session.id },
+      select: { id: true, type: true, durationMinutes: true },
+    });
+    if (!verified || verified.type !== safeType || verified.durationMinutes !== safeDuration) {
+      throw new Error(
+        `log_cardio: stored values diverge — DB type=${verified?.type ?? 'null'} duration=${verified?.durationMinutes ?? 'null'}, expected ${safeType}/${safeDuration}`,
+      );
+    }
+
     const distText = safeDistance ? `, ${safeDistance} км` : '';
     const calText = safeCalories ? `, ~${safeCalories} ккал` : '';
     return {
       resultText: `Кардио записано: ${safeType} ${safeDuration} мин${distText}${calText}`,
       actionDescription: `Кардио: ${safeType} ${safeDuration} мин`,
-      actionData: { sessionId: session.id, type: safeType, durationMinutes: safeDuration },
+      actionData: { sessionId: session.id, type: safeType, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories },
     };
   }
 
@@ -3286,6 +3338,24 @@ async function executeTool(
       create: { userId, date: measureDate, ...Object.fromEntries(presentFields) },
       update: Object.fromEntries(presentFields),
     });
+
+    // Round 199: post-write verify for log_body_measurement (extends
+    // R197/R198 pattern across all log_* tools). Confirms each present
+    // field landed in DB within 0.1cm tolerance.
+    const verified = await prisma.bodyMeasurement.findUnique({
+      where: { userId_date: { userId, date: measureDate } },
+    });
+    if (!verified) {
+      throw new Error('log_body_measurement: written row not found in verify');
+    }
+    for (const [field, expected] of presentFields) {
+      const actual = (verified as unknown as Record<string, number | null>)[field];
+      if (actual == null || Math.abs(actual - (expected as number)) > 0.1) {
+        throw new Error(
+          `log_body_measurement: ${field} stored=${actual} expected=${expected}`,
+        );
+      }
+    }
 
     const LABELS: Record<string, string> = { chest: 'грудь', waist: 'талия', hips: 'бёдра', bicep: 'бицепс', thigh: 'бедро', neck: 'шея', calf: 'икра' };
     const summary = presentFields.map(([k, v]) => `${LABELS[k] || k}: ${v} см`).join(', ');
@@ -3507,6 +3577,18 @@ async function executeTool(
       create: { userId, date: sleepDate, bedtime: safeBedtime ?? '23:00', wakeTime: safeWakeTime ?? '07:00', durationHours: safeDuration, quality: safeQuality },
       update: { durationHours: safeDuration, quality: safeQuality, ...(safeBedtime && { bedtime: safeBedtime }), ...(safeWakeTime && { wakeTime: safeWakeTime }) },
     });
+
+    // Round 198: post-write verify (extends R197 pattern). Confirm
+    // the upserted row matches input.
+    const verified = await prisma.sleepEntry.findUnique({
+      where: { userId_date: { userId, date: sleepDate } },
+      select: { durationHours: true, quality: true },
+    });
+    if (!verified || Math.abs(verified.durationHours - safeDuration) > 0.1) {
+      throw new Error(
+        `log_sleep: stored value diverges — DB hours=${verified?.durationHours ?? 'null'}, expected ${safeDuration}`,
+      );
+    }
 
     const qualityLabels: Record<number, string> = { 1: 'очень плохой', 2: 'плохой', 3: 'нормальный', 4: 'хороший', 5: 'отличный' };
     const qualityText = safeQuality ? `, ${qualityLabels[safeQuality]} сон` : '';
