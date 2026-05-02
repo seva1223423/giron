@@ -163,11 +163,17 @@ describe('Memoization patterns prevent re-render storms', () => {
   });
 
   test('Zustand selectors are used (avoids subscribing to whole store)', () => {
+    // Round 257: also count useThemeColors() — a dedicated selector
+    // hook the codebase migrated to (replaces the wider useThemeStore()
+    // subscription). Both patterns avoid full-store re-renders.
     let selectorUsage = 0;
     for (const f of ALL_FILES) {
       const code = fs.readFileSync(f, 'utf8');
-      // const x = useStore((s) => s.field) is the selector pattern
-      if (/use\w+Store\(\(s\)\s*=>/.test(code) || /use\w+Store\(\(state\)\s*=>/.test(code)) {
+      if (
+        /use\w+Store\(\(s\)\s*=>/.test(code) ||
+        /use\w+Store\(\(state\)\s*=>/.test(code) ||
+        /useThemeColors\(/.test(code)
+      ) {
         selectorUsage++;
       }
     }

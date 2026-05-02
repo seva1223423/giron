@@ -130,6 +130,14 @@ export const useRecipesStore = create<RecipesState>()(
     {
       name: 'giron-recipes',
       storage: createJSONStorage(() => AsyncStorage),
+      // Round 258: explicit version. Default version is 0; if we
+      // ever bump the shape (e.g. add Recipe.totalFiber), every
+      // existing user's `mine` cache gets silently dropped without
+      // a migrate function. Setting version: 1 + an identity migrate
+      // pins the contract so future shape changes can be migrated
+      // explicitly via the standard zustand persist machinery.
+      version: 1,
+      migrate: (state: any) => state,
       // Keep filter + cached lists across sessions; transient flags don't persist.
       partialize: (s) => ({
         curated: s.curated,
