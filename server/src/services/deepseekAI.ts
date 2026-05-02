@@ -323,8 +323,13 @@ export async function summarizeHistory(
     const result = [summaryMessage, ...recentMessages];
     return trimHistory(result, maxTokens, systemTokens);
   } catch (e) {
-    // Если суммаризация сломалась — fallback на обычный trim
-    logger.warn('History summarization failed, falling back to trim:', (e as Error).message);
+    // Если суммаризация сломалась — fallback на обычный trim.
+    // Round 255: pass the full Error so logger preserves the stack
+    // trace; previously `(e as Error).message` lost the stack and
+    // Sentry/log infra couldn't tell upstream timeouts apart from
+    // parse failures. Stringification of Error in most loggers keeps
+    // both message + stack.
+    logger.warn('History summarization failed, falling back to trim:', e instanceof Error ? e : new Error(String(e)));
     return trimHistory(messages, maxTokens, systemTokens);
   }
 }
