@@ -757,6 +757,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
     try {
       const result = await aiService.analyzeFood(base64, controller.signal, mimeType);
+      // Audit: previously fed `result.items` straight into applyAIItems.
+      // If the server returned 200 with a malformed body (e.g. proxy
+      // ate the items array, or a future server change forgets to
+      // include it), .map() on undefined would throw a TypeError that
+      // landed in the catch as "Неизвестная ошибка" — opaque, and
+      // the user would burn a credit AND a base64 retry on the same
+      // bad payload thinking it was a transient network blip. Now we
+      // surface a clear "ответ сервера повреждён" message and refund.
+      if (!result || !Array.isArray(result.items)) {
+        setError('Сервер вернул неожиданный ответ. Попробуй ещё раз через минуту.');
+        setErrorRetryable(true);
+        refundFoodScan();
+        appendNextRef.current = false;
+        haptic.error();
+        return;
+      }
       const items = applyAIItems(result.items);
       // Server now also returns sanityFlags — merge with our local flags so
       // the banner reflects all warnings (server may catch things the client
