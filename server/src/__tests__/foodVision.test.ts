@@ -85,8 +85,14 @@ describe('validateFoodItems', () => {
     expect(out[0].name).toBe('Real');
   });
 
-  test('drops items with invalid weight (>5kg)', () => {
-    expect(validateFoodItems([baseItem({ weightGrams: 10000 })])).toHaveLength(0);
+  test('clamps oversized weight (>5kg) instead of dropping', () => {
+    // Audit-driven change: holiday meals ("целая индейка 7 кг") used
+    // to disappear entirely. New behavior keeps the item but clamps
+    // weightGrams to 5000 — the sanity flag surfaces the implausible
+    // portion to the user who can edit it down. Better-visible than silent loss.
+    const out = validateFoodItems([baseItem({ weightGrams: 10000 })]);
+    expect(out).toHaveLength(1);
+    expect(out[0].weightGrams).toBe(5000);
   });
 
   test('clamps individual values to ranges', () => {
