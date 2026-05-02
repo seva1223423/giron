@@ -105,6 +105,8 @@ jest.mock('../services/emailService', () => ({
   sendOtpEmail: jest.fn(),
   sendNewLoginAlert: jest.fn(),
   sendPasswordChangedAlert: jest.fn().mockResolvedValue(undefined),
+  sendEmailChangedAlert: jest.fn().mockResolvedValue(undefined),
+  sendAccountDeletedAlert: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../services/smsService', () => ({
@@ -1533,5 +1535,62 @@ describe('DELETE /api/user/account', () => {
     const auditCall = seCalls.find((c) => c[0]?.data?.action === 'ACCOUNT_DELETED');
     expect(auditCall).toBeTruthy();
     expect(auditCall![0].data.userId).toBe('u-test');
+  });
+
+  it('round 236: fires sendAccountDeletedAlert with email + ip BEFORE delete', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { sendAccountDeletedAlert } = require('../services/emailService');
+    (sendAccountDeletedAlert as jest.Mock).mockClear();
+
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPasswordOnly);
+    (prisma.user.delete as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
+
+    await request(app)
+      .delete('/api/user/account')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'correct-password' });
+
+    expect(sendAccountDeletedAlert).toHaveBeenCalledTimes(1);
+    const [calledEmail, calledIp, calledDate] = (sendAccountDeletedAlert as jest.Mock).mock.calls[0];
+    expect(calledEmail).toBe('test@example.com');
+    expect(typeof calledIp).toBe('string');
+    expect(calledDate).toBeInstanceOf(Date);
+
+    // Ordering: alert must be invoked BEFORE prisma.user.delete so that
+    // user.email is still resolvable (it's local var here, but the
+    // contract documents the ordering — pinning it prevents a future
+    // refactor from accidentally moving the SMTP call after the cascade
+    // and losing the in-flight reference).
+    const alertOrder = (sendAccountDeletedAlert as jest.Mock).mock.invocationCallOrder[0];
+    const deleteOrder = (prisma.user.delete as jest.Mock).mock.invocationCallOrder[0];
+    expect(alertOrder).toBeLessThan(deleteOrder);
+  });
+
+  it('round 236: SMTP failure on alert does NOT block account delete', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { sendAccountDeletedAlert } = require('../services/emailService');
+    (sendAccountDeletedAlert as jest.Mock).mockReset();
+    (sendAccountDeletedAlert as jest.Mock).mockRejectedValueOnce(new Error('SMTP timeout'));
+
+    (prisma.user.findUnique as jest.Mock)
+      .mockResolvedValueOnce(mockUser)
+      .mockResolvedValueOnce(userWithPasswordOnly);
+    (prisma.user.delete as jest.Mock).mockResolvedValueOnce({ id: 'u-test' });
+
+    const res = await request(app)
+      .delete('/api/user/account')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ password: 'correct-password' });
+
+    expect(res.status).toBe(200);
+    // The delete still happened despite the SMTP failure — irreversible
+    // commitment from user-pressed-button shouldn't strand on a flaky
+    // mail server.
+    expect(prisma.user.delete).toHaveBeenCalledTimes(1);
+
+    // Restore the success mock for any later tests that share this suite.
+    (sendAccountDeletedAlert as jest.Mock).mockResolvedValue(undefined);
   });
 });

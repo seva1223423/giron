@@ -236,6 +236,57 @@ export async function sendEmailChangedAlert(
 }
 
 /**
+ * Round 236 (security audit): send a final notification when a user's
+ * account is being permanently deleted. Account deletion is irreversible
+ * + cascade-wipes everything; without this email the legitimate owner
+ * has zero signal that their account was just destroyed by someone with
+ * a stolen access token + matching credentials. We ship the alert
+ * BEFORE the prisma.user.delete fires so even if SMTP is slow the email
+ * dispatches with a still-valid user.email reference.
+ *
+ * Best-effort: if SMTP fails, we log + still proceed with the delete so
+ * a transient mail outage can't strand a user mid-flow ("я нажал удалить,
+ * но ничего не произошло"). The security trade-off is small — by the
+ * time SMTP is back, the attacker has already finished their work
+ * regardless of whether the email landed.
+ */
+export async function sendAccountDeletedAlert(
+  email: string,
+  ip: string,
+  date: Date,
+): Promise<void> {
+  const dateStr = date.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'medium', timeStyle: 'short' });
+  const safeIp = esc(ip);
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: `${APP_NAME} — аккаунт удалён`,
+    text: `Ваш аккаунт ${APP_NAME} был удалён по запросу.\n\nДата: ${dateStr} (МСК)\nIP: ${ip}\n\nВся история тренировок, питания, замеров и подписок удалена и не подлежит восстановлению. Если это были не вы — немедленно напишите в поддержку: support@iron-gym.app. Учтите, что подписки в магазине приложений / ЮKassa нужно отменить отдельно через ваш аккаунт у платёжного провайдера — мы не можем сделать это за вас.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #D4B07A; margin-bottom: 8px;">${APP_NAME}</h2>
+        <h3 style="color: #333; margin-bottom: 16px;">Аккаунт удалён</h3>
+        <p style="color: #555; line-height: 1.6;">Ваш аккаунт был удалён по запросу. Вся история тренировок, питания, замеров, сна и подписок удалена и <strong>не подлежит восстановлению</strong>.</p>
+        <div style="background: #f5f5f7; border-radius: 12px; padding: 20px; margin: 16px 0;">
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Дата:</strong> ${esc(dateStr)} (МСК)</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${safeIp}</p>
+        </div>
+        <p style="color: #E07A6B; font-weight: bold; font-size: 14px;">
+          Если это были не вы — напишите в <a href="mailto:support@iron-gym.app" style="color: #E07A6B;">support@iron-gym.app</a>. Без вашего обращения мы не сможем восстановить аккаунт.
+        </p>
+        <p style="color: #555; font-size: 13px; margin-top: 12px; padding: 12px; background: #fff8e1; border-radius: 8px;">
+          <strong>Подписки:</strong> рекуррентные платежи в App Store / Google Play / ЮKassa нужно отменить отдельно через ваш аккаунт у платёжного провайдера — мы не можем сделать это за вас, и оплата может продолжаться до отмены.
+        </p>
+        <p style="color: #888; font-size: 12px; margin-top: 16px;">
+          Это автоматическое уведомление системы безопасности ${APP_NAME}.
+        </p>
+      </div>
+    `,
+  });
+  logger.info(`[Email] Account-deleted alert sent to ${redactEmail(email)}`);
+}
+
+/**
  * Weekly summary email (RETENTION-03). Sent Sunday evening to users with at
  * least one workout in the past 7 days. The numbers are pre-computed by
  * retentionService to keep this template a pure formatter.
