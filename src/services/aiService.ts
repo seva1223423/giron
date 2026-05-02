@@ -182,7 +182,20 @@ export const aiService = {
       // Vision API call — same long-latency category as /ai/chat. Pass
       // both the AbortSignal (for user cancellation via the cancel
       // button) and the longer timeout (for legitimate slow responses).
-      const { data } = await api.post('/ai/analyze-food', { imageBase64, mimeType }, { signal, timeout: AI_REQUEST_TIMEOUT_MS });
+      // clientTzOffsetMinutes is the user's UTC offset in signed
+      // minutes (Moscow=+180, Vladivostok=+600, LA=-480). The server
+      // uses it to align the daily-quota floor to the user's local
+      // midnight rather than UTC midnight — without this, RU users
+      // hit weird reset times 2-12 hours past their local midnight.
+      // `-getTimezoneOffset()` is the standard sign convention here
+      // (JS getTimezoneOffset returns inverted sign by historical
+      // accident; we negate so positive = east of UTC).
+      const clientTzOffsetMinutes = -new Date().getTimezoneOffset();
+      const { data } = await api.post(
+        '/ai/analyze-food',
+        { imageBase64, mimeType, clientTzOffsetMinutes },
+        { signal, timeout: AI_REQUEST_TIMEOUT_MS },
+      );
       return data;
     } catch (e: any) {
       // 422: vision failed, server provides a suggestion text for the user
@@ -204,7 +217,13 @@ export const aiService = {
    *  path so callers can reuse UI error cards unchanged. */
   async analyzeFoodText(description: string, signal?: AbortSignal): Promise<FoodAnalysisResult> {
     try {
-      const { data } = await api.post('/ai/analyze-food-text', { description }, { signal, timeout: AI_REQUEST_TIMEOUT_MS });
+      // See analyzeFood for rationale on clientTzOffsetMinutes.
+      const clientTzOffsetMinutes = -new Date().getTimezoneOffset();
+      const { data } = await api.post(
+        '/ai/analyze-food-text',
+        { description, clientTzOffsetMinutes },
+        { signal, timeout: AI_REQUEST_TIMEOUT_MS },
+      );
       return data;
     } catch (e: any) {
       if (e?.response?.status === 422) {
