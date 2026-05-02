@@ -4083,12 +4083,63 @@ async function executeTool(
     const lastDate = recent[0]?.completedAt;
     const daysSince = lastDate ? Math.round((Date.now() - new Date(lastDate).getTime()) / 86400000) : 999;
 
-    let suggestion = '';
-    if (daysSince >= 3) suggestion = `Ты не тренировался ${daysSince} дней. Рекомендую начать с лёгкой тренировки на всё тело.`;
-    else if (leastTrained.length > 0) suggestion = `Наименее нагруженные мышцы за последние тренировки: ${leastTrained.join(', ')}. Рекомендую сфокусироваться на них.`;
-    else suggestion = 'Все мышечные группы хорошо прокачаны. Продолжай по плану!';
+    // Round 215: if user has an active program with multiple workouts,
+    // suggest the next one in rotation rather than guessing from
+    // muscle counts. The user explicitly chose this program — we
+    // should respect the rotation. This is more useful than abstract
+    // "наименее нагруженные мышцы" when a real plan exists.
+    const activeProgWithWorkouts = await prisma.program.findFirst({
+      where: { userId, isActive: true },
+      include: { workouts: { orderBy: { name: 'asc' } } },
+    });
 
-    return { resultText: suggestion, actionDescription: 'Рекомендация тренировки', actionData: { leastTrained, daysSinceLastWorkout: daysSince } };
+    let programSuggestion = '';
+    if (activeProgWithWorkouts && activeProgWithWorkouts.workouts.length >= 2) {
+      // Find the most-recently-completed workout NAME (by template name,
+      // not by id) and pick the next one in the program rotation.
+      const planWorkouts = activeProgWithWorkouts.workouts;
+      const lastDoneName = recent[0]?.name;
+      let nextIndex = 0;
+      if (lastDoneName) {
+        const idx = planWorkouts.findIndex((w) => w.name === lastDoneName);
+        if (idx >= 0) nextIndex = (idx + 1) % planWorkouts.length;
+      }
+      const nextWorkout = planWorkouts[nextIndex];
+      const safeProgName = sanitizeForPrompt(activeProgWithWorkouts.name, 80);
+      const safeNextName = sanitizeForPrompt(nextWorkout.name, 80);
+      programSuggestion = `По программе "${safeProgName}" следующая тренировка: ${safeNextName}.`;
+    }
+
+    let suggestion = '';
+    if (daysSince >= 3) {
+      suggestion = `Ты не тренировался ${daysSince} дней. Рекомендую начать с лёгкой тренировки на всё тело.`;
+      if (programSuggestion) suggestion += ` ${programSuggestion}`;
+    } else if (programSuggestion) {
+      suggestion = programSuggestion;
+      if (leastTrained.length > 0) {
+        suggestion += ` (Также давно не нагружал: ${leastTrained.join(', ')}.)`;
+      }
+    } else if (leastTrained.length > 0) {
+      suggestion = `Наименее нагруженные мышцы за последние тренировки: ${leastTrained.join(', ')}. Рекомендую сфокусироваться на них.`;
+    } else {
+      suggestion = 'Все мышечные группы хорошо прокачаны. Продолжай по плану!';
+    }
+
+    return {
+      resultText: suggestion,
+      actionDescription: 'Рекомендация тренировки',
+      actionData: {
+        leastTrained,
+        daysSinceLastWorkout: daysSince,
+        nextProgramWorkout: activeProgWithWorkouts && activeProgWithWorkouts.workouts.length >= 2
+          ? activeProgWithWorkouts.workouts[
+              recent[0]?.name && activeProgWithWorkouts.workouts.findIndex((w) => w.name === recent[0]!.name) >= 0
+                ? (activeProgWithWorkouts.workouts.findIndex((w) => w.name === recent[0]!.name) + 1) % activeProgWithWorkouts.workouts.length
+                : 0
+            ].name
+          : null,
+      },
+    };
   }
 
   if (toolName === 'log_sleep') {
