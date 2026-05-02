@@ -828,7 +828,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       const typicalPortionsObj = typicalPortions.size > 0
         ? Object.fromEntries(typicalPortions)
         : undefined;
-      const result = await aiService.analyzeFood(base64, controller.signal, mimeType, typicalPortionsObj);
+      const result = await aiService.analyzeFood(base64, controller.signal, mimeType, typicalPortionsObj, mealType);
       // Audit: previously fed `result.items` straight into applyAIItems.
       // If the server returned 200 with a malformed body (e.g. proxy
       // ate the items array, or a future server change forgets to
@@ -1140,7 +1140,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       const typicalPortionsObj = typicalPortions.size > 0
         ? Object.fromEntries(typicalPortions)
         : undefined;
-      const result = await aiService.analyzeFoodText(desc, controller.signal, typicalPortionsObj);
+      const result = await aiService.analyzeFoodText(desc, controller.signal, typicalPortionsObj, mealType);
       // Same defensive shape check as analyzeFood (round 223). Without
       // this, a malformed 200 response crashes applyAIItems with an
       // opaque TypeError.
