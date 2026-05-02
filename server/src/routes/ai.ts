@@ -4308,6 +4308,52 @@ async function executeTool(
           typeof a === 'string' && (VALID_ALLERGENS as readonly string[]).includes(a))
       : [];
 
+    // Round 213: auto-inject allergies from AIMemory as a safety net.
+    // The system prompt tells AI to forward stored allergies into
+    // allergensExcluded, but if it forgets (LLM stochasticity), we
+    // could serve a recipe with peanuts to someone who explicitly
+    // told us they have a nut allergy. Read AIMemory category=allergy
+    // and add anything that maps to a known enum value. AIMemory key
+    // examples: "allergy_nuts", "allergy_lactose", value="true" or
+    // free-text. We extract the enum from the key suffix.
+    try {
+      const allergyMemories = await prisma.aIMemory.findMany({
+        where: { userId, category: 'allergy' },
+        select: { key: true, value: true },
+      });
+      for (const mem of allergyMemories) {
+        const lowerKey = (mem.key ?? '').toLowerCase();
+        const lowerValue = (mem.value ?? '').toLowerCase();
+        for (const allergen of VALID_ALLERGENS) {
+          // Match by key suffix ("allergy_nuts") or by value
+          // ("orехи"/"молоко" hints), or direct allergen name in either.
+          if (
+            (lowerKey.includes(allergen) || lowerValue.includes(allergen)) &&
+            !safeAllergens.includes(allergen)
+          ) {
+            safeAllergens.push(allergen);
+          }
+          // Russian-language fallbacks for common terms in value field
+          const ruMap: Record<typeof VALID_ALLERGENS[number], string[]> = {
+            lactose: ['лактоз', 'молок', 'молочн'],
+            gluten: ['глютен', 'пшениц'],
+            eggs: ['яйц', 'яйк'],
+            nuts: ['орех', 'орех'],
+            fish: ['рыб'],
+            soy: ['соя', 'соев'],
+          };
+          if (ruMap[allergen].some((ruWord) => lowerKey.includes(ruWord) || lowerValue.includes(ruWord))) {
+            if (!safeAllergens.includes(allergen)) safeAllergens.push(allergen);
+          }
+        }
+      }
+    } catch {
+      // AIMemory read failure shouldn't block recipe search — degrade
+      // to whatever AI passed. The (potentially missing) safety net
+      // is logged client-side for ops review but can't poison the
+      // happy path.
+    }
+
     // Visibility: every CURATED row + this user's own USER rows.
     const visibilityClause = {
       OR: [{ source: 'CURATED' as const }, { source: 'USER' as const, userId }],
