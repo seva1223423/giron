@@ -84441,9 +84441,20 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
     const localTimeMs = Date.now() + tzOffsetMs;
     const localMidnightLocalMs = Math.floor(localTimeMs / dayMs) * dayMs;
     const scanTodayFloor = new Date(localMidnightLocalMs - tzOffsetMs);
-    const [userSub, scanTodayCount] = await Promise.all([
+    const [userSub, scanTodayCount, userRecipesText] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
       prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
+      // Round 245: parity with /analyze-food — let the AI use the user's
+      // saved recipe names as identification hints. When the description
+      // is "съел овсянку с бананом" and the user has a saved recipe with
+      // that exact name, the AI calls it the same → client matches → user
+      // sees their measured macros instead of generic Skurikhin estimates.
+      prisma.recipe.findMany({
+        where: { userId, source: 'USER' },
+        orderBy: { updatedAt: 'desc' },
+        take: 30,
+        select: { name: true, totalCalories: true, ingredients: true },
+      }),
     ]);
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
@@ -84458,6 +84469,16 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
     // newlines + fake [USER]/[SYSTEM] turn markers without trimming
     // legit content (max 2000 matches the Zod cap).
     const safeDescription = sanitizeForPrompt(description, 2000);
+    // Build the saved-recipes hint block (round 245 parity with vision path).
+    const recipesBlockText = ((): string => {
+      if (!userRecipesText?.length) return '';
+      const lines = userRecipesText.slice(0, 30).map((r) => {
+        const totalW = (r.ingredients as any[] | null)?.reduce((s: number, ing: any) => s + (Number(ing?.weightGrams) || 0), 0) || 0;
+        const per100 = totalW > 0 ? Math.round((r.totalCalories / totalW) * 100) : Math.round(r.totalCalories);
+        return `- ${sanitizeForPrompt(r.name, 80)} (~${per100} ккал/100г)`;
+      });
+      return `\n\nСОХРАНЁННЫЕ РЕЦЕПТЫ ПОЛЬЗОВАТЕЛЯ (если описание похоже на одно из них — назови ТАК ЖЕ для авто-подстановки точных КБЖУ из рецепта):\n${lines.join('\n')}`;
+    })();
     const prompt = `Ты — нутрициолог-эксперт. Распарси описание еды и верни точные КБЖУ по каждой позиции.
 
 ОПИСАНИЕ: ${safeDescription}
@@ -84511,7 +84532,7 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
    • 0.9–1.0 — точный вес указан + знакомое блюдо
    • 0.7–0.89 — блюдо чёткое, вес прикинут по стандарту
    • 0.5–0.69 — размытое описание ("что-то мясное", "немного каши")
-   • < 0.5 — НЕ ВОЗВРАЩАЙ, лучше пропусти.
+   • < 0.5 — НЕ ВОЗВРАЩАЙ, лучше пропусти.${recipesBlockText}
 
 Ответь СТРОГО JSON:
 {
