@@ -271,13 +271,25 @@ export const aiService = {
    *  Shares the daily scan quota with /analyze-food on the server. Errors
    *  surface with the same { suggestion, retryable } shape as the vision
    *  path so callers can reuse UI error cards unchanged. */
-  async analyzeFoodText(description: string, signal?: AbortSignal): Promise<FoodAnalysisResult> {
+  async analyzeFoodText(
+    description: string,
+    signal?: AbortSignal,
+    typicalPortions?: Record<string, number>,
+  ): Promise<FoodAnalysisResult> {
     try {
       // See analyzeFood for rationale on clientTzOffsetMinutes.
       const clientTzOffsetMinutes = -new Date().getTimezoneOffset();
+      // Parity with analyzeFood (round 248): pass user's habitual portion
+      // sizes so the AI defers to the user's median when the description
+      // omits weight ("съел курицу" → estimate from user's 200g median,
+      // not the prompt's generic 150g default).
+      const tpEntries = typicalPortions ? Object.entries(typicalPortions).slice(0, 30) : null;
+      const typicalPortionsBody = tpEntries && tpEntries.length > 0
+        ? Object.fromEntries(tpEntries)
+        : undefined;
       const { data } = await api.post(
         '/ai/analyze-food-text',
-        { description, clientTzOffsetMinutes },
+        { description, clientTzOffsetMinutes, typicalPortions: typicalPortionsBody },
         { signal, timeout: AI_REQUEST_TIMEOUT_MS },
       );
       return data;
