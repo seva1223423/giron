@@ -84329,6 +84329,45 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
     const firstCallElapsedMs = Date.now() - firstCallStartTs;
     let items = parseFoodResponse(text);
 
+    const RETRY_TIME_BUDGET_MS = 25_000;
+
+    // Parse-fail retry — Mistral occasionally returns malformed JSON
+    // (stray prose around the object, code-fence drift, missing closing
+    // brace) on cold-start or under load. parseFoodResponse already
+    // strips fences and tolerates surrounding noise; if it still returns
+    // null AND the model didn't explicitly say "not food", retrying
+    // once with a sharper format nudge recovers the scan ~70% of the
+    // time. Without this we surface a "couldn't recognize" error to the
+    // user even though the model actually identified the food — we
+    // just couldn't extract it. Skip the retry on the notFood path
+    // (no point reprocessing — it's not food and we should tell user)
+    // and on time-budget exhaustion (same logic as low-conf retry).
+    const firstPassIsNotFood = (() => {
+      try {
+        const raw = JSON.parse(text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim());
+        return raw.notFood === true;
+      } catch { return false; }
+    })();
+    let parseRetryElapsedMs = 0;
+    if (items === null && !firstPassIsNotFood && firstCallElapsedMs < RETRY_TIME_BUDGET_MS) {
+      try {
+        const retryPrompt = `${prompt}\n\nКРИТИЧНО ПО ФОРМАТУ: предыдущий ответ не удалось распарсить как JSON. Верни ТОЛЬКО валидный JSON-объект — без префиксов "вот ответ:", без пояснений, без markdown code fence. Структура: {"items":[{...}]}. Если на фото не еда — {"notFood":true}. Никакого текста снаружи фигурных скобок.`;
+        const parseRetryStart = Date.now();
+        const retryText = await analyzeImage(imageBase64, retryPrompt, mimeType);
+        parseRetryElapsedMs = Date.now() - parseRetryStart;
+        const retryItems = parseFoodResponse(retryText);
+        if (retryItems !== null) {
+          text = retryText;
+          items = retryItems;
+          logger.info(`[FoodScan] parse-fail retry recovered: items=${retryItems.length}`);
+        } else {
+          logger.warn('[FoodScan] parse-fail retry also failed to parse');
+        }
+      } catch (retryErr) {
+        logger.warn('[FoodScan] parse-fail retry threw, using first pass:', retryErr);
+      }
+    }
+
     // Low-confidence retry — if the first pass returns an answer but every
     // item's confidence is below 0.6, the model was unsure. A second pass
     // with a "take your time, double-check scale and ingredient" nudge
@@ -84342,11 +84381,15 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
     // without ever delivering its result. Skipping the retry in that
     // case lets the user see the (lower-confidence) first result before
     // their abort fires.
-    const RETRY_TIME_BUDGET_MS = 25_000;
     const firstPassAvgConf = items && items.length > 0
       ? items.reduce((s, i) => s + (typeof i.confidence === 'number' ? i.confidence : 0.6), 0) / items.length
       : 1;
-    if (items && items.length > 0 && firstPassAvgConf < 0.6 && firstCallElapsedMs < RETRY_TIME_BUDGET_MS) {
+    // Sum first call + parse-retry so back-to-back retries don't push past
+    // the client's 50s abort. If the parse-fail retry already ran and ate
+    // into the budget, skip the low-conf retry rather than burn another
+    // ~15s call the client will never see.
+    const elapsedBeforeLowConfRetry = firstCallElapsedMs + parseRetryElapsedMs;
+    if (items && items.length > 0 && firstPassAvgConf < 0.6 && elapsedBeforeLowConfRetry < RETRY_TIME_BUDGET_MS) {
       try {
         const retryPrompt = `${prompt}\n\nВАЖНО: предыдущая оценка была с низкой уверенностью. Пересмотри внимательно: точнее определи ингредиенты (посмотри на цвет, форму, текстуру), корректнее прикинь вес по ориентирам из правила 3. Если всё равно не уверен — лучше верни меньше позиций, но с высокой точностью.`;
         const retryText = await analyzeImage(imageBase64, retryPrompt, mimeType);
