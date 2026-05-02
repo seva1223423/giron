@@ -2106,7 +2106,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                   <Button
                     title="📝 Текстом"
                     variant="outline"
-                    onPress={() => { haptic.selection(); setError(''); setImageUri(null); setTextModalOpen(true); }}
+                    onPress={() => {
+                      haptic.selection();
+                      setError('');
+                      setImageUri(null);
+                      // Same prior-items preservation as rounds 231/232.
+                      // Switching to text after a failed photo shouldn't
+                      // wipe items the user had logged from earlier
+                      // successful scans in the same session.
+                      if (recognizedItems.length > 0) {
+                        appendNextRef.current = true;
+                      }
+                      setTextModalOpen(true);
+                    }}
                     style={{ flex: 1 }}
                     accessibilityLabel="Переключиться на ввод текстом"
                     accessibilityHint="Откроет модальное окно с описанием еды"
