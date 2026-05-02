@@ -12,6 +12,11 @@ interface CardioStore {
   getWeekSessions: () => CardioSession[];
   syncFromServer: () => Promise<void>;
   clearUserData: () => void;
+  /** Round 278: session-epoch counter (mirrors R249 in useWorkoutStore).
+   *  Bumped by clearUserData; syncFromServer captures before await
+   *  and discards set() on mismatch so user-A's data can't pollute
+   *  user-B after a fast logout/login swap. */
+  _sessionEpoch: number;
 }
 
 const weekStartStr = () => {
@@ -24,6 +29,7 @@ export const useCardioStore = create<CardioStore>()(
   persist(
     (set, get) => ({
       sessions: [],
+      _sessionEpoch: 0,
 
       addSession: async (data) => {
         try {
@@ -60,9 +66,18 @@ export const useCardioStore = create<CardioStore>()(
         return get().sessions.filter((s) => s.date >= start);
       },
 
-      clearUserData: () => set({ sessions: [] }),
+      clearUserData: () => set((s) => ({
+        sessions: [],
+        // Round 278: bump epoch so any in-flight syncFromServer drops
+        // its result on completion instead of polluting the new session.
+        _sessionEpoch: (s._sessionEpoch ?? 0) + 1,
+      })),
 
       syncFromServer: async () => {
+        // Round 278: capture session epoch before any await so a
+        // logout/user-switch mid-sync doesn't write stale data into
+        // the new session.
+        const epoch = get()._sessionEpoch ?? 0;
         try {
           // Phase 1 — push offline-created sessions to the server BEFORE we
           // replace state with the server snapshot. Otherwise the local-
@@ -110,6 +125,8 @@ export const useCardioStore = create<CardioStore>()(
           const localOnly = get().sessions.filter(
             (s) => s.id.startsWith('local-') && !promotedLocalIds.has(s.id) && !serverIds.has(s.id),
           );
+          // Round 278: drop result if session changed during the await.
+          if ((get()._sessionEpoch ?? 0) !== epoch) return;
           set({ sessions: [...serverSessions, ...missingPromoted, ...localOnly] });
         } catch {
           // Keep local sessions if server unreachable
