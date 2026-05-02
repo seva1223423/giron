@@ -32,6 +32,7 @@ import {
   MIN_IMAGE_SHORT_SIDE,
   OFF_HOSTS,
   fetchBarcodeFromOFF,
+  deriveKcalFromMacros,
   type ScannerDraft,
 } from '../utils/foodScanner';
 
@@ -957,6 +958,54 @@ describe('fetchBarcodeFromOFF', () => {
     expect(calls[0]).toContain('fields=product_name,nutriments');
     expect(calls[0]).toContain('lc=ru');
     expect(calls[0]).toContain('/api/v2/product/4607034570316');
+  });
+});
+
+// ─── deriveKcalFromMacros ─────────────────────────────────────────────────────
+
+describe('deriveKcalFromMacros', () => {
+  test('classic Atwater on whole-food macros (no fiber)', () => {
+    // 100g chicken breast — protein 23, fat 3, carbs 0 → 4·23 + 9·3 = 119
+    expect(deriveKcalFromMacros(23, 3, 0)).toBe(119);
+  });
+
+  test('subtracts fiber at 2 kcal/g instead of 4', () => {
+    // 100g гречка — protein 13, fat 3, carbs 68, fiber 10
+    // Without fiber adj: 4·13 + 9·3 + 4·68 = 351
+    // With fiber adj:    4·13 + 9·3 + 4·58 + 2·10 = 331
+    expect(deriveKcalFromMacros(13, 3, 68, 10)).toBe(331);
+  });
+
+  test('fiber=0 collapses to plain Atwater', () => {
+    expect(deriveKcalFromMacros(10, 5, 50, 0)).toBe(deriveKcalFromMacros(10, 5, 50));
+  });
+
+  test('clamps fiber to ≤ carbs (data entry noise)', () => {
+    // OFF occasionally has fiber > carbs (unit confusion). Clamp to
+    // carbs so we don't end up with negative net-carbs.
+    expect(deriveKcalFromMacros(0, 0, 5, 99)).toBe(deriveKcalFromMacros(0, 0, 5, 5));
+  });
+
+  test('returns 0 when all macros are zero', () => {
+    expect(deriveKcalFromMacros(0, 0, 0, 0)).toBe(0);
+  });
+
+  test('treats negative inputs as 0', () => {
+    expect(deriveKcalFromMacros(-5, 3, 10)).toBe(deriveKcalFromMacros(0, 3, 10));
+  });
+
+  test('treats NaN/Infinity as 0', () => {
+    expect(deriveKcalFromMacros(NaN, 5, 10)).toBe(deriveKcalFromMacros(0, 5, 10));
+    expect(deriveKcalFromMacros(5, Infinity, 10)).toBe(deriveKcalFromMacros(5, 0, 10));
+  });
+
+  test('rounds to integer kcal', () => {
+    // 1.1 prot + 1.1 fat + 1.1 carb = 4.4 + 9.9 + 4.4 = 18.7 → 19
+    expect(deriveKcalFromMacros(1.1, 1.1, 1.1)).toBe(19);
+  });
+
+  test('100g pure olive oil — fats only', () => {
+    expect(deriveKcalFromMacros(0, 100, 0)).toBe(900);
   });
 });
 

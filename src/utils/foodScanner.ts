@@ -321,6 +321,42 @@ export function isOFFDataPlausible(cal: number, prot: number, fats: number, carb
  * The 100-threshold heuristic on `energy_100g` (legacy field) treats
  * values >100 as kJ — almost universal for that field in OFF.
  */
+/**
+ * Derive kcal/100g from macros when the OFF energy field is empty.
+ *
+ * About 6% of Russian-market OFF entries carry protein/fat/carb
+ * numbers but no energy field — the contributor stopped before
+ * filling it in. Saving those at cal=0 produces a confusing diary
+ * row ("0 ккал, 12 г белка, 4 г жиров") that users distrust.
+ *
+ * Atwater factors (4×p + 9×f + 4×c) are exact for whole foods and
+ * within ±10% for processed. We refine for fiber when OFF supplies
+ * it: regulation/EU treats fiber at ~2 kcal/g not 4, so high-fiber
+ * Russian staples (гречка ≈ 10 g fiber, овсянка ≈ 11) had their
+ * derived calories overstated by 20-40 kcal/100 g without this
+ * adjustment.
+ *
+ * Fiber is clamped to ≤ carbs to absorb OFF data-entry noise (rare
+ * cases where fiber_100g > carbs_100g, usually a unit confusion).
+ * Returns 0 when all macros are zero so the all-empty short-circuit
+ * upstream still fires.
+ */
+export function deriveKcalFromMacros(
+  prot: number,
+  fats: number,
+  carbs: number,
+  fiber: number = 0,
+): number {
+  const p = Math.max(0, Number.isFinite(prot) ? prot : 0);
+  const f = Math.max(0, Number.isFinite(fats) ? fats : 0);
+  const c = Math.max(0, Number.isFinite(carbs) ? carbs : 0);
+  const rawFib = Number.isFinite(fiber) ? fiber : 0;
+  const fib = Math.max(0, Math.min(c, rawFib));
+  if (p + f + c <= 0) return 0;
+  const netCarbs = Math.max(0, c - fib);
+  return Math.round(p * 4 + f * 9 + netCarbs * 4 + fib * 2);
+}
+
 export function extractKcal(n: Record<string, any>): number {
   if (n['energy-kcal_100g'] != null && n['energy-kcal_100g'] > 0) return Math.round(n['energy-kcal_100g']);
   if (n['energy-kj_100g'] != null && n['energy-kj_100g'] > 0) return Math.round(n['energy-kj_100g'] / 4.184);
