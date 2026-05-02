@@ -269,6 +269,72 @@ export async function fetchBarcodeFromOFF(
  *    impossible regardless of the per-field values.
  */
 /**
+ * Cache TTLs for the barcode lookup cache. Positive entries (real
+ * product data from OFF) live for 30 days — OFF nutrition data
+ * doesn't change quickly. Negative entries ("OFF replied status:0")
+ * live for 24 hours so community contributions become visible the
+ * next day; without negative caching, every retry of a Russian
+ * not-in-OFF SKU re-fired both mirrors (~16 s of network).
+ */
+export const BARCODE_POSITIVE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const BARCODE_NEGATIVE_TTL_MS = 24 * 60 * 60 * 1000;
+
+export interface BarcodePositiveEntry {
+  name: string;
+  cal: number;
+  prot: number;
+  fats: number;
+  carbs: number;
+  cachedAt?: number;
+}
+
+export interface BarcodeNegativeEntry {
+  __notFound: true;
+  cachedAt: number;
+}
+
+export type BarcodeCacheEntry = BarcodePositiveEntry | BarcodeNegativeEntry;
+
+export type BarcodeCacheLookup =
+  | { kind: 'hit'; product: BarcodePositiveEntry }
+  | { kind: 'miss-known' }
+  | { kind: 'expired'; barcode?: string }
+  | null;
+
+/**
+ * Evaluate a stored cache entry against TTLs. Pure — takes the
+ * already-parsed entry plus the current time, returns the
+ * structural decision the caller should act on.
+ *
+ * Splitting this out of the AsyncStorage I/O lets us unit-test the
+ * TTL logic and the negative-cache detection without mocking
+ * AsyncStorage. The screen still owns the read/write side effects
+ * (eviction on expiry, the `multiSet`-equivalent batching).
+ */
+export function evaluateBarcodeCacheEntry(
+  entry: BarcodeCacheEntry | null | undefined,
+  now: number = Date.now(),
+): BarcodeCacheLookup {
+  if (!entry) return null;
+  if ((entry as BarcodeNegativeEntry).__notFound === true) {
+    const negEntry = entry as BarcodeNegativeEntry;
+    if (now - negEntry.cachedAt > BARCODE_NEGATIVE_TTL_MS) {
+      return { kind: 'expired' };
+    }
+    return { kind: 'miss-known' };
+  }
+  const posEntry = entry as BarcodePositiveEntry;
+  const cachedAt = posEntry.cachedAt ?? 0;
+  if (cachedAt && now - cachedAt > BARCODE_POSITIVE_TTL_MS) {
+    return { kind: 'expired' };
+  }
+  // Strip the cachedAt timestamp from the returned product — it's
+  // bookkeeping, not data the consumer needs.
+  const { cachedAt: _ts, ...product } = posEntry;
+  return { kind: 'hit', product: product as BarcodePositiveEntry };
+}
+
+/**
  * Minimum shortest-side resolution accepted for the food vision
  * pipeline. Below this threshold the calibration rules in the system
  * prompt (plate sizes, utensils, hand for scale) need the reference
