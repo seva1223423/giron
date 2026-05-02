@@ -2052,7 +2052,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                     {recentScans.map((scan) => (
                       <TouchableOpacity
                         key={scan.barcode}
-                        onPress={() => applyBarcodeProduct(scan, scan.servingGrams)}
+                        onPress={() => {
+                          // Round 237 cont.: recent-chip taps should add
+                          // to a meal-in-progress, not wipe it. The chip
+                          // is most often used "ate it again" — when the
+                          // user already started logging other items in
+                          // the same meal, treating chip-tap as replace
+                          // throws away their progress. applyBarcodeProduct
+                          // (round 237) merges when appendNextRef is set.
+                          if (recognizedItems.length > 0) {
+                            appendNextRef.current = true;
+                          }
+                          applyBarcodeProduct(scan, scan.servingGrams);
+                        }}
                         onLongPress={() => {
                           haptic.medium();
                           Alert.alert(
