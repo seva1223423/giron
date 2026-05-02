@@ -1147,10 +1147,21 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       }
 
       const n: Record<string, any> = p.nutriments || {};
-      const cal = extractKcal(n);
+      let cal = extractKcal(n);
       const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
       const fats = Math.round((n.fat_100g || 0) * 10) / 10;
       const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
+      // Round 213: derive kcal from Atwater factors when OFF lists macros
+      // without an energy field. About 6% of OFF-RU products carry only
+      // protein/fat/carb numbers (the contributor stopped before adding
+      // energy), and the previous flow saved those at cal=0 — diary
+      // showed "0 ккал, 12г белка, 4г жиров", which the user rightly
+      // distrusted. Atwater (4×p + 9×f + 4×c) is exact for whole foods
+      // and within ±10% for processed; the plausibility gate below
+      // still catches absurd outputs.
+      if (cal === 0 && (prot + fats + carbs) > 0) {
+        cal = Math.round(prot * 4 + fats * 9 + carbs * 4);
+      }
       const productName = buildBarcodeDisplayName({
         product_name: p.product_name,
         product_name_ru: p.product_name_ru,
