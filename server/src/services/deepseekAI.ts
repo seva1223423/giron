@@ -606,8 +606,13 @@ export async function analyzeImage(
       }
 
       if (!response.ok) {
+        // Round 260: cap upstream error body at 500 chars. Mistral / DeepSeek
+        // error responses can echo back the request payload (which contains
+        // the AI prompt + user-provided food names, allergies, etc.). A 4xx/5xx
+        // error path was logging the entire payload via the thrown Error.
         const errorText = await response.text();
-        throw new Error(`AI vision error ${response.status}: ${errorText}`);
+        const truncated = errorText.length > 500 ? `${errorText.slice(0, 500)}…(${errorText.length} chars)` : errorText;
+        throw new Error(`AI vision error ${response.status}: ${truncated}`);
       }
 
       let data: { choices?: Array<{ message?: { content?: string } }> };
