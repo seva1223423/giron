@@ -416,9 +416,16 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
         {historyPage < historyTotalPages && (
           <View style={styles.loadOlderContainer}>
-            <TouchableOpacity style={styles.loadOlderButton} onPress={loadOlderMessages} disabled={loadingOlderMessages}>
+            <TouchableOpacity
+              style={styles.loadOlderButton}
+              onPress={loadOlderMessages}
+              disabled={loadingOlderMessages}
+              accessibilityRole="button"
+              accessibilityLabel="Загрузить старые сообщения"
+              accessibilityState={{ disabled: loadingOlderMessages, busy: loadingOlderMessages }}
+            >
               {loadingOlderMessages
-                ? <ActivityIndicator size="small" color="#8B5CF6" />
+                ? <ActivityIndicator size="small" color="#D4B07A" />
                 : <Text style={styles.loadOlderText}>Загрузить старые сообщения</Text>}
             </TouchableOpacity>
           </View>
@@ -520,6 +527,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   messages: { padding: 16, paddingBottom: 8 },
   loadOlderContainer: { alignItems: 'center', marginBottom: 12 },
-  loadOlderButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#8B5CF6', minWidth: 48, alignItems: 'center' },
-  loadOlderText: { color: '#8B5CF6', fontSize: 13 },
+  loadOlderButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#D4B07A', minWidth: 48, alignItems: 'center' },
+  loadOlderText: { color: '#D4B07A', fontSize: 13 },
 });

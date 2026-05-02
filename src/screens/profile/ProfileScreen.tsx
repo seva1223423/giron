@@ -98,7 +98,13 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    userService.getWeightHistory().then(setWeightHistory).catch(() => {});
+    // Round 234: cancel-on-unmount guard. Without it, navigating away
+    // mid-fetch triggered a setState-on-unmounted-component warning.
+    let cancelled = false;
+    userService.getWeightHistory()
+      .then((wh) => { if (!cancelled) setWeightHistory(wh); })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   const startResendCountdown = (seconds = 60) => {
@@ -527,8 +533,8 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         />
         <MenuRow
           iconName="message"
-          iconBg="#6366F118"
-          iconColor="#6366F1"
+          iconBg="#D4B07A18"
+          iconColor="#D4B07A"
           title="Техническая поддержка"
           subtitle="Вопросы, проблемы, предложения"
           onPress={() => { haptic.selection(); navigation.navigate('SupportScreen'); }}
@@ -663,7 +669,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}
           onPress={() => navigation.navigate('TwoFactorScreen')}
         >
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#8B5CF618', borderWidth: 1, borderColor: '#8B5CF640', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#D4B07A18', borderWidth: 1, borderColor: '#D4B07A40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
             <Text style={{ fontSize: 15, color: colors.primary }}>A</Text>
           </View>
           <View style={{ flex: 1 }}>
@@ -678,7 +684,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}
           onPress={() => navigation.navigate('SessionsScreen')}
         >
-          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#6366F118', borderWidth: 1, borderColor: '#6366F140', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#D4B07A18', borderWidth: 1, borderColor: '#D4B07A40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
             <Text style={{ fontSize: 15 }}>◻</Text>
           </View>
           <View style={{ flex: 1 }}>
