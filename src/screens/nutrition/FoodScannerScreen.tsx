@@ -998,8 +998,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           setLoading(false);
           return;
         }
-        // Server rejects base64 strings > 9MB — reject early on client to avoid opaque 400 error
-        if (compressed.base64.length > 9_000_000) {
+        // Server rejects base64 strings > MAX_UPLOAD_BASE64_BYTES — reject
+        // early on client to avoid the opaque server 400. With round 203's
+        // progressive fallback compressor this branch is genuinely rare:
+        // even pathological HEIC inputs settle at <2 MB after the
+        // 768/0.72 final pass. If we get here, the image is so unusual
+        // that the user should try a different shot.
+        if (compressed.base64.length > MAX_UPLOAD_BASE64_BYTES) {
           appendNextRef.current = false;
           setImageUri(null);
           setError('Фото слишком большое. Попробуй более близкий кадр или другое изображение.');
