@@ -10,6 +10,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { getSubStatus } from '../utils/subscriptionCheck';
+import { foodVisionCache } from '../utils/memCache';
 
 const GOOGLE_CLIENT_IDS = [
   process.env.GOOGLE_CLIENT_ID_WEB,
@@ -171,6 +172,18 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) =
       data,
       select: USER_PROFILE_SELECT,
     });
+
+    // Audit: gender / weightKg / goal are baked into the food-vision
+    // system prompt (rule "Пользователь: ${userInfo}"). Without
+    // invalidating foodVisionCache here, a user who switches goal
+    // from MUSCLE_GAIN to WEIGHT_LOSS and re-scans the same plate
+    // within 24h still gets the old "набор массы" framing in the AI
+    // response. Mirrors the AIMemory invalidation path
+    // (aiMemoryService.invalidateFoodVisionForUser).
+    const visionRelevantField = ['gender', 'weightKg', 'goal'].some((f) => f in data);
+    if (visionRelevantField) {
+      try { foodVisionCache.deletePrefix(`${req.userId}:`); } catch { /* best-effort */ }
+    }
 
     const { googleId, vkId, yandexId, ...safeProfile } = user;
     res.json({ ...safeProfile, hasGoogle: !!googleId, hasVk: !!vkId, hasYandex: !!yandexId });
