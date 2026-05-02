@@ -1859,28 +1859,51 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 keyboardType="numeric"
                 maxLength={14}
                 returnKeyType="search"
-                onSubmitEditing={() => { if (manualDigits.length >= 8) handleBarcodeScan(manualDigits); }}
+                onSubmitEditing={() => {
+                  // Only fire when the input matches a real GTIN length —
+                  // 8 / 12 / 13 / 14. The 9-11 dead zone gets a visible
+                  // hint (round 219) and the action stays gated so the
+                  // soft-keyboard "search" key doesn't pretend to submit.
+                  if ([8, 12, 13, 14].includes(manualDigits.length)) handleBarcodeScan(manualDigits);
+                }}
                 accessibilityLabel="Штрих-код вручную"
-                accessibilityHint="Введите 8–14 цифр если камера не справляется"
+                accessibilityHint="Введите 8, 12, 13 или 14 цифр если камера не справляется"
               />
-              <TouchableOpacity
-                onPress={() => { if (manualDigits.length >= 8 && !barcodeLoading) handleBarcodeScan(manualDigits); }}
-                disabled={manualDigits.length < 8 || barcodeLoading}
-                style={{ paddingHorizontal: spacing.lg, justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: manualDigits.length >= 8 ? colors.primary : colors.border }}
-                accessibilityLabel="Найти продукт по введённому штрих-коду"
-                accessibilityHint={manualDigits.length < 8 ? 'Кнопка станет активной после 8 цифр' : undefined}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: manualDigits.length < 8 || barcodeLoading }}
-              >
-                {barcodeLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>}
-              </TouchableOpacity>
+              {(() => {
+                const validLength = [8, 12, 13, 14].includes(manualDigits.length);
+                const enabled = validLength && !barcodeLoading;
+                return (
+                  <TouchableOpacity
+                    onPress={() => { if (enabled) handleBarcodeScan(manualDigits); }}
+                    disabled={!enabled}
+                    style={{ paddingHorizontal: spacing.lg, justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: enabled ? colors.primary : colors.border }}
+                    accessibilityLabel="Найти продукт по введённому штрих-коду"
+                    accessibilityHint={validLength ? undefined : 'Доступная длина: 8, 12, 13 или 14 цифр'}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !enabled }}
+                  >
+                    {barcodeLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={[typography.bodySemibold, { color: '#FFF' }]}>Найти</Text>}
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
-            {/* Helper text under the row — tells the user the expected format
-                and length. Visible only when they've started typing to
-                avoid pre-emptive clutter on the empty state. */}
-            {manualBarcode.length > 0 && manualBarcode.length < 8 && (
+            {/* Helper text under the row — tells the user the expected
+                format and length. Visible only when they've started
+                typing to avoid pre-emptive clutter on the empty state.
+                Round 219: also surface a hint in the 9-11 dead zone
+                (between EAN-8 / UPC-A / EAN-13 lengths). The button
+                accepts ≥8 but sanitizeBarcode rejects everything
+                outside {8,12,13,14}, so users typing 9 or 10 digits
+                used to enable the button, tap it, and hit the
+                "Невалидный штрих-код" alert without a clue why. */}
+            {manualBarcode.length > 0 && manualDigits.length < 8 && (
               <Text style={[typography.caption, { color: colors.textTertiary, marginTop: spacing.xs }]}>
                 Осталось ввести ещё {8 - manualDigits.length} {manualDigits.length === 7 ? 'цифру' : 'цифр'}
+              </Text>
+            )}
+            {manualDigits.length >= 9 && manualDigits.length <= 11 && (
+              <Text style={[typography.caption, { color: colors.warning, marginTop: spacing.xs }]}>
+                Допустимая длина: 8, 12, 13 или 14 цифр (введено {manualDigits.length})
               </Text>
             )}
 
