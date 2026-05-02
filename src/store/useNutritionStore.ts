@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createEncryptedAsyncStorage } from '../utils/encryptedStorage';
 import { DailyNutrition, Meal, NutritionItem, WaterLogEntry } from '../types';
 import { nutritionService } from '../services';
 import { localDateStr } from '../utils/date';
@@ -366,7 +366,11 @@ export const useNutritionStore = create<NutritionStore>()(
     }),
     {
       name: 'giron-nutrition',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Round 233 (security audit, HIGH-2 follow-up): meal log + macro
+      // history is personal health data. AES-GCM-wrapped via the same
+      // master key as measurements/sleep stores. One-shot plaintext
+      // migration on read.
+      storage: createJSONStorage(() => createEncryptedAsyncStorage()),
       version: 1,
       migrate: (state: any) => state,
       // Round 257: partialize so we only persist user-data fields, not

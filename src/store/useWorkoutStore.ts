@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createEncryptedAsyncStorage } from '../utils/encryptedStorage';
 import { Workout, WorkoutExercise, WorkoutSet, Program, Exercise, Routine } from '../types';
 import { workoutService } from '../services';
 import { userService } from '../services/userService';
@@ -819,7 +819,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
     }),
     {
       name: 'giron-workouts',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Round 233 (security audit, HIGH-2 follow-up): workout history,
+      // PRs, programs and weight/rep logs are personal health data.
+      // AES-GCM-wrapped storage; bounded persisted snapshot is still
+      // applied below (round 259) — encryption sits underneath.
+      storage: createJSONStorage(() => createEncryptedAsyncStorage()),
       // Round 259: bound workoutHistory in the persisted snapshot.
       // A power user with 5+ years of training (1500+ workouts × 8
       // exercises × 5 sets ≈ 60K rows) was easily breaching

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createEncryptedAsyncStorage } from '../utils/encryptedStorage';
 import { trainerService } from '../services/trainerService';
 // Round 247: surface store-level errors to Sentry — previously every
 // catch swallowed and only flipped isLoading: false.
@@ -326,7 +326,11 @@ export const useTrainerStore = create<TrainerStore>()(
     }),
     {
       name: 'giron-trainer',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Round 233 (security audit, HIGH-2 follow-up): a trainer's clients
+      // list contains other users' PII (names, IDs, session notes,
+      // training history). Encryption at rest matches the sensitivity
+      // of the rest of the user-data stores.
+      storage: createJSONStorage(() => createEncryptedAsyncStorage()),
       partialize: (state) => ({ clients: state.clients, sessions: state.sessions, myTrainers: state.myTrainers }),
       version: 1,
       migrate: (state: any) => state,
