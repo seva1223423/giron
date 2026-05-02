@@ -458,7 +458,13 @@ router.post('/totp-verify', async (req: Request, res: Response) => {
     // Verify pending token
     let payload: { userId: string; phase: string };
     try {
-      payload = jwt.verify(pendingToken, process.env.JWT_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD }) as any;
+      // Round 235: pin algorithms to HS256 to prevent algorithm-confusion
+      // attacks (none/RS256 substitution if a downstream lib changes default).
+      payload = jwt.verify(pendingToken, process.env.JWT_SECRET!, {
+        issuer: JWT_ISS,
+        audience: JWT_AUD,
+        algorithms: ['HS256'],
+      }) as any;
     } catch {
       return res.status(401).json({ error: 'Токен истёк. Войдите снова.', code: 'PENDING_TOKEN_EXPIRED' });
     }
@@ -870,9 +876,14 @@ router.post('/yandex', async (req: Request, res: Response) => {
 
     if (!yandexUser?.id) return res.status(401).json({ error: 'Пользователь Яндекса не найден' });
 
-    // Verify token was issued for our app (prevents token injection from other Yandex apps)
-    if (yandexUser.client_id && yandexUser.client_id !== process.env.YANDEX_CLIENT_ID) {
-      logger.warn(`[SECURITY] Yandex token client_id mismatch: expected=${process.env.YANDEX_CLIENT_ID} got=${yandexUser.client_id}`);
+    // Verify token was issued for our app (prevents token injection from other Yandex apps).
+    // Round 236: previously the check was conditional on yandexUser.client_id being
+    // present — if Yandex omitted client_id from the response (or an upstream
+    // change made it optional), the audience check silently passed. Now we
+    // REQUIRE client_id to be present AND equal. Configure YANDEX_CLIENT_ID env;
+    // without it the check still rejects (defense-in-depth).
+    if (!yandexUser.client_id || yandexUser.client_id !== process.env.YANDEX_CLIENT_ID) {
+      logger.warn(`[SECURITY] Yandex token client_id mismatch: expected=${process.env.YANDEX_CLIENT_ID} got=${yandexUser.client_id ?? 'absent'}`);
       return res.status(401).json({ error: 'Токен выдан для другого приложения' });
     }
 
@@ -1050,7 +1061,12 @@ router.post('/send-otp', async (req: Request, res: Response) => {
         return res.status(401).json({ error: 'Требуется авторизация', code: 'UNAUTHORIZED' });
       }
       try {
-        const payload = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD }) as { userId?: string };
+        // Round 235: pin algorithms to HS256 (algorithm confusion defense).
+        const payload = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!, {
+          issuer: JWT_ISS,
+          audience: JWT_AUD,
+          algorithms: ['HS256'],
+        }) as { userId?: string };
         ownerUserId = payload.userId;
         if (!ownerUserId) {
           return res.status(401).json({ error: 'Недействительный токен', code: 'UNAUTHORIZED' });
@@ -1211,7 +1227,12 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     let payload: { userId: string };
     try {
-      payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!, { issuer: JWT_ISS, audience: JWT_AUD }) as { userId: string };
+      // Round 235: pin algorithms to HS256 (algorithm confusion defense).
+      payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!, {
+        issuer: JWT_ISS,
+        audience: JWT_AUD,
+        algorithms: ['HS256'],
+      }) as { userId: string };
     } catch {
       return res.status(401).json({ error: 'Недействительный refresh token' });
     }
@@ -1285,8 +1306,11 @@ router.post('/logout', async (req: Request, res: Response) => {
       if (all) {
         // Revoke all active sessions for this user — used by "logout all devices"
         try {
+          // Round 235: pin algorithms to HS256 (algorithm confusion defense).
           const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!, {
-            issuer: JWT_ISS, audience: JWT_AUD,
+            issuer: JWT_ISS,
+            audience: JWT_AUD,
+            algorithms: ['HS256'],
           }) as { userId: string };
           await prisma.refreshToken.updateMany({ where: { userId: payload.userId, revoked: false }, data: { revoked: true } });
         } catch {
