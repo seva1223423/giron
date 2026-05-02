@@ -32,6 +32,13 @@ jest.mock('../services/userService', () => ({
   },
 }));
 
+// Round 282: setWeekPlanDay's failure path now goes through reportError
+// (was console.warn). Mock the reporter so tests can assert it fired.
+const mockReportError = jest.fn();
+jest.mock('../utils/errorReporter', () => ({
+  reportError: (...args: unknown[]) => mockReportError(...args),
+}));
+
 import { useWorkoutStore, type WeekPlanEntry } from '../store/useWorkoutStore';
 import { userService } from '../services/userService';
 
@@ -101,9 +108,7 @@ describe('setWeekPlanDay — rollback on save failure', () => {
   test('rolls back to prev value when the save rejects', async () => {
     useWorkoutStore.setState({ weekPlan: { 0: entryA } });
     mockSaveWeekPlan.mockRejectedValueOnce(new Error('network'));
-
-    // Silence the warn this test intentionally triggers.
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockReportError.mockClear();
 
     useWorkoutStore.getState().setWeekPlanDay(0, entryB);
     // Optimistic write is visible immediately.
@@ -114,16 +119,15 @@ describe('setWeekPlanDay — rollback on save failure', () => {
     await Promise.resolve();
 
     expect(useWorkoutStore.getState().weekPlan[0]).toBe(entryA);
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    // Round 282: rollback now reports to Sentry instead of console.warn.
+    expect(mockReportError).toHaveBeenCalled();
   });
 
   test('does NOT roll back if a newer edit replaced our optimistic value', async () => {
     useWorkoutStore.setState({ weekPlan: { 0: entryA } });
     mockSaveWeekPlan.mockRejectedValueOnce(new Error('network')); // first save fails
     mockSaveWeekPlan.mockResolvedValueOnce(undefined);            // second save wins
-
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockReportError.mockClear();
 
     // Fire A → B rapidly, then B → C before save(B) has time to fail.
     useWorkoutStore.getState().setWeekPlanDay(0, entryB);
@@ -137,14 +141,12 @@ describe('setWeekPlanDay — rollback on save failure', () => {
     // C is the user's latest intent. Save(B) failing must NOT roll us back to A —
     // that would silently undo the user's C edit.
     expect(useWorkoutStore.getState().weekPlan[0]).toBe(entryC);
-    warnSpy.mockRestore();
   });
 
   test('two back-to-back failures of the same entry only roll back once (dedup guard)', async () => {
     useWorkoutStore.setState({ weekPlan: { 0: entryA } });
     mockSaveWeekPlan.mockRejectedValue(new Error('network')); // all saves fail
-
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockReportError.mockClear();
 
     // Same reference passed twice — second call is deduped before firing save.
     useWorkoutStore.getState().setWeekPlanDay(0, entryB);
@@ -154,10 +156,9 @@ describe('setWeekPlanDay — rollback on save failure', () => {
     await Promise.resolve();
 
     expect(mockSaveWeekPlan).toHaveBeenCalledTimes(1);
-    // One rollback, one warn — not two of each.
-    expect(warnSpy).toHaveBeenCalledTimes(1);
+    // Round 282: One rollback, one reportError — not two of each.
+    expect(mockReportError).toHaveBeenCalledTimes(1);
     expect(useWorkoutStore.getState().weekPlan[0]).toBe(entryA);
-    warnSpy.mockRestore();
   });
 });
 

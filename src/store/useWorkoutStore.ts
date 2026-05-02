@@ -141,12 +141,15 @@ export const useWorkoutStore = create<WorkoutStore>()(
           // edit owns its own rollback; don't clobber it with our stale prev.
           if (get().weekPlan[dow] !== entry) return;
           set((s) => ({ weekPlan: { ...s.weekPlan, [dow]: prevEntry } }));
-          // Log so Sentry (once integrated — Tech-05) surfaces persistent
-          // save failures — otherwise rollbacks are invisible to the user.
-          // eslint-disable-next-line no-console
-          console.warn('[useWorkoutStore] setWeekPlanDay save failed, rolled back', {
-            dow,
-            error: String(err),
+          // Round 282: now that errorReporter is integrated (R246), route
+          // weekplan save failures through it instead of console.warn.
+          // Same op-tagged context as the other store catches.
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { reportError } = require('../utils/errorReporter');
+          reportError(err instanceof Error ? err : new Error(String(err)), {
+            screen: 'workout-store',
+            tags: { op: 'setWeekPlanDay' },
+            extra: { dow },
           });
         });
       },
