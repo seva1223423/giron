@@ -38,7 +38,9 @@ import {
   isImageDimensionsValid,
   isRussianBarcode,
   deriveKcalFromMacros,
+  evaluateBarcodeCacheEntry,
   MIN_IMAGE_SHORT_SIDE,
+  type BarcodeCacheEntry,
   type SanityFlag,
   type ScannerDraft,
 } from '../../utils/foodScanner';
@@ -62,48 +64,39 @@ const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const NEGATIVE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface BarcodeProduct { name: string; cal: number; prot: number; fats: number; carbs: number; }
-interface NegativeCacheEntry { __notFound: true; cachedAt: number; }
 interface RecentScan extends BarcodeProduct { barcode: string; servingGrams?: number; }
 
-type CacheEntry = (BarcodeProduct & { cachedAt?: number }) | NegativeCacheEntry;
-type GetCachedResult = { kind: 'hit'; product: BarcodeProduct } | { kind: 'miss-known'; cachedAt: number } | null;
-
-function isNegativeEntry(e: CacheEntry | undefined): e is NegativeCacheEntry {
-  return !!e && (e as NegativeCacheEntry).__notFound === true;
-}
+// Round 220: cache-entry shape detection lives in foodScanner.ts now
+// via `evaluateBarcodeCacheEntry` so the TTL logic is unit-testable
+// without mocking AsyncStorage. The screen owns I/O only; cachedAt
+// stripping, negative-entry detection, and TTL comparison happen in
+// the helper.
+type GetCachedResult = { kind: 'hit'; product: BarcodeProduct } | { kind: 'miss-known' } | null;
 
 async function getCachedProduct(barcode: string): Promise<GetCachedResult> {
   try {
     const raw = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
     if (!raw) return null;
-    const parsed: Record<string, CacheEntry> = JSON.parse(raw);
-    const entry = parsed[barcode];
-    if (!entry) return null;
-    // Negative cache — known to be missing in OFF, short TTL.
-    if (isNegativeEntry(entry)) {
-      if (Date.now() - entry.cachedAt > NEGATIVE_CACHE_TTL_MS) {
-        delete parsed[barcode];
-        AsyncStorage.setItem(BARCODE_CACHE_KEY, JSON.stringify(parsed)).catch(() => {});
-        return null;
-      }
-      return { kind: 'miss-known', cachedAt: entry.cachedAt };
-    }
-    // Positive cache — long TTL, real product data.
-    const cachedAt = (entry as BarcodeProduct & { cachedAt?: number }).cachedAt ?? 0;
-    if (cachedAt && Date.now() - cachedAt > CACHE_TTL_MS) {
+    const parsed: Record<string, BarcodeCacheEntry> = JSON.parse(raw);
+    const lookup = evaluateBarcodeCacheEntry(parsed[barcode]);
+    if (!lookup) return null;
+    if (lookup.kind === 'expired') {
+      // Background-evict on expiry so the cache doesn't grow without
+      // bound. AsyncStorage write is fire-and-forget — staleness never
+      // affects correctness, just memory.
       delete parsed[barcode];
       AsyncStorage.setItem(BARCODE_CACHE_KEY, JSON.stringify(parsed)).catch(() => {});
       return null;
     }
-    const { cachedAt: _ts, ...product } = entry as BarcodeProduct & { cachedAt?: number };
-    return { kind: 'hit', product };
+    if (lookup.kind === 'miss-known') return { kind: 'miss-known' };
+    return { kind: 'hit', product: lookup.product };
   } catch { return null; }
 }
 
 async function cacheProduct(barcode: string, product: BarcodeProduct) {
   try {
     const raw = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
-    const parsed: Record<string, CacheEntry> = raw ? JSON.parse(raw) : {};
+    const parsed: Record<string, BarcodeCacheEntry> = raw ? JSON.parse(raw) : {};
     parsed[barcode] = { ...product, cachedAt: Date.now() };
     const keys = Object.keys(parsed);
     if (keys.length > 200) {
@@ -125,7 +118,7 @@ async function cacheProduct(barcode: string, product: BarcodeProduct) {
 async function cacheNegativeResult(barcode: string) {
   try {
     const raw = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
-    const parsed: Record<string, CacheEntry> = raw ? JSON.parse(raw) : {};
+    const parsed: Record<string, BarcodeCacheEntry> = raw ? JSON.parse(raw) : {};
     parsed[barcode] = { __notFound: true, cachedAt: Date.now() };
     const keys = Object.keys(parsed);
     if (keys.length > 200) {

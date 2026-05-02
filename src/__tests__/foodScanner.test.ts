@@ -33,6 +33,9 @@ import {
   OFF_HOSTS,
   fetchBarcodeFromOFF,
   deriveKcalFromMacros,
+  evaluateBarcodeCacheEntry,
+  BARCODE_POSITIVE_TTL_MS,
+  BARCODE_NEGATIVE_TTL_MS,
   type ScannerDraft,
 } from '../utils/foodScanner';
 
@@ -958,6 +961,82 @@ describe('fetchBarcodeFromOFF', () => {
     expect(calls[0]).toContain('fields=product_name,nutriments');
     expect(calls[0]).toContain('lc=ru');
     expect(calls[0]).toContain('/api/v2/product/4607034570316');
+  });
+});
+
+// ─── evaluateBarcodeCacheEntry ────────────────────────────────────────────────
+
+describe('evaluateBarcodeCacheEntry', () => {
+  const NOW = 1_700_000_000_000; // arbitrary fixed clock for determinism
+
+  test('null / undefined entry → null', () => {
+    expect(evaluateBarcodeCacheEntry(null, NOW)).toBeNull();
+    expect(evaluateBarcodeCacheEntry(undefined, NOW)).toBeNull();
+  });
+
+  test('fresh positive entry → hit, strips cachedAt from product', () => {
+    const r = evaluateBarcodeCacheEntry(
+      { name: 'Хлеб', cal: 250, prot: 8, fats: 1, carbs: 50, cachedAt: NOW - 1000 },
+      NOW,
+    );
+    expect(r?.kind).toBe('hit');
+    if (r?.kind === 'hit') {
+      expect(r.product.name).toBe('Хлеб');
+      expect(r.product.cal).toBe(250);
+      expect((r.product as any).cachedAt).toBeUndefined();
+    }
+  });
+
+  test('positive entry just past 30-day TTL → expired', () => {
+    const r = evaluateBarcodeCacheEntry(
+      { name: 'Хлеб', cal: 250, prot: 8, fats: 1, carbs: 50, cachedAt: NOW - BARCODE_POSITIVE_TTL_MS - 1 },
+      NOW,
+    );
+    expect(r?.kind).toBe('expired');
+  });
+
+  test('positive entry exactly at TTL boundary → hit (≤ not <)', () => {
+    const r = evaluateBarcodeCacheEntry(
+      { name: 'Хлеб', cal: 250, prot: 8, fats: 1, carbs: 50, cachedAt: NOW - BARCODE_POSITIVE_TTL_MS },
+      NOW,
+    );
+    expect(r?.kind).toBe('hit');
+  });
+
+  test('positive entry without cachedAt is treated as fresh (legacy migration)', () => {
+    // Older cache entries written before round 192 may lack the
+    // cachedAt timestamp. Treat them as fresh rather than expired so
+    // the user doesn't lose their cache on app upgrade.
+    const r = evaluateBarcodeCacheEntry(
+      { name: 'Хлеб', cal: 250, prot: 8, fats: 1, carbs: 50 } as any,
+      NOW,
+    );
+    expect(r?.kind).toBe('hit');
+  });
+
+  test('fresh negative entry → miss-known', () => {
+    const r = evaluateBarcodeCacheEntry(
+      { __notFound: true, cachedAt: NOW - 1000 },
+      NOW,
+    );
+    expect(r?.kind).toBe('miss-known');
+  });
+
+  test('negative entry past 24-hour TTL → expired', () => {
+    const r = evaluateBarcodeCacheEntry(
+      { __notFound: true, cachedAt: NOW - BARCODE_NEGATIVE_TTL_MS - 1 },
+      NOW,
+    );
+    expect(r?.kind).toBe('expired');
+  });
+
+  test('negative TTL is much shorter than positive', () => {
+    // Pin the design intent: negative cache lives 24 h so OFF
+    // contributions become visible the next day; positive lives 30
+    // days because nutrition data doesn't change quickly.
+    expect(BARCODE_NEGATIVE_TTL_MS).toBe(24 * 60 * 60 * 1000);
+    expect(BARCODE_POSITIVE_TTL_MS).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(BARCODE_POSITIVE_TTL_MS).toBeGreaterThan(BARCODE_NEGATIVE_TTL_MS * 25);
   });
 });
 
