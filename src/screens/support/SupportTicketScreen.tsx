@@ -90,7 +90,7 @@ export default function SupportTicketScreen() {
   }, [ticketId]);
 
   if (loading && !activeTicket) {
-    return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
+    return <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />;
   }
 
   if (!activeTicket) {
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 4,
   },
-  bubbleMe: { alignSelf: 'flex-end', backgroundColor: '#6366F1' },
+  bubbleMe: { alignSelf: 'flex-end', backgroundColor: '#D4B07A' },
   bubbleStaff: { alignSelf: 'flex-start', backgroundColor: '#1C1C1E' },
   bubbleAuthor: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', marginBottom: 4 },
   bubbleText: { fontSize: 15, color: '#FFFFFF', lineHeight: 20 },
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#D4B07A',
     justifyContent: 'center',
     alignItems: 'center',
   },

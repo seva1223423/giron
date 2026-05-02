@@ -50,7 +50,7 @@ const SectionDivider: React.FC<{ label: string; colors: any }> = ({ label, color
 );
 
 const ANN_COLORS: Record<AnnouncementType, string> = {
-  info: '#6366F1', warning: '#F59E0B', maintenance: '#EF4444', promo: '#10B981',
+  info: '#D4B07A', warning: '#F59E0B', maintenance: '#EF4444', promo: '#10B981',
 };
 const ANN_ICONS: Record<AnnouncementType, string> = {
   info: 'ℹ️', warning: '⚠️', maintenance: '🔧', promo: '🎁',
@@ -286,10 +286,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       {/* ── Email verification banner ─────────── */}
       {!user?.emailVerified && !emailBannerDismissed && (
-        <View style={[annStyles.banner, { borderColor: '#6366F140', backgroundColor: '#6366F110', marginBottom: spacing.md }]}>
+        <View style={[annStyles.banner, { borderColor: '#D4B07A40', backgroundColor: '#D4B07A10', marginBottom: spacing.md }]}>
           <Text style={{ fontSize: 16 }}>✉️</Text>
           <View style={{ flex: 1 }}>
-            <Text style={[annStyles.title, { color: '#6366F1' }]}>Подтвердите email</Text>
+            <Text style={[annStyles.title, { color: '#D4B07A' }]}>Подтвердите email</Text>
             <Text style={annStyles.body} numberOfLines={1}>{user?.email}</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -307,9 +307,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   setResendingVerification(false);
                 }
               }}
-              style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#6366F120', borderWidth: 1, borderColor: '#6366F140' }}
+              style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#D4B07A20', borderWidth: 1, borderColor: '#D4B07A40' }}
             >
-              <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '700' }}>
+              <Text style={{ color: '#D4B07A', fontSize: 12, fontWeight: '700' }}>
                 {resendingVerification ? '...' : 'Ввести код'}
               </Text>
             </TouchableOpacity>
@@ -371,7 +371,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <TextInput
                 style={{
                   backgroundColor: colors.background, borderWidth: 2, borderRadius: 12,
-                  borderColor: emailVerifCode.length === 6 ? '#6366F1' : colors.border,
+                  borderColor: emailVerifCode.length === 6 ? '#D4B07A' : colors.border,
                   color: colors.text, fontSize: 28, fontWeight: '700', letterSpacing: 10,
                   textAlign: 'center', paddingVertical: spacing.md, marginBottom: spacing.md,
                 }}
@@ -445,7 +445,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 }}
                 style={{ paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md }}
               >
-                <Text style={{ fontSize: 13, color: resendCountdown > 0 ? colors.textTertiary : '#6366F1', fontWeight: '600' }}>
+                <Text style={{ fontSize: 13, color: resendCountdown > 0 ? colors.textTertiary : '#D4B07A', fontWeight: '600' }}>
                   {resendCountdown > 0 ? `Повторно через ${resendCountdown} с` : resendingVerification ? 'Отправка...' : 'Отправить повторно'}
                 </Text>
               </TouchableOpacity>
