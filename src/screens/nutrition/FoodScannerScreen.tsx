@@ -1204,14 +1204,39 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       carbs: Math.round(((product.carbs * w) / 100) * 10) / 10,
       weightGrams: w,
     };
-    setItemBases({ [item.id]: { cal: product.cal, prot: product.prot, fats: product.fats, carbs: product.carbs } });
-    setRecognizedItems([item]);
-    setIsBarcodeResult(true);
+    const newBase = { cal: product.cal, prot: product.prot, fats: product.fats, carbs: product.carbs };
+    // Round 237: honour appendNextRef. The error-card "📦 Штрих-код"
+    // fallback (line ~2160) and the not-found "Сканировать другой код"
+    // path can both reach here while the user already has items in
+    // the meal — without append logic, applyBarcodeProduct REPLACED
+    // those items with a single barcode-product, silently losing
+    // earlier scans. Now we merge into the existing list when the
+    // append flag is set, mirroring the photo / text paths.
+    if (appendNextRef.current) {
+      appendNextRef.current = false;
+      setItemBases((prev) => ({ ...prev, [item.id]: newBase }));
+      setRecognizedItems((prev) => [...prev, item]);
+      // Mixed barcode + AI items → no longer a "pure barcode result"
+      // (the flag drives the per-100g vs per-portion UI). Clear it.
+      setIsBarcodeResult(false);
+      // Recompute total weight across the merged list.
+      setTotalWeightDraft((prev) => {
+        const prevTotal = parseFloat(prev.replace(',', '.')) || 0;
+        return String(prevTotal + w);
+      });
+    } else {
+      setItemBases({ [item.id]: newBase });
+      setRecognizedItems([item]);
+      setIsBarcodeResult(true);
+      setTotalWeightDraft(String(w));
+    }
     setError('');
     setNotFound(false);
     setShowBarcodeScanner(false);
-    setSanityFlags(flagSanity([item]));
-    setTotalWeightDraft(String(w));
+    // Sanity flags will be recomputed by the [recognizedItems] effect
+    // (round 229) — leave the explicit set off the append path so the
+    // useEffect picks up the merged list rather than just the new
+    // single item.
     haptic.success();
   };
 
@@ -2157,7 +2182,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                   <Button
                     title="📦 Штрих-код"
                     variant="outline"
-                    onPress={() => { haptic.selection(); setError(''); setImageUri(null); openBarcodeScanner(); }}
+                    onPress={() => {
+                      haptic.selection();
+                      setError('');
+                      setImageUri(null);
+                      // Round 237: same prior-items preservation as rounds
+                      // 231-233 but for the barcode path. applyBarcodeProduct
+                      // now respects appendNextRef, so setting it here lets
+                      // a successful barcode scan add to the meal instead
+                      // of replacing.
+                      if (recognizedItems.length > 0) {
+                        appendNextRef.current = true;
+                      }
+                      openBarcodeScanner();
+                    }}
                     style={{ flex: 1 }}
                     accessibilityLabel="Переключиться на сканер штрих-кода"
                     accessibilityHint="Откроет камеру для сканирования упаковки"
@@ -2279,7 +2317,19 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             </View>
             <TouchableOpacity
               style={{ alignItems: 'center', paddingVertical: spacing.sm, marginTop: spacing.sm }}
-              onPress={() => { haptic.selection(); setNotFound(false); setBarcodeScanned(false); setShowBarcodeScanner(true); }}
+              onPress={() => {
+                haptic.selection();
+                setNotFound(false);
+                setBarcodeScanned(false);
+                // Round 237: preserve prior items when re-scanning. The
+                // user is mid-meal, just trying a different SKU after
+                // OFF didn't have the first one — wiping their progress
+                // would force them to redo the meal.
+                if (recognizedItems.length > 0) {
+                  appendNextRef.current = true;
+                }
+                setShowBarcodeScanner(true);
+              }}
               accessibilityLabel="Сканировать другой штрих-код"
               accessibilityRole="button"
             >
