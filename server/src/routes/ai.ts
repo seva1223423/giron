@@ -2914,6 +2914,25 @@ async function executeTool(
       data: { targetCalories: cal, targetProtein: prot, targetFats: fat, targetCarbs: carb },
     });
 
+    // Round 205: post-write verify on user nutrition targets. Without
+    // this, AI could claim "Нормы установлены: 2400 ккал" when DB still
+    // has the old 2000. Cheap (single user row).
+    const verifiedTargets = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { targetCalories: true, targetProtein: true, targetFats: true, targetCarbs: true },
+    });
+    if (
+      !verifiedTargets ||
+      verifiedTargets.targetCalories !== cal ||
+      verifiedTargets.targetProtein !== prot ||
+      verifiedTargets.targetFats !== fat ||
+      verifiedTargets.targetCarbs !== carb
+    ) {
+      throw new Error(
+        `update_nutrition_targets: stored values diverge — DB cal/prot/fat/carb=${verifiedTargets?.targetCalories}/${verifiedTargets?.targetProtein}/${verifiedTargets?.targetFats}/${verifiedTargets?.targetCarbs} expected=${cal}/${prot}/${fat}/${carb}`,
+      );
+    }
+
     return {
       resultText: `Нормы КБЖУ установлены: ${cal} ккал, белок ${prot}г, жиры ${fat}г, углеводы ${carb}г`,
       actionDescription: description,
@@ -3605,6 +3624,16 @@ async function executeTool(
     const { targetMl } = toolInput as { targetMl: number };
     const safeTargetMl = Math.min(10000, Math.max(500, Math.round(Number(targetMl) || 2000)));
     await prisma.user.update({ where: { id: userId }, data: { targetWaterMl: safeTargetMl } });
+    // Round 205: post-write verify on water target.
+    const verifiedWater = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { targetWaterMl: true },
+    });
+    if (verifiedWater?.targetWaterMl !== safeTargetMl) {
+      throw new Error(
+        `set_water_target: stored value diverges — DB=${verifiedWater?.targetWaterMl} expected=${safeTargetMl}`,
+      );
+    }
     return {
       resultText: `Дневная норма воды установлена: ${safeTargetMl} мл`,
       actionDescription: `Норма воды: ${safeTargetMl} мл`,
@@ -4592,6 +4621,16 @@ async function executeTool(
         create: { userId, category, key, value, confidence: 1.0, source: 'explicit' },
         update: { value, category, confidence: 1.0, source: 'explicit' },
       });
+      // Round 205: post-write verify on AI memory upsert.
+      const verifiedMem = await prisma.aIMemory.findUnique({
+        where: { userId_key: { userId, key } },
+        select: { value: true, category: true },
+      });
+      if (!verifiedMem || verifiedMem.value !== value || verifiedMem.category !== category) {
+        throw new Error(
+          `update_memory/set: stored value diverges — DB=${verifiedMem?.category}/${verifiedMem?.value} expected=${category}/${value}`,
+        );
+      }
       return {
         resultText: `Запомнено: [${category}] ${key} = "${value}".`,
         actionDescription: `Сохранён факт ${key}`,
@@ -4601,6 +4640,11 @@ async function executeTool(
       const deleted = await prisma.aIMemory.deleteMany({ where: { userId, key } });
       if (deleted.count === 0) {
         return { resultText: `Факт "${key}" не найден в памяти — возможно, уже удалён.`, actionDescription: '' };
+      }
+      // Round 205: post-delete verify.
+      const stillThere = await prisma.aIMemory.findFirst({ where: { userId, key } });
+      if (stillThere) {
+        throw new Error(`update_memory/forget: row still present after delete (key=${key})`);
       }
       return {
         resultText: `Факт "${key}" удалён из памяти.`,
