@@ -332,6 +332,13 @@ app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', userRateLimiter, workoutRouter);
 app.use('/api/nutrition', userRateLimiter, nutritionRouter);
 app.use('/api/ai/analyze-food', foodAnalysisRateLimiter);
+// Audit: /analyze-food-text is also a Mistral call (text-mode prompt
+// with the same prompt complexity / token cost as the vision path),
+// but it was previously only gated by the generic aiRateLimiter
+// (60/min). A user could fire 60 text-analyse calls per minute and
+// burn the Mistral budget far faster than via the photo path.
+// Apply the same 20/h-per-IP cap so cost-abuse symmetry holds.
+app.use('/api/ai/analyze-food-text', foodAnalysisRateLimiter);
 app.use('/api/ai', aiRateLimiter, aiRouter);
 app.use('/api/news', userRateLimiter, newsRouter);
 app.use('/api/subscription', userRateLimiter, subscriptionRouter);
