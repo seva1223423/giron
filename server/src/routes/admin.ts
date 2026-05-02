@@ -2947,25 +2947,47 @@ router.get('/subscriptions/forecast', requireAdmin, async (_req: AuthRequest, re
     const now = new Date();
     const weeks = 4;
     const PLAN_PRICE: Record<string, number> = { pro: 9.99, trainer: 19.99, club: 29.99 };
-    const rangeEnd = new Date(now.getTime() + weeks * 7 * 86400 * 1000);
 
-    // Single query: fetch all expiring subs in the next 4 weeks, then bucket in JS
-    const expiring = await prisma.subscription.findMany({
-      where: { status: 'active', plan: { not: 'free' }, endDate: { gte: now, lt: rangeEnd } },
-      select: { plan: true, endDate: true },
-      take: 50000,
-    });
+    // Round 269: replaced findMany({take: 50000}) + JS bucket-and-sum
+    // with a single $queryRaw that GROUP BYs week_trunc + plan in
+    // Postgres. Avoids loading up to 50K subscription rows into the
+    // Node process for what's just a 4-week × 3-plan = 12-row result.
+    // Memory delta: ~5MB → ~1KB on a busy month.
+    const rows = await prisma.$queryRaw<Array<{
+      week_start: Date;
+      plan: string;
+      sub_count: bigint;
+    }>>`
+      SELECT
+        DATE_TRUNC('week', "endDate")::date AS week_start,
+        plan,
+        COUNT(*)::bigint AS sub_count
+      FROM "Subscription"
+      WHERE status = 'active'
+        AND plan != 'free'
+        AND "endDate" >= ${now}
+        AND "endDate" < ${new Date(now.getTime() + weeks * 7 * 86400 * 1000)}
+      GROUP BY week_start, plan
+      ORDER BY week_start ASC
+    `;
 
+    // Build a 4-week scaffold so empty weeks still appear in the
+    // response (frontend chart needs continuous x-axis).
     const forecast: Array<{ weekStart: string; weekEnd: string; count: number; revenue: number }> = [];
     for (let i = 0; i < weeks; i++) {
       const start = new Date(now.getTime() + i * 7 * 86400 * 1000);
       const end = new Date(start.getTime() + 7 * 86400 * 1000);
-      const bucket = expiring.filter((s) => s.endDate && s.endDate >= start && s.endDate < end);
-      const revenue = bucket.reduce((sum, s) => sum + (PLAN_PRICE[s.plan] ?? 0), 0);
+      const startStr = start.toISOString().split('T')[0];
+      const matching = rows.filter((r) => {
+        const rowDate = new Date(r.week_start);
+        return rowDate >= start && rowDate < end;
+      });
+      const count = matching.reduce((sum, r) => sum + Number(r.sub_count), 0);
+      const revenue = matching.reduce((sum, r) => sum + Number(r.sub_count) * (PLAN_PRICE[r.plan] ?? 0), 0);
       forecast.push({
-        weekStart: start.toISOString().split('T')[0],
+        weekStart: startStr,
         weekEnd: end.toISOString().split('T')[0],
-        count: bucket.length,
+        count,
         revenue: Math.round(revenue * 100) / 100,
       });
     }
