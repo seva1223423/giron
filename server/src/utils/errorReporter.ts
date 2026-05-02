@@ -32,21 +32,71 @@ let initialized = false;
 
 // Field names that must never be sent to Sentry. Includes auth secrets,
 // 152-ФЗ спец-категория health data, contact info (PII), and payment
-// identifiers. Match is case-insensitive and substring-based for fields
-// like `userPasswordHash` or `phoneNumber`.
-const SCRUB_KEY_PATTERNS = [
+// identifiers.
+//
+// Round 235 (security audit follow-up): switched from substring-match to
+// camelCase/snake_case token-aware matching. The previous list had two
+// false-positive landmines: `'card'` matched `'cardio'` (scrubbed every
+// CardioSession breadcrumb!), `'pin'` matched `'pinned'`/`'shipping'`,
+// `'pan'` matched `'pancake'`. Tokenizing the key first means `cardio`
+// stays one token and never hits `card`. We keep prefix-tokens for
+// grammar variants (`injur` covers injury/injuries/injured) and a small
+// CONCAT list for sequences that arrive without separators (`apikey`).
+const EXACT_TOKENS = new Set<string>([
+  // Auth / session secrets
   'password', 'passwd', 'secret', 'token', 'authorization', 'cookie', 'session',
-  'apikey', 'api_key', 'totp', 'otp', 'pin',
-  'email', 'phone', 'address', 'fullname', 'firstname', 'lastname',
-  'weight', 'height', 'pulse', 'bmi', 'bodyfat', 'goal', 'injur',
-  'healthrestriction', 'disease', 'allergy', 'medication',
+  'totp', 'otp', 'pin',
+  // PII
+  'email', 'phone', 'address',
+  // Health data — спец-категория under 152-ФЗ
+  'weight', 'height', 'pulse', 'bmi', 'bodyfat', 'goal',
+  'healthrestriction', 'healthrestrictions', 'disease',
+  // Payment
   'card', 'cvv', 'iban', 'pan',
+]);
+
+// Prefix-token patterns for grammar variants. `injur` covers
+// injury/injuries/injured/injurious; `allerg` covers allergy/allergies/allergic;
+// `medicat` covers medication/medications/medicated. Token-scoped so
+// `pancake` doesn't accidentally match `pan`-prefix-style rules.
+const PREFIX_TOKENS = ['injur', 'allerg', 'medicat'];
+
+// Sequences that may arrive without a separator and that wouldn't survive
+// camelCase/snake_case tokenization. `firstName` tokenizes to
+// ['first', 'name'] — neither is a sensitive token on its own, so the
+// concat form (`firstname` lowercased) catches them via substring. Same
+// rationale for `apikey` (often shipped without underscore from external
+// JSON), `idtoken`, `totpsecret`. These strings are distinctive enough to
+// not false-positive on legitimate fitness vocabulary.
+const CONCAT_PATTERNS = [
+  'apikey', 'api_key', 'totpsecret', 'idtoken',
+  'firstname', 'lastname', 'fullname', 'givenname', 'surname',
 ];
+
 const MAX_SCRUB_DEPTH = 6;
+
+function tokenizeKey(key: string): string[] {
+  return key
+    // camelCase → snake (insert separator between camel transitions)
+    .replace(/([a-z\d])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[_\-\s.]+/)
+    .filter(Boolean);
+}
 
 function shouldScrubKey(key: string): boolean {
   const lower = key.toLowerCase();
-  return SCRUB_KEY_PATTERNS.some((pat) => lower.includes(pat));
+  for (const concat of CONCAT_PATTERNS) {
+    if (lower.includes(concat)) return true;
+  }
+  const tokens = tokenizeKey(key);
+  for (const tok of tokens) {
+    if (EXACT_TOKENS.has(tok)) return true;
+    for (const prefix of PREFIX_TOKENS) {
+      if (tok.startsWith(prefix)) return true;
+    }
+  }
+  return false;
 }
 
 function scrubObject(obj: any, depth = 0): void {
@@ -239,3 +289,16 @@ export function sentryErrorHandler(): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (_err: any, _req: any, _res: any, next: any) => next(_err);
 }
+
+// Test-only exports — give the round-235 contract tests direct access to
+// the scrubbing primitives without spinning up Sentry. NOT for production
+// callers; keep usage scoped to *.test.ts.
+export const _internal = {
+  shouldScrubKey,
+  tokenizeKey,
+  scrubObject,
+  scrubSentryEvent,
+  EXACT_TOKENS,
+  PREFIX_TOKENS,
+  CONCAT_PATTERNS,
+};
