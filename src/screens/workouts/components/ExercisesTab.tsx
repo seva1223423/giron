@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, Image } from 'react-native';
+import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, StyleSheet, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
-import { Card } from '../../../components';
+import { useThemeColors } from '../../../store';
+import { Card, Spinner } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
@@ -47,7 +47,7 @@ interface Props {
 
 export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [exerciseList, setExerciseList] = useState<Exercise[]>(localExercises);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
@@ -81,6 +81,11 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
   // Posters are now bundled with the app (see assets/exercise-videos/), so there's
   // nothing to prefetch at runtime — they're already unpacked alongside the APK.
 
+  // Round 274: include `haptic` in deps. Previously empty deps closed
+  // over the initial haptic ref — currently fine because useHaptic
+  // returns a stable object, but if it ever loosens to a fresh-object
+  // each render the callback would silently reference a stale haptic.
+  // Pinning the dep makes the safety contract explicit.
   const toggleFavorite = useCallback((exerciseId: string) => {
     haptic.light();
     setFavoriteIds((prev) => {
@@ -90,7 +95,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
       AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(next)));
       return next;
     });
-  }, []);
+  }, [haptic]);
 
   const filteredExercises = useMemo(() =>
     exerciseList.filter((ex) => {
@@ -140,7 +145,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             style={{ paddingLeft: spacing.md }}
             accessibilityLabel={isFav ? 'Убрать из избранного' : 'Добавить в избранное'}
           >
-            <Text style={{ fontSize: 18, fontWeight: '700', color: isFav ? colors.error : colors.textTertiary }}>
+            <Text style={[typography.h4, { color: isFav ? colors.error : colors.textTertiary }]}>
               {isFav ? '●' : '○'}
             </Text>
           </TouchableOpacity>
@@ -193,12 +198,12 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
 
   const listEmpty = useMemo(() => {
     if (loadingExercises) {
-      return <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />;
+      return <View style={{ marginTop: spacing.xl, alignItems: 'center' }}><Spinner color={colors.primary} size={32} /></View>;
     }
     if (muscleFilter === 'favorites') {
       return (
         <View style={styles.emptyState}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1.5, borderColor: colors.primary + '35' }}><Text style={{ fontSize: 22, fontWeight: '700', color: colors.primary }}>●</Text></View>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1.5, borderColor: colors.primary + '35' }}><Text style={[typography.h3, { color: colors.primary }]}>●</Text></View>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
             Нажмите {'●'} на упражнении, чтобы добавить в избранное
           </Text>
