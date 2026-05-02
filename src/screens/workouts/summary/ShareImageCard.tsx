@@ -89,7 +89,7 @@ export const ShareImageCard = React.forwardRef<View, Props>(
               return (
                 <View key={i} style={styles.exRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 5 }}>
-                    {isExPR && <Text style={{ fontSize: 9, fontWeight: '700', color: '#8B5CF6' }}>PR</Text>}
+                    {isExPR && <Text style={{ fontSize: 9, fontWeight: '700', color: '#D4B07A' }}>PR</Text>}
                     <Text style={[styles.exName, isExPR && { color: '#FFD700' }]} numberOfLines={1}>
                       {ex.exercise?.name ?? ''}
                     </Text>
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#D4B07A',
     opacity: 0.15,
   },
   glow2: {
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 3,
-    color: '#8B5CF6',
+    color: '#D4B07A',
   },
   date: {
     fontSize: 12,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   exSet: {
     fontSize: 13,
-    color: '#8B5CF6',
+    color: '#D4B07A',
     fontWeight: '700',
     marginLeft: 8,
   },
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: '#8B5CF6',
+    color: '#D4B07A',
     fontWeight: '700',
     letterSpacing: 0.5,
   },

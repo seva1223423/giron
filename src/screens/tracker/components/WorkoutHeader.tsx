@@ -12,7 +12,7 @@ import { Workout, MuscleGroup, ExerciseType } from '../../../types';
 const MUSCLE_META: Partial<Record<MuscleGroup, { abbr: string; color: string }>> = {
   chest:       { abbr: 'Гр', color: '#EF4444' },
   back:        { abbr: 'Сп', color: '#3B82F6' },
-  shoulders:   { abbr: 'Пл', color: '#8B5CF6' },
+  shoulders:   { abbr: 'Пл', color: '#D4B07A' },
   biceps:      { abbr: 'Бц', color: '#F59E0B' },
   triceps:     { abbr: 'Тц', color: '#F97316' },
   forearms:    { abbr: 'Пр', color: '#84CC16' },
@@ -22,7 +22,7 @@ const MUSCLE_META: Partial<Record<MuscleGroup, { abbr: string; color: string }>>
   glutes:      { abbr: 'Яг', color: '#F43F5E' },
   calves:      { abbr: 'Ик', color: '#06B6D4' },
   lower_back:  { abbr: 'Пс', color: '#10B981' },
-  traps:       { abbr: 'Тр', color: '#6366F1' },
+  traps:       { abbr: 'Тр', color: '#B08A4E' },
   lats:        { abbr: 'Ши', color: '#2563EB' },
 };
 
