@@ -50,32 +50,83 @@ const todayDate = () => localDateStr(new Date());
 const BARCODE_CACHE_KEY = 'iron_gym_barcode_cache';
 const RECENT_SCANS_KEY = 'iron_gym_recent_scans';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/**
+ * Round 218: Negative-cache TTL for OFF "не найдено" responses.
+ * 24h is short enough that the user gets fresh visibility once the
+ * product is contributed to OFF (community sometimes adds RU SKUs
+ * within a day), and long enough to absorb the typical 1-3 retry
+ * cluster a user does after seeing the not-found UI ("maybe I
+ * scanned wrong, let me try again"). Without this, every retry
+ * re-fired both OFF mirrors with the same negative result.
+ */
+const NEGATIVE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface BarcodeProduct { name: string; cal: number; prot: number; fats: number; carbs: number; }
+interface NegativeCacheEntry { __notFound: true; cachedAt: number; }
 interface RecentScan extends BarcodeProduct { barcode: string; servingGrams?: number; }
 
-async function getCachedProduct(barcode: string): Promise<BarcodeProduct | null> {
+type CacheEntry = (BarcodeProduct & { cachedAt?: number }) | NegativeCacheEntry;
+type GetCachedResult = { kind: 'hit'; product: BarcodeProduct } | { kind: 'miss-known'; cachedAt: number } | null;
+
+function isNegativeEntry(e: CacheEntry | undefined): e is NegativeCacheEntry {
+  return !!e && (e as NegativeCacheEntry).__notFound === true;
+}
+
+async function getCachedProduct(barcode: string): Promise<GetCachedResult> {
   try {
     const raw = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
+    const parsed: Record<string, CacheEntry> = JSON.parse(raw);
     const entry = parsed[barcode];
     if (!entry) return null;
-    if (entry.cachedAt && Date.now() - entry.cachedAt > CACHE_TTL_MS) {
-      // Stale — evict in background
+    // Negative cache — known to be missing in OFF, short TTL.
+    if (isNegativeEntry(entry)) {
+      if (Date.now() - entry.cachedAt > NEGATIVE_CACHE_TTL_MS) {
+        delete parsed[barcode];
+        AsyncStorage.setItem(BARCODE_CACHE_KEY, JSON.stringify(parsed)).catch(() => {});
+        return null;
+      }
+      return { kind: 'miss-known', cachedAt: entry.cachedAt };
+    }
+    // Positive cache — long TTL, real product data.
+    const cachedAt = (entry as BarcodeProduct & { cachedAt?: number }).cachedAt ?? 0;
+    if (cachedAt && Date.now() - cachedAt > CACHE_TTL_MS) {
       delete parsed[barcode];
       AsyncStorage.setItem(BARCODE_CACHE_KEY, JSON.stringify(parsed)).catch(() => {});
       return null;
     }
-    return entry;
+    const { cachedAt: _ts, ...product } = entry as BarcodeProduct & { cachedAt?: number };
+    return { kind: 'hit', product };
   } catch { return null; }
 }
 
 async function cacheProduct(barcode: string, product: BarcodeProduct) {
   try {
     const raw = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
+    const parsed: Record<string, CacheEntry> = raw ? JSON.parse(raw) : {};
     parsed[barcode] = { ...product, cachedAt: Date.now() };
+    const keys = Object.keys(parsed);
+    if (keys.length > 200) {
+      const sorted = keys.sort((a, b) => (parsed[a].cachedAt || 0) - (parsed[b].cachedAt || 0));
+      sorted.slice(0, keys.length - 200).forEach((k) => delete parsed[k]);
+    }
+    await AsyncStorage.setItem(BARCODE_CACHE_KEY, JSON.stringify(parsed));
+  } catch {}
+}
+
+/**
+ * Mark a barcode as known-missing in OFF. Short-TTL so the user gets
+ * fresh visibility within a day if the product gets added to OFF
+ * (community contributions for RU SKUs sometimes land within hours).
+ * The next lookup short-circuits with "not found" without firing the
+ * full host-fallback chain — a meaningful win for users who repeat-scan
+ * the same Russian product trying to "fix" the failure.
+ */
+async function cacheNegativeResult(barcode: string) {
+  try {
+    const raw = await AsyncStorage.getItem(BARCODE_CACHE_KEY);
+    const parsed: Record<string, CacheEntry> = raw ? JSON.parse(raw) : {};
+    parsed[barcode] = { __notFound: true, cachedAt: Date.now() };
     const keys = Object.keys(parsed);
     if (keys.length > 200) {
       const sorted = keys.sort((a, b) => (parsed[a].cachedAt || 0) - (parsed[b].cachedAt || 0));
@@ -1134,10 +1185,21 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setNotFound(false);
     setError('');
 
-    // Cache hit — free, no credit consumed
+    // Cache check — positive hits return the product, negative hits
+    // short-circuit to the not-found UI without firing OFF. Both
+    // paths are credit-free.
     const cached = await getCachedProduct(barcode);
-    if (cached) {
-      applyBarcodeProduct(cached);
+    if (cached?.kind === 'hit') {
+      applyBarcodeProduct(cached.product);
+      barcodeProcessingRef.current = false;
+      return;
+    }
+    if (cached?.kind === 'miss-known') {
+      // Round 218: known-missing within 24h. Skip the network roundtrip
+      // (RU + world. mirrors with their 8s budgets each = up to 16s
+      // of dead time on a re-scan of the same Russian SKU not in OFF).
+      setShowBarcodeScanner(false);
+      setNotFound(true);
       barcodeProcessingRef.current = false;
       return;
     }
@@ -1156,6 +1218,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       const result = await fetchBarcodeFromOFF(barcode, OFF_FIELDS, 8_000);
 
       if ('notFound' in result) {
+        // Round 218: persist the negative result so a re-scan within
+        // 24h skips both OFF mirrors. Russian users repeat-scan the
+        // same not-in-OFF SKU 1-3× on average before switching to
+        // the photo-of-label fallback; without negative caching that
+        // burned up to 16s of network on each retry.
+        cacheNegativeResult(barcode).catch(() => {});
         setShowBarcodeScanner(false);
         setNotFound(true);
         return;
@@ -1163,6 +1231,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
 
       const p = result.data.product;
       if (!p) {
+        cacheNegativeResult(barcode).catch(() => {});
         setShowBarcodeScanner(false);
         setNotFound(true);
         return;
