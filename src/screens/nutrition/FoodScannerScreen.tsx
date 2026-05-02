@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useThemeStore, useNutritionStore, useSubscriptionStore, useConnectionStore, FREE_LIMITS } from '../../store';
+import { useThemeStore, useNutritionStore, useSubscriptionStore, useConnectionStore, useAuthStore, FREE_LIMITS } from '../../store';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useHaptic } from '../../hooks/useHaptic';
 import { Button, Card, PaywallModal, FadeIn, Spinner } from '../../components';
@@ -261,15 +261,26 @@ interface CachedAIResult {
   cachedAt: number;
 }
 
-async function getCachedAIResult(fingerprint: string): Promise<CachedAIResult | null> {
+// Audit-derived: scope cache keys by userId so a logout/login on the
+// same device doesn't leak AI responses across accounts. AI replies
+// can carry per-user signals (e.g. allergy "⚠️" prefix on item names),
+// and the previous implementation keyed only on image fingerprint —
+// user A's gluten-allergy warnings would surface to user B's first
+// scan of the same image, leaking A's profile information.
+function scopedFingerprint(userId: string | null | undefined, fingerprint: string): string {
+  return `${userId ?? 'anon'}:${fingerprint}`;
+}
+
+async function getCachedAIResult(userId: string | null | undefined, fingerprint: string): Promise<CachedAIResult | null> {
   try {
     const raw = await AsyncStorage.getItem(AI_SCAN_CACHE_KEY);
     if (!raw) return null;
     const parsed: Record<string, CachedAIResult> = JSON.parse(raw);
-    const entry = parsed[fingerprint];
+    const key = scopedFingerprint(userId, fingerprint);
+    const entry = parsed[key];
     if (!entry) return null;
     if (Date.now() - entry.cachedAt > AI_CACHE_TTL_MS) {
-      delete parsed[fingerprint];
+      delete parsed[key];
       AsyncStorage.setItem(AI_SCAN_CACHE_KEY, JSON.stringify(parsed)).catch(() => {});
       return null;
     }
@@ -279,11 +290,12 @@ async function getCachedAIResult(fingerprint: string): Promise<CachedAIResult | 
   }
 }
 
-async function cacheAIResult(fingerprint: string, items: CachedAIResult['items']): Promise<void> {
+async function cacheAIResult(userId: string | null | undefined, fingerprint: string, items: CachedAIResult['items']): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(AI_SCAN_CACHE_KEY);
     const parsed: Record<string, CachedAIResult> = raw ? JSON.parse(raw) : {};
-    parsed[fingerprint] = { items, cachedAt: Date.now() };
+    const key = scopedFingerprint(userId, fingerprint);
+    parsed[key] = { items, cachedAt: Date.now() };
     // Evict oldest when we hit 50 entries — AI payloads are larger than barcode
     // entries and 50 is already ~50 meals of memory pressure.
     const keys = Object.keys(parsed);
@@ -397,6 +409,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const haptic = useHaptic();
   const { colors } = useThemeStore();
   const { addMeal, getDayLog, savedFoods, dailyLog } = useNutritionStore();
+  const userId = useAuthStore((s) => s.user?.id);
   const isOnline = useConnectionStore((s) => s.isOnline);
   const today = todayDate();
   const dayLog = getDayLog(today);
@@ -732,7 +745,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     // Cache hit — same photo was already analysed within 24h. Return instantly,
     // don't burn a credit, don't hit the network.
     const fingerprint = fingerprintBase64(base64);
-    const cached = await getCachedAIResult(fingerprint);
+    const cached = await getCachedAIResult(userId, fingerprint);
     if (cached) {
       const items = applyAIItems(cached.items);
       setCachedResult(true);
@@ -802,7 +815,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         haptic.warning();
       } else {
         // Cache the successful result by the image fingerprint — next re-scan is free.
-        cacheAIResult(fingerprint, result.items).catch(() => {});
+        cacheAIResult(userId, fingerprint, result.items).catch(() => {});
         // Release the ~5-7MB base64 — retry is only meaningful on error paths.
         lastBase64Ref.current = '';
         haptic.success();
