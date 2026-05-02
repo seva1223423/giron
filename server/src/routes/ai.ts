@@ -725,6 +725,7 @@ const AI_TOOLS: DeepSeekTool[] = [
             },
             description: 'Список продуктов в приёме пищи с КБЖУ',
           },
+          date: { type: 'string', description: 'Дата YYYY-MM-DD когда был приём пищи. По умолчанию — сегодня. Используй если пользователь говорит "вчера ел...".' },
         },
         required: ['mealType', 'items'],
       },
@@ -2791,7 +2792,7 @@ async function executeTool(
   }
 
   if (toolName === 'log_meal') {
-    const { mealType, items } = toolInput as {
+    const { mealType, items, date: mealDate } = toolInput as {
       mealType: string;
       items: Array<{
         name: string;
@@ -2801,6 +2802,7 @@ async function executeTool(
         fats: number;
         carbs: number;
       }>;
+      date?: string;
     };
 
     if (!items || items.length === 0) {
@@ -2823,10 +2825,18 @@ async function executeTool(
     const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
     const safeMealType = VALID_MEAL_TYPES.includes(mealType) ? mealType : 'snack';
 
+    // Round 219: respect AI-provided date for retroactive meal logging
+    // ("вчера ел курицу"). Falls back to client's local today, then to
+    // server's today. Validates YYYY-MM-DD shape and parseability.
+    const fallbackDate = clientDate ?? new Date().toISOString().split('T')[0];
+    const effectiveMealDate = (mealDate && /^\d{4}-\d{2}-\d{2}$/.test(mealDate) && !isNaN(new Date(mealDate + 'T00:00:00Z').getTime()))
+      ? mealDate
+      : fallbackDate;
+
     const created = await prisma.meal.create({
       data: {
         type: safeMealType,
-        date: clientDate ?? new Date().toISOString().split('T')[0],
+        date: effectiveMealDate,
         userId,
         totalCalories,
         totalProtein,
