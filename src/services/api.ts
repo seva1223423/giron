@@ -167,7 +167,19 @@ api.interceptors.response.use(
         const refreshToken = await tokenStorage.getRefreshToken();
         if (!refreshToken) throw new Error('No refresh token');
 
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken }, { timeout: 15000 });
+        // Round 245: include client-version headers on refresh too. Without
+        // them, the server's clientVersionGate (CLIENT-VERSION-01) couldn't
+        // 426-reject stale clients on refresh — so a stale APK whose access
+        // token expired could silently keep refreshing, bypassing the
+        // force-update gate that other endpoints enforce.
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken }, {
+          timeout: 15000,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Client-Version': CLIENT_VERSION,
+            'X-Client-Platform': CLIENT_PLATFORM,
+          },
+        });
 
         // Persist new tokens in SecureStore
         await tokenStorage.setTokens(data.token, data.refreshToken);

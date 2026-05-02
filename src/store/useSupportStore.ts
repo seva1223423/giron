@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { supportService } from '../services/supportService';
 import type { SupportTicket, SupportMessage, TicketCategory } from '../types';
+// Round 246: surface store-level errors to Sentry. Previously every
+// catch block swallowed silently with just a Russian error string in
+// state — operators had zero visibility into "Не удалось…" cascades.
+import { reportError } from '../utils/errorReporter';
 
 interface SupportState {
   tickets: SupportTicket[];
@@ -31,7 +35,8 @@ export const useSupportStore = create<SupportState>((set, get) => ({
     try {
       const tickets = await supportService.getMyTickets();
       set({ tickets, loading: false });
-    } catch {
+    } catch (e) {
+      reportError(e instanceof Error ? e : new Error(String(e)), { screen: 'support-store', tags: { op: 'fetchMyTickets' } });
       set({ loading: false, error: 'Не удалось загрузить обращения' });
     }
   },
@@ -41,7 +46,8 @@ export const useSupportStore = create<SupportState>((set, get) => ({
     try {
       const ticket = await supportService.getTicket(id);
       set({ activeTicket: ticket, loading: false });
-    } catch {
+    } catch (e) {
+      reportError(e instanceof Error ? e : new Error(String(e)), { screen: 'support-store', tags: { op: 'fetchTicket' } });
       set({ loading: false, error: 'Не удалось загрузить обращение' });
     }
   },
@@ -52,7 +58,8 @@ export const useSupportStore = create<SupportState>((set, get) => ({
       const ticket = await supportService.createTicket(data);
       set((s) => ({ tickets: [ticket, ...s.tickets], sending: false }));
       return ticket;
-    } catch {
+    } catch (e) {
+      reportError(e instanceof Error ? e : new Error(String(e)), { screen: 'support-store', tags: { op: 'createTicket' } });
       set({ sending: false, error: 'Не удалось создать обращение' });
       throw new Error('Не удалось создать обращение');
     }
@@ -72,7 +79,8 @@ export const useSupportStore = create<SupportState>((set, get) => ({
           },
         };
       });
-    } catch {
+    } catch (e) {
+      reportError(e instanceof Error ? e : new Error(String(e)), { screen: 'support-store', tags: { op: 'sendMessage' } });
       set({ sending: false, error: 'Не удалось отправить сообщение' });
     }
   },
@@ -85,7 +93,8 @@ export const useSupportStore = create<SupportState>((set, get) => ({
         tickets: s.tickets.map((t) => (t.id === ticketId ? updated : t)),
         activeTicket: s.activeTicket?.id === ticketId ? updated : s.activeTicket,
       }));
-    } catch {
+    } catch (e) {
+      reportError(e instanceof Error ? e : new Error(String(e)), { screen: 'support-store', tags: { op: 'closeTicket' } });
       set({ error: 'Не удалось закрыть обращение' });
     }
   },
