@@ -154,10 +154,14 @@ describe('Theme change handling', () => {
   });
 
   test('colors selector recomputes on theme change', () => {
+    // Round 257: codebase migrated to a thinner `useThemeColors()`
+    // selector for ~300 screens (less re-render churn vs the full
+    // useThemeStore subscription). Both shapes count as "subscribes
+    // to theme" for this audit so the tracker stays meaningful.
     let count = 0;
     for (const f of ALL_FILES) {
       const code = fs.readFileSync(f, 'utf8');
-      if (/useThemeStore\(/.test(code)) count++;
+      if (/useThemeStore\(|useThemeColors\(/.test(code)) count++;
     }
     expect(count).toBeGreaterThan(50);
   });

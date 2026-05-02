@@ -369,6 +369,29 @@ export const useNutritionStore = create<NutritionStore>()(
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
       migrate: (state: any) => state,
+      // Round 257: partialize so we only persist user-data fields, not
+      // derived/transient state. Without this we serialize the full
+      // store shape on every set() — and `dailyLog` was unbounded
+      // (every meal ever, no auto-cleanup). Heavy users hit AsyncStorage's
+      // 6MB cap. partialize keeps only the persistable subset.
+      partialize: (state) => ({
+        dailyLog: state.dailyLog,
+        defaultTargets: state.defaultTargets,
+        savedFoods: state.savedFoods,
+      }),
+      // Auto-prune logs older than 90 days on rehydrate. cleanupOldLogs
+      // already exists but was never auto-called. Calling it here keeps
+      // the persisted blob bounded.
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        try {
+          state.cleanupOldLogs?.(90);
+        } catch {
+          // Best effort — if the store shape is somehow incompatible
+          // with the cleanup helper, skip the prune rather than crash
+          // the rehydrate.
+        }
+      },
     }
   )
 );
