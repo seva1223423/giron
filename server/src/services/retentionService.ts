@@ -119,18 +119,30 @@ export async function processActivationCohort(): Promise<number> {
           // activation window enforced by the createdAt filter above.
           pushDeferred++;
         } else {
+          // Round 251: atomic claim-then-send. updateMany with the
+          // null-condition acts as a CAS — only one of N concurrent
+          // cron ticks can win the row. Caller-side null check (line
+          // above) is now a fast filter; the updateMany is the
+          // authoritative gate. On send failure, roll back the claim
+          // so a future tick retries.
+          const claim = await prisma.user.updateMany({
+            where: { id: user.id, activationPushSentAt: null },
+            data: { activationPushSentAt: now },
+          });
+          if (claim.count === 0) continue; // another tick claimed
           try {
             await sendPushToUser(user.id, {
               title: 'Iron Coach ждёт первого вопроса',
               body: `${greeting}задай ИИ-тренеру вопрос — программа, питание, техника. 30 секунд и план готов.`,
               data: { url: 'irongym://ai', cohort: 'activation' },
             });
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { activationPushSentAt: now },
-            });
             pushSent++;
           } catch (err) {
+            // Roll back the claim so a future tick retries this user.
+            await prisma.user.updateMany({
+              where: { id: user.id, activationPushSentAt: now },
+              data: { activationPushSentAt: null },
+            }).catch(() => {});
             reportError(err as Error, {
               userId: user.id,
               tags: { origin: 'retention-activation-push' },
@@ -144,14 +156,20 @@ export async function processActivationCohort(): Promise<number> {
       // from legacy OAuth flows would bounce on every send and waste
       // the SMTP quota).
       if (!user.activationEmailSentAt && user.email && !user.email.endsWith('@irongym.internal')) {
+        // Round 251: atomic claim-then-send (same as push above).
+        const claim = await prisma.user.updateMany({
+          where: { id: user.id, activationEmailSentAt: null },
+          data: { activationEmailSentAt: now },
+        });
+        if (claim.count === 0) continue; // another tick claimed
         try {
           await sendActivationReminderEmail(user.email, user.firstName ?? null);
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { activationEmailSentAt: now },
-          });
           emailSent++;
         } catch (err) {
+          await prisma.user.updateMany({
+            where: { id: user.id, activationEmailSentAt: now },
+            data: { activationEmailSentAt: null },
+          }).catch(() => {});
           reportError(err as Error, {
             userId: user.id,
             tags: { origin: 'retention-activation-email' },

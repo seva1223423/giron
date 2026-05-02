@@ -8,6 +8,9 @@ jest.mock('../db', () => ({
     user: {
       findMany: jest.fn(),
       update: jest.fn(),
+      // Round 251: retentionService now uses updateMany for atomic
+      // claim-then-send (prevents two cron ticks from double-sending).
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     subscription: {
       findMany: jest.fn(),
@@ -56,6 +59,8 @@ import { reportError } from '../utils/errorReporter';
 
 const mockUserFindMany = prisma.user.findMany as jest.Mock;
 const mockUserUpdate = prisma.user.update as jest.Mock;
+// Round 251: retentionService now claims via updateMany before sending.
+const mockUserUpdateMany = (prisma.user as any).updateMany as jest.Mock;
 const mockSubFindMany = prisma.subscription.findMany as jest.Mock;
 const mockSubUpdate = prisma.subscription.update as jest.Mock;
 const mockWorkoutFindMany = prisma.workout.findMany as jest.Mock;
@@ -90,6 +95,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSendPush.mockResolvedValue(undefined);
   mockUserUpdate.mockResolvedValue({});
+  // Round 251: default updateMany to "claim succeeded (count=1)" so
+  // pre-existing tests treat the new atomic-claim path as a no-op.
+  mockUserUpdateMany.mockResolvedValue({ count: 1 });
   mockSubUpdate.mockResolvedValue({});
   mockWeeklyEmail.mockResolvedValue(undefined);
   mockPreRenewalEmail.mockResolvedValue(undefined);
@@ -128,20 +136,20 @@ describe('processActivationCohort', () => {
 
     const sent = await processActivationCohort();
 
-    // 2 users × 2 channels each = 4 sends total
+    // 2 users × 2 channels each = 4 sends total.
+    // Round 251: updates flow through updateMany now (atomic claim).
     expect(sent).toBe(4);
     expect(mockSendPush).toHaveBeenCalledTimes(2);
     expect(mockActivationEmail).toHaveBeenCalledTimes(2);
-    expect(mockUserUpdate).toHaveBeenCalledTimes(4);
-    expect(mockUserUpdate).toHaveBeenCalledWith(
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'u-1' },
+        where: expect.objectContaining({ id: 'u-1', activationPushSentAt: null }),
         data: { activationPushSentAt: expect.any(Date) },
       }),
     );
-    expect(mockUserUpdate).toHaveBeenCalledWith(
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'u-1' },
+        where: expect.objectContaining({ id: 'u-1', activationEmailSentAt: null }),
         data: { activationEmailSentAt: expect.any(Date) },
       }),
     );
@@ -234,10 +242,15 @@ describe('processActivationCohort', () => {
 
     const sent = await processActivationCohort();
 
+    // Round 251: u-ok succeeds (claim + send + no rollback = 1 updateMany).
+    // u-fail claims, send fails, then rolls back (claim + rollback = 2 updateMany).
+    // Total updateMany = 3. Only u-ok counts toward sent.
     expect(sent).toBe(1);
-    expect(mockUserUpdate).toHaveBeenCalledTimes(1);
-    expect(mockUserUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'u-ok' } }),
+    expect(mockUserUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'u-ok', activationPushSentAt: null }),
+        data: { activationPushSentAt: expect.any(Date) },
+      }),
     );
   });
 
@@ -299,9 +312,9 @@ describe('processActivationCohort', () => {
       expect(mockSendPush).not.toHaveBeenCalled();
       expect(mockActivationEmail).toHaveBeenCalledTimes(1);
       // Critically: push *SentAt must NOT be set so the user is picked up
-      // again at the next non-quiet tick. We assert by counting user.update
-      // calls — only 1 (the email update), not 2 (push + email).
-      expect(mockUserUpdate).toHaveBeenCalledTimes(1);
+      // again at the next non-quiet tick. Round 251: gating now uses
+      // updateMany — only 1 call (email claim), not 2 (push + email).
+      expect(mockUserUpdateMany).toHaveBeenCalledTimes(1);
     });
 
     test('at 03:00 MSK (00:00 UTC) — push deferred, email still fires', async () => {
