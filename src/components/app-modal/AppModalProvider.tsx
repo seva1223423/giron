@@ -39,27 +39,41 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '../../store/useThemeStore';
+import { lightColors, darkColors } from '../../theme/colors';
 
-// Direction A tokens, mirrored from canvas/src/tokens.js. Kept inline so this
-// component stays self-contained — anyone copying the file into another RN
-// project gets the look without dragging the theme module along.
-export const IronGymTheme = {
-  bg: '#0E0E0F',
-  surface: '#17171A',
-  surfaceHi: '#1E1E22',
-  line: 'rgba(255,255,255,0.08)',
-  lineStrong: 'rgba(255,255,255,0.14)',
-  text: '#F4F1EA',
-  textSub: '#A8A49C',
-  textDim: '#6B6860',
-  accent: '#D4B07A',
-  accent2: '#8E6B3E',
-  good: '#9AC28C',
-  warn: '#E8A36A',
-  danger: '#E07A6B',
-  scrim: 'rgba(0,0,0,0.62)',
-} as const;
+// Round 233 (2026-05-02 audit): IronGymTheme was previously HARDCODED DARK,
+// rendering every Alert.alert + every toast in dark style regardless of
+// user's theme choice — a global theme-parity break per design.md §25.
+//
+// Now: `IronGymTheme` is exported for the dark-fallback case and for
+// `toast.tsx` (which can render outside React tree via the global bridge);
+// inside the provider we use `useThemeColors()` so the live theme drives
+// the modal chrome.
+function buildModalTheme(c: typeof darkColors) {
+  return {
+    bg: c.background,
+    surface: c.surface,
+    surfaceHi: c.surfaceElevated,
+    line: c.border,
+    lineStrong: c.borderLight,
+    text: c.text,
+    textSub: c.textSecondary,
+    textDim: c.textTertiary,
+    accent: c.primary,
+    accent2: c.primaryDark,
+    good: c.success,
+    warn: c.warning,
+    danger: c.error,
+    scrim: c.overlay,
+    textInverse: c.textInverse,
+  } as const;
+}
 
+// Dark-mode fallback — used by `toast.tsx` and by render paths that fire
+// before the provider hooks into the theme store. Matches dark Direction A.
+export const IronGymTheme = buildModalTheme(darkColors);
+export const IronGymThemeLight = buildModalTheme(lightColors);
 const T = IronGymTheme;
 
 export type ModalKind = 'error' | 'success' | 'info' | 'confirm' | 'destructive';
@@ -75,6 +89,16 @@ export interface ShowOptions {
   title?: string;
   message?: string;
   buttons?: ModalButton[];
+  /**
+   * Mirrors RN.Alert.alert's options.cancelable. When `false`, scrim-press
+   * and back-button cannot dismiss — user MUST tap a button. Default true.
+   * Critical confirmation flows (e.g. signed-out forced re-login) rely on
+   * this; without honoring it, the patched Alert.alert silently weakens
+   * the original API contract.
+   */
+  cancelable?: boolean;
+  /** Mirrors RN.Alert.alert's options.onDismiss — fires after any close path. */
+  onDismiss?: () => void;
 }
 
 interface ModalContextValue {
@@ -124,16 +148,19 @@ export function useAppModal(): ModalContextValue {
   return ctx;
 }
 
-const ICON_MAP: Record<ModalKind, { name: keyof typeof Ionicons.glyphMap; color: string }> = {
-  error: { name: 'alert-circle', color: T.danger },
-  success: { name: 'checkmark-circle', color: T.good },
-  info: { name: 'information-circle', color: T.accent },
-  confirm: { name: 'shield-checkmark', color: T.accent },
-  destructive: { name: 'trash', color: T.danger },
-};
+function buildIconMap(t: ReturnType<typeof buildModalTheme>):
+  Record<ModalKind, { name: keyof typeof Ionicons.glyphMap; color: string }> {
+  return {
+    error: { name: 'alert-circle', color: t.danger },
+    success: { name: 'checkmark-circle', color: t.good },
+    info: { name: 'information-circle', color: t.accent },
+    confirm: { name: 'shield-checkmark', color: t.accent },
+    destructive: { name: 'trash', color: t.danger },
+  };
+}
 
-function ModalIcon({ kind }: { kind: ModalKind }) {
-  const { name, color } = ICON_MAP[kind] ?? ICON_MAP.info;
+function ModalIcon({ kind, t }: { kind: ModalKind; t: ReturnType<typeof buildModalTheme> }) {
+  const { name, color } = buildIconMap(t)[kind] ?? buildIconMap(t).info;
   return (
     <View style={[styles.iconRing, { borderColor: color, backgroundColor: color + '1A', shadowColor: color }]}>
       <Ionicons name={name} size={28} color={color} />
@@ -142,6 +169,11 @@ function ModalIcon({ kind }: { kind: ModalKind }) {
 }
 
 export function AppModalProvider({ children }: { children: React.ReactNode }) {
+  const themeColors = useThemeColors();
+  // useMemo on colors object identity so theme switches re-render the modal
+  // chrome but unrelated store updates don't.
+  const t = useMemo(() => buildModalTheme(themeColors), [themeColors]);
+
   const [state, setState] = useState<ShowOptions | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.96)).current;
@@ -150,8 +182,15 @@ export function AppModalProvider({ children }: { children: React.ReactNode }) {
     Animated.parallel([
       Animated.timing(opacity, { toValue: 0, duration: 140, useNativeDriver: true }),
       Animated.timing(scale, { toValue: 0.96, duration: 140, useNativeDriver: true }),
-    ]).start(() => setState(null));
-  }, [opacity, scale]);
+    ]).start(() => {
+      // Capture onDismiss before clearing state — fire after the modal
+      // teardown animation so any caller listening for "the dialog is
+      // really gone now" gets the right ordering.
+      const onDismiss = state?.onDismiss;
+      setState(null);
+      onDismiss?.();
+    });
+  }, [opacity, scale, state]);
 
   const show = useCallback(
     (opts: ShowOptions) => {
@@ -170,6 +209,9 @@ export function AppModalProvider({ children }: { children: React.ReactNode }) {
 
   const buttons: ModalButton[] = state?.buttons?.length ? state.buttons : [{ text: 'OK' }];
   const kind: ModalKind = state?.kind ?? inferKind(state?.title, state?.message, buttons);
+  // RN.Alert defaults to cancelable=true. We mirror that — only an
+  // explicit `false` disables scrim-press and back-button dismissal.
+  const cancelable = state?.cancelable !== false;
 
   return (
     <Ctx.Provider value={value}>
@@ -178,31 +220,51 @@ export function AppModalProvider({ children }: { children: React.ReactNode }) {
         visible={!!state}
         transparent
         animationType="none"
-        onRequestClose={close}
+        // Android back-button: only dismisses when cancelable. Passing a
+        // no-op (instead of undefined) keeps RN happy; it just won't close
+        // the modal. User must tap a button — same as native Alert with
+        // cancelable: false.
+        onRequestClose={cancelable ? close : () => undefined}
         statusBarTranslucent
       >
-        <Animated.View style={[styles.scrim, { opacity }]}>
+        <Animated.View style={[styles.scrim, { backgroundColor: t.scrim, opacity }]}>
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={() => {
-              const cancel = buttons.find((b) => b?.style === 'cancel');
-              cancel?.onPress?.();
-              close();
-            }}
+            // No onPress = no dismiss when cancelable=false. Pressable
+            // still renders to receive the touch (so it doesn't fall
+            // through to anything underneath the scrim).
+            onPress={
+              cancelable
+                ? () => {
+                    const cancel = buttons.find((b) => b?.style === 'cancel');
+                    cancel?.onPress?.();
+                    close();
+                  }
+                : undefined
+            }
           />
-          <Animated.View style={[styles.card, { opacity, transform: [{ scale }] }]}>
+          <Animated.View style={[styles.card, { backgroundColor: t.surfaceHi, borderColor: t.lineStrong, opacity, transform: [{ scale }] }]}>
             <View style={styles.head}>
-              <ModalIcon kind={kind} />
-              {!!state?.title && <Text style={styles.title}>{state.title}</Text>}
+              <ModalIcon kind={kind} t={t} />
+              {!!state?.title && <Text style={[styles.title, { color: t.text }]}>{state.title}</Text>}
             </View>
 
-            {!!state?.message && <Text style={styles.message}>{state.message}</Text>}
+            {!!state?.message && <Text style={[styles.message, { color: t.textSub }]}>{state.message}</Text>}
 
-            <View style={styles.actions}>
+            <View style={[styles.actions, { borderTopColor: t.line }]}>
               {buttons.slice(0, 3).map((b, i) => {
                 const isPrimary = i === buttons.length - 1 && b.style !== 'cancel';
                 const isDestructive = b.style === 'destructive' || (isPrimary && kind === 'destructive');
                 const isCancel = b.style === 'cancel';
+                const btnBg = isPrimary
+                  ? (isDestructive ? t.danger : t.accent)
+                  : 'transparent';
+                const btnBorder = isPrimary ? undefined : t.line;
+                // Direction A rule: gold CTA always has DARK text, never cream/white
+                // (cream-on-gold = 2.8:1 WCAG fail).
+                const btnTextColor = isPrimary
+                  ? (isDestructive ? t.textInverse : t.textInverse)
+                  : t.textSub;
                 return (
                   <Pressable
                     key={i}
@@ -212,17 +274,15 @@ export function AppModalProvider({ children }: { children: React.ReactNode }) {
                     }}
                     style={({ pressed }) => [
                       styles.btn,
-                      isPrimary && (isDestructive ? styles.btnDanger : styles.btnPrimary),
-                      isCancel && styles.btnGhost,
-                      !isPrimary && !isCancel && styles.btnGhost,
+                      { backgroundColor: btnBg },
+                      btnBorder ? { borderWidth: 1, borderColor: btnBorder } : null,
                       pressed && { opacity: 0.85 },
                     ]}
                   >
                     <Text
                       style={[
                         styles.btnText,
-                        isPrimary && (isDestructive ? styles.btnTextDanger : styles.btnTextPrimary),
-                        (isCancel || (!isPrimary && !isCancel)) && styles.btnTextGhost,
+                        { color: btnTextColor },
                       ]}
                     >
                       {b.text}
@@ -265,12 +325,26 @@ export function installAppAlert(): void {
   if (_installed) return;
   _installed = true;
   const original = Alert.alert.bind(Alert);
-  Alert.alert = ((title?: string, message?: string, buttons?: ModalButton[], options?: unknown) => {
+  Alert.alert = ((
+    title?: string,
+    message?: string,
+    buttons?: ModalButton[],
+    options?: { cancelable?: boolean; onDismiss?: () => void } | null,
+  ) => {
     if (!_global) {
       original(title as string, message, buttons as never, options as never);
       return;
     }
-    _global.show({ title, message, buttons });
+    // Forward the RN.Alert options shape so the patched modal matches the
+    // original API contract — losing `cancelable: false` on a forced-
+    // re-login dialog would let the user scrim-tap past it.
+    _global.show({
+      title,
+      message,
+      buttons,
+      cancelable: options?.cancelable,
+      onDismiss: options?.onDismiss,
+    });
   }) as typeof Alert.alert;
 }
 
