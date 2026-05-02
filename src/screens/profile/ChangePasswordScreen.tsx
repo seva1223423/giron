@@ -21,7 +21,7 @@ function passwordStrength(p: string): number {
   return Math.min(4, score);
 }
 
-const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#8B5CF6'];
+const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#D4B07A'];
 const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший', 'Отличный'];
 
 export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {

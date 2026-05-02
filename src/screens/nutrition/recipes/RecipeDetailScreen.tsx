@@ -167,7 +167,7 @@ export const RecipeDetailScreen: React.FC<{ navigation: any; route: any }> = ({ 
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Macro label="Ккал" value={Math.round(recipe.totalCalories)} color="#FF3B30" />
-            <Macro label="Белки" value={Math.round(recipe.totalProtein)} unit="г" color="#8B5CF6" />
+            <Macro label="Белки" value={Math.round(recipe.totalProtein)} unit="г" color="#D4B07A" />
             <Macro label="Жиры" value={Math.round(recipe.totalFats)} unit="г" color="#FF9F0A" />
             <Macro label="Углеводы" value={Math.round(recipe.totalCarbs)} unit="г" color="#34C759" />
           </View>

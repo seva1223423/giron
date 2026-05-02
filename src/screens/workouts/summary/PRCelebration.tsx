@@ -8,7 +8,9 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-const COLORS = ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#7C3AED', '#6D28D9', '#EDE9FE'];
+// Round 242: replaced legacy purple confetti with Direction A champagne
+// gold tones — keeps the celebration feel without violating banlist.
+const COLORS = ['#D4B07A', '#E0C190', '#F0DCAC', '#F8EDC8', '#B08A4E', '#9A7440', '#FFF4DC'];
 const PARTICLE_COUNT = 30;
 
 interface Particle {

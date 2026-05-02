@@ -35,7 +35,7 @@ function passwordStrength(p: string): number {
 }
 
 const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший', 'Отличный'];
-const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#8B5CF6'];
+const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#D4B07A'];
 
 /** Format phone digits into display string */
 function formatPhone(digits: string): string {

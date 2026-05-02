@@ -23,17 +23,17 @@ const ACTION_META: Record<string, { icon: string; label: string; color: string }
   LOGIN_FAIL:         { icon: '✗', label: 'Неверный пароль', color: '#FF9F0A' },
   ACCOUNT_LOCKED:     { icon: '!', label: 'Аккаунт заблокирован', color: '#EF4444' },
   SUSPICIOUS_LOGIN:   { icon: '!', label: 'Вход с нового IP', color: '#EF4444' },
-  PASSWORD_CHANGE: { icon: 'P', label: 'Смена пароля', color: '#6366F1' },
+  PASSWORD_CHANGE: { icon: 'P', label: 'Смена пароля', color: '#D4B07A' },
   EMAIL_VERIFIED:  { icon: '@', label: 'Email подтверждён', color: '#34C759' },
   PHONE_VERIFIED:  { icon: '#', label: 'Телефон подтверждён', color: '#34C759' },
-  PHONE_CHANGED:   { icon: '#', label: 'Смена номера телефона', color: '#6366F1' },
+  PHONE_CHANGED:   { icon: '#', label: 'Смена номера телефона', color: '#D4B07A' },
   ACCOUNT_DELETED: { icon: 'X', label: 'Удаление аккаунта', color: '#EF4444' },
   OTP_BRUTEFORCE:  { icon: '!', label: 'Подбор OTP-кода', color: '#EF4444' },
   TOKEN_REVOKED:   { icon: 'O', label: 'Сессии завершены', color: '#FF9F0A' },
   TOTP_ENABLED:    { icon: 'A', label: '2FA включена', color: '#34C759' },
   TOTP_DISABLED:   { icon: 'A', label: '2FA отключена', color: '#FF9F0A' },
-  EMAIL_CHANGED:   { icon: '@', label: 'Смена email', color: '#6366F1' },
-  ACCOUNT_UPDATED: { icon: 'U', label: 'Изменение аккаунта', color: '#6366F1' },
+  EMAIL_CHANGED:   { icon: '@', label: 'Смена email', color: '#D4B07A' },
+  ACCOUNT_UPDATED: { icon: 'U', label: 'Изменение аккаунта', color: '#D4B07A' },
 };
 
 const DETAILS_LABELS: Record<string, string> = {
