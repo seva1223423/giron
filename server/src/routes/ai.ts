@@ -5560,6 +5560,67 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       statsContext += 'Если пользователь спрашивает о пунктах из этого списка — честно скажи "у тебя нет таких данных" и предложи начать записывать.\n';
     }
 
+    // Round 210: STALE_DATA inventory — parallel to NO_DATA (R209) but
+    // for ancient records. If the user weighed in once 90 days ago and
+    // hasn't since, the AI was previously happy to quote that as
+    // "current weight" because it had no signal that the data was
+    // stale. Now we mark each category that has only old records and
+    // tell AI to ask the user to refresh before treating values as
+    // authoritative.
+    //
+    // Thresholds chosen to match the cadence at which fitness apps
+    // typically expect updates:
+    //   - body weight: 14 days (twice-monthly weigh-in is the floor)
+    //   - measurements: 30 days
+    //   - sleep: 7 days (daily metric, week without is suspicious)
+    //   - last completed workout: 14 days (program adherence signal)
+    const staleMarkers: string[] = [];
+    const nowMs = Date.now();
+    const daysSince = (d: Date | string | null | undefined): number | null => {
+      if (!d) return null;
+      const t = (d instanceof Date ? d : new Date(d)).getTime();
+      if (!Number.isFinite(t)) return null;
+      return Math.floor((nowMs - t) / 86_400_000);
+    };
+    if (bodyWeightHistory.length > 0) {
+      const last = bodyWeightHistory[0];
+      const days = daysSince((last as any).date);
+      if (days !== null && days > 14) {
+        staleMarkers.push(`Последнее взвешивание: ${days} дней назад (${(last as any).weightKg} кг). Не используй как актуальный вес — попроси заново взвеситься.`);
+      }
+    }
+    if (recentMeasurements.length > 0) {
+      const last = recentMeasurements[0];
+      const days = daysSince((last as any).date);
+      if (days !== null && days > 30) {
+        staleMarkers.push(`Последние замеры тела: ${days} дней назад. Если разговор о текущей форме — попроси новые замеры.`);
+      }
+    }
+    if (recentSleepEntries.length > 0) {
+      const last = recentSleepEntries[0];
+      const days = daysSince((last as any).date);
+      if (days !== null && days > 7) {
+        staleMarkers.push(`Последняя запись сна: ${days} дней назад. Свежих данных о сне нет.`);
+      }
+    }
+    if (recentWorkouts.length > 0) {
+      const lastCompleted = recentWorkouts.find((w: any) => w.completedAt);
+      if (lastCompleted) {
+        const days = daysSince((lastCompleted as any).completedAt);
+        if (days !== null && days > 14) {
+          staleMarkers.push(`Последняя завершённая тренировка: ${days} дней назад. Возможно перерыв — спроси что случилось, не называй активным режимом тренировок.`);
+        }
+      } else {
+        // recentWorkouts present but none have completedAt — all in plan,
+        // none ever finished. That's a different kind of stale.
+        staleMarkers.push('Все тренировки в плане незавершённые — фактической истории тренировок нет. Не цитируй их как "выполненные".');
+      }
+    }
+    if (staleMarkers.length > 0) {
+      statsContext += '\n## ДАННЫЕ УСТАРЕЛИ (НЕ ВЫДАВАЙ ЗА АКТУАЛЬНОЕ)\n';
+      statsContext += staleMarkers.map((m) => `- ${m}`).join('\n') + '\n';
+    }
+
     // Add weekly plan context if provided
     if (weekPlan && Object.keys(weekPlan).length > 0) {
       const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
