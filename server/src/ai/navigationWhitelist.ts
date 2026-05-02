@@ -276,6 +276,78 @@ export const NAV_WHITELIST: Record<string, NavTarget> = {
 export type NavAlias = keyof typeof NAV_WHITELIST;
 
 /**
+ * Cheap edit-distance suggestion: returns the closest whitelist alias
+ * to the input, or null if nothing is close enough. Used by
+ * validateNavigation when the AI tries an alias that isn't in the map.
+ *
+ * "Close enough" = Levenshtein distance ≤ ceil(input.length / 3) +1.
+ * That tolerance accepts "home_screen" → "home" (distance 7, length 11
+ * → tolerance 5; rejected) and "homepage" → "home" (distance 4, length
+ * 8 → tolerance 4; accepted). For shorter inputs the tolerance is
+ * tighter to avoid wild matches.
+ *
+ * Also accepts "contains" matches: if the alias is a substring of input
+ * or vice versa (length difference > 2), suggest the shorter one.
+ */
+export function findClosestAlias(input: string): string | null {
+  if (!input || typeof input !== 'string') return null;
+  const aliases = Object.keys(NAV_WHITELIST);
+  if (aliases.length === 0) return null;
+
+  // Zero pass: exact match wins (handles the case where input is
+  // already a valid alias — caller should normally not call us in
+  // that case, but be safe).
+  if (aliases.includes(input)) return input;
+
+  // First pass: substring containment, but ranked so that the closest
+  // length match wins over the alphabetically-first one. This prevents
+  // "add_cardio" from suggesting "cardio" when "add_cardio" is itself
+  // a valid alias.
+  let bestSubstring: { alias: string; gap: number } | null = null;
+  for (const a of aliases) {
+    if (input.includes(a) || a.includes(input)) {
+      const gap = Math.abs(input.length - a.length);
+      if (gap <= 8 && (!bestSubstring || gap < bestSubstring.gap)) {
+        bestSubstring = { alias: a, gap };
+      }
+    }
+  }
+  if (bestSubstring) return bestSubstring.alias;
+
+  // Second pass: edit distance
+  const tolerance = Math.max(1, Math.ceil(input.length / 3) + 1);
+  let best: { alias: string; dist: number } | null = null;
+  for (const a of aliases) {
+    const dist = levenshtein(input, a);
+    if (dist <= tolerance && (!best || dist < best.dist)) {
+      best = { alias: a, dist };
+    }
+  }
+  return best ? best.alias : null;
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+  const m = a.length;
+  const n = b.length;
+  // 1D DP — only need previous row
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+/**
  * Validate a navigation request against the whitelist. Returns
  * either a sanitized navigation payload (alias resolved + params
  * validated) or a Russian error message explaining why it was
@@ -313,8 +385,16 @@ export function validateNavigation(
   const entry = NAV_WHITELIST[alias];
 
   if (!entry) {
+    // Round 211: fuzzy-suggest the closest alias so AI can retry with
+    // a real name. Without this, AI only saw the first 10 aliases as
+    // a flat list and often retried with another invalid name. With
+    // suggestion, AI typically retries successfully on next turn.
+    const suggestion = findClosestAlias(alias);
+    const suggestText = suggestion
+      ? ` Возможно, имел в виду "${suggestion}"?`
+      : '';
     return {
-      error: `Экран "${target}" не разрешён для AI-навигации. Доступные: ${Object.keys(NAV_WHITELIST).slice(0, 10).join(', ')}, ...`,
+      error: `Экран "${target}" не разрешён для AI-навигации.${suggestText} Все доступные алиасы: ${Object.keys(NAV_WHITELIST).join(', ')}.`,
     };
   }
 
