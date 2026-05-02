@@ -2,6 +2,23 @@ import { api, BASE_URL } from './api';
 import { Platform } from 'react-native';
 import { ChatMessage } from '../types';
 import { tokenStorage } from '../utils/secureStorage';
+import { reportError } from '../utils/errorReporter';
+
+// Round 275: cap SSE-parse-failure reports per session at 3. Without a
+// cap, a single bad streaming response produces hundreds of error-events
+// (one per dropped chunk) which would overwhelm Sentry's quota and
+// drown out other signal. 3 is enough to identify "AI streaming format
+// regressed" without flooding.
+let sseParseFailReports = 0;
+const SSE_PARSE_FAIL_REPORT_LIMIT = 3;
+function reportSseParseOnce(err: unknown, where: string): void {
+  if (sseParseFailReports >= SSE_PARSE_FAIL_REPORT_LIMIT) return;
+  sseParseFailReports += 1;
+  reportError(err instanceof Error ? err : new Error(String(err)), {
+    screen: 'ai-service',
+    tags: { op: 'sse-parse', where },
+  });
+}
 
 export interface FoodAnalysisItem {
   name: string;
@@ -118,7 +135,12 @@ export const aiService = {
           } else if (parsed.type === 'done') {
             onDone?.({ actions: parsed.actions ?? [], meta: parsed.meta });
           }
-        } catch { /* skip malformed */ }
+        } catch (err) {
+          // Round 275: tell Sentry once per session if SSE chunks
+          // start failing to parse. Skipping silently masked the
+          // upstream regression on Mistral's streaming format.
+          reportSseParseOnce(err, 'fetch-fallback');
+        }
       }
       return;
     }
@@ -132,7 +154,11 @@ export const aiService = {
       const data = line.slice(6).trim();
       try {
         return JSON.parse(data) as { type: string; content?: string; actions?: AIActionResult[]; meta?: AIMeta };
-      } catch { return undefined; }
+      } catch (err) {
+        // Round 275: capped reportError for streaming parse regression visibility.
+        reportSseParseOnce(err, 'reader-stream');
+        return undefined;
+      }
     };
 
     try {
