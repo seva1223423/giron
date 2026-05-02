@@ -1871,7 +1871,29 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             )}
             <TouchableOpacity
               style={[styles.retakeBtn, { backgroundColor: colors.surface }]}
-              onPress={() => { haptic.light(); abortRef.current?.abort(); setImageUri(null); setRecognizedItems([]); setItemBases({}); setLoading(false); setError(''); setIsBarcodeResult(false); setSanityFlags([]); setCachedResult(false); setTotalWeightDraft(''); lastBase64Ref.current = ''; }}
+              onPress={() => {
+                haptic.light();
+                abortRef.current?.abort();
+                textAbortRef.current?.abort();
+                setImageUri(null);
+                setRecognizedItems([]);
+                setItemBases({});
+                setLoading(false);
+                setError(''); setErrorRetryable(true);
+                setIsBarcodeResult(false);
+                setSanityFlags([]);
+                setCachedResult(false);
+                setTotalWeightDraft('');
+                lastBase64Ref.current = '';
+                // Round 239: also clear pending text input + append flag.
+                // Without this, a user who typed in the text modal then
+                // closed it (without submitting) and tapped Retake would
+                // have stale textDescription confuse the retry button's
+                // photo-vs-text branch (round 217). appendNextRef stays
+                // false on a deliberate fresh-start retake.
+                setTextDescription('');
+                appendNextRef.current = false;
+              }}
               accessibilityLabel="Переснять фото"
               accessibilityHint="Сбрасывает текущий результат и возвращает к выбору фото"
               accessibilityRole="button"
