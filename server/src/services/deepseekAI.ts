@@ -539,8 +539,14 @@ export async function analyzeImage(
   mimeType: string = 'image/jpeg',
 ): Promise<string> {
   const model = process.env.AI_VISION_MODEL || process.env.AI_MODEL || DEFAULT_MODEL;
-  // Normalize HEIC/HEIF to jpeg for API compatibility (most vision APIs don't support HEIC)
-  const safeMime = (mimeType === 'image/heic' || mimeType === 'image/heif') ? 'image/jpeg' : mimeType;
+  // Audit: previously this re-labelled HEIC/HEIF mime types as
+  // "image/jpeg" in the data URL prefix while leaving the raw bytes
+  // untouched — Mistral's vision endpoint then saw a "JPEG" payload
+  // that wouldn't decode and returned an opaque error. The route
+  // schema now rejects HEIC up front so this normalisation is dead
+  // code; pass mime type through verbatim and let any future surprise
+  // surface as a clear 415 / 400 rather than a fake-decode failure.
+  const safeMime = mimeType;
   const fetchOptions = {
     method: 'POST',
     headers: {

@@ -168,7 +168,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - Мотивируй через данные: "За последний месяц твой присед вырос на 10 кг — отличная динамика".
 - Эмодзи — максимум 1-2 на сообщение, только если уместно.
 
-## ЧЕСТНОСТЬ И ИСТОЧНИКИ (round 193 — критично)
+## ЧЕСТНОСТЬ И ИСТОЧНИКИ — критично
 
 - **Не выдумывай цифры.** Если не уверен в проценте, граммах, килограммах — скажи "точно не скажу" / "зависит от" / "попробуй и засеки результат". Лучше "обычно 0.3-0.5 кг/нед" чем выдуманное "0.42 кг/нед".
 - **Не придумывай авторов и годы исследований.** Используй "по данным научной литературы" или "по практическому опыту атлетов" вместо "Schoenfeld 2017 показал что...". Если фамилия попадается в базе знаний — цитируй БЕЗ года, если год там не указан.
@@ -178,7 +178,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **Когда юзер противоречит данным — мягко переспроси, не игнорируй.** Если юзер говорит "я ем 200г белка/день" но в ## ПИТАНИЕ СЕГОДНЯ показано 80г — не молчи и не подыгрывай. Скажи: "Сейчас в дневнике сегодня 80г белка. Что-то не записал? Или речь о среднем за неделю?". То же самое если юзер говорит "вешу 75" но последняя запись 84 кг — переспроси, потом log_body_weight новое значение. Это профессиональная позиция тренера, не грубость.
 - **Используй секции ## ЧЕГО НЕТ В ДАННЫХ и ## ДАННЫЕ УСТАРЕЛИ.** Если в этих списках есть пункт — значит данных нет ИЛИ они старые. Не делай вид, что знаешь актуальное значение. Скажи "у тебя нет записей" и предложи начать. Это честнее любого красивого графика.
 
-## ЗНАНИЯ ИЗ БАЗЫ (round 193)
+## ЗНАНИЯ ИЗ БАЗЫ
 
 Если используешь информацию из приложенных модулей знаний:
 - **Перефразируй своими словами**, не цитируй абзацами. Юзер говорит с тренером, а не читает учебник.
@@ -1193,6 +1193,30 @@ const AI_TOOLS: DeepSeekTool[] = [
           },
         },
         required: ['action', 'key'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'navigate_to_screen',
+      // Round 228: handler existed at line 4958 but tool spec was missing
+      // — AI never saw it as available, so the navigation feature was
+      // dead code. Adding it now wires AI to the whitelist (R192).
+      description: 'Открыть экран приложения для пользователя. Используй когда юзер просит "открой настройки", "перейди в питание", "покажи мои рекорды". Только разрешённые алиасы из whitelist (home, workouts, nutrition, profile, progress, recipes, settings, и другие). Опасные экраны (удаление аккаунта, смена пароля, оплата) недоступны.',
+      parameters: {
+        type: 'object',
+        properties: {
+          target: {
+            type: 'string',
+            description: 'Алиас целевого экрана из whitelist (home | workouts | nutrition | profile | progress | recipes | settings | personal_records | weekly_plan | workout_history | exercise_detail | recipe_detail | program_detail | etc). См. NAV_WHITELIST в navigationWhitelist.ts.',
+          },
+          params: {
+            type: 'object',
+            description: 'Параметры экрана (например exerciseId для exercise_detail). Только для экранов, где они нужны.',
+          },
+        },
+        required: ['target'],
       },
     },
   },
@@ -4971,12 +4995,23 @@ async function executeTool(
     const { windowDays } = toolInput as { windowDays?: number };
     const safeWindow = Math.min(90, Math.max(1, Math.floor(Number(windowDays) || 7)));
 
-    // Two contiguous windows: [now - 2W .. now - W) vs [now - W .. now]
-    const now = new Date();
+    // Round 227: anchor windows to start-of-day UTC. Without this, the
+    // window-end was "now" which is mid-day, so the YYYY-MM-DD slice
+    // used for SleepEntry filtering was today's date — but `lt` strict
+    // less-than excluded today's sleep entry from the current window.
+    // Same issue at the previous-window boundary. Anchoring to
+    // start-of-day means today is fully included AND boundaries align
+    // with how users think of "the past 7 days".
     const dayMs = 86_400_000;
     const windowMs = safeWindow * dayMs;
-    const currentStart = new Date(now.getTime() - windowMs);
-    const previousStart = new Date(now.getTime() - 2 * windowMs);
+    // Use clientDate when provided so timezone-shifted clients see
+    // their local "today" as the boundary (not server UTC).
+    const todayStr = clientDate ?? new Date().toISOString().split('T')[0];
+    const todayStart = new Date(`${todayStr}T00:00:00.000Z`);
+    const tomorrowStart = new Date(todayStart.getTime() + dayMs); // exclusive end
+    const currentStart = new Date(tomorrowStart.getTime() - windowMs);
+    const previousStart = new Date(tomorrowStart.getTime() - 2 * windowMs);
+    const now = tomorrowStart; // alias for backward-compatible local var
 
     // Round 120: also include sleep avg metric. SleepEntry already stores
     // durationHours per day; aggregate as average over the window.
@@ -83901,7 +83936,15 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
   try {
     const parsed = z.object({
       imageBase64: z.string().min(100, 'Изображение слишком маленькое').max(9_000_000, 'Изображение слишком большое'),
-      mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']).optional(),
+      // Audit: HEIC/HEIF removed from the accepted set. analyzeImage in
+      // deepseekAI normalised those mime types to "image/jpeg" in the
+      // data URL prefix while leaving the raw HEIC bytes untouched, so
+      // Mistral's vision endpoint saw a "JPEG" payload that wouldn't
+      // decode and returned an opaque error. Our client always passes
+      // through ImageManipulator → JPEG (round 196 path), so rejecting
+      // HEIC at the schema documents the real contract instead of
+      // pretending to handle a format the upstream API can't read.
+      mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']).optional(),
       // Audit: previously the daily quota used UTC midnight, which on
       // Russian timezones (UTC+2 to UTC+12) shifts the reset 2-12 hours
       // past the user's local midnight. A user in Vladivostok hitting
