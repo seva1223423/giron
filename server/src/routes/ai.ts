@@ -84125,7 +84125,9 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
   ]
 }`;
 
+    const firstCallStartTs = Date.now();
     let text = await analyzeImage(imageBase64, prompt, mimeType);
+    const firstCallElapsedMs = Date.now() - firstCallStartTs;
     let items = parseFoodResponse(text);
 
     // Low-confidence retry — if the first pass returns an answer but every
@@ -84134,10 +84136,18 @@ ${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ?
     // typically lifts confidence by ~0.2 when the real cause was a rushed
     // first read, and costs a single extra Mistral call at most. We only
     // retry once, and only if the original parse succeeded.
+    //
+    // Audit: also gate on remaining time budget. The client aborts at 50 s;
+    // if the first call already took >25 s, queuing a retry would likely
+    // push past the client's timeout — we'd burn an extra Mistral call
+    // without ever delivering its result. Skipping the retry in that
+    // case lets the user see the (lower-confidence) first result before
+    // their abort fires.
+    const RETRY_TIME_BUDGET_MS = 25_000;
     const firstPassAvgConf = items && items.length > 0
       ? items.reduce((s, i) => s + (typeof i.confidence === 'number' ? i.confidence : 0.6), 0) / items.length
       : 1;
-    if (items && items.length > 0 && firstPassAvgConf < 0.6) {
+    if (items && items.length > 0 && firstPassAvgConf < 0.6 && firstCallElapsedMs < RETRY_TIME_BUDGET_MS) {
       try {
         const retryPrompt = `${prompt}\n\nВАЖНО: предыдущая оценка была с низкой уверенностью. Пересмотри внимательно: точнее определи ингредиенты (посмотри на цвет, форму, текстуру), корректнее прикинь вес по ориентирам из правила 3. Если всё равно не уверен — лучше верни меньше позиций, но с высокой точностью.`;
         const retryText = await analyzeImage(imageBase64, retryPrompt, mimeType);
