@@ -107,6 +107,71 @@ const otpEquals = (stored: string, input: string): boolean => {
   return crypto.timingSafeEqual(Buffer.from(stored), Buffer.from(input));
 };
 
+/**
+ * Round 234 (security audit): OAuth token replay cache.
+ *
+ * Google id_token has 60-min `exp` by default. VK and Yandex access
+ * tokens are opaque and live for hours. If an attacker captures any of
+ * them (TLS-MITM with cert-pin bypass, clipboard scrape, debug log
+ * leak), they can hit `/auth/google|vk|yandex` repeatedly within the
+ * token lifetime — each call mints a fresh refresh-token pair. Even
+ * with the suspicious-login alert, the attacker has hours.
+ *
+ * This cache rejects any token whose identity-key has been seen before,
+ * regardless of validity. The key is:
+ *   - Google: `g:${jti}` from id_token claims (always present per RFC)
+ *   - VK / Yandex: `${provider}:${sha256(access_token).slice(0,32)}` —
+ *     these aren't JWTs, so we hash the raw token. Doing so doesn't
+ *     leak it (one-way) and gives a stable identity for replay match.
+ *
+ * Entries auto-expire after 70 minutes (just past the longest token
+ * lifetime). Cap at 50,000 entries — a busy day at scale, well within
+ * memory budget. The pruner runs every 5 min with `unref()` so it never
+ * holds the event loop open.
+ */
+const OAUTH_REPLAY_TTL_MS = 70 * 60 * 1000;
+const OAUTH_REPLAY_MAX = 50_000;
+const oauthReplayCache = new Map<string, number>();
+
+function pruneOAuthReplayCache(): void {
+  const now = Date.now();
+  for (const [k, t] of oauthReplayCache) {
+    if (now - t > OAUTH_REPLAY_TTL_MS) oauthReplayCache.delete(k);
+  }
+  // Hard cap — if the prune left us over budget (unlikely outside abuse),
+  // drop the oldest entries by Map insertion order.
+  while (oauthReplayCache.size > OAUTH_REPLAY_MAX) {
+    const oldest = oauthReplayCache.keys().next().value;
+    if (oldest === undefined) break;
+    oauthReplayCache.delete(oldest);
+  }
+}
+setInterval(pruneOAuthReplayCache, 5 * 60 * 1000).unref();
+
+/**
+ * Marks the token-identity key as seen. Returns `true` on first sight,
+ * `false` if this exact identity already came in within TTL — caller
+ * must treat `false` as a replay attack and refuse the auth.
+ */
+function markOAuthTokenSeen(key: string): boolean {
+  const now = Date.now();
+  const prev = oauthReplayCache.get(key);
+  if (prev !== undefined && now - prev <= OAUTH_REPLAY_TTL_MS) return false;
+  oauthReplayCache.set(key, now);
+  return true;
+}
+
+/** Test-only — reset state between cases. Not exported via barrel. */
+export function _resetOAuthReplayCacheForTests(): void {
+  oauthReplayCache.clear();
+}
+
+/** Test-only — exposes the marker so the cache contract can be unit-tested
+ *  without spinning up the full Express stack. */
+export function _markOAuthTokenSeenForTests(key: string): boolean {
+  return markOAuthTokenSeen(key);
+}
+
 const MAX_SESSIONS_PER_USER = 10;
 
 /** SHA-256 of a refresh token. Stored in DB so a leak does not yield
@@ -650,6 +715,30 @@ router.post('/google', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Не удалось получить данные из Google' });
     }
 
+    // Round 234 (security audit): freshness window. `verifyIdToken` accepts
+    // a token up to 60 min old (Google's default `exp`). A captured-but-
+    // not-yet-expired token replayed an hour later is still "valid" by
+    // signature. Require `iat` within 5 min of now — short enough that a
+    // captured token has minutes, not an hour, of usable lifetime; long
+    // enough that legitimate clients with mild clock skew aren't rejected.
+    const nowSec = Math.floor(Date.now() / 1000);
+    const iat = typeof payload.iat === 'number' ? payload.iat : 0;
+    if (iat <= 0 || nowSec - iat > 300) {
+      return res.status(401).json({ error: 'Google токен устарел, повторите вход', code: 'TOKEN_STALE' });
+    }
+
+    // Round 234: replay cache. Google ID tokens carry a `jti` per RFC 7519
+    // (also: `sub` + `iat` together form a unique-enough fallback for
+    // older audiences that omit jti). The first /auth/google call with
+    // a given jti wins; subsequent calls with the SAME jti within TTL
+    // are refused — covers the case where an attacker grabs a single
+    // valid token and races against the legit client.
+    const jti = (typeof payload.jti === 'string' && payload.jti) || `${payload.sub}:${payload.iat}`;
+    if (!markOAuthTokenSeen(`g:${jti}`)) {
+      await logSecurityEvent('OAUTH_TOKEN_REPLAY', null, req, `provider=google jti=${jti.slice(0, 12)}`);
+      return res.status(401).json({ error: 'Google токен уже был использован, повторите вход', code: 'TOKEN_REPLAY' });
+    }
+
     // Google OAuth account-takeover hardening (sec audit 2026-04: HIGH-2).
     // `email_verified` MUST be true before we trust `payload.email` for
     // user creation or auto-linking — otherwise a Google Workspace admin
@@ -765,6 +854,14 @@ router.post('/vk', async (req: Request, res: Response) => {
       return res.status(503).json({ error: 'VK OAuth не настроен на сервере' });
     }
 
+    // Round 234 (security audit): replay cache. VK access tokens are
+    // opaque (not JWT) — we hash for stable, non-leaking identity.
+    const vkTokenKey = `v:${crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 32)}`;
+    if (!markOAuthTokenSeen(vkTokenKey)) {
+      await logSecurityEvent('OAUTH_TOKEN_REPLAY', null, req, 'provider=vk');
+      return res.status(401).json({ error: 'VK токен уже был использован, повторите вход', code: 'TOKEN_REPLAY' });
+    }
+
     let vkUser: any;
     try {
       // Omit user_ids to get the token owner's own profile — prevents user ID spoofing
@@ -858,6 +955,15 @@ router.post('/yandex', async (req: Request, res: Response) => {
 
     if (!process.env.YANDEX_CLIENT_ID) {
       return res.status(503).json({ error: 'Yandex OAuth не настроен на сервере' });
+    }
+
+    // Round 234 (security audit): replay cache. Same rationale as the VK
+    // path — Yandex access tokens are opaque (not JWT), so we hash for a
+    // stable identity that doesn't leak the raw token.
+    const yandexTokenKey = `y:${crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 32)}`;
+    if (!markOAuthTokenSeen(yandexTokenKey)) {
+      await logSecurityEvent('OAUTH_TOKEN_REPLAY', null, req, 'provider=yandex');
+      return res.status(401).json({ error: 'Yandex токен уже был использован, повторите вход', code: 'TOKEN_REPLAY' });
     }
 
     // Validate token with Yandex API
@@ -1125,6 +1231,25 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     });
     if (recentCount >= 3) {
       return res.status(429).json({ error: 'Слишком много запросов. Подождите 10 минут.' });
+    }
+
+    // Round 234 (security audit): per-USER cap for email-change so an
+    // attacker with a stolen access token can't burn the SMTP quota by
+    // rotating target emails (a@x.com, b@x.com, c@x.com…) — each unique
+    // address bypasses the per-identifier limit above. Cap at 5/hour
+    // per ownerUserId for email-change specifically; phone-change is
+    // SMS-billed separately and has its own provider-side throttle.
+    if (purpose === 'email-change' && ownerUserId) {
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const ownerEmailChangeCount = await prisma.otpCode.count({
+        where: { userId: ownerUserId, purpose: 'email-change', createdAt: { gte: hourAgo } },
+      });
+      if (ownerEmailChangeCount >= 5) {
+        return res.status(429).json({
+          error: 'Слишком много запросов на смену email. Попробуйте через час.',
+          code: 'EMAIL_CHANGE_RATE_LIMIT',
+        });
+      }
     }
 
     // Invalidate old unused codes

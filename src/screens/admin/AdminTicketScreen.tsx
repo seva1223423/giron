@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView, Modal,
+  KeyboardAvoidingView, Platform, Alert, ScrollView, Modal,
   AppState,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -10,12 +10,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supportService } from '../../services/supportService';
 import { adminService } from '../../services/adminService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useThemeColors } from '../../store/useThemeStore';
+import { Spinner, Icon } from '../../components';
 import type { SupportTicket, SupportMessage, TicketStatus, TicketPriority } from '../../types';
+import type { Colors } from '../../theme/colors';
 
 const SUB_PLANS = [
-  { value: 'pro', label: 'PRO', color: '#6366F1' },
-  { value: 'trainer', label: 'Trainer', color: '#F59E0B' },
-  { value: 'club', label: 'Club', color: '#10B981' },
+  { value: 'pro', label: 'PRO', getColor: (c: Colors) => c.primary },
+  { value: 'trainer', label: 'Trainer', getColor: (c: Colors) => c.warning },
+  { value: 'club', label: 'Club', getColor: (c: Colors) => c.success },
 ] as const;
 const SUB_DURATIONS = [
   { days: 30, label: '1 месяц' },
@@ -38,35 +41,46 @@ type RouteParams = { ticketId: string };
 
 const STATUS_OPTIONS: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
 const PRIORITY_OPTIONS: TicketPriority[] = ['low', 'normal', 'high', 'urgent'];
-const STATUS_COLOR: Record<TicketStatus, string> = {
-  open: '#EF4444', in_progress: '#F59E0B', resolved: '#10B981', closed: '#6B7280',
+const statusColorOf = (s: TicketStatus, c: Colors): string => {
+  if (s === 'open') return c.error;
+  if (s === 'in_progress') return c.warning;
+  if (s === 'resolved') return c.success;
+  return c.textSecondary;
 };
-const PRIORITY_COLOR: Record<TicketPriority, string> = {
-  urgent: '#EF4444', high: '#F59E0B', normal: '#6366F1', low: '#6B7280',
+const priorityColorOf = (p: TicketPriority, c: Colors): string => {
+  if (p === 'urgent') return c.error;
+  if (p === 'high') return c.warning;
+  if (p === 'normal') return c.primary;
+  return c.textSecondary;
 };
 
-function MessageBubble({ msg, myId }: { msg: SupportMessage; myId?: string }) {
+function MessageBubble({ msg, myId, colors }: { msg: SupportMessage; myId?: string; colors: Colors }) {
   const isMe = msg.authorId === myId;
   if (msg.isInternal) {
     return (
-      <View style={styles.noteBlock}>
-        <Text style={styles.noteAuthor}>📌 Заметка · {msg.author.firstName}</Text>
-        <Text style={styles.noteText}>{msg.content}</Text>
-        <Text style={styles.noteTime}>
+      <View style={[styles.noteBlock, { backgroundColor: colors.warning + '0E', borderColor: colors.warning + '30' }]}>
+        <Text style={[styles.noteAuthor, { color: colors.warning }]}>📌 Заметка · {msg.author.firstName}</Text>
+        <Text style={[styles.noteText, { color: colors.text }]}>{msg.content}</Text>
+        <Text style={[styles.noteTime, { color: colors.warning + '80' }]}>
           {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
     );
   }
   return (
-    <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
+    <View style={[
+      styles.bubble,
+      isMe
+        ? { alignSelf: 'flex-end', backgroundColor: colors.primary }
+        : { alignSelf: 'flex-start', backgroundColor: colors.surface },
+    ]}>
       {!isMe && (
-        <Text style={styles.bubbleAuthor}>
+        <Text style={[styles.bubbleAuthor, { color: colors.textSecondary }]}>
           {msg.isStaff ? `🎧 ${msg.author.firstName}` : `👤 ${msg.author.firstName}`}
         </Text>
       )}
-      <Text style={styles.bubbleText}>{msg.content}</Text>
-      <Text style={styles.bubbleTime}>
+      <Text style={[styles.bubbleText, { color: isMe ? colors.textInverse : colors.text }]}>{msg.content}</Text>
+      <Text style={[styles.bubbleTime, { color: isMe ? colors.textInverse + '80' : colors.textSecondary }]}>
         {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
       </Text>
     </View>
@@ -74,6 +88,7 @@ function MessageBubble({ msg, myId }: { msg: SupportMessage; myId?: string }) {
 }
 
 export default function AdminTicketScreen() {
+  const colors = useThemeColors();
   const route = useRoute<RouteProp<{ AdminTicketScreen: RouteParams }, 'AdminTicketScreen'>>();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { ticketId } = route.params ?? {};
@@ -101,7 +116,6 @@ export default function AdminTicketScreen() {
     try {
       const data = await supportService.getTicket(ticketId);
       setTicket(data);
-      // Fetch other tickets from the same user
       if (data.user?.email) {
         adminService.getSupportTickets({ search: data.user.email, limit: 10 })
           .then((res) => setUserTickets(res.tickets.filter((t) => t.id !== ticketId)))
@@ -112,7 +126,6 @@ export default function AdminTicketScreen() {
     }
   }, [ticketId]);
 
-  // Silent poll — only append new messages, no loading spinner
   const poll = useCallback(async () => {
     try {
       const data = await supportService.getTicket(ticketId);
@@ -126,9 +139,12 @@ export default function AdminTicketScreen() {
     } catch { /* ignore */ }
   }, [ticketId]);
 
-  useEffect(() => { load(); }, []);
+  // Round 271: include `load` (useCallback over ticketId) so a route
+  // param change re-fires the fetch. Previously the empty deps array
+  // captured the first ticket only — admin opening a second ticket
+  // via deep link saw stale data.
+  useEffect(() => { load(); }, [load]);
 
-  // Auto-poll every 20s while screen is mounted AND app is foregrounded.
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => { if (!interval) interval = setInterval(poll, 20000); };
@@ -259,28 +275,40 @@ export default function AdminTicketScreen() {
     ]);
   }, [ticketId]);
 
-  if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
-  if (!ticket) return <View style={styles.center}><Text style={{ color: '#9CA3AF' }}>Тикет не найден</Text></View>;
+  if (loading) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Spinner size={32} color={colors.primary} />
+      </View>
+    );
+  }
+  if (!ticket) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.textSecondary }}>Тикет не найден</Text>
+      </View>
+    );
+  }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       {/* Canned replies modal */}
       <Modal visible={showCanned} transparent animationType="slide" onRequestClose={() => setShowCanned(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Быстрые ответы</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Быстрые ответы</Text>
               <TouchableOpacity onPress={() => setShowCanned(false)}>
-                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
             </View>
             {CANNED_REPLIES.map((reply, i) => (
               <TouchableOpacity
                 key={i}
-                style={styles.cannedItem}
+                style={[styles.cannedItem, { borderBottomColor: colors.border }]}
                 onPress={() => { setText(reply); setShowCanned(false); }}
               >
-                <Text style={styles.cannedText} numberOfLines={2}>{reply}</Text>
+                <Text style={[styles.cannedText, { color: colors.text }]} numberOfLines={2}>{reply}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -289,46 +317,61 @@ export default function AdminTicketScreen() {
 
       {/* Subscription grant modal */}
       <Modal visible={showSubModal} transparent animationType="slide" onRequestClose={() => setShowSubModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>🎁 Выдать подписку</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>🎁 Выдать подписку</Text>
               <TouchableOpacity onPress={() => setShowSubModal(false)}>
-                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.subModalSection}>Тариф</Text>
+            <Text style={[styles.subModalSection, { color: colors.textSecondary }]}>Тариф</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-              {SUB_PLANS.map((p) => (
-                <TouchableOpacity
-                  key={p.value}
-                  style={[styles.subPlanBtn, subPlan === p.value && { backgroundColor: p.color + '22', borderColor: p.color }]}
-                  onPress={() => setSubPlan(p.value)}
-                >
-                  <Text style={[styles.subPlanText, subPlan === p.value && { color: p.color }]}>{p.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {SUB_PLANS.map((p) => {
+                const pColor = p.getColor(colors);
+                const isActive = subPlan === p.value;
+                return (
+                  <TouchableOpacity
+                    key={p.value}
+                    style={[
+                      styles.subPlanBtn,
+                      { backgroundColor: colors.surfaceElevated },
+                      isActive && { backgroundColor: pColor + '22', borderColor: pColor },
+                    ]}
+                    onPress={() => setSubPlan(p.value)}
+                  >
+                    <Text style={[styles.subPlanText, { color: colors.textSecondary }, isActive && { color: pColor }]}>{p.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            <Text style={styles.subModalSection}>Срок</Text>
+            <Text style={[styles.subModalSection, { color: colors.textSecondary }]}>Срок</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-              {SUB_DURATIONS.map((d) => (
-                <TouchableOpacity
-                  key={d.days}
-                  style={[styles.subPlanBtn, subDays === d.days && { backgroundColor: '#6366F122', borderColor: '#6366F1' }]}
-                  onPress={() => setSubDays(d.days)}
-                >
-                  <Text style={[styles.subPlanText, subDays === d.days && { color: '#6366F1' }]}>{d.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {SUB_DURATIONS.map((d) => {
+                const isActive = subDays === d.days;
+                return (
+                  <TouchableOpacity
+                    key={d.days}
+                    style={[
+                      styles.subPlanBtn,
+                      { backgroundColor: colors.surfaceElevated },
+                      isActive && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
+                    ]}
+                    onPress={() => setSubDays(d.days)}
+                  >
+                    <Text style={[styles.subPlanText, { color: colors.textSecondary }, isActive && { color: colors.primary }]}>{d.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
             <TouchableOpacity
-              style={[styles.subGrantBtn, grantingSubb && { opacity: 0.6 }]}
+              style={[styles.subGrantBtn, { backgroundColor: colors.primary }, grantingSubb && { opacity: 0.6 }]}
               onPress={grantSubscription}
               disabled={grantingSubb}
             >
               {grantingSubb
-                ? <ActivityIndicator color="#FFFFFF" size="small" />
-                : <Text style={styles.subGrantBtnText}>Выдать {subPlan.toUpperCase()} на {subDays} дней</Text>
+                ? <Spinner color={colors.textInverse} size={18} />
+                : <Text style={[styles.subGrantBtnText, { color: colors.textInverse }]}>Выдать {subPlan.toUpperCase()} на {subDays} дней</Text>
               }
             </TouchableOpacity>
           </View>
@@ -337,102 +380,125 @@ export default function AdminTicketScreen() {
 
       {/* Staff assign modal */}
       <Modal visible={showAssignModal} transparent animationType="slide" onRequestClose={() => setShowAssignModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Назначить тикет</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Назначить тикет</Text>
               <TouchableOpacity onPress={() => setShowAssignModal(false)}>
-                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
             </View>
             {ticket?.assignedToId && (
               <TouchableOpacity
-                style={[styles.cannedItem, { borderBottomColor: '#EF444430' }]}
+                style={[styles.cannedItem, { borderBottomColor: colors.error + '30' }]}
                 onPress={() => doAssign(null)}
                 disabled={assigning}
               >
-                <Text style={{ fontSize: 14, color: '#EF4444' }}>✕ Снять назначение</Text>
+                <Text style={{ fontSize: 14, color: colors.error }}>✕ Снять назначение</Text>
               </TouchableOpacity>
             )}
             {staffList.length === 0 ? (
-              <ActivityIndicator color="#6366F1" style={{ marginVertical: 20 }} />
+              <View style={{ marginVertical: 20, alignItems: 'center' }}>
+                <Spinner color={colors.primary} />
+              </View>
             ) : (
-              staffList.map((s) => (
-                <TouchableOpacity
-                  key={s.id}
-                  style={[styles.cannedItem, ticket?.assignedToId === s.id && { backgroundColor: '#6366F110' }]}
-                  onPress={() => doAssign(s.id)}
-                  disabled={assigning}
-                >
-                  <Text style={{ fontSize: 14, color: ticket?.assignedToId === s.id ? '#6366F1' : '#D1D5DB', fontWeight: ticket?.assignedToId === s.id ? '700' : '400' }}>
-                    {ticket?.assignedToId === s.id ? '✓ ' : ''}{s.firstName} {s.lastName ?? ''} · {s.role}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{s.email}</Text>
-                </TouchableOpacity>
-              ))
+              staffList.map((s) => {
+                const selected = ticket?.assignedToId === s.id;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[
+                      styles.cannedItem,
+                      { borderBottomColor: colors.border },
+                      selected && { backgroundColor: colors.primary + '10' },
+                    ]}
+                    onPress={() => doAssign(s.id)}
+                    disabled={assigning}
+                  >
+                    <Text style={{ fontSize: 14, color: selected ? colors.primary : colors.text, fontWeight: selected ? '700' : '400' }}>
+                      {selected ? '✓ ' : ''}{s.firstName} {s.lastName ?? ''} · {s.role}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{s.email}</Text>
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
         </View>
       </Modal>
 
       {/* Ticket meta */}
-      <ScrollView style={styles.meta} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metaContent}>
+      <ScrollView style={[styles.meta, { backgroundColor: colors.surface, borderBottomColor: colors.border }]} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metaContent}>
         <TouchableOpacity onPress={() => ticket.user && navigation.navigate('AdminUserDetailScreen', { userId: ticket.user.id })}>
-          <Text style={[styles.metaUser, { textDecorationLine: 'underline' }]}>👤 {ticket.user?.firstName} {ticket.user?.lastName}</Text>
+          <Text style={[styles.metaUser, { color: colors.textSecondary, textDecorationLine: 'underline' }]}>👤 {ticket.user?.firstName} {ticket.user?.lastName}</Text>
         </TouchableOpacity>
-        <Text style={styles.metaDot}>·</Text>
-        {/* Status chips */}
-        {STATUS_OPTIONS.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={[styles.chip, ticket.status === s && { backgroundColor: STATUS_COLOR[s] + '33', borderColor: STATUS_COLOR[s] }]}
-            onPress={() => ticket.status !== s && changeStatus(s)}
-          >
-            <Text style={[styles.chipText, ticket.status === s && { color: STATUS_COLOR[s] }]}>{s}</Text>
-          </TouchableOpacity>
-        ))}
-        <Text style={styles.metaDot}>·</Text>
-        {/* Priority chips */}
-        {PRIORITY_OPTIONS.map((p) => (
-          <TouchableOpacity
-            key={p}
-            style={[styles.chip, ticket.priority === p && { backgroundColor: PRIORITY_COLOR[p] + '33', borderColor: PRIORITY_COLOR[p] }]}
-            onPress={() => ticket.priority !== p && changePriority(p)}
-          >
-            <Text style={[styles.chipText, ticket.priority === p && { color: PRIORITY_COLOR[p] }]}>{p}</Text>
-          </TouchableOpacity>
-        ))}
+        <Text style={[styles.metaDot, { color: colors.border }]}>·</Text>
+        {STATUS_OPTIONS.map((s) => {
+          const sColor = statusColorOf(s, colors);
+          const isActive = ticket.status === s;
+          return (
+            <TouchableOpacity
+              key={s}
+              style={[
+                styles.chip,
+                { backgroundColor: colors.surfaceElevated },
+                isActive && { backgroundColor: sColor + '33', borderColor: sColor },
+              ]}
+              onPress={() => ticket.status !== s && changeStatus(s)}
+            >
+              <Text style={[styles.chipText, { color: colors.textSecondary }, isActive && { color: sColor }]}>{s}</Text>
+            </TouchableOpacity>
+          );
+        })}
+        <Text style={[styles.metaDot, { color: colors.border }]}>·</Text>
+        {PRIORITY_OPTIONS.map((p) => {
+          const pColor = priorityColorOf(p, colors);
+          const isActive = ticket.priority === p;
+          return (
+            <TouchableOpacity
+              key={p}
+              style={[
+                styles.chip,
+                { backgroundColor: colors.surfaceElevated },
+                isActive && { backgroundColor: pColor + '33', borderColor: pColor },
+              ]}
+              onPress={() => ticket.priority !== p && changePriority(p)}
+            >
+              <Text style={[styles.chipText, { color: colors.textSecondary }, isActive && { color: pColor }]}>{p}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
-      <View style={styles.subjectBar}>
+      <View style={[styles.subjectBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.subject} numberOfLines={2}>{ticket.subject}</Text>
+          <Text style={[styles.subject, { color: colors.text }]} numberOfLines={2}>{ticket.subject}</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-            <Text style={styles.category}>{ticket.category}</Text>
-            <Text style={styles.subjectMeta}>
+            <Text style={[styles.category, { color: colors.primary }]}>{ticket.category}</Text>
+            <Text style={[styles.subjectMeta, { color: colors.textSecondary }]}>
               {new Date(ticket.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
             </Text>
             {ticket.assignedTo && (
-              <Text style={styles.assignedMeta}>→ {ticket.assignedTo.firstName}</Text>
+              <Text style={[styles.assignedMeta, { color: colors.success }]}>→ {ticket.assignedTo.firstName}</Text>
             )}
             {userTickets.length > 0 && (
               <TouchableOpacity onPress={() => setShowUserTickets(!showUserTickets)}>
-                <Text style={styles.otherTicketsBtn}>
+                <Text style={[styles.otherTicketsBtn, { color: colors.primary }]}>
                   {showUserTickets ? '▲' : '▼'} ещё {userTickets.length} тик.
                 </Text>
               </TouchableOpacity>
             )}
           </View>
           {showUserTickets && (
-            <View style={styles.otherTicketsList}>
+            <View style={[styles.otherTicketsList, { borderTopColor: colors.border }]}>
               {userTickets.map((t) => (
                 <TouchableOpacity
                   key={t.id}
-                  style={styles.otherTicketRow}
+                  style={[styles.otherTicketRow, { borderBottomColor: colors.border }]}
                   onPress={() => navigation.replace('AdminTicketScreen', { ticketId: t.id })}
                 >
-                  <Text style={styles.otherTicketSubject} numberOfLines={1}>{t.subject}</Text>
-                  <Text style={[styles.otherTicketStatus, { color: STATUS_COLOR[t.status] }]}>{t.status}</Text>
+                  <Text style={[styles.otherTicketSubject, { color: colors.text }]} numberOfLines={1}>{t.subject}</Text>
+                  <Text style={[styles.otherTicketStatus, { color: statusColorOf(t.status, colors) }]}>{t.status}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -444,76 +510,88 @@ export default function AdminTicketScreen() {
         ref={flatRef}
         data={ticket.messages}
         keyExtractor={(m) => m.id}
-        renderItem={({ item }) => <MessageBubble msg={item} myId={userId} />}
+        renderItem={({ item }) => <MessageBubble msg={item} myId={userId} colors={colors} />}
         contentContainerStyle={styles.messages}
       />
 
       {/* Action bar above input */}
-      <View style={styles.actionBar}>
-        <TouchableOpacity style={styles.actionBarBtn} onPress={() => setShowCanned(true)}>
-          <Text style={styles.actionBarBtnText}>💬 Шаблоны</Text>
+      <View style={[styles.actionBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+        <TouchableOpacity style={[styles.actionBarBtn, { borderColor: colors.primary + '40' }]} onPress={() => setShowCanned(true)}>
+          <Text style={[styles.actionBarBtnText, { color: colors.primary }]}>💬 Шаблоны</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBarBtn, { borderColor: '#10B98140' }]} onPress={() => setShowSubModal(true)}>
-          <Text style={[styles.actionBarBtnText, { color: '#10B981' }]}>🎁 Подписка</Text>
+        <TouchableOpacity style={[styles.actionBarBtn, { borderColor: colors.success + '40' }]} onPress={() => setShowSubModal(true)}>
+          <Text style={[styles.actionBarBtnText, { color: colors.success }]}>🎁 Подписка</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionBarBtn, ticket.assignedToId === userId && { borderColor: '#10B98160', backgroundColor: '#10B98108' }]}
+          style={[
+            styles.actionBarBtn,
+            { borderColor: colors.primary + '40' },
+            ticket.assignedToId === userId && { borderColor: colors.success + '60', backgroundColor: colors.success + '08' },
+          ]}
           onPress={assignToMe}
         >
-          <Text style={[styles.actionBarBtnText, ticket.assignedToId === userId && { color: '#10B981' }]}>
+          <Text style={[styles.actionBarBtnText, { color: colors.primary }, ticket.assignedToId === userId && { color: colors.success }]}>
             {ticket.assignedToId === userId ? '✓ Взят' : 'Взять'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBarBtn, { borderColor: '#8B5CF640' }]} onPress={openAssignModal}>
-          <Text style={[styles.actionBarBtnText, { color: '#8B5CF6' }]}>
+        <TouchableOpacity style={[styles.actionBarBtn, { borderColor: colors.primary + '40' }]} onPress={openAssignModal}>
+          <Text style={[styles.actionBarBtnText, { color: colors.primary }]}>
             {ticket.assignedTo ? `→ ${ticket.assignedTo.firstName}` : 'Назначить'}
           </Text>
         </TouchableOpacity>
         {ticket.priority !== 'urgent' && ticket.status !== 'closed' && ticket.status !== 'resolved' && (
           <TouchableOpacity
-            style={[styles.actionBarBtn, { borderColor: '#EF444440' }]}
+            style={[styles.actionBarBtn, { borderColor: colors.error + '40' }]}
             onPress={() => changePriority('urgent')}
           >
-            <Text style={[styles.actionBarBtnText, { color: '#EF4444' }]}>🔴 Urgent</Text>
+            <Text style={[styles.actionBarBtnText, { color: colors.error }]}>🔴 Urgent</Text>
           </TouchableOpacity>
         )}
         {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
           <TouchableOpacity
-            style={[styles.actionBarBtn, { borderColor: '#10B98160' }]}
+            style={[styles.actionBarBtn, { borderColor: colors.success + '60' }]}
             onPress={() => changeStatus('resolved')}
           >
-            <Text style={[styles.actionBarBtnText, { color: '#10B981' }]}>✓ Решено</Text>
+            <Text style={[styles.actionBarBtnText, { color: colors.success }]}>✓ Решено</Text>
           </TouchableOpacity>
         )}
         {ticket.status !== 'closed' && (
-          <TouchableOpacity style={[styles.actionBarBtn, { borderColor: '#6B728060' }]} onPress={quickClose}>
-            <Text style={[styles.actionBarBtnText, { color: '#6B7280' }]}>✗ Закрыть</Text>
+          <TouchableOpacity style={[styles.actionBarBtn, { borderColor: colors.textSecondary + '60' }]} onPress={quickClose}>
+            <Text style={[styles.actionBarBtnText, { color: colors.textSecondary }]}>✗ Закрыть</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TouchableOpacity
-          style={[styles.noteModeBtn, isNoteMode && { backgroundColor: '#F59E0B22', borderColor: '#F59E0B60' }]}
+          style={[
+            styles.noteModeBtn,
+            { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+            isNoteMode && { backgroundColor: colors.warning + '22', borderColor: colors.warning + '60' },
+          ]}
           onPress={() => setIsNoteMode(!isNoteMode)}
         >
-          <Text style={[styles.noteModeBtnText, isNoteMode && { color: '#F59E0B' }]}>📌</Text>
+          <Text style={[styles.noteModeBtnText, isNoteMode && { color: colors.warning }]}>📌</Text>
         </TouchableOpacity>
         <TextInput
-          style={[styles.input, isNoteMode && { borderWidth: 1, borderColor: '#F59E0B40' }]}
+          style={[
+            styles.input,
+            { backgroundColor: colors.surfaceElevated, color: colors.text },
+            isNoteMode && { borderWidth: 1, borderColor: colors.warning + '40' },
+          ]}
           placeholder={isNoteMode ? 'Внутренняя заметка (не видна клиенту)...' : 'Ответить клиенту...'}
-          placeholderTextColor="#6B7280"
+          placeholderTextColor={colors.textTertiary}
           value={text}
           onChangeText={setText}
           multiline
           maxLength={2000}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, { backgroundColor: colors.primary }, (!text.trim() || sending) && styles.sendBtnDisabled]}
           onPress={handleSend}
           disabled={!text.trim() || sending}
         >
-          {sending ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.sendIcon}>↑</Text>}
+          {sending ? <Spinner color={colors.textInverse} size={18} /> : <Icon name="send" size={20} color={colors.textInverse} />}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -521,63 +599,60 @@ export default function AdminTicketScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0F0F' },
+  container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  meta: { maxHeight: 52, backgroundColor: '#1C1C1E', borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+  meta: { maxHeight: 52, borderBottomWidth: 1 },
   metaContent: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 6, height: 52 },
-  metaUser: { fontSize: 13, color: '#9CA3AF', fontWeight: '600' },
-  metaDot: { color: '#3C3C3E', fontSize: 16 },
-  chip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: 'transparent' },
-  chipText: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
-  subjectBar: { padding: 12, backgroundColor: '#1C1C1E', borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
-  subject: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  subjectMeta: { fontSize: 11, color: '#6B7280' },
-  assignedMeta: { fontSize: 11, color: '#10B981', fontWeight: '600' },
-  category: { fontSize: 11, color: '#6366F1', fontWeight: '600', textTransform: 'uppercase' },
+  metaUser: { fontSize: 13, fontWeight: '600' },
+  metaDot: { fontSize: 16 },
+  chip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: 'transparent' },
+  chipText: { fontSize: 11, fontWeight: '600' },
+  subjectBar: { padding: 12, borderBottomWidth: 1 },
+  subject: { fontSize: 14, fontWeight: '600' },
+  subjectMeta: { fontSize: 11 },
+  assignedMeta: { fontSize: 11, fontWeight: '600' },
+  category: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
   messages: { padding: 12, gap: 8, paddingBottom: 8 },
   bubble: { maxWidth: '82%', borderRadius: 16, padding: 12, marginBottom: 4 },
-  bubbleMe: { alignSelf: 'flex-end', backgroundColor: '#6366F1' },
-  bubbleOther: { alignSelf: 'flex-start', backgroundColor: '#1C1C1E' },
-  bubbleAuthor: { fontSize: 11, fontWeight: '600', color: '#9CA3AF', marginBottom: 4 },
-  bubbleText: { fontSize: 15, color: '#FFFFFF', lineHeight: 20 },
-  bubbleTime: { fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'right', marginTop: 4 },
+  bubbleAuthor: { fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  bubbleText: { fontSize: 15, lineHeight: 20 },
+  bubbleTime: { fontSize: 10, textAlign: 'right', marginTop: 4 },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', padding: 12, gap: 8,
-    backgroundColor: '#1C1C1E', borderTopWidth: 1, borderTopColor: '#2C2C2E',
+    borderTopWidth: 1,
   },
   input: {
-    flex: 1, backgroundColor: '#2C2C2E', borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, color: '#FFFFFF', maxHeight: 100,
+    flex: 1, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 100,
   },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#6366F1', justifyContent: 'center', alignItems: 'center' },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   sendBtnDisabled: { opacity: 0.5 },
-  sendIcon: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
 
-  actionBar: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#0F0F0F', borderTopWidth: 1, borderTopColor: '#1C1C1E' },
-  actionBarBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#6366F140' },
-  actionBarBtnText: { fontSize: 12, color: '#6366F1', fontWeight: '600' },
+  actionBar: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 6, borderTopWidth: 1 },
+  actionBarBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  actionBarBtnText: { fontSize: 12, fontWeight: '600' },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 32 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  cannedItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
-  cannedText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20 },
-  subModalSection: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  subPlanBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: 'transparent', alignItems: 'center' },
-  subPlanText: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
-  subGrantBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  subGrantBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-  noteBlock: { alignSelf: 'stretch', backgroundColor: '#F59E0B0E', borderRadius: 10, borderWidth: 1, borderColor: '#F59E0B30', borderStyle: 'dashed', padding: 10, marginBottom: 4 },
-  noteAuthor: { fontSize: 11, fontWeight: '700', color: '#F59E0B', marginBottom: 4 },
-  noteText: { fontSize: 14, color: '#D1D5DB', lineHeight: 20 },
-  noteTime: { fontSize: 10, color: 'rgba(245,158,11,0.5)', textAlign: 'right', marginTop: 4 },
-  noteModeBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: '#3C3C3E', justifyContent: 'center', alignItems: 'center' },
+  modalTitle: { fontSize: 16, fontWeight: '700' },
+  cannedItem: { paddingVertical: 12, borderBottomWidth: 1 },
+  cannedText: { fontSize: 14, lineHeight: 20 },
+  subModalSection: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  subPlanBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: 'transparent', alignItems: 'center' },
+  subPlanText: { fontSize: 13, fontWeight: '700' },
+  subGrantBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  subGrantBtnText: { fontSize: 15, fontWeight: '700' },
+  noteBlock: { alignSelf: 'stretch', borderRadius: 10, borderWidth: 1, borderStyle: 'dashed', padding: 10, marginBottom: 4 },
+  noteAuthor: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  noteText: { fontSize: 14, lineHeight: 20 },
+  noteTime: { fontSize: 10, textAlign: 'right', marginTop: 4 },
+  noteModeBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   noteModeBtnText: { fontSize: 18 },
-  otherTicketsBtn: { fontSize: 11, color: '#6366F1', fontWeight: '600' },
-  otherTicketsList: { marginTop: 6, borderTopWidth: 1, borderTopColor: '#2C2C2E', paddingTop: 6 },
-  otherTicketRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
-  otherTicketSubject: { fontSize: 12, color: '#D1D5DB', flex: 1, marginRight: 8 },
+  otherTicketsBtn: { fontSize: 11, fontWeight: '600' },
+  otherTicketsList: { marginTop: 6, borderTopWidth: 1, paddingTop: 6 },
+  otherTicketRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1 },
+  otherTicketSubject: { fontSize: 12, flex: 1, marginRight: 8 },
   otherTicketStatus: { fontSize: 11, fontWeight: '600' },
 });

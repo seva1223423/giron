@@ -189,6 +189,53 @@ export async function sendPasswordChangedAlert(email: string, ip: string, date: 
 }
 
 /**
+ * Round 234 (security audit): notify the OLD email when an account's email
+ * address changes. This is the canonical anti-takeover signal — a stolen
+ * access token can pivot to a permanent account takeover by repointing the
+ * email, after which the attacker can request a password reset to the new
+ * address. With this alert, the legitimate owner sees the change happen
+ * BEFORE the attacker has time to lock them out.
+ *
+ * Sent best-effort: the email-change flow already revoked all refresh
+ * tokens + wiped trusted devices, so even if SMTP is briefly down, the
+ * security boundary is intact — this is just the user-facing notification.
+ */
+export async function sendEmailChangedAlert(
+  oldEmail: string,
+  newEmail: string,
+  ip: string,
+  date: Date,
+): Promise<void> {
+  const dateStr = date.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'medium', timeStyle: 'short' });
+  const safeIp = esc(ip);
+  const safeNew = esc(newEmail);
+  await transporter.sendMail({
+    from: FROM,
+    to: oldEmail,
+    subject: `${APP_NAME} — email аккаунта изменён`,
+    text: `Email вашего аккаунта ${APP_NAME} был изменён на ${newEmail}.\n\nДата: ${dateStr} (МСК)\nIP: ${ip}\n\nЕсли это были не вы — немедленно свяжитесь с поддержкой support@iron-gym.app.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #D4B07A; margin-bottom: 8px;">${APP_NAME}</h2>
+        <h3 style="color: #333; margin-bottom: 16px;">Email аккаунта изменён</h3>
+        <p style="color: #555; line-height: 1.6;">Email вашего аккаунта был изменён на <strong>${safeNew}</strong>.</p>
+        <div style="background: #f5f5f7; border-radius: 12px; padding: 20px; margin: 16px 0;">
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>Дата:</strong> ${esc(dateStr)} (МСК)</p>
+          <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${safeIp}</p>
+        </div>
+        <p style="color: #E07A6B; font-weight: bold; font-size: 14px;">
+          Если это были не вы — немедленно напишите в поддержку: <a href="mailto:support@iron-gym.app" style="color: #E07A6B;">support@iron-gym.app</a>. Все сессии и доверенные устройства уже отключены, но без вашего обращения мы не сможем вернуть аккаунт.
+        </p>
+        <p style="color: #888; font-size: 12px; margin-top: 16px;">
+          Это автоматическое уведомление системы безопасности ${APP_NAME}.
+        </p>
+      </div>
+    `,
+  });
+  logger.info(`[Email] Email-changed alert sent to old=${redactEmail(oldEmail)} new=${redactEmail(newEmail)}`);
+}
+
+/**
  * Weekly summary email (RETENTION-03). Sent Sunday evening to users with at
  * least one workout in the past 7 days. The numbers are pre-computed by
  * retentionService to keep this template a pure formatter.

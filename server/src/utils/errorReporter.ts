@@ -75,6 +75,17 @@ function scrubSentryEvent(event: any): void {
       event.request.query_string = '[scrubbed]';
     }
   }
+  // Round 234 (security audit): defensive scrub of `event.user`. The
+  // `setUser({ id })` wrapper sends only the userId, but a future call site
+  // bypassing the wrapper (`Sentry.setUser({ id, email })` direct) would
+  // leak the email into Sentry's UI. `email` and `ip_address` are auto-
+  // populated by Sentry's `sendDefaultPii: true` default — we strip them
+  // here AND set `sendDefaultPii: false` in init below for belt-and-braces.
+  if (event.user && typeof event.user === 'object') {
+    delete event.user.email;
+    delete event.user.ip_address;
+    delete event.user.username;
+  }
   if (event.extra) scrubObject(event.extra);
   if (event.contexts) scrubObject(event.contexts);
   if (event.tags) scrubObject(event.tags);
@@ -107,6 +118,12 @@ function tryLoadSentry(): SentryModule | null {
       release: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT,
       // 10% perf sample rate — enough to spot regressions, cheap on quota.
       tracesSampleRate: 0.1,
+      // Round 234 (security audit): explicit opt-OUT of the SDK's auto-PII
+      // behavior (req.body capture, IP attached to events, user.username).
+      // beforeSend already scrubs these defensively, but flipping the
+      // default at init time ensures nothing leaks via paths the wrapper
+      // doesn't see (transport-layer event mutations, integration hooks).
+      sendDefaultPii: false,
       // Scrub obvious PII from event payloads. Giron stores health data
       // (pulse, injuries, goals) which counts as spec-category PD under
       // 152-ФЗ — never send it to Sentry servers. Recursive scrub covers

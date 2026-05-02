@@ -5321,6 +5321,20 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
             messagePreview: message.slice(0, 200),
           },
         });
+      } else if (detection.matched) {
+        // Round 234 (security audit): low-severity hits used to be silently
+        // dropped — Sentry only saw `high`. We still don't want to fire
+        // Sentry events on every "from now on …" message (high false-
+        // positive rate in fitness coaching), but we want SOME signal
+        // for offline review. logger.warn goes through the round-233 PII
+        // scrub layer so emails/tokens in `messagePreview` are auto-
+        // redacted before they hit the log stream.
+        logger.warn('[prompt-injection]', {
+          userId,
+          severity: detection.highestSeverity,
+          patternIds: detection.patterns.map((p) => p.id),
+          messagePreview: message.slice(0, 200),
+        });
       }
     } catch {
       // Detector is best-effort — never let it block the real request.

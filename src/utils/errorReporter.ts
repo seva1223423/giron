@@ -73,6 +73,10 @@ function tryLoadSentry(): SentryModule | null {
       // dev build). When the user runs through EAS-built binaries this is
       // automatically true; in Expo Go it would silently no-op anyway.
       enableNative: true,
+      // Round 234 (security audit): explicit opt-OUT of auto-PII so the SDK
+      // doesn't attach username / IP / req.body on its own. Mirrors the
+      // server-side errorReporter init.
+      sendDefaultPii: false,
       // Keep PII scrubbing strict — Giron handles health data which counts
       // as спец-категория under 152-ФЗ. We never want goal/weight/height
       // strings landing in Sentry breadcrumbs.
@@ -82,6 +86,20 @@ function tryLoadSentry(): SentryModule | null {
           if (event.request.data) scrubObject(event.request.data);
           if (event.request.headers) scrubObject(event.request.headers);
           if (event.request.cookies) scrubObject(event.request.cookies);
+          // Round 234 (security audit): mirror the server scrub —
+          // query strings can carry reset tokens / OTPs / refresh
+          // params on shared-link copy-paste flows.
+          if (typeof event.request.query_string === 'string' && event.request.query_string.length > 0) {
+            event.request.query_string = '[scrubbed]';
+          }
+        }
+        // Round 234: defensive scrub of `event.user`. setUser({id}) wrapper
+        // sends only the userId, but a future direct Sentry.setUser({id,
+        // email}) bypassing the wrapper would leak email — strip here.
+        if (event?.user && typeof event.user === 'object') {
+          delete event.user.email;
+          delete event.user.ip_address;
+          delete event.user.username;
         }
         if (event?.extra) scrubObject(event.extra);
         if (event?.contexts) scrubObject(event.contexts);

@@ -17,7 +17,7 @@ import { adminRouter } from './routes/admin';
 import { recipesRouter } from './routes/recipes';
 import { startNewsRefreshScheduler } from './services/newsRefreshService';
 import { logger } from './utils/logger';
-import { reportError } from './utils/errorReporter';
+import { reportError, sentryErrorHandler } from './utils/errorReporter';
 import { clientVersionGate } from './middleware/clientVersion';
 import { adminStatsCache, newsCache, foodVisionCache } from './utils/memCache';
 import { prisma } from './db';
@@ -359,6 +359,14 @@ app.use('/api/admin', adminRateLimiter, adminRouter);
 // (same pattern as /api/ai/analyze-food above).
 app.use('/api/recipes/ai-generate', recipeAiRateLimiter);
 app.use('/api/recipes', userRateLimiter, recipesRouter);
+
+// Round 234 (security audit): Sentry's Express error handler must run
+// AFTER all route handlers and BEFORE our generic 500 fallback below.
+// Without it, the SDK's default integrations capture req.body / headers
+// on their own — going around our `beforeSend` scrub for events that
+// originate from un-instrumented code paths. The wrapper passes through
+// when SENTRY_DSN isn't set, so this is a no-op in dev.
+app.use(sentryErrorHandler());
 
 // Global error handler (catches both sync and async errors forwarded via next()).
 // reportError routes to Sentry when SENTRY_DSN + @sentry/node are active,
