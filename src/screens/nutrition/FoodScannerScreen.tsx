@@ -2197,7 +2197,18 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => { haptic.selection(); setNotFound(false); setTextModalOpen(true); }}
+                onPress={() => {
+                  haptic.selection();
+                  setNotFound(false);
+                  // Same prior-items preservation as the label-photo
+                  // path (round 231). Without this, describing the
+                  // not-found product in text wipes whatever the
+                  // user had logged earlier in the same meal.
+                  if (recognizedItems.length > 0) {
+                    appendNextRef.current = true;
+                  }
+                  setTextModalOpen(true);
+                }}
                 style={[styles.fallbackRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 accessibilityLabel="Описать продукт текстом"
                 accessibilityHint="Введите название и вес — AI посчитает КБЖУ"
