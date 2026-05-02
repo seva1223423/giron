@@ -84631,8 +84631,39 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
   ]
 }`;
 
-    const text = await generate(prompt, { temperature: 0.3, maxTokens: 800 });
-    const items = parseFoodResponse(text);
+    const firstCallStartTs = Date.now();
+    let text = await generate(prompt, { temperature: 0.3, maxTokens: 800 });
+    const firstCallElapsedMs = Date.now() - firstCallStartTs;
+    let items = parseFoodResponse(text);
+
+    // Parse-fail retry — same JSON-malformation symptom as on the vision
+    // path (round 250). Text gen is ~3–5 s typically, so the retry is
+    // cheap; gate on the same 25 s budget for consistency. Skip when
+    // first response was an explicit notFood (no point reprocessing) or
+    // when first call already drained the budget.
+    const TEXT_RETRY_TIME_BUDGET_MS = 25_000;
+    const firstPassIsNotFood = (() => {
+      try {
+        const raw = JSON.parse(text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim());
+        return raw.notFood === true;
+      } catch { return false; }
+    })();
+    if (items === null && !firstPassIsNotFood && firstCallElapsedMs < TEXT_RETRY_TIME_BUDGET_MS) {
+      try {
+        const retryPrompt = `${prompt}\n\nКРИТИЧНО ПО ФОРМАТУ: предыдущий ответ не удалось распарсить как JSON. Верни ТОЛЬКО валидный JSON-объект — без префиксов "вот ответ:", без пояснений, без markdown code fence. Структура: {"items":[{...}]}. Если описание не про еду — {"items":[],"notFood":true}. Никакого текста снаружи фигурных скобок.`;
+        const retryText = await generate(retryPrompt, { temperature: 0.3, maxTokens: 800 });
+        const retryItems = parseFoodResponse(retryText);
+        if (retryItems !== null) {
+          text = retryText;
+          items = retryItems;
+          logger.info(`[FoodScanText] parse-fail retry recovered: items=${retryItems.length}`);
+        } else {
+          logger.warn('[FoodScanText] parse-fail retry also failed to parse');
+        }
+      } catch (retryErr) {
+        logger.warn('[FoodScanText] parse-fail retry threw, using first pass:', retryErr);
+      }
+    }
 
     const isNotFood = (() => {
       try {
