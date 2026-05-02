@@ -15,13 +15,17 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A0F"
+      "backgroundColor": "#0E0E0F"
     },
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon.png",
       "infoPlist": {
-        "NSMotionUsageDescription": "Используется для подсчёта шагов и отслеживания активности"
+        "NSMotionUsageDescription": "Используется для подсчёта шагов и отслеживания активности",
+        "NSCameraUsageDescription": "Камера используется для сканирования штрих-кодов продуктов и анализа фотографий еды AI-тренером.",
+        "NSPhotoLibraryUsageDescription": "Доступ к фотографиям нужен для загрузки изображений еды и фото прогресса.",
+        "NSPhotoLibraryAddUsageDescription": "Используется для сохранения сводки тренировки и шеринга достижений.",
+        "NSMicrophoneUsageDescription": "Микрофон может использоваться для голосовых сообщений в чате с AI-тренером."
       },
       "associatedDomains": [
         "applinks:giron.app",
@@ -32,10 +36,10 @@
       "package": "com.giron.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A0A0F"
+        "backgroundColor": "#0E0E0F"
       },
       "splash": {
-        "backgroundColor": "#0A0A0F"
+        "backgroundColor": "#0E0E0F"
       },
       "edgeToEdgeEnabled": false,
       "intentFilters": [
@@ -86,9 +90,12 @@
         }
       ],
       "permissions": [
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.POST_NOTIFICATIONS"
       ],
-      "versionCode": 13
+      "versionCode": 14
     },
     "web": {
       "favicon": "./assets/favicon.png"
