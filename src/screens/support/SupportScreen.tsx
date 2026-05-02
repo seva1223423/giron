@@ -65,7 +65,7 @@ export default function SupportScreen() {
   return (
     <View style={styles.container}>
       {loading && tickets.length === 0 ? (
-        <ActivityIndicator style={styles.center} color="#6366F1" size="large" />
+        <ActivityIndicator style={styles.center} color="#D4B07A" size="large" />
       ) : (
         <FlatList
           data={tickets}
@@ -77,7 +77,7 @@ export default function SupportScreen() {
             />
           )}
           contentContainerStyle={tickets.length === 0 ? styles.empty : styles.list}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor="#6366F1" />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor="#D4B07A" />}
           ListEmptyComponent={
             <View style={styles.emptyContent}>
               <Text style={styles.emptyIcon}>🎧</Text>
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     bottom: 32,
     left: 16,
     right: 16,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#D4B07A',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
