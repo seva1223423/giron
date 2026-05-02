@@ -19,6 +19,27 @@ router.use(authenticate);
 /** Returns true if the Prisma error is "record not found" (P2025) */
 const isNotFound = (e: any) => e?.code === 'P2025';
 
+/**
+ * Round 261: bounded-concurrency mapper to replace Promise.allSettled
+ * over thousands of items. Plain allSettled fans out N parallel writes
+ * which overwhelms the Prisma connection pool (default 10 connections,
+ * Neon free tier typically 5) and causes transient timeouts that look
+ * like silent data loss to the admin.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const slice = items.slice(i, i + concurrency);
+    const chunkResults = await Promise.allSettled(slice.map(fn));
+    results.push(...chunkResults);
+  }
+  return results;
+}
+
 const CUID_RE = /^c[a-z0-9]{20,30}$/;
 const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 
@@ -1259,28 +1280,28 @@ router.post('/mass-message', requireAdmin, async (req: AuthRequest, res: Respons
       select: { id: true },
     });
 
-    const results = await Promise.allSettled(
-      users.map((u) =>
-        prisma.supportTicket.create({
-          data: {
-            subject,
-            category: 'other',
-            status: 'in_progress',
-            priority: 'normal',
-            userId: u.id,
-            assignedToId: req.userId!,
-            messages: {
-              create: {
-                content: message,
-                authorId: req.userId!,
-                isStaff: true,
-                isInternal: false,
-              },
+    // Round 261: bounded concurrency (was Promise.allSettled fanning
+    // out thousands of writes at once and saturating the connection pool).
+    const results = await mapWithConcurrency(users, 10, (u) =>
+      prisma.supportTicket.create({
+        data: {
+          subject,
+          category: 'other',
+          status: 'in_progress',
+          priority: 'normal',
+          userId: u.id,
+          assignedToId: req.userId!,
+          messages: {
+            create: {
+              content: message,
+              authorId: req.userId!,
+              isStaff: true,
+              isInternal: false,
             },
           },
-          select: { id: true },
-        })
-      )
+        },
+        select: { id: true },
+      }),
     );
 
     const succeeded = results.filter((r) => r.status === 'fulfilled').length;
@@ -1333,28 +1354,28 @@ router.post('/subscriptions/broadcast', requireAdmin, async (req: AuthRequest, r
 
     if (users.length === 0) return res.json({ sent: 0, failed: 0, total: 0 });
 
-    const results = await Promise.allSettled(
-      users.map((u) =>
-        prisma.supportTicket.create({
-          data: {
-            subject,
-            category: 'other',
-            status: 'in_progress',
-            priority: 'normal',
-            userId: u.id,
-            assignedToId: req.userId!,
-            messages: {
-              create: {
-                content: message,
-                authorId: req.userId!,
-                isStaff: true,
-                isInternal: false,
-              },
+    // Round 261: bounded concurrency (was Promise.allSettled fanning
+    // out up to 10000 writes at once and saturating the connection pool).
+    const results = await mapWithConcurrency(users, 10, (u) =>
+      prisma.supportTicket.create({
+        data: {
+          subject,
+          category: 'other',
+          status: 'in_progress',
+          priority: 'normal',
+          userId: u.id,
+          assignedToId: req.userId!,
+          messages: {
+            create: {
+              content: message,
+              authorId: req.userId!,
+              isStaff: true,
+              isInternal: false,
             },
           },
-          select: { id: true },
-        })
-      )
+        },
+        select: { id: true },
+      }),
     );
 
     const succeeded = results.filter((r) => r.status === 'fulfilled').length;
