@@ -4683,17 +4683,22 @@ async function executeTool(
     }
 
     const safeQuery = typeof query === 'string' ? sanitizeForPrompt(query, 100) : '';
-    const where = safeQuery.length >= 2
+    // Round 218: ё↔е tolerance for free-text query. Same rationale as
+    // explain_exercise — seed data uses canonical ё, users often skip it.
+    const queryVariants = safeQuery.length >= 2 ? [safeQuery] : [];
+    if (safeQuery.includes('ё') || safeQuery.includes('Ё')) {
+      queryVariants.push(safeQuery.replace(/ё/g, 'е').replace(/Ё/g, 'Е'));
+    }
+    if (safeQuery.includes('е') || safeQuery.includes('Е')) {
+      queryVariants.push(safeQuery.replace(/е/g, 'ё').replace(/Е/g, 'Ё'));
+    }
+    const queryOr = queryVariants.flatMap((v) => [
+      { name: { contains: v, mode: 'insensitive' as const } },
+      { description: { contains: v, mode: 'insensitive' as const } },
+    ]);
+    const where = queryOr.length > 0
       ? {
-          AND: [
-            filters,
-            {
-              OR: [
-                { name: { contains: safeQuery, mode: 'insensitive' as const } },
-                { description: { contains: safeQuery, mode: 'insensitive' as const } },
-              ],
-            },
-          ],
+          AND: [filters, { OR: queryOr }],
         }
       : filters;
 
@@ -4741,13 +4746,23 @@ async function executeTool(
       return { resultText: 'Укажи название упражнения для поиска.', actionDescription: '' };
     }
 
+    // Round 218: ё↔е tolerance. Seed data has "Жим штанги лёжа" with
+    // ё; users often type "жим лежа" without ё. Without this, contains
+    // search fails. Build OR clauses that match both spellings.
+    const yoVariants = [safeName];
+    if (safeName.includes('ё') || safeName.includes('Ё')) {
+      yoVariants.push(safeName.replace(/ё/g, 'е').replace(/Ё/g, 'Е'));
+    }
+    if (safeName.includes('е') || safeName.includes('Е')) {
+      yoVariants.push(safeName.replace(/е/g, 'ё').replace(/Е/g, 'Ё'));
+    }
+    const yoOr = yoVariants.flatMap((v) => [
+      { name: { contains: v, mode: 'insensitive' as const } },
+      { description: { contains: v, mode: 'insensitive' as const } },
+    ]);
+
     const ex = await prisma.exercise.findFirst({
-      where: {
-        OR: [
-          { name: { contains: safeName, mode: 'insensitive' } },
-          { description: { contains: safeName, mode: 'insensitive' } },
-        ],
-      },
+      where: { OR: yoOr },
       select: {
         id: true,
         name: true,
