@@ -24,15 +24,45 @@ let initialized = false;
 // 152-ФЗ, so even though the client mostly sends JWT-only requests, error
 // `extra` payloads or breadcrumb data can still carry user-supplied content
 // (e.g. a screen-level handler attaching the form being submitted).
-const SCRUB_KEY_PATTERNS = [
+//
+// Round 235 (security audit follow-up): mirrored the server's switch from
+// substring to camelCase/snake_case-aware token matching. Without this,
+// `'card'` was scrubbing every `'cardio'`-prefixed breadcrumb key
+// (CardioSession data) — actively destroying useful telemetry.
+const EXACT_TOKENS = new Set<string>([
   'password', 'passwd', 'secret', 'token', 'authorization', 'cookie', 'session',
-  'apikey', 'api_key', 'totp', 'otp', 'pin',
+  'totp', 'otp', 'pin',
   'email', 'phone', 'address', 'fullname', 'firstname', 'lastname',
-  'weight', 'height', 'pulse', 'bmi', 'bodyfat', 'goal', 'injur',
-  'healthrestriction', 'disease', 'allergy', 'medication',
+  'weight', 'height', 'pulse', 'bmi', 'bodyfat', 'goal',
+  'healthrestriction', 'healthrestrictions', 'disease',
   'card', 'cvv', 'iban', 'pan',
-];
+]);
+const PREFIX_TOKENS = ['injur', 'allerg', 'medicat'];
+const CONCAT_PATTERNS = ['apikey', 'api_key', 'totpsecret', 'idtoken'];
 const MAX_SCRUB_DEPTH = 6;
+
+function tokenizeKey(key: string): string[] {
+  return key
+    .replace(/([a-z\d])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[_\-\s.]+/)
+    .filter(Boolean);
+}
+
+function shouldScrubKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  for (const concat of CONCAT_PATTERNS) {
+    if (lower.includes(concat)) return true;
+  }
+  const tokens = tokenizeKey(key);
+  for (const tok of tokens) {
+    if (EXACT_TOKENS.has(tok)) return true;
+    for (const prefix of PREFIX_TOKENS) {
+      if (tok.startsWith(prefix)) return true;
+    }
+  }
+  return false;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function scrubObject(obj: any, depth = 0): void {
@@ -42,8 +72,7 @@ function scrubObject(obj: any, depth = 0): void {
     return;
   }
   for (const key of Object.keys(obj)) {
-    const lower = key.toLowerCase();
-    if (SCRUB_KEY_PATTERNS.some((p) => lower.includes(p))) {
+    if (shouldScrubKey(key)) {
       obj[key] = '[scrubbed]';
     } else if (typeof obj[key] === 'object' && obj[key] !== null) {
       scrubObject(obj[key], depth + 1);
@@ -150,9 +179,16 @@ export function reportError(err: unknown, context: ErrorContext = {}): void {
     });
     return;
   }
-  // Local dev / Sentry not activated — log to console with context.
-  // eslint-disable-next-line no-console
-  console.error('[reportError]', err instanceof Error ? err.stack ?? err.message : err, context);
+  // Round 277: gate console fallback on __DEV__. In production with
+  // Sentry inactive, the only place this logs is the device's own
+  // console — which on a rooted/jailbroken device or via USB-attached
+  // logcat could leak stack traces + scrubbed-but-not-perfect context.
+  // Keeping the fallback in dev (where it's useful) and dropping it in
+  // production reduces the attack surface.
+  if (__DEV__) {
+    // eslint-disable-next-line no-console
+    console.error('[reportError]', err instanceof Error ? err.stack ?? err.message : err, context);
+  }
 }
 
 export function setUser(userId: string): void {
