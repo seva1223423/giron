@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createEncryptedAsyncStorage } from '../utils/encryptedStorage';
 import { userService } from '../services/userService';
 
 export interface BodyMeasurement {
@@ -159,7 +159,11 @@ export const useMeasurementsStore = create<MeasurementsStore>()(
     }),
     {
       name: 'giron-measurements',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Round 233 (security audit, HIGH-2): body measurements are personal
+      // health data. AES-GCM-wrapped storage with per-install master key
+      // in Keychain/Keystore. Reads pre-round-233 plaintext blobs as a
+      // one-shot migration; the next state-mutation write encrypts.
+      storage: createJSONStorage(() => createEncryptedAsyncStorage()),
       version: 1,
       migrate: (state: any) => state,
     }
