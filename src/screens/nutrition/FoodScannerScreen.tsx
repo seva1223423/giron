@@ -1001,6 +1001,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setSanityFlags((prev) => Array.from(new Set([...prev, ...result.sanityFlags!])));
       }
       if (items.length === 0) {
+        // Round 217: close the modal so the screen-level error card
+        // is actually visible. Previously the error rendered behind
+        // the still-open modal — users either thought submit didn't
+        // register (and re-tapped) or only saw the message after
+        // manually closing.
+        setTextModalOpen(false);
         setError('Не удалось распознать продукты из описания. Попробуй конкретнее.');
         haptic.warning();
       } else {
@@ -1017,6 +1023,9 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setShowPaywall(true);
         haptic.warning();
       } else if (e?.suggestion) {
+        // Round 217: close modal so the error card is visible (see
+        // round 217 comment above for context).
+        setTextModalOpen(false);
         setError(e.suggestion);
         setErrorRetryable(e?.retryable !== false);
         haptic.error();
@@ -1027,10 +1036,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         // cause. The text input is preserved (textDescription state
         // doesn't get cleared on this branch) so the user can retry
         // once they reconnect without re-typing.
+        setTextModalOpen(false);
         setError('Нет соединения с сервером. Проверь интернет и попробуй снова.');
         setErrorRetryable(true);
         haptic.error();
       } else {
+        setTextModalOpen(false);
         setError(getApiError(e).message);
         setErrorRetryable(true);
         haptic.error();
@@ -1933,9 +1944,20 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
                 variant="outline"
                 onPress={() => {
                   if (lastBase64Ref.current) {
+                    // Photo path — re-fire AI on the cached base64.
                     setError('');
                     analyzeFood(lastBase64Ref.current, lastMimeRef.current);
+                  } else if (textDescription.trim().length >= 3) {
+                    // Round 217: text path. The text modal closes on
+                    // error (so the error card is visible behind it),
+                    // but `textDescription` is intentionally preserved
+                    // so retry can re-open the modal pre-filled. Tap
+                    // either Cancel (re-edit) or Распознать (re-fire)
+                    // — no need to retype.
+                    setError('');
+                    setTextModalOpen(true);
                   } else {
+                    // No prior input cached — degrade to a clean reset.
                     setImageUri(null);
                     setError('');
                   }
