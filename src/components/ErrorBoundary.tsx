@@ -27,7 +27,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught:', error, errorInfo);
+    // Round 232: gate console.error behind __DEV__ — production users
+    // shouldn't see crash details in their console (also a privacy
+    // concern if logs ever land somewhere).
+    if (__DEV__) {
+      console.error('ErrorBoundary caught:', error, errorInfo);
+    }
     // Surface the React-render crash to Sentry with the component-stack
     // attached. Without this every render-phase exception was invisible —
     // the user sees the fallback screen, but the dev never knew it fired.
@@ -49,6 +54,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <TouchableOpacity
             style={styles.button}
             onPress={() => this.setState({ hasError: false, error: null })}
+            accessibilityRole="button"
+            accessibilityLabel="Попробовать снова"
           >
             <Text style={styles.buttonText}>Попробовать снова</Text>
           </TouchableOpacity>
@@ -59,11 +66,15 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 }
 
+// Round 232: replaced legacy purple #8B5CF6 + #0F0F1A with Direction A
+// graphite + gold (matches CLAUDE.md banlist policy). Hardcoded since
+// ErrorBoundary may render before ThemeProvider mounts in catastrophic
+// boot crashes.
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#0F0F1A' },
-  emoji: { fontSize: 64, marginBottom: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 8 },
-  message: { fontSize: 14, color: '#999', textAlign: 'center', marginBottom: 24 },
-  button: { backgroundColor: '#8B5CF6', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#0E0E0F' },
+  emoji: { fontSize: 64, marginBottom: 16, color: '#D4B07A' },
+  title: { fontSize: 20, fontWeight: '700', color: '#F4F1EA', marginBottom: 8 },
+  message: { fontSize: 14, color: '#9A9A9A', textAlign: 'center', marginBottom: 24 },
+  button: { backgroundColor: '#D4B07A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
+  buttonText: { color: '#17171A', fontSize: 16, fontWeight: '600' },
 });
