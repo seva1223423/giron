@@ -954,60 +954,69 @@ router.post('/routines/:id/start', authenticate, async (req: AuthRequest, res: R
       select: { completedAt: true },
     });
 
-    // Build workout exercises with progressive overload
-    const exercises = await Promise.all(
-      routine.exercises.map(async (re) => {
-        // Find the last completed workout session that used this exercise
-        const lastWorkout = await prisma.workout.findFirst({
-          where: {
-            userId: req.userId!,
-            completedAt: { not: null },
-            exercises: { some: { exerciseId: re.exerciseId } },
-          },
-          orderBy: { completedAt: 'desc' },
-          include: {
-            exercises: {
-              where: { exerciseId: re.exerciseId },
-              include: { sets: { where: { type: { not: 'warmup' } } } },
-            },
-          },
-        });
+    // Round 238: replaced N+1 (one workout.findFirst per exercise) with
+    // a single batched query. For a 10-exercise routine this used to fire
+    // 10 sequential round-trips; now it's one fetch + JS reduce.
+    //
+    // Strategy: fetch the last 50 completed workouts' WorkoutExercises
+    // for this user filtered to the routine's exerciseIds, then reduce
+    // to "most recent per exerciseId" in JS. 50 covers ~3 months of
+    // training for typical users (3-4 sessions/week × 12 weeks ≈ 48).
+    const routineExerciseIds = routine.exercises.map((re) => re.exerciseId);
+    const recentSetsByExercise = new Map<string, Array<{ weight: number | null; reps: number | null; completed: boolean; type: string | null }>>();
+    if (routineExerciseIds.length > 0) {
+      const recentExerciseSets = await prisma.workoutExercise.findMany({
+        where: {
+          exerciseId: { in: routineExerciseIds },
+          workout: { userId: req.userId!, completedAt: { not: null } },
+        },
+        orderBy: { workout: { completedAt: 'desc' } },
+        take: 50 * routineExerciseIds.length,
+        include: { sets: { where: { type: { not: 'warmup' } } } },
+      });
+      // Reduce to most-recent (orderBy desc, so first hit wins)
+      for (const we of recentExerciseSets) {
+        if (!recentSetsByExercise.has(we.exerciseId)) {
+          recentSetsByExercise.set(we.exerciseId, we.sets);
+        }
+      }
+    }
 
-        const lastSets = lastWorkout?.exercises[0]?.sets ?? [];
-        const completedSets = lastSets.filter((s) => s.completed);
-        const lastWeight = completedSets.length > 0
-          ? Math.max(...completedSets.map((s) => s.weight ?? 0))
-          : 0;
-        const targetReps = re.sets[re.sets.length - 1]?.reps;
-        const lastReps = completedSets.length > 0
-          ? completedSets[completedSets.length - 1].reps
-          : null;
-        const allCompleted = lastSets.length > 0 && lastSets.every((s) => s.completed);
-        const shouldProgress = allCompleted && lastReps !== null && targetReps !== null
-          && lastReps !== undefined && targetReps !== undefined && lastReps >= targetReps;
+    const exercises = routine.exercises.map((re) => {
+      const lastSets = recentSetsByExercise.get(re.exerciseId) ?? [];
+      const completedSets = lastSets.filter((s) => s.completed);
+      const lastWeight = completedSets.length > 0
+        ? Math.max(...completedSets.map((s) => s.weight ?? 0))
+        : 0;
+      const targetReps = re.sets[re.sets.length - 1]?.reps;
+      const lastReps = completedSets.length > 0
+        ? completedSets[completedSets.length - 1].reps
+        : null;
+      const allCompleted = lastSets.length > 0 && lastSets.every((s) => s.completed);
+      const shouldProgress = allCompleted && lastReps !== null && targetReps !== null
+        && lastReps !== undefined && targetReps !== undefined && lastReps >= targetReps;
 
-        const progressedWeight = lastWeight > 0
-          ? (shouldProgress ? Math.round((lastWeight + 2.5) * 4) / 4 : lastWeight)
-          : 0;
+      const progressedWeight = lastWeight > 0
+        ? (shouldProgress ? Math.round((lastWeight + 2.5) * 4) / 4 : lastWeight)
+        : 0;
 
-        return {
-          exerciseId: re.exerciseId,
-          exercise: re.exercise,
-          order: re.order,
-          restSeconds: re.restSeconds,
-          notes: re.notes,
-          sets: re.sets.map((s) => ({
-            setNumber: s.setNumber,
-            type: s.type,
-            reps: s.reps,
-            weight: progressedWeight > 0 ? progressedWeight : (s.weight ?? 0),
-            completed: false as const,
-          })),
-          progressionApplied: shouldProgress && progressedWeight > 0,
-          previousWeight: lastWeight > 0 ? lastWeight : null,
-        };
-      })
-    );
+      return {
+        exerciseId: re.exerciseId,
+        exercise: re.exercise,
+        order: re.order,
+        restSeconds: re.restSeconds,
+        notes: re.notes,
+        sets: re.sets.map((s) => ({
+          setNumber: s.setNumber,
+          type: s.type,
+          reps: s.reps,
+          weight: progressedWeight > 0 ? progressedWeight : (s.weight ?? 0),
+          completed: false as const,
+        })),
+        progressionApplied: shouldProgress && progressedWeight > 0,
+        previousWeight: lastWeight > 0 ? lastWeight : null,
+      };
+    });
 
     res.json({
       routineId: routine.id,
