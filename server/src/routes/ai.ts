@@ -4530,6 +4530,31 @@ async function executeTool(
       include: { items: true },
     });
 
+    // Round 214: post-write verify (extends R197 log_meal pattern to
+    // recipe-derived meals). The scaled ingredient list and totals
+    // pass through Prisma's nested-create which can silently truncate
+    // rows on transient transaction errors. Verify both item count
+    // and macro totals match what we computed.
+    const verifiedRecipeMeal = await prisma.meal.findUnique({
+      where: { id: meal.id },
+      include: { items: true },
+    });
+    if (!verifiedRecipeMeal) {
+      throw new Error('add_recipe_to_diary: written meal not found in verify (transaction rollback?)');
+    }
+    if (verifiedRecipeMeal.items.length !== items.length) {
+      throw new Error(
+        `add_recipe_to_diary: item count diverges — DB=${verifiedRecipeMeal.items.length} expected=${items.length}`,
+      );
+    }
+    const calMatchRecipe = Math.abs((verifiedRecipeMeal.totalCalories ?? 0) - totalCalories) < 1;
+    const protMatchRecipe = Math.abs((verifiedRecipeMeal.totalProtein ?? 0) - totalProtein) < 0.5;
+    if (!calMatchRecipe || !protMatchRecipe) {
+      throw new Error(
+        `add_recipe_to_diary: stored macros diverge — DB cal/prot=${verifiedRecipeMeal.totalCalories}/${verifiedRecipeMeal.totalProtein} expected=${totalCalories}/${totalProtein}`,
+      );
+    }
+
     const safeRecipeName = sanitizeForPrompt(recipe.name, 120);
     return {
       resultText: `Рецепт "${safeRecipeName}" добавлен в дневник: ${mealType}, ${safeServings} порц., ${totalCalories} ккал`,
