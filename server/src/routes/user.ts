@@ -1638,6 +1638,16 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
     // Log before deletion (userId will be gone after cascade delete)
     await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'ACCOUNT_DELETED', details: `email=${user.email}` } });
 
+    // Round 236 (security audit): final notification BEFORE cascade.
+    // After delete, user.email is freed and we have no way to alert the
+    // legitimate owner if a stolen token + credentials triggered the
+    // destruction. Sent best-effort — SMTP outage doesn't block delete.
+    const deleteIp = (req as any).ip ?? 'unknown';
+    const { sendAccountDeletedAlert } = await import('../services/emailService');
+    await sendAccountDeletedAlert(user.email, deleteIp, new Date()).catch((mailErr) => {
+      logger.warn('sendAccountDeletedAlert failed (non-blocking):', mailErr);
+    });
+
     // Cascade delete: Prisma schema has onDelete: Cascade on all user relations
     await prisma.user.delete({ where: { id: req.userId! } });
 
