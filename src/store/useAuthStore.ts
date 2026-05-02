@@ -111,7 +111,16 @@ export const useAuthStore = create<AuthStore>()(
 
       /** Persist fresh tokens to SecureStore and sync in-memory Zustand state. */
       updateTokens: async (token, refreshToken) => {
+        // Round 244: race-safety — if logout fires between awaiting
+        // setTokens and the set(), we'd resurrect stale tokens. Capture
+        // authenticated state before the await and bail if it changed.
+        const wasAuthenticated = get().isAuthenticated;
         await tokenStorage.setTokens(token, refreshToken);
+        if (!get().isAuthenticated && wasAuthenticated) {
+          // Logout happened mid-await; clear the tokens we just stored
+          await tokenStorage.clearTokens().catch(() => {});
+          return;
+        }
         set({ token, refreshToken });
       },
 
@@ -328,8 +337,17 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       fetchProfile: async () => {
+        // Round 244: race-safety — capture user id before the await so
+        // we can detect logout / user-switch mid-fetch. Without this,
+        // user-A's profile data could land in user-B's store after a
+        // quick logout/login swap.
+        const startUserId = get().user?.id;
         try {
           const user = await userService.getProfile();
+          if (!get().isAuthenticated || get().user?.id !== startUserId) {
+            // logout or user-switch occurred during fetch — discard result
+            return;
+          }
           const normalized = normalizeUser(user);
           // Re-derive isOnboarded — covers edge cases where the local flag
           // got out of sync with server state (manual DB edit, multi-device

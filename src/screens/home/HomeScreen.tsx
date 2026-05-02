@@ -5,28 +5,35 @@ import { useHaptic } from '../../hooks/useHaptic';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
-import { FadeIn, Button, Card } from '../../components';
+import { FadeIn, Button, Card, Icon, Spinner } from '../../components';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { scheduleInactivityReminder, scheduleWeeklySummaryNotification, showTodayPlanNotification } from '../../services/notificationService';
 import { adminService } from '../../services/adminService';
 import { authService } from '../../services/authService';
 import type { AnnouncementType } from '../../types';
+// Round 233 (2026-05-02 audit): trimmed imports to ONLY rendered components.
+// Previously 11 of these were imported but never used (~1300 LOC dead bundle).
+// The files remain in ./components/ for future re-introduction.
 import {
-  HomeHeader, WorkoutStatusCard, TodayPlanCard, RecommendationCard,
-  LastWorkoutCard, NutritionCard, WaterCard,
-  RecoveryScoreCard, TodaySummaryCard, StepsCard,
-  StreakWarningCard, MuscleReadinessCard,
+  HomeHeader,
   AICoachCard, RingStatsCard, StreakPRGrid, WeekPlanStrip, QuickActionsGrid,
 } from './components';
 import { Text, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography } from '../../theme';
 
-const SPLITS = [
-  { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], emoji: '◎' },
-  { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], emoji: '◎' },
-  { name: 'Ноги', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], emoji: '◎' },
-  { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], emoji: '◎' },
-  { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], emoji: '◎' },
+// Round 233 (2026-05-02 audit): replaced banned unicode glyph '◎' icons
+// with Direction A Icon names. Each split now picks a domain-relevant icon
+// from the 38-icon SVG set (src/components/Icon.tsx).
+// Round 244: Icon value comes from the consolidated `../../components`
+// import on line 8 (Card/Spinner sit alongside it). Just the IconName
+// type alias here.
+import type { IconName } from '../../components/Icon';
+const SPLITS: Array<{ name: string; muscles: string[]; iconName: IconName }> = [
+  { name: 'Грудь + Трицепс', muscles: ['chest', 'triceps'], iconName: 'dumbbell' },
+  { name: 'Спина + Бицепс', muscles: ['back', 'biceps', 'lats'], iconName: 'dumbbell' },
+  { name: 'Ноги', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], iconName: 'bolt' },
+  { name: 'Плечи + Пресс', muscles: ['shoulders', 'abs'], iconName: 'target' },
+  { name: 'Фулбоди', muscles: ['chest', 'back', 'quadriceps'], iconName: 'flame' },
 ];
 
 import { todayDateStr, computeStreak } from '../../utils/date';
@@ -49,12 +56,18 @@ const SectionDivider: React.FC<{ label: string; colors: any }> = ({ label, color
   </View>
 );
 
-const ANN_COLORS: Record<AnnouncementType, string> = {
-  info: '#D4B07A', warning: '#F59E0B', maintenance: '#EF4444', promo: '#10B981',
-};
-const ANN_ICONS: Record<AnnouncementType, string> = {
-  info: 'ℹ️', warning: '⚠️', maintenance: '🔧', promo: '🎁',
-};
+// Round 233 (2026-05-02 audit): banned palette '#F59E0B/#EF4444/#10B981'
+// replaced with Direction A semantic tokens; emoji 'ℹ️ ⚠️ 🔧 🎁' replaced
+// with Icon names. Build via builder so we can resolve theme at render.
+function buildAnnouncementMeta(c: { primary: string; warning: string; error: string; success: string }):
+  Record<AnnouncementType, { color: string; iconName: IconName }> {
+  return {
+    info: { color: c.primary, iconName: 'bell' },
+    warning: { color: c.warning, iconName: 'flame' },
+    maintenance: { color: c.error, iconName: 'settings' },
+    promo: { color: c.success, iconName: 'spark' },
+  };
+}
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
@@ -198,7 +211,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const daysLabel = rec.daysSince >= 999 ? 'Ещё не тренировал'
       : rec.daysSince === 0 ? 'Уже сегодня'
       : `${rec.daysSince} ${rec.daysSince === 1 ? 'день' : rec.daysSince < 5 ? 'дня' : 'дней'} назад`;
-    return { name: rec.name, emoji: rec.emoji, daysLabel, programWorkout: null };
+    // Round 244: SPLITS now uses iconName (Direction A) — old code
+    // referenced rec.emoji which doesn't exist on the new shape.
+    return { name: rec.name, iconName: rec.iconName, daysLabel, programWorkout: null };
   }, [workoutHistory, activeProgram]);
 
   const handleStartPlannedWorkout = useCallback(async () => {
@@ -268,29 +283,39 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       </FadeIn>
 
       {/* ── Announcements ─────────────────── */}
-      {announcements.filter((a) => !dismissedIds.has(a.id)).map((a) => {
-        const c = ANN_COLORS[a.type];
-        return (
-          <View key={a.id} style={[annStyles.banner, { borderColor: c + '40', backgroundColor: c + '10' }]}>
-            <Text style={{ fontSize: 16 }}>{ANN_ICONS[a.type]}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[annStyles.title, { color: c }]}>{a.title}</Text>
-              <Text style={annStyles.body} numberOfLines={3}>{a.body}</Text>
+      {(() => {
+        const ANN_META = buildAnnouncementMeta({ primary: colors.primary, warning: colors.warning, error: colors.error, success: colors.success });
+        return announcements.filter((a) => !dismissedIds.has(a.id)).map((a) => {
+          const m = ANN_META[a.type];
+          return (
+            <View key={a.id} style={[annStyles.banner, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}>
+              <Icon name={m.iconName} size={18} color={m.color} />
+              <View style={{ flex: 1 }}>
+                <Text style={[annStyles.title, { color: m.color }]}>{a.title}</Text>
+                <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={3}>{a.body}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setDismissedIds((s) => new Set([...s, a.id]))}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Скрыть объявление"
+              >
+                <View style={{ transform: [{ rotate: '45deg' }], padding: 4 }}>
+                  <Icon name="plus" size={18} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => setDismissedIds((s) => new Set([...s, a.id]))}>
-              <Text style={{ color: '#6B7280', fontSize: 16, paddingHorizontal: 4 }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      })}
+          );
+        });
+      })()}
 
       {/* ── Email verification banner ─────────── */}
       {!user?.emailVerified && !emailBannerDismissed && (
-        <View style={[annStyles.banner, { borderColor: '#D4B07A40', backgroundColor: '#D4B07A10', marginBottom: spacing.md }]}>
-          <Text style={{ fontSize: 16 }}>✉️</Text>
+        <View style={[annStyles.banner, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10', marginBottom: spacing.md }]}>
+          <Icon name="message" size={18} color={colors.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={[annStyles.title, { color: '#D4B07A' }]}>Подтвердите email</Text>
-            <Text style={annStyles.body} numberOfLines={1}>{user?.email}</Text>
+            <Text style={[annStyles.title, { color: colors.primary }]}>Подтвердите email</Text>
+            <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={1}>{user?.email}</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
@@ -313,8 +338,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 {resendingVerification ? '...' : 'Ввести код'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setEmailBannerDismissed(true)} style={{ padding: 4 }}>
-              <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+            <TouchableOpacity
+              onPress={() => setEmailBannerDismissed(true)}
+              hitSlop={12}
+              style={{ padding: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Скрыть напоминание"
+            >
+              <View style={{ transform: [{ rotate: '45deg' }] }}>
+                <Icon name="plus" size={16} color={colors.textSecondary} />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -337,10 +370,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (hasAnyWorkout) return null;
         return (
           <View style={[annStyles.banner, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10', marginBottom: spacing.md }]}>
-            <Text style={{ fontSize: 18 }}>🏋️</Text>
+            <Icon name="dumbbell" size={20} color={colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={[annStyles.title, { color: colors.primary }]}>Время первой тренировки</Text>
-              <Text style={annStyles.body} numberOfLines={2}>
+              <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={2}>
                 Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.
               </Text>
             </View>
@@ -348,11 +381,21 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <TouchableOpacity
                 onPress={() => navigation.navigate('WorkoutsTab' as never)}
                 style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
+                accessibilityRole="button"
+                accessibilityLabel="Начать первую тренировку"
               >
                 <Text style={{ color: colors.textInverse, fontSize: 12, fontWeight: '700' }}>Начать</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setFirstWorkoutBannerDismissed(true)} style={{ padding: 4 }}>
-                <Text style={{ color: '#6B7280', fontSize: 16 }}>✕</Text>
+              <TouchableOpacity
+                onPress={() => setFirstWorkoutBannerDismissed(true)}
+                hitSlop={12}
+                style={{ padding: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Скрыть напоминание"
+              >
+                <View style={{ transform: [{ rotate: '45deg' }] }}>
+                  <Icon name="plus" size={16} color={colors.textSecondary} />
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -604,8 +647,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
           }}
         >
-          <Text style={{ fontSize: 16 }}>▷</Text>
-          <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFF', letterSpacing: 0.5 }}>Начать</Text>
+          <Icon name="play" size={16} color={colors.textInverse} />
+          {/* Round 233: was '#FFF' on gold = 1.9:1 WCAG fail. Direction A
+              rule: gold CTA always pairs with DARK text via textInverse. */}
+          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textInverse, letterSpacing: 0.5 }}>Начать</Text>
         </AnimatedPressable>
       </View>
     )}
@@ -620,5 +665,5 @@ const annStyles = StyleSheet.create({
     marginBottom: 10,
   },
   title: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  body: { fontSize: 12, color: '#9CA3AF', lineHeight: 18 },
+  body: { fontSize: 12, lineHeight: 18 }, // color now applied per-instance from theme
 });
