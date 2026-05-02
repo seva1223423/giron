@@ -20,7 +20,7 @@ const NOW = new Date('2026-04-30T12:00:00Z').getTime();
 
 const daysAgo = (n: number): Date => new Date(NOW - n * DAY);
 
-type WeightRow = { date: Date | string; weightKg: number };
+type StaleWeightRow = { date: Date | string; weightKg: number };
 type MeasRow = { date: Date | string };
 type SleepRow = { date: string };
 type WorkoutRow = { completedAt: Date | string | null };
@@ -33,7 +33,7 @@ function daysSince(d: Date | string | null | undefined, now = NOW): number | nul
 }
 
 function buildStaleMarkers(input: {
-  bodyWeightHistory: WeightRow[];
+  bodyWeightHistory: StaleWeightRow[];
   recentMeasurements: MeasRow[];
   recentSleepEntries: SleepRow[];
   recentWorkouts: WorkoutRow[];
