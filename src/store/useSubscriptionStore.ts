@@ -3,6 +3,10 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../services/api';
 import { localDateStr } from '../utils/date';
+// Round 232: replace ad-hoc console.error with the project's reporter
+// so subscription errors land in Sentry with a tag, not just on the
+// device's debug console.
+import { reportError } from '../utils/errorReporter';
 
 const FREE_AI_MESSAGES_PER_DAY = 10;
 const FREE_FOOD_SCANS_PER_DAY = 5;
@@ -105,7 +109,10 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
             trialUsed: data.plan !== 'free' ? true : get().trialUsed,
           });
         } catch (e) {
-          console.error('Sync subscription error:', e);
+          reportError(e instanceof Error ? e : new Error(String(e)), {
+            screen: 'subscription-store',
+            tags: { op: 'sync' },
+          });
         }
       },
 
@@ -129,7 +136,10 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
             trialUsed: true,
           });
         } catch (e) {
-          console.error('Activate subscription error:', e);
+          reportError(e instanceof Error ? e : new Error(String(e)), {
+            screen: 'subscription-store',
+            tags: { op: 'activate' },
+          });
           throw e;
         }
       },
@@ -145,7 +155,10 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
           });
           return { message: data.message };
         } catch (e) {
-          console.error('Cancel subscription error:', e);
+          reportError(e instanceof Error ? e : new Error(String(e)), {
+            screen: 'subscription-store',
+            tags: { op: 'cancel' },
+          });
           throw e;
         }
       },

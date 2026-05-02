@@ -126,7 +126,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   useEffect(() => {
+    // Round 230: guard setState against unmount race. If user
+    // navigates away before getChatHistory resolves, calling
+    // setMessages on an unmounted component triggers a React warning
+    // and may also overwrite the next mount's state.
     aiService.getChatHistory(100, 1).then(({ messages: history, pages }) => {
+      if (!isMountedRef.current) return;
       setHistoryTotalPages(pages);
       if (history.length > 0) {
         setMessages((prev) => {
@@ -162,7 +167,11 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, [loadingOlderMessages, historyPage, historyTotalPages]);
 
   useEffect(() => {
-    aiService.getStarters(localDateStr(new Date()), new Date().getHours()).then((starters) => { if (starters.length > 0) setServerStarters(starters); }).catch(() => {});
+    // Round 230: same unmount-race guard.
+    aiService.getStarters(localDateStr(new Date()), new Date().getHours()).then((starters) => {
+      if (!isMountedRef.current) return;
+      if (starters.length > 0) setServerStarters(starters);
+    }).catch(() => {});
     syncSleep().catch(() => {});
   }, []);
 

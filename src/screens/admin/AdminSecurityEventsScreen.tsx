@@ -44,9 +44,15 @@ export default function AdminSecurityEventsScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Round 231: add .catch to prevent unhandled rejection on network
+    // failure. Without this, a failed admin call surfaced as a yellow
+    // box in dev and silent failure (loading stuck false) in prod.
+    let cancelled = false;
     adminService.getUserSecurityEvents(userId)
-      .then(setEvents)
-      .finally(() => setLoading(false));
+      .then((evts) => { if (!cancelled) setEvents(evts); })
+      .catch(() => { /* network error or 403 — leave events empty */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [userId]);
 
   return (
