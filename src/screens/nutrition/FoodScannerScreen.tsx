@@ -12,6 +12,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import type { NutritionItem, Meal } from '../../types';
 import { aiService, getApiError } from '../../services';
+import { addBreadcrumb } from '../../utils/errorReporter';
 import { scheduleNutritionSummaryReminder, scheduleProteinReminder } from '../../services/notificationService';
 import { BarcodeScannerModal, RecognizedItemCard } from './scanner';
 import { localDateStr } from '../../utils/date';
@@ -754,6 +755,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           // Server-side slowness — Mistral occasionally takes >50s under
           // load, especially during peak hours. Keep the image visible
           // and offer retry rather than wiping the user's progress.
+          addBreadcrumb('food-scan:timeout', { budgetMs: 50_000 });
           setError('Анализ занял слишком долго. Сервер перегружен — попробуй ещё раз через минуту.');
           setErrorRetryable(true);
           haptic.error();
@@ -903,6 +905,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       if (!isImageDimensionsValid(asset.width, asset.height)) {
         appendNextRef.current = false;
         haptic.warning();
+        // Sentry breadcrumb so we can trend how often this gate fires.
+        // If it triggers for >1% of scans we've over-tightened the
+        // threshold and need to revisit MIN_IMAGE_SHORT_SIDE.
+        addBreadcrumb('food-scan:dim-rejected', {
+          width: asset.width ?? 0,
+          height: asset.height ?? 0,
+          minSide: MIN_IMAGE_SHORT_SIDE,
+          source: useCamera ? 'camera' : 'library',
+        });
         Alert.alert(
           'Фото слишком маленькое',
           `Для надёжного определения порций нужно фото минимум ${MIN_IMAGE_SHORT_SIDE} пикселей по короткой стороне. Попробуй сделать новый кадр или выбрать другое изображение.`,
