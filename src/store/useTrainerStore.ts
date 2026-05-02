@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { trainerService } from '../services/trainerService';
+// Round 247: surface store-level errors to Sentry — previously every
+// catch swallowed and only flipped isLoading: false.
+import { reportError } from '../utils/errorReporter';
 
 export interface TrainerClient {
   id: string;
@@ -92,7 +95,8 @@ export const useTrainerStore = create<TrainerStore>()(
         try {
           const clients = await trainerService.getClients();
           set({ clients, isLoading: false });
-        } catch {
+        } catch (e) {
+          reportError(e instanceof Error ? e : new Error(String(e)), { screen: 'trainer-store', tags: { op: 'fetchClients' } });
           set({ isLoading: false });
         }
       },
@@ -287,9 +291,13 @@ export const useTrainerStore = create<TrainerStore>()(
         try {
           const trainers = await trainerService.getMyTrainers();
           set({ myTrainers: trainers });
-        } catch {
+        } catch (e) {
           // Keep stale list rather than wiping — offline users still want
           // to see who their trainer is in the UI.
+          reportError(e instanceof Error ? e : new Error(String(e)), {
+            screen: 'trainer-store',
+            tags: { op: 'fetchMyTrainers' },
+          });
         }
       },
 
