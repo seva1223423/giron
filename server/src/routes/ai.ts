@@ -213,7 +213,8 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 - **update_user_profile** — обновить вес, рост, цель, уровень
 - **log_body_weight** — записать вес тела
 - **create_program** — полная программа тренировок (рекомендуемый для программ)
-- **create_workout** — одна разовая тренировка
+- **create_workout** — одна разовая тренировка В ПЛАН (на будущее)
+- **log_completed_workout** — записать ФАКТИЧЕСКИ ВЫПОЛНЕННУЮ тренировку задним числом (попадает в историю, PR-расчёты, объём)
 - **modify_workout** — изменить существующую тренировку (убрать/добавить/обновить упражнение)
 - **update_nutrition_targets** — установить нормы КБЖУ
 - **log_meal** — записать приём пищи с КБЖУ
@@ -247,6 +248,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
 - "составь программу" → СРАЗУ create_program с полной программой, потом set_weekly_plan. Не давай "пример" — создай реальную программу.
+- "потренировался сегодня грудь+трицепс жим 4×8 80кг" / "вчера качал спину" / "сделал тренировку утром, тяга 3×5 100кг" → СРАЗУ log_completed_workout. Это запись СЕССИИ, не плана. Если пользователь просто говорит "хочу тренировку на грудь" — это create_workout.
 - "съел гречку с курицей" → СРАЗУ log_meal с рассчитанным КБЖУ (используй стандартные порции если вес не указан)
 - "рассчитай КБЖУ" → рассчитай по Миффлину-Сан Жеору, СРАЗУ вызови update_nutrition_targets
 - "сделай легче" → modify_workout с weightMultiplier 0.85
@@ -469,6 +471,44 @@ const AI_TOOLS: DeepSeekTool[] = [
             },
             description: 'Список упражнений тренировки',
           },
+        },
+        required: ['name', 'exercises'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'log_completed_workout',
+      description: 'Записать УЖЕ ВЫПОЛНЕННУЮ тренировку задним числом. Используй когда пользователь говорит "потренировался сегодня", "вчера качал спину", "сделал 4×8 жима 80кг", "позанимался утром" и описывает что именно делал. ВАЖНО: это для записи СЕССИИ (фактически выполненной тренировки с весами/повторами), а НЕ для добавления тренировки в план. Если пользователь хочет создать ПЛАН тренировок — используй create_workout. Тренировка сразу помечается completedAt=сегодня.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Название тренировки (например "Грудь+Трицепс", "Тяга и спина")' },
+          exercises: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                exerciseName: { type: 'string', description: 'Название упражнения' },
+                completedSets: {
+                  type: 'array',
+                  description: 'Фактически выполненные подходы. Каждый — пара (reps, weight). Если пользователь сказал "4×8 80кг" — это 4 подхода по 8×80.',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      reps: { type: 'number', description: 'Сколько раз сделал в этом подходе' },
+                      weight: { type: 'number', description: 'Вес в кг (0 если без отягощения)' },
+                    },
+                    required: ['reps'],
+                  },
+                },
+              },
+              required: ['exerciseName', 'completedSets'],
+            },
+          },
+          durationMinutes: { type: 'number', description: 'Сколько длилась тренировка (опционально)' },
+          completedAt: { type: 'string', description: 'ISO дата завершения. По умолчанию — сейчас. Используй когда пользователь говорит "вчера" или указывает другую дату.' },
         },
         required: ['name', 'exercises'],
       },
@@ -2551,6 +2591,185 @@ async function executeTool(
       resultText: `Тренировка "${workout.name}" создана с упражнениями: ${foundNames}${missingNote}`,
       actionDescription: `Тренировка "${name}" добавлена в план (${validExercises.length} упражнений)`,
       actionData: { workoutId: workout.id, programId: activeProgram.id },
+    };
+  }
+
+  // Round 207: log_completed_workout — was a tool coverage gap. Until
+  // now AI could create_workout (add to plan) but had no way to
+  // retroactively log "потренировался вчера 4×8 жим 80кг" as a
+  // completed session. Now creates Workout with completedAt set, so
+  // it shows up in history, contributes to PRs, weekly volume,
+  // analyze_progress, etc.
+  if (toolName === 'log_completed_workout') {
+    const { name: workoutName, exercises: completedExercises, durationMinutes, completedAt } = toolInput as {
+      name: string;
+      exercises: Array<{
+        exerciseName: string;
+        completedSets: Array<{ reps: number; weight?: number }>;
+      }>;
+      durationMinutes?: number;
+      completedAt?: string;
+    };
+
+    if (!workoutName || !completedExercises || completedExercises.length === 0) {
+      return { resultText: 'Нужно указать название тренировки и хотя бы одно упражнение', actionDescription: '' };
+    }
+
+    const safeName = String(workoutName).slice(0, 200);
+    const safeDuration = durationMinutes != null
+      ? Math.min(480, Math.max(1, Math.round(Number(durationMinutes) || 0)))
+      : 60;
+
+    // Parse completedAt; fall back to now on any parse failure
+    let completedAtDate = new Date();
+    if (completedAt && typeof completedAt === 'string') {
+      const parsed = new Date(completedAt);
+      if (!isNaN(parsed.getTime())) {
+        completedAtDate = parsed;
+      }
+    }
+
+    // Resolve exercise names — same EN→RU + fuzzy fallback as create_workout
+    const lcwExercises = completedExercises.slice(0, 20).map((ex) => ({
+      input: ex,
+      lcname: String(ex.exerciseName).toLowerCase(),
+    }));
+    const lcwExactRows = await prisma.exercise.findMany({
+      where: { name: { in: lcwExercises.map((e) => e.input.exerciseName), mode: 'insensitive' as const } },
+    });
+    const lcwRows = [...lcwExactRows];
+    const lcwMissed = lcwExercises
+      .filter((e) => !lcwExactRows.some((r) => r.name.toLowerCase() === e.lcname))
+      .map((e) => e.input.exerciseName);
+    if (lcwMissed.length > 0) {
+      const fuzzy = await prisma.exercise.findMany({
+        where: { OR: lcwMissed.map((n) => ({ name: { contains: n, mode: 'insensitive' as const } })) },
+      });
+      lcwRows.push(...fuzzy);
+    }
+    const lcwMap = new Map<string, typeof lcwRows[0]>();
+    for (const row of lcwRows) lcwMap.set(row.name.toLowerCase(), row);
+    const lcwResolve = (n: string) => {
+      const lower = n.toLowerCase();
+      if (lcwMap.has(lower)) return lcwMap.get(lower)!;
+      for (const [k, v] of lcwMap) { if (k.includes(lower) || lower.includes(k)) return v; }
+      const ru = EN_TO_RU_EXERCISES[lower] || Object.entries(EN_TO_RU_EXERCISES).find(([k]) => lower.includes(k))?.[1];
+      if (ru) {
+        const ruLower = ru.toLowerCase();
+        if (lcwMap.has(ruLower)) return lcwMap.get(ruLower)!;
+        for (const [k, v] of lcwMap) { if (k.includes(ruLower) || ruLower.includes(k)) return v; }
+      }
+      return null;
+    };
+    const lcwResolved = lcwExercises.map((e) => ({ input: e.input, record: lcwResolve(e.input.exerciseName) }));
+    const lcwValid = lcwResolved.filter((e) => e.record !== null);
+
+    if (lcwValid.length === 0) {
+      return {
+        resultText: `Не удалось найти ни одного упражнения в базе: ${completedExercises.map((e) => e.exerciseName).join(', ')}. Используй стандартные названия (например "Жим штанги лёжа", "Приседания со штангой").`,
+        actionDescription: '',
+      };
+    }
+
+    // Find active program (will be linked but not required)
+    const lcwActiveProgram = await prisma.program.findFirst({
+      where: { userId, isActive: true },
+      select: { id: true },
+    });
+
+    // Compute totalVolume for analytics
+    let totalVolume = 0;
+    for (const ex of lcwValid) {
+      for (const set of ex.input.completedSets) {
+        const weight = Math.min(500, Math.max(0, Number(set.weight) || 0));
+        const reps = Math.min(100, Math.max(1, Math.round(Number(set.reps) || 0)));
+        if (weight > 0 && reps > 0) totalVolume += weight * reps;
+      }
+    }
+
+    const lcwExpectedExercises = lcwValid.map((ex, idx) => ({
+      order: idx + 1,
+      exerciseId: ex.record!.id,
+      sets: ex.input.completedSets.slice(0, 20).map((s, i) => ({
+        setNumber: i + 1,
+        reps: Math.min(100, Math.max(1, Math.round(Number(s.reps) || 0))),
+        weight: s.weight != null ? Math.min(500, Math.max(0, Number(s.weight) || 0)) : null,
+        completed: true, // log_completed_workout means all sets DONE
+      })),
+    }));
+
+    const lcwCreated = await prisma.workout.create({
+      data: {
+        name: safeName,
+        userId,
+        programId: lcwActiveProgram?.id ?? null,
+        startedAt: new Date(completedAtDate.getTime() - safeDuration * 60 * 1000),
+        completedAt: completedAtDate,
+        durationMinutes: safeDuration,
+        totalVolume: Math.round(totalVolume),
+        exercises: {
+          create: lcwExpectedExercises.map((ex) => ({
+            order: ex.order,
+            restSeconds: 90,
+            exerciseId: ex.exerciseId,
+            sets: { create: ex.sets },
+          })),
+        },
+      },
+    });
+
+    // Round 207: post-write verify (same shape as create_workout R201).
+    const lcwVerified = await prisma.workout.findUnique({
+      where: { id: lcwCreated.id },
+      include: {
+        exercises: {
+          orderBy: { order: 'asc' },
+          include: { sets: true },
+        },
+      },
+    });
+    if (!lcwVerified) {
+      throw new Error('log_completed_workout: written workout not found in verify (transaction rollback?)');
+    }
+    if (lcwVerified.exercises.length !== lcwExpectedExercises.length) {
+      throw new Error(
+        `log_completed_workout: exercise count diverges — DB=${lcwVerified.exercises.length} expected=${lcwExpectedExercises.length}`,
+      );
+    }
+    if (!lcwVerified.completedAt) {
+      throw new Error('log_completed_workout: completedAt is null after write — workout not actually completed');
+    }
+    for (let i = 0; i < lcwExpectedExercises.length; i++) {
+      const exp = lcwExpectedExercises[i];
+      const got = lcwVerified.exercises[i];
+      if (got.exerciseId !== exp.exerciseId) {
+        throw new Error(
+          `log_completed_workout: exercise ${i + 1} id diverges — DB=${got.exerciseId} expected=${exp.exerciseId}`,
+        );
+      }
+      if (got.sets.length !== exp.sets.length) {
+        throw new Error(
+          `log_completed_workout: exercise ${i + 1} set count diverges — DB=${got.sets.length} expected=${exp.sets.length}`,
+        );
+      }
+    }
+
+    const lcwSummary = lcwValid
+      .map((e) => {
+        const setsText = e.input.completedSets
+          .slice(0, 20)
+          .map((s) => `${s.weight ?? '—'}кг×${s.reps}`)
+          .join(', ');
+        return `${e.record!.name}: ${setsText}`;
+      })
+      .join('; ');
+    const dateText = completedAtDate.toLocaleDateString('ru-RU');
+    const lcwMissing = lcwResolved.filter((e) => e.record === null).map((e) => e.input.exerciseName);
+    const lcwMissingNote = lcwMissing.length > 0 ? ` (пропущены: ${lcwMissing.join(', ')})` : '';
+    return {
+      resultText: `Записал тренировку "${safeName}" (${dateText}, ${safeDuration} мин, ${Math.round(totalVolume)} кг тоннаж): ${lcwSummary}${lcwMissingNote}`,
+      actionDescription: `Записана выполненная тренировка "${safeName}" — ${lcwValid.length} упр., ${Math.round(totalVolume)} кг`,
+      actionData: { workoutId: lcwCreated.id, totalVolume: Math.round(totalVolume), exerciseCount: lcwValid.length },
     };
   }
 
