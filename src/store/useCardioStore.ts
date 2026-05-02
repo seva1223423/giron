@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createEncryptedAsyncStorage } from '../utils/encryptedStorage';
 import { CardioSession } from '../types';
 import { cardioService } from '../services/cardioService';
 import { localDateStr } from '../utils/date';
@@ -118,7 +118,10 @@ export const useCardioStore = create<CardioStore>()(
     }),
     {
       name: 'cardio-store',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Round 233 (security audit, HIGH-2 follow-up): cardio sessions
+      // (type, duration, calories, heart-rate notes) are personal
+      // health data. AES-GCM-wrapped storage with per-install key.
+      storage: createJSONStorage(() => createEncryptedAsyncStorage()),
       version: 1,
       migrate: (state: any) => state,
     }

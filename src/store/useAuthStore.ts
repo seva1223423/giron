@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createEncryptedAsyncStorage } from '../utils/encryptedStorage';
 import { User } from '../types';
 import { authService, userService, getApiError } from '../services';
 import { AuthResponse } from '../services/authService';
@@ -370,7 +370,13 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'giron-auth',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Round 233 (security audit, HIGH-2 follow-up): persisted user
+      // profile carries PII (name, email, gender, height, weight, age,
+      // OAuth provider IDs) — encrypt at rest. JWT tokens are NOT in
+      // this slice; they live in expo-secure-store via secureStorage.ts.
+      // The migrate() runs after rehydrate, so this layer is transparent
+      // to existing v0/v1/v2 → v3 migration paths.
+      storage: createJSONStorage(() => createEncryptedAsyncStorage()),
       version: 3,
       migrate: async (persistedState: any, version: number) => {
         const s = persistedState as any;

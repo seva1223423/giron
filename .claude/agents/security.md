@@ -77,6 +77,11 @@ RESULT:
 - Webhook HMAC-SHA256 signature verification for RevenueCat, YuKassa, generic
 - `barcodeProcessingRef` mutex prevents double scan credit charge
 
+### Defense-in-depth utilities (round 233)
+- **Logger PII scrub** — `server/src/utils/logger.ts` walks all log args, redacts keys matching `/password|token|refreshToken|authorization|cookie|apikey|totpSecret/i`, runs string values through email + JWT-shape regexes, cycle-safe + depth-capped. Pinned by `loggerScrub.test.ts` (12 cases). Future `logger.info('user', user)` callsites can no longer leak emails into the production stream.
+- **Prompt-injection fence** — `server/src/utils/promptFence.ts` exports `fence(label, body, title)` and `fenceItems(label, items)` for wrapping THIRD-PARTY content (RSS news, OFF product names, OCR'd labels, community-source recipes) before splicing into LLM prompts. Adds random-nonce BEGIN/END markers + an explicit "data-not-instructions" header, sanitizes attempts to forge closers, normalizes NFKC, caps body at 8KB. **NOT for user chat input** — that's already covered by `sanitizeForPrompt` + `promptInjectionDetector`. Apply when a NEW call site begins inlining strings sourced from outside the user's own request (e.g. a future "summarize this recipe" feature pulling from a 3rd-party API). Pinned by 17 contract tests.
+- **Encrypted persisted Zustand stores** — `src/utils/encryptedStorage.ts` wraps Zustand `persist` storage with AES-256-GCM via node-forge. Per-install master key from `expo-crypto.getRandomBytesAsync` lives in `expo-secure-store` (Keychain/Keystore). Envelope `base64(version‖iv‖tag‖ciphertext)`. Tampered ciphertext / wrong key surfaces as `null` (treated as missing). Plaintext-migration on read for pre-round-233 installs. Applied to: `useMeasurementsStore`, `useSleepStore`, `useNutritionStore`, `useCardioStore`, `useWorkoutStore`, `useAuthStore` (profile PII), `useTrainerStore` (clients' PII). Web falls through to plain AsyncStorage (browser localStorage + JS-only key buys nothing). Lower-sensitivity stores (settings, density, theme, recipes, subscription, onboarding tips, support, connection) keep plain AsyncStorage.
+
 ## Security Audit Checklist
 
 When auditing any file, check every item:
@@ -117,10 +122,11 @@ When auditing any file, check every item:
 - Bucket pruned every 5 minutes via `setInterval(...).unref()` (no memory leak, no Jest open handle)
 - This is separate from the 10 msgs/day free-user daily limit enforced by subscription check
 
-**2. AsyncStorage stores fitness data unencrypted**
-- Location: `src/store/useNutritionStore.ts`, `useWorkoutStore.ts`, `useMeasurementStore.ts`, `useSleepStore.ts`
-- Risk: readable on rooted/jailbroken devices
-- Fix: wrap persist storage with `expo-secure-store` or `react-native-encrypted-storage`
+~~**2. AsyncStorage stores fitness data unencrypted**~~ — **RESOLVED** as of 2026-05-02 (round 233)
+- All sensitive Zustand stores now wrap their `persist` storage with `createEncryptedAsyncStorage()` from `src/utils/encryptedStorage.ts` (AES-256-GCM via node-forge, per-install key in `expo-secure-store`). Stores migrated: `useMeasurementsStore`, `useSleepStore`, `useNutritionStore`, `useCardioStore`, `useWorkoutStore`, `useAuthStore`, `useTrainerStore`.
+- Pre-round-233 plaintext blobs are read once on first launch and rewritten encrypted on the next state mutation — no manual migration needed.
+- Tamper detection: corrupted ciphertext / wrong key returns null from getItem so the store falls back to its initial state (same UX as fresh install).
+- Pinned by `src/__tests__/encryptedStorage.test.ts` (12 cases — roundtrip, migration, tamper, key prefix).
 
 ~~**3. No audit log for admin mutations**~~ — **RESOLVED** as of 2026-04-22
 ~~**14. Email normalization missing on OAuth + change-email flows**~~ — **RESOLVED** as of 2026-04-28
