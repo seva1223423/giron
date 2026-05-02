@@ -4037,6 +4037,21 @@ async function executeTool(
     );
 
     const periodLabel = period === 'week' ? 'неделю' : period === '3months' ? '3 месяца' : 'месяц';
+
+    // Round 216: honest empty-period message. Without this, AI saw
+    // "Тренировок: 0, Общий объём: 0 кг" and would still try to write
+    // a multi-paragraph "analysis" — usually fabricated. Now: when
+    // there's literally nothing in the window, tell AI clearly so it
+    // can give the user a useful "ничего не записано — давай начнём"
+    // instead of a phantom analysis.
+    if (totalWorkouts === 0 && weights.length === 0) {
+      return {
+        resultText: `За ${periodLabel} нет ни одной тренировки и ни одного взвешивания. Анализировать нечего — предложи пользователю начать записывать (log_completed_workout, log_body_weight). Не выдумывай графики, тренды и средние.`,
+        actionDescription: `Анализ прогресса за ${periodLabel} — данных нет`,
+        actionData: { totalWorkouts: 0, totalVolume: 0, period, hasData: false },
+      };
+    }
+
     let analysis = `📊 Прогресс за ${periodLabel}:\n\nТренировок: ${totalWorkouts}\nОбщий объём: ${Math.round(totalVolume)} кг\nСреднее время: ${totalWorkouts > 0 ? Math.round(totalDuration / totalWorkouts) : 0} мин\nСредний объём: ${avgVolume} кг/тренировка`;
     if (weightChange) analysis += `\nИзменение веса: ${parseFloat(weightChange) > 0 ? '+' : ''}${weightChange} кг`;
     if (trend.trend !== 'insufficient_data') {
@@ -4044,6 +4059,13 @@ async function executeTool(
       analysis += `\nТренд (${trend.sampleCount} замеров): ${dir} ${Math.abs(trend.weeklyDeltaKg).toFixed(2)} кг/нед`;
     }
     if (topPRs.length > 0) analysis += `\n\nТоп рекорды:\n${prText}`;
+
+    // Round 216: low-data warning. If we have ≤2 workouts or ≤2
+    // weight points, the trends are noisy. Tell AI explicitly so it
+    // doesn't extrapolate.
+    if (totalWorkouts > 0 && totalWorkouts <= 2) {
+      analysis += `\n\n⚠️ Только ${totalWorkouts} тренировки в периоде — этого мало для тренда. Не делай далеко идущих выводов.`;
+    }
 
     return {
       resultText: analysis,
@@ -4054,6 +4076,7 @@ async function executeTool(
         period,
         weightTrendKgPerWeek: trend.weeklyDeltaKg,
         weightTrendBucket: trend.trend,
+        hasData: true,
       },
     };
   }
