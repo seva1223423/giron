@@ -102,7 +102,13 @@ function safeParseToolArgs(raw: string): Record<string, unknown> {
         .replace(/""(\w+)""/g, '"$1"');   // двойные кавычки
       return JSON.parse(fixed);
     } catch {
-      logger.error('Failed to parse tool arguments:', raw);
+      // Round 254: cap raw payload at 200 chars to avoid leaking
+      // user-supplied content (food names, allergies, weights — flowed
+      // through Mistral and would otherwise get verbatim in logs).
+      const truncated = typeof raw === 'string' && raw.length > 200
+        ? `${raw.slice(0, 200)}…(${raw.length} chars total)`
+        : raw;
+      logger.error('Failed to parse tool arguments:', truncated);
       return {};
     }
   }
@@ -214,7 +220,10 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
           const args = safeParseToolArgs(tc.function.arguments);
           // Пропускаем tool calls с пустыми аргументами (ошибка парсинга)
           if (Object.keys(args).length === 0 && tc.function.arguments.trim().length > 2) {
-            logger.warn(`Skipping malformed tool call: ${tc.function.name}, raw: ${tc.function.arguments}`);
+            // Round 254: cap raw at 200 chars (PII protection — see safeParseToolArgs).
+            const rawArgs = tc.function.arguments;
+            const truncated = rawArgs.length > 200 ? `${rawArgs.slice(0, 200)}…(${rawArgs.length} chars)` : rawArgs;
+            logger.warn(`Skipping malformed tool call: ${tc.function.name}, raw: ${truncated}`);
             return null;
           }
           return { id: tc.id, name: tc.function.name, arguments: args };
