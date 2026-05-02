@@ -26,6 +26,9 @@ jest.mock('../db', () => ({
     },
     routineExercise: { deleteMany: jest.fn() },
     workout: { findFirst: jest.fn(), findMany: jest.fn() },
+    // Round 238: /routines/:id/start now uses workoutExercise.findMany
+    // (single batch query) instead of N×workout.findFirst.
+    workoutExercise: { findMany: jest.fn().mockResolvedValue([]) },
     securityEvent: { create: jest.fn().mockResolvedValue({}) },
     $transaction: jest.fn((fn: any) => fn({
       routineExercise: { deleteMany: jest.fn() },
@@ -319,10 +322,10 @@ describe('PUT /api/workouts/routines/:id', () => {
 describe('POST /api/workouts/routines/:id/start', () => {
   it('200 with payload on first use (no previous workout)', async () => {
     (prisma.routine.findUnique as jest.Mock).mockResolvedValue(mockRoutine);
-    // No previous workout for this routine
-    (prisma.workout.findFirst as jest.Mock)
-      .mockResolvedValueOnce(null) // last completed workout for routine
-      .mockResolvedValueOnce(null); // last workout per exercise (progressive overload)
+    // findFirst still used for lastRoutineWorkout (single call)
+    (prisma.workout.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    // Round 238: progressive-overload uses workoutExercise.findMany now
+    (prisma.workoutExercise.findMany as jest.Mock).mockResolvedValueOnce([]);
 
     const res = await request(app)
       .post(`/api/workouts/routines/${ROUTINE_ID}/start`)
@@ -338,21 +341,19 @@ describe('POST /api/workouts/routines/:id/start', () => {
   it('200 and applies progressive overload when all sets completed last time', async () => {
     const LAST_WORKOUT_ID = 'clastwrkout00000000000001';
     (prisma.routine.findUnique as jest.Mock).mockResolvedValue(mockRoutine);
-    // findFirst call 1: lastRoutineWorkout — completedAt must be a Date (route calls .toISOString())
+    // findFirst: lastRoutineWorkout (still single call after R238)
     (prisma.workout.findFirst as jest.Mock).mockResolvedValueOnce({
       id: LAST_WORKOUT_ID,
       completedAt: new Date(Date.now() - 86400000),
     });
-    // findFirst call 2: last workout per exercise (for progressive overload logic)
-    (prisma.workout.findFirst as jest.Mock).mockResolvedValueOnce({
-      id: LAST_WORKOUT_ID,
-      exercises: [
-        {
-          exerciseId: EX_ID,
-          sets: [{ setNumber: 1, type: 'normal', reps: 8, weight: 80, completed: true }],
-        },
-      ],
-    });
+    // Round 238: progressive-overload now uses workoutExercise.findMany
+    // — returns rows with sets per exerciseId. Most-recent-first order.
+    (prisma.workoutExercise.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        exerciseId: EX_ID,
+        sets: [{ setNumber: 1, type: 'normal', reps: 8, weight: 80, completed: true }],
+      },
+    ]);
 
     const res = await request(app)
       .post(`/api/workouts/routines/${ROUTINE_ID}/start`)

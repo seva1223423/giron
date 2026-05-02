@@ -1495,25 +1495,33 @@ router.delete('/linked-accounts/:provider', authenticate, async (req: AuthReques
 router.get('/export', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    // Round 240: bound every list query so a power user with 10K+ workouts
+    // doesn't produce a multi-MB synchronous JSON dump that blocks the
+    // event loop. Limits chosen to be generous (covers ~5 years of typical
+    // training/eating) but stop the worst case. Future: stream NDJSON for
+    // unlimited export.
+    const EXPORT_LIMIT_LARGE = 5000;
+    const EXPORT_LIMIT_MED = 2000;
+    const EXPORT_LIMIT_SMALL = 500;
     const [
       user, workouts, meals, bodyWeights, bodyMeasurements, chatMessages,
       aiMemories, savedNews, subscription, cardioSessions, sleepEntries,
       supportTickets, securityEvents, foodScanLogs,
     ] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: USER_PROFILE_SELECT }),
-      prisma.workout.findMany({ where: { userId }, include: { exercises: { include: { sets: true } } }, orderBy: { createdAt: 'desc' } }),
-      prisma.meal.findMany({ where: { userId }, include: { items: true }, orderBy: { date: 'desc' } }),
-      prisma.bodyWeight.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
-      prisma.bodyMeasurement.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
-      prisma.chatMessage.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }),
-      prisma.aIMemory.findMany({ where: { userId } }),
-      prisma.savedNews.findMany({ where: { userId }, include: { article: true } }),
+      prisma.workout.findMany({ where: { userId }, include: { exercises: { include: { sets: true } } }, orderBy: { createdAt: 'desc' }, take: EXPORT_LIMIT_LARGE }),
+      prisma.meal.findMany({ where: { userId }, include: { items: true }, orderBy: { date: 'desc' }, take: EXPORT_LIMIT_LARGE }),
+      prisma.bodyWeight.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: EXPORT_LIMIT_LARGE }),
+      prisma.bodyMeasurement.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: EXPORT_LIMIT_MED }),
+      prisma.chatMessage.findMany({ where: { userId }, orderBy: { createdAt: 'asc' }, take: EXPORT_LIMIT_LARGE }),
+      prisma.aIMemory.findMany({ where: { userId }, take: EXPORT_LIMIT_MED }),
+      prisma.savedNews.findMany({ where: { userId }, include: { article: true }, take: EXPORT_LIMIT_MED }),
       prisma.subscription.findUnique({ where: { userId } }),
-      prisma.cardioSession.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
-      prisma.sleepEntry.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
-      prisma.supportTicket.findMany({ where: { userId }, include: { messages: true }, orderBy: { createdAt: 'desc' } }),
-      prisma.securityEvent.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 500 }),
-      prisma.foodScanLog.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+      prisma.cardioSession.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: EXPORT_LIMIT_MED }),
+      prisma.sleepEntry.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: EXPORT_LIMIT_MED }),
+      prisma.supportTicket.findMany({ where: { userId }, include: { messages: true }, orderBy: { createdAt: 'desc' }, take: EXPORT_LIMIT_SMALL }),
+      prisma.securityEvent.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: EXPORT_LIMIT_SMALL }),
+      prisma.foodScanLog.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: EXPORT_LIMIT_MED }),
     ]);
 
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
