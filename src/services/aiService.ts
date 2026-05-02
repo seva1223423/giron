@@ -207,6 +207,20 @@ export const aiService = {
         err.status = 422;
         throw err;
       }
+      // 400: validation error (bad image format, oversize payload, etc.)
+      // The server's Zod messages are in Russian and user-facing, so
+      // surface them through the same `suggestion` shape the screen's
+      // error card already renders. Marked non-retryable because the
+      // same payload would fail validation again — user needs to pick
+      // a different image or shorten input.
+      if (e?.response?.status === 400) {
+        const payload = e.response.data ?? {};
+        const err: any = new Error(payload.error || 'Неверный формат изображения');
+        err.suggestion = payload.error || 'Попробуй другое изображение.';
+        err.retryable = false;
+        err.status = 400;
+        throw err;
+      }
       throw e;
     }
   },
@@ -232,6 +246,16 @@ export const aiService = {
         err.suggestion = payload.suggestion ?? null;
         err.retryable = payload.retryable ?? true;
         err.status = 422;
+        throw err;
+      }
+      // 400: validation (description too short / too long). See analyzeFood
+      // for the rationale on the suggestion / retryable shape.
+      if (e?.response?.status === 400) {
+        const payload = e.response.data ?? {};
+        const err: any = new Error(payload.error || 'Описание не подходит');
+        err.suggestion = payload.error || 'Опиши блюдо короче или подробнее.';
+        err.retryable = false;
+        err.status = 400;
         throw err;
       }
       throw e;
