@@ -11,7 +11,11 @@
  *   6. Ambiguity handling (multiple cardio sessions same date)
  */
 
-// Mock Prisma BEFORE importing app
+// Mock Prisma BEFORE importing app. `$transaction` is mocked because
+// delete_sleep / delete_body_measurement now wrap their delete + verify
+// step in a transaction (round 233 — closes a race-condition window
+// where a concurrent log_* call could re-insert at the same composite
+// key between the delete and the post-write findUnique).
 jest.mock('../db', () => ({
   prisma: {
     cardioSession: {
@@ -28,6 +32,7 @@ jest.mock('../db', () => ({
       findUnique: jest.fn(),
       delete: jest.fn(),
     },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -253,10 +258,11 @@ async function executeDeleteSleep(
   if (!existing) {
     return { resultText: `Не нашёл запись сна за ${date}.`, actionDescription: '' };
   }
-  await prisma.sleepEntry.delete({ where: { userId_date: { userId, date } } as any });
-  const stillThere = await prisma.sleepEntry.findUnique({
-    where: { userId_date: { userId, date } } as any,
-  });
+  // Mirrors the route's transactional delete + verify (round 233).
+  const [, stillThere] = await (prisma as any).$transaction([
+    prisma.sleepEntry.delete({ where: { userId_date: { userId, date } } as any }),
+    prisma.sleepEntry.findUnique({ where: { userId_date: { userId, date } } as any }),
+  ]);
   if (stillThere) throw new Error('delete_sleep: row still exists after delete');
   return {
     resultText: `Удалил запись сна за ${date} (${existing.durationHours} ч).`,
@@ -283,20 +289,25 @@ describe('delete_sleep', () => {
     (mockPrisma.sleepEntry.findUnique as jest.Mock).mockResolvedValueOnce({
       date: '2024-05-01', durationHours: 7.5,
     });
-    (mockPrisma.sleepEntry.delete as jest.Mock).mockResolvedValueOnce({});
-    (mockPrisma.sleepEntry.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    // $transaction returns [deleteResult, verifyResult]. verify=null means
+    // the row is gone — happy path.
+    ((mockPrisma as any).$transaction as jest.Mock).mockResolvedValueOnce([{}, null]);
 
     const r = await executeDeleteSleep({ date: '2024-05-01' }, 'u1');
     expect(r.resultText).toMatch(/Удалил запись сна за 2024-05-01 \(7\.5 ч\)/);
     expect(r.actionData?.date).toBe('2024-05-01');
+    // Round 233: enforce that delete + verify ran inside a single
+    // transaction (atomic — closes the concurrent-log_sleep race window).
+    expect((mockPrisma as any).$transaction).toHaveBeenCalledTimes(1);
   });
 
   test('throws if verify finds row still there', async () => {
     (mockPrisma.sleepEntry.findUnique as jest.Mock).mockResolvedValueOnce({
       date: '2024-05-01', durationHours: 7,
     });
-    (mockPrisma.sleepEntry.delete as jest.Mock).mockResolvedValueOnce({});
-    (mockPrisma.sleepEntry.findUnique as jest.Mock).mockResolvedValueOnce({ date: '2024-05-01' });
+    // verifyResult truthy = a row reappeared (or never went away). The
+    // transaction itself succeeds; the post-delete verify catches it.
+    ((mockPrisma as any).$transaction as jest.Mock).mockResolvedValueOnce([{}, { date: '2024-05-01' }]);
 
     await expect(executeDeleteSleep({ date: '2024-05-01' }, 'u1')).rejects.toThrow(/still exists/);
   });
@@ -321,10 +332,11 @@ async function executeDeleteMeasurement(
   if (!existing) {
     return { resultText: `Не нашёл обмеры за ${date}.`, actionDescription: '' };
   }
-  await prisma.bodyMeasurement.delete({ where: { userId_date: { userId, date } } as any });
-  const stillThere = await prisma.bodyMeasurement.findUnique({
-    where: { userId_date: { userId, date } } as any,
-  });
+  // Mirrors the route's transactional delete + verify (round 233).
+  const [, stillThere] = await (prisma as any).$transaction([
+    prisma.bodyMeasurement.delete({ where: { userId_date: { userId, date } } as any }),
+    prisma.bodyMeasurement.findUnique({ where: { userId_date: { userId, date } } as any }),
+  ]);
   if (stillThere) throw new Error('delete_body_measurement: row still exists after delete');
   return {
     resultText: `Удалил обмеры за ${date}.`,
@@ -349,12 +361,13 @@ describe('delete_body_measurement', () => {
 
   test('deletes and confirms', async () => {
     (mockPrisma.bodyMeasurement.findUnique as jest.Mock).mockResolvedValueOnce({ date: '2024-05-01' });
-    (mockPrisma.bodyMeasurement.delete as jest.Mock).mockResolvedValueOnce({});
-    (mockPrisma.bodyMeasurement.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    ((mockPrisma as any).$transaction as jest.Mock).mockResolvedValueOnce([{}, null]);
 
     const r = await executeDeleteMeasurement({ date: '2024-05-01' }, 'u1');
     expect(r.resultText).toBe('Удалил обмеры за 2024-05-01.');
     expect(r.actionData?.date).toBe('2024-05-01');
+    // Round 233: same atomicity guarantee as delete_sleep.
+    expect((mockPrisma as any).$transaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -392,18 +405,16 @@ describe('Cross-tool consistency: all delete tools follow §14 reliability check
     (mockPrisma.cardioSession.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'c1' });
     await expect(executeDeleteCardio({ sessionId: 'c1' }, 'u1')).rejects.toThrow();
 
-    // delete_sleep
+    // delete_sleep — transactional verify returns the row (re-create scenario)
     (mockPrisma.sleepEntry.findUnique as jest.Mock).mockResolvedValueOnce({
       date: '2024-05-01', durationHours: 7,
     });
-    (mockPrisma.sleepEntry.delete as jest.Mock).mockResolvedValueOnce({});
-    (mockPrisma.sleepEntry.findUnique as jest.Mock).mockResolvedValueOnce({ date: '2024-05-01' });
+    ((mockPrisma as any).$transaction as jest.Mock).mockResolvedValueOnce([{}, { date: '2024-05-01' }]);
     await expect(executeDeleteSleep({ date: '2024-05-01' }, 'u1')).rejects.toThrow();
 
-    // delete_body_measurement
+    // delete_body_measurement — same shape
     (mockPrisma.bodyMeasurement.findUnique as jest.Mock).mockResolvedValueOnce({ date: '2024-05-01' });
-    (mockPrisma.bodyMeasurement.delete as jest.Mock).mockResolvedValueOnce({});
-    (mockPrisma.bodyMeasurement.findUnique as jest.Mock).mockResolvedValueOnce({ date: '2024-05-01' });
+    ((mockPrisma as any).$transaction as jest.Mock).mockResolvedValueOnce([{}, { date: '2024-05-01' }]);
     await expect(executeDeleteMeasurement({ date: '2024-05-01' }, 'u1')).rejects.toThrow();
   });
 });
