@@ -84001,7 +84001,11 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const fingerprint = imageBase64.length > 128
       ? `${imageBase64.length}:${imageBase64.slice(0, 64)}:${imageBase64.slice(-64)}`
       : `${imageBase64.length}:${imageBase64}`;
-    const cacheKey = `${userId}:${fingerprint}`;
+    // Round 253: scope the cache by mealType. The same photo at breakfast
+    // and lunch should now produce different portion estimates (round
+    // 252's КОНТЕКСТ ТРАПЕЗЫ block); without segmenting the cache, the
+    // first scan's result would echo back to the second.
+    const cacheKey = `${userId}:${mealType ?? 'none'}:${fingerprint}`;
     const cachedResponse = foodVisionCache.get(cacheKey);
     if (cachedResponse) {
       res.setHeader('X-Cache', 'HIT');
@@ -84531,7 +84535,9 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
     // Cross-device cache by (userId, normalized-text). Same pattern as the
     // vision cache: same input → same answer, no extra Mistral call.
     const normalizedText = description.toLowerCase().replace(/\s+/g, ' ').trim();
-    const cacheKey = `${userId}:text:${normalizedText}`;
+    // Round 253: scope by mealType, parity with vision path. "съел кашу"
+    // at breakfast (200g) and lunch (280g) now cache separately.
+    const cacheKey = `${userId}:text:${mealType ?? 'none'}:${normalizedText}`;
     const cachedResponse = foodVisionCache.get(cacheKey);
     if (cachedResponse) {
       res.setHeader('X-Cache', 'HIT');
