@@ -1,5 +1,21 @@
 import { logger } from '../utils/logger';
 
+/**
+ * Round 250: redact phone numbers in logs to last 4 digits.
+ * Goes from "+79991234567" → "+7***4567" — preserves format diagnostics
+ * (correct country code, plausible length) without leaking the full
+ * number to log streams that may be ingested by 3rd-party services.
+ *
+ * 152-ФЗ classifies phone numbers as "personal data" — full numbers in
+ * logs become a privacy honeypot.
+ */
+function redactPhone(phone: string): string {
+  if (!phone || phone.length < 5) return '***';
+  const last4 = phone.slice(-4);
+  const prefix = phone.slice(0, 2); // "+7" or "+1" etc
+  return `${prefix}***${last4}`;
+}
+
 // ── Phone normalization ────────────────────────────────────────────────────────
 /**
  * Normalize Russian/CIS phone numbers to E.164 format (+7XXXXXXXXXX).
@@ -33,7 +49,7 @@ async function sendViaSmsRu(phone: string, text: string): Promise<boolean> {
     if (data.status === 'OK') {
       const statuses = Object.values(data.sms || {}) as any[];
       if (statuses.every((s: any) => s.status === 'OK')) {
-        logger.info(`[SMS.ru] sent to ${phone}`);
+        logger.info(`[SMS.ru] sent to ${redactPhone(phone)}`);
         return true;
       }
       logger.warn(`[SMS.ru] delivery failed: ${statuses[0]?.status_code}`);
@@ -68,7 +84,7 @@ async function sendViaTwilio(phone: string, text: string): Promise<boolean> {
 
   try {
     await client.messages.create({ body: text, from, to: phone });
-    logger.info(`[Twilio] sent to ${phone}`);
+    logger.info(`[Twilio] sent to ${redactPhone(phone)}`);
     return true;
   } catch (e: any) {
     logger.warn(`[Twilio] failed: ${e.message}`);
@@ -95,11 +111,13 @@ export async function sendSmsOtp(phone: string, code: string): Promise<void> {
 
   if (process.env.NODE_ENV === 'production') {
     logger.error(
-      `[SMS] No provider configured in production — OTP for ${normalized} was NOT delivered. ` +
+      `[SMS] No provider configured in production — OTP for ${redactPhone(normalized)} was NOT delivered. ` +
       `Set SMSRU_API_ID (or TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_PHONE_NUMBER) in server env.`,
     );
     return;
   }
 
-  logger.info(`[SMS-DEV] OTP for ${normalized}: ${code}`);
+  // Round 250: dev fallback intentionally still logs the full code so
+  // the developer can paste it; phone redacted to last 4 digits.
+  logger.info(`[SMS-DEV] OTP for ${redactPhone(normalized)}: ${code}`);
 }

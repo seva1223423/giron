@@ -1,6 +1,24 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
 
+/**
+ * Round 250: redact email addresses for log lines.
+ * "user@example.com" → "u***r@example.com" (preserves domain for ops
+ * diagnosis but masks the local-part identifier).
+ *
+ * 152-ФЗ classifies email as personal data; full addresses in log
+ * streams become a privacy honeypot subject to erasure obligations.
+ */
+function redactEmail(email: string): string {
+  if (!email || typeof email !== 'string') return '***';
+  const at = email.indexOf('@');
+  if (at < 1) return '***';
+  const local = email.slice(0, at);
+  const domain = email.slice(at);
+  if (local.length <= 2) return `***${domain}`;
+  return `${local[0]}***${local[local.length - 1]}${domain}`;
+}
+
 /** Escape HTML special characters to prevent injection in email templates */
 function esc(s: string): string {
   return s
@@ -114,7 +132,7 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
     `,
   });
 
-  logger.info(`[Email] Password reset sent to ${email}`);
+  logger.info(`[Email] Password reset sent to ${redactEmail(email)}`);
 }
 
 export async function sendOtpEmail(email: string, code: string): Promise<void> {
@@ -138,7 +156,7 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
       </div>
     `,
   });
-  logger.info(`[Email] OTP sent to ${email}`);
+  logger.info(`[Email] OTP sent to ${redactEmail(email)}`);
 }
 
 export async function sendPasswordChangedAlert(email: string, ip: string, date: Date): Promise<void> {
@@ -167,7 +185,7 @@ export async function sendPasswordChangedAlert(email: string, ip: string, date: 
       </div>
     `,
   });
-  logger.info(`[Email] Password changed alert sent to ${email}`);
+  logger.info(`[Email] Password changed alert sent to ${redactEmail(email)}`);
 }
 
 /**
@@ -235,7 +253,7 @@ export async function sendWeeklySummaryEmail(
       </div>
     `,
   });
-  logger.info(`[Email] Weekly summary sent to ${email}`);
+  logger.info(`[Email] Weekly summary sent to ${redactEmail(email)}`);
 }
 
 /**
@@ -284,7 +302,7 @@ export async function sendSubscriptionCancelledEmail(
       </div>
     `,
   });
-  logger.info(`[Email] Subscription cancelled confirmation sent to ${email}`);
+  logger.info(`[Email] Subscription cancelled confirmation sent to ${redactEmail(email)}`);
 }
 
 /**
@@ -337,7 +355,7 @@ export async function sendPreRenewalNotificationEmail(
       </div>
     `,
   });
-  logger.info(`[Email] Pre-renewal notification sent to ${email} (renewal ${renewalDateStr})`);
+  logger.info(`[Email] Pre-renewal notification sent to ${redactEmail(email)} (renewal ${renewalDateStr})`);
 }
 
 /**
@@ -504,7 +522,7 @@ export async function sendDailyAdminDigestEmail(
       </div>
     `,
   });
-  logger.info(`[Email] Daily admin digest sent to ${email} (${stats.date})`);
+  logger.info(`[Email] Daily admin digest sent to ${redactEmail(email)} (${stats.date})`);
 }
 
 /**
@@ -556,7 +574,7 @@ export async function sendActivationReminderEmail(
       </div>
     `,
   });
-  logger.info(`[Email] Activation reminder sent to ${email}`);
+  logger.info(`[Email] Activation reminder sent to ${redactEmail(email)}`);
 }
 
 export async function sendNewLoginAlert(email: string, ip: string, userAgent: string | null, date: Date): Promise<void> {
@@ -589,5 +607,5 @@ export async function sendNewLoginAlert(email: string, ip: string, userAgent: st
       </div>
     `,
   });
-  logger.info(`[Email] New login alert sent to ${email}`);
+  logger.info(`[Email] New login alert sent to ${redactEmail(email)}`);
 }
