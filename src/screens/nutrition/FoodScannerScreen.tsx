@@ -515,6 +515,12 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  // Separate controller for the text-analyse path so a cancel-during-text
+  // doesn't accidentally abort an in-flight photo analyse, and vice
+  // versa. The photo path's abortRef is reused for both photo flow + the
+  // legacy "Cancel" UI element on the loading card; the text path needs
+  // its own to support the modal's cancel button.
+  const textAbortRef = useRef<AbortController | null>(null);
   const timedOutRef = useRef(false);
   // Set by the AppState listener when an in-flight analyse aborts because
   // the app went to background. Distinguishes that path from the user
@@ -1069,8 +1075,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
     setTextLoading(true);
     setError('');
     setSanityFlags([]);
+    // Round 235: support cancel during text-loading. Wire an abort
+    // controller into the request so the modal's cancel button can
+    // bail out of a slow Mistral call instead of stranding the user.
+    const controller = new AbortController();
+    textAbortRef.current = controller;
     try {
-      const result = await aiService.analyzeFoodText(desc);
+      const result = await aiService.analyzeFoodText(desc, controller.signal);
       // Same defensive shape check as analyzeFood (round 223). Without
       // this, a malformed 200 response crashes applyAIItems with an
       // opaque TypeError.
@@ -1106,7 +1117,13 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         if (!isPremiumActive()) consumeFoodScan();
       }
     } catch (e: any) {
-      if (e?.response?.status === 402) {
+      if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') {
+        // Round 235: user cancelled a slow text analyse via the modal's
+        // cancel button. Keep textDescription so they can edit and
+        // re-fire without retyping. No error card, no haptic — the
+        // cancel was deliberate.
+        setTextModalOpen(false);
+      } else if (e?.response?.status === 402) {
         setTextModalOpen(false);
         setShowPaywall(true);
         haptic.warning();
@@ -1136,6 +1153,7 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       }
     } finally {
       setTextLoading(false);
+      textAbortRef.current = null;
     }
   };
 
@@ -2836,7 +2854,15 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
           restaurant, already eaten, remembered meal) or when the vision
           path keeps failing, the user can type what they ate and get the
           same item-list response. Same daily quota, same cache. */}
-      <Modal visible={textModalOpen} transparent animationType="fade" onRequestClose={() => !textLoading && setTextModalOpen(false)}>
+      <Modal visible={textModalOpen} transparent animationType="fade" onRequestClose={() => {
+        // Android back button / iOS swipe-to-dismiss: if a Mistral call is
+        // running, abort it cleanly (round 235); otherwise close the modal.
+        if (textLoading) {
+          textAbortRef.current?.abort();
+        } else {
+          setTextModalOpen(false);
+        }
+      }}>
         <View style={styles.modalOverlay}>
           <View style={[styles.textModalCard, { backgroundColor: colors.surface }]}>
             <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.sm }]}>
@@ -2900,11 +2926,22 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
             </Text>
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
               <Button
-                title="Отмена"
+                title={textLoading ? 'Прервать' : 'Отмена'}
                 variant="outline"
-                onPress={() => { if (!textLoading) { setTextModalOpen(false); setTextDescription(''); } }}
+                onPress={() => {
+                  if (textLoading) {
+                    // Round 235: cancel during analysis aborts the in-flight
+                    // request. textDescription is preserved so the user can
+                    // edit and re-fire without retyping.
+                    textAbortRef.current?.abort();
+                  } else {
+                    setTextModalOpen(false);
+                    setTextDescription('');
+                  }
+                }}
                 style={{ flex: 1 }}
-                accessibilityLabel="Отменить и закрыть"
+                accessibilityLabel={textLoading ? 'Прервать анализ' : 'Отменить и закрыть'}
+                accessibilityHint={textLoading ? 'Останавливает текущий запрос к AI' : undefined}
               />
               {textLoading ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
