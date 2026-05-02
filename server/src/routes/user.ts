@@ -1059,15 +1059,21 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     // Find active OTP for new email (purpose: email-change) — validate BEFORE checking availability
     // to prevent email enumeration (attacker can't distinguish 409 from 400 without a valid OTP).
     // SECURITY: Scope by userId — an OTP is only valid for the user it was issued to.
-    // Accept legacy OTPs with userId=null (rows created before the userId column existed);
-    // those expire after 10 minutes so the fallback goes away naturally.
+    //
+    // Round 234 (security audit): dropped the legacy `{ userId: null }`
+    // fallback. The `userId` column has been live for >10 minutes (the
+    // OTP TTL), so any unscoped row is either expired or doesn't apply
+    // to this `email-change` purpose. Keeping the OR open meant any
+    // historical unscoped code for `target@example.com` could still be
+    // consumed by ANY logged-in user changing their address to that
+    // same email — closes the cross-user OTP-bind gap.
     const activeOtp = await prisma.otpCode.findFirst({
       where: {
         email: newEmail,
         purpose: 'email-change',
         used: false,
         expiresAt: { gte: new Date() },
-        OR: [{ userId: req.userId! }, { userId: null }],
+        userId: req.userId!,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -1091,6 +1097,16 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     if (consumed === 0) {
       return res.status(400).json({ error: 'Код уже был использован', code: 'INVALID_OTP' });
     }
+
+    // Round 234 (security audit): capture the OLD email BEFORE the update
+    // so we can notify it post-change. Without this alert, a stolen access
+    // token can permanently take over by repointing the email then asking
+    // for a password reset — the legitimate owner never sees it happen.
+    const userBeforeUpdate = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { email: true },
+    });
+    const oldEmail = userBeforeUpdate?.email ?? null;
 
     // Atomically update email — unique constraint violation (P2002) means already taken
     try {
@@ -1120,6 +1136,17 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
       body: `К аккаунту привязан новый email. Другие устройства были отключены.`,
       data: { url: 'irongym://profile/security' },
     }).catch(() => {});
+
+    // Round 234: alert the OLD email — best-effort, the security boundary
+    // is already intact (refresh tokens revoked + trusted devices wiped
+    // above), this is the user-facing notification the owner sees in
+    // their inbox if they didn't trigger the change.
+    if (oldEmail && oldEmail !== newEmail) {
+      const { sendEmailChangedAlert } = await import('../services/emailService');
+      sendEmailChangedAlert(oldEmail, newEmail, ip ?? 'unknown', new Date()).catch((mailErr) => {
+        logger.warn('sendEmailChangedAlert failed (non-blocking):', mailErr);
+      });
+    }
 
     res.json({ ok: true, email: newEmail, emailVerified: true, token: newToken, refreshToken: newRefreshToken });
   } catch (e: any) {

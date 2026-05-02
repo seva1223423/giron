@@ -331,8 +331,17 @@ export const useAuthStore = create<AuthStore>()(
           const isNetworkError = !e?.response || e?.code === 'ECONNABORTED' || e?.code === 'ERR_NETWORK';
           if (isNetworkError) {
             set({ user: normalizeUser({ ...user, ...data }) });
+          } else {
+            // Round 272: report 4xx/5xx server errors so we have visibility.
+            // Previously these were silently ignored — user saw their edit
+            // visually revert with no error message and no Sentry trace.
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { reportError } = require('../utils/errorReporter');
+            reportError(e instanceof Error ? e : new Error(String(e)), {
+              screen: 'auth-store',
+              tags: { op: 'updateProfile' },
+            });
           }
-          // Server validation errors (4xx) are silently ignored — data stays unchanged
         }
       },
 
@@ -365,7 +374,17 @@ export const useAuthStore = create<AuthStore>()(
               waterMl: u.targetWaterMl ?? null,
             });
           }
-        } catch {}
+        } catch (e) {
+          // Round 272: surface profile-fetch failures to Sentry. Previously
+          // empty catch — a server outage that bricked the profile call
+          // showed no signal in observability.
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { reportError } = require('../utils/errorReporter');
+          reportError(e instanceof Error ? e : new Error(String(e)), {
+            screen: 'auth-store',
+            tags: { op: 'fetchProfile' },
+          });
+        }
       },
     }),
     {
