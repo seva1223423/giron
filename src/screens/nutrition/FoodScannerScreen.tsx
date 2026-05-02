@@ -1020,6 +1020,16 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
         setError(e.suggestion);
         setErrorRetryable(e?.retryable !== false);
         haptic.error();
+      } else if (e?.code === 'ERR_NETWORK' || (e?.message && !e?.response)) {
+        // Round 216: parity with the photo path (round 204). Network
+        // failures during a text analyse used to surface as the
+        // generic "Ошибка сети" via getApiError, hiding the actual
+        // cause. The text input is preserved (textDescription state
+        // doesn't get cleared on this branch) so the user can retry
+        // once they reconnect without re-typing.
+        setError('Нет соединения с сервером. Проверь интернет и попробуй снова.');
+        setErrorRetryable(true);
+        haptic.error();
       } else {
         setError(getApiError(e).message);
         setErrorRetryable(true);
