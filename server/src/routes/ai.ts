@@ -212,6 +212,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 Доступные инструменты:
 - **update_user_profile** — обновить вес, рост, цель, уровень
 - **log_body_weight** — записать вес тела
+- **delete_body_weight** — удалить ошибочную запись веса (по дате или последнюю)
 - **create_program** — полная программа тренировок (рекомендуемый для программ)
 - **create_workout** — одна разовая тренировка В ПЛАН (на будущее)
 - **log_completed_workout** — записать ФАКТИЧЕСКИ ВЫПОЛНЕННУЮ тренировку задним числом (попадает в историю, PR-расчёты, объём)
@@ -247,6 +248,7 @@ const SYSTEM_PROMPT = `Ты — Iron Coach, элитный персональн�
 
 **Когда действовать:**
 - "вешу 85 кг" → СРАЗУ вызови log_body_weight(85) + update_user_profile(weightKg:85). Не спрашивай "записать?"
+- "удали последнее взвешивание" / "ошибся в весе вчера" → delete_body_weight (с датой если указана)
 - "составь программу" → СРАЗУ create_program с полной программой, потом set_weekly_plan. Не давай "пример" — создай реальную программу.
 - "потренировался сегодня грудь+трицепс жим 4×8 80кг" / "вчера качал спину" / "сделал тренировку утром, тяга 3×5 100кг" → СРАЗУ log_completed_workout. Это запись СЕССИИ, не плана. Если пользователь просто говорит "хочу тренировку на грудь" — это create_workout.
 - "съел гречку с курицей" → СРАЗУ log_meal с рассчитанным КБЖУ (используй стандартные порции если вес не указан)
@@ -1003,6 +1005,19 @@ const AI_TOOLS: DeepSeekTool[] = [
           date: { type: 'string', description: 'Дата YYYY-MM-DD записи для удаления' },
         },
         required: ['date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_body_weight',
+      description: 'Удалить ошибочную запись веса тела. Используй когда пользователь говорит "удали вес 85 кг", "ошибка во вчерашнем взвешивании", "убери последнее взвешивание". Можно указать дату или удалить самую последнюю запись.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Дата YYYY-MM-DD записи для удаления. Если не указана — удаляется самая последняя запись.' },
+        },
       },
     },
   },
@@ -4194,6 +4209,69 @@ async function executeTool(
       resultText: `Удалил обмеры за ${date}.`,
       actionDescription: `Удалены обмеры за ${date}`,
       actionData: { date },
+    };
+  }
+
+  // Round 208: closes log/delete-pair coverage gap. log_body_weight
+  // existed but no delete tool — user mistyping their weight (185 vs 85)
+  // had to use the UI. AI can now resolve by date OR delete latest.
+  if (toolName === 'delete_body_weight') {
+    const { date } = toolInput as { date?: string };
+
+    let target: { id: string; date: Date; weightKg: number } | null = null;
+    if (date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return {
+          resultText: `Дата "${date}" в неправильном формате. Нужно YYYY-MM-DD.`,
+          actionDescription: '',
+        };
+      }
+      // BodyWeight.date is a Date column with day granularity. Match
+      // against the start-of-day for the given calendar date.
+      const targetDate = new Date(`${date}T00:00:00.000Z`);
+      const found = await prisma.bodyWeight.findFirst({
+        where: { userId, date: targetDate },
+        select: { id: true, date: true, weightKg: true },
+      });
+      if (!found) {
+        return {
+          resultText: `Не нашёл взвешивания за ${date}.`,
+          actionDescription: '',
+        };
+      }
+      target = found;
+    } else {
+      // No date — delete most recent
+      const found = await prisma.bodyWeight.findFirst({
+        where: { userId },
+        orderBy: { date: 'desc' },
+        select: { id: true, date: true, weightKg: true },
+      });
+      if (!found) {
+        return {
+          resultText: 'У тебя нет ни одной записи веса в истории.',
+          actionDescription: '',
+        };
+      }
+      target = found;
+    }
+
+    await prisma.bodyWeight.delete({ where: { id: target.id } });
+
+    // Post-delete verify (R203 pattern)
+    const stillThere = await prisma.bodyWeight.findUnique({
+      where: { id: target.id },
+      select: { id: true },
+    });
+    if (stillThere) {
+      throw new Error('delete_body_weight: row still exists after delete (transaction rollback?)');
+    }
+
+    const dateText = target.date.toISOString().slice(0, 10);
+    return {
+      resultText: `Удалил запись веса ${target.weightKg} кг от ${dateText}.`,
+      actionDescription: `Удалена запись веса ${target.weightKg} кг (${dateText})`,
+      actionData: { weightId: target.id, weightKg: target.weightKg, date: dateText },
     };
   }
 
