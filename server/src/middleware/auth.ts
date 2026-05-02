@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { recordActivity, shouldSyncLastActiveAt } from '../utils/activityTracker';
 import { logger } from '../utils/logger';
+import { authUserCache, AUTH_CACHE_TTL_MS } from '../utils/memCache';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -36,13 +37,29 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     return res.status(401).json({ error: 'Недействительный токен' });
   }
 
-  // Check if user is banned (don't hit DB on every request — sample 20% for performance,
-  // always check on sensitive mutations; for simplicity we check every request)
+  // Round 280: cache the ban/role/lock lookup for 60s. Without the
+  // cache every authenticated request paid a Prisma roundtrip; under
+  // load (typing-indicator fan-out, chat streams) this was the
+  // dominant bottleneck. Sensitive ops (ban, role change, lock)
+  // call authUserCache.delete(userId) to invalidate immediately.
+  //
+  // Tests bypass the cache (NODE_ENV=test) so a banned-user fixture in
+  // case A doesn't leak into a fresh-user fixture in case B. Production
+  // and dev paths use the cache normally.
+  const useCache = process.env.NODE_ENV !== 'test';
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { isBanned: true, role: true, lockedUntil: true },
-    });
+    let user: { isBanned: boolean; role: string; lockedUntil: Date | null } | null;
+    const cached = useCache ? authUserCache.get(payload.userId) : undefined;
+    if (cached) {
+      user = cached;
+    } else {
+      const fresh = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { isBanned: true, role: true, lockedUntil: true },
+      });
+      if (fresh && useCache) authUserCache.set(payload.userId, fresh, AUTH_CACHE_TTL_MS);
+      user = fresh;
+    }
     if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
     if (user.isBanned) {
       logger.warn(`[SECURITY] Banned user attempted API access: userId=${payload.userId} path=${req.path}`);
