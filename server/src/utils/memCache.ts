@@ -94,6 +94,30 @@ export class MemCache<T = unknown> {
 /** Admin stats — 90s TTL; refreshes at most once per 1.5 minutes */
 export const adminStatsCache = new MemCache<unknown>(10);
 
+/**
+ * Auth middleware ban/role cache (R280).
+ *
+ * Without this, every authenticated request paid a Prisma roundtrip
+ * to fetch isBanned/role/lockedUntil. Under load (a chat that fans
+ * out 5 in-flight requests every keystroke for the typing indicator)
+ * this becomes a measurable bottleneck.
+ *
+ * 60s TTL is the right trade-off: ban / role-change / lock writes
+ * propagate to a user within at most 60s without manual invalidation.
+ * Sensitive ops (admin writes) explicitly invalidate via
+ * `authUserCache.delete(userId)` to take effect immediately.
+ *
+ * Capped at 10K entries — even a hot day rarely sees more than
+ * 1-2K active users; the LRU-lite eviction handles overflow.
+ */
+export const authUserCache = new MemCache<{
+  isBanned: boolean;
+  role: string;
+  lockedUntil: Date | null;
+}>(10_000);
+
+export const AUTH_CACHE_TTL_MS = 60_000;
+
 /** News feed cache — 6h TTL matches the RSS refresh schedule */
 export const newsCache = new MemCache<unknown>(200);
 

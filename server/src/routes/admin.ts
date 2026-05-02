@@ -8,7 +8,7 @@ import { authenticate, requireAdmin, requireStaff, AuthRequest } from '../middle
 import { getActiveUsersCount, getActiveUserIds } from '../utils/activityTracker';
 import { getAIMetrics } from '../utils/aiMetrics';
 import { logger } from '../utils/logger';
-import { adminStatsCache } from '../utils/memCache';
+import { adminStatsCache, authUserCache } from '../utils/memCache';
 import { getCronHealth } from '../utils/cronHealth';
 
 const router = Router();
@@ -947,6 +947,9 @@ router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Resp
       data: { role },
       select: { id: true, email: true, firstName: true, role: true },
     });
+    // Round 280: invalidate cached role so the new permissions take
+    // effect on the user's next request, not 60s later.
+    try { authUserCache.delete(req.params.id as string); } catch { /* best-effort cache invalidation */ }
     // Log action
     await prisma.adminLog.create({
       data: {
@@ -1048,6 +1051,9 @@ router.post('/users/:id/ban', requireAdmin, async (req: AuthRequest, res: Respon
       prisma.refreshToken.updateMany({ where: { userId: req.params.id as string, revoked: false }, data: { revoked: true } }),
       prisma.trustedDevice.deleteMany({ where: { userId: req.params.id as string } }),
     ]);
+    // Round 280: invalidate auth cache so the ban takes effect on the
+    // user's NEXT request, not 60 seconds later.
+    try { authUserCache.delete(req.params.id as string); } catch { /* best-effort cache invalidation */ }
     await prisma.adminLog.create({
       data: {
         adminId: req.userId!,
@@ -1074,6 +1080,8 @@ router.post('/users/:id/unban', requireAdmin, async (req: AuthRequest, res: Resp
       data: { isBanned: false, bannedAt: null, banReason: null },
       select: { id: true, email: true, firstName: true, isBanned: true },
     });
+    // Round 280: invalidate cached ban state immediately.
+    try { authUserCache.delete(req.params.id as string); } catch { /* best-effort cache invalidation */ }
     await prisma.adminLog.create({
       data: {
         adminId: req.userId!,
