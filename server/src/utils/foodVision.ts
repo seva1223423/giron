@@ -31,12 +31,21 @@ export function parseFoodResponse(text: string): FoodItem[] | null {
   // Check if the whole thing is a bare array first. This path used to live
   // as a fallback but the regex /\{[\s\S]*\}/ would swallow objects inside
   // arrays like `[{...}]`, preventing bare arrays from ever being recognised.
+  //
+  // Audit: previously gated on `items[0].name` which dropped every entry
+  // when the first item happened to lack a name (a partial AI response
+  // we'd otherwise be able to recover most items from). validateFoodItems
+  // filters out nameless items downstream, so we just need ANY item to
+  // be useful — return the array unchanged and let the validator clean
+  // it up.
   if (cleaned.startsWith('[')) {
     const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
       try {
         const items = JSON.parse(arrayMatch[0]);
-        if (Array.isArray(items) && items.length > 0 && items[0].name) return items;
+        if (Array.isArray(items) && items.length > 0 && items.some((i) => i && typeof i.name === 'string' && i.name.trim())) {
+          return items;
+        }
       } catch { /* fall through to object-parse attempt */ }
     }
   }

@@ -1520,9 +1520,12 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /(?:вешу|вес\s*\d|взвеси|записать?\s*вес|мой\s*вес\s*\d)/i,
     /(?:съел[аи]?|поел[аи]?|кушал|завтрак|обед|ужин|перекус).*(?:\d|грамм|порц|тарелк)/i,
     /(?:выпил[аи]?|пил[аи]?)\s*(?:вод|стакан|бутылк|чай|кофе|литр|\d)/i,
-    /(?:съел[аи]?|поел[аи]?|кушал[аи]?)\b/i,
+    // Round 223: dropped \b — JS \b is ASCII-only, doesn't fire between
+    // Cyrillic and whitespace, so "съел " never matched. Anchor instead
+    // by trailing whitespace OR end of string.
+    /(?:съел[аи]?|поел[аи]?|кушал[аи]?)(?:$|[\s.,!?])/i,
     // "ел 200г", "ела курицу" — bare past tense "есть" with food/quantity context
-    /\bел[аи]?\s+(?:\d|грамм|курицу?|мясо|рыбу?|рис|гречку?|творог|яйца?|кашу?|хлеб|бутерброд|суп|салат|протеин)/i,
+    /(?:^|[\s,.])ел[аи]?\s+(?:\d|грамм|курицу?|мясо|рыбу?|рис|гречку?|творог|яйца?|кашу?|хлеб|бутерброд|суп|салат|протеин)/i,
     /(?:удали|убери)\s*(?:приём|завтрак|обед|ужин|перекус|еду)/i,
     /(?:рост|мне)\s*\d{2,3}\s*(?:см|кг)/i,
     // Body measurements — use stem matches to handle Russian case inflections (талию, груди, бёдер...)
@@ -1579,8 +1582,10 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /(?:убери|удали|замени|поменяй)\s*(?:жим|присед|тяг|становую|становой|разведен|подъ[её]м|румын|гак)/i,
     /(?:добавь|включи)\s*(?:суперсет|суперсеты)/i,
     /(?:переставь|переупорядочи|измени\s*порядок)\s*(?:упражнен)/i,
-    /(?:активируй|включи|запусти|начни|переключись\s*на)\s*(?:программу?|трен\w+)/i,
-    /(?:хочу\s*(?:начать|запустить))\s+(?:iron|программу|пл\w+)/i,
+    // Round 223: replaced \w+ with [а-яё]+ — JS \w excludes Cyrillic so
+    // "тренировку" / "плана" never matched.
+    /(?:активируй|включи|запусти|начни|переключись\s*на)\s*(?:программу?|трен[а-яё]+)/i,
+    /(?:хочу\s*(?:начать|запустить))\s+(?:iron|программу|пл[а-яё]+)/i,
     /(?:удали|убери)\s*(?:программу|план|тренировочный\s*план)/i,
   ]],
   ['technique_question', [
@@ -1638,7 +1643,8 @@ const INTENT_PATTERNS: Array<[UserIntent, RegExp[]]> = [
     /(?:оцени|оценка)\s*(?:мой[аи]?\s*)?(?:прогресс|форм[ау]|подготовк|тренировок)/i,
   ]],
   ['greeting', [
-    /^(?:привет|здравствуй|здорово|хай|хэй|hi|hello|добр\w+\s*(?:утро|день|вечер)|йо|ку)\s*[!.?]?\s*$/i,
+    // Round 223: \w+ → [а-яё]+ for "доброе утро" / "добрый день" matching
+    /^(?:привет|здравствуй|здорово|хай|хэй|hi|hello|добр[а-яё]+\s*(?:утро|день|вечер)|йо|ку)\s*[!.?]?\s*$/i,
     /^(?:как\s*дела|что\s*нового|как\s*ты|что\s*скажешь|что\s*как)\s*[!.?]?\s*$/i,
     /^(?:привет[,!]?\s*(?:как\s*дела|что\s*нового|как\s*ты))\s*[!.?]?\s*$/i,
   ]],
@@ -1736,10 +1742,12 @@ const MOOD_PATTERNS: Array<[UserMood, RegExp[]]> = [
   // Common phrasings: "выгораю", "нет сил", "ноги ватные", "вяло",
   // "перетренировался", "устал как собака".
   ['fatigued', [
-    /(?:выгора\w*|перегора\w*|перетренир\w*|перегруз\w*)/i,
+    // Round 223: \w* → [а-яё]* for Cyrillic-only stem matching.
+    // Examples: "выгораю", "перегорел", "перетренировался", "перегружен"
+    /(?:выгора[а-яё]*|перегора[а-яё]*|перетренир[а-яё]*|перегруз[а-яё]*)/i,
     /(?:нет\s*сил|без\s*сил|на\s*нул[её]|обессилел)/i,
     /(?:устал\s*как\s*(?:собака|чёрт|пёс)|выжат\s*как\s*лимон)/i,
-    /(?:ноги\s*ватные|вял\w*|разбит[ыа]?|туман\s*в\s*голове)/i,
+    /(?:ноги\s*ватные|вял[а-яё]*|разбит[ыа]?|туман\s*в\s*голове)/i,
     /(?:нагрузк[аи]\s*(?:слишком|очень)\s*(?:большая|много)|устал\s*от\s*тренир)/i,
   ]],
   ['curious', [
@@ -2485,41 +2493,56 @@ async function executeTool(
       };
     }
 
-    // Find active program or get/create Iron Coach program
+    // Find active program or get/create Iron Coach program.
+    // Round 224: wrap find-or-create + activation in a single
+    // transaction. Without this, two concurrent chat requests can
+    // both see "no active program", both create/activate Iron Coach,
+    // and leave the user with two `isActive=true` programs (breaks
+    // activate_program invariant in R203).
     let activeProgram = activeProgramResult;
 
     if (!activeProgram) {
-      // Find existing Iron Coach program
-      let ironCoachProgram = await prisma.program.findFirst({
-        where: { userId, createdBy: 'ai' },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!ironCoachProgram) {
-        // Get user profile to set sensible defaults
-        const userProfile = await prisma.user.findUnique({ where: { id: userId } });
-        ironCoachProgram = await prisma.program.create({
-          data: {
-            name: 'Iron Coach',
-            description: 'Тренировки, созданные твоим AI-тренером Iron Coach',
-            type: 'custom',
-            goal: (userProfile?.goal as any) ?? 'GENERAL_FITNESS',
-            level: (userProfile?.fitnessLevel as any) ?? 'BEGINNER',
-            daysPerWeek: 3,
-            isActive: true,
-            createdBy: 'ai',
-            userId,
-          },
+      activeProgram = await prisma.$transaction(async (tx) => {
+        // Re-check inside tx — another request may have activated
+        const reCheckActive = await tx.program.findFirst({
+          where: { userId, isActive: true },
         });
-      } else {
-        // Activate the existing Iron Coach program and deactivate all others
-        await prisma.$transaction([
-          prisma.program.update({ where: { id: ironCoachProgram.id }, data: { isActive: true } }),
-          prisma.program.updateMany({ where: { userId, isActive: true, id: { not: ironCoachProgram.id } }, data: { isActive: false } }),
-        ]);
-      }
+        if (reCheckActive) return reCheckActive;
 
-      activeProgram = ironCoachProgram;
+        // Find existing Iron Coach program
+        let ironCoachProgram = await tx.program.findFirst({
+          where: { userId, createdBy: 'ai' },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (!ironCoachProgram) {
+          const userProfile = await tx.user.findUnique({ where: { id: userId } });
+          ironCoachProgram = await tx.program.create({
+            data: {
+              name: 'Iron Coach',
+              description: 'Тренировки, созданные твоим AI-тренером Iron Coach',
+              type: 'custom',
+              goal: (userProfile?.goal as any) ?? 'GENERAL_FITNESS',
+              level: (userProfile?.fitnessLevel as any) ?? 'BEGINNER',
+              daysPerWeek: 3,
+              isActive: true,
+              createdBy: 'ai',
+              userId,
+            },
+          });
+        } else {
+          // Activate Iron Coach + deactivate all others atomically
+          await tx.program.update({
+            where: { id: ironCoachProgram.id },
+            data: { isActive: true },
+          });
+          await tx.program.updateMany({
+            where: { userId, isActive: true, id: { not: ironCoachProgram.id } },
+            data: { isActive: false },
+          });
+        }
+        return ironCoachProgram;
+      });
     }
 
     // Round 201: capture sanitized parameters BEFORE create so we can
@@ -2895,6 +2918,13 @@ async function executeTool(
   }
 
   if (toolName === 'log_water') {
+    // Round 222: water logging is intentionally client-side only —
+    // there's no Water model in prisma/schema.prisma. The User record
+    // stores targetWaterMl (the daily goal) but actual intake lives
+    // in the client's Zustand persist store. AI returns actionData.ml
+    // and the AIChatScreen forwards it to the nutrition store. So
+    // there's no DB row to verify; the audit finding was a false
+    // positive — but documenting here so future audits don't re-raise.
     const { ml } = toolInput as { ml: number };
     const amount = Math.min(5000, Math.max(50, Math.round(Number(ml) || 250)));
     return {
@@ -3777,8 +3807,11 @@ async function executeTool(
         await tx.mealItem.createMany({ data: safeModifyItems.map((i) => ({ ...i, mealId: meal.id })) });
       });
     } catch (txErr: any) {
+      // Round 225: re-throw the original Prisma error so classifyToolError
+      // can see P2025 / P2002 / etc. and surface a typed message to AI.
+      // Wrapping in `new Error('Не удалось...')` lost that signal.
       logger.error('modify_meal transaction failed:', txErr);
-      throw new Error('Не удалось обновить приём пищи');
+      throw txErr;
     }
 
     // Round 203: post-write verify for modify_meal. The transaction
@@ -4008,7 +4041,13 @@ async function executeTool(
   if (toolName === 'analyze_progress') {
     const { period = 'month' } = toolInput as { period?: string };
     const days = period === 'week' ? 7 : period === '3months' ? 90 : 30;
-    const since = new Date(Date.now() - days * 86400000);
+    // Round 226: anchor window to client's local start-of-day, not server now().
+    // Without this, a client in UTC+5 querying at 02:00 local time would see
+    // a window 5 hours short of what they expect — workouts logged earlier
+    // that day could fall outside.
+    const todayClient = clientDate ?? new Date().toISOString().split('T')[0];
+    const todayStart = new Date(`${todayClient}T00:00:00.000Z`);
+    const since = new Date(todayStart.getTime() - days * 86400000);
 
     const workouts = await prisma.workout.findMany({
       where: { userId, completedAt: { gte: since } },
@@ -4117,7 +4156,16 @@ async function executeTool(
     const leastTrained = sorted.slice(0, 3).map(([m]) => labels[m] || m);
 
     const lastDate = recent[0]?.completedAt;
-    const daysSince = lastDate ? Math.round((Date.now() - new Date(lastDate).getTime()) / 86400000) : 999;
+    // Round 226: anchor "today" to clientDate (start-of-day UTC) instead of
+    // server's current millisecond. Otherwise a workout completed at 23:30
+    // local on day N is reported as "0 days since" at 00:30 next day server
+    // time but "1 day" at 02:00 if client is UTC-2 — rounding inconsistency.
+    const nowAnchor = clientDate
+      ? new Date(`${clientDate}T12:00:00.000Z`).getTime()
+      : Date.now();
+    const daysSince = lastDate
+      ? Math.round((nowAnchor - new Date(lastDate).getTime()) / 86400000)
+      : 999;
 
     // Round 215: if user has an active program with multiple workouts,
     // suggest the next one in rotation rather than guessing from
@@ -83854,9 +83902,18 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const parsed = z.object({
       imageBase64: z.string().min(100, 'Изображение слишком маленькое').max(9_000_000, 'Изображение слишком большое'),
       mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']).optional(),
+      // Audit: previously the daily quota used UTC midnight, which on
+      // Russian timezones (UTC+2 to UTC+12) shifts the reset 2-12 hours
+      // past the user's local midnight. A user in Vladivostok hitting
+      // the limit at 14:00 their time couldn't scan again until 10:00
+      // the next morning local — a full 20 hours later — when they
+      // expected the reset at midnight. Now the client sends a UTC-
+      // offset (signed minutes from UTC, matching `-getTimezoneOffset()`
+      // convention) and the floor lands on the user's local midnight.
+      clientTzOffsetMinutes: z.number().int().min(-14 * 60).max(14 * 60).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-    const { imageBase64, mimeType = 'image/jpeg' } = parsed.data;
+    const { imageBase64, mimeType = 'image/jpeg', clientTzOffsetMinutes } = parsed.data;
 
     const userId = req.userId!;
 
@@ -83874,9 +83931,14 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       return res.json(cachedResponse);
     }
 
-    // Server-side food scan quota — free users: 5 scans/day
-    // Fetch subscription, scan count, user profile and memories all in parallel
-    const scanTodayFloor = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+    // Server-side food scan quota — free users: 5 scans/day, where
+    // "day" honours the user's local midnight when the client sent
+    // its UTC offset. Falls back to UTC for legacy clients.
+    const tzOffsetMs = (clientTzOffsetMinutes ?? 0) * 60 * 1000;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const localTimeMs = Date.now() + tzOffsetMs;
+    const localMidnightLocalMs = Math.floor(localTimeMs / dayMs) * dayMs;
+    const scanTodayFloor = new Date(localMidnightLocalMs - tzOffsetMs);
     const [userSub, scanTodayCount, user, userMemories] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
       prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
@@ -84131,9 +84193,12 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
   try {
     const parsed = z.object({
       description: z.string().min(3, 'Описание слишком короткое').max(2000, 'Описание слишком длинное'),
+      // Same TZ-offset accommodation as /analyze-food — quota reset
+      // honours the user's local midnight rather than UTC.
+      clientTzOffsetMinutes: z.number().int().min(-14 * 60).max(14 * 60).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0].message });
-    const { description } = parsed.data;
+    const { description, clientTzOffsetMinutes } = parsed.data;
 
     const userId = req.userId!;
 
@@ -84149,8 +84214,13 @@ router.post('/analyze-food-text', authenticate, async (req: AuthRequest, res: Re
 
     // Shares the same daily-quota pool as /analyze-food — a text parse still
     // costs an AI call, and letting users bypass their limit via this route
-    // would be trivially gameable.
-    const scanTodayFloor = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+    // would be trivially gameable. Local-midnight floor (see /analyze-food
+    // for full rationale) when clientTzOffsetMinutes is supplied.
+    const tzOffsetMs = (clientTzOffsetMinutes ?? 0) * 60 * 1000;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const localTimeMs = Date.now() + tzOffsetMs;
+    const localMidnightLocalMs = Math.floor(localTimeMs / dayMs) * dayMs;
+    const scanTodayFloor = new Date(localMidnightLocalMs - tzOffsetMs);
     const [userSub, scanTodayCount] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
       prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
