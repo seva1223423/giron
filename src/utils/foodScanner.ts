@@ -681,11 +681,48 @@ export function median(nums: number[]): number {
     : sorted[mid];
 }
 
+/** Plausible per-item weight range for typical-portion sampling.
+ *  Matches the server's Zod bound on /analyze-food typicalPortions
+ *  (min 5g, max 5000g). Values outside this window are typo evidence
+ *  (a "1g" forgotten unit, a "12345g" stray digit) and must not enter
+ *  the median pool — even one wild typo can drag the median into the
+ *  Zod-reject zone and fail the entire scan request with a 400. */
+export const TYPICAL_PORTION_MIN_G = 5;
+export const TYPICAL_PORTION_MAX_G = 5000;
+
+/** Drop Tukey-fence outliers (1.5 × IQR beyond Q1/Q3). Median is already
+ *  robust to a single outlier, but with 4+ samples a clear typo cluster
+ *  can still tilt the median; this pass cleans those before the median
+ *  is computed. With < 4 samples the IQR is meaningless, so we skip. */
+function trimOutliersIQR(values: number[]): number[] {
+  if (values.length < 4) return values;
+  const sorted = [...values].sort((a, b) => a - b);
+  const q = (p: number): number => {
+    const idx = (sorted.length - 1) * p;
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  };
+  const q1 = q(0.25);
+  const q3 = q(0.75);
+  const iqr = q3 - q1;
+  const fenceLo = q1 - 1.5 * iqr;
+  const fenceHi = q3 + 1.5 * iqr;
+  return sorted.filter((v) => v >= fenceLo && v <= fenceHi);
+}
+
 /**
  * Build a "user's typical portion in grams" lookup from meal history.
  * Keys are normalized names (see `normalizeFoodName`), values are median
  * weight observations. Only items with ≥ `minSamples` samples are included
  * to avoid presenting a one-shot outlier as the user's "typical" serving.
+ *
+ * Also clamps each weight observation to [TYPICAL_PORTION_MIN_G,
+ * TYPICAL_PORTION_MAX_G] before pooling and runs an IQR outlier trim
+ * for 4+ sample groups. The clamp is critical: a single typo'd 12345g
+ * entry would otherwise produce a median > 5000 that the server rejects
+ * with 400, breaking ALL scans for that user until the bad meal is
+ * deleted.
  */
 export function computeTypicalPortions(
   meals: HistoricalMeal[],
@@ -697,7 +734,8 @@ export function computeTypicalPortions(
       const key = normalizeFoodName(item.name);
       if (!key) continue;
       const w = item.weightGrams;
-      if (typeof w !== 'number' || !isFinite(w) || w <= 0) continue;
+      if (typeof w !== 'number' || !isFinite(w)) continue;
+      if (w < TYPICAL_PORTION_MIN_G || w > TYPICAL_PORTION_MAX_G) continue;
       const arr = groups.get(key) ?? [];
       arr.push(w);
       groups.set(key, arr);
@@ -706,7 +744,9 @@ export function computeTypicalPortions(
   const out = new Map<string, number>();
   for (const [key, weights] of groups) {
     if (weights.length < minSamples) continue;
-    out.set(key, Math.round(median(weights)));
+    const cleaned = trimOutliersIQR(weights);
+    if (cleaned.length < minSamples) continue;
+    out.set(key, Math.round(median(cleaned)));
   }
   return out;
 }
