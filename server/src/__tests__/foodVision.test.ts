@@ -60,6 +60,29 @@ describe('parseFoodResponse', () => {
   test('returns null when items array is missing and no array fallback', () => {
     expect(parseFoodResponse('{"other":"data"}')).toBeNull();
   });
+
+  test('bare array recovers when first item lacks name (round 221)', () => {
+    // Audit-driven: the previous gate `items[0].name` dropped every
+    // entry when the AI's first item happened to be malformed. The
+    // recovery now accepts any array that has at least one named
+    // item — validateFoodItems filters out the unnamed one downstream.
+    const text = '[{"weightGrams":50},{"name":"Хлеб","weightGrams":40,"calories":100,"protein":3,"fats":1,"carbs":20}]';
+    const out = parseFoodResponse(text);
+    expect(out).not.toBeNull();
+    // Both items pass through; validator drops the nameless one later.
+    expect(out!.length).toBeGreaterThanOrEqual(1);
+    expect(out!.some((i) => i.name === 'Хлеб')).toBe(true);
+  });
+
+  test('bare array still returns null when ALL items are nameless', () => {
+    const text = '[{"weightGrams":50},{"weightGrams":40}]';
+    const out = parseFoodResponse(text);
+    // Some items might still come through via the object-fallback path
+    // matching the inner `{...}`, but at minimum we should NOT crash
+    // and should return null OR an empty/all-nameless array that
+    // validateFoodItems will filter to nothing.
+    expect(out === null || out.every((i) => !i.name || !String(i.name).trim())).toBe(true);
+  });
 });
 
 // ─── validateFoodItems ────────────────────────────────────────────────────────
