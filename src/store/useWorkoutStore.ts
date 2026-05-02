@@ -820,10 +820,20 @@ export const useWorkoutStore = create<WorkoutStore>()(
     {
       name: 'giron-workouts',
       storage: createJSONStorage(() => AsyncStorage),
+      // Round 259: bound workoutHistory in the persisted snapshot.
+      // A power user with 5+ years of training (1500+ workouts × 8
+      // exercises × 5 sets ≈ 60K rows) was easily breaching
+      // AsyncStorage's 6MB ceiling. Persist only the most recent 200
+      // workouts — everything older lives on the server and gets
+      // re-fetched on demand. fetchHistory's merge logic (line 786+)
+      // re-merges any local-only entries, so this doesn't break the
+      // offline-first pattern.
       partialize: (state) => ({
         programs: state.programs,
         routines: state.routines,
-        workoutHistory: state.workoutHistory,
+        // Slice to the most recent 200 — typical user has <100 in any
+        // realistic timeframe, and the server is the source of truth.
+        workoutHistory: state.workoutHistory.slice(0, 200),
         activeWorkout: state.activeWorkout,
         weekPlan: state.weekPlan,
         savedTemplates: state.savedTemplates,
