@@ -5,6 +5,28 @@ import { prisma } from '../db';
 import { logger } from '../utils/logger';
 import { sanitizeForPrompt } from '../utils/inputSanitizer';
 import { chat as llmChat } from '../services/llm/router';
+import { foodVisionCache } from '../utils/memCache';
+
+/**
+ * Round 247: drop the user's foodVisionCache entries when their recipe
+ * list changes. Recipes are now baked into the /analyze-food and
+ * /analyze-food-text prompts as identification hints (rounds 245-246),
+ * so a user who creates a "Овсянка с бананом" recipe today must NOT
+ * see a cached scan response from yesterday that didn't know about
+ * the recipe — the cached response would name the dish generically
+ * and the client-side recipe matcher would miss the intended override.
+ *
+ * Mirrors the existing aiMemoryService / user.ts patch invalidation
+ * paths. Best-effort wrapped — the cache is a singleton that doesn't
+ * exist in some test environments.
+ */
+function invalidateFoodVisionForUser(userId: string): void {
+  try {
+    foodVisionCache.deletePrefix(`${userId}:`);
+  } catch {
+    /* test envs, missing singleton — ignore */
+  }
+}
 
 const router = Router();
 
@@ -148,6 +170,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         ...totals,
       },
     });
+    invalidateFoodVisionForUser(req.userId!);
     res.status(201).json(created);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -193,6 +216,7 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         ...totals,
       },
     });
+    invalidateFoodVisionForUser(req.userId!);
     res.json(updated);
   } catch (e: any) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors[0].message });
@@ -217,6 +241,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Нельзя удалять системные рецепты' });
     }
     await prisma.recipe.delete({ where: { id: req.params.id as string } });
+    invalidateFoodVisionForUser(req.userId!);
     res.json({ ok: true });
   } catch (e) {
     logger.error('DELETE /recipes/:id', e);
