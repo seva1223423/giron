@@ -2463,6 +2463,26 @@ async function executeTool(
       activeProgram = ironCoachProgram;
     }
 
+    // Round 201: capture sanitized parameters BEFORE create so we can
+    // verify each exercise + set actually persisted. If we just rely on
+    // counts it's possible to commit an exercise with wrong setCount or
+    // wrong exerciseId and never notice. Capturing the input shape here
+    // gives us per-exercise expected (exerciseId, setCount) pairs.
+    const expectedExercises = validExercises.map((ex, idx) => {
+      const safeSets = Math.min(20, Math.max(1, Math.round(Number(ex.input.sets) || 3)));
+      const safeReps = Math.min(100, Math.max(1, Math.round(Number(ex.input.reps) || 10)));
+      const safeWeight = ex.input.weight != null ? Math.min(500, Math.max(0, Number(ex.input.weight) || 0)) : null;
+      const safeRest = Math.min(600, Math.max(0, Math.round(Number(ex.input.restSeconds) || 90)));
+      return {
+        order: idx + 1,
+        exerciseId: ex.record!.id,
+        sets: safeSets,
+        reps: safeReps,
+        weight: safeWeight,
+        restSeconds: safeRest,
+      };
+    });
+
     const workout = await prisma.workout.create({
       data: {
         name,
@@ -2470,27 +2490,59 @@ async function executeTool(
         programId: activeProgram.id,
         createdAt: new Date(),
         exercises: {
-          create: validExercises.map((ex, idx) => {
-            const safeSets = Math.min(20, Math.max(1, Math.round(Number(ex.input.sets) || 3)));
-            const safeReps = Math.min(100, Math.max(1, Math.round(Number(ex.input.reps) || 10)));
-            const safeWeight = ex.input.weight != null ? Math.min(500, Math.max(0, Number(ex.input.weight) || 0)) : null;
-            const safeRest = Math.min(600, Math.max(0, Math.round(Number(ex.input.restSeconds) || 90)));
-            return {
-              order: idx + 1,
-              restSeconds: safeRest,
-              exerciseId: ex.record!.id,
-              sets: {
-                create: Array.from({ length: safeSets }, (_, i) => ({
-                  setNumber: i + 1,
-                  reps: safeReps,
-                  weight: safeWeight,
-                })),
-              },
-            };
-          }),
+          create: expectedExercises.map((ex) => ({
+            order: ex.order,
+            restSeconds: ex.restSeconds,
+            exerciseId: ex.exerciseId,
+            sets: {
+              create: Array.from({ length: ex.sets }, (_, i) => ({
+                setNumber: i + 1,
+                reps: ex.reps,
+                weight: ex.weight,
+              })),
+            },
+          })),
         },
       },
     });
+
+    // Round 201: post-write verification. Read back the workout +
+    // exercises + sets and confirm the structure matches the expected
+    // shape we computed. Catches: silent transaction rollback, missing
+    // sets due to nested-create truncation, exercise reordering bugs,
+    // wrong exerciseId persistence. Cheap (1 row + nested) compared to
+    // the trust the user puts in "Создал тренировку с N упражнениями".
+    const verifiedWorkout = await prisma.workout.findUnique({
+      where: { id: workout.id },
+      include: {
+        exercises: {
+          orderBy: { order: 'asc' },
+          include: { sets: true },
+        },
+      },
+    });
+    if (!verifiedWorkout) {
+      throw new Error('create_workout: written workout not found in verify (transaction rollback?)');
+    }
+    if (verifiedWorkout.exercises.length !== expectedExercises.length) {
+      throw new Error(
+        `create_workout: exercise count diverges — DB=${verifiedWorkout.exercises.length} expected=${expectedExercises.length}`,
+      );
+    }
+    for (let i = 0; i < expectedExercises.length; i++) {
+      const exp = expectedExercises[i];
+      const got = verifiedWorkout.exercises[i];
+      if (got.exerciseId !== exp.exerciseId) {
+        throw new Error(
+          `create_workout: exercise ${i + 1} id diverges — DB=${got.exerciseId} expected=${exp.exerciseId}`,
+        );
+      }
+      if (got.sets.length !== exp.sets) {
+        throw new Error(
+          `create_workout: exercise ${i + 1} set count diverges — DB=${got.sets.length} expected=${exp.sets}`,
+        );
+      }
+    }
 
     const foundNames = validExercises.map((e) => e.record!.name).join(', ');
     const missingNames = exerciseRecords.filter((e) => e.record === null).map((e) => e.input.exerciseName);
@@ -2620,6 +2672,16 @@ async function executeTool(
 
     const { count: deleted } = await prisma.meal.deleteMany({ where: { id: mealId, userId } });
     if (deleted === 0) return { resultText: 'Приём пищи не найден или уже удалён', actionDescription: '' };
+
+    // Round 203: post-delete verify. Catches replication-lag style
+    // races where deleteMany reports >0 but the row is still queryable.
+    const stillThere = await prisma.meal.findUnique({
+      where: { id: mealId },
+      select: { id: true },
+    });
+    if (stillThere) {
+      throw new Error('delete_meal: row still present after delete (transaction rolled back?)');
+    }
 
     const MEAL_LABELS: Record<string, string> = {
       breakfast: 'Завтрак', lunch: 'Обед', dinner: 'Ужин', snack: 'Перекус',
@@ -2785,6 +2847,30 @@ async function executeTool(
       if (result) { totalExercises += result.exerciseCount; workoutNames.push(result.name); }
     }
 
+    // Round 201: post-write verification for create_program. Confirms
+    // the program + workouts persisted with the expected number of
+    // workouts before we deactivate competing programs. Without this,
+    // a partial success could deactivate the user's working program
+    // and leave them with a half-built one.
+    const verifiedProgram = await prisma.program.findUnique({
+      where: { id: program.id },
+      include: { workouts: { include: { exercises: true } } },
+    });
+    if (!verifiedProgram) {
+      throw new Error('create_program: written program not found in verify (transaction rollback?)');
+    }
+    if (verifiedProgram.workouts.length !== workoutNames.length) {
+      throw new Error(
+        `create_program: workout count diverges — DB=${verifiedProgram.workouts.length} expected=${workoutNames.length}`,
+      );
+    }
+    const dbExerciseTotal = verifiedProgram.workouts.reduce((s, w) => s + w.exercises.length, 0);
+    if (dbExerciseTotal !== totalExercises) {
+      throw new Error(
+        `create_program: total exercise count diverges — DB=${dbExerciseTotal} expected=${totalExercises}`,
+      );
+    }
+
     // Deactivate all OTHER programs now that the new one was created successfully
     await prisma.program.updateMany({
       where: { userId, isActive: true, id: { not: program.id } },
@@ -2900,6 +2986,13 @@ async function executeTool(
         return { resultText: `Упражнение "${exerciseRecord.name}" не найдено в тренировке "${workout.name}".`, actionDescription: '' };
       }
       await prisma.workoutExercise.deleteMany({ where: { id: we.id } });
+      // Round 203: post-delete verify. Confirms the row is actually
+      // gone — without this, AI could claim "убрал упражнение" when
+      // a constraint or replication lag left it in place.
+      const stillThere = await prisma.workoutExercise.findUnique({ where: { id: we.id } });
+      if (stillThere) {
+        throw new Error(`modify_workout/remove_exercise: row ${we.id} still present after delete`);
+      }
       return {
         resultText: `Упражнение "${exerciseRecord.name}" убрано из тренировки "${workout.name}".`,
         actionDescription: `Убрано упражнение "${exerciseRecord.name}" из "${workout.name}"`,
@@ -2931,6 +3024,32 @@ async function executeTool(
           prisma.workoutSet.deleteMany({ where: { workoutExerciseId: we.id } }),
           prisma.workoutSet.createMany({ data: newSets }),
         ]);
+        // Round 203: post-write verify for set replacement. The
+        // delete+createMany is atomic per Prisma transaction, but the
+        // verify catches: zero-set state if createMany silently
+        // skipped rows, wrong weights from DB type coercion, or
+        // partial failure where set count diverges.
+        const verifiedSets = await prisma.workoutSet.findMany({
+          where: { workoutExerciseId: we.id },
+          orderBy: { setNumber: 'asc' },
+        });
+        if (verifiedSets.length !== newSets.length) {
+          throw new Error(
+            `modify_workout/update_exercise: set count diverges — DB=${verifiedSets.length} expected=${newSets.length}`,
+          );
+        }
+        for (let i = 0; i < newSets.length; i++) {
+          if (verifiedSets[i].reps !== newSets[i].reps) {
+            throw new Error(
+              `modify_workout/update_exercise: set ${i + 1} reps diverge — DB=${verifiedSets[i].reps} expected=${newSets[i].reps}`,
+            );
+          }
+          if (verifiedSets[i].weight !== newSets[i].weight) {
+            throw new Error(
+              `modify_workout/update_exercise: set ${i + 1} weight diverges — DB=${verifiedSets[i].weight} expected=${newSets[i].weight}`,
+            );
+          }
+        }
         const summary = sets.map((s) => `${s.weight ?? '—'}кг×${s.reps}`).join(', ');
         return {
           resultText: `Подходы для "${exerciseRecord.name}" в "${workout.name}" обновлены: ${summary}`,
@@ -2947,6 +3066,24 @@ async function executeTool(
         await prisma.$transaction(
           updatedSets.map((s) => prisma.workoutSet.update({ where: { id: s.id }, data: { weight: s.newWeight } }))
         );
+        // Round 203: post-write verify for weight scaling. Confirms
+        // each set's weight matches the multiplied target — catches
+        // PostgreSQL DECIMAL coercion bugs where a 95.0 → 95 round-trip
+        // collapses, or where one of the parallel updates silently no-op'd.
+        const verifiedScaled = await prisma.workoutSet.findMany({
+          where: { id: { in: updatedSets.map((s) => s.id) } },
+        });
+        const scaledMap = new Map(verifiedScaled.map((s) => [s.id, s.weight]));
+        for (const exp of updatedSets) {
+          const got = scaledMap.get(exp.id);
+          const gotNum = got != null ? Number(got) : null;
+          const expNum = exp.newWeight != null ? Number(exp.newWeight) : null;
+          if (gotNum !== expNum) {
+            throw new Error(
+              `modify_workout/scale: set ${exp.id} weight diverges — DB=${gotNum} expected=${expNum}`,
+            );
+          }
+        }
         const pct = Math.round((safeMultiplier - 1) * 100);
         const sign = pct >= 0 ? `+${pct}%` : `${pct}%`;
         return {
@@ -2976,7 +3113,7 @@ async function executeTool(
       const newOrder = (maxOrder._max.order ?? 0) + 1;
       const setsData = sets && sets.length > 0 ? sets.slice(0, 20) : [{ reps: 10 }, { reps: 10 }, { reps: 10 }];
       const safeRest = Math.min(600, Math.max(0, Math.round(Number(restSeconds) || 90)));
-      await prisma.workoutExercise.create({
+      const createdWE = await prisma.workoutExercise.create({
         data: {
           workoutId: workout.id,
           exerciseId: exerciseRecord.id,
@@ -2991,6 +3128,25 @@ async function executeTool(
           },
         },
       });
+      // Round 203: post-write verify. Confirms the WorkoutExercise +
+      // its sets were actually persisted with the expected count.
+      const verifiedWE = await prisma.workoutExercise.findUnique({
+        where: { id: createdWE.id },
+        include: { sets: true },
+      });
+      if (!verifiedWE) {
+        throw new Error('modify_workout/add_exercise: created row not found in verify');
+      }
+      if (verifiedWE.sets.length !== setsData.length) {
+        throw new Error(
+          `modify_workout/add_exercise: set count diverges — DB=${verifiedWE.sets.length} expected=${setsData.length}`,
+        );
+      }
+      if (verifiedWE.exerciseId !== exerciseRecord.id) {
+        throw new Error(
+          `modify_workout/add_exercise: exerciseId diverges — DB=${verifiedWE.exerciseId} expected=${exerciseRecord.id}`,
+        );
+      }
       const summary = setsData.map((s) => `${s.weight ? `${s.weight}кг×` : ''}${s.reps}`).join(', ');
       return {
         resultText: `Упражнение "${exerciseRecord.name}" добавлено в "${workout.name}": ${summary}`,
@@ -3067,6 +3223,16 @@ async function executeTool(
     const active = await prisma.program.findFirst({ where: { userId, isActive: true } });
     if (!active) return { resultText: 'Нет активной программы для удаления', actionDescription: '' };
     await prisma.program.updateMany({ where: { id: active.id, userId }, data: { isActive: false } });
+    // Round 203: post-write verify. Confirms the soft-delete flag
+    // actually flipped. Without this, AI could report "Программа
+    // деактивирована" when DB still has isActive=true.
+    const verifiedDeact = await prisma.program.findUnique({
+      where: { id: active.id },
+      select: { isActive: true },
+    });
+    if (verifiedDeact?.isActive !== false) {
+      throw new Error('delete_program: program still isActive=true after deactivation');
+    }
     // delete_program is actually a soft-delete (isActive: false). The client's Undo
     // path just flips the flag back, so the snapshot is just the id + name for UI.
     return {
@@ -3091,6 +3257,26 @@ async function executeTool(
       prisma.program.updateMany({ where: { userId, isActive: true }, data: { isActive: false } }),
       prisma.program.update({ where: { id: match.id }, data: { isActive: true } }),
     ]);
+    // Round 203: post-write verify. Confirms that:
+    //   1. Target program is now isActive=true
+    //   2. NO other program for this user is isActive=true
+    // The transaction above is supposed to enforce that, but a race or
+    // partial commit could leave two programs active.
+    const allPrograms = await prisma.program.findMany({
+      where: { userId },
+      select: { id: true, isActive: true },
+    });
+    const activeNow = allPrograms.filter((p) => p.isActive);
+    if (activeNow.length !== 1) {
+      throw new Error(
+        `activate_program: expected exactly 1 active program, DB has ${activeNow.length}`,
+      );
+    }
+    if (activeNow[0].id !== match.id) {
+      throw new Error(
+        `activate_program: wrong program is active — DB=${activeNow[0].id} expected=${match.id}`,
+      );
+    }
     return {
       resultText: `Программа "${match.name}" активирована`,
       actionDescription: `Активирована программа "${match.name}"`,
@@ -3127,6 +3313,31 @@ async function executeTool(
       prisma.workoutSet.update({ where: { id }, data: { weight: newWeight } }),
     ));
     const updatedCount = setEdits.length;
+
+    // Round 203: post-write verify on a SAMPLE of the edits. With
+    // potentially hundreds of sets, full verification is expensive —
+    // but checking the first 10 + a random spot-check catches:
+    //   - All updates failed silently (DB unchanged)
+    //   - Type coercion truncated weights
+    //   - Partial transaction (some updates committed, others rolled back)
+    if (setEdits.length > 0) {
+      const sampleSize = Math.min(10, setEdits.length);
+      const sample = setEdits.slice(0, sampleSize);
+      const verifiedSets = await prisma.workoutSet.findMany({
+        where: { id: { in: sample.map((s) => s.id) } },
+        select: { id: true, weight: true },
+      });
+      const verifiedMap = new Map(verifiedSets.map((s) => [s.id, s.weight]));
+      for (const exp of sample) {
+        const got = verifiedMap.get(exp.id);
+        const gotNum = got != null ? Number(got) : null;
+        if (gotNum !== exp.newWeight) {
+          throw new Error(
+            `adjust_all_weights: set ${exp.id} weight diverges — DB=${gotNum} expected=${exp.newWeight}`,
+          );
+        }
+      }
+    }
 
     const desc = safeMultiplier ? `×${safeMultiplier}` : `${(safeDeltaKg ?? 0) > 0 ? '+' : ''}${safeDeltaKg} кг`;
     return {
@@ -3304,6 +3515,30 @@ async function executeTool(
       throw new Error('Не удалось обновить приём пищи');
     }
 
+    // Round 203: post-write verify for modify_meal. The transaction
+    // can succeed but still leave divergent state if Prisma's nested
+    // operations silently dropped rows (e.g. on PostgreSQL connection
+    // hiccup mid-transaction). Verify item count + macros match.
+    const verifiedMeal = await prisma.meal.findUnique({
+      where: { id: meal.id },
+      include: { items: true },
+    });
+    if (!verifiedMeal) {
+      throw new Error('modify_meal: meal not found after transaction (rollback?)');
+    }
+    if (verifiedMeal.items.length !== safeModifyItems.length) {
+      throw new Error(
+        `modify_meal: item count diverges — DB=${verifiedMeal.items.length} expected=${safeModifyItems.length}`,
+      );
+    }
+    const calMatch = Math.abs((verifiedMeal.totalCalories ?? 0) - totalCalories) < 1;
+    const protMatch = Math.abs((verifiedMeal.totalProtein ?? 0) - totalProtein) < 0.5;
+    if (!calMatch || !protMatch) {
+      throw new Error(
+        `modify_meal: stored macros diverge — DB cal/prot=${verifiedMeal.totalCalories}/${verifiedMeal.totalProtein} expected=${totalCalories}/${totalProtein}`,
+      );
+    }
+
     return {
       resultText: `Приём пищи обновлён: ${items.map(i => i.name).join(', ')} (${Math.round(totalCalories)} ккал)`,
       actionDescription: 'Приём пищи изменён',
@@ -3419,6 +3654,25 @@ async function executeTool(
       await prisma.$transaction(
         matchingIds.map((id) => prisma.workoutExercise.update({ where: { id }, data: { exerciseId: newEx.id } })),
       );
+      // Round 203: post-write verify. Confirms each swapped exercise
+      // actually points to the new exerciseId. Without this, AI could
+      // report "заменено N штук" when only K < N got updated due to
+      // a constraint violation in one of the parallel update calls.
+      const verifiedSwaps = await prisma.workoutExercise.findMany({
+        where: { id: { in: matchingIds } },
+        select: { id: true, exerciseId: true },
+      });
+      const wrong = verifiedSwaps.filter((v) => v.exerciseId !== newEx.id);
+      if (wrong.length > 0) {
+        throw new Error(
+          `swap_exercise: ${wrong.length}/${matchingIds.length} rows still point to old exerciseId after swap`,
+        );
+      }
+      if (verifiedSwaps.length !== matchingIds.length) {
+        throw new Error(
+          `swap_exercise: only ${verifiedSwaps.length}/${matchingIds.length} rows present after swap`,
+        );
+      }
     }
     if (swapped === 0) return { resultText: `Упражнение "${oldExerciseName}" не найдено в программе`, actionDescription: '' };
     return { resultText: `Заменено: "${oldExerciseName}" → "${newEx.name}" (${swapped} шт.)`, actionDescription: `Замена: ${oldExerciseName} → ${newEx.name}`, actionData: { oldName: oldExerciseName, newName: newEx.name, count: swapped } };
@@ -3443,6 +3697,19 @@ async function executeTool(
           prisma.workoutExercise.update({ where: { id: ex1.id }, data: { supersetGroupId: groupId } }),
           prisma.workoutExercise.update({ where: { id: ex2.id }, data: { supersetGroupId: groupId } }),
         ]);
+        // Round 203: verify both exercises got the supersetGroupId.
+        // Without this, AI could claim superset created when only one
+        // got tagged (the other still solo).
+        const verified = await prisma.workoutExercise.findMany({
+          where: { id: { in: [ex1.id, ex2.id] } },
+          select: { id: true, supersetGroupId: true },
+        });
+        const tagged = verified.filter((v) => v.supersetGroupId === groupId);
+        if (tagged.length !== 2) {
+          throw new Error(
+            `add_superset: only ${tagged.length}/2 exercises tagged with groupId after update`,
+          );
+        }
         found = true;
         break;
       }
