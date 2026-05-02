@@ -94,6 +94,9 @@ interface WorkoutStore {
 
   // Lifecycle
   clearUserData: () => void;
+  /** Round 249: internal session-epoch counter. Bumped by clearUserData;
+   * fetch* methods capture before await and discard set() on mismatch. */
+  _sessionEpoch: number;
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -110,6 +113,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
       savedTemplates: [],
       customExercises: [],
       pendingSync: [],
+      // Round 249: session-epoch counter — incremented by clearUserData.
+      // fetch* methods capture it before await and skip set() on mismatch
+      // so stale data from a previous session can't pollute the new one.
+      _sessionEpoch: 0,
 
       setWeekPlanDay: (dow, entry) => {
         if (!Number.isInteger(dow) || dow < 0 || dow > 6) return;
@@ -234,9 +241,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       fetchPrograms: async () => {
+        // Round 249: race-safety via session epoch. clearUserData
+        // increments _sessionEpoch; if it changes mid-fetch, the
+        // result belongs to a previous session (e.g. user logged out
+        // and back in as a different account during the await) — drop it.
+        const epoch = get()._sessionEpoch ?? 0;
         set({ isLoadingPrograms: true });
         try {
           const programs = await workoutService.getPrograms();
+          if ((get()._sessionEpoch ?? 0) !== epoch) {
+            set({ isLoadingPrograms: false });
+            return;
+          }
           set({ programs, isLoadingPrograms: false });
         } catch {
           set({ isLoadingPrograms: false });
@@ -244,9 +260,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       fetchRoutines: async () => {
+        const epoch = get()._sessionEpoch ?? 0;
         set({ isLoadingRoutines: true });
         try {
           const routines = await workoutService.getRoutines();
+          if ((get()._sessionEpoch ?? 0) !== epoch) {
+            set({ isLoadingRoutines: false });
+            return;
+          }
           set({ routines, isLoadingRoutines: false });
         } catch {
           set({ isLoadingRoutines: false });
@@ -730,7 +751,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         );
       },
 
-      clearUserData: () => set({
+      clearUserData: () => set((s) => ({
         programs: [],
         routines: [],
         workoutHistory: [],
@@ -742,10 +763,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
         isLoadingPrograms: false,
         isLoadingHistory: false,
         isLoadingRoutines: false,
-      }),
+        // Round 249: bump epoch so any in-flight fetch* sees the
+        // change on completion and discards stale data.
+        _sessionEpoch: (s._sessionEpoch ?? 0) + 1,
+      })),
 
       fetchHistory: async () => {
         if (get().isLoadingHistory) return; // prevent concurrent fetches
+        const epoch = get()._sessionEpoch ?? 0;
         set({ isLoadingHistory: true });
 
         // Retry any workouts that failed to sync previously
@@ -764,6 +789,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         try {
           const { workouts: history } = await workoutService.getHistory();
+          if ((get()._sessionEpoch ?? 0) !== epoch) {
+            set({ isLoadingHistory: false });
+            return;
+          }
           if (history.length > 0) {
             // Merge: keep local-only workouts that server doesn't know about.
             // A local workout may have been synced and received a server cuid ID, while
