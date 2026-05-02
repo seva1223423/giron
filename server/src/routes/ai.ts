@@ -5357,6 +5357,13 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
             .join(', ');
           programContext += `- ${safeWName}: ${exList}\n`;
         });
+        // Round 212: hint to AI which tool to use for retroactive logging.
+        // Without this, AI sometimes calls create_workout (which adds to
+        // plan) when the user said "потренировался сегодня" (which should
+        // be log_completed_workout). The activeProgram context is the
+        // natural place because that's where the user's plan lives.
+        programContext += '→ "потренировался сегодня X×Y вес Z" → log_completed_workout (НЕ create_workout — то добавляет в план).\n';
+        programContext += '→ "хочу новую тренировку на грудь" → create_workout (новая в план).\n';
       }
     } else {
       programContext += 'Активной программы нет.\n';
