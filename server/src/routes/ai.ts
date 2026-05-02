@@ -83990,7 +83990,7 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     const localTimeMs = Date.now() + tzOffsetMs;
     const localMidnightLocalMs = Math.floor(localTimeMs / dayMs) * dayMs;
     const scanTodayFloor = new Date(localMidnightLocalMs - tzOffsetMs);
-    const [userSub, scanTodayCount, user, userMemories] = await Promise.all([
+    const [userSub, scanTodayCount, user, userMemories, userRecipes] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId }, select: { plan: true, status: true, endDate: true } }),
       prisma.foodScanLog.count({ where: { userId, createdAt: { gte: scanTodayFloor } } }),
       prisma.user.findUnique({ where: { id: userId }, include: { healthRestrictions: true } }),
@@ -84002,6 +84002,19 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
       // hypertension, etc.) — these drive food recommendations (low-GI,
       // low-sodium, etc.) just like allergies. Bumped take 20 → 25.
       prisma.aIMemory.findMany({ where: { userId, category: { in: ['allergy', 'preference', 'goal', 'injury'] } }, take: 25 }),
+      // Round 245: pull the user's last 30 saved recipes so the prompt
+      // can include their names as identification hints. When the user
+      // photographs their granola or oatmeal-with-banana, the AI naming
+      // it identically to the saved recipe lets the client-side
+      // findSavedFoodMatch pick up the user's exact measured macros
+      // instead of the model's per-image approximation. Take=30 keeps
+      // the prompt block ≤2KB even on heavy users.
+      prisma.recipe.findMany({
+        where: { userId, source: 'USER' },
+        orderBy: { updatedAt: 'desc' },
+        take: 30,
+        select: { name: true, totalCalories: true, ingredients: true },
+      }),
     ]);
     const isPaidSub = userSub && (userSub.status === 'active' || userSub.status === 'cancelled') && userSub.plan !== 'free' && (!userSub.endDate || userSub.endDate >= new Date());
     if (!isPaidSub && scanTodayCount >= FOOD_SCAN_FREE_DAILY_LIMIT) {
@@ -84247,7 +84260,22 @@ router.post('/analyze-food', authenticate, async (req: AuthRequest, res: Respons
     • < 0.5 — НЕ ВОЗВРАЩАЙ, лучше пропусти позицию
 12. АЛЛЕРГЕНЫ И ОГРАНИЧЕНИЯ: если в блюде виден ингредиент из списка ограничений пользователя — добавь префикс "⚠️ " к названию.
 13. НЕ ДУБЛИРУЙ: если на фото 2 одинаковых яблока — одна позиция с weightGrams удвоенным, не две. Но 2 разных (зелёное + красное) — 2 позиции.
-${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ? `\n\nОГРАНИЧЕНИЯ ПОЛЬЗОВАТЕЛЯ:\n${restrictionsBlock}` : ''}
+${userInfo ? `\nПользователь: ${userInfo}.` : ''}${hasRestrictions ? `\n\nОГРАНИЧЕНИЯ ПОЛЬЗОВАТЕЛЯ:\n${restrictionsBlock}` : ''}${(() => {
+  // Round 245: surface user's saved recipes as identification hints.
+  // The AI's job: when a photographed dish looks like one of these,
+  // use the SAME name in the response — the client matches by name
+  // and substitutes the user's measured macros for the AI's guess.
+  // Each recipe rendered as "name (X ккал/100г)" so the model can
+  // also sanity-check the calorie density from the photo.
+  if (!userRecipes?.length) return '';
+  const lines = userRecipes.slice(0, 30).map((r) => {
+    const totalW = (r.ingredients as any[] | null)?.reduce((s: number, ing: any) => s + (Number(ing?.weightGrams) || 0), 0) || 0;
+    const per100 = totalW > 0 ? Math.round((r.totalCalories / totalW) * 100) : Math.round(r.totalCalories);
+    const safeName = sanitizeForPrompt(r.name, 80);
+    return `- ${safeName} (~${per100} ккал/100г)`;
+  });
+  return `\n\nСОХРАНЁННЫЕ РЕЦЕПТЫ ПОЛЬЗОВАТЕЛЯ (если на фото видишь похожее блюдо — назови ТАК ЖЕ как в этом списке, пользователь увидит в ответе свои собственные точные КБЖУ из рецепта вместо моей оценки):\n${lines.join('\n')}`;
+})()}
 
 Ответь СТРОГО JSON без комментариев:
 {
