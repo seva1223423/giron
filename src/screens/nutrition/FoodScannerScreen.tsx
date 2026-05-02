@@ -693,6 +693,17 @@ export const FoodScannerScreen: React.FC<{ navigation: any }> = ({ navigation })
       lastBase64Ref.current = '';
       setLoading(false);
       clearTimeout(timeoutId);
+      // Round 211: refund the scan optimistically consumed by
+      // pickImage's pre-check. The consume sits ahead of the cache
+      // check (it has to — pickImage shouldn't open the camera at
+      // all on a zero-quota account), but a cache hit means we
+      // didn't actually run a new AI call. Cache hits should be
+      // free. The retry-button path doesn't pre-consume so it's
+      // safe to refund unconditionally here: in practice the cache
+      // is only populated by a successful prior analyze, and retry
+      // is only reached after a failure that didn't cache, so the
+      // cache-hit branch only fires for the initial pickImage path.
+      if (!isPremiumActive()) refundFoodScan();
       if (items.length > 0) haptic.success();
       return;
     }
