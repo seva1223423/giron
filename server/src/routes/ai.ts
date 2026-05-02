@@ -512,7 +512,7 @@ const AI_TOOLS: DeepSeekTool[] = [
             },
           },
           durationMinutes: { type: 'number', description: 'Сколько длилась тренировка (опционально)' },
-          completedAt: { type: 'string', description: 'ISO дата завершения. По умолчанию — сейчас. Используй когда пользователь говорит "вчера" или указывает другую дату.' },
+          completedAt: { type: 'string', description: 'ISO дата завершения в формате YYYY-MM-DD или полный ISO 2026-04-30T18:00:00Z. По умолчанию — сейчас. Используй когда пользователь говорит "вчера" → передай вчерашнюю YYYY-MM-DD дату; "позавчера" → дату два дня назад; "утром" + сегодня → сегодняшнюю.' },
         },
         required: ['name', 'exercises'],
       },
