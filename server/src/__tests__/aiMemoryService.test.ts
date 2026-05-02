@@ -6,16 +6,24 @@
  * /ai/chat flow starts calling these helpers.
  */
 
-jest.mock('../db', () => ({
-  prisma: {
-    aIMemory: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      upsert: jest.fn(),
-      deleteMany: jest.fn(),
+jest.mock('../db', () => {
+  const aIMemory = {
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    upsert: jest.fn(),
+    deleteMany: jest.fn(),
+  };
+  return {
+    prisma: {
+      aIMemory,
+      // Round 252: upsertFact now wraps read-then-upsert in a tx to
+      // serialize confidence bumps. The tx callback receives a tx
+      // object whose method shapes match prisma — re-route to the
+      // same mocks so existing tests don't need rewriting.
+      $transaction: jest.fn((fn: any) => fn({ aIMemory })),
     },
-  },
-}));
+  };
+});
 
 jest.mock('../utils/errorReporter', () => ({
   reportError: jest.fn(),
