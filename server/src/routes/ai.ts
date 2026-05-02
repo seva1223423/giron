@@ -5515,6 +5515,51 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }
     }
 
+    // Round 209: NO_DATA inventory — tell the AI EXPLICITLY what's
+    // empty so it can say "у тебя нет записей X" instead of making up
+    // numbers. Without this, the absence of a section in the prompt
+    // could be misread by the AI as "data not provided this turn"
+    // rather than "user has zero records of this kind".
+    //
+    // Each entry only fires when truly empty AND the underlying source
+    // was queried (so we don't claim "no sleep" for a user who simply
+    // hasn't synced from the client this turn — sleepFromDb covers
+    // that case). Concise format keeps the token cost <50 even when
+    // every category is empty.
+    const noDataMarkers: string[] = [];
+    if (recentWorkouts.length === 0) {
+      noDataMarkers.push('История тренировок: пусто (никогда не записывал)');
+    }
+    if (todayMeals.length === 0) {
+      noDataMarkers.push('Питание сегодня: пусто (ещё не записывал)');
+    }
+    if (bodyWeightHistory.length === 0) {
+      noDataMarkers.push('Записи веса тела: пусто (никогда не взвешивался)');
+    }
+    if (recentMeasurements.length === 0) {
+      noDataMarkers.push('Замеры тела: пусто (никогда не делал)');
+    }
+    if (recentSleepEntries.length === 0) {
+      noDataMarkers.push('Сон: пусто (никогда не записывал)');
+    }
+    if (!cardioSessions || cardioSessions.length === 0) {
+      noDataMarkers.push('Кардио: пусто (никогда не записывал)');
+    }
+    if (Object.keys(lifetimePRs).length === 0) {
+      noDataMarkers.push('Личные рекорды (PR): пусто (нет завершённых тренировок с весами)');
+    }
+    if (!nutritionTargets) {
+      noDataMarkers.push('Нормы КБЖУ: не установлены (используй update_nutrition_targets)');
+    }
+    if (!activeProgram) {
+      noDataMarkers.push('Активная программа: нет (используй create_program или activate_program)');
+    }
+    if (noDataMarkers.length > 0) {
+      statsContext += '\n## ЧЕГО НЕТ В ДАННЫХ (НЕ ВЫДУМЫВАЙ ЦИФРЫ)\n';
+      statsContext += noDataMarkers.map((m) => `- ${m}`).join('\n') + '\n';
+      statsContext += 'Если пользователь спрашивает о пунктах из этого списка — честно скажи "у тебя нет таких данных" и предложи начать записывать.\n';
+    }
+
     // Add weekly plan context if provided
     if (weekPlan && Object.keys(weekPlan).length > 0) {
       const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
