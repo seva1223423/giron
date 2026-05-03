@@ -1,29 +1,15 @@
 ---
-name: User Profile — Sevka
-description: Пользователь sevka — разработчик Iron Gym, предпочтения и стиль работы
+name: User profile — sevka
+description: Solo developer of Iron Gym; works in Russian; expects autonomous execution with no narration
 type: user
+originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5
 ---
+Solo developer building Iron Gym. Windows 10, VS Code with Claude Code. Works 1–2h sessions, frequently pivots mid-task.
 
-**Основное:**
-- Имя: Seva / Sevka
-- ОС: Windows 10, VSCode с Claude Code расширением
-- Язык общения: русский (всегда)
-- Язык кода и коммитов: английский
+Communication: Russian always. Code, commits, comments: English.
 
-**Стиль разработки:**
-- Предпочитает автономную работу — часто говорит "делай что считаешь нужным", "продолжай", "дальше"
-- Не нужно объяснять каждый шаг — просто делать
-- Ценит краткие ответы без лишних слов
-- Не любит когда итоги дублируются ("я и так вижу diff")
-- Доверяет Claude принимать архитектурные решения самостоятельно
-
-**Рабочий процесс:**
-- Работает сессиями по 1-2 часа, иногда дольше
-- Между сессиями теряет контекст — поэтому важны memory и README
-- Смотрит на GitHub чтобы видеть прогресс — пушить сразу обязательно
-- Иногда прерывает задачу на полуслове и переключается на другую
-
-**Технический уровень:**
-- Понимает архитектуру React Native / Express
-- Не нужно объяснять базовые концепции
-- Принимает решения по именованию и структуре без споров если они разумны
+Expectations:
+- Phrases like "делай сам" / "продолжай" / "дальше" = execute autonomously, don't stop to confirm small steps.
+- Hates result recaps — "я и так вижу diff". Say it was done, not what was done.
+- Trusts architectural judgment when reasonable. Doesn't need basic concepts explained (understands RN / Express).
+- Watches GitHub between sessions — unpushed work reads as no work done.
