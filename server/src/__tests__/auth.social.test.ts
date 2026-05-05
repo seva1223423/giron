@@ -120,6 +120,16 @@ jest.mock('google-auth-library', () => ({
 process.env.GOOGLE_CLIENT_ID_WEB = 'test_google_client_id_web';
 
 import app from '../index';
+import { _resetOAuthReplayCacheForTests } from '../routes/auth';
+
+// Module-level OAuth replay cache survives across tests in the same Jest
+// worker. Without this reset, tests that send the same accessToken / jti
+// twice (e.g. fetch-throws and client_id-mismatch both using 'tok') would
+// short-circuit the second call with code:'TOKEN_REPLAY' before the actual
+// branch under test runs. Fires for every test in the file.
+beforeEach(() => {
+  _resetOAuthReplayCacheForTests();
+});
 
 // ── VK Auth ───────────────────────────────────────────────────────────────────
 
@@ -404,8 +414,15 @@ describe('POST /api/auth/google', () => {
     // module-load snapshot of GOOGLE_CLIENT_IDS includes it.
   });
 
+  // Round 271 added a max-age guard on Google ID tokens (`iat` within 5 min
+  // of now, otherwise return TOKEN_STALE). Default to "now" so individual
+  // tests don't have to repeat the boilerplate; tests that want to exercise
+  // the stale-token path can override `iat` in the payload.
   const makeTicket = (payload: Record<string, unknown>) => ({
-    getPayload: () => payload,
+    getPayload: () => ({
+      iat: Math.floor(Date.now() / 1000),
+      ...payload,
+    }),
   });
 
   it('400 when idToken is missing', async () => {
