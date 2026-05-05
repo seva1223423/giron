@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, FlatList, TouchableOpacity, TextInput, StyleSheet, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeColors } from '../../../store';
-import { Card, Spinner } from '../../../components';
-import { typography } from '../../../theme';
-import { spacing, borderRadius } from '../../../theme/spacing';
-import { exercises as localExercises } from '../../../data/exercises';
-import { Exercise } from '../../../types';
-import { workoutService } from '../../../services';
-import { exerciseThumbSource } from '../../../config/store';
+import { useHaptic } from '../../hooks/useHaptic';
+import { useSafeTop } from '../../hooks/useSafeTop';
+import { useThemeColors } from '../../store';
+import { Card, Spinner, Icon } from '../../components';
+import { typography } from '../../theme';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { exercises as localExercises } from '../../data/exercises';
+import { Exercise } from '../../types';
+import { workoutService } from '../../services';
+import { exerciseThumbSource } from '../../config/store';
 
 const FAVORITES_KEY = 'iron_gym_exercise_favorites';
 
@@ -45,9 +46,18 @@ interface Props {
   navigation: any;
 }
 
-export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
+/**
+ * Dedicated exercise search screen — round 287.
+ *
+ * Replaces the previous third tab "Упражнения" inside WorkoutsScreen.
+ * Reachable from the 🔍 button in WorkoutsHeader. Logic mirrors the
+ * old ExercisesTab (favorites + muscle/equipment filters + server
+ * fetch fallback to local list).
+ */
+export const ExerciseSearchScreen: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
   const colors = useThemeColors();
+  const safeTop = useSafeTop();
   const [exerciseList, setExerciseList] = useState<Exercise[]>(localExercises);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
@@ -78,14 +88,6 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
     return () => { mounted = false; };
   }, []);
 
-  // Posters are now bundled with the app (see assets/exercise-videos/), so there's
-  // nothing to prefetch at runtime — they're already unpacked alongside the APK.
-
-  // Round 274: include `haptic` in deps. Previously empty deps closed
-  // over the initial haptic ref — currently fine because useHaptic
-  // returns a stable object, but if it ever loosens to a fresh-object
-  // each render the callback would silently reference a stale haptic.
-  // Pinning the dep makes the safety contract explicit.
   const toggleFavorite = useCallback((exerciseId: string) => {
     haptic.light();
     setFavoriteIds((prev) => {
@@ -124,18 +126,20 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
             activeOpacity={0.7}
             onPress={() => { haptic.light(); navigation.navigate('ExerciseDetail', { exerciseId: ex.id }); }}
+            accessibilityRole="button"
+            accessibilityLabel={ex.name}
           >
             {thumb !== undefined ? (
-              <Image source={thumb} style={styles.cardThumb} />
+              <Image source={thumb} style={[styles.cardThumb, { backgroundColor: colors.surface }]} />
             ) : (
-              <View style={[styles.cardThumb, styles.cardThumbPlaceholder]}>
-                <Text style={styles.cardThumbPlaceholderIcon}>{ex.type === 'cardio' ? '🏃' : '💪'}</Text>
+              <View style={[styles.cardThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
+                <Icon name={ex.type === 'cardio' ? 'heart' : 'dumbbell'} size={22} color={colors.textSecondary} />
               </View>
             )}
             <View style={{ flex: 1 }}>
               <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                {ex.primaryMuscles.join(', ')} {ex.type ? `\u2022 ${ex.type}` : ''}
+                {ex.primaryMuscles.join(', ')}{ex.type ? ` · ${ex.type}` : ''}
               </Text>
             </View>
           </TouchableOpacity>
@@ -143,11 +147,10 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             onPress={() => toggleFavorite(ex.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={{ paddingLeft: spacing.md }}
+            accessibilityRole="button"
             accessibilityLabel={isFav ? 'Убрать из избранного' : 'Добавить в избранное'}
           >
-            <Text style={[typography.h4, { color: isFav ? colors.error : colors.textTertiary }]}>
-              {isFav ? '●' : '○'}
-            </Text>
+            <Icon name="trophy" size={20} color={isFav ? colors.primary : colors.textTertiary} />
           </TouchableOpacity>
         </View>
       </Card>
@@ -159,11 +162,13 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
   const listHeader = useMemo(() => (
     <View style={{ padding: spacing.xl, paddingBottom: 0 }}>
       <TextInput
-        style={[styles.searchInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+        style={[styles.searchInput, typography.body, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
         value={searchQuery}
         onChangeText={setSearchQuery}
         placeholder="Поиск упражнений..."
         placeholderTextColor={colors.inputPlaceholder}
+        autoFocus
+        returnKeyType="search"
       />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, marginBottom: spacing.sm }}>
@@ -172,8 +177,10 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             key={f.key}
             onPress={() => { haptic.selection(); setMuscleFilter(f.key); }}
             style={[styles.filterChip, { backgroundColor: muscleFilter === f.key ? colors.primary : colors.surface, borderColor: muscleFilter === f.key ? colors.primary : colors.border }]}
+            accessibilityRole="button"
+            accessibilityLabel={f.label}
           >
-            <Text style={[typography.captionMedium, { color: muscleFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+            <Text style={[typography.captionMedium, { color: muscleFilter === f.key ? colors.textInverse : colors.text }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -184,8 +191,10 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
             key={f.key}
             onPress={() => { haptic.selection(); setEquipmentFilter(f.key); }}
             style={[styles.filterChip, { backgroundColor: equipmentFilter === f.key ? colors.accent : colors.surface, borderColor: equipmentFilter === f.key ? colors.accent : colors.border }]}
+            accessibilityRole="button"
+            accessibilityLabel={f.label}
           >
-            <Text style={[typography.captionMedium, { color: equipmentFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+            <Text style={[typography.captionMedium, { color: equipmentFilter === f.key ? colors.textInverse : colors.text }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -194,7 +203,7 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
         {filteredExercises.length} упражнений
       </Text>
     </View>
-  ), [searchQuery, muscleFilter, equipmentFilter, colors, filteredExercises.length]);
+  ), [searchQuery, muscleFilter, equipmentFilter, colors, filteredExercises.length, haptic]);
 
   const listEmpty = useMemo(() => {
     if (loadingExercises) {
@@ -203,37 +212,72 @@ export const ExercisesTab: React.FC<Props> = ({ navigation }) => {
     if (muscleFilter === 'favorites') {
       return (
         <View style={styles.emptyState}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1.5, borderColor: colors.primary + '35' }}><Text style={[typography.h3, { color: colors.primary }]}>●</Text></View>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 1, borderColor: colors.primary + '35' }}>
+            <Icon name="trophy" size={22} color={colors.primary} />
+          </View>
           <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
-            Нажмите {'●'} на упражнении, чтобы добавить в избранное
+            Тыкни ⭐ на упражнении чтобы добавить в избранное
+          </Text>
+        </View>
+      );
+    }
+    if (searchQuery.length > 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+            Ничего не найдено
           </Text>
         </View>
       );
     }
     return null;
-  }, [loadingExercises, muscleFilter, colors]);
+  }, [loadingExercises, muscleFilter, searchQuery, colors]);
 
   return (
-    <FlatList
-      data={loadingExercises ? [] : filteredExercises}
-      keyExtractor={keyExtractor}
-      renderItem={renderExerciseCard}
-      ListHeaderComponent={listHeader}
-      ListEmptyComponent={listEmpty}
-      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.huge }}
-      showsVerticalScrollIndicator={false}
-      initialNumToRender={15}
-      maxToRenderPerBatch={10}
-      windowSize={5}
-    />
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: safeTop }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          onPress={() => { haptic.selection(); navigation.goBack(); }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Назад"
+          style={styles.backBtn}
+        >
+          <Icon name="chev" size={22} color={colors.text} strokeWidth={2.4} />
+        </TouchableOpacity>
+        <Text style={[typography.h3, { color: colors.text }]}>Поиск упражнений</Text>
+        <View style={styles.backBtn} />
+      </View>
+      <FlatList
+        data={loadingExercises ? [] : filteredExercises}
+        keyExtractor={keyExtractor}
+        renderItem={renderExerciseCard}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.huge }}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        keyboardShouldPersistTaps="handled"
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  searchInput: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16, marginBottom: spacing.md },
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+  },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '180deg' }] },
+  searchInput: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   filterChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   emptyState: { alignItems: 'center', paddingVertical: spacing.huge },
-  cardThumb: { width: 56, height: 56, borderRadius: borderRadius.sm, backgroundColor: '#0F0F1A' },
-  cardThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  cardThumbPlaceholderIcon: { fontSize: 22, opacity: 0.6 },
+  cardThumb: { width: 56, height: 56, borderRadius: borderRadius.sm },
 });

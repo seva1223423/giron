@@ -21,8 +21,8 @@ interface Props {
  *
  *   "Тренировки"            🔍   ⋮
  *
- * Search currently routes to the Routines list as a placeholder browse
- * target until a dedicated exercise search screen is added.
+ * 🔍 opens the dedicated ExerciseSearch screen.
+ * ⋮ toggles the inline UtilityMenu (cardio / steps / calculators / etc).
  */
 export const WorkoutsHeader: React.FC<Props> = ({ onSearchPress, onMenuPress }) => {
   const safeTop = useSafeTop();

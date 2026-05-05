@@ -42,8 +42,7 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     }
   };
 
-  // TODO: dedicated exercise search screen — currently routes to Routines list as a placeholder browse target.
-  const handleSearchPress = () => navigation.navigate('Routines');
+  const handleSearchPress = () => navigation.navigate('ExerciseSearch');
 
   const heroSubtitle = activeWorkout
     ? activeWorkout.workout.name || 'Идёт тренировка'
