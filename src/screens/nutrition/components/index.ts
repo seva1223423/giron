@@ -7,3 +7,8 @@ export { SavedFoodsQuickAdd } from './SavedFoodsQuickAdd';
 export { MealSection, MEAL_TYPES } from './MealSection';
 export { DateNavigator } from './DateNavigator';
 export { QuickMeals } from './QuickMeals';
+export { NutritionHeader } from './NutritionHeader';
+export { NutritionHeroButton } from './NutritionHeroButton';
+export { NutritionTabBar, type NutritionTab } from './NutritionTabBar';
+export { NutritionMenu } from './NutritionMenu';
+export { WeekTab } from './WeekTab';
