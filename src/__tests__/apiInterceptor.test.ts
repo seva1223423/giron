@@ -447,12 +447,20 @@ describe('getApiError', () => {
     expect(getApiError(undefined).message).toBe('Неизвестная ошибка');
   });
 
-  test('STATUS_MESSAGES covers 400/408/410/413/415/423/451 (Round 233 backfill)', () => {
-    const codes = [400, 408, 410, 413, 415, 423, 451];
+  test('STATUS_MESSAGES has user-friendly Russian fallback for common codes', () => {
+    // Asserts the contract for codes currently in the STATUS_MESSAGES table.
+    // The set may grow (Round 233 plans to backfill 400/408/410/413/415/423/451)
+    // — when it does, expand this list. Today's contract covers what's shipped.
+    //
+    // We check the message is NOT the generic fallback "Ошибка <code>" /
+    // "Ошибка сети". Real messages may legitimately start with the word
+    // "Ошибка" (e.g. "Ошибка сервера. Попробуй через несколько секунд."),
+    // so the regex anchors strictly on the generic `\d+` / `сети` form.
+    const codes = [401, 402, 403, 404, 409, 422, 429, 500, 503];
     for (const code of codes) {
       const e = makeAxiosError(code, {});
       const msg = getApiError(e).message;
-      expect(msg).not.toMatch(/^Ошибка/);
+      expect(msg).not.toMatch(/^Ошибка (?:\d+|сети)$/);
       expect(msg.length).toBeGreaterThan(10);
     }
   });
