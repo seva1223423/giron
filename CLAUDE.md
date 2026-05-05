@@ -61,6 +61,26 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Plain Language
+
+**Объясняй просто, чётко, коротко. Без жаргона.**
+
+Пользователь — solo-основатель, не senior engineer. Каждый ответ должен быть понятен с первого прочтения.
+
+Правила общения:
+- Пиши на русском, простыми словами. Технический термин на английском только если нет русского эквивалента.
+- Не используй жаргон (smoke test, fanout, idempotent, regression, MR/PR, layer violation) без объяснения в скобках.
+- Если факт можно сказать в одной фразе — скажи в одной фразе. Не разворачивай.
+- Перед тем как ответить — перечитай свой текст. Если есть слово которое юзер может не знать — переписывай.
+- Маркированные списки и таблицы — да. Длинные абзацы — нет.
+- Когда задаёшь вопрос — давай конкретные варианты ответа («да/нет», «1/2/3»), не открытое поле.
+
+**Как НЕ надо:**
+> «Под §4 success criteria = "новый тест воспроизводит проблему → fix → тест зелёный + старые не сломались". Никакого UI.»
+
+**Как надо:**
+> «Я напишу тест который ловит баг. Сначала тест красный. Чиню код — тест становится зелёный. Старые тесты тоже проверяю чтобы ничего не сломалось.»
+
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, clarifying questions come before implementation rather than after mistakes.
 
 **Conflicts with rest of file:**
