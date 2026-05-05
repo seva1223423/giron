@@ -1,18 +1,18 @@
 import React, { useCallback } from 'react';
 import {
   Text,
-  ActivityIndicator,
   ViewStyle,
   TextStyle,
   Pressable,
 } from 'react-native';
+import { Spinner } from './Spinner';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store';
 import { typography } from '../theme';
 import { borderRadius, spacing } from '../theme/spacing';
 
@@ -55,7 +55,7 @@ export const Button: React.FC<ButtonProps> = ({
   accessibilityLabel,
   accessibilityHint,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -150,9 +150,11 @@ export const Button: React.FC<ButtonProps> = ({
       ]}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' ? colors.textInverse : variant === 'danger' ? '#FFFFFF' : colors.primary}
-          size="small"
+        // Round 233 (2026-05-02 audit): replaced ActivityIndicator with branded
+        // <Spinner>. Spec §6 rule 4: never ActivityIndicator on premium surfaces.
+        <Spinner
+          size={size === 'lg' ? 24 : 18}
+          color={variant === 'primary' ? colors.textInverse : variant === 'danger' ? colors.textInverse : colors.primary}
         />
       ) : (
         <>

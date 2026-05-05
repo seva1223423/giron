@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store';
 import { typography } from '../theme';
 import { borderRadius, spacing } from '../theme/spacing';
 
@@ -19,7 +19,7 @@ export const MacroBar: React.FC<MacroBarProps> = ({
   color,
   unit = 'г',
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const progress = target > 0 ? Math.min(current / target, 1) : 0;
 
   return (

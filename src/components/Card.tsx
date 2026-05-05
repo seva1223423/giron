@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store';
 import { borderRadius, spacing } from '../theme/spacing';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -26,7 +26,7 @@ export const Card: React.FC<CardProps> = ({
   padding = spacing.lg,
   elevated = false,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
