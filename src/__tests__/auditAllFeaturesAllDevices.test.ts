@@ -1053,18 +1053,7 @@ describe('Every shared component file is present', () => {
     'components/Icon.tsx',
     'components/Spinner.tsx',
     'components/ForceUpdateModal.tsx',
-    'components/ScreenContainer.tsx',
-    'components/SafeModal.tsx',
-    'components/AdaptiveGrid.tsx',
     'components/HitTarget.tsx',
-    'components/Text.tsx',
-    'components/FormField.tsx',
-    'components/Skeleton.tsx',
-    'components/EmptyState.tsx',
-    'components/Toast.tsx',
-    'components/ResponsiveButton.tsx',
-    'components/NavBar.tsx',
-    'components/IconButton.tsx',
   ];
 
   test.each(COMPONENTS)('%s exists', (rel) => {

@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#0E0E0F' },
   emoji: { fontSize: 64, marginBottom: 16, color: '#D4B07A' },
   title: { fontSize: 20, fontWeight: '700', color: '#F4F1EA', marginBottom: 8 },
-  message: { fontSize: 14, color: '#9A9A9A', textAlign: 'center', marginBottom: 24 },
+  message: { fontSize: 14, color: '#A8A49C', textAlign: 'center', marginBottom: 24 },
   button: { backgroundColor: '#D4B07A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
   buttonText: { color: '#17171A', fontSize: 16, fontWeight: '600' },
 });

@@ -257,18 +257,7 @@ describe('Premium component contracts', () => {
     'components/Icon.tsx',
     'components/Spinner.tsx',
     'components/ForceUpdateModal.tsx',
-    'components/ScreenContainer.tsx',
-    'components/SafeModal.tsx',
-    'components/AdaptiveGrid.tsx',
     'components/HitTarget.tsx',
-    'components/Text.tsx',
-    'components/FormField.tsx',
-    'components/Skeleton.tsx',
-    'components/EmptyState.tsx',
-    'components/Toast.tsx',
-    'components/ResponsiveButton.tsx',
-    'components/NavBar.tsx',
-    'components/IconButton.tsx',
     'components/GoogleAuthButton.tsx',
   ];
 
@@ -289,10 +278,4 @@ describe('Premium component contracts', () => {
     expect(code).toMatch(/export\s+(?:const|function)\s+Card|export\s+\{[^}]*Card/);
   });
 
-  test('AdaptiveGrid.tsx defines responsive cols logic', () => {
-    const f = path.resolve(__dirname, '../components/AdaptiveGrid.tsx');
-    const code = fs.readFileSync(f, 'utf8');
-    expect(code).toMatch(/cols/);
-    expect(code).toMatch(/useResponsive/);
-  });
 });

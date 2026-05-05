@@ -8,7 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store';
 import { useSubscriptionStore, FREE_LIMITS } from '../store/useSubscriptionStore';
 import { useHaptic } from '../hooks/useHaptic';
 import { Icon, type IconName } from './Icon';
@@ -89,7 +89,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   featureName,
   navigation,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { trialUsed } = useSubscriptionStore();
   const haptic = useHaptic();
   // Plan selection — design opens with annual highlighted; user can tap
@@ -111,7 +111,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity
-        style={styles.backdrop}
+        style={[styles.backdrop, { backgroundColor: colors.overlay }]}
         activeOpacity={1}
         onPress={onClose}
         accessibilityLabel="Закрыть подписку"
@@ -162,7 +162,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
-              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>✕</Text>
+              <Text style={[typography.small, { color: colors.textSecondary }]}>✕</Text>
             </TouchableOpacity>
           </View>
 
@@ -234,7 +234,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
                   <Icon name={f.icon} size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                  <Text style={[typography.smallMedium, { color: colors.text }]}>
                     {f.title}
                   </Text>
                   <Text
@@ -286,7 +286,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
               </View>
               <View style={styles.planRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>Год</Text>
+                  <Text style={[typography.smallMedium, { color: colors.text }]}>Год</Text>
                   <Text
                     style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
                   >
@@ -328,7 +328,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
             >
               <View style={styles.planRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>Месяц</Text>
+                  <Text style={[typography.smallMedium, { color: colors.text }]}>Месяц</Text>
                   <Text
                     style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
                   >
@@ -363,11 +363,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
             style={[styles.cta, { backgroundColor: colors.primary }]}
           >
             <Text
-              style={{
-                color: colors.textInverse,
-                fontSize: 16,
-                fontWeight: '600',
-              }}
+              style={[typography.bodySemibold, { color: colors.textInverse }]}
             >
               {ctaTitle}
             </Text>
@@ -400,7 +396,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  backdrop: { flex: 1 },
   sheet: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,

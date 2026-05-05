@@ -6,7 +6,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store';
 
 interface Props {
   width?: number | string;
@@ -21,7 +21,7 @@ export const SkeletonLoader: React.FC<Props> = ({
   borderRadius = 8,
   style,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const opacity = useSharedValue(0.3);
 
   useEffect(() => {

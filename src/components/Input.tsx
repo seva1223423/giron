@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, ViewStyle, TextInputProps } from 'react-native';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store';
 import { typography } from '../theme';
 import { borderRadius, spacing } from '../theme/spacing';
 
@@ -19,7 +19,7 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...props
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [isFocused, setIsFocused] = useState(false);
 
   return (

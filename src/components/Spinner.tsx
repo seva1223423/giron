@@ -8,7 +8,8 @@ import Animated, {
   cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store/useThemeStore';
+import { useReducedMotion } from '../hooks/useAccessibility';
 import { Icon } from './Icon';
 
 interface Props {
@@ -16,6 +17,8 @@ interface Props {
   size?: number;
   /** Override color; defaults to theme.primary (champagne gold). */
   color?: string;
+  /** Override the VoiceOver label. Defaults to "Загрузка". */
+  accessibilityLabel?: string;
 }
 
 /**
@@ -29,28 +32,39 @@ interface Props {
  *
  *   <Spinner size={32} />
  */
-export const Spinner: React.FC<Props> = ({ size = 24, color }) => {
-  const { colors } = useThemeStore();
+export const Spinner: React.FC<Props> = ({ size = 24, color, accessibilityLabel }) => {
+  // Round 233 (2026-05-02 audit):
+  //  - selector hook avoids full-store re-renders
+  //  - useReducedMotion gate respects vestibular-disorder accessibility setting
+  //  - accessibilityRole="progressbar" + busy state announces loading to VoiceOver
+  //    (was completely silent before — Wave 3 a11y finding A2)
+  const colors = useThemeColors();
+  const reduce = useReducedMotion();
   const rotation = useSharedValue(0);
 
   useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, { duration: 900, easing: Easing.linear }),
-      -1,
-      false,
-    );
-    // Cancel on unmount so the worklet stops running and the shared
-    // value can be garbage collected cleanly. Without this, reanimated
-    // warns in dev when unmounting a spinning spinner.
+    if (!reduce) {
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 900, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    }
     return () => cancelAnimation(rotation);
-  }, [rotation]);
+  }, [rotation, reduce]);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={accessibilityLabel ?? 'Загрузка'}
+      accessibilityState={{ busy: true }}
+    >
       <Animated.View style={style}>
         <Icon name="spark" size={size} color={color ?? colors.primary} strokeWidth={2} />
       </Animated.View>

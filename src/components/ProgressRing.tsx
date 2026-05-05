@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { useThemeStore } from '../store';
+import { useThemeColors } from '../store';
 import { typography } from '../theme';
 
 interface ProgressRingProps {
@@ -21,7 +21,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
   label,
   value,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const ringColor = color || colors.primary;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;

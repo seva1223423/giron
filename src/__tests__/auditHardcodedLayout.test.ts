@@ -61,8 +61,12 @@ describe('File inventory', () => {
     expect(SCREEN_FILES.length).toBeGreaterThan(50);
   });
 
-  test('finds at least 20 components', () => {
-    expect(COMPONENT_FILES.length).toBeGreaterThan(20);
+  test('finds at least 16 components', () => {
+    // R283/R284 dead-code purge dropped count from 28 → 17 (deleted
+    // ScreenContainer, SafeModal, AdaptiveGrid, Text, FormField, Skeleton,
+    // EmptyState, Toast, ResponsiveButton, NavBar, IconButton — 11 files
+    // that were either never imported or only audit-test referenced).
+    expect(COMPONENT_FILES.length).toBeGreaterThan(16);
   });
 });
 
@@ -286,10 +290,14 @@ describe('Adoption metrics: responsive APIs used widely', () => {
     if (/<ScreenContainer|<ScreenScroll/.test(text)) screenContainerAdopters++;
   }
 
-  test('>= 5 files use useResponsive / responsive hooks', () => {
-    // useResponsive is newly introduced (round 184). Expected to grow
-    // over time as screens get migrated.
-    expect(responsiveAdopters).toBeGreaterThanOrEqual(5);
+  test('useResponsive hook adoption is tracked', () => {
+    // useResponsive was introduced in R184 with the original responsive
+    // package (AdaptiveGrid, ScreenContainer, FormField — all deleted in
+    // R283/R284 dead-code purge per CLAUDE.md §2 Simplicity First).
+    // The hook itself remains in src/hooks/useResponsive.ts for future use
+    // but currently has 0 production adopters. Threshold lowered from
+    // 5 to 0 — re-raise once a screen actually adopts the hook.
+    expect(responsiveAdopters).toBeGreaterThanOrEqual(0);
   });
 
   test('>= 30 files use safe-area APIs', () => {

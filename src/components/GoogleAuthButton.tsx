@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, View } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { useThemeStore, useAuthStore } from '../store';
+import { useAuthStore, useThemeColors } from '../store';
 import { typography } from '../theme';
+import { brandColors } from '../theme/brandColors';
 import { spacing } from '../theme/spacing';
+import { Spinner } from './Spinner';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,7 +21,7 @@ interface Props {
 }
 
 export function GoogleAuthButton({ onError, onTotpRequired, disabled, mode = 'login', onSuccess }: Props) {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { loginWithGoogle } = useAuthStore();
   const [loading, setLoading] = useState(false);
 
@@ -73,8 +75,8 @@ export function GoogleAuthButton({ onError, onTotpRequired, disabled, mode = 'lo
       ]}
     >
       {loading
-        ? <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: spacing.sm }} />
-        : <Text style={{ fontSize: 18, marginRight: spacing.sm, fontWeight: '700', color: '#4285F4' }}>G</Text>
+        ? <View style={{ marginRight: spacing.sm }}><Spinner color={colors.primary} size={20} /></View>
+        : <Text style={[typography.h4, { marginRight: spacing.sm, color: brandColors.google }]}>G</Text>
       }
       <Text style={[typography.bodySemibold, { color: colors.text }]}>{label}</Text>
     </TouchableOpacity>

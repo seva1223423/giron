@@ -91,27 +91,33 @@ export const ForceUpdateModal: React.FC = () => {
   );
 };
 
+// Round 233 (2026-05-02 audit): replaced banned legacy palette
+// (#8B5CF6 purple, #F59E0B Apple amber, #4B5563/#D1D5DB/#9CA3AF/#6B7280
+// Tailwind greys) with Direction A graphite + champagne gold tokens.
+// Hardcoded since this modal may render on a 426 response before
+// any theme provider state is reliable; ALL VALUES MIRROR
+// `darkColors` from src/theme/colors.ts.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#0E0E0F',           // colors.background dark
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
   },
-  icon: { fontSize: 64, color: '#F59E0B', marginBottom: 16, fontWeight: '900' },
-  title: { fontSize: 24, fontWeight: '800', color: '#FFFFFF', marginBottom: 12, textAlign: 'center' },
-  message: { fontSize: 15, color: '#D1D5DB', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  icon: { fontSize: 64, color: '#D4B07A', marginBottom: 16, fontWeight: '900' },  // primary gold (was banned amber)
+  title: { fontSize: 24, fontWeight: '800', color: '#F4F1EA', marginBottom: 12, textAlign: 'center' },  // text cream
+  message: { fontSize: 15, color: '#A8A49C', textAlign: 'center', marginBottom: 24, lineHeight: 22 },   // textSecondary
   versionBox: {
-    backgroundColor: '#15151F',
+    backgroundColor: '#1E1E22',           // surfaceElevated
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
     width: '100%',
   },
-  versionLine: { fontSize: 13, color: '#9CA3AF', marginVertical: 2, textAlign: 'center' },
+  versionLine: { fontSize: 13, color: '#A8A49C', marginVertical: 2, textAlign: 'center' },  // textSecondary
   primaryBtn: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#D4B07A',           // primary gold (was old purple)
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -119,21 +125,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  primaryBtnText: { color: '#17171A', fontSize: 16, fontWeight: '700' },  // textInverse — dark on gold (Direction A rule)
   secondaryBtn: {
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#4B5563',
+    borderColor: 'rgba(255,255,255,0.14)', // border dark
     width: '100%',
     alignItems: 'center',
     marginBottom: 24,
   },
-  secondaryBtnText: { color: '#D1D5DB', fontSize: 16, fontWeight: '600' },
+  secondaryBtnText: { color: '#F4F1EA', fontSize: 16, fontWeight: '600' },  // text cream
   footnote: {
     fontSize: 11,
-    color: '#6B7280',
+    color: '#6B6860',                     // textTertiary dark
     textAlign: 'center',
     lineHeight: 16,
     paddingHorizontal: 16,
