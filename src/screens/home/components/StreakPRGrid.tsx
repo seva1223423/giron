@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -39,7 +39,7 @@ export const StreakPRGrid: React.FC<Props> = ({
   prKg,
   prLabel = 'Жим штанги · новый PR',
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   // Defensive clamps: a negative streak or weird PR shouldn't crash the UI.
   const safeStreakDays = Number.isFinite(streakDays) && streakDays >= 0 ? Math.floor(streakDays) : 0;

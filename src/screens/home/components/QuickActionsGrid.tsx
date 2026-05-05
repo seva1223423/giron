@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Icon, type IconName } from '../../../components';
 import { spacing } from '../../../theme/spacing';
+import { typography } from '../../../theme';
 
 interface Action {
   /** Icon name from the shared Icon set (24pt stroke). */
@@ -32,7 +33,7 @@ interface Props {
  * Icons are SVG from the shared Icon set so they stay sharp on any DPR.
  */
 export const QuickActionsGrid: React.FC<Props> = ({ actions }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
 
   return (
@@ -73,7 +74,7 @@ export const QuickActionsGrid: React.FC<Props> = ({ actions }) => {
           >
             <Icon name={a.icon} size={16} color={colors.primary} />
           </View>
-          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
+          <Text style={[typography.smallLite, { color: colors.text }]}>
             {a.label}
           </Text>
           <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
