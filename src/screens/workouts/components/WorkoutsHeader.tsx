@@ -1,101 +1,79 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
-import { useThemeStore } from '../../../store';
-import { Icon, type IconName } from '../../../components';
+import { useThemeColors } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 interface Props {
-  navigation: any;
+  onSearchPress: () => void;
+  onMenuPress: () => void;
 }
 
-/** Shortcut pills — the horizontal row under the title. Each maps an
- *  Icon name (from the shared set) to a Workouts-stack screen target. */
-const SHORTCUTS: Array<{ label: string; icon: IconName; screen: string }> = [
-  { label: 'История', icon: 'chart', screen: 'WorkoutHistory' },
-  { label: 'Рутины', icon: 'grid', screen: 'Routines' },
-  { label: 'Кардио', icon: 'heart', screen: 'Cardio' },
-  { label: 'Шагомер', icon: 'flame', screen: 'Steps' },
-  { label: 'Рекорды', icon: 'trophy', screen: 'PersonalRecords' },
-  { label: 'Неделя', icon: 'timer', screen: 'WeeklyPlan' },
-  { label: '1ПМ', icon: 'target', screen: 'OneRMCalculator' },
-  { label: 'Блины', icon: 'dumbbell', screen: 'PlateCalculator' },
-];
-
 /**
- * Workouts screen header — pixel-ish copy of A_Workouts. Per the
- * Direction A design:
+ * Workouts screen header — Direction A.
  *
- *   ── Title row ──────────────────────────── + (gold +)
- *   ИСТОРИЯ | РУТИНЫ | КАРДИО | РЕКОРДЫ | ... (pill row)
- *   ────────────────────────────────────────
- *   Tabs below (handled by WorkoutsTabBar)
+ * After the layout simplification (round 287) the pill row of 8 shortcuts
+ * was retired in favour of a sticky HERO start button + utility menu.
+ * The header now carries only the title and two icon buttons:
  *
- * Glyphs migrated from raw unicode (◧ ◉ ◑ ◎ ◈) to SVG icons from the
- * shared set; pills lose the decorative `fontWeight: 700` on the glyph
- * since the icon provides its own weight.
+ *   "Тренировки"            🔍   ⋮
+ *
+ * Search currently routes to the Routines list as a placeholder browse
+ * target until a dedicated exercise search screen is added.
  */
-export const WorkoutsHeader: React.FC<Props> = ({ navigation }) => {
+export const WorkoutsHeader: React.FC<Props> = ({ onSearchPress, onMenuPress }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
+
+  const iconBtnStyle = {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  };
 
   return (
     <View style={{ paddingTop: safeTop, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      {/* Title row */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingBottom: spacing.md }}>
-        <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); navigation.navigate('CustomWorkout'); }}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 14,
-            backgroundColor: colors.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: colors.primary,
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.25,
-            shadowRadius: 12,
-          }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel="Новая свободная тренировка"
-          accessibilityRole="button"
-        >
-          <Icon name="plus" size={20} color={colors.textInverse} strokeWidth={2.4} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Shortcuts row */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.md, gap: spacing.sm }}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: spacing.xl,
+          paddingBottom: spacing.md,
+          paddingTop: spacing.md,
+        }}
       >
-        {SHORTCUTS.map((s) => (
+        <Text style={[typography.h2, { color: colors.text }]}>Тренировки</Text>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <TouchableOpacity
-            key={s.screen}
-            onPress={() => { haptic.selection(); navigation.navigate(s.screen); }}
-            accessibilityLabel={s.label}
+            onPress={() => { haptic.selection(); onSearchPress(); }}
+            style={iconBtnStyle}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Поиск упражнений"
             accessibilityRole="button"
-            style={{
-              flexDirection: 'row', alignItems: 'center', gap: 6,
-              paddingVertical: 7, paddingHorizontal: spacing.md,
-              borderRadius: borderRadius.full,
-              backgroundColor: colors.surface,
-              borderWidth: 1, borderColor: colors.border,
-            }}
           >
-            <Icon name={s.icon} size={14} color={colors.primary} />
-            <Text style={[typography.small, { color: colors.textSecondary, fontWeight: '600' }]}>
-              {s.label}
-            </Text>
+            <Icon name="search" size={20} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+          <TouchableOpacity
+            onPress={() => { haptic.selection(); onMenuPress(); }}
+            style={iconBtnStyle}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Меню инструментов"
+            accessibilityRole="button"
+          >
+            <Icon name="more" size={20} color={colors.text} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };

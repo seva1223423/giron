@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useWorkoutStore, useThemeColors } from '../../store';
+import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import {
   WorkoutsHeader,
@@ -8,31 +9,79 @@ import {
   WorkoutsTab,
   QuickStartTab,
   ProgramsTab,
-  ExercisesTab,
+  HeroStartButton,
+  HistoryTab,
+  UtilityMenu,
 } from './components';
 
+/**
+ * Workouts root screen — round 287 layout simplification.
+ *
+ *   Header (title + 🔍 + ⋮)
+ *   HeroStartButton  (Начать / Продолжить)
+ *   TabBar           (План / История)
+ *   ─ План tab    → QuickStartTab + ProgramsTab in one scroll column
+ *   ─ История tab → 4 nav cards (calendar, history, PRs, routines)
+ *   ⋮ menu          → inline panel with 6 utility shortcuts
+ */
 export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { colors } = useThemeStore();
-  const { fetchPrograms } = useWorkoutStore();
-  const [tab, setTab] = useState<WorkoutsTab>('quick');
+  const colors = useThemeColors();
+  const { fetchPrograms, activeWorkout } = useWorkoutStore();
+  const [tab, setTab] = useState<WorkoutsTab>('plan');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchPrograms();
   }, []);
 
+  const handleHeroPress = () => {
+    if (activeWorkout) {
+      navigation.navigate('ActiveWorkout');
+    } else {
+      navigation.navigate('CustomWorkout');
+    }
+  };
+
+  // TODO: dedicated exercise search screen — currently routes to Routines list as a placeholder browse target.
+  const handleSearchPress = () => navigation.navigate('Routines');
+
+  const heroSubtitle = activeWorkout
+    ? activeWorkout.workout.name || 'Идёт тренировка'
+    : undefined;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <WorkoutsHeader navigation={navigation} />
+      <WorkoutsHeader
+        onSearchPress={handleSearchPress}
+        onMenuPress={() => setMenuOpen((v) => !v)}
+      />
+      <HeroStartButton
+        hasActiveWorkout={!!activeWorkout}
+        subtitle={heroSubtitle}
+        onPress={handleHeroPress}
+      />
       <WorkoutsTabBar activeTab={tab} onTabChange={setTab} />
-      {/* ExercisesTab uses FlatList internally for virtualization, so it must not be wrapped in ScrollView */}
-      {tab === 'exercises' ? (
-        <ExercisesTab navigation={navigation} />
-      ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {tab === 'quick' && <QuickStartTab navigation={navigation} />}
-          {tab === 'programs' && <ProgramsTab navigation={navigation} />}
-        </ScrollView>
-      )}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {tab === 'plan' ? (
+          <>
+            <QuickStartTab navigation={navigation} />
+            <View style={[styles.sectionDivider, { borderTopColor: colors.border }]}>
+              <Text style={[typography.h4, { color: colors.text }]}>Готовые программы</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+                Подбери под свою цель
+              </Text>
+            </View>
+            <ProgramsTab navigation={navigation} />
+          </>
+        ) : (
+          <HistoryTab navigation={navigation} />
+        )}
+      </ScrollView>
+      <UtilityMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onNavigate={(screen) => navigation.navigate(screen)}
+      />
     </View>
   );
 };
@@ -40,4 +89,10 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
+  sectionDivider: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    marginBottom: spacing.md,
+    borderTopWidth: 1,
+  },
 });
