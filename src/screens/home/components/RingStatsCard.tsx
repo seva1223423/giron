@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 
@@ -100,7 +100,7 @@ const Bar: React.FC<{ value: number; color: string; track: string; height?: numb
  * monospaced value column.
  */
 export const RingStatsCard: React.FC<Props> = ({ dayProgress, rows }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   // clampProgress already guards NaN/Infinity/out-of-range; the Math.round
   // stays because we want an integer for the "68%" display.
   const pct = Math.round(clampProgress(dayProgress) * 100);

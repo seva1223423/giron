@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -37,7 +37,7 @@ interface Props {
  * the design uses to highlight "today" in the planned split.
  */
 export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
 
   return (
@@ -58,7 +58,7 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
             accessibilityLabel="Открыть все тренировки"
             accessibilityRole="button"
           >
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500' }}>Все →</Text>
+            <Text style={[typography.captionMedium, { color: colors.primary }]}>Все →</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -109,7 +109,7 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
                 </Text>
                 {d.done && (
                   <Text
-                    style={{ color: fg, fontSize: 12, fontWeight: '700' }}
+                    style={[typography.captionMedium, { color: fg }]}
                   >
                     ✓
                   </Text>

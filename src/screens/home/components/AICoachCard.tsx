@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
@@ -41,7 +41,7 @@ export const AICoachCard: React.FC<Props> = ({
   onPressCta,
   onPressRefresh,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
 
   return (
@@ -136,7 +136,7 @@ export const AICoachCard: React.FC<Props> = ({
               justifyContent: 'center',
             }}
           >
-            <Text style={{ color: colors.textInverse, fontSize: 14, fontWeight: '600' }}>
+            <Text style={[typography.smallMedium, { color: colors.textInverse }]}>
               {ctaLabel}
             </Text>
           </TouchableOpacity>

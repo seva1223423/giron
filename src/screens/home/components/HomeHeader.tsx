@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useThemeStore, useAuthStore } from '../../../store';
+import { useAuthStore, useThemeColors } from '../../../store';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -19,7 +19,7 @@ import { formatDateMetaRu } from '../../../utils/date';
  * notifications screen.
  */
 export const HomeHeader: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { user } = useAuthStore();
 
   return (
