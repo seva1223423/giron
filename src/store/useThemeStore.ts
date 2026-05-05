@@ -62,3 +62,24 @@ export const useThemeStore = create<ThemeStore>()(
     }
   )
 );
+
+// ─── Selector hooks ────────────────────────────────────────────────
+//
+// Subscribe to ONE slice each — calling `useThemeStore()` returns the
+// whole store and re-renders the consumer on every state mutation
+// (mode toggle, system theme change, hydration, anything). The
+// selector hooks below let leaf components subscribe to just the
+// slice they actually use, so an unrelated theme-store mutation
+// doesn't cause a cascade of re-renders across the tree.
+//
+// Usage:
+//   const colors = useThemeColors();        // most components
+//   const isDark = useThemeIsDark();        // <StatusBar style=...>
+//   const mode = useThemeMode();            // settings UI
+//
+// Round 233 (2026-05-02 audit): introduced after a perf trace showed
+// the AI chat list re-rendering on every tab swipe because the swipe
+// gesture momentarily flipped a transient theme-store flag.
+export const useThemeColors = () => useThemeStore((s) => s.colors);
+export const useThemeIsDark = () => useThemeStore((s) => s.isDark);
+export const useThemeMode = () => useThemeStore((s) => s.mode);
