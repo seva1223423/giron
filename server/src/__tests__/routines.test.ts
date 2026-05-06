@@ -147,6 +147,46 @@ describe('POST /api/workouts/routines', () => {
       .send({ ...validBody, exercises: [] });
     expect(res.status).toBe(400);
   });
+
+  // Round 255: metadata fields
+  it('accepts targetGoal, difficulty, estimatedDurationMinutes', async () => {
+    (prisma.routine.create as jest.Mock).mockResolvedValue(mockRoutine);
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({
+        ...validBody,
+        targetGoal: 'STRENGTH',
+        difficulty: 'INTERMEDIATE',
+        estimatedDurationMinutes: 60,
+      });
+    expect(res.status).toBe(201);
+    const createCall = (prisma.routine.create as jest.Mock).mock.calls[0][0];
+    expect(createCall.data.targetGoal).toBe('STRENGTH');
+    expect(createCall.data.difficulty).toBe('INTERMEDIATE');
+    expect(createCall.data.estimatedDurationMinutes).toBe(60);
+  });
+
+  it('rejects invalid targetGoal enum', async () => {
+    const res = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, targetGoal: 'TURBO_MODE' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects estimatedDurationMinutes below 10 or above 240', async () => {
+    const res1 = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, estimatedDurationMinutes: 5 });
+    expect(res1.status).toBe(400);
+    const res2 = await request(app)
+      .post('/api/workouts/routines')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ ...validBody, estimatedDurationMinutes: 300 });
+    expect(res2.status).toBe(400);
+  });
 });
 
 // ─── PATCH /api/workouts/routines/:id ────────────────────────────────────────
@@ -178,6 +218,33 @@ describe('PATCH /api/workouts/routines/:id', () => {
       .set('Authorization', `Bearer ${makeToken()}`)
       .send({});
     expect(res.status).toBe(400);
+  });
+
+  // Round 255: metadata-only patch
+  it('updates targetGoal / difficulty / estimatedDurationMinutes', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue({ id: ROUTINE_ID, userId: USER_ID });
+    (prisma.routine.update as jest.Mock).mockResolvedValue({ ...mockRoutine, targetGoal: 'MUSCLE_GAIN' });
+    const res = await request(app)
+      .patch(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ targetGoal: 'MUSCLE_GAIN', difficulty: 'BEGINNER', estimatedDurationMinutes: 45 });
+    expect(res.status).toBe(200);
+    const updateCall = (prisma.routine.update as jest.Mock).mock.calls.at(-1)[0];
+    expect(updateCall.data.targetGoal).toBe('MUSCLE_GAIN');
+    expect(updateCall.data.difficulty).toBe('BEGINNER');
+    expect(updateCall.data.estimatedDurationMinutes).toBe(45);
+  });
+
+  it('allows clearing metadata with null', async () => {
+    (prisma.routine.findUnique as jest.Mock).mockResolvedValue({ id: ROUTINE_ID, userId: USER_ID });
+    (prisma.routine.update as jest.Mock).mockResolvedValue(mockRoutine);
+    const res = await request(app)
+      .patch(`/api/workouts/routines/${ROUTINE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ targetGoal: null });
+    expect(res.status).toBe(200);
+    const updateCall = (prisma.routine.update as jest.Mock).mock.calls.at(-1)[0];
+    expect(updateCall.data.targetGoal).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { api } from './api';
-import { Program, Workout, Exercise, Routine, RoutineStartPayload, RoutineHistory } from '../types';
+import { Program, Workout, Exercise, Routine, RoutineStartPayload, RoutineHistory, RoutineGoal, RoutineDifficulty } from '../types';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -170,6 +170,19 @@ export const workoutService = {
 
   async renameRoutine(id: string, name: string, description?: string | null): Promise<Routine> {
     const { data } = await api.patch(`/workouts/routines/${id}`, { name, description });
+    return data;
+  },
+
+  // Round 255: metadata-only patch. Use null to clear a field, omit to leave unchanged.
+  async patchRoutineMetadata(
+    id: string,
+    patch: {
+      targetGoal?: RoutineGoal | null;
+      difficulty?: RoutineDifficulty | null;
+      estimatedDurationMinutes?: number | null;
+    }
+  ): Promise<Routine> {
+    const { data } = await api.patch(`/workouts/routines/${id}`, patch);
     return data;
   },
 
