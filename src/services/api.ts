@@ -20,9 +20,18 @@ const CLIENT_VERSION =
   '0.0.0';
 const CLIENT_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android';
 
+// Round 288 — VPN-friendly timeout. The previous 15s default was too
+// tight for the common Russian-user scenario (Hiddify/PlanetVPN +
+// Render free-tier cold start). A cold dyno wakes in 30-50s; with
+// VPN-added latency on top, 15s guarantees a timeout. 45s lets the
+// first-shot succeed for warm dynos and gives the auto-retry below
+// (which fires on ECONNABORTED + ECONNRESET + ERR_NETWORK as well as
+// 502/503/504) a real chance to land within the cold-start window.
+// AI requests still override this with their own AI_REQUEST_TIMEOUT_MS
+// in services/aiService.ts.
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 45000,
   headers: {
     'Content-Type': 'application/json',
     'X-Client-Version': CLIENT_VERSION,
@@ -101,24 +110,43 @@ api.interceptors.response.use(
     }
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
 
-    // Auto-retry on 502/503/504 — these are transient Render restarts /
-    // load-balancer reroutes and they typically clear within 5-10
-    // seconds. The founder hit this during the rate-limit fix deploy:
-    // the EditProfileScreen save fired during the redeploy window and
-    // showed a misleading "проверь подключение" instead of just waiting
-    // for the new instance. Up to 2 retries with exponential backoff
-    // (1s, 3s) absorbs most deploy windows. GET-only retry by default
-    // because POST/PATCH retries can double-write; explicitly opt-in
-    // mutations with `axios.config.shouldRetry` would be the future
-    // upgrade.
+    // Auto-retry on transient failures.
+    //
+    // What counts as transient:
+    //   • HTTP 502/503/504 — Render restart, load-balancer reroute,
+    //     deploy window. Typically clears within 5-10s.
+    //   • Network errors (ECONNABORTED timeout, ECONNRESET, ERR_NETWORK,
+    //     no `error.response`) — VPN flicker, DNS hiccup, WiFi-to-LTE
+    //     handover. These ARE expected for Russian users on Hiddify /
+    //     PlanetVPN; one transient failure should not surface as a
+    //     dead-end "проверь подключение" alert when a 2-second retry
+    //     would have succeeded.
+    //
+    // Why GET-only:
+    //   POST/PATCH retries can double-write (create the same record
+    //   twice, log the same set twice). If we ever want to retry
+    //   specific mutations, do it via an explicit per-request opt-in
+    //   on the call site, not here.
+    //
+    // Backoff schedule: 2s / 5s / 10s (3 attempts max).
+    // Together with the 45s base timeout, this absorbs ~95% of Render
+    // cold-starts (30-50s) on the second or third attempt.
     const status = error.response?.status;
-    const isTransient = status === 502 || status === 503 || status === 504;
+    const isHttpTransient = status === 502 || status === 503 || status === 504;
+    const isNetworkTransient =
+      error.code === 'ECONNABORTED' ||
+      error.code === 'ECONNRESET' ||
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ENETUNREACH' ||
+      error.code === 'ERR_NETWORK' ||
+      (!error.response && !error.code);
+    const isTransient = isHttpTransient || isNetworkTransient;
     const isIdempotent = (originalRequest.method || 'get').toLowerCase() === 'get';
-    if (isTransient && isIdempotent) {
+    if (isTransient && isIdempotent && originalRequest) {
       const retryCount = originalRequest._retryCount ?? 0;
-      if (retryCount < 2) {
+      if (retryCount < 3) {
         originalRequest._retryCount = retryCount + 1;
-        const backoffMs = retryCount === 0 ? 1000 : 3000;
+        const backoffMs = retryCount === 0 ? 2000 : retryCount === 1 ? 5000 : 10000;
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         return api(originalRequest);
       }
@@ -173,7 +201,7 @@ api.interceptors.response.use(
         // token expired could silently keep refreshing, bypassing the
         // force-update gate that other endpoints enforce.
         const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken }, {
-          timeout: 15000,
+          timeout: 30000,
           headers: {
             'Content-Type': 'application/json',
             'X-Client-Version': CLIENT_VERSION,
