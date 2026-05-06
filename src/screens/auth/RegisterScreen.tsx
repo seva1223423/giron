@@ -37,6 +37,13 @@ function passwordStrength(p: string): number {
 const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший', 'Отличный'];
 const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#D4B07A'];
 
+// Round 237 — current consent version, must match docs/privacy.html and
+// docs/terms.html "Last updated" date plus the server's CURRENT_CONSENT_VERSION.
+// Bump in lockstep with edits to either document.
+const CURRENT_CONSENT_VERSION = '2026-04-20';
+const TERMS_URL = 'https://iron-gym.app/terms.html';
+const PRIVACY_URL = 'https://iron-gym.app/privacy.html';
+
 /** Format phone digits into display string */
 function formatPhone(digits: string): string {
   if (!digits) return '';
@@ -68,6 +75,8 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   const [vkLoading, setVkLoading] = useState(false);
   const [yandexLoading, setYandexLoading] = useState(false);
+  // Round 237 — mandatory consent gate. Submit is blocked until checked.
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
@@ -92,6 +101,13 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     if (!/[a-z]/.test(password)) { setLocalError('Пароль должен содержать хотя бы одну строчную букву'); return false; }
     if (!/[0-9]/.test(password)) { setLocalError('Пароль должен содержать хотя бы одну цифру'); return false; }
     if (password !== confirmPassword) { setLocalError('Пароли не совпадают'); return false; }
+    // Round 237: consent gate. Catches both the form-submit and OTP-submit
+    // paths so a user who clears the checkbox between sending the SMS and
+    // entering the code can't bypass consent.
+    if (!acceptedTerms) {
+      setLocalError('Чтобы продолжить, примите Условия использования и Политику конфиденциальности');
+      return false;
+    }
     return true;
   };
 
@@ -142,7 +158,14 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     } else {
       // Register without phone
       try {
-        await register({ email: emailTrimmed, password, firstName: firstName.trim(), lastName: lastName.trim() || undefined });
+        await register({
+          email: emailTrimmed,
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim() || undefined,
+          acceptTerms: true,
+          consentVersion: CURRENT_CONSENT_VERSION,
+        });
       } catch { /* error in store */ }
     }
   };
@@ -162,6 +185,8 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         lastName: lastName.trim() || undefined,
         phone: fullPhone,
         otpToken: trimmedCode,
+        acceptTerms: true,
+        consentVersion: CURRENT_CONSENT_VERSION,
       });
     } catch (e: any) {
       const msg = e?.response?.data?.error || e?.message || 'Ошибка регистрации';
@@ -390,24 +415,74 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
         {displayError ? <Text style={[typography.small, { color: colors.error, marginTop: spacing.md }]}>{displayError}</Text> : null}
 
+        {/*
+          Round 237 — informed consent gate. Required by 152-ФЗ §6
+          (informed consent for спец-категория health data) and GDPR
+          Art.7 (demonstrability). The check is BLOCKING: the
+          "Зарегистрироваться" button is disabled until the box is
+          checked, and the server-side Zod schema enforces the same
+          contract so a curl/Postman bypass also fails.
+        */}
+        <TouchableOpacity
+          onPress={() => { setAcceptedTerms((v) => !v); clearErrors(); }}
+          activeOpacity={0.7}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: acceptedTerms }}
+          accessibilityLabel="Принять условия использования и политику конфиденциальности"
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            marginTop: spacing.xl,
+            paddingVertical: spacing.sm,
+          }}
+        >
+          <View
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: 2,
+              borderColor: acceptedTerms ? colors.primary : colors.border,
+              backgroundColor: acceptedTerms ? colors.primary : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: spacing.md,
+              marginTop: 1,
+            }}
+          >
+            {acceptedTerms ? (
+              <Text style={{ color: '#1A1208', fontSize: 14, fontWeight: '900', lineHeight: 16 }}>✓</Text>
+            ) : null}
+          </View>
+          <Text style={[typography.small, { color: colors.textSecondary, flex: 1, lineHeight: 19 }]}>
+            Я принимаю{' '}
+            <Text
+              style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(TERMS_URL)}
+            >
+              Условия использования
+            </Text>
+            {' '}и{' '}
+            <Text
+              style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(PRIVACY_URL)}
+            >
+              Политику конфиденциальности
+            </Text>
+            , включая обработку моих данных по 152-ФЗ.
+          </Text>
+        </TouchableOpacity>
+
         <Button
           title={phoneDigits.length === 10 ? 'Далее — подтвердить телефон' : 'Зарегистрироваться'}
           onPress={handleRegister}
           loading={isLoading || otpSending}
-          disabled={anyLoading}
-          fullWidth size="lg" style={{ marginTop: spacing.xxl }}
+          // Round 237: button stays disabled until consent is checked,
+          // matching the server gate so the user can't even attempt the
+          // request without explicit acceptance.
+          disabled={anyLoading || !acceptedTerms}
+          fullWidth size="lg" style={{ marginTop: spacing.xl }}
         />
-
-        <Text style={[typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.md, paddingHorizontal: spacing.md, lineHeight: 18 }]}>
-          Нажимая «Зарегистрироваться», вы подтверждаете согласие на{' '}
-          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/privacy.html')}>
-            обработку персональных данных
-          </Text>
-          {' '}в соответствии с 152-ФЗ и принимаете{' '}
-          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/terms.html')}>
-            условия использования
-          </Text>.
-        </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xxl }}>
           <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />

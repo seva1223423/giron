@@ -55,6 +55,11 @@ export const authService = {
     lastName?: string;
     phone?: string;
     otpToken?: string;
+    // Round 237: mandatory consent flag. The server's Zod schema requires
+    // `acceptTerms === true` literal — without it the request is rejected
+    // with 400 before any DB write.
+    acceptTerms: true;
+    consentVersion?: string;
   }): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>('/auth/register', params);
     return data;

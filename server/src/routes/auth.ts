@@ -292,6 +292,14 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase().normalize('NFKC');
 }
 
+/**
+ * Round 237 — current consent version. Equals the "Last updated" date in
+ * docs/privacy.html and docs/terms.html. Bump in lockstep with edits to
+ * either document; existing users with an older `consentVersion` get a
+ * re-accept prompt on next launch (separate round, not yet wired).
+ */
+export const CURRENT_CONSENT_VERSION = '2026-04-20';
+
 const registerSchema = z.object({
   email: z.string().email('Некорректный email').max(254, 'Email слишком длинный').transform(normalizeEmail),
   password: strongPassword,
@@ -299,6 +307,15 @@ const registerSchema = z.object({
   lastName: z.string().max(100, 'Фамилия слишком длинная').optional(),
   phone: z.string().optional(),
   otpToken: z.string().optional(), // token returned by /auth/verify-otp
+  // Round 237 (152-ФЗ §6 + GDPR Art.7): mandatory informed consent. Must
+  // be `true` literal — `false` or absent → 400 BEFORE any DB write so we
+  // never create a user who hasn't agreed. The version string lets us
+  // distinguish users on old vs current consent text when we change the
+  // documents (legal team needs this audit trail).
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: 'Необходимо принять Условия использования и Политику конфиденциальности' }),
+  }),
+  consentVersion: z.string().min(8).max(20).optional(),
 });
 
 const loginSchema = z.object({
@@ -360,6 +377,14 @@ router.post('/register', async (req: Request, res: Response) => {
         phoneVerified,
         emailVerified: false,
         role: isBootstrapAdmin ? 'ADMIN' : undefined,
+        // Round 237: persist informed-consent timestamp + version. The
+        // schema rejected the request above if acceptTerms wasn't true,
+        // so we always have consent here. Client may pass its own
+        // consentVersion (the doc version it actually showed the user)
+        // or fall back to the server's CURRENT — defensive cap on
+        // mismatch where the client is on an older app build.
+        consentAcceptedAt: new Date(),
+        consentVersion: data.consentVersion ?? CURRENT_CONSENT_VERSION,
       },
     });
 
@@ -789,7 +814,11 @@ router.post('/google', async (req: Request, res: Response) => {
         }) as any;
       }
     } else {
-      // Create new user
+      // Create new user. Round 237: tapping "Sign in with Google" on the
+      // login screen (where the under-button text says "Регистрируясь, вы
+      // принимаете Условия и Политику") is the consent gesture for OAuth
+      // first-timers. Persist the version so the audit trail matches the
+      // email-register path.
       user = await prisma.user.create({
         data: {
           email,
@@ -799,6 +828,8 @@ router.post('/google', async (req: Request, res: Response) => {
           avatarUrl,
           emailVerified: true,
           // passwordHash is null — Google-only user
+          consentAcceptedAt: new Date(),
+          consentVersion: CURRENT_CONSENT_VERSION,
         },
         include: { healthRestrictions: true },
       }) as any;
@@ -907,8 +938,14 @@ router.post('/vk', async (req: Request, res: Response) => {
       // above). The user can attach a real email later via the
       // /user/change-email OTP flow, which proves ownership end-to-end.
       const email = `vk_${vkId}@irongym.internal`;
+      // Round 237: see Google handler — tapping the social button is the
+      // consent gesture for first-time OAuth users. Persist version.
       user = await prisma.user.create({
-        data: { email, vkId, firstName, lastName, avatarUrl, emailVerified: false },
+        data: {
+          email, vkId, firstName, lastName, avatarUrl, emailVerified: false,
+          consentAcceptedAt: new Date(),
+          consentVersion: CURRENT_CONSENT_VERSION,
+        },
         include: { healthRestrictions: true },
       }) as any;
     }
@@ -1035,8 +1072,13 @@ router.post('/yandex', async (req: Request, res: Response) => {
       }
     } else {
       const email = yandexEmail || `yandex_${yandexId}@irongym.internal`;
+      // Round 237: see Google handler.
       user = await prisma.user.create({
-        data: { email, yandexId, firstName, lastName, avatarUrl, emailVerified: !!yandexEmail },
+        data: {
+          email, yandexId, firstName, lastName, avatarUrl, emailVerified: !!yandexEmail,
+          consentAcceptedAt: new Date(),
+          consentVersion: CURRENT_CONSENT_VERSION,
+        },
         include: { healthRestrictions: true },
       }) as any;
     }

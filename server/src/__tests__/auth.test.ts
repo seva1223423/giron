@@ -145,6 +145,8 @@ describe('Auth Routes', () => {
       password: 'SecurePass123',
       firstName: 'Ivan',
       lastName: 'Petrov',
+      // Round 237: server schema requires acceptTerms === true literal.
+      acceptTerms: true,
     };
 
     it('should register a new user with valid input', async () => {
@@ -221,6 +223,62 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('email');
+    });
+
+    // Round 237 — informed-consent gate.
+    it('round 237: rejects registration when acceptTerms is missing', async () => {
+      const { acceptTerms: _, ...withoutConsent } = validPayload;
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send(withoutConsent);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/Условия|конфиденциальности|принять/i);
+      // Critical: never reached the DB.
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('round 237: rejects registration when acceptTerms is false', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ ...validPayload, acceptTerms: false });
+      expect(res.status).toBe(400);
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('round 237: persists consentAcceptedAt + consentVersion on successful register', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.create as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        email: validPayload.email,
+        firstName: validPayload.firstName,
+        lastName: validPayload.lastName,
+        role: 'USER',
+        createdAt: new Date('2026-01-01'),
+        passwordHash: 'hashed',
+      });
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ ...validPayload, consentVersion: '2026-04-20' });
+      expect(res.status).toBe(201);
+      const createCall = (mockPrisma.user.create as jest.Mock).mock.calls[0][0];
+      expect(createCall.data.consentVersion).toBe('2026-04-20');
+      expect(createCall.data.consentAcceptedAt).toBeInstanceOf(Date);
+    });
+
+    it('round 237: falls back to server CURRENT_CONSENT_VERSION when client omits it', async () => {
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.create as jest.Mock).mockResolvedValue({
+        id: 'user-1', email: validPayload.email, firstName: validPayload.firstName,
+        lastName: validPayload.lastName, role: 'USER', createdAt: new Date(), passwordHash: 'hashed',
+      });
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send(validPayload); // no consentVersion field
+      expect(res.status).toBe(201);
+      const createCall = (mockPrisma.user.create as jest.Mock).mock.calls[0][0];
+      // Format: YYYY-MM-DD — pin shape, not exact value (constant may bump).
+      expect(createCall.data.consentVersion).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(createCall.data.consentAcceptedAt).toBeInstanceOf(Date);
     });
   });
 
