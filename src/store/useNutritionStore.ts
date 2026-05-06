@@ -15,6 +15,9 @@ interface NutritionStore {
   removeMeal: (date: string, mealId: string) => void;
   updateMealItem: (date: string, mealId: string, itemId: string, data: Partial<NutritionItem>) => void;
   addWater: (date: string, ml: number) => void;
+  /** Remove a single entry from the day's water log by its index. The
+   *  total `waterMl` is decremented by that entry's volume (clamped at 0). */
+  removeWaterEntry: (date: string, entryIndex: number) => void;
   removeMealItem: (date: string, mealId: string, itemId: string) => void;
   setTargets: (date: string, targets: { calories: number; protein: number; fats: number; carbs: number; waterTargetMl?: number }) => void;
   /** Apply server-persisted nutrition targets — only overwrites if server has non-default values */
@@ -211,6 +214,25 @@ export const useNutritionStore = create<NutritionStore>()(
               ...dayLog,
               waterMl: dayLog.waterMl + ml,
               waterLog: [...(dayLog.waterLog || []), newEntry],
+            },
+          },
+        };
+      }),
+
+      removeWaterEntry: (date, entryIndex) => set((s) => {
+        const dayLog = s.dailyLog[date];
+        if (!dayLog) return s;
+        const log = dayLog.waterLog || [];
+        if (entryIndex < 0 || entryIndex >= log.length) return s;
+        const removed = log[entryIndex];
+        const nextLog = log.filter((_, i) => i !== entryIndex);
+        return {
+          dailyLog: {
+            ...s.dailyLog,
+            [date]: {
+              ...dayLog,
+              waterMl: Math.max(0, dayLog.waterMl - removed.ml),
+              waterLog: nextLog,
             },
           },
         };

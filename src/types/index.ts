@@ -100,10 +100,17 @@ export interface RoutineExercise {
   sets: RoutineSet[];
 }
 
+// Round 255: routine metadata. All optional / null on legacy records.
+export type RoutineGoal = 'STRENGTH' | 'MUSCLE_GAIN' | 'ENDURANCE' | 'FAT_LOSS' | 'GENERAL';
+export type RoutineDifficulty = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
 export interface Routine {
   id: string;
   name: string;
   description?: string;
+  targetGoal?: RoutineGoal | null;
+  difficulty?: RoutineDifficulty | null;
+  estimatedDurationMinutes?: number | null;
   exercises: RoutineExercise[];
   createdAt: string;
   updatedAt: string;

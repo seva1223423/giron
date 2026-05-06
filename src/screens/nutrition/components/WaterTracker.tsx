@@ -20,7 +20,7 @@ interface Props {
 export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
   const { colors } = useThemeStore();
   const haptic = useHaptic();
-  const { getDayLog, addWater } = useNutritionStore();
+  const { getDayLog, addWater, removeWaterEntry } = useNutritionStore();
   const user = useAuthStore((s) => s.user);
   const dayLog = getDayLog(selectedDate);
   const waterTarget = dayLog.waterTargetMl ?? 2500;
@@ -126,17 +126,35 @@ export const WaterTracker: React.FC<Props> = ({ selectedDate }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Day history */}
+      {/* Day history — tap × on any row to remove that entry. The total
+          waterMl decrements automatically. Most-recent entries on top. */}
       {showHistory && waterLog.length > 0 && (
         <View style={{ marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: spacing.sm }}>
-          <Text style={[typography.captionMedium, { color: colors.textTertiary, marginBottom: spacing.xs }]}>История за день</Text>
-          <ScrollView style={{ maxHeight: 120 }} showsVerticalScrollIndicator={false}>
-            {[...waterLog].reverse().map((entry, i) => (
-              <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
-                <Text style={[typography.small, { color: colors.textSecondary }]}>{entry.time}</Text>
-                <Text style={[typography.small, { color: colors.info, fontWeight: '600' }]}>+{entry.ml} мл</Text>
-              </View>
-            ))}
+          <Text style={[typography.captionMedium, { color: colors.textTertiary, marginBottom: spacing.xs }]}>
+            История за день · тыкни на запись чтобы убрать
+          </Text>
+          <ScrollView style={{ maxHeight: 160 }} showsVerticalScrollIndicator={false}>
+            {[...waterLog].reverse().map((entry, i) => {
+              const originalIndex = waterLog.length - 1 - i;
+              return (
+                <TouchableOpacity
+                  key={`${entry.time}-${originalIndex}`}
+                  onPress={() => { haptic.warning(); removeWaterEntry(selectedDate, originalIndex); }}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Убрать ${entry.ml} мл за ${entry.time}`}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs }}
+                >
+                  <Text style={[typography.small, { color: colors.textSecondary }]}>{entry.time}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Text style={[typography.smallMedium, { color: colors.info }]}>+{entry.ml} мл</Text>
+                    <View style={[styles.removeBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                      <Text style={[typography.smallMedium, { color: colors.textSecondary }]}>убрать</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -181,4 +199,10 @@ const styles = StyleSheet.create({
   waterBar: { height: 8, borderRadius: borderRadius.full, marginTop: spacing.md, overflow: 'hidden' },
   customInput: { flex: 1, height: 36, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.md, fontSize: 14 },
   customBtn: { width: 36, height: 36, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  removeBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
 });
