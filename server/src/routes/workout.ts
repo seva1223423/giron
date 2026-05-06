@@ -689,9 +689,18 @@ router.get('/exercises', authenticate, async (_req, res: Response) => {
 
 // ==================== ROUTINES ====================
 
+// Round 255: metadata enums. Kept as string literals (not Prisma enums)
+// so adding values later doesn't require a migration. Server validates
+// here; client UI surfaces them in pickers.
+const ROUTINE_GOALS = ['STRENGTH', 'MUSCLE_GAIN', 'ENDURANCE', 'FAT_LOSS', 'GENERAL'] as const;
+const ROUTINE_DIFFICULTIES = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const;
+
 const createRoutineSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().max(2000).optional(),
+  targetGoal: z.enum(ROUTINE_GOALS).optional(),
+  difficulty: z.enum(ROUTINE_DIFFICULTIES).optional(),
+  estimatedDurationMinutes: z.number().int().min(10).max(240).optional(),
   exercises: z.array(z.object({
     exerciseId: z.string().min(1).max(100),
     order: z.number().int().min(0).max(49),
@@ -733,11 +742,14 @@ router.post('/routines', authenticate, async (req: AuthRequest, res: Response) =
   const parsed = createRoutineSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
   try {
-    const { name, description, exercises } = parsed.data;
+    const { name, description, targetGoal, difficulty, estimatedDurationMinutes, exercises } = parsed.data;
     const routine = await prisma.routine.create({
       data: {
         name,
         description,
+        targetGoal,
+        difficulty,
+        estimatedDurationMinutes,
         userId: req.userId!,
         exercises: {
           create: exercises.map((ex) => ({
@@ -804,7 +816,7 @@ router.put('/routines/:id', authenticate, async (req: AuthRequest, res: Response
     const existing = await prisma.routine.findUnique({ where: { id }, select: { userId: true } });
     if (!existing || existing.userId !== req.userId) return res.status(404).json({ error: 'Рутина не найдена' });
 
-    const { name, description, exercises } = parsed.data;
+    const { name, description, targetGoal, difficulty, estimatedDurationMinutes, exercises } = parsed.data;
     const routine = await prisma.$transaction(async (tx) => {
       await tx.routineExercise.deleteMany({ where: { routineId: id } });
       return tx.routine.update({
@@ -812,6 +824,9 @@ router.put('/routines/:id', authenticate, async (req: AuthRequest, res: Response
         data: {
           name,
           description,
+          targetGoal,
+          difficulty,
+          estimatedDurationMinutes,
           exercises: {
             create: exercises.map((ex) => ({
               order: ex.order,
@@ -861,6 +876,10 @@ router.post('/routines/:id/duplicate', authenticate, async (req: AuthRequest, re
       data: {
         name: `${source.name} (копия)`,
         description: source.description,
+        // Round 255: carry metadata over to the copy.
+        targetGoal: source.targetGoal,
+        difficulty: source.difficulty,
+        estimatedDurationMinutes: source.estimatedDurationMinutes,
         userId: req.userId!,
         exercises: {
           create: source.exercises.map((ex) => ({
@@ -881,15 +900,27 @@ router.post('/routines/:id/duplicate', authenticate, async (req: AuthRequest, re
   }
 });
 
-// Rename / patch routine (name + description only — use PUT for full exercise replacement)
+// Rename / patch routine metadata (name, description, goal, difficulty, duration).
+// Use PUT for full exercise replacement.
 router.patch('/routines/:id', authenticate, async (req: AuthRequest, res: Response) => {
   if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Некорректный ID' });
   const parsed = z.object({
     name: z.string().trim().min(1).max(200).optional(),
     description: z.string().max(2000).nullable().optional(),
+    // Round 255: metadata patch. Use null to clear, omit to leave unchanged.
+    targetGoal: z.enum(ROUTINE_GOALS).nullable().optional(),
+    difficulty: z.enum(ROUTINE_DIFFICULTIES).nullable().optional(),
+    estimatedDurationMinutes: z.number().int().min(10).max(240).nullable().optional(),
   }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
-  if (!parsed.data.name && parsed.data.description === undefined) {
+  const d = parsed.data;
+  if (
+    d.name === undefined &&
+    d.description === undefined &&
+    d.targetGoal === undefined &&
+    d.difficulty === undefined &&
+    d.estimatedDurationMinutes === undefined
+  ) {
     return res.status(400).json({ error: 'Нет полей для обновления' });
   }
   try {
@@ -899,8 +930,11 @@ router.patch('/routines/:id', authenticate, async (req: AuthRequest, res: Respon
     const routine = await prisma.routine.update({
       where: { id },
       data: {
-        ...(parsed.data.name !== undefined && { name: parsed.data.name }),
-        ...(parsed.data.description !== undefined && { description: parsed.data.description }),
+        ...(d.name !== undefined && { name: d.name }),
+        ...(d.description !== undefined && { description: d.description }),
+        ...(d.targetGoal !== undefined && { targetGoal: d.targetGoal }),
+        ...(d.difficulty !== undefined && { difficulty: d.difficulty }),
+        ...(d.estimatedDurationMinutes !== undefined && { estimatedDurationMinutes: d.estimatedDurationMinutes }),
       },
       include: {
         exercises: {
