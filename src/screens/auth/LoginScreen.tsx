@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform,
-  ScrollView, ActivityIndicator, TextInput,
+  ScrollView, ActivityIndicator, TextInput, Linking,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
@@ -591,6 +591,29 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <Text style={[typography.bodySemibold, { color: colors.primary }]}>Зарегистрируйся</Text>
           </TouchableOpacity>
         </View>
+
+        {/*
+          Round 237 — implicit-consent footer for OAuth-first-time users.
+          The "Войти через Google/VK/Яндекс" buttons CREATE a new account
+          on first tap if the social ID isn't matched yet. Industry-
+          standard pattern: button-tap = informed consent when the action
+          text under the button names the documents being accepted. Server
+          records the consent version on the resulting prisma.user.create.
+          Existing users hitting login are unaffected — their consent was
+          already captured at register time.
+        */}
+        <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.xl, paddingHorizontal: spacing.md, lineHeight: 16 }]}>
+          Входя через соцсеть впервые, вы принимаете{' '}
+          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/terms.html')}>
+            Условия использования
+          </Text>
+          {' '}и{' '}
+          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/privacy.html')}>
+            Политику конфиденциальности
+          </Text>
+          .
+        </Text>
+
         <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.xl }]}>v1.0.0</Text>
       </ScrollView>
     </KeyboardAvoidingView>

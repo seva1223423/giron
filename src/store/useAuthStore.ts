@@ -60,7 +60,7 @@ interface AuthStore {
   loginWithVk: (params: { accessToken: string; userId: number; email?: string }) => Promise<void>;
   loginWithYandex: (accessToken: string) => Promise<void>;
   loginByPhone: (phone: string, code: string) => Promise<void>;
-  register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string }) => Promise<void>;
+  register: (params: { email: string; password: string; firstName: string; lastName?: string; phone?: string; otpToken?: string; acceptTerms: true; consentVersion?: string }) => Promise<void>;
   logout: () => Promise<void>;
   logoutAllDevices: () => Promise<void>;
   completeOnboarding: () => void;
