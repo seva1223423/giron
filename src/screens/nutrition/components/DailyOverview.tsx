@@ -145,10 +145,24 @@ export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
         );
       })()}
 
-      {/* Ring mode indicator dots */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm, gap: spacing.xs }}>
+      {/* Ring mode indicator dots — tappable so the user can pick a macro
+          directly without cycling through the ring tap. The visible 6×6
+          dot is wrapped in a 36×36 transparent hit-area so the touch target
+          meets the platform minimum (Android 48dp / iOS 44pt soft target). */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm }}>
         {RING_MODES.map((mode) => (
-          <View key={mode.key} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ringMode === mode.key ? colors.primary : colors.border }} />
+          <TouchableOpacity
+            key={mode.key}
+            onPress={() => setRingMode(mode.key)}
+            activeOpacity={0.6}
+            accessibilityRole="button"
+            accessibilityLabel={`Показать ${mode.label}`}
+            accessibilityState={{ selected: ringMode === mode.key }}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ringMode === mode.key ? colors.primary : colors.border }} />
+          </TouchableOpacity>
         ))}
       </View>
     </Card>
