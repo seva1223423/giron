@@ -287,6 +287,101 @@ describe('formatFactsForPrompt', () => {
   });
 });
 
+// ── AI-2: confidence age decay ──────────────────────────────────────────────
+
+import { decayConfidence } from '../services/aiMemoryService';
+
+describe('decayConfidence', () => {
+  const now = new Date('2026-06-01T12:00:00Z');
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
+
+  test('full weight when fact is fresh (< 30 days)', () => {
+    expect(decayConfidence(0.9, daysAgo(0), now)).toBeCloseTo(0.9);
+    expect(decayConfidence(0.9, daysAgo(29), now)).toBeCloseTo(0.9);
+  });
+
+  test('gentle decay (×0.85) for 30–90 day range', () => {
+    expect(decayConfidence(0.9, daysAgo(45), now)).toBeCloseTo(0.9 * 0.85);
+    expect(decayConfidence(1.0, daysAgo(89), now)).toBeCloseTo(0.85);
+  });
+
+  test('noticeable decay (×0.65) for 90–180 day range', () => {
+    expect(decayConfidence(0.9, daysAgo(120), now)).toBeCloseTo(0.9 * 0.65);
+  });
+
+  test('heavy decay (×0.4) for 180–365 day range', () => {
+    expect(decayConfidence(0.9, daysAgo(200), now)).toBeCloseTo(0.9 * 0.4);
+  });
+
+  test('residual (×0.2) past 365 days', () => {
+    expect(decayConfidence(0.9, daysAgo(400), now)).toBeCloseTo(0.9 * 0.2);
+    expect(decayConfidence(1.0, daysAgo(2000), now)).toBeCloseTo(0.2);
+  });
+
+  test('handles future-dated record (clock skew) as fresh', () => {
+    const future = new Date(now.getTime() + 60_000);
+    expect(decayConfidence(0.8, future, now)).toBeCloseTo(0.8);
+  });
+
+  test('returns 0 for non-positive stored confidence', () => {
+    expect(decayConfidence(0, daysAgo(10), now)).toBe(0);
+    expect(decayConfidence(-0.5, daysAgo(10), now)).toBe(0);
+  });
+
+  test('clamps result to [0, 1] (defensive — input always ≤ 1 in practice)', () => {
+    expect(decayConfidence(1.0, daysAgo(1), now)).toBeLessThanOrEqual(1);
+    expect(decayConfidence(0.5, daysAgo(2000), now)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('formatFactsForPrompt — decay integration', () => {
+  const now = new Date('2026-06-01T12:00:00Z');
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
+
+  test('renders decayed confidence for old facts', () => {
+    const facts: Record<string, FactRecord[]> = {
+      goal: [{
+        id: 'g-1', category: 'goal', key: 'target_bench', value: '100kg',
+        confidence: 0.9, source: 'stated', updatedAt: daysAgo(200),
+      }],
+    };
+    const out = formatFactsForPrompt(facts, 1200, now);
+    // 200 days → ×0.4 → 0.9 × 0.4 = 0.36
+    expect(out).toContain('conf=0.36');
+    expect(out).not.toContain('conf=0.90');
+  });
+
+  test('within a category, fresh high-conf fact ranks above old high-conf fact', () => {
+    const facts: Record<string, FactRecord[]> = {
+      preference: [
+        // Old, high stored conf — but should rank lower after decay
+        { id: 'p-old', category: 'preference', key: 'music_old', value: 'rock',
+          confidence: 0.95, source: 'stated', updatedAt: daysAgo(300) },
+        // Recent, slightly lower stored conf — should rank higher after decay
+        { id: 'p-new', category: 'preference', key: 'music_new', value: 'jazz',
+          confidence: 0.7, source: 'stated', updatedAt: daysAgo(5) },
+      ],
+    };
+    const out = formatFactsForPrompt(facts, 1200, now);
+    const idxNew = out.indexOf('music_new');
+    const idxOld = out.indexOf('music_old');
+    expect(idxNew).toBeGreaterThan(0);
+    expect(idxOld).toBeGreaterThan(0);
+    expect(idxNew).toBeLessThan(idxOld); // fresh rendered first
+  });
+
+  test('fresh facts show original stored confidence (no decay applied)', () => {
+    const facts: Record<string, FactRecord[]> = {
+      injury: [{
+        id: 'i-1', category: 'injury', key: 'knee_left', value: 'mild pain',
+        confidence: 0.85, source: 'stated', updatedAt: daysAgo(1),
+      }],
+    };
+    const out = formatFactsForPrompt(facts, 1200, now);
+    expect(out).toContain('conf=0.85');
+  });
+});
+
 // ── forget + pruneLowConfidence ────────────────────────────────────────────
 
 describe('forget', () => {
