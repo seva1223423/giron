@@ -85,6 +85,17 @@ model User {
   /// metric: onboardingCompletedAt - createdAt.
   onboardingCompletedAt   DateTime?
 
+  /// Round 237 — consent tracking (152-ФЗ §6 informed consent + GDPR
+  /// Art.7 demonstrability). When the user accepted the terms-of-use +
+  /// privacy-policy bundle, and which version. The version string equals
+  /// the "Last updated" date in docs/privacy.html and docs/terms.html
+  /// (currently '2026-04-20'). Used by the consent gate on `/auth/register`
+  /// and by the future "your terms updated, please re-accept" prompt.
+  /// Null only for legacy users registered before round 237 — those get
+  /// a soft re-accept prompt on next launch (separate round).
+  consentAcceptedAt       DateTime?
+  consentVersion          String?
+
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -302,6 +313,14 @@ model Routine {
   id          String   @id @default(cuid())
   name        String
   description String?
+  // Round 255: metadata for filtering and progression tuning.
+  // targetGoal: "STRENGTH" | "MUSCLE_GAIN" | "ENDURANCE" | "FAT_LOSS" | "GENERAL"
+  // difficulty: "BEGINNER" | "INTERMEDIATE" | "ADVANCED"
+  // estimatedDurationMinutes is server-validated [10, 240], optional.
+  // All three are nullable so existing routines stay valid.
+  targetGoal               String?
+  difficulty               String?
+  estimatedDurationMinutes Int?
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   exercises   RoutineExercise[]
