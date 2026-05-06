@@ -273,7 +273,9 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           Ачивок). Pixel copy of A_Profile.
           ═══════════════════════════════════════════════════════════ */}
       <View style={styles.heroCard}>
-        {/* Gradient background — same warm amber stack as AICoachCard */}
+        {/* Gradient background — permanent warm-amber dark hero (looks correct
+            in both themes; gold avatar is keyed to a dark surface). Text
+            colors below are pinned to fixed light values for the same reason. */}
         <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none">
           <Defs>
             <LinearGradient id="profileBg" x1="0" y1="0" x2="1" y2="1">
@@ -302,19 +304,19 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ color: colors.textInverse, fontSize: 28, fontWeight: '600' }}>
+              <Text style={{ color: '#17171A', fontSize: 28, fontWeight: '600' }}>
                 {(user?.firstName?.[0] || 'A').toUpperCase()}
               </Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text
-                style={[typography.h3, { color: colors.text }]}
+                style={[typography.h3, { color: '#F4F1EA' }]}
                 numberOfLines={1}
               >
                 {user?.firstName || 'Атлет'} {user?.lastName ?? ''}
               </Text>
               <Text
-                style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
+                style={{ color: '#A8A49C', fontSize: 12, marginTop: 2 }}
                 numberOfLines={1}
               >
                 {daysWithUs !== null
@@ -335,10 +337,10 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                     backgroundColor: colors.primary,
                   }}
                 >
-                  <Icon name="bolt" size={11} color={colors.textInverse} />
+                  <Icon name="bolt" size={11} color="#17171A" />
                   <Text
                     style={{
-                      color: colors.textInverse,
+                      color: '#17171A',
                       fontSize: 11,
                       fontWeight: '700',
                       letterSpacing: 0.5,
@@ -359,9 +361,9 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               { label: 'Ачивок', value: `${unlockedAchievements.length}/20` },
             ].map((s) => (
               <View key={s.label} style={styles.heroStatTile}>
-                <Text style={[typography.h4, { color: colors.text }]}>{s.value}</Text>
+                <Text style={[typography.h4, { color: '#F4F1EA' }]}>{s.value}</Text>
                 <Text
-                  style={{ color: colors.textSecondary, fontSize: 10, marginTop: 2, letterSpacing: 0.5 }}
+                  style={{ color: '#A8A49C', fontSize: 10, marginTop: 2, letterSpacing: 0.5 }}
                   numberOfLines={1}
                 >
                   {s.label}
