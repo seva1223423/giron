@@ -119,6 +119,135 @@ describe('computeAchievements', () => {
     const bench = achievements.find((a) => a.id === 'bench_100');
     expect(bench?.unlocked).toBe(true);
   });
+
+  // Expanded gym achievements (post-r254)
+
+  test('bench 100kg also unlocks bench_60 and bench_80 ladder', () => {
+    const w = mockWorkout('w1', '2026-01-15T10:00:00Z', {
+      exercises: [
+        {
+          id: 'e1',
+          exerciseId: 'bench-press',
+          exercise: { id: 'bench-press', name: 'Bench Press' } as any,
+          order: 0,
+          sets: [{ id: 's1', setNumber: 1, type: 'normal' as const, weight: 100, reps: 5, completed: true }],
+          restSeconds: 120,
+        },
+      ],
+    });
+    const a = computeAchievements({ ...emptyData, workoutHistory: [w] });
+    expect(a.find((x) => x.id === 'bench_60')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'bench_80')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'bench_140')?.unlocked).toBe(false);
+  });
+
+  test('streak 14 unlocks streak_3, streak_7, streak_14 but not streak_30', () => {
+    const a = computeAchievements({ ...emptyData, currentStreak: 14 });
+    expect(a.find((x) => x.id === 'streak_3')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'streak_7')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'streak_14')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'streak_30')?.unlocked).toBe(false);
+  });
+
+  test('20 weekend workouts unlocks weekend_warrior', () => {
+    // 2026-01-03 is Saturday; alternate Sat/Sun for 20 weekend days
+    const workouts: Workout[] = [];
+    let cursor = new Date('2026-01-03T10:00:00Z');
+    for (let i = 0; i < 20; i++) {
+      workouts.push(mockWorkout(`w${i}`, cursor.toISOString()));
+      cursor = new Date(cursor.getTime() + (cursor.getUTCDay() === 6 ? 1 : 6) * 24 * 3600 * 1000);
+    }
+    const a = computeAchievements({ ...emptyData, workoutHistory: workouts });
+    expect(a.find((x) => x.id === 'weekend_warrior')?.unlocked).toBe(true);
+  });
+
+  test('2-hour workout unlocks workout_2h but not workout_3h', () => {
+    const w = mockWorkout('w1', '2026-01-15T10:00:00Z', { durationMinutes: 120 });
+    const a = computeAchievements({ ...emptyData, workoutHistory: [w] });
+    expect(a.find((x) => x.id === 'workout_2h')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'workout_3h')?.unlocked).toBe(false);
+  });
+
+  test('5000kg single-workout volume unlocks single_workout_5k', () => {
+    // 5 sets × 100 kg × 10 reps = 5000 kg
+    const sets = Array.from({ length: 5 }, (_, i) => ({
+      id: `s${i}`,
+      setNumber: i + 1,
+      type: 'normal' as const,
+      weight: 100,
+      reps: 10,
+      completed: true,
+    }));
+    const w = mockWorkout('w1', '2026-01-15T10:00:00Z', {
+      exercises: [
+        {
+          id: 'e1',
+          exerciseId: 'bench-press',
+          exercise: { id: 'bench-press', name: 'Bench Press' } as any,
+          order: 0,
+          sets,
+          restSeconds: 90,
+        },
+      ],
+    });
+    const a = computeAchievements({ ...emptyData, workoutHistory: [w] });
+    expect(a.find((x) => x.id === 'single_workout_5k')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'single_workout_10k')?.unlocked).toBe(false);
+  });
+
+  test('500 completed sets unlocks sets_500', () => {
+    // 50 workouts × 10 sets each = 500 completed sets
+    const workouts = Array.from({ length: 50 }, (_, wi) =>
+      mockWorkout(`w${wi}`, `2026-01-${String((wi % 28) + 1).padStart(2, '0')}T10:00:00Z`, {
+        exercises: [
+          {
+            id: `e${wi}`,
+            exerciseId: 'squat',
+            exercise: { id: 'squat', name: 'Squat' } as any,
+            order: 0,
+            sets: Array.from({ length: 10 }, (_, si) => ({
+              id: `s${wi}-${si}`,
+              setNumber: si + 1,
+              type: 'normal' as const,
+              weight: 60,
+              reps: 5,
+              completed: true,
+            })),
+            restSeconds: 90,
+          },
+        ],
+      }),
+    );
+    const a = computeAchievements({ ...emptyData, workoutHistory: workouts });
+    expect(a.find((x) => x.id === 'sets_500')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'sets_2000')?.unlocked).toBe(false);
+  });
+
+  test('big3_300 unlocks at moderate 1RM sum, big3_500 still locked', () => {
+    // Bench 80×5 (1RM ≈ 93), Squat 100×5 (≈ 117), Deadlift 100×5 (≈ 117). Sum ≈ 327.
+    const w = mockWorkout('w1', '2026-01-15T10:00:00Z', {
+      exercises: [
+        { id: 'e1', exerciseId: 'bench-press', exercise: { id: 'bench-press', name: 'B' } as any, order: 0, restSeconds: 90,
+          sets: [{ id: 's1', setNumber: 1, type: 'normal' as const, weight: 80, reps: 5, completed: true }] },
+        { id: 'e2', exerciseId: 'squat', exercise: { id: 'squat', name: 'S' } as any, order: 1, restSeconds: 90,
+          sets: [{ id: 's2', setNumber: 1, type: 'normal' as const, weight: 100, reps: 5, completed: true }] },
+        { id: 'e3', exerciseId: 'deadlift', exercise: { id: 'deadlift', name: 'D' } as any, order: 2, restSeconds: 90,
+          sets: [{ id: 's3', setNumber: 1, type: 'normal' as const, weight: 100, reps: 5, completed: true }] },
+      ],
+    });
+    const a = computeAchievements({ ...emptyData, workoutHistory: [w] });
+    expect(a.find((x) => x.id === 'big3_300')?.unlocked).toBe(true);
+    expect(a.find((x) => x.id === 'big3_500')?.unlocked).toBe(false);
+  });
+
+  test('every achievement has a unique id (no duplicates after expansion)', () => {
+    const ids = ACHIEVEMENT_DEFINITIONS.map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('expansion grew the catalogue to 50+ achievements', () => {
+    expect(ACHIEVEMENT_DEFINITIONS.length).toBeGreaterThanOrEqual(50);
+  });
 });
 
 describe('getNewlyUnlocked', () => {
