@@ -204,11 +204,13 @@ describe('refreshNews — per-item flow', () => {
     );
   });
 
-  test('parses pubDate; falls back to "now" when pubDate is missing/invalid', async () => {
+  test('drops items with missing/invalid pubDate (was: fallback to now)', async () => {
+    // Use a fitness-relevant title so the item passes the relevance gate
+    // and the ONLY reason it would be dropped is the missing pubDate.
     const noDateRss = `<?xml version="1.0"?><rss><channel>
       <item>
-        <title>Article without date</title>
-        <description>No pubDate field here.</description>
+        <title>Тренировка пресса без даты</title>
+        <description>Тренировка для подтянутого пресса.</description>
         <link>https://example.com/x</link>
       </item>
     </channel></rss>`;
@@ -221,8 +223,50 @@ describe('refreshNews — per-item flow', () => {
 
     const findFirst = jest.fn().mockResolvedValue(null);
     const create = jest.fn().mockResolvedValue({ id: 'a-1' });
+    const warn = jest.fn();
 
-    const before = Date.now();
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock('../db', () => ({
+        prisma: { newsArticle: { findFirst, create } },
+      }));
+      jest.doMock('../utils/logger', () => ({
+        logger: { info: jest.fn(), warn, error: jest.fn() },
+      }));
+      const { refreshNews } = require('../services/newsRefreshService');
+      await refreshNews();
+    });
+
+    // Item with no pubDate is now dropped, not stamped with `now()`. The
+    // earlier behavior caused every untagged article to surface as
+    // 'Сейчас' on the client (formatArticleDate returns 'Сейчас' for
+    // <1h ago) — a misleading fresh-news indicator for old content.
+    expect(create).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/Dropping item without parseable pubDate/),
+    );
+  });
+
+  test('drops items that do not match the fitness-relevance whitelist', async () => {
+    // Article title is general-sport (NBA / theatrical) — not fitness.
+    // Should be dropped at ingest before the dedup step.
+    const offTopicRss = `<?xml version="1.0"?><rss><channel>
+      <item>
+        <title>Блейзеры обыграли Мэджик в драматичной концовке</title>
+        <description>Команда из Орегона победила со счётом 110:108.</description>
+        <link>https://example.com/nba</link>
+        <pubDate>Wed, 01 May 2026 10:00:00 GMT</pubDate>
+      </item>
+    </channel></rss>`;
+
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      text: async () => offTopicRss,
+    });
+    (global as unknown as { fetch: jest.Mock }).fetch = fetchMock;
+
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const create = jest.fn().mockResolvedValue({ id: 'a-1' });
+
     await jest.isolateModulesAsync(async () => {
       jest.doMock('../db', () => ({
         prisma: { newsArticle: { findFirst, create } },
@@ -233,12 +277,8 @@ describe('refreshNews — per-item flow', () => {
       const { refreshNews } = require('../services/newsRefreshService');
       await refreshNews();
     });
-    const after = Date.now();
 
-    expect(create).toHaveBeenCalled();
-    const data = create.mock.calls[0][0].data as { publishedAt: Date };
-    expect(data.publishedAt.getTime()).toBeGreaterThanOrEqual(before);
-    expect(data.publishedAt.getTime()).toBeLessThanOrEqual(after);
+    expect(create).not.toHaveBeenCalled();
   });
 });
 

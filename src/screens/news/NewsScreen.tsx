@@ -228,14 +228,6 @@ export const NewsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.huge }} />
         ) : (
           <>
-            {tab !== 'saved' && (
-              <Card style={{ marginBottom: spacing.lg, borderLeftWidth: 4, borderLeftColor: colors.accent }}>
-                <Text style={[typography.captionMedium, { color: colors.accent }]}>РЕКОРД ДНЯ</Text>
-                <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xs }]}>Присед 350 кг — Андрей Маланичев</Text>
-                <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>Абсолютный рекорд России в экипировочном пауэрлифтинге</Text>
-              </Card>
-            )}
-
             {filteredNews.length === 0 && tab === 'saved' && (
               <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
                 <Text style={{ fontSize: 48, marginBottom: spacing.md }}>🔖</Text>
