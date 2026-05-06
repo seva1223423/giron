@@ -46,6 +46,18 @@ const CATEGORY_KEYWORDS: { pattern: RegExp; category: string }[] = [
   { pattern: /россия|российск|сборн|РФ/i, category: 'russian' },
 ];
 
+// Fitness-relevance whitelist. The general-sport RSS feeds (Sports.ru,
+// Lenta, ТАСС) return everything from NBA news to Кремлёвский дворец
+// exhibitions — not what a fitness-app user came for. We require at
+// least one fitness/strength/training keyword in title+summary before
+// we accept the article. Articles that fail this filter are silently
+// dropped at ingest, NOT shown in the feed.
+const FITNESS_RELEVANCE_PATTERN = /пауэрлифт|бодибилд|кроссфит|воркаут|фитнес|тренировк|тренажёрн|тренажер|спортзал|качал|силов(?:ой|ая|ые|ых)|штанг|гантел|присед|становая|жим\s|тяга\s|пресс\s|подтягиван|отжиман|кардио|марафон|бег\s|бегун|плаван|пловц|велогон|велосипед(?:ист|ный)|олимпиад|чемпион(?:ат|ка|ского)|рекорд|медал(?:ь|и|ист)|спортсмен|атлет|питани|похуд|жирос|БЖУ|калори|белк[аои]\s|углевод|гимнаст(?:ика|ка|ы)|боец|мма\s|UFC|муай|джиу-джитсу|самбо\s|вольная борьба/i;
+
+function isFitnessRelevant(text: string): boolean {
+  return FITNESS_RELEVANCE_PATTERN.test(text);
+}
+
 function extractTagContent(xml: string, tag: string): string {
   const cdataMatch = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i').exec(xml);
   if (cdataMatch) return cdataMatch[1].trim();
@@ -125,9 +137,28 @@ export async function refreshNews(force = false): Promise<{ added: number; skipp
         const items = parseRssItems(xml);
 
         for (const item of items.slice(0, 10)) {
-          const categories = detectCategories(item.title + ' ' + item.summary, source.categories);
+          // Fitness-relevance gate. General-sport feeds give us NBA team
+          // matchups, Кремль exhibitions, etc. — drop those at ingest.
+          const haystack = `${item.title} ${item.summary}`;
+          if (!isFitnessRelevant(haystack)) {
+            skipped++;
+            continue;
+          }
+
+          // Date handling: drop the item entirely if pubDate is missing
+          // or unparseable. Previous behavior fell back to `new Date()`,
+          // which made every untagged article look "Just now" in the UI
+          // (the client's formatArticleDate returns 'Сейчас' for <1h
+          // ago) — even when the underlying article was years old.
+          // Better to skip the item than to show a misleading timestamp.
           const parsedDate = item.pubDate ? new Date(item.pubDate) : null;
-          const publishedAt = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
+          if (!parsedDate || isNaN(parsedDate.getTime())) {
+            logger.warn(`[NewsRefresh] Dropping item without parseable pubDate: "${item.title.slice(0, 80)}" (raw pubDate: "${item.pubDate}")`);
+            skipped++;
+            continue;
+          }
+
+          const categories = detectCategories(haystack, source.categories);
 
           // Use title as deduplication key
           const existing = await prisma.newsArticle.findFirst({
@@ -146,7 +177,7 @@ export async function refreshNews(force = false): Promise<{ added: number; skipp
               summary: item.summary || item.title,
               content: item.link ? `Источник: ${item.link}` : item.summary,
               categories,
-              publishedAt,
+              publishedAt: parsedDate,
             },
           });
           added++;
