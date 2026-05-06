@@ -13,4 +13,5 @@ export { GoogleAuthButton } from './GoogleAuthButton';
 export { Icon, type IconName } from './Icon';
 export { Spinner } from './Spinner';
 export { ForceUpdateModal } from './ForceUpdateModal';
+export { NetworkStatusBar } from './NetworkStatusBar';
 export { HitTarget } from './HitTarget';

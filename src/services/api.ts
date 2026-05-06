@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { setOnlineStatus } from '../store/useConnectionStore';
+import { setOnlineStatus, markSlowRequest, unmarkSlowRequest } from '../store/useConnectionStore';
 import { tokenStorage } from '../utils/secureStorage';
 
 // Production server on Render (works from any device/network).
@@ -73,14 +73,37 @@ function emitClientTooOld(payload: ClientTooOldPayload) {
   }
 }
 
-// Request interceptor — attach JWT from SecureStore
+// Request interceptor — attach JWT from SecureStore + arm slow-request timer
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await tokenStorage.getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Slow-request indicator (round 288): if a request is still in-flight after
+  // 8s, mark it as slow so the NetworkStatusBar shows a "Соединение медленное…"
+  // banner. The flag is reverted in the response/error interceptors below.
+  // We stash both the timer ID and a "did fire" flag on the config so we can
+  // tell whether the banner is currently incremented for THIS request.
+  const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
+  cfg._slowTimer = setTimeout(() => {
+    cfg._slowFired = true;
+    markSlowRequest();
+  }, 8000);
   return config;
 });
+
+function clearSlowTimer(config: any) {
+  if (!config) return;
+  const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
+  if (cfg._slowTimer) {
+    clearTimeout(cfg._slowTimer);
+    cfg._slowTimer = undefined;
+  }
+  if (cfg._slowFired) {
+    cfg._slowFired = false;
+    unmarkSlowRequest();
+  }
+}
 
 // Response interceptor — handle 401 + token refresh
 let isRefreshing = false;
@@ -101,8 +124,9 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => { setOnlineStatus(true); return response; },
+  (response) => { clearSlowTimer(response.config); setOnlineStatus(true); return response; },
   async (error: AxiosError) => {
+    clearSlowTimer(error.config);
     if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
       setOnlineStatus(false);
     } else {
