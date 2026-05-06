@@ -10,17 +10,16 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { localDateStr } from '../../../utils/date';
 
-// ───── Base presets (shipped with the app) ─────────────────────────────
-const BASE_QUICK_MEALS = [
-  { name: 'Овсянка с бананом',     abbr: 'ОВ', type: 'breakfast', cal: 350, protein: 12, fats: 8,  carbs: 55, weight: 300 },
-  { name: 'Яичница 3 яйца',         abbr: 'ЯИ', type: 'breakfast', cal: 280, protein: 21, fats: 20, carbs: 2,  weight: 180 },
-  { name: 'Гречка с курицей',       abbr: 'ГК', type: 'lunch',     cal: 450, protein: 40, fats: 10, carbs: 50, weight: 350 },
-  { name: 'Рис с рыбой',            abbr: 'РР', type: 'lunch',     cal: 420, protein: 35, fats: 8,  carbs: 55, weight: 350 },
-  { name: 'Творог 5%',              abbr: 'ТВ', type: 'snack',     cal: 230, protein: 34, fats: 10, carbs: 6,  weight: 200 },
-  { name: 'Протеиновый коктейль',   abbr: 'ПК', type: 'snack',     cal: 150, protein: 30, fats: 2,  carbs: 5,  weight: 300 },
-  { name: 'Куриная грудка + овощи', abbr: 'КО', type: 'dinner',    cal: 350, protein: 45, fats: 8,  carbs: 15, weight: 350 },
-  { name: 'Бутерброд с сыром',      abbr: 'БС', type: 'snack',     cal: 280, protein: 12, fats: 15, carbs: 25, weight: 120 },
-] as const;
+// ───── Base presets ─────────────────────────────────────────────────────
+// Round 289: emptied per user request — quick-add now starts blank, the
+// list is populated entirely by the user via the "+ Создать" tile (see
+// userPresets below). The BASE_QUICK_MEALS array is kept as the empty
+// source-of-truth so the existing overrides/hidden plumbing can stay
+// intact for future preset reintroduction without a migration.
+const BASE_QUICK_MEALS: ReadonlyArray<{
+  name: string; abbr: string; type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  cal: number; protein: number; fats: number; carbs: number; weight: number;
+}> = [];
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type QuickMealItem = {
@@ -29,8 +28,13 @@ type QuickMealItem = {
 };
 
 // AsyncStorage keys (namespaced under giron/nutrition)
-const OVERRIDES_KEY = 'giron/nutrition/quickMeals/overrides/v1';
-const HIDDEN_KEY    = 'giron/nutrition/quickMeals/hidden/v1';
+const OVERRIDES_KEY    = 'giron/nutrition/quickMeals/overrides/v1';
+const HIDDEN_KEY       = 'giron/nutrition/quickMeals/hidden/v1';
+const USER_PRESETS_KEY = 'giron/nutrition/quickMeals/userPresets/v1';
+
+/** User-created preset abbrs are prefixed with this so save/delete
+ *  branches can tell them apart from the (now empty) base set. */
+const USER_ABBR_PREFIX = 'U_';
 
 interface Props {
   selectedDate?: string;
@@ -44,6 +48,10 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
   // ── Persistent user edits ────────────────────────────────────────────
   const [overrides, setOverrides] = useState<Record<string, Partial<QuickMealItem>>>({});
   const [hidden, setHidden] = useState<string[]>([]);
+  // Round 289: user-created presets live here (BASE is empty by default).
+  // Each gets a unique abbr prefixed with USER_ABBR_PREFIX so save/delete
+  // can branch on it.
+  const [userPresets, setUserPresets] = useState<QuickMealItem[]>([]);
 
   useEffect(() => {
     AsyncStorage.getItem(OVERRIDES_KEY).then((raw) => {
@@ -66,6 +74,13 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
         }
         setOverrides(pruned);
         if (changed) AsyncStorage.setItem(OVERRIDES_KEY, JSON.stringify(pruned)).catch(() => {});
+      } catch {}
+    });
+    AsyncStorage.getItem(USER_PRESETS_KEY).then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed: QuickMealItem[] = JSON.parse(raw) ?? [];
+        if (Array.isArray(parsed)) setUserPresets(parsed);
       } catch {}
     });
     AsyncStorage.getItem(HIDDEN_KEY).then((raw) => {
@@ -94,13 +109,18 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
     setHidden(next);
     AsyncStorage.setItem(HIDDEN_KEY, JSON.stringify(next)).catch(() => {});
   };
+  const persistUserPresets = (next: QuickMealItem[]) => {
+    setUserPresets(next);
+    AsyncStorage.setItem(USER_PRESETS_KEY, JSON.stringify(next)).catch(() => {});
+  };
 
-  // ── Resolved presets list (base + user overrides, minus hidden) ──────
+  // ── Resolved presets list (base + user-created, minus hidden) ────────
   const presets: QuickMealItem[] = useMemo(() => {
-    return BASE_QUICK_MEALS
+    const base = BASE_QUICK_MEALS
       .filter((m) => !hidden.includes(m.abbr))
       .map((m) => ({ ...m, ...(overrides[m.abbr] ?? {}) } as QuickMealItem));
-  }, [overrides, hidden]);
+    return [...base, ...userPresets];
+  }, [overrides, hidden, userPresets]);
 
   // ── Recent foods (unchanged behaviour) ───────────────────────────────
   const recentFoods = useMemo(() => {
@@ -160,11 +180,39 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
 
   // ── Edit modal state ─────────────────────────────────────────────────
   const [editing, setEditing] = useState<QuickMealItem | null>(null);
-  const openEditor = (m: QuickMealItem) => { haptic.selection(); setEditing(m); };
-  const closeEditor = () => setEditing(null);
+  // True when the editor was opened to CREATE a new user preset (rather
+  // than edit an existing one). Determines which save branch fires.
+  const [creatingNew, setCreatingNew] = useState(false);
+  const openEditor = (m: QuickMealItem) => { haptic.selection(); setCreatingNew(false); setEditing(m); };
+  const openCreator = () => {
+    haptic.selection();
+    setCreatingNew(true);
+    setEditing({
+      name: '', abbr: '', type: 'snack',
+      cal: 0, protein: 0, fats: 0, carbs: 0, weight: 100,
+    });
+  };
+  const closeEditor = () => { setEditing(null); setCreatingNew(false); };
 
   const saveEdit = (next: QuickMealItem) => {
     if (!editing) return;
+    if (creatingNew) {
+      // Generate a unique user abbr; prefix lets save/delete branches
+      // tell user-created presets apart from BASE entries.
+      const newAbbr = USER_ABBR_PREFIX + Math.random().toString(36).slice(2, 7);
+      persistUserPresets([...userPresets, { ...next, abbr: newAbbr }]);
+      haptic.success();
+      closeEditor();
+      return;
+    }
+    if (editing.abbr.startsWith(USER_ABBR_PREFIX)) {
+      // Editing an existing user preset — overwrite by abbr.
+      persistUserPresets(userPresets.map((p) => p.abbr === editing.abbr ? { ...p, ...next, abbr: editing.abbr } : p));
+      haptic.success();
+      closeEditor();
+      return;
+    }
+    // Editing a BASE preset — store override.
     persistOverrides({ ...overrides, [editing.abbr]: {
       name: next.name, type: next.type,
       cal: next.cal, protein: next.protein, fats: next.fats, carbs: next.carbs, weight: next.weight,
@@ -183,6 +231,22 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
 
   const deleteEdit = () => {
     if (!editing) return;
+    if (editing.abbr.startsWith(USER_ABBR_PREFIX)) {
+      // User-created — actually delete (no "hide" semantics needed).
+      Alert.alert(
+        'Удалить пресет?',
+        `«${editing.name}» будет удалён из быстрого добавления.`,
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Удалить', style: 'destructive', onPress: () => {
+            persistUserPresets(userPresets.filter((p) => p.abbr !== editing.abbr));
+            haptic.warning?.() ?? haptic.success();
+            closeEditor();
+          }},
+        ],
+      );
+      return;
+    }
     Alert.alert(
       'Скрыть пресет?',
       `«${editing.name}» больше не будет показываться в быстром добавлении. Вернуть можно через сброс в настройках.`,
@@ -222,7 +286,14 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
         >
           <View style={[styles.abbr, { backgroundColor: swatch + '15', borderWidth: 1, borderColor: swatch + '35' }]}>
             <Text style={{ fontSize: 11, fontWeight: '700', color: swatch }}>
-              {'abbr' in meal && (meal as QuickMealItem).abbr ? (meal as QuickMealItem).abbr : meal.name.substring(0, 2).toUpperCase()}
+              {/* User-created presets carry an opaque "U_..." abbr internally;
+                  fall back to name initials so the badge stays readable. */}
+              {(() => {
+                const a = 'abbr' in meal ? (meal as QuickMealItem).abbr : '';
+                if (a && !a.startsWith(USER_ABBR_PREFIX)) return a;
+                const initials = meal.name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+                return initials || meal.name.substring(0, 2).toUpperCase();
+              })()}
             </Text>
           </View>
           <Text style={[typography.captionMedium, { color: colors.text, textAlign: 'center' }]} numberOfLines={2}>{meal.name}</Text>
@@ -284,6 +355,23 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
       </View>
       <View style={styles.grid}>
         {presets.map((meal, i) => renderCard(meal, i, false, true))}
+        {/* Always-present create tile — empty list still gives the user a
+            clear add affordance. */}
+        <View style={styles.cardWrapper}>
+          <TouchableOpacity
+            onPress={openCreator}
+            activeOpacity={0.85}
+            accessibilityLabel="Создать новый пресет"
+            accessibilityRole="button"
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.primary + '60', borderStyle: 'dashed' }]}
+          >
+            <View style={[styles.abbr, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '35' }]}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>+</Text>
+            </View>
+            <Text style={[typography.captionMedium, { color: colors.primary, textAlign: 'center' }]} numberOfLines={2}>Создать</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary, marginTop: 1 }]}>пресет</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Edit modal ───────────────────────────────────────────────── */}
@@ -297,6 +385,7 @@ export const QuickMeals: React.FC<Props> = ({ selectedDate }) => {
         onDelete={deleteEdit}
         onAddNow={(m) => { handleQuickAdd(m); closeEditor(); }}
         hasOverride={!!editing && !!overrides[editing.abbr]}
+        isCreating={creatingNew}
       />
     </View>
   );
@@ -315,12 +404,16 @@ const PresetEditor: React.FC<{
   initial: QuickMealItem | null;
   colors: any;
   hasOverride: boolean;
+  /** True when the editor is opened to create a NEW preset rather than
+   *  edit an existing one. Suppresses the "delete/hide" button (nothing
+   *  to hide yet) and the "Add now" shortcut. */
+  isCreating?: boolean;
   onClose: () => void;
   onSave: (m: QuickMealItem) => void;
   onResetDefault: () => void;
   onDelete: () => void;
   onAddNow: (m: QuickMealItem) => void;
-}> = ({ visible, initial, colors, hasOverride, onClose, onSave, onResetDefault, onDelete, onAddNow }) => {
+}> = ({ visible, initial, colors, hasOverride, isCreating, onClose, onSave, onResetDefault, onDelete, onAddNow }) => {
   const [draft, setDraft] = useState<QuickMealItem | null>(initial);
   useEffect(() => { setDraft(initial); }, [initial]);
 
@@ -415,12 +508,14 @@ const PresetEditor: React.FC<{
               >
                 <Text style={[typography.button, { color: colors.textInverse }]}>Сохранить</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => onAddNow(draft)}
-                style={[mStyles.btn, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40' }]}
-              >
-                <Text style={[typography.button, { color: colors.primary }]}>Добавить в дневник сейчас</Text>
-              </TouchableOpacity>
+              {!isCreating && (
+                <TouchableOpacity
+                  onPress={() => onAddNow(draft)}
+                  style={[mStyles.btn, { backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40' }]}
+                >
+                  <Text style={[typography.button, { color: colors.primary }]}>Добавить в дневник сейчас</Text>
+                </TouchableOpacity>
+              )}
 
               {hasOverride && (
                 <TouchableOpacity
@@ -431,12 +526,16 @@ const PresetEditor: React.FC<{
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                onPress={onDelete}
-                style={[mStyles.btn, { backgroundColor: 'transparent' }]}
-              >
-                <Text style={[typography.button, { color: colors.error }]}>Скрыть из быстрого добавления</Text>
-              </TouchableOpacity>
+              {!isCreating && (
+                <TouchableOpacity
+                  onPress={onDelete}
+                  style={[mStyles.btn, { backgroundColor: 'transparent' }]}
+                >
+                  <Text style={[typography.button, { color: colors.error }]}>
+                    {(initial?.abbr || '').startsWith(USER_ABBR_PREFIX) ? 'Удалить пресет' : 'Скрыть из быстрого добавления'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </ScrollView>
         </View>
