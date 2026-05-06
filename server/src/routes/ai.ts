@@ -2036,29 +2036,28 @@ function getRelevantKnowledge(
     textsWithWeights.push({ text: m.content!, weight: weights[i + 1] || 0.1 });
   });
 
+  // AI-3: precompute the synonym-expanded text once per snippet, before
+  // looping over modules. Previously this rebuild ran per-module (25×)
+  // for the SAME text — burning ~24× the work needed since the expansion
+  // depends only on the snippet, not on which module's keywords we're
+  // scoring against. Hoisting saves ~100 set-builds per /chat.
+  const preparedTexts = textsWithWeights.map(({ text, weight }) => {
+    const lower = text.toLowerCase();
+    const words = lower.split(/\s+/);
+    const expandedSet = new Set<string>(words);
+    for (const w of words) {
+      for (const syn of expandSynonyms(w)) expandedSet.add(syn);
+    }
+    return { text, weight, lower, words, expandedText: Array.from(expandedSet).join(' ') };
+  });
+
   // Score each module with TF-IDF-inspired matching
   const scored = KEYWORD_MAPPINGS
     .map(([module, keywords]) => {
       let score = 0;
       let matchedKeywords: string[] = [];
 
-      for (const { text, weight } of textsWithWeights) {
-        const lower = text.toLowerCase();
-        const words = lower.split(/\s+/);
-
-        // Round 190: expand each user word into its synonym set so
-        // query "ноги" also matches keywords like "присед". The
-        // synonyms add to the searchable text — so when the keyword
-        // list has "присед" and user typed "ноги", `expanded` will
-        // contain "присед" and the keyword.includes() check below
-        // matches. Bounded set: ~4 synonyms × 30 words = 120 strings,
-        // negligible cost.
-        const expandedSet = new Set<string>(words);
-        for (const w of words) {
-          for (const syn of expandSynonyms(w)) expandedSet.add(syn);
-        }
-        const expandedText = Array.from(expandedSet).join(' ');
-
+      for (const { text, weight, lower, words, expandedText } of preparedTexts) {
         for (const keyword of keywords) {
           if (!expandedText.includes(keyword) && !lower.includes(keyword)) continue;
 
