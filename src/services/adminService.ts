@@ -273,7 +273,8 @@ export const adminService = {
   async changeUserSubscription(userId: string, data: {
     plan: 'free' | 'pro' | 'trainer' | 'club';
     status?: 'active' | 'cancelled' | 'expired';
-    endDate?: string;
+    /** ISO date string sets endDate, null clears it (lifetime), omitted keeps current. */
+    endDate?: string | null;
   }): Promise<unknown> {
     const res = await api.patch(`/admin/users/${userId}/subscription`, data);
     return res.data;

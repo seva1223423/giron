@@ -23,9 +23,6 @@ const PLANS: { key: GrantPlan; label: string; color: string }[] = [
 const PRESETS: { days: number | null; label: string }[] = [
   { days: 7, label: '7 дней' },
   { days: 30, label: '30 дней' },
-  { days: 90, label: '90 дней' },
-  { days: 180, label: '180 дней' },
-  { days: 365, label: '365 дней' },
   { days: null, label: 'Навсегда' },
 ];
 
