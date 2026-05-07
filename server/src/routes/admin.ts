@@ -971,7 +971,12 @@ router.patch('/users/:id/role', requireAdmin, async (req: AuthRequest, res: Resp
 const changeSubSchema = z.object({
   plan: z.enum(['free', 'pro', 'trainer', 'club']),
   status: z.enum(['active', 'cancelled', 'expired']).optional(),
-  endDate: z.string().refine((v) => !isNaN(new Date(v).getTime()), 'Некорректная дата endDate').optional(),
+  endDate: z
+    .union([
+      z.string().refine((v) => !isNaN(new Date(v).getTime()), 'Некорректная дата endDate'),
+      z.null(),
+    ])
+    .optional(),
 });
 
 /** PATCH /admin/users/:id/subscription — override subscription */
@@ -982,12 +987,17 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
     // Step-up re-auth (sec audit 2026-04: HIGH-11) — financial mutation
     const stepup = await requireAdminStepUp(req, res);
     if (stepup) return;
+    // endDate: undefined = keep existing, null = lifetime (clear), string = parse Date
+    const endDateUpdate =
+      data.endDate === undefined
+        ? {}
+        : { endDate: data.endDate === null ? null : new Date(data.endDate) };
     const sub = await prisma.subscription.upsert({
       where: { userId: req.params.id as string },
       update: {
         plan: data.plan,
         status: data.status ?? 'active',
-        ...(data.endDate !== undefined ? { endDate: new Date(data.endDate) } : {}),
+        ...endDateUpdate,
         updatedAt: new Date(),
       },
       create: {
@@ -998,12 +1008,18 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
         endDate: data.endDate ? new Date(data.endDate) : null,
       },
     });
+    const endDateLabel =
+      data.endDate === null
+        ? 'бессрочно'
+        : data.endDate
+          ? new Date(data.endDate).toISOString().split('T')[0]
+          : '—';
     await prisma.adminLog.create({
       data: {
         adminId: req.userId!,
         action: 'CHANGE_SUBSCRIPTION',
         targetId: req.params.id as string,
-        details: `plan → ${data.plan}, status → ${data.status ?? 'active'}`,
+        details: `plan → ${data.plan}, status → ${data.status ?? 'active'}, до → ${endDateLabel}`,
       },
     });
     res.json(sub);

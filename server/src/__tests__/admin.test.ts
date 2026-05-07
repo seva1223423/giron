@@ -543,6 +543,74 @@ describe('PATCH /api/admin/users/:id/subscription', () => {
     expect(logCalls[0][0].data.action).toBe('CHANGE_SUBSCRIPTION');
     expect(logCalls[0][0].data.adminId).toBe('u-admin');
   });
+
+  it('200 with endDate: null clears endDate (lifetime grant)', async () => {
+    (prisma.subscription.upsert as jest.Mock).mockResolvedValueOnce({
+      id: 'sub-1',
+      userId: TARGET_ID,
+      plan: 'pro',
+      status: 'active',
+      endDate: null,
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ plan: 'pro', endDate: null, adminPassword: 'admin-pass' });
+
+    expect(res.status).toBe(200);
+    const upsertCall = (prisma.subscription.upsert as jest.Mock).mock.calls[0][0];
+    expect(upsertCall.update.endDate).toBeNull();
+    expect(upsertCall.create.endDate).toBeNull();
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const lastLog = logCalls[logCalls.length - 1][0].data;
+    expect(lastLog.details).toContain('бессрочно');
+  });
+
+  it('200 with endDate: ISO string sets endDate to that date', async () => {
+    (prisma.subscription.upsert as jest.Mock).mockResolvedValueOnce({
+      id: 'sub-1',
+      userId: TARGET_ID,
+      plan: 'pro',
+      status: 'active',
+      endDate: new Date('2027-01-01'),
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ plan: 'pro', endDate: '2027-01-01', adminPassword: 'admin-pass' });
+
+    expect(res.status).toBe(200);
+    const upsertCall = (prisma.subscription.upsert as jest.Mock).mock.calls[0][0];
+    expect(upsertCall.update.endDate).toEqual(new Date('2027-01-01'));
+    expect(upsertCall.create.endDate).toEqual(new Date('2027-01-01'));
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const lastLog = logCalls[logCalls.length - 1][0].data;
+    expect(lastLog.details).toContain('2027-01-01');
+  });
+
+  it('200 with endDate omitted does not include endDate in update branch', async () => {
+    (prisma.subscription.upsert as jest.Mock).mockResolvedValueOnce({
+      id: 'sub-1',
+      userId: TARGET_ID,
+      plan: 'pro',
+      status: 'active',
+      endDate: null,
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ plan: 'pro', adminPassword: 'admin-pass' });
+
+    expect(res.status).toBe(200);
+    const upsertCall = (prisma.subscription.upsert as jest.Mock).mock.calls[0][0];
+    expect(Object.prototype.hasOwnProperty.call(upsertCall.update, 'endDate')).toBe(false);
+    expect(upsertCall.create.endDate).toBeNull();
+  });
 });
 
 // ─── DELETE /api/admin/users/:id ─────────────────────────────────────────────

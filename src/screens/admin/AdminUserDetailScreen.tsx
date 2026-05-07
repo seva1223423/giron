@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminService } from '../../services/adminService';
 import type { AdminUserDetail, AdminLog, UserRole } from '../../types';
+import GrantSubscriptionModal, { type GrantPlan } from './components/GrantSubscriptionModal';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
 
@@ -59,6 +60,8 @@ export default function AdminUserDetailScreen() {
   const [msgBody, setMsgBody] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
   const [activeSessions, setActiveSessions] = useState<Array<{ id: string; createdAt: string; expiresAt: string; userAgent: string | null; ip: string | null }> | null>(null);
+  const [grantModalVisible, setGrantModalVisible] = useState(false);
+  const [grantDefaultPlan, setGrantDefaultPlan] = useState<GrantPlan>('pro');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,65 +108,26 @@ export default function AdminUserDetailScreen() {
   }, [userId, user, load]);
 
   const grantPlan = useCallback((plan: Plan) => {
-    const planInfo = PLANS.find((p) => p.key === plan)!;
-    Alert.alert(
-      `Выдать "${planInfo.label}"?`,
-      `${user?.firstName} ${user?.lastName ?? ''} получит доступ к плану ${planInfo.label}.`,
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Выдать',
-          onPress: async () => {
-            setBusy(true);
-            try {
-              await adminService.changeUserSubscription(userId, { plan, status: 'active' });
-              await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось выдать подписку');
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-      ]
-    );
-  }, [userId, user, load]);
+    if (plan === 'free') return;
+    setGrantDefaultPlan(plan as GrantPlan);
+    setGrantModalVisible(true);
+  }, []);
 
-  const extendSubscription = useCallback((days: number) => {
-    if (!user) return;
-    const userSub = user.subscription;
-    const plan = (userSub?.plan ?? 'free') as Plan;
-    const active = userSub?.status === 'active' && plan !== 'free';
-    if (!active) return;
-    const base = userSub?.endDate ? new Date(userSub.endDate) : new Date();
-    base.setDate(base.getDate() + days);
-    const newEnd = base.toISOString().split('T')[0];
-    Alert.alert(
-      `Продлить на ${days} дней?`,
-      `Новая дата окончания: ${new Date(newEnd).toLocaleDateString('ru-RU')}`,
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Продлить',
-          onPress: async () => {
-            setBusy(true);
-            try {
-              await adminService.changeUserSubscription(userId, {
-                plan: plan as any,
-                status: 'active',
-                endDate: newEnd,
-              });
-              await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось продлить подписку');
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-      ]
-    );
-  }, [userId, user, load]);
+  const handleGrantConfirm = useCallback(
+    async ({ plan, endDate }: { plan: GrantPlan; endDate: string | null }) => {
+      setBusy(true);
+      try {
+        await adminService.changeUserSubscription(userId, { plan, status: 'active', endDate });
+        setGrantModalVisible(false);
+        await load();
+      } catch {
+        Alert.alert('Ошибка', 'Не удалось выдать подписку');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [userId, load],
+  );
 
   const revokeSubscription = useCallback(() => {
     Alert.alert(
@@ -552,26 +516,10 @@ export default function AdminUserDetailScreen() {
               До: {new Date(sub.endDate).toLocaleDateString('ru-RU')}
               {sub.status === 'active' && new Date(sub.endDate) > new Date() ? '' : '  ⚠️ истёк'}
             </Text>
-            {isActiveSub && (
-              <View style={styles.extendRow}>
-                {[30, 90, 365].map((d) => (
-                  <TouchableOpacity key={d} style={styles.extendBtn} onPress={() => extendSubscription(d)} disabled={busy}>
-                    <Text style={styles.extendBtnText}>+{d}д</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </View>
         ) : isActiveSub ? (
           <View style={styles.subEndRow}>
-            <Text style={styles.subMeta}>Без даты окончания</Text>
-            <View style={styles.extendRow}>
-              {[30, 90, 365].map((d) => (
-                <TouchableOpacity key={d} style={styles.extendBtn} onPress={() => extendSubscription(d)} disabled={busy}>
-                  <Text style={styles.extendBtnText}>+{d}д</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.subMeta}>Бессрочно</Text>
           </View>
         ) : null}
 
@@ -1264,6 +1212,14 @@ export default function AdminUserDetailScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    <GrantSubscriptionModal
+      visible={grantModalVisible}
+      userName={`${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`}
+      defaultPlan={grantDefaultPlan}
+      busy={busy}
+      onClose={() => setGrantModalVisible(false)}
+      onConfirm={handleGrantConfirm}
+    />
     </>
   );
 }
@@ -1327,12 +1283,6 @@ const styles = StyleSheet.create({
   planChipText: { fontSize: 12, fontWeight: '600' },
   subMeta: { fontSize: 12, color: '#6B7280', marginBottom: 4 },
   subEndRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  extendRow: { flexDirection: 'row', gap: 4 },
-  extendBtn: {
-    borderRadius: 6, borderWidth: 1, borderColor: '#10B98160',
-    paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#10B98110',
-  },
-  extendBtnText: { fontSize: 11, fontWeight: '700', color: '#10B981' },
   subSectionLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 12, marginBottom: 8 },
   subActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   grantBtn: {
