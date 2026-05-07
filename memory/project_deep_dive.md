@@ -175,7 +175,7 @@ Native changes flow:
 
 | Файл | Размер | Назначение | Endpoints |
 |------|--------|-----------|-----------|
-| **ai.ts** | **5.3MB** | **AI чат, intent classification, TF-IDF knowledge, 33 tools** | `POST /ai/chat` (главная) |
+| **ai.ts** | **5.3MB** | **AI чат, intent classification, TF-IDF knowledge, 37 tools** | `POST /ai/chat` (главная) |
 | auth.ts | 1.7KB | Register, login, 2FA, OAuth (Google/VK/Yandex/Mail.ru) | 20+ endpoints |
 | user.ts | 1.6KB | Профиль, вес, измерения, связанные аккаунты | 25+ endpoints |
 | workout.ts | 1.1KB | Программы, тренировки, история, лидерборд | 15+ endpoints |

@@ -149,14 +149,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - `GET /admin/cron-health` — in-memory liveness ledger for retention/digest/keep-warm crons (resets on dyno restart)
   - `GET /admin/metrics/key` includes `onboardingFunnel` block (per-step drop-off from User.onboardingStepLog)
   - `POST /admin/test-notification` — fires test push and/or email to caller's account; verifies both channels work end-to-end
-- `ai.ts` (~84k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
+- `ai.ts` (~87k строк) — **главный маршрут** (intent classification → mood detection → TF-IDF knowledge selection → аналитические блоки → AI call → tool-функции)
 
 ### AI система (server/src/routes/ai.ts + services/)
 - Intent: data_logging, program_creation, workout_modify, technique_question, nutrition_query, analytics_query, greeting, complaint, motivation, general
-- 33 tools: update_user_profile, log_body_weight, create_workout, create_program, update_nutrition_targets, log_water, delete_meal, modify_workout, set_weekly_plan, log_meal, delete_program, adjust_all_weights, log_cardio, modify_meal, log_body_measurement, set_water_target, set_rest_timer, set_notifications, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, analyze_progress, suggest_next_workout, log_sleep, activate_program, find_recipes, add_recipe_to_diary, search_exercises, explain_exercise, get_pr_history, compare_periods, update_memory
+- 37 tools: update_user_profile, log_body_weight, delete_body_weight, log_body_measurement, delete_body_measurement, create_workout, log_completed_workout, modify_workout, swap_exercise, add_superset, generate_warmup, set_workout_duration_goal, create_program, delete_program, set_weekly_plan, adjust_all_weights, activate_program, log_meal, delete_meal, modify_meal, update_nutrition_targets, log_water, set_water_target, find_recipes, add_recipe_to_diary, log_cardio, delete_cardio, log_sleep, delete_sleep, set_rest_timer, set_notifications, analyze_progress, suggest_next_workout, get_pr_history, compare_periods, search_exercises, explain_exercise, update_memory, navigate_to_screen
 - 25 модулей знаний (server/src/knowledge/, 6547 строк)
-- AI Memory (категории: preference, habit, injury, allergy, schedule, personality, goal)
-- Кэш: TTL 4ч, max 200
+- AI Memory (9 категорий: preference, habit, injury, allergy, schedule, personality, goal, equipment, milestone)
+- Кэш: TTL 4ч, max 200, кэшируются только intent=technique_question/general
+- LLM Router (`services/llm/router.ts`): объявлена fallback chain через env `AI_PRIMARY_PROVIDER`/`AI_FALLBACK_CHAIN`, но реально подключён **только Mistral adapter** (yandex/gigachat закомментированы). Ollama (`localAI.ts`) к роутеру НЕ подключён — используется только для food vision как опция.
 
 ### Middleware (server/src/middleware/)
 - `auth.ts` — JWT verify, ban/lock check, rate-limit guard
