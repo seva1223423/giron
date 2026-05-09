@@ -113,6 +113,101 @@ describe('classifyIntent — technique_question', () => {
   });
 });
 
+// AI-5: backfill missing intent coverage. The original suite had only
+// data_logging / program_creation / workout_modify / technique_question
+// pinned. The other 5 intents (nutrition_query, analytics_query,
+// greeting, complaint, motivation) had zero positive tests — a regex
+// edit could silently break them. Pin the canonical phrasings.
+
+describe('classifyIntent — nutrition_query', () => {
+  test.each([
+    'сколько белка мне нужно',
+    'рассчитай КБЖУ',
+    'что есть после тренировки',
+    'дефицит калорий это что',
+    'сколько калорий в банане',
+    'питание до тренировки',
+    'что съесть перед сном',
+  ])('classifies "%s" as nutrition_query', (msg) => {
+    expect(classifyIntent(msg)).toBe('nutrition_query');
+  });
+});
+
+describe('classifyIntent — analytics_query', () => {
+  test.each([
+    'как мой прогресс',
+    'покажи статистику',
+    'мои рекорды',
+    'сколько я жму',
+    'мои силовые',
+    'оцени мой прогресс',
+    'динамика жима',
+    'насколько я вырос за месяц',
+  ])('classifies "%s" as analytics_query', (msg) => {
+    expect(classifyIntent(msg)).toBe('analytics_query');
+  });
+});
+
+describe('classifyIntent — greeting', () => {
+  test.each([
+    'привет',
+    'здравствуй',
+    'хай',
+    'доброе утро',
+    'добрый день',
+    'добрый вечер',
+    'как дела',
+    'привет, как дела?',
+  ])('classifies "%s" as greeting', (msg) => {
+    expect(classifyIntent(msg)).toBe('greeting');
+  });
+
+  test('greeting only fires for short anchored greetings, not embedded ones', () => {
+    // "привет" inside a longer message should NOT win against more
+    // specific intents — the greeting regex is anchored ^...$.
+    expect(classifyIntent('привет, составь программу')).toBe('program_creation');
+  });
+});
+
+describe('classifyIntent — complaint', () => {
+  test.each([
+    'болит колено',
+    'травма плеча',
+    'дискомфорт в пояснице',
+    'перетренировался',
+    'хруст в плече',
+    'повредил плечо',
+    'защемило поясницу',
+  ])('classifies "%s" as complaint', (msg) => {
+    expect(classifyIntent(msg)).toBe('complaint');
+  });
+
+  // "не могу делать <упражнение>" is genuinely ambiguous (pain vs
+  // tool-modification request). Existing test pins it to workout_modify
+  // (line 87) — when it precedes an exercise name the user usually
+  // wants the program adjusted. Documented here so a future regex
+  // edit doesn't quietly flip the routing.
+  test('"не могу делать <упражнение>" stays in workout_modify (intentional)', () => {
+    expect(classifyIntent('не могу делать приседания')).toBe('workout_modify');
+  });
+});
+
+describe('classifyIntent — motivation', () => {
+  test.each([
+    'нет мотивации',
+    'не хочу тренироваться',
+    'лень идти в зал',
+    'надоело',
+    'хочу бросить',
+    'не вижу результатов',
+    'давно не тренировался',
+    'выгорание',
+    'напомни мне зачем это',
+  ])('classifies "%s" as motivation', (msg) => {
+    expect(classifyIntent(msg)).toBe('motivation');
+  });
+});
+
 describe('classifyIntent — fallback to general', () => {
   test('blank message falls to general', () => {
     expect(classifyIntent('')).toBe('general');
