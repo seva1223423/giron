@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { useThemeStore } from './src/store';
-import { ErrorBoundary, ForceUpdateModal } from './src/components';
+import { ErrorBoundary, ForceUpdateModal, NetworkStatusBar } from './src/components';
 import {
   AppModalProvider,
   _AppModalGlobalBridge,
@@ -67,6 +67,9 @@ export default function App() {
                 auth/onboarding. Mounts once for the lifetime of the app and
                 is internally driven by the api.ts event bus. */}
             <ForceUpdateModal />
+            {/* Round 290 — surfaces "Нет соединения" / "Соединение медленное…"
+                banner at the top of the screen, driven by useConnectionStore. */}
+            <NetworkStatusBar />
             <ToastHost />
           </AppModalProvider>
         </GestureHandlerRootView>

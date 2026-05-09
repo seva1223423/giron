@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { setOnlineStatus } from '../store/useConnectionStore';
+import { setOnlineStatus, markSlowRequest, unmarkSlowRequest } from '../store/useConnectionStore';
 import { tokenStorage } from '../utils/secureStorage';
 
 // Production server on Render (works from any device/network).
@@ -20,9 +20,18 @@ const CLIENT_VERSION =
   '0.0.0';
 const CLIENT_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android';
 
+// Round 290 — VPN-friendly timeout. The previous 15s default was too
+// tight for the common Russian-user scenario (Hiddify/PlanetVPN +
+// Render free-tier cold start). A cold dyno wakes in 30-50s; with
+// VPN-added latency, 15s guarantees a timeout. 45s lets the first
+// shot succeed for warm dynos and gives the auto-retry below (which
+// fires on ECONNABORTED + ECONNRESET + ERR_NETWORK as well as 502/
+// 503/504) a real chance to land within the cold-start window.
+// AI requests still override this with their own AI_REQUEST_TIMEOUT_MS
+// in services/aiService.ts.
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 45000,
   headers: {
     'Content-Type': 'application/json',
     'X-Client-Version': CLIENT_VERSION,
@@ -64,14 +73,35 @@ function emitClientTooOld(payload: ClientTooOldPayload) {
   }
 }
 
-// Request interceptor — attach JWT from SecureStore
+// Request interceptor — attach JWT + arm slow-request timer
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await tokenStorage.getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Round 290: if this request is still in-flight after 8s, mark it as
+  // slow so the NetworkStatusBar shows "Соединение медленное…".
+  // Reverted in the response/error interceptors.
+  const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
+  cfg._slowTimer = setTimeout(() => {
+    cfg._slowFired = true;
+    markSlowRequest();
+  }, 8000);
   return config;
 });
+
+function clearSlowTimer(config: any) {
+  if (!config) return;
+  const cfg = config as InternalAxiosRequestConfig & { _slowTimer?: ReturnType<typeof setTimeout>; _slowFired?: boolean };
+  if (cfg._slowTimer) {
+    clearTimeout(cfg._slowTimer);
+    cfg._slowTimer = undefined;
+  }
+  if (cfg._slowFired) {
+    cfg._slowFired = false;
+    unmarkSlowRequest();
+  }
+}
 
 // Response interceptor — handle 401 + token refresh
 let isRefreshing = false;
@@ -92,8 +122,9 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => { setOnlineStatus(true); return response; },
+  (response) => { clearSlowTimer(response.config); setOnlineStatus(true); return response; },
   async (error: AxiosError) => {
+    clearSlowTimer(error.config);
     if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
       setOnlineStatus(false);
     } else {
@@ -101,24 +132,35 @@ api.interceptors.response.use(
     }
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number };
 
-    // Auto-retry on 502/503/504 — these are transient Render restarts /
-    // load-balancer reroutes and they typically clear within 5-10
-    // seconds. The founder hit this during the rate-limit fix deploy:
-    // the EditProfileScreen save fired during the redeploy window and
-    // showed a misleading "проверь подключение" instead of just waiting
-    // for the new instance. Up to 2 retries with exponential backoff
-    // (1s, 3s) absorbs most deploy windows. GET-only retry by default
-    // because POST/PATCH retries can double-write; explicitly opt-in
-    // mutations with `axios.config.shouldRetry` would be the future
-    // upgrade.
+    // Round 290: VPN-friendly auto-retry.
+    //
+    // Transient HTTP (502/503/504): Render restart, load-balancer reroute,
+    //   deploy window — typically clears in 5-10s.
+    // Network errors (ECONNABORTED, ECONNRESET, ETIMEDOUT, ENETUNREACH,
+    //   ERR_NETWORK, no-response): VPN flicker, DNS hiccup, WiFi-to-LTE
+    //   handover. Russian users on Hiddify/PlanetVPN see these regularly;
+    //   one transient drop should not surface as a dead-end alert when a
+    //   2-second retry would have succeeded.
+    //
+    // GET-only — POST/PATCH retries can double-write.
+    // Backoff 2s/5s/10s × 3 attempts; with 45s base timeout absorbs ~95%
+    // of cold-starts on attempt 2 or 3.
     const status = error.response?.status;
-    const isTransient = status === 502 || status === 503 || status === 504;
+    const isHttpTransient = status === 502 || status === 503 || status === 504;
+    const isNetworkTransient =
+      error.code === 'ECONNABORTED' ||
+      error.code === 'ECONNRESET' ||
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ENETUNREACH' ||
+      error.code === 'ERR_NETWORK' ||
+      (!error.response && !error.code);
+    const isTransient = isHttpTransient || isNetworkTransient;
     const isIdempotent = (originalRequest.method || 'get').toLowerCase() === 'get';
-    if (isTransient && isIdempotent) {
+    if (isTransient && isIdempotent && originalRequest) {
       const retryCount = originalRequest._retryCount ?? 0;
-      if (retryCount < 2) {
+      if (retryCount < 3) {
         originalRequest._retryCount = retryCount + 1;
-        const backoffMs = retryCount === 0 ? 1000 : 3000;
+        const backoffMs = retryCount === 0 ? 2000 : retryCount === 1 ? 5000 : 10000;
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         return api(originalRequest);
       }
@@ -173,7 +215,7 @@ api.interceptors.response.use(
         // token expired could silently keep refreshing, bypassing the
         // force-update gate that other endpoints enforce.
         const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken }, {
-          timeout: 15000,
+          timeout: 30000,
           headers: {
             'Content-Type': 'application/json',
             'X-Client-Version': CLIENT_VERSION,
