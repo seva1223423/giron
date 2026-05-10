@@ -1635,8 +1635,18 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
       }
     }
 
-    // Log before deletion (userId will be gone after cascade delete)
-    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'ACCOUNT_DELETED', details: `email=${user.email}` } });
+    // Log before deletion (userId will be gone after cascade delete).
+    // 152-ФЗ §3: avoid writing the full email to SecurityEvent.details —
+    // the row is keyed by userId already, and we keep this audit trail in
+    // a DB that's grep-able by SIEM/admin queries. A redacted form is
+    // enough for "what happened" without holding raw PII after the user
+    // exercised right-to-erasure.
+    const emailLocal = user.email.split('@')[0];
+    const emailDomain = user.email.split('@')[1] ?? '';
+    const redactedEmail = emailLocal.length <= 2
+      ? `***@${emailDomain}`
+      : `${emailLocal[0]}***${emailLocal[emailLocal.length - 1]}@${emailDomain}`;
+    await prisma.securityEvent.create({ data: { userId: req.userId!, action: 'ACCOUNT_DELETED', details: `email=${redactedEmail}` } });
 
     // Round 236 (security audit): final notification BEFORE cascade.
     // After delete, user.email is freed and we have no way to alert the
