@@ -112,4 +112,40 @@ describe('logger.scrub — key-based redaction', () => {
     expect(scrubString('mail a@b.com and tok aaaaaaaaaa.bbbbbbbbbbbbbbbb.cccccccccc'))
       .toMatch(/\[REDACTED_EMAIL\].*\[REDACTED_TOKEN\]/);
   });
+
+  // ── 152-ФЗ: phone numbers are personal data ────────────────────────────
+
+  it('REDACT_KEYS includes phone-shaped keys (152-ФЗ)', () => {
+    expect(REDACT_KEYS.has('phone')).toBe(true);
+    expect(REDACT_KEYS.has('phonenumber')).toBe(true);
+  });
+
+  it('redacts `phone` key value in logged objects', () => {
+    const out = scrub({ userId: 'u-1', phone: '+79991234567' }) as Record<string, unknown>;
+    expect(out.phone).toBe('[REDACTED]');
+    expect(out.userId).toBe('u-1');
+  });
+
+  it('scrubString redacts an E.164 phone in free-text', () => {
+    expect(scrubString('Call +79991234567 about login')).toContain('[REDACTED_PHONE]');
+    expect(scrubString('Call +79991234567 about login')).not.toContain('+79991234567');
+  });
+
+  it('scrubString redacts +1 / +44 phones (any country code)', () => {
+    expect(scrubString('US +12025550123')).toContain('[REDACTED_PHONE]');
+    expect(scrubString('UK +442079460958')).toContain('[REDACTED_PHONE]');
+  });
+
+  it('scrubString does NOT redact short version-shaped strings like +1.2.3', () => {
+    // PHONE_RE requires 8+ consecutive digits after the +, so semver
+    // and short feature flags pass through.
+    expect(scrubString('build +1.2.3 ready')).toContain('+1.2.3');
+  });
+
+  it('redacts phone numbers inside a Prisma-shaped error', () => {
+    const prismaErr = new Error('Unique constraint failed: phone "+79991234567"');
+    const out = scrub(prismaErr) as { message: string };
+    expect(out.message).toContain('[REDACTED_PHONE]');
+    expect(out.message).not.toContain('+79991234567');
+  });
 });
