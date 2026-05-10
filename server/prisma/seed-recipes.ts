@@ -321,20 +321,6 @@ const RECIPES: SeedRecipe[] = [
     tags: ['breakfast', 'maintain'],
     allergens: ['gluten', 'eggs'],
   },
-  {
-    id: 'crecipe000000000000breakf08',
-    name: 'Протеиновый смузи без молока',
-    descriptionRu: 'Веганский смузи на растительном молоке',
-    prepTimeMin: 5, servings: 1,
-    ingredients: [
-      { name: 'Овсяное молоко', weightGrams: 250, calories: 113, protein: 1, fats: 4, carbs: 17.5 },
-      { name: 'Банан', weightGrams: 120, calories: 107, protein: 1.3, fats: 0.4, carbs: 27.4 },
-      { name: 'Растительный протеин', weightGrams: 30, calories: 110, protein: 24, fats: 1.5, carbs: 2 },
-    ],
-    steps: ['Сложить всё в блендер', 'Взбить 30 секунд', 'Перелить в стакан'],
-    tags: ['breakfast', 'gain', 'high-protein'],
-    allergens: [],
-  },
 
   // ─── ОБЕДЫ (10) ────────────────────────────────────────────────────────────
   {
@@ -672,95 +658,11 @@ const RECIPES: SeedRecipe[] = [
     tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose'],
   },
   {
-    id: 'crecipe0000000breakf002', name: 'Овсянка с грушей и мёдом',
-    descriptionRu: 'Сладкий завтрак без сахара', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Груша', K.pear, 120), ing('Мёд', K.honey, 10)],
-    steps: ['Сварить хлопья на молоке 5 мин', 'Добавить нарезанную грушу', 'Полить мёдом'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose'],
-  },
-  {
     id: 'crecipe0000000breakf003', name: 'Овсянка с ягодами и льняными семенами',
     descriptionRu: 'Антиоксидантный завтрак с омега-3', prepTimeMin: 10, servings: 1,
     ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Ягоды mix', K.blueberry, 80), ing('Льняные семена', K.flaxseed, 10)],
     steps: ['Сварить овсянку 5 мин', 'Добавить ягоды и льняные семена', 'Перемешать'],
     tags: ['breakfast', 'weight-loss'], allergens: ['gluten', 'lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf004', name: 'Овсянка на овсяном молоке с черникой',
-    descriptionRu: 'Завтрак без молочных продуктов', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Овсяное молоко', K.milkOat, 200), ing('Черника', K.blueberry, 80)],
-    steps: ['Залить хлопья овсяным молоком, варить 5 мин', 'Сверху выложить чернику'],
-    tags: ['breakfast', 'weight-loss'], allergens: ['gluten'],
-  },
-  {
-    id: 'crecipe0000000breakf005', name: 'Овсянка с малиной и грецким орехом',
-    descriptionRu: 'Хрусткий завтрак с белком', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Малина', K.raspberry, 70), ing('Грецкий орех', K.walnut, 15)],
-    steps: ['Сварить хлопья на молоке 5 мин', 'Добавить малину и измельчённый орех'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose', 'nuts'],
-  },
-  {
-    id: 'crecipe0000000breakf006', name: 'Овсянка с какао и бананом',
-    descriptionRu: 'Шоколадный завтрак с пользой', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Какао-порошок', K.cocoaPowder, 8), ing('Банан', K.banana, 100)],
-    steps: ['Сварить хлопья с какао на молоке 5 мин', 'Сверху положить нарезанный банан'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf007', name: 'Овсянка с арахисовой пастой и бананом',
-    descriptionRu: 'Высококалорийный завтрак для набора массы', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 60), ing('Молоко 2.5%', K.milkLow, 250), ing('Банан', K.banana, 120), ing('Арахисовая паста', K.peanutButter, 20)],
-    steps: ['Сварить хлопья на молоке 5 мин', 'Добавить нарезанный банан', 'Сверху ложка пасты'],
-    tags: ['breakfast', 'gain', 'high-protein'], allergens: ['gluten', 'lactose', 'nuts'],
-  },
-  {
-    id: 'crecipe0000000breakf008', name: 'Овсянка с тыквой и корицей',
-    descriptionRu: 'Осенний согревающий завтрак', prepTimeMin: 15, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Тыква запечённая', K.pumpkin, 150)],
-    steps: ['Запечь тыкву 10 мин', 'Сварить овсянку на молоке 5 мин', 'Смешать с тыквенным пюре, посыпать корицей'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf009', name: 'Овсянка с манго и кокосом',
-    descriptionRu: 'Тропический завтрак', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Кокосовое молоко light', K.coconutMilkLight, 200), ing('Манго', K.mango, 100)],
-    steps: ['Сварить хлопья на кокосовом молоке 5 мин', 'Сверху выложить нарезанное манго'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten'],
-  },
-  {
-    id: 'crecipe0000000breakf010', name: 'Овсянка с финиками и миндалём',
-    descriptionRu: 'Натуральный сладкий завтрак', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Финики', K.date, 30), ing('Миндаль', K.almond, 15)],
-    steps: ['Сварить хлопья на молоке 5 мин', 'Добавить нарезанные финики и миндаль'],
-    tags: ['breakfast', 'gain'], allergens: ['gluten', 'lactose', 'nuts'],
-  },
-  {
-    id: 'crecipe0000000breakf011', name: 'Овсянка с черносливом и грецким орехом',
-    descriptionRu: 'Завтрак для мягкого пищеварения', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Чернослив', K.prune, 30), ing('Грецкий орех', K.walnut, 15)],
-    steps: ['Сварить хлопья на молоке 5 мин', 'Добавить нарезанный чернослив и орехи'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose', 'nuts'],
-  },
-  {
-    id: 'crecipe0000000breakf012', name: 'Овсянка с курагой и мёдом',
-    descriptionRu: 'Сладкий лёгкий завтрак', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Курага', K.driedApricot, 30), ing('Мёд', K.honey, 10)],
-    steps: ['Сварить овсянку на молоке 5 мин', 'Добавить нарезанную курагу и мёд'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf013', name: 'Овсянка с яблоком и грецкими орехами',
-    descriptionRu: 'Хрустящий сытный завтрак', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Яблоко', K.apple, 100), ing('Грецкий орех', K.walnut, 20)],
-    steps: ['Сварить хлопья на молоке 5 мин', 'Добавить нарезанное яблоко', 'Посыпать орехами'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose', 'nuts'],
-  },
-  {
-    id: 'crecipe0000000breakf014', name: 'Овсянка с изюмом и корицей',
-    descriptionRu: 'Классическая каша на скорую руку', prepTimeMin: 10, servings: 1,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 50), ing('Молоко 2.5%', K.milkLow, 200), ing('Изюм', K.raisin, 25)],
-    steps: ['Сварить хлопья на молоке с изюмом 5 мин', 'Посыпать корицей'],
-    tags: ['breakfast', 'maintain'], allergens: ['gluten', 'lactose'],
   },
   {
     id: 'crecipe0000000breakf015', name: 'Ночная овсянка с чиа и ягодами',
@@ -837,84 +739,14 @@ const RECIPES: SeedRecipe[] = [
     tags: ['breakfast', 'maintain', 'high-protein'], allergens: ['lactose'],
   },
   {
-    id: 'crecipe0000000breakf025', name: 'Творог с грушей и грецким орехом',
-    descriptionRu: 'Хрустящий завтрак с белком', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Творог 5%', K.curd5, 200), ing('Груша', K.pear, 100), ing('Грецкий орех', K.walnut, 15)],
-    steps: ['Творог выложить в миску', 'Сверху нарезанная груша и измельчённые орехи'],
-    tags: ['breakfast', 'maintain', 'high-protein'], allergens: ['lactose', 'nuts'],
-  },
-  {
     id: 'crecipe0000000breakf026', name: 'Сырники с яблоком и корицей',
     descriptionRu: 'Низкоуглеводные сырники', prepTimeMin: 20, servings: 1,
     ingredients: [ing('Творог 5%', K.curd5, 200), egg(1), ing('Овсяные отруби', K.oatBranRaw, 20), ing('Яблоко', K.apple, 80)],
     steps: ['Размять творог с яйцом и отрубями', 'Добавить тёртое яблоко и корицу', 'Слепить сырники, жарить на сухой сковороде по 3 мин с каждой стороны'],
     tags: ['breakfast', 'maintain', 'high-protein'], allergens: ['lactose', 'eggs', 'gluten'],
   },
-  {
-    id: 'crecipe0000000breakf027', name: 'Творожная масса с какао',
-    descriptionRu: 'Сладкий завтрак без сахара', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Творог 5%', K.curd5, 200), ing('Какао-порошок', K.cocoaPowder, 8), ing('Мёд', K.honey, 15)],
-    steps: ['Смешать творог с какао и мёдом', 'Взбить блендером для нежной текстуры'],
-    tags: ['breakfast', 'maintain', 'high-protein'], allergens: ['lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf028', name: 'Творог с черникой и семенами чиа',
-    descriptionRu: 'Антиоксидантный белковый завтрак', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Творог 5%', K.curd5, 200), ing('Черника', K.blueberry, 80), ing('Семена чиа', K.chiaSeed, 10)],
-    steps: ['Смешать творог с чиа, оставить 5 мин', 'Сверху выложить чернику'],
-    tags: ['breakfast', 'weight-loss', 'high-protein'], allergens: ['lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf029', name: 'Творожная запеканка без муки',
-    descriptionRu: 'Высокобелковый завтрак на завтра-послезавтра', prepTimeMin: 35, servings: 2,
-    ingredients: [ing('Творог 5%', K.curd5, 400), egg(2), ing('Овсяные отруби', K.oatBranRaw, 30), ing('Изюм', K.raisin, 30)],
-    steps: ['Смешать творог, яйца, отруби, изюм', 'Выложить в форму', 'Запекать при 180°C 30 мин'],
-    tags: ['breakfast', 'gain', 'high-protein'], allergens: ['lactose', 'eggs', 'gluten'],
-  },
 
   // ─── СМУЗИ И НАПИТКИ (6) ──────────────────────────────────────────────────
-  {
-    id: 'crecipe0000000breakf030', name: 'Смузи с бананом и арахисовой пастой',
-    descriptionRu: 'Калорийный смузи для набора массы', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Молоко 2.5%', K.milkLow, 250), ing('Банан', K.banana, 150), ing('Арахисовая паста', K.peanutButter, 20), ing('Овсяные хлопья', K.oatsRaw, 30)],
-    steps: ['Сложить всё в блендер', 'Взбить 30 секунд'],
-    tags: ['breakfast', 'gain'], allergens: ['lactose', 'nuts', 'gluten'],
-  },
-  {
-    id: 'crecipe0000000breakf031', name: 'Зелёный смузи со шпинатом и яблоком',
-    descriptionRu: 'Утренний детокс', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Шпинат', K.spinach, 50), ing('Яблоко', K.apple, 150), ing('Банан', K.banana, 100), ing('Вода', { calories: 0, protein: 0, fats: 0, carbs: 0 } as Per100, 200)],
-    steps: ['Все ингредиенты в блендер', 'Взбить 45 секунд'],
-    tags: ['breakfast', 'weight-loss'], allergens: [],
-  },
-  {
-    id: 'crecipe0000000breakf032', name: 'Ягодный смузи с греческим йогуртом',
-    descriptionRu: 'Свежий завтрак с белком', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Греческий йогурт', K.yogurtGreek, 150), ing('Ягоды mix', K.blueberry, 120), ing('Молоко 2.5%', K.milkLow, 100)],
-    steps: ['Все в блендер', 'Взбить до однородности'],
-    tags: ['breakfast', 'maintain', 'high-protein'], allergens: ['lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf033', name: 'Смузи с манго и кокосовым молоком',
-    descriptionRu: 'Тропический безмолочный смузи', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Манго', K.mango, 200), ing('Кокосовое молоко light', K.coconutMilkLight, 250), ing('Банан', K.banana, 80)],
-    steps: ['Сложить ингредиенты в блендер', 'Взбить 30 сек'],
-    tags: ['breakfast', 'maintain'], allergens: [],
-  },
-  {
-    id: 'crecipe0000000breakf034', name: 'Протеиновый смузи с какао и бананом',
-    descriptionRu: 'Послетренировочный завтрак', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Молоко 2.5%', K.milkLow, 250), ing('Сывороточный протеин', K.proteinWhey, 30), ing('Банан', K.banana, 120), ing('Какао-порошок', K.cocoaPowder, 8)],
-    steps: ['Все в шейкер', 'Встряхнуть 30 сек'],
-    tags: ['breakfast', 'gain', 'high-protein'], allergens: ['lactose'],
-  },
-  {
-    id: 'crecipe0000000breakf035', name: 'Смузи с клубникой и овсянкой',
-    descriptionRu: 'Сытный фруктовый смузи', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Клубника', K.strawberry, 150), ing('Овсяные хлопья', K.oatsRaw, 30), ing('Молоко 2.5%', K.milkLow, 250), ing('Мёд', K.honey, 10)],
-    steps: ['Все в блендер', 'Взбить до однородности'],
-    tags: ['breakfast', 'maintain'], allergens: ['lactose', 'gluten'],
-  },
 
   // ─── ПРОЧИЕ ЗАВТРАКИ (5) ──────────────────────────────────────────────────
   {
@@ -1062,13 +894,6 @@ const RECIPES: SeedRecipe[] = [
     tags: ['lunch', 'maintain', 'high-protein'], allergens: ['eggs', 'fish'],
   },
   {
-    id: 'crecipe00000000lunch026', name: 'Табуле с булгуром',
-    descriptionRu: 'Левантийский травяной салат', prepTimeMin: 25, servings: 2,
-    ingredients: [ing('Булгур варёный', K.bulgurCooked, 200), ing('Петрушка', K.parsley, 80), ing('Помидоры', K.tomato, 200), ing('Лимон', { calories: 29, protein: 1, fats: 0.3, carbs: 9 } as Per100, 30), ing('Оливковое масло', K.oliveOil, 10)],
-    steps: ['Сварить булгур 15 мин', 'Нарезать петрушку и помидоры мелко', 'Смешать с булгуром, заправить лимоном и маслом'],
-    tags: ['lunch', 'maintain'], allergens: ['gluten'],
-  },
-  {
     id: 'crecipe00000000lunch027', name: 'Салат с киноа и овощами',
     descriptionRu: 'Растительный белок и клетчатка', prepTimeMin: 25, servings: 1,
     ingredients: [ing('Киноа варёная', K.quinoaCooked, 150), ing('Огурец', K.cucumber, 100), ing('Помидоры черри', K.tomato, 100), ing('Авокадо', K.avocado, 60)],
@@ -1139,13 +964,6 @@ const RECIPES: SeedRecipe[] = [
     ingredients: [ing('Куриная грудка', K.chickenBreast, 150), ing('Сладкий картофель', K.sweetPotato, 200), ing('Брокколи', K.broccoli, 100), ing('Шпинат', K.spinach, 50)],
     steps: ['Сладкий картофель нарезать кубиками, запекать 25 мин', 'Грудку обжарить 8 мин с каждой стороны', 'Брокколи на пару 5 мин', 'Сложить в боул со шпинатом'],
     tags: ['lunch', 'maintain', 'high-protein'], allergens: [],
-  },
-  {
-    id: 'crecipe00000000lunch037', name: 'Боул с фалафелем и нутом',
-    descriptionRu: 'Веганский белковый обед', prepTimeMin: 30, servings: 1,
-    ingredients: [ing('Нут варёный', K.chickpeasCooked, 200), ing('Булгур варёный', K.bulgurCooked, 150), ing('Огурец', K.cucumber, 100), ing('Хумус', K.hummus, 50)],
-    steps: ['Нут размять с зеленью, слепить котлетки, обжарить 8 мин', 'Сварить булгур 15 мин', 'Огурец нарезать', 'Сложить в боул с хумусом'],
-    tags: ['lunch', 'maintain'], allergens: ['gluten'],
   },
   {
     id: 'crecipe00000000lunch038', name: 'Овощной боул с киноа',
@@ -1539,31 +1357,10 @@ const RECIPES: SeedRecipe[] = [
 
   // ─── ПЕРЕКУСЫ (30) ────────────────────────────────────────────────────────
   {
-    id: 'crecipe00000000snack005', name: 'Творог с малиной и мёдом',
-    descriptionRu: 'Сладкий белковый перекус', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Творог 5%', K.curd5, 150), ing('Малина', K.raspberry, 60), ing('Мёд', K.honey, 8)],
-    steps: ['Выложить творог', 'Сверху малина, полить мёдом'],
-    tags: ['snack', 'maintain', 'high-protein'], allergens: ['lactose'],
-  },
-  {
     id: 'crecipe00000000snack006', name: 'Творог с черникой и семенами',
     descriptionRu: 'Антиоксидантный перекус', prepTimeMin: 3, servings: 1,
     ingredients: [ing('Творог обезжиренный', K.curd0, 150), ing('Черника', K.blueberry, 80), ing('Семена чиа', K.chiaSeed, 8)],
     steps: ['Смешать творог с чиа', 'Сверху чернику'],
-    tags: ['snack', 'weight-loss', 'high-protein'], allergens: ['lactose'],
-  },
-  {
-    id: 'crecipe00000000snack007', name: 'Творог с грецким орехом и грушей',
-    descriptionRu: 'Хрустящий белковый снек', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Творог 5%', K.curd5, 150), ing('Груша', K.pear, 80), ing('Грецкий орех', K.walnut, 12)],
-    steps: ['Творог в миску', 'Груша кубиками сверху', 'Посыпать орехами'],
-    tags: ['snack', 'maintain', 'high-protein'], allergens: ['lactose', 'nuts'],
-  },
-  {
-    id: 'crecipe00000000snack008', name: 'Творог с авокадо и зеленью',
-    descriptionRu: 'Несладкий белковый перекус', prepTimeMin: 5, servings: 1,
-    ingredients: [ing('Творог 5%', K.curd5, 150), ing('Авокадо', K.avocado, 60), ing('Укроп', K.dill, 10)],
-    steps: ['Размять авокадо вилкой с творогом', 'Добавить укроп и соль'],
     tags: ['snack', 'weight-loss', 'high-protein'], allergens: ['lactose'],
   },
   {
@@ -1574,32 +1371,11 @@ const RECIPES: SeedRecipe[] = [
     tags: ['snack', 'maintain', 'high-protein'], allergens: ['lactose', 'eggs', 'gluten'],
   },
   {
-    id: 'crecipe00000000snack010', name: 'Шейк протеиновый ванильный',
-    descriptionRu: 'Простой шейк после тренировки', prepTimeMin: 2, servings: 1,
-    ingredients: [ing('Сывороточный протеин', K.proteinWhey, 30), ing('Молоко 2.5%', K.milkLow, 250)],
-    steps: ['Все в шейкер', 'Встряхнуть 30 сек'],
-    tags: ['snack', 'gain', 'high-protein'], allergens: ['lactose'],
-  },
-  {
-    id: 'crecipe00000000snack011', name: 'Шейк протеиновый шоколадный',
-    descriptionRu: 'Шоколадный вкус с какао', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Сывороточный протеин', K.proteinWhey, 30), ing('Молоко 2.5%', K.milkLow, 250), ing('Какао-порошок', K.cocoaPowder, 8)],
-    steps: ['Все в шейкер', 'Встряхнуть 30 сек'],
-    tags: ['snack', 'gain', 'high-protein'], allergens: ['lactose'],
-  },
-  {
     id: 'crecipe00000000snack012', name: 'Шейк ягодный без молока',
     descriptionRu: 'Веганский протеиновый шейк', prepTimeMin: 3, servings: 1,
     ingredients: [ing('Растительный протеин', K.proteinPlant, 30), ing('Овсяное молоко', K.milkOat, 250), ing('Ягоды mix', K.blueberry, 80)],
     steps: ['Все в блендер', 'Взбить 30 сек'],
     tags: ['snack', 'maintain', 'high-protein'], allergens: [],
-  },
-  {
-    id: 'crecipe00000000snack013', name: 'Шейк с бананом и арахисовой пастой',
-    descriptionRu: 'Калорийный шейк для набора', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Сывороточный протеин', K.proteinWhey, 30), ing('Молоко 2.5%', K.milkLow, 250), ing('Банан', K.banana, 120), ing('Арахисовая паста', K.peanutButter, 20)],
-    steps: ['Все в блендер', 'Взбить 30 сек'],
-    tags: ['snack', 'gain', 'high-protein'], allergens: ['lactose', 'nuts'],
   },
   {
     id: 'crecipe00000000snack014', name: 'Варёное яйцо с авокадо',
@@ -1630,20 +1406,6 @@ const RECIPES: SeedRecipe[] = [
     tags: ['snack', 'maintain'], allergens: [],
   },
   {
-    id: 'crecipe00000000snack018', name: 'Свекольный хумус с морковью',
-    descriptionRu: 'Розовый хумус с пользой свёклы', prepTimeMin: 15, servings: 2,
-    ingredients: [ing('Нут варёный', K.chickpeasCooked, 200), ing('Свёкла варёная', K.beetroot, 100), ing('Оливковое масло', K.oliveOil, 15), ing('Лимонный сок', { calories: 22, protein: 0.4, fats: 0.2, carbs: 7 } as Per100, 15)],
-    steps: ['Все ингредиенты в блендер', 'Взбить до однородности'],
-    tags: ['snack', 'weight-loss'], allergens: [],
-  },
-  {
-    id: 'crecipe00000000snack019', name: 'Тыквенный хумус с огурцом',
-    descriptionRu: 'Сезонный осенний хумус', prepTimeMin: 15, servings: 2,
-    ingredients: [ing('Нут варёный', K.chickpeasCooked, 200), ing('Тыква запечённая', K.pumpkin, 150), ing('Огурец', K.cucumber, 150)],
-    steps: ['Нут с тыквой пробить блендером', 'Огурец нарезать палочками для макания'],
-    tags: ['snack', 'weight-loss'], allergens: [],
-  },
-  {
     id: 'crecipe00000000snack020', name: 'Тост с творогом и зеленью',
     descriptionRu: 'Простой быстрый перекус', prepTimeMin: 5, servings: 1,
     ingredients: [ing('Цельнозерновой хлеб', K.breadWhole, 50), ing('Творог 5%', K.curd5, 80), ing('Укроп', K.dill, 10)],
@@ -1665,60 +1427,11 @@ const RECIPES: SeedRecipe[] = [
     tags: ['snack', 'maintain', 'high-protein'], allergens: ['gluten', 'fish', 'lactose'],
   },
   {
-    id: 'crecipe00000000snack023', name: 'Овсяно-финиковые шарики',
-    descriptionRu: 'Энергетический перекус без сахара', prepTimeMin: 15, servings: 4,
-    ingredients: [ing('Овсяные хлопья', K.oatsRaw, 100), ing('Финики', K.date, 150), ing('Миндаль', K.almond, 50), ing('Какао-порошок', K.cocoaPowder, 15)],
-    steps: ['Финики и миндаль пробить блендером', 'Добавить хлопья и какао, перемешать', 'Слепить 12 шариков, охладить 15 мин'],
-    tags: ['snack', 'maintain'], allergens: ['gluten', 'nuts'],
-  },
-  {
-    id: 'crecipe00000000snack024', name: 'Орехово-кокосовые шарики',
-    descriptionRu: 'Сырые конфеты без сахара', prepTimeMin: 20, servings: 4,
-    ingredients: [ing('Финики', K.date, 200), ing('Кешью', K.cashew, 80), ing('Кокосовая стружка', { calories: 660, protein: 6.9, fats: 64.5, carbs: 23.7 } as Per100, 30)],
-    steps: ['Финики и кешью пробить', 'Слепить шарики', 'Обвалять в кокосовой стружке'],
-    tags: ['snack', 'maintain'], allergens: ['nuts'],
-  },
-  {
     id: 'crecipe00000000snack025', name: 'Шоколадно-протеиновые шарики',
     descriptionRu: 'Высокобелковый снек', prepTimeMin: 15, servings: 4,
     ingredients: [ing('Сывороточный протеин', K.proteinWhey, 60), ing('Овсяные хлопья', K.oatsRaw, 80), ing('Арахисовая паста', K.peanutButter, 60), ing('Какао-порошок', K.cocoaPowder, 15)],
     steps: ['Все ингредиенты смешать с 50 мл воды', 'Слепить 10 шариков', 'Охладить 15 мин'],
     tags: ['snack', 'gain', 'high-protein'], allergens: ['lactose', 'gluten', 'nuts'],
-  },
-  {
-    id: 'crecipe00000000snack026', name: 'Фруктовые шарики с финиками',
-    descriptionRu: 'Натуральные сладости', prepTimeMin: 15, servings: 4,
-    ingredients: [ing('Финики', K.date, 150), ing('Курага', K.driedApricot, 100), ing('Грецкий орех', K.walnut, 50)],
-    steps: ['Сухофрукты и орехи пробить блендером', 'Слепить 10 шариков', 'Охладить'],
-    tags: ['snack', 'maintain'], allergens: ['nuts'],
-  },
-  {
-    id: 'crecipe00000000snack027', name: 'Грейпфрут с миндалём',
-    descriptionRu: 'Витамин C + полезные жиры', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Грейпфрут', K.grapefruit, 200), ing('Миндаль', K.almond, 20)],
-    steps: ['Грейпфрут очистить', 'Подать с миндалём'],
-    tags: ['snack', 'weight-loss'], allergens: ['nuts'],
-  },
-  {
-    id: 'crecipe00000000snack028', name: 'Груша с грецким орехом',
-    descriptionRu: 'Сезонный перекус', prepTimeMin: 2, servings: 1,
-    ingredients: [ing('Груша', K.pear, 200), ing('Грецкий орех', K.walnut, 20)],
-    steps: ['Грушу нарезать', 'Подать с грецким орехом'],
-    tags: ['snack', 'maintain'], allergens: ['nuts'],
-  },
-  {
-    id: 'crecipe00000000snack029', name: 'Апельсин с тыквенными семечками',
-    descriptionRu: 'Витаминный снек', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Апельсин', K.orange, 200), ing('Тыквенные семечки', K.pumpkinSeed, 20)],
-    steps: ['Апельсин очистить', 'Подать с семечками'],
-    tags: ['snack', 'weight-loss'], allergens: [],
-  },
-  {
-    id: 'crecipe00000000snack030', name: 'Киви с миндалём',
-    descriptionRu: 'Простой витаминный перекус', prepTimeMin: 3, servings: 1,
-    ingredients: [ing('Киви', K.kiwi, 150), ing('Миндаль', K.almond, 15)],
-    steps: ['Киви нарезать кружками', 'Подать с миндалём'],
-    tags: ['snack', 'weight-loss'], allergens: ['nuts'],
   },
   {
     id: 'crecipe00000000snack031', name: 'Греческий йогурт с гранолой',
@@ -1747,6 +1460,115 @@ const RECIPES: SeedRecipe[] = [
     ingredients: [ing('Морковь', K.carrot, 150), ing('Арахисовая паста', K.peanutButter, 25)],
     steps: ['Морковь нарезать палочками', 'Макать в арахисовую пасту'],
     tags: ['snack', 'maintain'], allergens: ['nuts'],
+  },
+  // ─── ROUND 238 — popular ПП-classics NOT covered by combinatorial generators ──
+  // Pizza/наггетсы/чизкейк/кефир-маринад/сердечки/запеканка — specific
+  // techniques and forms that don't fit the protein×side×veg matrix in
+  // generators 8 / 15 / 20-22. Added per user feedback that gym/weight-
+  // loss classics are higher priority than search-result variety.
+  {
+    id: 'crecipe0000000r238add01', name: 'Пицца на курином филе',
+    descriptionRu: 'ПП-пицца: основа из филе вместо теста, белок 50г/порция', prepTimeMin: 30, servings: 1,
+    ingredients: [
+      ing('Куриное филе', K.chickenBreast, 200),
+      egg(1),
+      ing('Помидор', K.tomato, 80),
+      ing('Моцарелла', K.mozzarella, 40),
+      ing('Шампиньоны', K.mushroom, 50),
+    ],
+    steps: [
+      'Филе пробить в плоский «блин» толщиной 1 см',
+      'Обжарить с двух сторон по 2 мин на сухой сковороде',
+      'Сверху томатное пюре, помидор кружками, грибы, моцарелла',
+      'Под крышкой 5 мин — моцарелла плавится',
+    ],
+    tags: ['lunch', 'maintain', 'high-protein'], allergens: ['lactose', 'eggs'],
+  },
+  {
+    id: 'crecipe0000000r238add02', name: 'Куриные наггетсы в духовке',
+    descriptionRu: 'ПП-наггетсы без муки, запечённые с отрубями', prepTimeMin: 25, servings: 2,
+    ingredients: [
+      ing('Куриное филе', K.chickenBreast, 400),
+      egg(1),
+      ing('Овсяные отруби', K.oatBranRaw, 40),
+    ],
+    steps: [
+      'Филе нарезать кубиками 2 см',
+      'Смешать яйцо с отрубями, паприкой и солью',
+      'Обмакнуть каждый кусочек, выложить на противень с пергаментом',
+      'Запекать при 200°C 18-20 мин до золотистой корочки',
+    ],
+    tags: ['lunch', 'weight-loss', 'high-protein'], allergens: ['eggs', 'gluten'],
+  },
+  {
+    id: 'crecipe0000000r238add03', name: 'Творожный чизкейк без выпечки',
+    descriptionRu: 'ПП-десерт: творог + йогурт, охладить и подать с ягодами', prepTimeMin: 15, servings: 2,
+    ingredients: [
+      ing('Творог 5%', K.curd5, 300),
+      ing('Греческий йогурт', K.yogurtGreek, 150),
+      ing('Мёд', K.honey, 20),
+      ing('Овсяные отруби', K.oatBranRaw, 30),
+      ing('Клубника', K.strawberry, 100),
+    ],
+    steps: [
+      'Творог + йогурт + мёд взбить блендером до гладкости',
+      'Отруби на дно формы как корж',
+      'Сверху творожная масса, разровнять',
+      'В холодильник минимум 2 часа',
+      'Перед подачей — клубника сверху',
+    ],
+    tags: ['snack', 'maintain', 'high-protein'], allergens: ['lactose', 'gluten'],
+  },
+  {
+    id: 'crecipe0000000r238add04', name: 'Куриная грудка в кефире',
+    descriptionRu: 'Сочная грудка благодаря маринаду в кефире на ночь', prepTimeMin: 30, servings: 1,
+    ingredients: [
+      ing('Куриное филе', K.chickenBreast, 200),
+      ing('Кефир 1%', K.milkLow, 100),
+      ing('Чеснок', K.garlic, 5),
+      ing('Зелень', K.parsley, 10),
+    ],
+    steps: [
+      'Филе залить кефиром с тёртым чесноком, посолить — на ночь в холодильник',
+      'Слить кефир, обсушить',
+      'Запекать при 200°C 20 мин или жарить на сухой сковороде 4-5 мин с каждой стороны',
+      'Посыпать зеленью',
+    ],
+    tags: ['dinner', 'weight-loss', 'high-protein'], allergens: ['lactose'],
+  },
+  {
+    id: 'crecipe0000000r238add05', name: 'Куриные сердечки тушёные с луком',
+    descriptionRu: 'High-protein low-cal классика для зала', prepTimeMin: 35, servings: 1,
+    ingredients: [
+      { name: 'Куриные сердечки', weightGrams: 200, calories: 316, protein: 32, fats: 20, carbs: 1.4 },
+      ing('Лук', K.onion, 80),
+      ing('Морковь', K.carrot, 60),
+      ing('Оливковое масло', K.oliveOil, 5),
+    ],
+    steps: [
+      'Сердечки промыть, очистить от плёнок',
+      'Лук + морковь поджарить 5 мин',
+      'Добавить сердечки, тушить 25-30 мин в собственном соку',
+      'Соль/перец по вкусу',
+    ],
+    tags: ['dinner', 'weight-loss', 'high-protein'], allergens: [],
+  },
+  {
+    id: 'crecipe0000000r238add06', name: 'Творожная запеканка ПП',
+    descriptionRu: 'Классическая ПП-запеканка без муки и сахара', prepTimeMin: 35, servings: 2,
+    ingredients: [
+      ing('Творог 5%', K.curd5, 400),
+      egg(2),
+      ing('Овсяные отруби', K.oatBranRaw, 40),
+      ing('Мёд', K.honey, 20),
+      ing('Изюм', K.raisin, 30),
+    ],
+    steps: [
+      'Творог растереть с яйцами, отрубями и мёдом',
+      'Добавить изюм',
+      'Выложить в форму, запекать при 180°C 30 мин до золотистого верха',
+    ],
+    tags: ['breakfast', 'maintain', 'high-protein'], allergens: ['lactose', 'eggs', 'gluten'],
   },
 ];
 
