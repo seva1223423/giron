@@ -101,6 +101,13 @@ jest.mock('../services/newsRefreshService', () => ({
   startNewsRefreshScheduler: jest.fn(),
 }));
 
+// Push notification service — called from refresh-token reuse detection to
+// alert the legitimate owner. Must be mocked so the tests don't try to
+// hit Expo's push gateway over real network.
+jest.mock('../services/pushService', () => ({
+  sendPushToUser: jest.fn().mockResolvedValue(undefined),
+}));
+
 import app from '../index';
 import { prisma } from '../db';
 
@@ -436,6 +443,119 @@ describe('Auth Routes', () => {
         .send({ refreshToken: tamperedToken });
 
       expect(res.status).toBe(401);
+    });
+
+    // ── Reuse detection (RTR — refresh token rotation) ─────────────────────
+
+    it('SECURITY: TOKEN_REUSE — already-revoked refresh revokes ALL sessions + alerts', async () => {
+      // Realistic attacker scenario: a token leaked to an attacker, the
+      // legit client already used + rotated it (so dbToken.revoked = true).
+      // When the stolen token shows up next, we must treat it as proof of
+      // compromise and revoke EVERY active session for that user, wipe
+      // trusted devices, and push a "suspicious activity" notification.
+      const secret = process.env.JWT_REFRESH_SECRET!;
+      const refreshToken = jwt.sign(
+        { userId: 'user-1' },
+        secret,
+        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+      );
+      (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rt-1',
+        token: refreshToken,
+        userId: 'user-1',
+        revoked: true, // <-- already used
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      // $transaction is used to revoke-all + delete-devices atomically.
+      (mockPrisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        { count: 5 }, // pretend 5 active sessions revoked
+        { count: 2 }, // 2 devices wiped
+      ]);
+
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken });
+
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('TOKEN_REUSE');
+      // The full-revoke transaction MUST fire — that's the entire reason
+      // this branch exists. If a refactor drops the $transaction call,
+      // this assertion turns red.
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      // Critically: no NEW token should be issued for a reused refresh.
+      expect(res.body.token).toBeUndefined();
+      expect(res.body.refreshToken).toBeUndefined();
+    });
+
+    it('SECURITY: TOKEN_REUSE on concurrent-rotation race (updateMany count=0)', async () => {
+      // Two parallel /auth/refresh calls with the same valid token — only
+      // one can win the TOCTOU-safe atomic revoke. The losing call sees
+      // updateMany return count=0 and is treated identically to the
+      // already-revoked branch above.
+      const secret = process.env.JWT_REFRESH_SECRET!;
+      const refreshToken = jwt.sign(
+        { userId: 'user-1' },
+        secret,
+        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+      );
+      (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rt-1',
+        token: refreshToken,
+        userId: 'user-1',
+        revoked: false,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        isBanned: false,
+        lockedUntil: null,
+      });
+      // Race: the rotation updateMany returns count=0 — someone else got
+      // there first.
+      (mockPrisma.refreshToken.updateMany as jest.Mock).mockResolvedValueOnce({
+        count: 0,
+      });
+      (mockPrisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        { count: 3 },
+        { count: 1 },
+      ]);
+
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken });
+
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('TOKEN_REUSE');
+      // Same full-revoke contract as the already-revoked branch.
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('SECURITY: refuses refresh when JWT userId does not match DB row (token-swap)', async () => {
+      // Attacker tries to swap a stolen refresh token's JWT payload userId
+      // (forged with a different signing secret? no — but the DB record's
+      // userId is the ground truth). If they diverge, we MUST refuse, not
+      // silently issue tokens for the JWT-claimed user.
+      const secret = process.env.JWT_REFRESH_SECRET!;
+      const refreshToken = jwt.sign(
+        { userId: 'attacker-claimed-id' },
+        secret,
+        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+      );
+      (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rt-1',
+        token: refreshToken,
+        userId: 'real-victim-id', // <-- doesn't match JWT payload
+        revoked: false,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken });
+
+      expect(res.status).toBe(401);
+      // No tokens issued.
+      expect(res.body.token).toBeUndefined();
     });
   });
 

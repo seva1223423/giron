@@ -87,8 +87,18 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, server-to-server)
     if (!origin) return callback(null, true);
-    // Allow Expo development tools (dev only)
-    if (process.env.NODE_ENV !== 'production' && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.startsWith('exp://'))) return callback(null, true);
+    // Allow Expo development tools (dev only). The startsWith checks are
+    // anchored on `:` (port) or end-of-string so an attacker-controlled
+    // host like `http://localhost-evil.attacker.com` doesn't slip through
+    // the bare-prefix substring trap. exp:// matches the full scheme.
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      (/^http:\/\/localhost(:\d+)?(\/|$)/.test(origin) ||
+        /^http:\/\/127\.0\.0\.1(:\d+)?(\/|$)/.test(origin) ||
+        origin.startsWith('exp://'))
+    ) {
+      return callback(null, true);
+    }
     // Allow configured production origins
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     callback(new Error('Not allowed by CORS'));
