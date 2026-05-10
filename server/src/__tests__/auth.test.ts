@@ -1072,6 +1072,78 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(200);
       expect(mockPrisma.refreshToken.updateMany as jest.Mock).toHaveBeenCalled();
     });
+
+    it('SECURITY: revokes by HASHED token, never by raw token (HIGH-5)', async () => {
+      // The DB stores SHA-256(refreshToken). The logout where-clause must
+      // hash the incoming value before comparing — otherwise nothing ever
+      // matches and tokens silently survive logout.
+      const fakeRefresh = jwt.sign({ userId: 'u-test' }, process.env.JWT_REFRESH_SECRET!, {
+        expiresIn: '30d',
+        issuer: 'irongym-api',
+        audience: 'irongym-app',
+      });
+
+      await request(app)
+        .post('/api/auth/logout')
+        .send({ refreshToken: fakeRefresh });
+
+      const calls = (mockPrisma.refreshToken.updateMany as jest.Mock).mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      const where = calls[0][0].where;
+      // The where clause must include `token: <some hash>`, NOT the raw JWT.
+      expect(where.token).toBeDefined();
+      expect(where.token).not.toBe(fakeRefresh);
+      // SHA-256 hex is 64 chars
+      expect(typeof where.token).toBe('string');
+      expect(where.token.length).toBe(64);
+      // And must scope to revoked: false (idempotent — already-revoked
+      // rows aren't touched again).
+      expect(where.revoked).toBe(false);
+    });
+
+    it('SECURITY: {all: true} revokes EVERY active session for the userId', async () => {
+      // \"Logout all devices\" feature: a stolen refresh on a forgotten phone
+      // should be kill-switchable. The route verifies the JWT first, then
+      // calls updateMany scoped by userId (NOT by token) so every active
+      // session for that user is revoked in one shot.
+      const goodRefresh = jwt.sign({ userId: 'u-test' }, process.env.JWT_REFRESH_SECRET!, {
+        expiresIn: '30d',
+        issuer: 'irongym-api',
+        audience: 'irongym-app',
+      });
+
+      await request(app)
+        .post('/api/auth/logout')
+        .send({ refreshToken: goodRefresh, all: true });
+
+      const calls = (mockPrisma.refreshToken.updateMany as jest.Mock).mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      // First call (in the success branch) must scope by userId, not token.
+      const where = calls[0][0].where;
+      expect(where.userId).toBe('u-test');
+      expect(where.revoked).toBe(false);
+      // And data sets revoked: true — the actual kill switch.
+      expect(calls[0][0].data.revoked).toBe(true);
+    });
+
+    it('{all: true} with INVALID refresh falls back to single-token revoke', async () => {
+      // If the JWT verify fails (tampered / expired / wrong secret) the
+      // {all:true} branch should NOT silently fail — it falls back to
+      // revoking just that one token by hash. Catches a refactor that
+      // returns early without writing anything.
+      const tamperedRefresh = jwt.sign({ userId: 'u-test' }, 'wrong-secret', {
+        expiresIn: '30d',
+      });
+
+      const res = await request(app)
+        .post('/api/auth/logout')
+        .send({ refreshToken: tamperedRefresh, all: true });
+
+      expect(res.status).toBe(200);
+      // updateMany still called — fallback path revokes the supplied
+      // token by hash.
+      expect(mockPrisma.refreshToken.updateMany as jest.Mock).toHaveBeenCalled();
+    });
   });
 
   // ── TOTP verify ───────────────────────────────────────────────────────────────
