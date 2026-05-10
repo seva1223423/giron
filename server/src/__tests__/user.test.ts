@@ -585,6 +585,75 @@ describe('GET /api/user/trusted-devices', () => {
   });
 });
 
+// ─── DELETE /api/user/trusted-devices/:id ────────────────────────────────────
+
+describe('DELETE /api/user/trusted-devices/:id', () => {
+  // IDOR regression pin. The route at server/src/routes/user.ts:755 fetches
+  // the device with findUnique, then checks `device.userId !== req.userId`
+  // and returns 404 (NOT 403 — 404 is the "leakage protection" pattern that
+  // hides existence from probes). If the userId check is ever dropped, these
+  // tests catch the regression on the next run.
+  // Must match CUID_RE = /^c[a-z0-9]{20,30}$/ from routes/user.ts:32
+  const OWN_DEVICE_ID = 'cmdevown000000000000001a';
+  const OTHER_DEVICE_ID = 'cmdevoth000000000000002b';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).delete(`/api/user/trusted-devices/${OWN_DEVICE_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('SECURITY: 404 when device belongs to another user (IDOR — leakage protection)', async () => {
+    (prisma.trustedDevice.findUnique as jest.Mock).mockResolvedValueOnce({
+      userId: 'someone-else',
+    });
+
+    const res = await request(app)
+      .delete(`/api/user/trusted-devices/${OTHER_DEVICE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+    // Critically: the delete must NEVER fire for a foreign device. If a future
+    // refactor swaps findUnique for "delete with where: id", this assertion
+    // breaks immediately.
+    expect(prisma.trustedDevice.delete).not.toHaveBeenCalled();
+    // And we want the "leakage protection" 404 shape, not 403.
+    expect(res.body.error).not.toMatch(/access|доступ|forbidden/i);
+  });
+
+  it('404 when device does not exist (same leakage shape)', async () => {
+    (prisma.trustedDevice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .delete(`/api/user/trusted-devices/${OWN_DEVICE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(404);
+    expect(prisma.trustedDevice.delete).not.toHaveBeenCalled();
+  });
+
+  it('200 when device belongs to the caller (happy path)', async () => {
+    (prisma.trustedDevice.findUnique as jest.Mock).mockResolvedValueOnce({
+      userId: mockUser.id,
+    });
+    (prisma.trustedDevice.delete as jest.Mock).mockResolvedValueOnce({});
+
+    const res = await request(app)
+      .delete(`/api/user/trusted-devices/${OWN_DEVICE_ID}`)
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(prisma.trustedDevice.delete).toHaveBeenCalledWith({
+      where: { id: OWN_DEVICE_ID },
+    });
+  });
+});
+
 // ─── DELETE /api/user/measurements/:date ─────────────────────────────────────
 
 describe('DELETE /api/user/measurements/:date', () => {
@@ -620,6 +689,21 @@ describe('DELETE /api/user/measurements/:date', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  it('SECURITY: deleteMany must scope to req.userId (IDOR regression pin)', async () => {
+    // The deleteMany pattern is TOCTOU-safe ONLY when the where clause
+    // includes userId. If a future refactor drops that filter, this test
+    // catches the regression — without the userId scope, any authenticated
+    // user could wipe any measurement by guessing dates.
+    (prisma.bodyMeasurement.deleteMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    await request(app)
+      .delete('/api/user/measurements/2026-04-22')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const call = (prisma.bodyMeasurement.deleteMany as jest.Mock).mock.calls[0][0];
+    expect(call.where.userId).toBe(mockUser.id);
+  });
 });
 
 // ─── DELETE /api/user/sleep/:date ─────────────────────────────────────────────
@@ -652,6 +736,18 @@ describe('DELETE /api/user/sleep/:date', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
+  });
+
+  it('SECURITY: deleteMany must scope to req.userId (IDOR regression pin)', async () => {
+    // Same TOCTOU-safe rationale as the measurements/:date pin above:
+    // deleteMany without userId in the where clause would let user A
+    // wipe user B's sleep entries by date.
+    await request(app)
+      .delete('/api/user/sleep/2026-04-22')
+      .set('Authorization', `Bearer ${makeToken()}`);
+
+    const call = (prisma.sleepEntry.deleteMany as jest.Mock).mock.calls[0][0];
+    expect(call.where.userId).toBe(mockUser.id);
   });
 
   it('404 when no entry exists for that date', async () => {
