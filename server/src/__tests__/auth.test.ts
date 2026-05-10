@@ -1174,6 +1174,107 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(403);
       expect(res.body.code).toBe('BANNED');
     });
+
+    // ── Backup-code recovery path ──────────────────────────────────────────
+
+    it('SECURITY: backup code accepted only when present + unused in user.totpBackupCodes', async () => {
+      // Pin the SHA-256-hash-and-toUpperCase contract for backup codes.
+      // The raw code 'RESCUE-CODE-1' must match its stored hash; the
+      // transaction must mark the code as used so it can't be replayed.
+      const crypto = require('crypto');
+      const code = 'RESCUE-CODE-1';
+      const hash = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
+      const stored = [
+        { hash, used: false },
+        { hash: 'aaaaaaaa', used: false }, // decoy
+      ];
+
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        ...totpUser,
+        totpBackupCodes: JSON.stringify(stored),
+      });
+      // The route uses $transaction with FOR UPDATE — mock returns the
+      // locked row, then accepts an inline update.
+      const txUpdate = jest.fn().mockResolvedValueOnce({});
+      (mockPrisma.$transaction as jest.Mock).mockImplementationOnce(async (fn: any) => {
+        const tx = {
+          $queryRaw: jest.fn().mockResolvedValueOnce([{ totpBackupCodes: JSON.stringify(stored) }]),
+          user: { update: txUpdate },
+        };
+        await fn(tx);
+      });
+      (mockPrisma.refreshToken.create as jest.Mock).mockResolvedValueOnce({ token: 'rt' });
+
+      const res = await request(app)
+        .post('/api/auth/totp-verify')
+        .send({ pendingToken: makePendingToken(), backupCode: code });
+
+      expect(res.status).toBe(200);
+      // The route must have marked the code as used — assert via the
+      // shape of the update payload.
+      expect(txUpdate).toHaveBeenCalled();
+      const updateArgs = txUpdate.mock.calls[0][0];
+      const updatedCodes = JSON.parse(updateArgs.data.totpBackupCodes);
+      // The matching code is now used: true
+      const consumed = updatedCodes.find((c: { hash: string }) => c.hash === hash);
+      expect(consumed.used).toBe(true);
+      // Decoy code stays untouched
+      const decoy = updatedCodes.find((c: { hash: string }) => c.hash === 'aaaaaaaa');
+      expect(decoy.used).toBe(false);
+    });
+
+    it('SECURITY: already-used backup code is rejected with INVALID_BACKUP_CODE', async () => {
+      // Pin replay protection: a backup code whose `used: true` cannot be
+      // reused for a second login. If the FOR UPDATE check is dropped or
+      // the `!c.used` filter is removed, an attacker who once-observed a
+      // backup code could replay it forever.
+      const crypto = require('crypto');
+      const code = 'OLD-USED-CODE';
+      const hash = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
+      const stored = [{ hash, used: true }]; // already consumed
+
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        ...totpUser,
+        totpBackupCodes: JSON.stringify(stored),
+      });
+      (mockPrisma.$transaction as jest.Mock).mockImplementationOnce(async (fn: any) => {
+        const tx = {
+          $queryRaw: jest.fn().mockResolvedValueOnce([{ totpBackupCodes: JSON.stringify(stored) }]),
+          user: { update: jest.fn() },
+        };
+        await fn(tx);
+      });
+
+      const res = await request(app)
+        .post('/api/auth/totp-verify')
+        .send({ pendingToken: makePendingToken(), backupCode: code });
+
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('INVALID_BACKUP_CODE');
+    });
+
+    it('SECURITY: unknown backup code is rejected (no row enumeration)', async () => {
+      // An attacker guessing backup codes must get the same error message
+      // for "doesn't exist" and "already used" — both INVALID_BACKUP_CODE.
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        ...totpUser,
+        totpBackupCodes: JSON.stringify([]),
+      });
+      (mockPrisma.$transaction as jest.Mock).mockImplementationOnce(async (fn: any) => {
+        const tx = {
+          $queryRaw: jest.fn().mockResolvedValueOnce([{ totpBackupCodes: '[]' }]),
+          user: { update: jest.fn() },
+        };
+        await fn(tx);
+      });
+
+      const res = await request(app)
+        .post('/api/auth/totp-verify')
+        .send({ pendingToken: makePendingToken(), backupCode: 'NEVER-EXISTED' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('INVALID_BACKUP_CODE');
+    });
   });
 
   // ── Send OTP ──────────────────────────────────────────────────────────────────
