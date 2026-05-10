@@ -422,6 +422,86 @@ describe('Auth Routes', () => {
       expect(res.body.error).toBeDefined();
     });
 
+    it('SECURITY: rejects refresh when DB row.expiresAt is in the past (server-side TTL guard)', async () => {
+      // Two-layer TTL: JWT exp (client cache + jwt.verify) AND DB
+      // RefreshToken.expiresAt (server-side authoritative). If anyone drops
+      // the DB check (auth.ts line 1433), a token with a long JWT exp but
+      // a long-passed DB expiresAt would silently keep working. This pin
+      // forces the server-side DB check to stay.
+      const secret = process.env.JWT_REFRESH_SECRET!;
+      const refreshToken = jwt.sign(
+        { userId: 'user-1' },
+        secret,
+        // JWT itself is NOT expired — only the DB row is. This is the
+        // exact scenario we want to defend against.
+        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+      );
+      (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rt-1',
+        token: refreshToken,
+        userId: 'user-1',
+        revoked: false,
+        expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+      });
+
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toMatch(/истёк|expired/i);
+      // No new tokens issued for an expired DB row.
+      expect(res.body.token).toBeUndefined();
+      expect(res.body.refreshToken).toBeUndefined();
+    });
+
+    it('SECURITY: TTL contract — issued refresh tokens have expiresAt ≈ now + 30d', async () => {
+      // Pin the 30-day TTL on the DB row created at successful refresh.
+      // The JWT exp is set separately ('30d' at auth.ts:191) — drift
+      // between the two (e.g. JWT exp '60d' but DB 30d) silently breaks
+      // authentication. Use the refresh path because login has a more
+      // complex mock surface; refresh + DB.create is the same code path
+      // (signTokens) used by both.
+      const secret = process.env.JWT_REFRESH_SECRET!;
+      const oldToken = jwt.sign(
+        { userId: 'user-1' },
+        secret,
+        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+      );
+      (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rt-1',
+        token: oldToken,
+        userId: 'user-1',
+        revoked: false,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        isBanned: false,
+        lockedUntil: null,
+      });
+      (mockPrisma.refreshToken.updateMany as jest.Mock).mockResolvedValueOnce({
+        count: 1,
+      });
+
+      const beforeMs = Date.now();
+      await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: oldToken });
+      const afterMs = Date.now();
+
+      const createCalls = (mockPrisma.refreshToken.create as jest.Mock).mock.calls;
+      expect(createCalls.length).toBeGreaterThan(0);
+      const expiresAt = createCalls[createCalls.length - 1][0].data.expiresAt as Date;
+      expect(expiresAt).toBeInstanceOf(Date);
+
+      const expiresMs = expiresAt.getTime();
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      // 30d ± ≤1s slack. If anyone bumps to 60d/7d this fires immediately.
+      expect(expiresMs).toBeGreaterThanOrEqual(beforeMs + THIRTY_DAYS_MS - 1000);
+      expect(expiresMs).toBeLessThanOrEqual(afterMs + THIRTY_DAYS_MS + 1000);
+    });
+
     it('should reject missing refresh token', async () => {
       const res = await request(app)
         .post('/api/auth/refresh')
