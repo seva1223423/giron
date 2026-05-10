@@ -1498,6 +1498,144 @@ describe('POST /api/user/change-phone', () => {
   });
 });
 
+// ─── POST /api/user/change-email — step-up reauth (sec audit HIGH-6) ─────────
+//
+// Email is the account's recovery anchor. A stolen 60-min access token alone
+// must NOT be enough to repoint the email — once the attacker controls the
+// email they can trigger /auth/forgot-password and lock the legitimate owner
+// out permanently. The /change-email route requires either:
+//   - current password (for password owners), or
+//   - TOTP code (for 2FA users), or
+//   - rejects entirely (social-only without 2FA).
+//
+// These pins guard the contract from a refactor that drops the gate.
+
+describe('POST /api/user/change-email — step-up reauth', () => {
+  const userWithPassword = {
+    id: 'u-test',
+    email: 'old@example.com',
+    passwordHash: 'bcrypt-hash',
+    totpEnabled: false,
+    totpSecret: null,
+    isBanned: false,
+    lockedUntil: null,
+    role: 'USER',
+    healthRestrictions: [],
+  };
+
+  const userSocialOnly = {
+    id: 'u-test',
+    email: 'social@example.com',
+    passwordHash: null,
+    totpEnabled: false,
+    totpSecret: null,
+    isBanned: false,
+    lockedUntil: null,
+    role: 'USER',
+    healthRestrictions: [],
+  };
+
+  const NEW_EMAIL = 'new@example.com';
+  const VALID_OTP = '123456';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(userWithPassword);
+  });
+
+  it('401 without token', async () => {
+    const res = await request(app).post('/api/user/change-email').send({});
+    expect(res.status).toBe(401);
+  });
+
+  it('SECURITY: 400 PASSWORD_REQUIRED when user has password but didn\'t send currentPassword', async () => {
+    // Without currentPassword, the route must NOT proceed — a stolen
+    // access token alone cannot repoint email. Asserts the gate.
+    const res = await request(app)
+      .post('/api/user/change-email')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ email: NEW_EMAIL, code: VALID_OTP });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('PASSWORD_REQUIRED');
+    // No email update should have happened — authenticate-middleware may
+    // touch lastActiveAt but the route-level email change must not fire.
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    const emailUpdateFired = updateCalls.some((c) => c[0]?.data?.email !== undefined);
+    expect(emailUpdateFired).toBe(false);
+  });
+
+  it('SECURITY: 401 INVALID_PASSWORD on wrong password + REAUTH_FAILED audit logged', async () => {
+    // Wrong password attempt must:
+    //   1. Return 401 + code INVALID_PASSWORD
+    //   2. Log REAUTH_FAILED security event (so brute-force gets caught
+    //      by SIEM / log alert)
+    //   3. NOT trigger an email update
+    const bcrypt = require('bcryptjs').default;
+    bcrypt.compare.mockResolvedValueOnce(false);
+
+    const res = await request(app)
+      .post('/api/user/change-email')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ email: NEW_EMAIL, code: VALID_OTP, currentPassword: 'wrong' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('INVALID_PASSWORD');
+
+    // SECURITY: REAUTH_FAILED security event must be written so a SIEM
+    // / brute-force monitor can spot the pattern.
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const auditCall = seCalls.find((c) => c[0]?.data?.action === 'REAUTH_FAILED');
+    expect(auditCall).toBeDefined();
+    expect(auditCall![0].data.userId).toBe('u-test');
+    expect(auditCall![0].data.details).toContain('op=change-email');
+
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    expect(updateCalls.some((c) => c[0]?.data?.email !== undefined)).toBe(false);
+  });
+
+  it('SECURITY: 403 STEPUP_REQUIRED when account is social-only (no password, no 2FA)', async () => {
+    // A social-only account where the attacker captured a Google/VK access
+    // token must NOT be able to repoint the email — there's no second
+    // factor to prove identity. Route forces user to add password or 2FA
+    // first.
+    //
+    // Use mockResolvedValue (not Once) because the route fetches the user
+    // BOTH inside the authenticate middleware AND again in the handler.
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(userSocialOnly);
+
+    const res = await request(app)
+      .post('/api/user/change-email')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ email: NEW_EMAIL, code: VALID_OTP });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('STEPUP_REQUIRED');
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    expect(updateCalls.some((c) => c[0]?.data?.email !== undefined)).toBe(false);
+  });
+
+  it('SECURITY: 400 TOTP_REQUIRED when 2FA is enabled but totpCode missing', async () => {
+    // mockResolvedValue (not Once) — authenticate middleware AND route
+    // handler both call findUnique.
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ...userWithPassword,
+      totpEnabled: true,
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    });
+
+    const res = await request(app)
+      .post('/api/user/change-email')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ email: NEW_EMAIL, code: VALID_OTP, currentPassword: 'correct' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('TOTP_REQUIRED');
+    const updateCalls = (prisma.user.update as jest.Mock).mock.calls;
+    expect(updateCalls.some((c) => c[0]?.data?.email !== undefined)).toBe(false);
+  });
+});
+
 // ─── DELETE /api/user/account ────────────────────────────────────────────────
 //
 // 152-FZ right-to-erasure compliance + sec audit HIGH-7 (step-up reauth on
