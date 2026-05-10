@@ -1769,6 +1769,13 @@ describe('DELETE /api/user/account', () => {
     const auditCall = seCalls.find((c) => c[0]?.data?.action === 'ACCOUNT_DELETED');
     expect(auditCall).toBeTruthy();
     expect(auditCall![0].data.userId).toBe('u-test');
+    // SECURITY: AdminLog/SecurityEvent.details must NOT carry the full
+    // email — 152-ФЗ right-to-erasure applies after user deletes, but a
+    // raw email in details would survive forever in the audit log. The
+    // route stores a redacted form (e.g. `t***t@example.com`).
+    const details = auditCall![0].data.details as string;
+    expect(details).not.toContain(userWithPasswordOnly.email);
+    expect(details).toMatch(/\*\*\*/); // contains the redaction marker
   });
 
   it('round 236: fires sendAccountDeletedAlert with email + ip BEFORE delete', async () => {
