@@ -45,6 +45,12 @@ const REDACT_KEYS = new Set<string>([
   // Sentry/PostHog convention
   'session',
   'sessiontoken',
+  // 152-ФЗ: phone numbers are personal data. The smsService has its own
+  // last-4 redactor for ops diagnostics, but anything that logs a raw
+  // Prisma error / Zod reject / req.body must not leak the full number
+  // through this generic logger.
+  'phone',
+  'phonenumber',
 ]);
 
 // Email pattern — redact any string that looks like an address, anywhere
@@ -57,10 +63,18 @@ const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 // version strings or hashes.
 const JWT_RE = /\b[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,}\b/g;
 
+// E.164-shaped phone numbers (+7..., +1..., etc.). Pattern requires the
+// `+` prefix and 8-15 digits — narrow enough not to match semver-shaped
+// strings ("+1.2.3") or generic CUIDs (no leading +).
+const PHONE_RE = /\+\d{8,15}\b/g;
+
 const MAX_DEPTH = 6;
 
 function scrubString(s: string): string {
-  return s.replace(EMAIL_RE, '[REDACTED_EMAIL]').replace(JWT_RE, '[REDACTED_TOKEN]');
+  return s
+    .replace(EMAIL_RE, '[REDACTED_EMAIL]')
+    .replace(JWT_RE, '[REDACTED_TOKEN]')
+    .replace(PHONE_RE, '[REDACTED_PHONE]');
 }
 
 function scrub(value: unknown, depth = 0, seen: WeakSet<object> = new WeakSet()): unknown {
