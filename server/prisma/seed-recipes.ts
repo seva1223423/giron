@@ -1698,7 +1698,12 @@ for (const fruit of FRUITS_OATS) {
         ing(milk.cap, milk.k, milk.g),
         ing(fruit.cap, fruit.k, fruit.g),
       ],
-      steps: ['Залить хлопья жидкостью', 'Варить 5 минут на среднем огне', `Добавить ${fruit.ru}`],
+      steps: [
+        `${milk.cap} довести до кипения в ковшике`,
+        'Всыпать овсяные хлопья, варить 5-7 мин на медленном огне, периодически помешивая',
+        'Снять с огня, накрыть крышкой, дать постоять 2 мин для парения',
+        `Подать с ${fruit.ru}, по желанию полить мёдом и посыпать корицей`,
+      ],
       tags: ['breakfast', 'maintain'],
       allergens: [...new Set([...baseAllergens, ...collectAllergens(fruit)])],
     });
@@ -1723,7 +1728,13 @@ for (const fruit of oatNutFruits) {
         ing(fruit.cap, fruit.k, fruit.g),
         ing(nut.cap, nut.k, nut.g),
       ],
-      steps: ['Сварить овсянку на молоке 5 мин', `Добавить ${fruit.ru} и ${nut.cap.toLowerCase()}`],
+      steps: [
+        'Молоко довести до кипения, всыпать овсяные хлопья',
+        'Варить 5-7 мин на медленном огне до густой консистенции, помешивая',
+        'Снять с огня, накрыть, дать постоять 2 мин',
+        `Подать с ${fruit.ru}, посыпать ${nut.cap.toLowerCase()}`,
+        'Совет: орехи можно слегка обжарить на сухой сковороде 2 мин — раскроется вкус',
+      ],
       tags: ['breakfast', 'maintain'],
       allergens: [...new Set(['gluten', 'lactose', ...collectAllergens(nut)])],
     });
@@ -1753,7 +1764,12 @@ for (const por of PORRIDGES) {
         ing('Молоко 2.5%', K.milkLow, 200),
         ing(top.cap, top.k, top.g),
       ],
-      steps: ['Сварить кашу на молоке', `Подать с ${top.ru}`],
+      steps: [
+        'Крупу промыть холодной водой',
+        'Залить молоком в пропорции 1:2, довести до кипения',
+        'Варить на минимальном огне до готовности (гречка 15 мин, рис 20 мин, перловка 40-50 мин)',
+        `Подать с ${top.ru}, по желанию посыпать корицей`,
+      ],
       tags: ['breakfast', 'maintain'],
       allergens: [...new Set(['lactose', ...por.allergens])],
     });
@@ -1793,7 +1809,13 @@ for (const fill of OMLET_FILLINGS) {
       descriptionRu: `Белковый завтрак с ${fill.ru}`,
       prepTimeMin: 10, servings: 1,
       ingredients: [egg(eggs), ...fill.ings, ing('Оливковое масло', K.oliveOil, 5)],
-      steps: ['Взбить яйца', `Обжарить ${fill.ru} 3 минуты`, 'Залить яйцами, готовить под крышкой 4 мин'],
+      steps: [
+        'Яйца взбить вилкой с щепоткой соли и 1 ст.л. молока до однородности',
+        `Начинку (${fill.ru}) нарезать, обжарить на разогретой сковороде 3 мин до мягкости`,
+        'Залить взбитыми яйцами, накрыть крышкой',
+        'Готовить на минимальном огне 4-5 мин, пока белок не схватится и не станет матовым',
+        'Подать с зеленью и свежим хлебом',
+      ],
       tags: ['breakfast', 'maintain', 'high-protein'],
       allergens: [...new Set(['eggs', ...(fill.allergens ?? [])])],
     });
@@ -1819,7 +1841,12 @@ for (const fruit of CURD_FRUITS) {
         ing(variant.cap, variant.k, 200),
         ing(fruit.cap, fruit.k, fruit.g),
       ],
-      steps: ['Творог в миску', `Добавить ${fruit.ru}`],
+      steps: [
+        'Творог выложить в миску, размять вилкой до однородности',
+        'Если творог сухой — добавить 1 ст.л. йогурта или молока для кремовости',
+        `Сверху выложить ${fruit.ru}`,
+        'По желанию полить мёдом и посыпать семенами льна',
+      ],
       tags: ['breakfast', variant.goal, 'high-protein'],
       allergens: ['lactose'],
     });
@@ -1860,7 +1887,12 @@ for (const fruits of SMOOTHIE_FRUITS) {
       prepTimeMin: 5, servings: 1,
       ingredients: [base.ing, ...fruits.ings],
       tags: ['breakfast', 'maintain'],
-      steps: ['Сложить всё в блендер', 'Взбить 30 сек'],
+      steps: [
+        'Фрукты вымыть, крупно нарезать (бананы можно заранее заморозить — гуще + холоднее)',
+        'Сложить в блендер вместе с жидкой основой',
+        'Взбить 30-40 сек до однородной кремовой текстуры',
+        'Перелить в стакан, подать сразу — со временем расслаивается',
+      ],
       allergens: base.allergens,
     });
   }
@@ -1895,7 +1927,12 @@ for (const addon of SHAKE_ADDONS) {
         ing(proto.base, proto.baseK, 250),
         ing(addon.cap, addon.k, addon.g),
       ],
-      steps: ['Все в шейкер', 'Встряхнуть 30 сек'],
+      steps: [
+        'В шейкер налить жидкость (молоко или молоко-заменитель)',
+        'Добавить мерную ложку протеина и фруктовый/вкусовой компонент',
+        'Плотно закрыть, встряхивать 30-40 сек до полного растворения порошка',
+        'Пить охлаждённым в течение 30 мин после тренировки',
+      ],
       tags: ['snack', 'gain', 'high-protein'],
       allergens: [...new Set([...proto.baseAl, ...(addon.allergens ?? [])])],
     });
@@ -1974,7 +2011,13 @@ for (const prot of SALAD_PROTEINS) {
           ing(extra.cap, extra.k, extra.g),
           ing('Оливковое масло', K.oliveOil, 8),
         ],
-        steps: [`Подготовить ${prot.cap.toLowerCase()}`, 'Овощи нарезать', `Смешать с ${green.ru} и заправить маслом`],
+        steps: [
+          `${prot.cap} отварить или обжарить 5-8 мин до готовности, дать остыть и нарезать`,
+          'Овощи вымыть, нарезать кубиками или соломкой среднего размера',
+          `${green.cap} порвать руками — резать ножом нельзя, потеряется хруст`,
+          'Все компоненты смешать в большой миске',
+          'Заправить оливковым маслом + соком лимона, посолить-поперчить, перемешать аккуратно',
+        ],
         tags: ['lunch', 'weight-loss', 'high-protein'],
         allergens: collectAllergens(prot, extra),
       });
@@ -2000,7 +2043,14 @@ for (const prot of SALAD_PROTEINS.slice(0, 5)) {
           ing(veg.cap, veg.k, veg.g),
           ing('Авокадо', K.avocado, 60),
         ],
-        steps: [`Подготовить ${prot.cap.toLowerCase()}`, `Сварить ${side.ru}`, `${veg.cap} на пару 5 мин`, 'Сложить в боул, добавить авокадо'],
+        steps: [
+          `${prot.cap} отварить/обжарить 8-10 мин до готовности, нарезать кусочками`,
+          `Гарнир (${side.ru}) сварить согласно инструкции на упаковке`,
+          `${veg.cap} приготовить на пару 5-7 мин до сохранения цвета и лёгкого хруста`,
+          'Авокадо очистить, нарезать дольками',
+          'В глубокую тарелку выложить гарнир основой, сверху белок, овощи и авокадо секторами',
+          'Сбрызнуть оливковым маслом и лимонным соком',
+        ],
         tags: ['lunch', 'maintain', 'high-protein'],
         allergens: collectAllergens(prot, side, veg),
       });
@@ -2036,7 +2086,13 @@ for (const fill of WRAP_FILLINGS) {
       descriptionRu: 'Удобный обед или перекус с собой',
       prepTimeMin: 10, servings: 1,
       ingredients: [ing(breadType.cap, breadType.k, breadType.g), ...fill.ings],
-      steps: [`Разложить начинку на ${breadType.cap.toLowerCase()}`, 'Свернуть рулетом или закрыть вторым ломтиком'],
+      steps: [
+        `${breadType.cap} развернуть на доске или большой тарелке`,
+        'Распределить начинку тонким слоем по центру, отступив 2-3 см от краёв',
+        'Свернуть рулетом снизу вверх, плотно прижимая для компактности',
+        'По желанию: обжарить на сухой сковороде по 2 мин с каждой стороны до хрустящей корочки',
+        'Разрезать пополам наискосок и подавать',
+      ],
       tags: ['lunch', 'maintain', 'high-protein'],
       allergens: [...new Set(['gluten', ...fill.allergens])],
     });
@@ -2070,7 +2126,14 @@ for (const prot of PASTA_PROTEINS) {
         ing(prot.cap, prot.k, prot.g),
         ...sauce.ings,
       ],
-      steps: ['Сварить пасту al dente', `Обжарить ${prot.cap.toLowerCase()} 5-8 мин`, `Добавить ${sauce.ru.replace(/^.+? /,'')}`, 'Смешать с пастой'],
+      steps: [
+        'В кипящую подсоленную воду опустить пасту, варить al dente (на 1-2 мин меньше времени с упаковки)',
+        `${prot.cap} нарезать, обжарить на разогретой сковороде с 1 ст.л. оливкового масла 5-8 мин до золотистости`,
+        `Добавить ${sauce.ru.replace(/^.+? /,'')}, прогреть 2-3 мин`,
+        'Пасту слить, оставив 50 мл воды для соуса',
+        'Смешать пасту с соусом на сковороде 1 мин, при необходимости добавить пасту-воду для шелковистой текстуры',
+        'Подать сразу, при подаче посыпать пармезаном и зеленью',
+      ],
       tags: ['lunch', 'maintain', 'high-protein'],
       allergens: [...new Set(['gluten', ...(prot.allergens ?? []), ...(sauce.allergens ?? [])])],
     });
@@ -2237,7 +2300,12 @@ for (const top of TOAST_TOPPINGS) {
       descriptionRu: 'Быстрый перекус',
       prepTimeMin: 5, servings: 1,
       ingredients: [ing(breadType.cap, breadType.k, breadType.g), ...top.ings],
-      steps: [`Подготовить ${breadType.cap.toLowerCase()}`, `Сверху выложить начинку`],
+      steps: [
+        `${breadType.cap} подсушить в тостере или на сухой сковороде до золотистой корочки (2-3 мин)`,
+        'По желанию: натереть тёплый хлебец зубчиком чеснока для аромата',
+        'Сверху распределить начинку ровным слоем',
+        'Посолить-поперчить по вкусу, при подаче можно сбрызнуть оливковым маслом или соком лимона',
+      ],
       tags: ['snack', 'maintain'],
       allergens: [...new Set([breadType.type, ...top.allergens])],
     });
@@ -2263,7 +2331,12 @@ for (const fruit of SNACK_FRUITS) {
       descriptionRu: 'Быстрый натуральный перекус',
       prepTimeMin: 2, servings: 1,
       ingredients: [ing(fruit.cap, fruit.k, fruit.g), ing(nut.cap, nut.k, nut.g)],
-      steps: [`Очистить и нарезать ${fruit.cap.toLowerCase()}`, `Подать с ${nut.cap.toLowerCase()}`],
+      steps: [
+        `${fruit.cap} вымыть, очистить от кожуры (если нужно) и нарезать дольками`,
+        `${nut.cap} можно слегка обжарить на сухой сковороде 2 мин — раскроется аромат`,
+        'Выложить на тарелку или в небольшую миску для перекуса',
+        'Совет: идеально съесть за 30 мин до тренировки — быстрые углеводы + энергия',
+      ],
       tags: ['snack', 'maintain'],
       allergens: collectAllergens(nut),
     });
@@ -2298,7 +2371,12 @@ for (const top of YOGURT_TOPPINGS) {
       descriptionRu: 'Белковый перекус',
       prepTimeMin: 3, servings: 1,
       ingredients: [ing(base.cap, base.k, 150), ...top.ings],
-      steps: [`Выложить ${base.name.toLowerCase()} в чашу`, 'Сверху добавить начинку'],
+      steps: [
+        `${base.name} выложить в глубокую чашу (200-250 мл объёмом)`,
+        'Сверху распределить начинку слоями: сначала фрукты/ягоды, затем орехи/семечки',
+        'По желанию полить мёдом или сиропом топинамбура',
+        'Совет: если творог суховат, добавьте 1 ст.л. греческого йогурта для кремовости',
+      ],
       tags: ['snack', 'maintain', base.tag],
       allergens: [...new Set(['lactose', ...top.allergens])],
     });
@@ -2398,7 +2476,14 @@ for (const prot of MINCE_PROTEINS) {
         ing('Овсяные хлопья', K.oatsRaw, 30),
         ...(variant.ru.includes('томат') ? [ing('Помидоры в собственном соку', K.tomatoCanned, 200)] : []),
       ],
-      steps: [`${prot.cap} смешать с луком, яйцом, хлопьями`, 'Слепить котлеты/тефтели', ...variant.cookSteps],
+      steps: [
+        `${prot.cap} (если не фарш — измельчить в блендере или мясорубке)`,
+        'Лук натереть на мелкой тёрке для сочности (не обжаривать)',
+        'Смешать фарш с луком, яйцом, овсяными хлопьями, посолить-поперчить',
+        'Отбить фарш о доску 10-15 раз — масса станет эластичной, котлеты не развалятся',
+        'Влажными руками сформировать котлеты/тефтели нужного размера',
+        ...variant.cookSteps,
+      ],
       tags: variant.tags,
       allergens: [...new Set(['eggs', 'gluten', ...(prot.allergens ?? [])])],
     });
