@@ -215,6 +215,63 @@ describe('POST /api/subscription/webhook — generic provider', () => {
   });
 });
 
+// ─── Webhook idempotency / stale-event replay protection ─────────────────────
+
+describe('POST /api/subscription/webhook — idempotency (stale-event guard)', () => {
+  beforeEach(resetMocks);
+
+  const baseBody = {
+    event: 'subscription_activated',
+    userId: 'user-idemp-1',
+    plan: 'pro',
+    durationDays: 30,
+  };
+
+  it('SECURITY: skips upsert when current.endDate is FURTHER in the future than incoming', async () => {
+    // Replay scenario: a delayed `subscription_renewed` webhook arrives
+    // AFTER a more-recent `subscription_renewed` already extended the
+    // sub. Replaying the old event must NOT revert endDate backwards.
+    // The guard in subscription.ts:298 collapses both equality and
+    // strict-greater into a `current.endDate >= endDate` skip.
+    (mp.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-idemp-1' });
+    (mp.subscription.findUnique as jest.Mock).mockResolvedValue({
+      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90d future
+    });
+
+    const res = await request(app)
+      .post('/api/subscription/webhook')
+      .set('x-webhook-secret', GENERIC_SECRET)
+      .send(baseBody); // would set endDate = now + 30d (BEFORE current)
+
+    expect(res.status).toBe(200);
+    expect(res.body.skipped).toBe(true);
+    // Critically: upsert must NEVER fire on a stale event — otherwise
+    // a replay could shrink the user's subscription window.
+    expect(mp.subscription.upsert).not.toHaveBeenCalled();
+  });
+
+  it('upsert fires when incoming endDate is strictly newer than current', async () => {
+    // Positive case: a legit renewal extending the sub forward.
+    (mp.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-idemp-1' });
+    (mp.subscription.findUnique as jest.Mock).mockResolvedValue({
+      endDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    });
+
+    const res = await request(app)
+      .post('/api/subscription/webhook')
+      .set('x-webhook-secret', GENERIC_SECRET)
+      .send(baseBody); // sets endDate to now + 30d
+
+    expect(res.status).toBe(200);
+    expect(res.body.skipped).toBeUndefined();
+    expect(mp.subscription.upsert).toHaveBeenCalledTimes(1);
+    const upsertArgs = (mp.subscription.upsert as jest.Mock).mock.calls[0][0];
+    // The "where" must scope to userId — IDOR-style protection from
+    // server-side state confusion.
+    expect(upsertArgs.where.userId).toBe('user-idemp-1');
+  });
+});
+
 // ─── Subscription Activate (client-side) ─────────────────────────────────────
 
 describe('POST /api/subscription/activate', () => {
