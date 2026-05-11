@@ -1408,9 +1408,12 @@ describe('GET /api/admin/digest/preview', () => {
 // ─── GET /api/admin/digest/readiness ─────────────────────────────────────────
 //
 // Diagnostic for the founder to see which admins will receive tomorrow's
-// digest. Auth-only (any authenticated user can call) — but the response
-// only includes admin identities, which is acceptable since admin email
-// addresses are already exposed elsewhere in the admin UI.
+// digest. Two response shapes:
+//   - ADMIN caller: full payload (admin email array + bootstrap email value)
+//   - non-admin caller: minimal self-info { youAreAdmin:false, ... } — no
+//     admin emails leaked. Earlier the route was auth-only and leaked the
+//     entire admin email list to any signed-in user; the PII pin below
+//     locks in the new gating.
 
 describe('GET /api/admin/digest/readiness', () => {
   it('401 without token', async () => {
@@ -1418,7 +1421,7 @@ describe('GET /api/admin/digest/readiness', () => {
     expect(res.status).toBe(401);
   });
 
-  it('200 returns adminCount + bootstrap status + per-admin readiness', async () => {
+  it('200 returns adminCount + bootstrap status + per-admin readiness for ADMIN', async () => {
     (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([
       {
         id: 'u-admin',
@@ -1439,6 +1442,7 @@ describe('GET /api/admin/digest/readiness', () => {
       .set('Authorization', `Bearer ${makeToken()}`);
 
     expect(res.status).toBe(200);
+    expect(res.body.youAreAdmin).toBe(true);
     expect(res.body.adminCount).toBe(2);
     expect(Array.isArray(res.body.admins)).toBe(true);
     expect(res.body.admins).toHaveLength(2);
@@ -1448,6 +1452,54 @@ describe('GET /api/admin/digest/readiness', () => {
     const a2 = res.body.admins.find((a: any) => a.id === 'u-admin-2');
     expect(a1.hasPushToken).toBe(true);
     expect(a2.hasPushToken).toBe(false);
+  });
+
+  // SECURITY: PII-leak pin. Earlier this route returned the full admin
+  // email array to ANY authenticated user (so any signed-up account could
+  // GET /admin/digest/readiness and harvest the email of every admin).
+  // After the gate split, non-admins get a minimal self-info shape.
+  // If a future refactor reopens the leak, these asserts trip.
+  it('SECURITY: 200 returns minimal self-info for non-admin caller (PII leak pin)', async () => {
+    // Full override of the beforeEach mockImplementation. mockResolvedValueOnce
+    // doesn't reliably take precedence over mockImplementation in this
+    // setup — the existing "403 for regular USER" tests upstream use the
+    // same `mockResolvedValue` pattern.
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(regularUser);
+
+    const res = await request(app)
+      .get('/api/admin/digest/readiness')
+      .set('Authorization', `Bearer ${makeToken('u-regular', 'USER')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.youAreAdmin).toBe(false);
+    // CRITICAL: no admin email list leaked
+    expect(res.body.admins).toBeUndefined();
+    // CRITICAL: no bootstrap email value leaked (the env var content)
+    expect(res.body.bootstrapEmail).toBeUndefined();
+    // CRITICAL: no admin count leaked (count is correlated with admin
+    // identity via /admin/users — we don't surface it for non-admins)
+    expect(res.body.adminCount).toBeUndefined();
+    // findMany on the admin list must NEVER fire for non-admin callers,
+    // otherwise a future bug could re-introduce the leak via response
+    // refactor while still hitting the DB.
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: 200 returns minimal self-info for SUPPORT role (PII leak pin)', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ...regularUser,
+      id: 'u-support',
+      role: 'SUPPORT',
+    });
+
+    const res = await request(app)
+      .get('/api/admin/digest/readiness')
+      .set('Authorization', `Bearer ${makeToken('u-support', 'SUPPORT')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.youAreAdmin).toBe(false);
+    expect(res.body.admins).toBeUndefined();
+    expect(res.body.bootstrapEmail).toBeUndefined();
   });
 });
 
