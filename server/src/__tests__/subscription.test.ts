@@ -200,6 +200,34 @@ describe('POST /api/subscription/activate', () => {
     expect(res.status).toBe(400);
   });
 
+  // SECURITY: trial path must reject trainer/club tiers. Earlier the zod
+  // schema accepted enum('pro'|'trainer'|'club') and the trial branch
+  // happily created any of them, which let any free user grab 7 days of
+  // trainer privileges (reading/mutating TrainerClient rows, generating
+  // invite codes) just by sending {plan:'trainer'}. The fix in
+  // subscription.ts hardcodes the trial schema to z.literal('pro'); these
+  // pins catch a regression if anyone widens the enum again.
+  it('SECURITY: 400 when trial activates plan=trainer (privilege escalation pin)', async () => {
+    const res = await request(app)
+      .post('/api/subscription/activate')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ plan: 'trainer', durationDays: 7 });
+
+    expect(res.status).toBe(400);
+    // Critically: the create must NEVER fire for a trainer-trial attempt.
+    expect(prisma.subscription.create).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: 400 when trial activates plan=club (privilege escalation pin)', async () => {
+    const res = await request(app)
+      .post('/api/subscription/activate')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ plan: 'club', durationDays: 7 });
+
+    expect(res.status).toBe(400);
+    expect(prisma.subscription.create).not.toHaveBeenCalled();
+  });
+
   it('403 when transactionId is provided (only allowed via webhook)', async () => {
     const res = await request(app)
       .post('/api/subscription/activate')
