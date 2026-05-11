@@ -412,71 +412,38 @@ process.on('uncaughtException', (err) => {
   setTimeout(() => process.exit(1), 2000).unref();
 });
 
+// Cleanup jobs — extracted to utils/cleanupJobs.ts so each predicate is
+// directly unit-testable. Schedules stay here; logic + reportError tags
+// live in the extracted functions.
+import {
+  runRefreshTokenAndDeviceCleanup,
+  runTotpReplayCleanup,
+  runOtpCodesCleanup,
+  runPasswordResetCleanup,
+} from './utils/cleanupJobs';
+
 // Cleanup expired/revoked refresh tokens and expired trusted devices every 6 hours
 setInterval(async () => {
-  try {
-    const db = (await import('./db')).prisma;
-    const { count: rtCount } = await db.refreshToken.deleteMany({
-      where: { OR: [{ expiresAt: { lt: new Date() } }, { revoked: true, createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }] },
-    });
-    const { count: tdCount } = await db.trustedDevice.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
-    });
-    if (rtCount > 0) logger.info(`[Cleanup] Deleted ${rtCount} expired/revoked refresh tokens`);
-    if (tdCount > 0) logger.info(`[Cleanup] Deleted ${tdCount} expired trusted devices`);
-  } catch (err) {
-    // Cleanup failures aren't user-facing but compounding silent failures
-    // mean we'd silently leak storage; surface them to Sentry so they're
-    // visible in the issue feed.
-    reportError(err as Error, { tags: { origin: 'cleanup-tokens-devices' } });
-  }
+  const db = (await import('./db')).prisma;
+  await runRefreshTokenAndDeviceCleanup(db);
 }, 6 * 60 * 60 * 1000).unref();
 
 // Cleanup used TOTP codes older than 90s (replay window) every 5 minutes
 setInterval(async () => {
-  try {
-    const cutoff = new Date(Date.now() - 90 * 1000);
-    await (await import('./db')).prisma.usedTotpCode.deleteMany({
-      where: { usedAt: { lt: cutoff } },
-    });
-  } catch (err) {
-    reportError(err as Error, { tags: { origin: 'cleanup-totp-replay' } });
-  }
+  const db = (await import('./db')).prisma;
+  await runTotpReplayCleanup(db);
 }, 5 * 60 * 1000).unref();
 
 // Cleanup expired/used OTP codes and stale TOTP replay records every hour
 setInterval(async () => {
-  try {
-    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const db = (await import('./db')).prisma;
-    const { count } = await db.otpCode.deleteMany({
-      where: {
-        OR: [
-          { expiresAt: { lt: new Date() } }, // expired (regardless of used status)
-          { used: true, createdAt: { lt: cutoff24h } }, // used + older than 24h
-        ],
-      },
-    });
-    if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used OTP codes`);
-    // UsedTotpCode only needs 90s replay window; purge anything older than 5 minutes
-    const totpCutoff = new Date(Date.now() - 5 * 60 * 1000);
-    const { count: totpCount } = await db.usedTotpCode.deleteMany({ where: { usedAt: { lt: totpCutoff } } });
-    if (totpCount > 0) logger.info(`[Cleanup] Deleted ${totpCount} stale TOTP replay records`);
-  } catch (err) {
-    reportError(err as Error, { tags: { origin: 'cleanup-otp-codes' } });
-  }
+  const db = (await import('./db')).prisma;
+  await runOtpCodesCleanup(db);
 }, 60 * 60 * 1000).unref();
 
 // Cleanup expired password reset tokens every 6 hours
 setInterval(async () => {
-  try {
-    const { count } = await (await import('./db')).prisma.passwordResetToken.deleteMany({
-      where: { OR: [{ expiresAt: { lt: new Date() } }, { used: true, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } }] },
-    });
-    if (count > 0) logger.info(`[Cleanup] Deleted ${count} expired/used password reset tokens`);
-  } catch (err) {
-    reportError(err as Error, { tags: { origin: 'cleanup-password-reset' } });
-  }
+  const db = (await import('./db')).prisma;
+  await runPasswordResetCleanup(db);
 }, 6 * 60 * 60 * 1000).unref();
 
 // Prune expired in-memory cache entries every 10 minutes to prevent memory growth.
