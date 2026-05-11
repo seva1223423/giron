@@ -543,6 +543,66 @@ describe('PATCH /api/admin/users/:id/subscription', () => {
     expect(logCalls[0][0].data.action).toBe('CHANGE_SUBSCRIPTION');
     expect(logCalls[0][0].data.adminId).toBe('u-admin');
   });
+
+  // ── Step-up reauth pins (HIGH-11) ──────────────────────────────────────────
+
+  it('SECURITY: 400 ADMIN_PASSWORD_REQUIRED without adminPassword + NO subscription write', async () => {
+    // Financial mutations like changing a user's plan require step-up
+    // reauth — a stolen access token alone must not be enough. Without
+    // adminPassword the route must reject AND not touch the subscription.
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ plan: 'free' }); // no adminPassword
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('ADMIN_PASSWORD_REQUIRED');
+    expect(prisma.subscription.upsert).not.toHaveBeenCalled();
+    expect(prisma.adminLog.create).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: 401 INVALID_ADMIN_PASSWORD + ADMIN_REAUTH_FAILED event + no upsert', async () => {
+    // Wrong password must:
+    //   1. Return 401 INVALID_ADMIN_PASSWORD
+    //   2. Write ADMIN_REAUTH_FAILED security event so SIEM catches the pattern
+    //   3. NOT modify the subscription
+    const bcrypt = require('bcryptjs').default;
+    bcrypt.compare.mockResolvedValueOnce(false);
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ plan: 'free', adminPassword: 'wrong' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('INVALID_ADMIN_PASSWORD');
+
+    // Audit trail must be present so brute-force gets caught by alerts.
+    const seCalls = (prisma.securityEvent.create as jest.Mock).mock.calls;
+    const reauthFail = seCalls.find((c) => c[0]?.data?.action === 'ADMIN_REAUTH_FAILED');
+    expect(reauthFail).toBeDefined();
+    expect(reauthFail![0].data.userId).toBe('u-admin');
+
+    expect(prisma.subscription.upsert).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: AdminLog details captures both plan AND status (audit trail completeness)', async () => {
+    const mockSub = { id: 'sub-1', userId: TARGET_ID, plan: 'pro', status: 'cancelled', endDate: null };
+    (prisma.subscription.upsert as jest.Mock).mockResolvedValueOnce(mockSub);
+
+    await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({ plan: 'pro', status: 'cancelled', adminPassword: 'admin-pass' });
+
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const details = logCalls[0][0].data.details as string;
+    // Forensics must see BOTH the new plan and the new status — otherwise
+    // a downgrade like \"pro → free\" looks the same as \"pro stays pro\"
+    // in the log.
+    expect(details).toContain('pro');
+    expect(details).toContain('cancelled');
+  });
 });
 
 // ─── DELETE /api/admin/users/:id ─────────────────────────────────────────────
