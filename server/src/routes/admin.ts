@@ -2145,29 +2145,55 @@ router.get('/digest/preview', requireAdmin, async (_req: AuthRequest, res: Respo
 
 /**
  * GET /admin/digest/readiness — diagnostic endpoint that reports whether
- * everything required for the daily digest is in place. Returns
- * per-recipient status so the founder can see at a glance which admin
- * users will receive the digest tomorrow morning vs. which are missing
- * push token, email, or aren't registered yet.
+ * everything required for the daily digest is in place.
  *
- * Output shape:
- *   {
- *     adminCount,                   // total users with role=ADMIN
- *     bootstrapEmail,               // ADMIN_BOOTSTRAP_EMAIL env value (or null)
- *     bootstrapEmailRegistered,     // true if a user with that email exists
- *     smtpConfigured,               // whether SMTP_HOST/USER/PASS are set
- *     admins: [{ id, email, hasPushToken, ... }],
- *   }
+ * Two response shapes depending on caller role:
  *
- * Doesn't require admin role to read because it's used during initial
- * bootstrap *before* the founder can prove they're admin (the answer
- * tells them whether they are). It does require auth — anonymous users
- * shouldn't see admin emails. Rate-limited via the global admin limiter
- * upstream.
+ * 1. Caller is ADMIN → full payload with per-recipient status (which
+ *    admin will get the digest tomorrow morning, push token status,
+ *    bootstrap email value, admin email list).
+ *
+ * 2. Caller is NOT admin → minimal self-info payload. Earlier this route
+ *    returned the full admin email array to ANY authenticated user
+ *    (the doc said it was bootstrap-friendly: "the answer tells them
+ *    whether they are admin"). But that goal only needs the caller's
+ *    OWN status — leaking the bootstrap email value and the email of
+ *    every other admin is a PII leak with no bootstrap benefit. The
+ *    minimal shape still answers the bootstrap question:
+ *      - youAreAdmin: tells the founder if their account took the role
+ *      - bootstrapEmailRegistered: tells them if the email they set in
+ *        env actually corresponds to a registered account yet
+ *      - smtpConfigured: env diagnostic
+ *    Crucially we do NOT echo back the bootstrap email value or any
+ *    other admin's email/firstName/id.
+ *
+ * Rate-limited via the global admin limiter upstream.
  */
-router.get('/digest/readiness', authenticate, async (_req: AuthRequest, res: Response) => {
+router.get('/digest/readiness', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase() ?? null;
+
+    const { isSmtpConfigured } = await import('../services/emailService');
+    const smtpConfigured = isSmtpConfigured();
+
+    let bootstrapEmailRegistered = false;
+    if (bootstrapEmail) {
+      const exists = await prisma.user.count({ where: { email: bootstrapEmail } });
+      bootstrapEmailRegistered = exists > 0;
+    }
+
+    const isAdmin = req.userRole === 'ADMIN';
+
+    if (!isAdmin) {
+      // Minimal self-info shape for non-admins. Bootstrap UX preserved
+      // (founder sees if SMTP + their email registration is in place)
+      // without leaking the email list of other admins.
+      return res.json({
+        youAreAdmin: false,
+        bootstrapEmailRegistered,
+        smtpConfigured,
+      });
+    }
 
     const admins = await prisma.user.findMany({
       where: { role: 'ADMIN', isBanned: false },
@@ -2179,20 +2205,8 @@ router.get('/digest/readiness', authenticate, async (_req: AuthRequest, res: Res
       },
     });
 
-    let bootstrapEmailRegistered = false;
-    if (bootstrapEmail) {
-      const exists = await prisma.user.count({ where: { email: bootstrapEmail } });
-      bootstrapEmailRegistered = exists > 0;
-    }
-
-    // Single source of truth for SMTP-configured detection. Was previously
-    // a duplicate of the same env-var check in emailService.ts, which
-    // would have drifted if the rule ever changed (e.g. requiring SMTP_FROM
-    // too). Now both paths read isSmtpConfigured() from one place.
-    const { isSmtpConfigured } = await import('../services/emailService');
-    const smtpConfigured = isSmtpConfigured();
-
     res.json({
+      youAreAdmin: true,
       adminCount: admins.length,
       bootstrapEmail,
       bootstrapEmailRegistered,
