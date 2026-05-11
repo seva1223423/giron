@@ -27,6 +27,15 @@ const INDEX_SRC = fs.readFileSync(
   path.resolve(__dirname, '..', 'index.ts'),
   'utf8',
 );
+// The cleanup predicates were extracted to utils/cleanupJobs.ts so they
+// can be unit-tested with a mock Prisma (see cleanupJobs.test.ts). The
+// static-grep here covers BOTH files together — we want one source of
+// truth for "this predicate exists" regardless of which file owns it.
+const CLEANUP_SRC = fs.readFileSync(
+  path.resolve(__dirname, '..', 'utils', 'cleanupJobs.ts'),
+  'utf8',
+);
+const COMBINED = INDEX_SRC + '\n' + CLEANUP_SRC;
 
 // ─── Refresh-token + trusted-device cleanup ──────────────────────────────────
 
@@ -40,7 +49,8 @@ describe('Cleanup cron — refresh tokens + trusted devices (every 6h)', () => {
 
   test('deletes expired refresh tokens (expiresAt < now)', () => {
     // Confirms the `expiresAt: { lt: new Date() }` predicate stays.
-    expect(INDEX_SRC).toMatch(
+    // Lives in cleanupJobs.ts post-extraction; COMBINED covers both files.
+    expect(COMBINED).toMatch(
       /refreshToken\.deleteMany[\s\S]*?expiresAt:\s*\{\s*lt:\s*new Date\(\)\s*\}/,
     );
   });
@@ -50,13 +60,14 @@ describe('Cleanup cron — refresh tokens + trusted devices (every 6h)', () => {
     // (legit alerts within last week); > 7 days = drop. If anyone
     // shortens to < 24h, the audit window becomes useless; if longer
     // than 30d, the table grows linearly with churn.
-    expect(INDEX_SRC).toMatch(
-      /revoked:\s*true,\s*createdAt:\s*\{\s*lt:\s*new Date\(Date\.now\(\)\s*-\s*7\s*\*\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000\)\s*\}/,
+    // Now uses the SEVEN_DAYS_MS constant inside cleanupJobs.ts.
+    expect(COMBINED).toMatch(
+      /revoked:\s*true,\s*createdAt:\s*\{\s*lt:\s*new Date\(Date\.now\(\)\s*-\s*SEVEN_DAYS_MS\)\s*\}/,
     );
   });
 
   test('deletes expired trusted devices', () => {
-    expect(INDEX_SRC).toMatch(
+    expect(COMBINED).toMatch(
       /trustedDevice\.deleteMany[\s\S]*?expiresAt:\s*\{\s*lt:\s*new Date\(\)\s*\}/,
     );
   });
@@ -65,7 +76,7 @@ describe('Cleanup cron — refresh tokens + trusted devices (every 6h)', () => {
     // If the cleanup throws (DB blip, connection drop), the failure must
     // surface to Sentry — otherwise the table grows silently. Pin both
     // the try wrapper and the reportError tag.
-    expect(INDEX_SRC).toMatch(
+    expect(COMBINED).toMatch(
       /origin:\s*['"]cleanup-tokens-devices['"]/,
     );
   });
@@ -83,12 +94,13 @@ describe('Cleanup cron — TOTP replay records (every 5min)', () => {
   test('deletes UsedTotpCode rows older than 90s (TOTP replay window)', () => {
     // TOTP code is valid for 30s + 1-step window = ~90s. Used codes older
     // than that can't be replayed anyway, so they're safe to drop.
-    expect(INDEX_SRC).toMatch(/Date\.now\(\)\s*-\s*90\s*\*\s*1000/);
-    expect(INDEX_SRC).toMatch(/usedTotpCode\.deleteMany[\s\S]*?usedAt:\s*\{\s*lt:/);
+    // Constant NINETY_SECONDS_MS lives in cleanupJobs.ts.
+    expect(COMBINED).toMatch(/NINETY_SECONDS_MS\s*=\s*90\s*\*\s*1000/);
+    expect(COMBINED).toMatch(/usedTotpCode\.deleteMany[\s\S]*?usedAt:\s*\{\s*lt:/);
   });
 
   test('cleanup runs inside try/catch with reportError tag', () => {
-    expect(INDEX_SRC).toMatch(
+    expect(COMBINED).toMatch(
       /origin:\s*['"]cleanup-totp-replay['"]/,
     );
   });
@@ -102,12 +114,12 @@ describe('Cleanup cron — OTP codes (every 1h)', () => {
   });
 
   test('deletes expired OTP codes (regardless of used)', () => {
-    expect(INDEX_SRC).toMatch(/otpCode\.deleteMany/);
-    expect(INDEX_SRC).toMatch(/expiresAt:\s*\{\s*lt:\s*new Date\(\)\s*\}/);
+    expect(COMBINED).toMatch(/otpCode\.deleteMany/);
+    expect(COMBINED).toMatch(/expiresAt:\s*\{\s*lt:\s*new Date\(\)\s*\}/);
   });
 
   test('deletes used OTP codes older than 24h', () => {
-    expect(INDEX_SRC).toMatch(
+    expect(COMBINED).toMatch(
       /used:\s*true,\s*createdAt:\s*\{\s*lt:\s*cutoff24h\s*\}/,
     );
   });
