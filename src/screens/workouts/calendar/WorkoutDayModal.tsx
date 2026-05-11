@@ -37,7 +37,7 @@ export const WorkoutDayModal: React.FC<Props> = ({ visible, onClose, selectedDay
                   const totalVol = completedSets.reduce((s: number, st: any) => s + (st.weight && st.reps ? st.weight * st.reps : 0), 0);
                   return (
                     <View key={wi} style={{ marginTop: wi > 0 ? spacing.lg : spacing.md }}>
-                      <Text style={[typography.bodySemibold, { color: colors.text }]}>{w.name || 'Тренировка'}</Text>
+                      <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{w.name || 'Тренировка'}</Text>
                       <View style={styles.workoutMeta}>
                         <Text style={[typography.caption, { color: colors.textSecondary }]}>{completedSets.length} подходов</Text>
                         {totalVol > 0 && <Text style={[typography.caption, { color: colors.textSecondary }]}>· {Math.round(totalVol)} кг объём</Text>}

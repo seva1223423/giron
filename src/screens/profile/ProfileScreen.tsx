@@ -567,7 +567,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Телефон</Text>
-            <Text style={[typography.caption, { color: user?.phoneVerified ? '#34C759' : colors.textTertiary }]}>
+            <Text style={[typography.caption, { color: user?.phoneVerified ? '#34C759' : colors.textTertiary }]} numberOfLines={1}>
               {user?.phone
                 ? (user?.phoneVerified ? `${user.phone} · подтверждён` : `${user.phone} · не подтверждён`)
                 : 'Не привязан'}
@@ -638,7 +638,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Привязанные аккаунты</Text>
-            <Text style={[typography.caption, { color: colors.textTertiary }]}>VK · Яндекс · Google</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>VK · Яндекс · Google</Text>
           </View>
           {(() => {
             const linkedCount = [user?.hasVk, (user?.yandexId || user?.hasYandex), (user?.googleId || user?.hasGoogle)].filter(Boolean).length;
@@ -661,7 +661,7 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.smallMedium, { color: colors.text }]}>Сменить пароль</Text>
-            <Text style={[typography.caption, { color: colors.textTertiary }]}>Изменить пароль от аккаунта</Text>
+            <Text style={[typography.caption, { color: colors.textTertiary }]} numberOfLines={1}>Изменить пароль от аккаунта</Text>
           </View>
           <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
         </TouchableOpacity>

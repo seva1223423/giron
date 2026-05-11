@@ -78,7 +78,7 @@ export function GoogleAuthButton({ onError, onTotpRequired, disabled, mode = 'lo
         ? <View style={{ marginRight: spacing.sm }}><Spinner color={colors.primary} size={20} /></View>
         : <Text style={[typography.h4, { marginRight: spacing.sm, color: brandColors.google }]}>G</Text>
       }
-      <Text style={[typography.bodySemibold, { color: colors.text }]}>{label}</Text>
+      <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
 }
