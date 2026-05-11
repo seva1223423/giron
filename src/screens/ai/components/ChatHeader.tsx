@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeTop } from '../../../hooks/useSafeTop';
-import { useThemeStore, useSubscriptionStore, FREE_LIMITS } from '../../../store';
+import { useThemeStore, useSubscriptionStore, useWorkoutStore, FREE_LIMITS } from '../../../store';
 import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -45,6 +45,24 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
   const safeTop = useSafeTop();
   const { colors } = useThemeStore();
   const { isPremiumActive, aiMessagesLeft } = useSubscriptionStore();
+  // Memory-cue subtitle: workout count + PR count come from the local
+  // workout store. There's no dedicated personalRecords slice, so we
+  // infer PRs from workout history (sum sets flagged isPR by the
+  // store's completion logic). Brand-new users (0/0) get the original
+  // generic copy so the header doesn't look like a bug.
+  const workoutHistory = useWorkoutStore((s) => s.workoutHistory);
+  const workoutsLen = workoutHistory.length;
+  let prCount = 0;
+  for (const w of workoutHistory) {
+    for (const ex of w.exercises ?? []) {
+      for (const set of ex.sets ?? []) {
+        if (set.isPR) prCount++;
+      }
+    }
+  }
+  const memorySubtitle = workoutsLen === 0 && prCount === 0
+    ? 'Онлайн · помнит вашу историю'
+    : `Знает: ${workoutsLen} тренировок · ${prCount} PR · ваш ритм`;
 
   const quotaText = isPremiumActive()
     ? '∞ Pro'
@@ -103,7 +121,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
               style={[typography.caption, { color: colors.success }]}
               numberOfLines={1}
             >
-              Онлайн · помнит вашу историю
+              {memorySubtitle}
             </Text>
           </View>
         </View>

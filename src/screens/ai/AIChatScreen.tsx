@@ -11,7 +11,7 @@ import { ChatMessage } from '../../types';
 import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionService, workoutService } from '../../services';
 import { applyAINavigation } from '../../utils/aiNavigation';
 import {
-  ChatHeader, MessageBubble, QuickPromptsList, TypingIndicator,
+  ChatHeader, ChatContextStrip, MessageBubble, QuickPromptsList, TypingIndicator,
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
   SuggestionChips, FirstPromptCta,
 } from './components';
@@ -411,6 +411,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
       <ChatHeader lastMeta={lastMeta} />
+      <ChatContextStrip />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="ai_limit" navigation={navigation} />
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>

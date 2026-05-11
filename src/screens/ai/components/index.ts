@@ -1,4 +1,5 @@
 export { ChatHeader } from './ChatHeader';
+export { ChatContextStrip } from './ChatContextStrip';
 export { MessageBubble } from './MessageBubble';
 export { QuickPromptsList } from './QuickPromptsList';
 export { TypingIndicator } from './TypingIndicator';
