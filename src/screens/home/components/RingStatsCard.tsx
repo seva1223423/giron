@@ -153,8 +153,8 @@ export const RingStatsCard: React.FC<Props> = ({ dayProgress, rows }) => {
                   marginBottom: 4,
                 }}
               >
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>{r.label}</Text>
-                <Text style={[typography.caption, { color: colors.text, fontVariant: ['tabular-nums'] }]}>
+                <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>{r.label}</Text>
+                <Text style={[typography.caption, { color: colors.text, fontVariant: ['tabular-nums'] }]} numberOfLines={1}>
                   {r.value}
                 </Text>
               </View>

@@ -1,30 +1,53 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
-import { useSafeTop } from '../../hooks/useSafeTop';
 import { useAchievementCheck } from '../../hooks/useAchievementCheck';
-import { useThemeStore, useNutritionStore } from '../../store';
+import { useThemeColors, useNutritionStore } from '../../store';
 import type { Achievement } from '../../utils/achievements';
-import { Button, Tooltip, Icon } from '../../components';
-import { typography } from '../../theme';
+import { Tooltip } from '../../components';
 import { spacing } from '../../theme/spacing';
 import { NutritionItem } from '../../types';
 import {
-  GoalsModal, QuickAddModal, DailyOverview, WaterTracker, WeekStats,
-  SavedFoodsQuickAdd, MealSection, DateNavigator, MEAL_TYPES, QuickMeals,
+  GoalsModal,
+  QuickAddModal,
+  DailyOverview,
+  WaterTracker,
+  SavedFoodsQuickAdd,
+  MealSection,
+  DateNavigator,
+  MEAL_TYPES,
+  QuickMeals,
+  NutritionHeader,
+  NutritionHeroButton,
+  NutritionTabBar,
+  NutritionTab,
+  NutritionMenu,
+  WeekTab,
 } from './components';
 import { localDateStr } from '../../utils/date';
 
 const todayDate = () => localDateStr(new Date());
 
+/**
+ * Nutrition root screen — Direction A redesign mirroring Workouts.
+ *
+ *   Header (title + 🔍 + ⋮)
+ *   NutritionHeroButton  (Сканировать еду → FoodScanner)
+ *   TabBar               (Сегодня / Неделя)
+ *   ─ Сегодня tab → DateNavigator + DailyOverview + QuickMeals + Tooltip
+ *                   + SavedFoodsQuickAdd + WaterTracker + 4× MealSection
+ *   ─ Неделя tab  → WeekTab (WeekStats wrapper)
+ *   ⋮ menu         → inline panel: Цели, История, Рецепты, ИИ-план, Калькулятор
+ */
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [quickAddFood, setQuickAddFood] = useState<NutritionItem | null>(null);
+  const [tab, setTab] = useState<NutritionTab>('today');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleAchievementsUnlocked = useCallback((achievements: Achievement[]) => {
     haptic.success();
@@ -49,19 +72,12 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   const handlePhotoScan = () => navigation.navigate('FoodScanner');
 
-  const SUB_TABS: { key: string; label: string; a11y: string }[] = [
-    { key: 'NutritionHistory', label: 'История',     a11y: 'История приёмов пищи' },
-    { key: 'Recipes',          label: 'Рецепты',     a11y: 'Библиотека рецептов' },
-    { key: 'MealPlan',         label: 'ИИ-план',     a11y: 'План питания от ИИ' },
-    { key: 'MacroCalculator',  label: 'Калькулятор', a11y: 'Калькулятор КБЖУ' },
-  ];
+  // TODO: dedicated food/recipe search screen — currently routes to the
+  // Recipes browse list as a placeholder until a unified search lands.
+  const handleSearchPress = () => navigation.navigate('Recipes');
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: safeTop }]}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <GoalsModal visible={showGoalsModal} onClose={() => setShowGoalsModal(false)} selectedDate={selectedDate} />
       <QuickAddModal
         visible={showQuickAddModal}
@@ -70,88 +86,48 @@ export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         selectedDate={selectedDate}
       />
 
-      {/* Title row + primary action "Цели" */}
-      <View style={styles.header}>
-        <Text style={[typography.h2, { color: colors.text }]}>Питание</Text>
-        <TouchableOpacity
-          onPress={() => { haptic.selection(); setShowGoalsModal(true); }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel="Настроить дневные цели по КБЖУ"
-          accessibilityRole="button"
-        >
-          <View style={{ backgroundColor: colors.primary + '15', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.primary + '35' }}>
-            <Text style={[typography.smallMedium, { color: colors.primary }]} numberOfLines={1}>Цели</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+      <NutritionHeader
+        onSearchPress={handleSearchPress}
+        onMenuPress={() => setMenuOpen((v) => !v)}
+      />
+      <NutritionHeroButton onPress={handlePhotoScan} />
+      <NutritionTabBar activeTab={tab} onTabChange={setTab} />
 
-      {/* Sub-section tabs — horizontally scrollable so they never overflow viewport */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsRow}
-        style={styles.tabsScroller}
-      >
-        {SUB_TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            onPress={() => { haptic.selection(); navigation.navigate(tab.key); }}
-            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-            accessibilityLabel={tab.a11y}
-            accessibilityRole="button"
-            style={[styles.tabPill, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <Text style={[typography.smallMedium, { color: colors.textSecondary }]} numberOfLines={1}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {tab === 'today' ? (
+          <>
+            <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
+            <DailyOverview selectedDate={selectedDate} />
+            <QuickMeals selectedDate={selectedDate} />
+            <Tooltip tipId="nutrition-scan" text="Нажми кнопку выше для сканирования еды по фото или штрих-коду" />
+            <SavedFoodsQuickAdd onQuickAdd={handleQuickAdd} />
+            <WaterTracker selectedDate={selectedDate} />
+            {MEAL_TYPES.map((mt) => (
+              <MealSection
+                key={mt.key}
+                mealType={mt.key}
+                selectedDate={selectedDate}
+                navigation={navigation}
+                onPhotoScan={handlePhotoScan}
+              />
+            ))}
+          </>
+        ) : (
+          <WeekTab />
+        )}
       </ScrollView>
 
-      <DateNavigator selectedDate={selectedDate} onChange={setSelectedDate} />
-      <DailyOverview selectedDate={selectedDate} />
-      <QuickMeals selectedDate={selectedDate} />
-      <Tooltip tipId="nutrition-scan" text="Нажми кнопку ниже для сканирования еды по фото или штрих-коду" />
-
-      <Button
-        title="Сканировать еду по фото"
-        onPress={handlePhotoScan}
-        fullWidth
-        size="lg"
-        icon={<Icon name="camera" size={20} color={colors.textInverse} strokeWidth={2} />}
-        style={{ marginBottom: spacing.lg }}
-        accessibilityLabel="Сканировать еду по фото или штрих-коду"
-        accessibilityHint="Откроет камеру для AI-анализа продуктов"
+      <NutritionMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onNavigate={(screen) => navigation.navigate(screen)}
+        onOpenGoals={() => setShowGoalsModal(true)}
       />
-
-      <SavedFoodsQuickAdd onQuickAdd={handleQuickAdd} />
-      <WaterTracker selectedDate={selectedDate} />
-      <WeekStats />
-
-      {MEAL_TYPES.map((mt) => (
-        <MealSection key={mt.key} mealType={mt.key} selectedDate={selectedDate} navigation={navigation} onPhotoScan={handlePhotoScan} />
-      ))}
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.huge },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  tabsScroller: {
-    marginHorizontal: -spacing.xl,
-    marginBottom: spacing.md,
-  },
-  tabsRow: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
-    flexDirection: 'row',
-  },
-  tabPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
 });

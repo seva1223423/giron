@@ -107,7 +107,7 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
           style={[styles.proBanner, { backgroundColor: colors.accent + '12', borderColor: colors.accent + '40' }]}
         >
           <Text style={{ fontSize: 14, fontWeight: '800', color: colors.accent }}>PRO</Text>
-          <Text style={[typography.small, { color: colors.accent, flex: 1 }]}>
+          <Text style={[typography.small, { color: colors.accent, flex: 1 }]} numberOfLines={2}>
             3 из {builtInPrograms.length} программ бесплатно — <Text style={{ fontWeight: '700' }}>получи все с Pro</Text>
           </Text>
           <Text style={[typography.caption, { color: colors.accent }]}>›</Text>

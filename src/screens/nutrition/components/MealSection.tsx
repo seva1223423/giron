@@ -103,13 +103,13 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                     {meta.label} · {mealTime}
                   </Text>
                   <TouchableOpacity onPress={() => handleDeleteMeal(meal.id, meal.totalCalories)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Text style={[typography.caption, { color: colors.error }]}>Удалить всё</Text>
+                    <Text style={[typography.caption, { color: colors.error }]} numberOfLines={1}>Удалить всё</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.xs }}>
                   <TouchableOpacity onPress={() => handleDeleteMeal(meal.id, meal.totalCalories)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Text style={[typography.caption, { color: colors.error }]}>Удалить всё</Text>
+                    <Text style={[typography.caption, { color: colors.error }]} numberOfLines={1}>Удалить всё</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -126,7 +126,7 @@ export const MealSection: React.FC<Props> = ({ mealType, selectedDate, navigatio
                         {item.name.replace(/\s*\(\d+(?:[.,]\d+)?г\)$/, '').trim()}
                       </Text>
                       {expandedItemId === item.id && (
-                        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
                           {`Б ${item.protein}г · Ж ${item.fats}г · У ${item.carbs}г`}
                         </Text>
                       )}

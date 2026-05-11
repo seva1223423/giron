@@ -45,7 +45,7 @@ function StatCard({
 }) {
   return (
     <View style={styles.statCard}>
-      <Text style={styles.statTitle}>{title}</Text>
+      <Text style={styles.statTitle} numberOfLines={1}>{title}</Text>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       {sub && <Text style={styles.statSub}>{sub}</Text>}
       {trend != null && (

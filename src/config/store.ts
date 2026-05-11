@@ -60,7 +60,14 @@ export const exerciseThumbSource = (id: string): number | undefined =>
  */
 export const features = {
   // ── Social auth ──────────────────────────────────────────────────────────
-  googleOAuth: STORE_TARGET !== 'rustore',
+  // Round 290: enabled on rustore too. The original gate excluded
+  // rustore alongside Play/IAP because it conflated Google IDENTITY
+  // (OAuth) with Google PAYMENTS (Play Billing). OAuth via expo-auth-
+  // session uses Custom Tabs / system browser — no Google Play Services
+  // dependency, no rustore policy conflict. The button was simply
+  // never rendered on rustore builds, which is what users mean when
+  // they say "Google login doesn't work".
+  googleOAuth: true,
   appleSignIn: STORE_TARGET === 'appstore',
   vkOAuth: true,     // VK works in all regions, keep enabled
   yandexOAuth: true, // Yandex works in all regions, keep enabled
