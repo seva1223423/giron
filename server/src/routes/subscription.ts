@@ -76,8 +76,17 @@ router.get('/status', authenticate, async (req: AuthRequest, res: Response) => {
 router.post('/activate', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    // Trial path: hardcoded to plan='pro'. Earlier this endpoint accepted
+    // enum('pro'|'trainer'|'club'), which let any free user POST
+    // `{plan:'trainer', durationDays:7}` and get 7 days of trainer
+    // privileges (creating TrainerClient rows, generating invite codes,
+    // reading other users' trainer data) without payment. Trainer/club
+    // tiers must come from the verified webhook path only — see
+    // /subscription/webhook below. If product later wants a "trainer
+    // trial" it should be a distinct SKU with its own bizdev approval,
+    // not a self-serve free upgrade.
     const parsed = z.object({
-      plan: z.enum(['pro', 'trainer', 'club']),
+      plan: z.literal('pro'),
       durationDays: z.number().int().finite().min(1).max(7),
       transactionId: z.string().optional(),
       // 376-ФЗ §3 explicit auto-renewal consent timestamp. The client-side
