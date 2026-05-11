@@ -37,6 +37,12 @@ jest.mock('../db', () => ({
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
       upsert: jest.fn(),
+      // Optimistic-locking path on PATCH /admin/users/:id/subscription
+      // (round 286+) uses updateMany + findUnique + create. Default
+      // updateMany returns 1 so the legacy upsert tests stay happy when
+      // they don't pass expectedUpdatedAt at all.
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      create: jest.fn(),
     },
     pushToken: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -542,6 +548,93 @@ describe('PATCH /api/admin/users/:id/subscription', () => {
     expect(logCalls.length).toBeGreaterThan(0);
     expect(logCalls[0][0].data.action).toBe('CHANGE_SUBSCRIPTION');
     expect(logCalls[0][0].data.adminId).toBe('u-admin');
+  });
+
+  // ── Optimistic concurrency control (admin vs webhook race) ─────────────────
+
+  it('SECURITY: 409 CONCURRENT_MODIFICATION when expectedUpdatedAt is stale', async () => {
+    // Race: admin reads sub at T0 (updatedAt=A), webhook payment writes at T1
+    // (updatedAt=B), admin tries PATCH at T2 with expectedUpdatedAt=A.
+    // The conditional updateMany returns count=0 (A no longer matches),
+    // so the route does a fresh read and returns 409 — admin must re-read
+    // and decide explicitly.
+    (prisma.subscription.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+      userId: TARGET_ID,
+      plan: 'pro',
+      status: 'active',
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'), // someone else wrote
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({
+        plan: 'free',
+        adminPassword: 'admin-pass',
+        expectedUpdatedAt: '2026-01-01T00:00:00.000Z', // stale read
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('CONCURRENT_MODIFICATION');
+    expect(res.body.currentUpdatedAt).toBeDefined();
+    // No adminLog write on conflict — the action didn't actually happen.
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    const changeSub = logCalls.find((c) => c[0]?.data?.action === 'CHANGE_SUBSCRIPTION');
+    expect(changeSub).toBeUndefined();
+  });
+
+  it('200 when expectedUpdatedAt matches current row (no race)', async () => {
+    // Happy path with optimistic token: updateMany matches one row,
+    // route refetches and returns it.
+    (prisma.subscription.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce({
+      userId: TARGET_ID,
+      plan: 'free',
+      status: 'active',
+      updatedAt: new Date(),
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({
+        plan: 'free',
+        adminPassword: 'admin-pass',
+        expectedUpdatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.plan).toBe('free');
+    // AdminLog still fires on success.
+    const logCalls = (prisma.adminLog.create as jest.Mock).mock.calls;
+    expect(logCalls.find((c) => c[0]?.data?.action === 'CHANGE_SUBSCRIPTION')).toBeDefined();
+  });
+
+  it('200 + create when expectedUpdatedAt sent but row does not exist', async () => {
+    // First subscription for this user. expectedUpdatedAt was a guess
+    // but the row genuinely doesn't exist — route falls through to
+    // create (correctness over strict-token enforcement here, since the
+    // desired end state is identical to a fresh first-time create).
+    (prisma.subscription.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValueOnce(null); // no row
+    (prisma.subscription.create as jest.Mock).mockResolvedValueOnce({
+      userId: TARGET_ID,
+      plan: 'pro',
+      status: 'active',
+    });
+
+    const res = await request(app)
+      .patch(`/api/admin/users/${TARGET_ID}/subscription`)
+      .set('Authorization', `Bearer ${makeToken('u-admin')}`)
+      .send({
+        plan: 'pro',
+        adminPassword: 'admin-pass',
+        expectedUpdatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+    expect(res.status).toBe(200);
+    expect(prisma.subscription.create).toHaveBeenCalled();
   });
 
   // ── Step-up reauth pins (HIGH-11) ──────────────────────────────────────────

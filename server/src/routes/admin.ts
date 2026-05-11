@@ -972,6 +972,14 @@ const changeSubSchema = z.object({
   plan: z.enum(['free', 'pro', 'trainer', 'club']),
   status: z.enum(['active', 'cancelled', 'expired']).optional(),
   endDate: z.string().refine((v) => !isNaN(new Date(v).getTime()), 'Некорректная дата endDate').optional(),
+  // Optional optimistic-concurrency token. Client passes the
+  // `updatedAt` value from the last GET. If the row was modified
+  // (e.g. by a webhook payment renewal) since that read, the
+  // conditional update fires count=0 and the route returns 409
+  // CONCURRENT_MODIFICATION instead of silently overwriting a
+  // legitimate payment. When omitted, falls back to the legacy
+  // unconditional upsert (backwards compat).
+  expectedUpdatedAt: z.string().refine((v) => !isNaN(new Date(v).getTime()), 'Некорректная expectedUpdatedAt').optional(),
 });
 
 /** PATCH /admin/users/:id/subscription — override subscription */
@@ -982,27 +990,84 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: AuthRequest, r
     // Step-up re-auth (sec audit 2026-04: HIGH-11) — financial mutation
     const stepup = await requireAdminStepUp(req, res);
     if (stepup) return;
-    const sub = await prisma.subscription.upsert({
-      where: { userId: req.params.id as string },
-      update: {
-        plan: data.plan,
-        status: data.status ?? 'active',
-        ...(data.endDate !== undefined ? { endDate: new Date(data.endDate) } : {}),
-        updatedAt: new Date(),
-      },
-      create: {
-        userId: req.params.id as string,
-        plan: data.plan,
-        status: data.status ?? 'active',
-        startDate: new Date(),
-        endDate: data.endDate ? new Date(data.endDate) : null,
-      },
-    });
+
+    const targetUserId = req.params.id as string;
+    const updatePayload = {
+      plan: data.plan,
+      status: data.status ?? 'active',
+      ...(data.endDate !== undefined ? { endDate: new Date(data.endDate) } : {}),
+      updatedAt: new Date(),
+    };
+
+    // Optimistic concurrency control (round 286+).
+    //
+    // The classic race we defend against: admin reads sub at T0, decides
+    // to downgrade plan=free; webhook payment-renewed lands at T1
+    // setting plan=pro/endDate+30d; admin upsert at T2 overwrites the
+    // legit renewal back to free. The fix is a conditional update keyed
+    // on the admin's `expectedUpdatedAt` — if anyone wrote to the row
+    // between admin's GET and PATCH, the updateMany count is 0 and we
+    // reject with 409 so the admin can re-fetch and re-decide.
+    //
+    // Falls back to the legacy unconditional upsert when the client
+    // doesn't pass expectedUpdatedAt — backwards compat for clients that
+    // weren't updated yet.
+    let sub: any;
+    if (data.expectedUpdatedAt !== undefined) {
+      const expected = new Date(data.expectedUpdatedAt);
+      // Conditional update only — if the row doesn't exist we still need
+      // a create path. Two-step: try updateMany first; if 0 rows matched,
+      // either (a) row didn't exist (do create), or (b) row exists but
+      // updatedAt drifted (race). Disambiguate with a fresh read.
+      const { count } = await prisma.subscription.updateMany({
+        where: { userId: targetUserId, updatedAt: expected },
+        data: updatePayload,
+      });
+      if (count === 0) {
+        const fresh = await prisma.subscription.findUnique({ where: { userId: targetUserId } });
+        if (fresh) {
+          // Row exists but updatedAt didn't match — someone else wrote.
+          return res.status(409).json({
+            error: 'Подписка была изменена параллельно (платёж/другой админ). Обновите данные и повторите.',
+            code: 'CONCURRENT_MODIFICATION',
+            currentUpdatedAt: fresh.updatedAt,
+          });
+        }
+        // No row — create fresh. expectedUpdatedAt was wrong (client
+        // assumed a row that doesn't exist), but the desired end state
+        // is "create with this plan" so we proceed.
+        sub = await prisma.subscription.create({
+          data: {
+            userId: targetUserId,
+            plan: data.plan,
+            status: data.status ?? 'active',
+            startDate: new Date(),
+            endDate: data.endDate ? new Date(data.endDate) : null,
+          },
+        });
+      } else {
+        // Refetch to return the updated row to the client.
+        sub = await prisma.subscription.findUnique({ where: { userId: targetUserId } });
+      }
+    } else {
+      // Legacy path — unconditional upsert.
+      sub = await prisma.subscription.upsert({
+        where: { userId: targetUserId },
+        update: updatePayload,
+        create: {
+          userId: targetUserId,
+          plan: data.plan,
+          status: data.status ?? 'active',
+          startDate: new Date(),
+          endDate: data.endDate ? new Date(data.endDate) : null,
+        },
+      });
+    }
     await prisma.adminLog.create({
       data: {
         adminId: req.userId!,
         action: 'CHANGE_SUBSCRIPTION',
-        targetId: req.params.id as string,
+        targetId: targetUserId,
         details: `plan → ${data.plan}, status → ${data.status ?? 'active'}`,
       },
     });
