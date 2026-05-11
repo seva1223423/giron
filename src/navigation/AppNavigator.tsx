@@ -483,7 +483,12 @@ const linking: any = {
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isOnboarded } = useAuthStore();
   const { colors, applyAutoTheme } = useThemeStore();
-  const { isOnline } = useConnectionStore();
+  // Round 291: read the DEBOUNCED flag (`isOfflineConfirmed`) instead
+  // of the immediate `isOnline`. Banner now shows only after ≥3s of
+  // sustained offline — short blips (Render cold-start timeouts, VPN
+  // reconnects, single failed parallel request) no longer flash the
+  // banner for 1-2 seconds.
+  const isOfflineConfirmed = useConnectionStore((s) => s.isOfflineConfirmed);
   const [hydrated, setHydrated] = React.useState(() => useAuthStore.persist.hasHydrated());
 
   React.useEffect(() => {
@@ -539,7 +544,7 @@ export const AppNavigator: React.FC = () => {
     <NavigationContainer linking={linking}>
       <ErrorBoundary>
         <View style={{ flex: 1 }}>
-          {!isOnline && (
+          {isOfflineConfirmed && (
             <View style={{ backgroundColor: colors.warning, paddingVertical: 6, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Text
                 style={{ color: colors.textInverse, fontSize: 12, fontWeight: '600' }}
