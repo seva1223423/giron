@@ -21,7 +21,25 @@ const mockAddWater = jest.fn();
 const mockSetTargets = jest.fn();
 const mockAddMeal = jest.fn();
 const mockRemoveMeal = jest.fn();
-const mockGetDayLog = jest.fn(() => ({
+// Explicit return-type generic so the `meals: []` initial doesn't get
+// inferred as `never[]` — later tests do `mockReturnValueOnce` with
+// populated meals, and TS would reject those object literals against
+// the inferred `never[]` type. See PR #53 CI failure.
+type MockDayLog = {
+  targetCalories: number;
+  targetProtein: number;
+  targetFats: number;
+  targetCarbs: number;
+  waterTargetMl: number;
+  waterMl: number;
+  meals: Array<{
+    id?: string;
+    type?: string;
+    totalCalories?: number;
+    totalProtein?: number;
+  }>;
+};
+const mockGetDayLog = jest.fn<MockDayLog, [string]>(() => ({
   targetCalories: 2000,
   targetProtein: 120,
   targetFats: 60,
