@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { Card, FadeIn } from '../../../components';
+import { AchievementSticker } from '../../../components/Sticker';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { Workout } from '../../../types';
@@ -123,12 +124,10 @@ export const RecordsTab: React.FC<RecordsTabProps> = ({ colors, workoutHistory, 
                         }}
                       >
                         <View style={{
-                          width: 48, height: 48, borderRadius: 24,
-                          backgroundColor: ach.unlockedAt ? colors.accent + '18' : colors.surface,
+                          width: 48, height: 48,
                           alignItems: 'center', justifyContent: 'center',
-                          borderWidth: 1, borderColor: ach.unlockedAt ? colors.accent + '40' : colors.border,
                         }}>
-                          <Text style={{ fontSize: 20 }}>{ach.emoji}</Text>
+                          <AchievementSticker achievement={ach} size={44} />
                         </View>
                         <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textSecondary, marginTop: 4, textAlign: 'center' }} numberOfLines={2}>
                           {ach.title}

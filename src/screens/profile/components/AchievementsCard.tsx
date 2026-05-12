@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore } from '../../../store';
 import { Card, FadeIn } from '../../../components';
+import { AchievementSticker } from '../../../components/Sticker';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import type { Achievement } from '../../../utils/achievements';
@@ -42,10 +43,10 @@ export const AchievementsCard: React.FC<Props> = ({ achievements, delay = 180 })
             {(showAll ? unlocked : unlocked.slice(0, 8)).map((a) => (
               <TouchableOpacity
                 key={a.id}
-                onPress={() => Alert.alert(`${a.emoji} ${a.title}`, a.description)}
+                onPress={() => Alert.alert(a.title, a.description)}
                 style={{ flex: 1, minWidth: '22%', maxWidth: '25%', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: 4, borderRadius: borderRadius.md, borderWidth: 1, backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }}
               >
-                <Text style={{ fontSize: 22 }}>{a.emoji}</Text>
+                <AchievementSticker achievement={a} size={36} />
                 <Text style={[typography.caption, { color: colors.primary, marginTop: 4, textAlign: 'center' }]} numberOfLines={2}>{a.title}</Text>
               </TouchableOpacity>
             ))}
@@ -64,7 +65,7 @@ export const AchievementsCard: React.FC<Props> = ({ achievements, delay = 180 })
               <View key={a.id} style={{ marginBottom: spacing.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                    <Text style={{ fontSize: 18 }}>{a.emoji}</Text>
+                    <AchievementSticker achievement={a} size={26} />
                     <Text style={[typography.small, { color: colors.text, flex: 1 }]} numberOfLines={1}>{a.title}</Text>
                   </View>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>{a.progressLabel}</Text>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card, FadeIn } from '../../../components';
+import { AchievementSticker } from '../../../components/Sticker';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { ACHIEVEMENT_DEFINITIONS, Achievement } from '../../../utils/achievements';
@@ -15,7 +16,12 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
   <>
     <FadeIn delay={0}>
       <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>◉</Text>
+        {/* Replaced unicode glyph `◉` (banned per CLAUDE.md brand contract) with a
+            branded trophy sticker — same role: header anchor. */}
+        <AchievementSticker
+          achievement={{ id: 'big3_300', category: 'strength', unlocked: true }}
+          size={56}
+        />
         <Text style={[typography.h3, { color: colors.text, marginTop: spacing.md }]}>
           Достижения
         </Text>
@@ -57,19 +63,12 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({ colors, achiev
           {catAchievements.map((a) => (
             <Card key={a.id} style={{ marginBottom: spacing.sm, opacity: a.unlocked ? 1 : 0.55 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: a.unlocked ? colors.accent + '20' : colors.border + '60',
-                    borderWidth: 1.5,
-                    borderColor: a.unlocked ? colors.accent + '50' : colors.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 24, fontWeight: '700', color: a.unlocked ? colors.accent : colors.textTertiary }}>{a.emoji}</Text>
+                {/* The sticker carries its own colour & ring per design; we
+                    no longer need a coloured circle around it. Just give it
+                    a 48pt slot so layout doesn't shift between unlocked and
+                    locked rows. */}
+                <View style={styles.stickerSlot}>
+                  <AchievementSticker achievement={a} size={48} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
@@ -133,5 +132,11 @@ const styles = StyleSheet.create({
   progressFill: {
     height: 6,
     borderRadius: 3,
+  },
+  stickerSlot: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
