@@ -37,6 +37,20 @@ jest.mock('react-native', () => {
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 
+// react-native-svg is the radial-gradient aura behind the modal hero icon
+// (Direction A spec). The real package needs native SVG renderer; for unit
+// tests we only care that the import doesn't blow up — the heuristic logic
+// being pinned here doesn't render the SVG.
+jest.mock('react-native-svg', () => ({
+  __esModule: true,
+  default: 'Svg',
+  Svg: 'Svg',
+  Defs: 'Defs',
+  RadialGradient: 'RadialGradient',
+  Rect: 'Rect',
+  Stop: 'Stop',
+}));
+
 // useThemeColors() pulls AsyncStorage transitively — mock the whole store
 // module so the test never imports the persistence layer. The provider
 // reads colors only via this hook, so a stub object with the dark fallback
