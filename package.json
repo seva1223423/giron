@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@kingstinct/react-native-healthkit": "^14.0.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.15.9",
     "@react-navigation/material-top-tabs": "^7.4.24",
@@ -48,6 +49,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-ble-plx": "^3.5.1",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-health-connect": "^3.5.0",
     "react-native-pager-view": "6.9.1",

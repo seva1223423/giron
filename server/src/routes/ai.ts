@@ -807,6 +807,14 @@ const AI_TOOLS: DeepSeekTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_readiness_score',
+      description: 'Рассчитать "готовность к тренировке" (0-100) на основе данных с часов: HRV-тренд относительно 30д-базы, пульс покоя относительно 30д-базы, сон прошлой ночью (длительность + качество), недельная нагрузка. Используй когда юзер спрашивает "тренироваться ли мне сегодня?", "как я восстановился?", "стоит ли сегодня жать тяжело?", "готов ли я к тренировке?".',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'delete_cardio',
       description: 'Удалить кардио сессию. Используй когда пользователь говорит "удали кардио вчера", "уберу пробежку в среду", "ошибся, удали бег". Может удалить по ID (если AI знает его из контекста) ИЛИ по дате+типу — последняя сессия этого типа в эту дату.',
       parameters: {
@@ -3841,6 +3849,109 @@ async function executeTool(
       resultText: `Сон за ${target}: ${entry.durationHours.toFixed(1)} ч, качество ${entry.quality ?? '?'}/5.${stagesText}${entry.hrvAvg ? ` HRV ${entry.hrvAvg} мс.` : ''}${entry.spo2Avg ? ` SpO₂ среднее ${entry.spo2Avg}%.` : ''}`,
       actionDescription: '',
       actionData: entry,
+    };
+  }
+
+  // Round 240 Phase D — training readiness score (0..100). Combines
+  // four signals into a single number with breakdown. Formula is
+  // heuristic (sports-science consensus, not medical-grade) — every
+  // weight is documented inline. Output is meant to start a
+  // conversation, not replace a coach.
+  if (toolName === 'get_readiness_score') {
+    const now = Date.now();
+    const thirtyDaysAgo = new Date(now - 30 * 86400_000);
+    const sevenDaysAgo = new Date(now - 7 * 86400_000);
+    const yesterdayDate = new Date(now - 86400_000).toISOString().slice(0, 10);
+
+    const [hrvSamples, rhrSamples, sleepLast, cardio7d] = await Promise.all([
+      prisma.healthSample.findMany({
+        where: { userId, kind: 'hrv', startAt: { gte: thirtyDaysAgo } },
+        select: { value: true, startAt: true },
+        orderBy: { startAt: 'desc' },
+      }),
+      prisma.healthSample.findMany({
+        where: { userId, kind: 'restingHr', startAt: { gte: thirtyDaysAgo } },
+        select: { value: true, startAt: true },
+        orderBy: { startAt: 'desc' },
+      }),
+      prisma.sleepEntry.findFirst({
+        where: { userId, date: yesterdayDate },
+        select: { durationHours: true, quality: true, hrvAvg: true },
+      }),
+      prisma.cardioSession.findMany({
+        where: { userId, createdAt: { gte: sevenDaysAgo } },
+        select: { durationMinutes: true },
+      }),
+    ]);
+
+    if (hrvSamples.length === 0 && rhrSamples.length === 0 && !sleepLast) {
+      return {
+        resultText: 'Недостаточно данных для расчёта готовности. Спарь часы (HealthKit/Health Connect) и подожди 1-2 ночи сна — тогда сможем посчитать.',
+        actionDescription: '',
+      };
+    }
+
+    const median = (arr: number[]) => {
+      if (arr.length === 0) return null;
+      const s = [...arr].sort((a, b) => a - b);
+      const m = Math.floor(s.length / 2);
+      return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
+    };
+
+    let score = 70; // neutral baseline
+    const breakdown: string[] = [];
+
+    // HRV trend: latest vs 30d median
+    const hrvBaseline = median(hrvSamples.map((s) => s.value));
+    const hrvLatest = hrvSamples[0]?.value;
+    if (hrvBaseline && hrvLatest) {
+      const delta = (hrvLatest - hrvBaseline) / hrvBaseline;
+      if (delta >= 0.05) { score += 15; breakdown.push(`HRV ↑ (${hrvLatest.toFixed(0)} vs база ${hrvBaseline.toFixed(0)} мс): +15`); }
+      else if (delta <= -0.10) { score -= 15; breakdown.push(`HRV ↓ (${hrvLatest.toFixed(0)} vs база ${hrvBaseline.toFixed(0)} мс): -15`); }
+      else { breakdown.push(`HRV в норме (${hrvLatest.toFixed(0)} ≈ ${hrvBaseline.toFixed(0)} мс)`); }
+    }
+
+    // Resting HR: latest vs 30d median (lower is better)
+    const rhrBaseline = median(rhrSamples.map((s) => s.value));
+    const rhrLatest = rhrSamples[0]?.value;
+    if (rhrBaseline && rhrLatest) {
+      const delta = rhrLatest - rhrBaseline;
+      if (delta <= -3) { score += 10; breakdown.push(`Пульс покоя ↓ (${rhrLatest} vs база ${rhrBaseline.toFixed(0)}): +10`); }
+      else if (delta >= 5) { score -= 15; breakdown.push(`Пульс покоя ↑ (${rhrLatest} vs база ${rhrBaseline.toFixed(0)}): -15 — признак стресса/недосыпа/болезни`); }
+      else { breakdown.push(`Пульс покоя ${rhrLatest} (≈ база ${rhrBaseline.toFixed(0)})`); }
+    }
+
+    // Sleep last night
+    if (sleepLast) {
+      if (sleepLast.durationHours >= 7.5) { score += 10; breakdown.push(`Сон ${sleepLast.durationHours.toFixed(1)}ч: +10`); }
+      else if (sleepLast.durationHours >= 6) { breakdown.push(`Сон ${sleepLast.durationHours.toFixed(1)}ч`); }
+      else { score -= 15; breakdown.push(`Сон ${sleepLast.durationHours.toFixed(1)}ч: -15`); }
+      if (sleepLast.quality) {
+        if (sleepLast.quality >= 4) { score += 5; breakdown.push(`Качество ${sleepLast.quality}/5: +5`); }
+        else if (sleepLast.quality <= 2) { score -= 10; breakdown.push(`Качество ${sleepLast.quality}/5: -10`); }
+      }
+    } else {
+      breakdown.push('Сон прошлой ночью не записан');
+    }
+
+    // 7d training load (active min from cardio). Lifting volume isn't
+    // captured here yet — Phase E. For now: cardio min as proxy.
+    const active7d = cardio7d.reduce((s, c) => s + c.durationMinutes, 0);
+    if (active7d > 500) { score -= 10; breakdown.push(`Нагрузка 7д: ${active7d} мин — перебор, -10`); }
+    else if (active7d < 60 && active7d > 0) { breakdown.push(`Нагрузка 7д: ${active7d} мин — мало`); }
+    else if (active7d >= 150 && active7d <= 450) { score += 5; breakdown.push(`Нагрузка 7д: ${active7d} мин — sweet spot, +5`); }
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    const label = score >= 80 ? 'отлично' : score >= 60 ? 'хорошо' : score >= 40 ? 'умеренно' : 'плохо — отдыхай';
+    const recommendation = score >= 80 ? 'можно жать тяжело, ставить PR'
+      : score >= 60 ? 'обычная тренировка по плану'
+        : score >= 40 ? 'снизь интенсивность на 15-20%, фокус на технике'
+          : 'лёгкая активность или полный отдых; тяжёлая тренировка усугубит';
+
+    return {
+      resultText: `Готовность к тренировке: ${score}/100 (${label}). ${breakdown.join('; ')}. Рекомендация: ${recommendation}.`,
+      actionDescription: '',
+      actionData: { score, breakdown, recommendation },
     };
   }
 

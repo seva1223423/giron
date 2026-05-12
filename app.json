@@ -7,7 +7,7 @@
       "com.giron.app",
       "irongym"
     ],
-    "version": "1.3.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -25,7 +25,18 @@
         "NSCameraUsageDescription": "Камера используется для сканирования штрих-кодов продуктов и анализа фотографий еды AI-тренером.",
         "NSPhotoLibraryUsageDescription": "Доступ к фотографиям нужен для загрузки изображений еды и фото прогресса.",
         "NSPhotoLibraryAddUsageDescription": "Используется для сохранения сводки тренировки и шеринга достижений.",
-        "NSMicrophoneUsageDescription": "Микрофон может использоваться для голосовых сообщений в чате с AI-тренером."
+        "NSMicrophoneUsageDescription": "Микрофон может использоваться для голосовых сообщений в чате с AI-тренером.",
+        "NSHealthShareUsageDescription": "Чтение данных с Apple Watch и HealthKit для статистики тренировок, сна, пульса и VO₂max.",
+        "NSHealthUpdateUsageDescription": "Сохранение тренировок Giron обратно в Здоровье (опционально).",
+        "NSBluetoothAlwaysUsageDescription": "Подключение фитнес-браслетов и пульсометров (Polar H10, Mi Band) для записи пульса во время тренировки.",
+        "UIBackgroundModes": [
+          "fetch",
+          "bluetooth-central"
+        ]
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
       },
       "associatedDomains": [
         "applinks:giron.app",
@@ -104,9 +115,12 @@
         "android.permission.health.READ_OXYGEN_SATURATION",
         "android.permission.health.READ_EXERCISE",
         "android.permission.health.READ_VO2_MAX",
-        "android.permission.health.READ_BODY_TEMPERATURE"
+        "android.permission.health.READ_BODY_TEMPERATURE",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "versionCode": 15
+      "versionCode": 16
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -115,7 +129,9 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "react-native-health-connect"
+      "react-native-health-connect",
+      "@kingstinct/react-native-healthkit",
+      "react-native-ble-plx"
     ],
     "extra": {
       "eas": {
