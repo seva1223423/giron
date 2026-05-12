@@ -289,10 +289,15 @@ export function AppModalProvider({ children }: { children: React.ReactNode }) {
                   ? (isDestructive ? t.danger : t.accent)
                   : 'transparent';
                 const btnBorder = isPrimary ? undefined : t.line;
-                // Direction A rule: gold CTA always has DARK text, never cream/white
-                // (cream-on-gold = 2.8:1 WCAG fail).
+                // Direction A rules:
+                //  - gold CTA always has DARK text (textInverse) — cream-on-gold = 2.8:1 WCAG fail
+                //  - destructive CTA always has WHITE text (#FFFFFF) — terracotta-on-cream
+                //    is 3.9:1 (WCAG fail at 14pt), pure white pushes contrast to 5.6:1
+                // The destructive→textInverse fallthrough that lived here was a copy-paste
+                // bug (both branches returned textInverse). The modal-screens.jsx spec
+                // explicitly hardcodes #fff for the destructive button text.
                 const btnTextColor = isPrimary
-                  ? (isDestructive ? t.textInverse : t.textInverse)
+                  ? (isDestructive ? '#FFFFFF' : t.textInverse)
                   : t.textSub;
                 return (
                   <Pressable
