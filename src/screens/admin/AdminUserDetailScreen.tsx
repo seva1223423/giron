@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { adminService } from '../../services/adminService';
 import type { AdminUserDetail, AdminLog, UserRole } from '../../types';
+import { useAdminStepUp, StepUpCancelledError } from './useAdminStepUp';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
 
@@ -47,6 +48,13 @@ export default function AdminUserDetailScreen() {
   const route = useRoute<RouteProp<{ AdminUserDetailScreen: RouteParams }, 'AdminUserDetailScreen'>>();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { userId } = route.params ?? {};
+
+  // R240 audit follow-up: server requires step-up re-auth (password +
+  // optional TOTP) for financial / destructive admin actions. Without
+  // this every grant/extend/revoke/ban/delete showed a generic "Не
+  // удалось" error because the server returned ADMIN_PASSWORD_REQUIRED
+  // and no UI collected the password.
+  const { withStepUp, modal: stepUpModal } = useAdminStepUp();
 
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,10 +99,10 @@ export default function AdminUserDetailScreen() {
           onPress: async () => {
             setBusy(true);
             try {
-              await adminService.changeUserRole(userId, newRole.toUpperCase());
+              await withStepUp((creds) => adminService.changeUserRole(userId, newRole.toUpperCase(), creds));
               await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось изменить роль');
+            } catch (e) {
+              if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось изменить роль');
             } finally {
               setBusy(false);
             }
@@ -102,7 +110,7 @@ export default function AdminUserDetailScreen() {
         },
       ]
     );
-  }, [userId, user, load]);
+  }, [userId, user, load, withStepUp]);
 
   const grantPlan = useCallback((plan: Plan) => {
     const planInfo = PLANS.find((p) => p.key === plan)!;
@@ -116,10 +124,10 @@ export default function AdminUserDetailScreen() {
           onPress: async () => {
             setBusy(true);
             try {
-              await adminService.changeUserSubscription(userId, { plan, status: 'active' });
+              await withStepUp((creds) => adminService.changeUserSubscription(userId, { plan, status: 'active' }, creds));
               await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось выдать подписку');
+            } catch (e) {
+              if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось выдать подписку');
             } finally {
               setBusy(false);
             }
@@ -127,7 +135,7 @@ export default function AdminUserDetailScreen() {
         },
       ]
     );
-  }, [userId, user, load]);
+  }, [userId, user, load, withStepUp]);
 
   const extendSubscription = useCallback((days: number) => {
     if (!user) return;
@@ -148,14 +156,16 @@ export default function AdminUserDetailScreen() {
           onPress: async () => {
             setBusy(true);
             try {
-              await adminService.changeUserSubscription(userId, {
-                plan: plan as any,
-                status: 'active',
-                endDate: newEnd,
-              });
+              await withStepUp((creds) =>
+                adminService.changeUserSubscription(
+                  userId,
+                  { plan: plan as any, status: 'active', endDate: newEnd },
+                  creds,
+                ),
+              );
               await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось продлить подписку');
+            } catch (e) {
+              if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось продлить подписку');
             } finally {
               setBusy(false);
             }
@@ -163,7 +173,7 @@ export default function AdminUserDetailScreen() {
         },
       ]
     );
-  }, [userId, user, load]);
+  }, [userId, user, load, withStepUp]);
 
   const revokeSubscription = useCallback(() => {
     Alert.alert(
@@ -177,10 +187,12 @@ export default function AdminUserDetailScreen() {
           onPress: async () => {
             setBusy(true);
             try {
-              await adminService.changeUserSubscription(userId, { plan: 'free', status: 'cancelled' });
+              await withStepUp((creds) =>
+                adminService.changeUserSubscription(userId, { plan: 'free', status: 'cancelled' }, creds),
+              );
               await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось отозвать подписку');
+            } catch (e) {
+              if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось отозвать подписку');
             } finally {
               setBusy(false);
             }
@@ -188,7 +200,7 @@ export default function AdminUserDetailScreen() {
         },
       ]
     );
-  }, [userId, user, load]);
+  }, [userId, user, load, withStepUp]);
 
   const banUser = useCallback(() => {
     Alert.prompt(
@@ -198,17 +210,17 @@ export default function AdminUserDetailScreen() {
         if (!reason?.trim()) return;
         setBusy(true);
         try {
-          await adminService.banUser(userId, reason.trim());
+          await withStepUp((creds) => adminService.banUser(userId, reason.trim(), creds));
           await load();
-        } catch {
-          Alert.alert('Ошибка', 'Не удалось заблокировать пользователя');
+        } catch (e) {
+          if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось заблокировать пользователя');
         } finally {
           setBusy(false);
         }
       },
       'plain-text'
     );
-  }, [userId, user, load]);
+  }, [userId, user, load, withStepUp]);
 
   const unbanUser = useCallback(() => {
     Alert.alert(
@@ -275,10 +287,10 @@ export default function AdminUserDetailScreen() {
           onPress: async () => {
             setBusy(true);
             try {
-              await adminService.deleteUser(userId);
+              await withStepUp((creds) => adminService.deleteUser(userId, creds));
               Alert.alert('Готово', 'Аккаунт удалён');
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось удалить аккаунт');
+            } catch (e) {
+              if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось удалить аккаунт');
             } finally {
               setBusy(false);
             }
@@ -286,7 +298,7 @@ export default function AdminUserDetailScreen() {
         },
       ]
     );
-  }, [userId, user]);
+  }, [userId, user, withStepUp]);
 
   if (loading) return <ActivityIndicator style={styles.center} color="#6366F1" size="large" />;
   if (!user) return null;
@@ -309,6 +321,8 @@ export default function AdminUserDetailScreen() {
 
   return (
     <>
+    {/* R240: step-up re-auth modal for financial / destructive ops */}
+    {stepUpModal}
     {/* Send message modal */}
     <Modal visible={showMsgModal} transparent animationType="slide" onRequestClose={() => setShowMsgModal(false)}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
