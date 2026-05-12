@@ -758,7 +758,7 @@ const AI_TOOLS: DeepSeekTool[] = [
     type: 'function',
     function: {
       name: 'log_cardio',
-      description: 'Записать кардио сессию. Используй когда пользователь сообщает о пробежке, велосипеде, плавании, ходьбе, HIIT и т.д.',
+      description: 'Записать кардио сессию. Используй когда пользователь сообщает о пробежке, велосипеде, плавании, ходьбе, HIIT и т.д. Round 240 — добавлены поля с часов: avgHeartRate, maxHeartRate, minHeartRate, vo2Max — заполняй их если юзер их называет ("пульс был 145 средний", "макс 168"). Manual entries оставляют их пустыми.',
       parameters: {
         type: 'object',
         properties: {
@@ -766,9 +766,41 @@ const AI_TOOLS: DeepSeekTool[] = [
           durationMinutes: { type: 'number', description: 'Длительность в минутах' },
           distanceKm: { type: 'number', description: 'Дистанция в км (если применимо)' },
           caloriesBurned: { type: 'number', description: 'Сожжённые калории (если известно)' },
+          avgHeartRate: { type: 'number', description: 'Средний пульс bpm (если юзер назвал, или с часов)' },
+          maxHeartRate: { type: 'number', description: 'Максимальный пульс bpm' },
+          minHeartRate: { type: 'number', description: 'Минимальный пульс bpm' },
+          vo2Max: { type: 'number', description: 'VO2max если часы дают' },
           date: { type: 'string', description: 'Дата YYYY-MM-DD (по умолчанию сегодня)' },
         },
         required: ['type', 'durationMinutes'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_health_summary',
+      description: 'Получить сводку по показателям здоровья с часов: пульс покоя, последний сон, активность за сегодня, последний VO2max, SpO₂. Используй когда юзер спрашивает "как я сегодня?", "какой у меня пульс покоя?", "сколько я прошёл?", "какой у меня VO2max?".',
+      parameters: {
+        type: 'object',
+        properties: {
+          days: { type: 'integer', enum: [1, 7, 30], description: 'Глубина агрегации в днях. По умолчанию 1 (сегодня).' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_sleep_breakdown',
+      description: 'Получить детальный разбор сна с часов: фазы (REM/глубокий/лёгкий/бодрствование), SpO₂, HRV, число пробуждений. Используй когда юзер спрашивает "как я спал?", "сколько у меня REM-сна?", "какой у меня HRV ночью?".',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Дата YYYY-MM-DD или "yesterday". По умолчанию вчера.' },
+        },
+        required: [],
       },
     },
   },
@@ -3674,8 +3706,11 @@ async function executeTool(
   }
 
   if (toolName === 'log_cardio') {
-    const { type, durationMinutes, distanceKm, caloriesBurned, date } = toolInput as {
-      type: string; durationMinutes: number; distanceKm?: number; caloriesBurned?: number; date?: string;
+    const { type, durationMinutes, distanceKm, caloriesBurned, avgHeartRate, maxHeartRate, minHeartRate, vo2Max, date } = toolInput as {
+      type: string; durationMinutes: number;
+      distanceKm?: number; caloriesBurned?: number;
+      avgHeartRate?: number; maxHeartRate?: number; minHeartRate?: number; vo2Max?: number;
+      date?: string;
     };
     // Validate date format; fall back to today if AI sends garbage
     const VALID_CARDIO_TYPES = ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'];
@@ -3683,10 +3718,21 @@ async function executeTool(
     const safeDuration = Math.min(1440, Math.max(1, Math.round(Number(durationMinutes) || 30)));
     const safeDistance = distanceKm != null ? Math.min(500, Math.max(0, Number(distanceKm) || 0)) || undefined : undefined;
     const safeCalories = caloriesBurned != null ? Math.min(5000, Math.max(0, Math.round(Number(caloriesBurned) || 0))) || undefined : undefined;
+    // Round 240 — watch metrics. Same bounds as the /health/sync Zod schema
+    // (30-250 bpm for HR, 10-100 ml/kg/min for VO2max). Out-of-range
+    // values from the LLM get dropped — don't bake bad data.
+    const safeAvgHr = avgHeartRate != null && Number.isFinite(avgHeartRate) && avgHeartRate >= 30 && avgHeartRate <= 250 ? Math.round(avgHeartRate) : undefined;
+    const safeMaxHr = maxHeartRate != null && Number.isFinite(maxHeartRate) && maxHeartRate >= 30 && maxHeartRate <= 250 ? Math.round(maxHeartRate) : undefined;
+    const safeMinHr = minHeartRate != null && Number.isFinite(minHeartRate) && minHeartRate >= 20 && minHeartRate <= 200 ? Math.round(minHeartRate) : undefined;
+    const safeVo2 = vo2Max != null && Number.isFinite(vo2Max) && vo2Max >= 10 && vo2Max <= 100 ? Math.round(vo2Max * 10) / 10 : undefined;
     const today = clientDate ?? new Date().toISOString().split('T')[0];
     const sessionDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T00:00:00Z').getTime())) ? date : today;
     const session = await prisma.cardioSession.create({
-      data: { userId, type: safeType, date: sessionDate, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories },
+      data: {
+        userId, type: safeType, date: sessionDate, durationMinutes: safeDuration,
+        distanceKm: safeDistance, caloriesBurned: safeCalories,
+        avgHeartRate: safeAvgHr, maxHeartRate: safeMaxHr, minHeartRate: safeMinHr, vo2Max: safeVo2,
+      },
     });
 
     // Round 198: post-write verify (extends R197 pattern across all
@@ -3704,10 +3750,97 @@ async function executeTool(
 
     const distText = safeDistance ? `, ${safeDistance} км` : '';
     const calText = safeCalories ? `, ~${safeCalories} ккал` : '';
+    const hrText = safeAvgHr ? `, пульс ~${safeAvgHr}` : '';
     return {
-      resultText: `Кардио записано: ${safeType} ${safeDuration} мин${distText}${calText}`,
+      resultText: `Кардио записано: ${safeType} ${safeDuration} мин${distText}${calText}${hrText}`,
       actionDescription: `Кардио: ${safeType} ${safeDuration} мин`,
-      actionData: { sessionId: session.id, type: safeType, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories },
+      actionData: { sessionId: session.id, type: safeType, durationMinutes: safeDuration, distanceKm: safeDistance, caloriesBurned: safeCalories, avgHeartRate: safeAvgHr, maxHeartRate: safeMaxHr, vo2Max: safeVo2 },
+    };
+  }
+
+  // Round 240 — read-only health summary. Mirrors GET /user/health/summary
+  // shape but executed directly via prisma (no HTTP round-trip).
+  if (toolName === 'get_health_summary') {
+    const { days } = toolInput as { days?: number };
+    const safeDays = [1, 7, 30].includes(Number(days)) ? Number(days) : 1;
+    const since = new Date(Date.now() - safeDays * 86400_000);
+    const todayDate = new Date().toISOString().slice(0, 10);
+    const dateNDaysAgo = (n: number) => new Date(Date.now() - n * 86400_000).toISOString().slice(0, 10);
+
+    const [cardioRows, sleepRows, sampleRows] = await Promise.all([
+      prisma.cardioSession.findMany({
+        where: { userId, createdAt: { gte: since } },
+        select: { date: true, durationMinutes: true, caloriesBurned: true, avgHeartRate: true, vo2Max: true },
+      }),
+      prisma.sleepEntry.findMany({
+        where: { userId, date: { gte: dateNDaysAgo(safeDays) } },
+        select: { date: true, durationHours: true, quality: true, stages: true, spo2Avg: true, hrvAvg: true },
+        orderBy: { date: 'desc' },
+        take: safeDays,
+      }),
+      prisma.healthSample.findMany({
+        where: { userId, kind: { in: ['restingHr', 'spo2', 'vo2max'] }, startAt: { gte: since } },
+        select: { kind: true, value: true, startAt: true },
+        orderBy: { startAt: 'desc' },
+        take: 200,
+      }),
+    ]);
+
+    const restingHrs = sampleRows.filter((s) => s.kind === 'restingHr').map((s) => s.value);
+    const restingHrMedian = restingHrs.length === 0 ? null
+      : Math.round(restingHrs.sort((a, b) => a - b)[Math.floor(restingHrs.length / 2)] * 10) / 10;
+    const latestSpo2 = sampleRows.find((s) => s.kind === 'spo2')?.value ?? null;
+    const latestVo2 = (cardioRows.map((c) => c.vo2Max).filter((v): v is number => typeof v === 'number').sort().pop()) ?? null;
+    const todayCardio = cardioRows.filter((c) => c.date === todayDate);
+    const todayActiveMin = todayCardio.reduce((sum, c) => sum + c.durationMinutes, 0);
+
+    const summary = {
+      days: safeDays,
+      todayActiveMin,
+      todayCardioSessions: todayCardio.length,
+      restingHr: restingHrMedian,
+      latestVo2Max: latestVo2,
+      latestSpo2,
+      lastSleep: sleepRows[0] ?? null,
+      sleepCount: sleepRows.length,
+    };
+    return {
+      resultText: `Сводка ${safeDays} дн: активность сегодня ${todayActiveMin} мин, пульс покоя ${restingHrMedian ?? 'нет данных'}, VO2max ${latestVo2 ?? 'нет данных'}, последний сон ${sleepRows[0] ? `${sleepRows[0].durationHours.toFixed(1)}ч (${sleepRows[0].date})` : 'нет записи'}.`,
+      actionDescription: '',
+      actionData: summary,
+    };
+  }
+
+  if (toolName === 'get_sleep_breakdown') {
+    const { date } = toolInput as { date?: string };
+    let target = date;
+    if (!target || target === 'yesterday') {
+      target = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) {
+      return { resultText: 'Некорректная дата. Используй формат YYYY-MM-DD или "yesterday".', actionDescription: '' };
+    }
+    const entry = await prisma.sleepEntry.findFirst({
+      where: { userId, date: target },
+      select: {
+        date: true, bedtime: true, wakeTime: true, durationHours: true, quality: true,
+        stages: true, spo2Avg: true, spo2Min: true, hrvAvg: true, awakenings: true, deviceSource: true,
+      },
+    });
+    if (!entry) {
+      return {
+        resultText: `Нет записи сна за ${target}. Часы либо не синхронизировались, либо запись ещё не создана.`,
+        actionDescription: '',
+      };
+    }
+    const stages = entry.stages as Record<string, number> | null;
+    const stagesText = stages
+      ? ` Фазы: REM ${stages.rem ?? '?'} мин, глубокий ${stages.deep ?? '?'} мин, лёгкий ${stages.light ?? '?'} мин, бодр ${stages.awake ?? '?'} мин.`
+      : ' Фазы не записаны (manual или часы их не дают).';
+    return {
+      resultText: `Сон за ${target}: ${entry.durationHours.toFixed(1)} ч, качество ${entry.quality ?? '?'}/5.${stagesText}${entry.hrvAvg ? ` HRV ${entry.hrvAvg} мс.` : ''}${entry.spo2Avg ? ` SpO₂ среднее ${entry.spo2Avg}%.` : ''}`,
+      actionDescription: '',
+      actionData: entry,
     };
   }
 
