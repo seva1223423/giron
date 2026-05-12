@@ -15,6 +15,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../api';
 import { healthConnectAdapter } from './healthConnectAdapter';
+import { healthKitAdapter } from './healthKitAdapter';
 import { noopAdapter } from './noopAdapter';
 import type {
   HealthDataProvider, HealthScope, HealthSummary,
@@ -34,6 +35,7 @@ export const DEFAULT_HEALTH_SCOPES: HealthScope[] = [
 /** Pick the adapter for the current platform. Exported for tests. */
 export function getProvider(): HealthDataProvider {
   if (Platform.OS === 'android') return healthConnectAdapter;
+  if (Platform.OS === 'ios') return healthKitAdapter;
   return noopAdapter;
 }
 

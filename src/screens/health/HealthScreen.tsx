@@ -14,7 +14,7 @@ import { Card, Button, Icon, HitTarget, FadeIn, type IconName } from '../../comp
 import { toast } from '../../components/app-modal/toast';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
-import { healthSyncService, type ConnectedDevice } from '../../services/health';
+import { healthSyncService, bleDirectService, type ConnectedDevice } from '../../services/health';
 import { StageBar } from './components/StageBar';
 
 /**
@@ -67,6 +67,52 @@ export default function HealthScreen() {
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [requestingPerms, setRequestingPerms] = useState(false);
+  const [scanningBle, setScanningBle] = useState(false);
+
+  // Phase D — scan for BLE HR devices and offer to pair the nearest one.
+  // Kept deliberately minimal: no in-screen device picker UI, just a
+  // confirm modal. Live HR streaming is out of scope.
+  const handleScanBle = useCallback(async () => {
+    if (scanningBle) return;
+    setScanningBle(true);
+    try {
+      const available = await bleDirectService.isAvailable();
+      if (!available) {
+        toast.error('Bluetooth выключен или нет прав. Включи Bluetooth и попробуй ещё раз.');
+        return;
+      }
+      toast.info('Сканирую BLE-пульсометры…');
+      const found = await bleDirectService.scanForHrDevices(8);
+      if (found.length === 0) {
+        toast.error('Не нашлось HR-устройств поблизости. Включи пульсометр и попробуй ещё раз.');
+        return;
+      }
+      const nearest = found[0];
+      Alert.alert(
+        'Найден пульсометр',
+        `${nearest.name}${found.length > 1 ? ` (и ещё ${found.length - 1})` : ''}. Привязать?`,
+        [
+          { text: 'Отмена', style: 'cancel' },
+          {
+            text: 'Привязать',
+            onPress: async () => {
+              const paired = await bleDirectService.pairWithServer(nearest);
+              if (paired) {
+                await loadDevices();
+                toast.success(`Привязан: ${nearest.name}`);
+              } else {
+                toast.error('Не удалось привязать. Попробуй ещё раз.');
+              }
+            },
+          },
+        ],
+      );
+    } catch {
+      toast.error('Ошибка сканирования BLE');
+    } finally {
+      setScanningBle(false);
+    }
+  }, [scanningBle, loadDevices]);
 
   const hasAnyGrant = useMemo(
     () => Object.values(grantedScopes).some(Boolean),
@@ -511,7 +557,8 @@ export default function HealthScreen() {
               <Text
                 style={[typography.small, { color: colors.textSecondary, padding: spacing.sm }]}
               >
-                Спарь часы через системные настройки Health Connect — приложение увидит данные автоматически.
+                Спарь часы через системные настройки Health Connect (Android) или Health (iOS) — данные появятся
+                автоматически. Для отдельного пульсометра (Polar H10, Wahoo TICKR, generic BLE) используй кнопку ниже.
               </Text>
             ) : (
               devices.map((d: ConnectedDevice, i: number) => (
@@ -562,6 +609,13 @@ export default function HealthScreen() {
                 </View>
               ))
             )}
+            <Button
+              title={scanningBle ? 'Сканирую…' : 'Подключить пульсометр (BLE)'}
+              onPress={handleScanBle}
+              variant="secondary"
+              disabled={scanningBle}
+              style={{ marginTop: spacing.sm }}
+            />
           </Card>
         </FadeIn>
 
