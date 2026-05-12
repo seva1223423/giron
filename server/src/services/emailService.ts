@@ -89,19 +89,19 @@ const transporter = {
   },
 };
 
-const FROM = process.env.SMTP_FROM || 'Giron <noreply@irongym.app>';
+const FROM = process.env.SMTP_FROM || 'Giron <noreply@giron.app>';
 const APP_NAME = 'Giron';
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
   // Sec audit 2026-04: HIGH-8. Use the verified https:// universal/app link
-  // as the primary tap target. The custom-scheme `irongym://` is registered
+  // as the primary tap target. The custom-scheme `giron://` is registered
   // without `android:autoVerify="true"` and can be hijacked by a malicious
   // app installed on the device — sending the raw reset token to that app.
   // The https URL is claimed via assetlinks.json + apple-app-site-association
-  // (deployment requirement: host both files at irongym.app/.well-known/),
+  // (deployment requirement: host both files at giron.app/.well-known/),
   // so OS-level link verification routes the tap to our app, falling back
   // to the browser if the app isn't installed.
-  const appUrl = process.env.APP_URL || 'https://irongym.app';
+  const appUrl = process.env.APP_URL || 'https://giron.app';
   const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
   await transporter.sendMail({
@@ -177,7 +177,7 @@ export async function sendPasswordChangedAlert(email: string, ip: string, date: 
           <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${safeIp}</p>
         </div>
         <p style="color: #EF4444; font-weight: bold; font-size: 14px;">
-          Если это были не вы — немедленно воспользуйтесь функцией <a href="irongym://forgot-password" style="color: #EF4444;">сброса пароля</a>.
+          Если это были не вы — немедленно воспользуйтесь функцией <a href="giron://forgot-password" style="color: #EF4444;">сброса пароля</a>.
         </p>
         <p style="color: #888; font-size: 12px; margin-top: 16px;">
           Это автоматическое уведомление системы безопасности ${APP_NAME}.
@@ -341,7 +341,7 @@ export async function sendWeeklySummaryEmail(
           ${prLine ? `<p style="margin: 6px 0; color: #333; font-size: 15px;">${prLine}</p>` : ''}
         </div>
         <p style="color: #555; line-height: 1.6;">${esc(trendLine)}</p>
-        <a href="irongym://progress" style="display:inline-block; background:#8B5CF6; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; margin: 16px 0;">
+        <a href="giron://progress" style="display:inline-block; background:#8B5CF6; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; margin: 16px 0;">
           Открыть прогресс
         </a>
         <hr style="border:none; border-top:1px solid #eee; margin: 24px 0;">
@@ -444,7 +444,7 @@ export async function sendPreRenewalNotificationEmail(
         <p style="color: #555; line-height: 1.6;">
           Если не хочешь продлевать — открой раздел «Подписка» в приложении и нажми «Отменить подписку». Доступ сохранится до конца оплаченного периода.
         </p>
-        <a href="irongym://subscription" style="display:inline-block; background:#8B5CF6; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; margin: 16px 0;">
+        <a href="giron://subscription" style="display:inline-block; background:#8B5CF6; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; margin: 16px 0;">
           Открыть «Подписка»
         </a>
         <p style="color: #888; font-size: 12px; margin-top: 16px;">
@@ -648,7 +648,7 @@ export async function sendActivationReminderEmail(
       `— Программу тренировок под твою цель\n` +
       `— План питания и КБЖУ под твой вес и нагрузку\n` +
       `— Разбор техники любого упражнения\n\n` +
-      `Открой приложение и задай свой вопрос — это бесплатно: irongym://ai\n\n` +
+      `Открой приложение и задай свой вопрос — это бесплатно: giron://ai\n\n` +
       `Не интересно? Можешь просто проигнорировать это письмо, повторных не будет.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
@@ -663,7 +663,7 @@ export async function sendActivationReminderEmail(
           <li>План питания и КБЖУ под твой вес</li>
           <li>Разбор техники любого упражнения</li>
         </ul>
-        <a href="irongym://ai" style="display:inline-block; background:#8B5CF6; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; margin: 16px 0;">
+        <a href="giron://ai" style="display:inline-block; background:#8B5CF6; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; margin: 16px 0;">
           Открыть и задать вопрос
         </a>
         <p style="color: #888; font-size: 12px; margin-top: 16px;">

@@ -142,8 +142,8 @@ import app from '../index';
 import { prisma } from '../db';
 import { chat } from '../services/deepseekAI';
 
-const JWT_ISS = 'irongym-api';
-const JWT_AUD = 'irongym-app';
+const JWT_ISS = 'giron-api';
+const JWT_AUD = 'giron-app';
 
 const makeToken = (userId = 'u-test', role = 'USER') =>
   jwt.sign({ userId, role }, process.env.JWT_SECRET!, {

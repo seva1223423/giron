@@ -1,8 +1,8 @@
 ---
-description: Pre-deploy health check for Iron Gym. Runs TypeScript, both test suites, security gates, env vars, schema drift, navigation wiring, and git state. Reports PASS/FAIL per section with a final READY / BLOCKED verdict. Run before every push to master.
+description: Pre-deploy health check for Giron. Runs TypeScript, both test suites, security gates, env vars, schema drift, navigation wiring, and git state. Reports PASS/FAIL per section with a final READY / BLOCKED verdict. Run before every push to master.
 ---
 
-You are running the Iron Gym pre-deploy health check. Work each section sequentially. BLOCKER items halt the process — do not issue a READY verdict until all are resolved.
+You are running the Giron pre-deploy health check. Work each section sequentially. BLOCKER items halt the process — do not issue a READY verdict until all are resolved.
 
 ## 1 — TypeScript
 

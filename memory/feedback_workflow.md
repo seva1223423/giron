@@ -1,5 +1,5 @@
 ---
-name: Iron Gym working rules — enforced by user
+name: Giron working rules — enforced by user
 description: Hard rules for how to work on iron-gym: git, memory, code style, refactor pattern, knowledge blocks
 type: feedback
 originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5

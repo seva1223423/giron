@@ -1,5 +1,5 @@
 ---
-name: Iron Gym — production user state
+name: Giron — production user state
 description: No real users yet — only sevka (admin) uses the app. Affects what kinds of changes are safe.
 type: project
 originSessionId: round-237-session

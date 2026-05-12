@@ -100,7 +100,7 @@ function detectCategories(text: string, baseCategories: string[]): string[] {
 async function fetchRssFeed(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; IronGymBot/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; GironBot/1.0)',
       'Accept': 'application/rss+xml, application/xml, text/xml',
     },
     signal: AbortSignal.timeout(10000),

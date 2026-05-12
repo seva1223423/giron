@@ -5,7 +5,7 @@
 # Note: doesn't actually log in — would need test credentials. Asserts
 # the form is interactive and accessible.
 
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp:
     clearState: true

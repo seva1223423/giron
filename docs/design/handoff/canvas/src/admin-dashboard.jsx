@@ -247,7 +247,7 @@
             fontFamily: T.fontH, fontSize: 16, fontWeight: 600,
           }}>I</div>
           <div>
-            <div style={{ fontFamily: T.fontH, fontSize: 14, fontWeight: 500, color: T.text, letterSpacing: -0.3 }}>Iron Gym</div>
+            <div style={{ fontFamily: T.fontH, fontSize: 14, fontWeight: 500, color: T.text, letterSpacing: -0.3 }}>Giron</div>
             <div style={{ fontFamily: T.fontM, fontSize: 8, letterSpacing: 2, color: T.textDim }}>ADMIN</div>
           </div>
         </div>

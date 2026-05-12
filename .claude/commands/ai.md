@@ -1,8 +1,8 @@
 ---
-description: Validate the Iron Gym AI subsystem after any change to ai.ts or knowledge/ files. Checks intent coverage, tool count, rate limits, analytics context timing, knowledge modules, cache config, disclaimer, and fallback chain.
+description: Validate the Giron AI subsystem after any change to ai.ts or knowledge/ files. Checks intent coverage, tool count, rate limits, analytics context timing, knowledge modules, cache config, disclaimer, and fallback chain.
 ---
 
-You are validating the Iron Gym AI subsystem.
+You are validating the Giron AI subsystem.
 
 **Files:** `server/src/routes/ai.ts` · `server/src/knowledge/` (25 modules) · `server/src/services/deepseekAI.ts`
 

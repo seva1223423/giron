@@ -19,7 +19,7 @@ import {
 import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../../store';
 
-const ADMIN_PIN_KEY = 'iron_gym_admin_pin';
+const ADMIN_PIN_KEY = 'giron_admin_pin';
 const MAX_PIN_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 60;
 // In-memory flag — cleared when the app process restarts (e.g. force quit).

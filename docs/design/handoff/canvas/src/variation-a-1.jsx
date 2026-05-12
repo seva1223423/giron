@@ -1,5 +1,5 @@
 /* global React, Icons, Ring, Bar, Placeholder, Phone, TabBar */
-// Iron Gym — Variation A: Premium Graphite + Gold
+// Giron — Variation A: Premium Graphite + Gold
 // Mood: premium, warm, intentional. Geometric sans. Lots of negative space.
 
 const A_T = window.IG_TOKENS.A;

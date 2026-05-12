@@ -45,7 +45,7 @@ ADMIN_BOOTSTRAP_EMAIL = osipovvsevolod01@gmail.com
 | `SMTP_USER` | `osipovvsevolod01@gmail.com` | От кого |
 | `SMTP_PASS` | App Password из Google | Не основной пароль аккаунта |
 | `SMTP_FROM` | `Giron <osipovvsevolod01@gmail.com>` | Заголовок From |
-| `APP_URL` | `https://irongym.app` | База для ссылок в письмах |
+| `APP_URL` | `https://giron.app` | База для ссылок в письмах |
 
 App Password создаётся за 1 минуту:
 1. https://myaccount.google.com/security → включить 2FA
@@ -169,7 +169,7 @@ Cron `06:00 UTC = 09:00 МСК`. Каждый день автоматическ�
 - Push на лок-скрин: «📊 Giron — 2026-04-28 · Платят: 247 (+3 за 30д) · Регистраций: 12 (+2) · Тренировок: 89 (-5) · Активация: 42%»
 - Email с цвето-кодированными дельтами и большой картой «ПЛАТЯТ СЕЙЧАС»
 
-Тап по push открывает `irongym://admin/metrics-key` → экран с пятью числами (платящие, churn, ARPU, активация, signup→paid воронка).
+Тап по push открывает `giron://admin/metrics-key` → экран с пятью числами (платящие, churn, ARPU, активация, signup→paid воронка).
 
 ---
 

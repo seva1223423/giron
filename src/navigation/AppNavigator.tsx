@@ -448,11 +448,11 @@ function AuthStack() {
 
 const linking: any = {
   // Round 191 (rebrand to Giron): primary new scheme `giron://` plus
-  // legacy `irongym://` for backward compatibility with notifications
+  // legacy `giron://` for backward compatibility with notifications
   // already in flight from the previous brand. Both domains supported
   // until the new domain `giron.app` is registered (current hosting
-  // remains on `irongym.app`).
-  prefixes: ['giron://', 'irongym://', 'https://giron.app', 'https://irongym.app'],
+  // remains on `giron.app`).
+  prefixes: ['giron://', 'giron://', 'https://giron.app', 'https://giron.app'],
   config: {
     screens: {
       Auth: {
@@ -506,14 +506,14 @@ export const AppNavigator: React.FC = () => {
   // Only allow URLs that match our own app scheme to prevent deep-link injection attacks.
   useEffect(() => {
     // Round 191: post-rebrand allow both new (giron://) and legacy
-    // (irongym://) schemes. Server-side notifications gradually
+    // (giron://) schemes. Server-side notifications gradually
     // switch to giron:// but in-flight ones from before the rebuild
-    // still use irongym://.
+    // still use giron://.
     const ALLOWED_PREFIXES = [
       'giron://',
       'https://giron.app/',
-      'irongym://',
-      'https://irongym.app/',
+      'giron://',
+      'https://giron.app/',
     ];
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const url = response.notification.request.content.data?.url as string | undefined;

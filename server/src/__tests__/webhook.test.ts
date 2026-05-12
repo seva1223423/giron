@@ -282,7 +282,7 @@ describe('POST /api/subscription/activate', () => {
     const token = jwt.sign(
       { userId: 'user-sub-1' },
       process.env.JWT_SECRET!,
-      { expiresIn: '15m', issuer: 'irongym-api', audience: 'irongym-app' }
+      { expiresIn: '15m', issuer: 'giron-api', audience: 'giron-app' }
     );
     return `Bearer ${token}`;
   };
@@ -373,7 +373,7 @@ describe('POST /api/subscription/cancel', () => {
     const token = jwt.sign(
       { userId: 'user-sub-1' },
       process.env.JWT_SECRET!,
-      { expiresIn: '15m', issuer: 'irongym-api', audience: 'irongym-app' }
+      { expiresIn: '15m', issuer: 'giron-api', audience: 'giron-app' }
     );
     return `Bearer ${token}`;
   };

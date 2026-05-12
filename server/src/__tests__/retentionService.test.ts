@@ -172,9 +172,9 @@ describe('processActivationCohort', () => {
     expect(mockActivationEmail).toHaveBeenCalledTimes(1);
   });
 
-  test('skips email for internal *@irongym.internal accounts', async () => {
+  test('skips email for internal *@giron.internal accounts', async () => {
     mockUserFindMany.mockResolvedValueOnce([
-      makeActivationCandidate({ id: 'u-internal', email: 'ok_123@irongym.internal' }),
+      makeActivationCandidate({ id: 'u-internal', email: 'ok_123@giron.internal' }),
     ]);
 
     const sent = await processActivationCohort();

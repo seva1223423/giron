@@ -342,7 +342,7 @@ describe('VK OAuth email handling (round 79: anti-squatting)', () => {
     delete process.env.VK_APP_ID;
   });
 
-  it('IGNORES client-supplied email at user creation, uses synthetic vk_<id>@irongym.internal', async () => {
+  it('IGNORES client-supplied email at user creation, uses synthetic vk_<id>@giron.internal', async () => {
     // Round 79: the client-supplied `email` param is no longer accepted
     // by the route at all. VK's users.get API doesn't return an email
     // server-side, so any email field on the request body is purely
@@ -363,7 +363,7 @@ describe('VK OAuth email handling (round 79: anti-squatting)', () => {
     (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce(null); // no user by vkId
     (prisma.user.create as jest.Mock).mockResolvedValue({
       id: 'new-user-vk-79',
-      email: 'vk_12345@irongym.internal',
+      email: 'vk_12345@giron.internal',
       firstName: 'Test',
       lastName: 'User',
       vkId: '12345',
@@ -387,7 +387,7 @@ describe('VK OAuth email handling (round 79: anti-squatting)', () => {
     // user.create must store the synthetic email — the attacker-supplied
     // address never reaches the DB.
     const createCall = (prisma.user.create as jest.Mock).mock.calls[0];
-    expect(createCall[0].data.email).toBe('vk_12345@irongym.internal');
+    expect(createCall[0].data.email).toBe('vk_12345@giron.internal');
     expect(createCall[0].data.email).not.toContain('victim');
     expect(createCall[0].data.emailVerified).toBe(false);
   });

@@ -2,7 +2,7 @@
 # Also verifies LinkedAccounts subtitle no longer mentions Mail.ru
 # (regression check for round 187).
 
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp
 

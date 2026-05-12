@@ -11,9 +11,9 @@ import { SettingRow } from './SettingRow';
 
 // Public-facing pages published from docs/ via GitHub Pages / the app's hosting.
 // Keep these in sync with docs/privacy.html and docs/terms.html.
-const PRIVACY_URL = 'https://irongym.app/privacy.html';
-const TERMS_URL = 'https://irongym.app/terms.html';
-const PRIVACY_CONTACT = 'privacy@irongym.app';
+const PRIVACY_URL = 'https://giron.app/privacy.html';
+const TERMS_URL = 'https://giron.app/terms.html';
+const PRIVACY_CONTACT = 'privacy@giron.app';
 
 const openInBrowser = async (url: string) => {
   try {

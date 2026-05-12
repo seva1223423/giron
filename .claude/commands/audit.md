@@ -1,8 +1,8 @@
 ---
-description: Full Iron Gym system audit. Spawns 8 audit agents in parallel (security, performance, data-integrity, compliance, deployment, monitoring, tests, docs), deduplicates findings, produces a unified risk report sorted by business impact. Run before major releases or after big refactors. Optional argument: focus area ("security", "performance", etc.).
+description: Full Giron system audit. Spawns 8 audit agents in parallel (security, performance, data-integrity, compliance, deployment, monitoring, tests, docs), deduplicates findings, produces a unified risk report sorted by business impact. Run before major releases or after big refactors. Optional argument: focus area ("security", "performance", etc.).
 ---
 
-You are orchestrating a full Iron Gym audit. Argument: **$ARGUMENTS**
+You are orchestrating a full Giron audit. Argument: **$ARGUMENTS**
 
 ## Phase 1 — Baselines (run in parallel)
 
@@ -38,7 +38,7 @@ Deduplicate: if two agents flag the same issue, merge with "flagged by agent1 + 
 Escalate: cross-agent confirmation → raise severity one level.
 
 ```
-AUDIT REPORT — Iron Gym
+AUDIT REPORT — Giron
 Date: [today]  Focus: [$ARGUMENTS or "comprehensive"]  Agents: 8/8
 
 ══ CRITICAL (fix before next deploy) ══════════════════════

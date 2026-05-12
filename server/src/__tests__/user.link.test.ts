@@ -108,8 +108,8 @@ import { prisma } from '../db';
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
-const JWT_ISS = 'irongym-api';
-const JWT_AUD = 'irongym-app';
+const JWT_ISS = 'giron-api';
+const JWT_AUD = 'giron-app';
 
 // Mint a valid access token for the given userId
 const makeToken = (userId = 'u-test') =>

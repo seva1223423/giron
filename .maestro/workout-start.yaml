@@ -1,7 +1,7 @@
 # Smoke test: open Workouts tab → start active workout from a built-in
 # program → assert ActiveWorkoutScreen renders the working set entry.
 
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp
 

@@ -1,7 +1,7 @@
 # Smoke test: registration screen, OAuth providers (3 — no Mail.ru),
 # password validation feedback, OTP flow gating.
 
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp:
     clearState: true

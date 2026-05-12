@@ -270,7 +270,7 @@ export default function AdminDashboardScreen() {
     setSharingReport(true);
     try {
       const { report } = await adminService.getDailyReport();
-      await Share.share({ message: report, title: 'Iron Gym — Дневной отчёт' });
+      await Share.share({ message: report, title: 'Giron — Дневной отчёт' });
     } catch {
       Alert.alert('Ошибка', 'Не удалось сгенерировать отчёт');
     } finally {

@@ -514,7 +514,7 @@ window.A_NewsV2 = function A_NewsV2() {
                 <Icons.check size={12} sw={2.5}/>
                 <div style={{ padding: '1px 5px', borderRadius: 4, background: t.chipBg, color: t.accent, fontFamily: t.fontM, fontSize: 8, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>PRO</div>
               </div>
-              <div style={{ fontFamily: t.fontM, fontSize: 11, color: t.textSub, marginTop: 1 }}>2ч · Iron Gym Центр</div>
+              <div style={{ fontFamily: t.fontM, fontSize: 11, color: t.textSub, marginTop: 1 }}>2ч · Giron Центр</div>
             </div>
             <button style={{ padding: '6px 12px', borderRadius: 99, background: t.accent, color: '#0A0A0A', border: 0, fontSize: 11, fontWeight: 700 }}>Подписаться</button>
           </div>
@@ -532,7 +532,7 @@ window.A_NewsV2 = function A_NewsV2() {
 
           <div style={{ padding: 14 }}>
             <div style={{ fontSize: 13, color: t.text, lineHeight: 1.5 }}>
-              Три месяца готовился к этой цифре. Спасибо программе PPL от Iron Gym — всё встало в технику. Скоро 200.
+              Три месяца готовился к этой цифре. Спасибо программе PPL от Giron — всё встало в технику. Скоро 200.
             </div>
             {/* Actions */}
             <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginTop: 14, paddingTop: 12, borderTop: `1px solid ${t.line}` }}>

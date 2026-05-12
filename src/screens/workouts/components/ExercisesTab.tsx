@@ -11,7 +11,7 @@ import { Exercise } from '../../../types';
 import { workoutService } from '../../../services';
 import { exerciseThumbSource } from '../../../config/store';
 
-const FAVORITES_KEY = 'iron_gym_exercise_favorites';
+const FAVORITES_KEY = 'giron_exercise_favorites';
 
 const MUSCLE_FILTERS = [
   { key: 'all', label: 'Все' },

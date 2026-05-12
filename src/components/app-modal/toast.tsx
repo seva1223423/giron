@@ -17,7 +17,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { IronGymTheme as T } from './AppModalProvider';
+import { GironTheme as T } from './AppModalProvider';
 
 type ToastKind = 'success' | 'error' | 'warn' | 'info';
 

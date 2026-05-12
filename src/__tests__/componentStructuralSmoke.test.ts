@@ -83,10 +83,10 @@ describe('design utility modules export their symbols', () => {
 
   test('testHelpers/storageKeys exports all 5 keys', () => {
     const m = require('../testHelpers/storageKeys');
-    expect(m.BARCODE_CACHE_KEY_FOR_TEST).toBe('iron_gym_barcode_cache');
-    expect(m.RECENT_SCANS_KEY_FOR_TEST).toBe('iron_gym_recent_scans');
-    expect(m.SCANNER_DRAFT_KEY_FOR_TEST).toBe('iron_gym_scanner_draft');
-    expect(m.LAST_MEAL_TYPE_KEY_FOR_TEST).toBe('iron_gym_scanner_last_meal_type');
-    expect(m.AI_SCAN_CACHE_KEY_FOR_TEST).toBe('iron_gym_ai_scan_cache');
+    expect(m.BARCODE_CACHE_KEY_FOR_TEST).toBe('giron_barcode_cache');
+    expect(m.RECENT_SCANS_KEY_FOR_TEST).toBe('giron_recent_scans');
+    expect(m.SCANNER_DRAFT_KEY_FOR_TEST).toBe('giron_scanner_draft');
+    expect(m.LAST_MEAL_TYPE_KEY_FOR_TEST).toBe('giron_scanner_last_meal_type');
+    expect(m.AI_SCAN_CACHE_KEY_FOR_TEST).toBe('giron_ai_scan_cache');
   });
 });

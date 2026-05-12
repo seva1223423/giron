@@ -75,7 +75,7 @@ const mockAdmin = { id: 'u-admin', isBanned: false, lockedUntil: null, role: 'AD
 
 const makeToken = (userId = 'u-test', role = 'USER') =>
   jwt.sign({ userId, role }, process.env.JWT_SECRET!, {
-    expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+    expiresIn: '1h', issuer: 'giron-api', audience: 'giron-app',
   });
 
 const articleId = 'ctest12345678901234567';

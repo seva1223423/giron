@@ -121,7 +121,7 @@ export async function scheduleRestEndNotification(seconds: number): Promise<stri
         title: 'Отдых закончился!',
         body: 'Время следующего подхода.',
         sound: 'default',
-        data: { url: 'irongym://workout/active' },
+        data: { url: 'giron://workout/active' },
         ...(Platform.OS === 'android' && { channelId: 'reminders' }),
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },

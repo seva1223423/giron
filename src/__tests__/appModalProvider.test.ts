@@ -79,7 +79,7 @@ jest.mock('../store/useThemeStore', () => ({
 // test it through the same code path Alert.alert uses: install the patch,
 // fire alerts, capture the kind via a fake bridge.
 import { Alert } from 'react-native';
-import { installAppAlert, IronGymTheme } from '../components/app-modal/AppModalProvider';
+import { installAppAlert, GironTheme } from '../components/app-modal/AppModalProvider';
 
 describe('AppModalProvider — kind inference', () => {
   // The captured `show` payloads. The bridge sets _global to a mocked
@@ -121,11 +121,11 @@ describe('AppModalProvider — kind inference', () => {
   });
 
   it('exposes Direction A theme tokens', () => {
-    expect(IronGymTheme.bg).toBe('#0E0E0F');
-    expect(IronGymTheme.accent).toBe('#D4B07A');
-    expect(IronGymTheme.danger).toBe('#E07A6B');
-    expect(IronGymTheme.good).toBe('#9AC28C');
-    expect(IronGymTheme.warn).toBe('#E8A36A');
+    expect(GironTheme.bg).toBe('#0E0E0F');
+    expect(GironTheme.accent).toBe('#D4B07A');
+    expect(GironTheme.danger).toBe('#E07A6B');
+    expect(GironTheme.good).toBe('#9AC28C');
+    expect(GironTheme.warn).toBe('#E8A36A');
   });
 });
 

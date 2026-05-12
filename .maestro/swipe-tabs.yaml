@@ -5,7 +5,7 @@
 # Assumes user is already authenticated. To run from scratch, prepend
 # auth-login.yaml steps.
 
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp
 

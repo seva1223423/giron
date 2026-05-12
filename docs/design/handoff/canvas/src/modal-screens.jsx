@@ -1,5 +1,5 @@
 /* global React */
-// Iron Gym — фирменные модалки/уведомления (замена системных Alert)
+// Giron — фирменные модалки/уведомления (замена системных Alert)
 // 6 типов: error, success, info, confirm, destructive, toast
 
 const A_TM = window.IG_TOKENS.A;

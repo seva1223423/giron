@@ -19,7 +19,7 @@ describe('Direction A design implementation — test audit snapshot', () => {
     'designThemeParity.test.ts',           // Light/dark key parity
     'iconRender.test.tsx',                 // 37-icon smoke
     'a11yLabels.test.ts',                  // Streak + eyebrow + date VO
-    'storageKeys.test.ts',                 // iron_gym_ namespace
+    'storageKeys.test.ts',                 // giron_ namespace
     'componentStructuralSmoke.test.ts',    // Util module loads
     'orientationSafety.test.ts',           // Landscape + DPR + ring boundary
     'russianTextEdges.test.ts',            // Names / plurals / ₽ sign

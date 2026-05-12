@@ -8,7 +8,7 @@ import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { PhotoNoteModal, PhotoCompareCard, PhotosGrid } from './photos';
 
-const PROGRESS_PHOTOS_KEY = 'iron_gym_progress_photos';
+const PROGRESS_PHOTOS_KEY = 'giron_progress_photos';
 
 export interface ProgressPhoto {
   id: string;

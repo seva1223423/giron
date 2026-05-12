@@ -4,8 +4,7 @@
     "slug": "iron-gym",
     "scheme": [
       "giron",
-      "com.giron.app",
-      "irongym"
+      "com.giron.app"
     ],
     "version": "1.4.0",
     "orientation": "portrait",
@@ -40,7 +39,7 @@
       },
       "associatedDomains": [
         "applinks:giron.app",
-        "applinks:irongym.app"
+        "applinks:giron.app"
       ]
     },
     "android": {
@@ -59,9 +58,6 @@
           "data": [
             {
               "scheme": "giron"
-            },
-            {
-              "scheme": "irongym"
             }
           ],
           "category": [
@@ -85,12 +81,12 @@
             },
             {
               "scheme": "https",
-              "host": "irongym.app",
+              "host": "giron.app",
               "pathPrefix": "/reset-password"
             },
             {
               "scheme": "https",
-              "host": "irongym.app",
+              "host": "giron.app",
               "pathPrefix": "/auth"
             }
           ],

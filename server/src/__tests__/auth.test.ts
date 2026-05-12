@@ -376,7 +376,7 @@ describe('Auth Routes', () => {
       const refreshToken = jwt.sign(
         { userId: 'user-1' },
         secret,
-        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
       );
 
       // Mock DB: token exists, is not revoked, not expired
@@ -434,7 +434,7 @@ describe('Auth Routes', () => {
         secret,
         // JWT itself is NOT expired — only the DB row is. This is the
         // exact scenario we want to defend against.
-        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
       );
       (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
         id: 'rt-1',
@@ -466,7 +466,7 @@ describe('Auth Routes', () => {
       const oldToken = jwt.sign(
         { userId: 'user-1' },
         secret,
-        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
       );
       (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
         id: 'rt-1',
@@ -537,7 +537,7 @@ describe('Auth Routes', () => {
       const refreshToken = jwt.sign(
         { userId: 'user-1' },
         secret,
-        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
       );
       (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
         id: 'rt-1',
@@ -576,7 +576,7 @@ describe('Auth Routes', () => {
       const refreshToken = jwt.sign(
         { userId: 'user-1' },
         secret,
-        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
       );
       (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
         id: 'rt-1',
@@ -619,7 +619,7 @@ describe('Auth Routes', () => {
       const refreshToken = jwt.sign(
         { userId: 'attacker-claimed-id' },
         secret,
-        { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
       );
       (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
         id: 'rt-1',
@@ -1141,8 +1141,8 @@ describe('Auth Routes', () => {
     it('200 with refresh token — revokes only that token', async () => {
       const fakeRefresh = jwt.sign({ userId: 'u-test' }, process.env.JWT_REFRESH_SECRET!, {
         expiresIn: '30d',
-        issuer: 'irongym-api',
-        audience: 'irongym-app',
+        issuer: 'giron-api',
+        audience: 'giron-app',
       });
 
       const res = await request(app)
@@ -1159,8 +1159,8 @@ describe('Auth Routes', () => {
       // matches and tokens silently survive logout.
       const fakeRefresh = jwt.sign({ userId: 'u-test' }, process.env.JWT_REFRESH_SECRET!, {
         expiresIn: '30d',
-        issuer: 'irongym-api',
-        audience: 'irongym-app',
+        issuer: 'giron-api',
+        audience: 'giron-app',
       });
 
       await request(app)
@@ -1188,8 +1188,8 @@ describe('Auth Routes', () => {
       // session for that user is revoked in one shot.
       const goodRefresh = jwt.sign({ userId: 'u-test' }, process.env.JWT_REFRESH_SECRET!, {
         expiresIn: '30d',
-        issuer: 'irongym-api',
-        audience: 'irongym-app',
+        issuer: 'giron-api',
+        audience: 'giron-app',
       });
 
       await request(app)
@@ -1237,8 +1237,8 @@ describe('Auth Routes', () => {
       (mockPrisma.usedTotpCode as any).create.mockResolvedValue({});
     });
 
-    const JWT_ISS = 'irongym-api';
-    const JWT_AUD = 'irongym-app';
+    const JWT_ISS = 'giron-api';
+    const JWT_AUD = 'giron-app';
 
     // Helper: mint a pending 2FA token (phase=totp)
     const makePendingToken = (userId = 'u-test') =>

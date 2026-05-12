@@ -122,7 +122,7 @@ export const AutoRenewalConsentModal: React.FC<Props> = ({
               Я согласен с автоматическим продлением и{' '}
               <Text
                 style={{ color: colors.primary, textDecorationLine: 'underline' }}
-                onPress={() => Linking.openURL('https://irongym.app/terms.html')}
+                onPress={() => Linking.openURL('https://giron.app/terms.html')}
               >
                 условиями использования
               </Text>

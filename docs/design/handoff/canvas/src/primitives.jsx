@@ -1,5 +1,5 @@
 /* global React */
-// Iron Gym — shared primitives (icons, bars, rings, device frame helpers)
+// Giron — shared primitives (icons, bars, rings, device frame helpers)
 
 const { useState, useEffect, useRef, useMemo } = React;
 

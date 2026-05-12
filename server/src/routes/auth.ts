@@ -87,7 +87,7 @@ async function checkSuspiciousLogin(userId: string, req: Request, userEmail?: st
       sendPushToUser(userId, {
         title: 'Новый вход в аккаунт',
         body: 'Обнаружен вход с нового устройства или IP-адреса. Если это не вы — откройте приложение и смените пароль.',
-        data: { url: 'irongym://profile/security' },
+        data: { url: 'giron://profile/security' },
       }).catch(() => {});
       if (userEmail && emailVerified && currentIp) {
         sendNewLoginAlert(userEmail, currentIp, currentUa, new Date()).catch(() => {});
@@ -98,8 +98,8 @@ async function checkSuspiciousLogin(userId: string, req: Request, userEmail?: st
   }
 }
 
-const JWT_ISS = 'irongym-api';
-const JWT_AUD = 'irongym-app';
+const JWT_ISS = 'giron-api';
+const JWT_AUD = 'giron-app';
 
 /** Constant-time OTP comparison — prevents timing-based enumeration of correct digits. */
 const otpEquals = (stored: string, input: string): boolean => {
@@ -261,7 +261,7 @@ async function recordPasswordHistory(userId: string, hash: string): Promise<void
 
 async function sendEmailVerificationOtp(email: string): Promise<void> {
   // Skip internal/placeholder addresses (VK users without real email)
-  if (email.endsWith('@irongym.internal')) return;
+  if (email.endsWith('@giron.internal')) return;
   // Invalidate old unused codes
   await prisma.otpCode.updateMany({ where: { email, purpose: 'email-verify', used: false }, data: { used: true } });
   const code = String(crypto.randomInt(100000, 1000000));
@@ -937,7 +937,7 @@ router.post('/vk', async (req: Request, res: Response) => {
       // The client-supplied email is no longer accepted (see schema note
       // above). The user can attach a real email later via the
       // /user/change-email OTP flow, which proves ownership end-to-end.
-      const email = `vk_${vkId}@irongym.internal`;
+      const email = `vk_${vkId}@giron.internal`;
       // Round 237: see Google handler — tapping the social button is the
       // consent gesture for first-time OAuth users. Persist version.
       user = await prisma.user.create({
@@ -1071,7 +1071,7 @@ router.post('/yandex', async (req: Request, res: Response) => {
         });
       }
     } else {
-      const email = yandexEmail || `yandex_${yandexId}@irongym.internal`;
+      const email = yandexEmail || `yandex_${yandexId}@giron.internal`;
       // Round 237: see Google handler.
       user = await prisma.user.create({
         data: {
@@ -1425,7 +1425,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       sendPushToUser(dbToken.userId, {
         title: 'Подозрительная активность',
         body: 'Обнаружено повторное использование токена. Все устройства отключены для вашей безопасности.',
-        data: { url: 'irongym://profile/security' },
+        data: { url: 'giron://profile/security' },
       }).catch(() => {});
       return res.status(401).json({ error: 'Обнаружено повторное использование токена. Войдите заново.', code: 'TOKEN_REUSE' });
     }
@@ -1680,7 +1680,7 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
   try {
     const { email } = z.object({ email: z.string().email().transform(normalizeEmail) }).parse(req.body); // sec audit 2026-04 HIGH-14
 
-    if (email.endsWith('@irongym.internal')) {
+    if (email.endsWith('@giron.internal')) {
       return res.status(400).json({ error: 'Email verification не поддерживается для этого аккаунта' });
     }
     const GENERIC_OK = { message: 'Если такой email зарегистрирован, письмо отправлено' };

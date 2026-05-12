@@ -1,7 +1,7 @@
 - [User profile — sevka](user_sevka.md) — Russian, autonomous execution, no recaps, watches GitHub between sessions
-- [Iron Gym working rules](feedback_workflow.md) — commit+push together, dual memory, refactor pattern, knowledge-block numbering, don'ts
-- [Iron Gym project facts](project_iron_gym.md) — stack, Prisma `db push` not migrate, logger/singleton/Zod rules, stale-doc warnings
+- [Giron working rules](feedback_workflow.md) — commit+push together, dual memory, refactor pattern, knowledge-block numbering, don'ts
+- [Giron project facts](project_iron_gym.md) — stack, Prisma `db push` not migrate, logger/singleton/Zod rules, stale-doc warnings
 - [GitHub account & main repo](reference_github.md) — seva1223423/iron-gym, master, server-tests.yml CI gate
 - [Credentials & services](reference_credentials.md) — local .env at `C:/Users/sevka/Desktop/1223/work/iron-gym/server/.env`; Render + Neon + Mistral + EAS + Gmail
-- [Iron Gym deep technical dive](project_deep_dive.md) — 437 client files, 85K server lines, 25 knowledge modules, 38 DB models, security, architecture
+- [Giron deep technical dive](project_deep_dive.md) — 437 client files, 85K server lines, 25 knowledge modules, 38 DB models, security, architecture
 - [Production user state](project_user_state.md) — only sevka (admin), zero real users → no backwards-compat / migration / rollout dance

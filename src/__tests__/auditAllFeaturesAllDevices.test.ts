@@ -1153,10 +1153,10 @@ describe('Critical user flow paths', () => {
     expect(code).toMatch(/center:\s*true/); // AITab center variant
   });
 
-  test('Deep link config: irongym:// scheme', () => {
+  test('Deep link config: giron:// scheme', () => {
     const f = path.join(SRC, 'navigation/AppNavigator.tsx');
     const code = fs.readFileSync(f, 'utf8');
-    expect(code).toMatch(/irongym/);
+    expect(code).toMatch(/giron/);
   });
 
   test('OAuth providers: Google, VK, Yandex', () => {
