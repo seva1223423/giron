@@ -5,3 +5,4 @@
 - [Credentials & services](reference_credentials.md) — local .env at `C:/Users/sevka/Desktop/1223/work/iron-gym/server/.env`; Render + Neon + Mistral + EAS + Gmail
 - [Iron Gym deep technical dive](project_deep_dive.md) — 437 client files, 85K server lines, 25 knowledge modules, 38 DB models, security, architecture
 - [Production user state](project_user_state.md) — only sevka (admin), zero real users → no backwards-compat / migration / rollout dance
+- [Реферат-видео Drive setup](project_referat_video_drive.md) — pptx→mp4 через PowerPoint COM, rclone `gdrive:ZiOF_Referat_Kudrina_Video`, перезаливать одной командой
