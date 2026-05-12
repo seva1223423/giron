@@ -44,6 +44,10 @@ const mockSetNotificationsEnabled = jest.fn();
 const mockSetWaterRemindersEnabled = jest.fn();
 const mockSetThemeMode = jest.fn();
 const mockFetchProfile = jest.fn(async () => undefined);
+// Annotate args explicitly so TS sees the mock's expected call signature
+// (without args, jest.fn infers `() => …` and rejects later wired calls
+// like `mockUserAddWeight(kg)`). Underscore prefix silences unused-arg
+// warnings since the impl body doesn't use them — only its return matters.
 const mockUserAddWeight = jest.fn(async (_kg: number) => ({ id: 'bw1' }));
 const mockRecipeAddToDiary = jest.fn(async (_id: string, _params: unknown) => ({ id: 'm1' }));
 
