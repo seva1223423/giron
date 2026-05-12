@@ -2,11 +2,15 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { useThemeStore } from '../../../store';
 import { Card } from '../../../components';
+import { AchievementSticker } from '../../../components/Sticker';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
+import type { Achievement } from '../../../utils/achievements';
 
-interface Achievement { id: string; emoji: string; title: string; description: string }
-
+// Summary card consumes the same Achievement shape as everywhere else so the
+// sticker resolver gets the `category` field it needs. Required fields:
+// id + category drive sticker selection; `unlocked` is hardcoded true here
+// because this card only renders NEWLY unlocked achievements.
 interface Props { achievements: Achievement[] }
 
 export const AchievementsCard: React.FC<Props> = ({ achievements }) => {
@@ -23,7 +27,7 @@ export const AchievementsCard: React.FC<Props> = ({ achievements }) => {
       </View>
       {achievements.map((a, i) => (
         <View key={a.id} style={[{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs }, i < achievements.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#FFD70030' }]}>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: colors.accent }}>{a.emoji}</Text>
+          <AchievementSticker achievement={a} size={32} />
           <View style={{ flex: 1 }}>
             <Text style={[typography.bodySemibold, { color: colors.text }]}>{a.title}</Text>
             <Text style={[typography.small, { color: colors.textSecondary }]}>{a.description}</Text>
