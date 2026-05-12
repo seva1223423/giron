@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
   TouchableOpacity, Alert, TextInput, Modal, KeyboardAvoidingView, Platform,
@@ -7,7 +7,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { adminService } from '../../services/adminService';
+import { adminService, getApiError } from '../../services';
 import type { AdminUserDetail, AdminLog, UserRole } from '../../types';
 
 const RECENTLY_VIEWED_KEY = '@admin_recently_viewed_users';
@@ -59,6 +59,40 @@ export default function AdminUserDetailScreen() {
   const [msgBody, setMsgBody] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
   const [activeSessions, setActiveSessions] = useState<Array<{ id: string; createdAt: string; expiresAt: string; userAgent: string | null; ip: string | null }> | null>(null);
+
+  // Round 293 — server requires admin step-up re-auth (password + optional
+  // 2FA) on the subscription-change endpoint. Without these fields the
+  // request fails with "Введите пароль администратора" but the screen used
+  // to show a generic "Не удалось выдать подписку" with no way to recover.
+  // Modal collects the credentials, then grantPlan / extend / cancel
+  // resolves a Promise with them and dispatches the API call.
+  const [showStepUp, setShowStepUp] = useState(false);
+  const [stepUpPwd, setStepUpPwd] = useState('');
+  const [stepUpTotp, setStepUpTotp] = useState('');
+  const stepUpResolveRef = useRef<((value: { adminPassword: string; adminTotpCode?: string } | null) => void) | null>(null);
+
+  const requestStepUp = useCallback((): Promise<{ adminPassword: string; adminTotpCode?: string } | null> => {
+    return new Promise((resolve) => {
+      stepUpResolveRef.current = resolve;
+      setStepUpPwd('');
+      setStepUpTotp('');
+      setShowStepUp(true);
+    });
+  }, []);
+
+  const submitStepUp = useCallback(() => {
+    const pwd = stepUpPwd.trim();
+    if (!pwd) { Alert.alert('Введите пароль администратора'); return; }
+    setShowStepUp(false);
+    stepUpResolveRef.current?.({ adminPassword: pwd, adminTotpCode: stepUpTotp.trim() || undefined });
+    stepUpResolveRef.current = null;
+  }, [stepUpPwd, stepUpTotp]);
+
+  const cancelStepUp = useCallback(() => {
+    setShowStepUp(false);
+    stepUpResolveRef.current?.(null);
+    stepUpResolveRef.current = null;
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,12 +148,18 @@ export default function AdminUserDetailScreen() {
         {
           text: 'Выдать',
           onPress: async () => {
+            const auth = await requestStepUp();
+            if (!auth) return;
             setBusy(true);
             try {
-              await adminService.changeUserSubscription(userId, { plan, status: 'active' });
+              await adminService.changeUserSubscription(userId, { plan, status: 'active', ...auth });
               await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось выдать подписку');
+            } catch (e) {
+              // Round 293: surface the actual server error (was generic).
+              // Common ones: ADMIN_PASSWORD_REQUIRED, INVALID_ADMIN_PASSWORD,
+              // ADMIN_TOTP_REQUIRED, INVALID_ADMIN_TOTP.
+              const err = getApiError(e);
+              Alert.alert('Ошибка', err.message);
             } finally {
               setBusy(false);
             }
@@ -146,16 +186,19 @@ export default function AdminUserDetailScreen() {
         {
           text: 'Продлить',
           onPress: async () => {
+            const auth = await requestStepUp();
+            if (!auth) return;
             setBusy(true);
             try {
               await adminService.changeUserSubscription(userId, {
                 plan: plan as any,
                 status: 'active',
                 endDate: newEnd,
+                ...auth,
               });
               await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось продлить подписку');
+            } catch (e) {
+              Alert.alert('Ошибка', getApiError(e).message);
             } finally {
               setBusy(false);
             }
@@ -175,12 +218,14 @@ export default function AdminUserDetailScreen() {
           text: 'Отозвать',
           style: 'destructive',
           onPress: async () => {
+            const auth = await requestStepUp();
+            if (!auth) return;
             setBusy(true);
             try {
-              await adminService.changeUserSubscription(userId, { plan: 'free', status: 'cancelled' });
+              await adminService.changeUserSubscription(userId, { plan: 'free', status: 'cancelled', ...auth });
               await load();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось отозвать подписку');
+            } catch (e) {
+              Alert.alert('Ошибка', getApiError(e).message);
             } finally {
               setBusy(false);
             }
@@ -309,6 +354,52 @@ export default function AdminUserDetailScreen() {
 
   return (
     <>
+    {/* Round 293 — admin step-up re-auth prompt. Server's requireAdminStepUp
+        rejects the subscription change without these credentials. */}
+    <Modal visible={showStepUp} transparent animationType="fade" onRequestClose={cancelStepUp}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.msgOverlay}>
+          <View style={[styles.msgSheet, { paddingBottom: 24 }]}>
+            <View style={styles.msgHeader}>
+              <Text style={styles.msgTitle}>Подтверждение администратора</Text>
+              <TouchableOpacity onPress={cancelStepUp}>
+                <Text style={{ color: '#6B7280', fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#6B7280', fontSize: 13, marginBottom: 12 }}>
+              Это финансовая операция. Введи свой пароль (и 2FA код, если 2FA включена).
+            </Text>
+            <TextInput
+              value={stepUpPwd}
+              onChangeText={setStepUpPwd}
+              placeholder="Пароль администратора"
+              placeholderTextColor="#9CA3AF"
+              secureTextEntry
+              autoFocus
+              style={styles.msgInput}
+            />
+            <TextInput
+              value={stepUpTotp}
+              onChangeText={setStepUpTotp}
+              placeholder="6-значный 2FA код (если включён)"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="number-pad"
+              maxLength={6}
+              style={[styles.msgInput, { marginTop: 8 }]}
+            />
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+              <TouchableOpacity onPress={cancelStepUp} style={[styles.msgBtn, { flex: 1, backgroundColor: '#374151' }]}>
+                <Text style={styles.msgBtnText}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={submitStepUp} style={[styles.msgBtn, { flex: 1, backgroundColor: '#6366F1' }]}>
+                <Text style={styles.msgBtnText}>Подтвердить</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+
     {/* Send message modal */}
     <Modal visible={showMsgModal} transparent animationType="slide" onRequestClose={() => setShowMsgModal(false)}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -1479,4 +1570,11 @@ const styles = StyleSheet.create({
   },
   msgSendBtn: { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   msgSendBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  // Round 293 — admin step-up modal inputs/buttons (reuses msgOverlay/msgSheet)
+  msgInput: {
+    backgroundColor: '#2C2C2E', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 14, color: '#FFFFFF', borderWidth: 1, borderColor: '#3C3C3E',
+  },
+  msgBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  msgBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });

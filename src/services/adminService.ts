@@ -274,6 +274,12 @@ export const adminService = {
     plan: 'free' | 'pro' | 'trainer' | 'club';
     status?: 'active' | 'cancelled' | 'expired';
     endDate?: string;
+    /** Admin password — required by server step-up reauth on this endpoint.
+     *  Optional in the type for backward-compat with legacy callers, but
+     *  the server will reject the request with 400 / 401 if missing. */
+    adminPassword?: string;
+    /** 6-digit TOTP code if the admin has 2FA enabled. */
+    adminTotpCode?: string;
   }): Promise<unknown> {
     const res = await api.patch(`/admin/users/${userId}/subscription`, data);
     return res.data;
