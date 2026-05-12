@@ -39,6 +39,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useThemeColors } from '../../store/useThemeStore';
 import { lightColors, darkColors } from '../../theme/colors';
 
@@ -168,6 +169,32 @@ function ModalIcon({ kind, t }: { kind: ModalKind; t: ReturnType<typeof buildMod
   );
 }
 
+/**
+ * Soft accent aura behind the modal header. Mirrors the Direction A design
+ * spec `radial-gradient(120% 80% at 50% 0%, accent11 0%, transparent 60%)` —
+ * a warm gold halo emanating from the top-center of the card behind the
+ * hero icon. Implemented via react-native-svg because RN itself has no
+ * radial-gradient primitive; expo-linear-gradient only does linear.
+ * pointerEvents=none so button taps in the head pass through to the card.
+ */
+function ModalHeadAura({ color }: { color: string }) {
+  return (
+    <Svg
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+      preserveAspectRatio="none"
+    >
+      <Defs>
+        <RadialGradient id="modalAura" cx="50%" cy="0%" rx="60%" ry="80%">
+          <Stop offset="0%" stopColor={color} stopOpacity={0.09} />
+          <Stop offset="60%" stopColor={color} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#modalAura)" />
+    </Svg>
+  );
+}
+
 export function AppModalProvider({ children }: { children: React.ReactNode }) {
   const themeColors = useThemeColors();
   // useMemo on colors object identity so theme switches re-render the modal
@@ -245,6 +272,8 @@ export function AppModalProvider({ children }: { children: React.ReactNode }) {
           />
           <Animated.View style={[styles.card, { backgroundColor: t.surfaceHi, borderColor: t.lineStrong, opacity, transform: [{ scale }] }]}>
             <View style={styles.head}>
+              {/* gold/accent radial aura behind the hero icon — Direction A spec */}
+              <ModalHeadAura color={buildIconMap(t)[kind].color} />
               <ModalIcon kind={kind} t={t} />
               {!!state?.title && <Text style={[styles.title, { color: t.text }]}>{state.title}</Text>}
             </View>
@@ -380,6 +409,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     alignItems: 'center',
     gap: 14,
+    // overflow hides the radial aura SVG outside the rounded card edges
+    overflow: 'hidden',
   },
   iconRing: {
     width: 56,
@@ -388,9 +419,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
+    // Direction A spec: shadow 0 8px 24px ${color}33 — softer outer glow,
+    // slightly deeper drop. Previously 0 4px 16px 0.4 — close but more
+    // contrasty; new params match modal-screens.jsx reference 1:1.
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
   },
   title: {
     fontSize: 19,
