@@ -303,11 +303,16 @@ router.get('/health/steps', authenticate, async (req: AuthRequest, res: Response
   try {
     const userId = req.userId!;
     const days = Math.min(90, Math.max(1, parseInt(String(req.query.days ?? '30'), 10) || 30));
+    // R240 audit H2: timezone alignment. Client (StepsScreen) buckets
+    // by LOCAL date via `toLocaleDateString('en-CA')`. Server stored
+    // `startAt` as UTC. Without an offset, a 23:30 МСК sample (UTC
+    // 20:30) lands in the same UTC day as a 02:30 МСК sample the next
+    // local calendar day. Accept the client's timezone offset (in
+    // minutes, JS convention: NEGATIVE for east of UTC) and bucket on
+    // local-day so the series lines up with the screen.
+    const tzOffsetMin = Math.max(-840, Math.min(840, parseInt(String(req.query.tzOffsetMin ?? '0'), 10) || 0));
     const since = new Date(Date.now() - days * 86400_000);
 
-    // Pull raw step samples. A single sync can write one daily-total
-    // record (Mi Band) or many hourly buckets (Apple Watch) — we sum
-    // per ISO-date here so the client gets a clean per-day series.
     const samples = await prisma.healthSample.findMany({
       where: { userId, kind: 'steps', startAt: { gte: since } },
       select: { value: true, startAt: true, source: true },
@@ -315,20 +320,35 @@ router.get('/health/steps', authenticate, async (req: AuthRequest, res: Response
       take: 5000,
     });
 
-    const byDate = new Map<string, { steps: number; sources: Set<string> }>();
+    // R240 audit H1: per-day MAX across sources (not SUM). If HC and
+    // HK both report steps for the same user, summing inflates the
+    // count. Within a single source, summing is correct (one source =
+    // one true count split into hourly buckets).
+    const bySourceDate = new Map<string, Map<string, number>>(); // date → (source → steps)
     for (const s of samples) {
-      const ymd = s.startAt.toISOString().slice(0, 10);
-      const cur = byDate.get(ymd) ?? { steps: 0, sources: new Set<string>() };
-      cur.steps += Math.max(0, Math.round(s.value));
-      cur.sources.add(s.source);
-      byDate.set(ymd, cur);
+      // Bucket on client-local day. `getTimezoneOffset()` semantics:
+      // returns the offset in minutes FROM local TO UTC. Moscow returns
+      // -180 (UTC+3). Local time = UTC - offset = UTC - (-180) = UTC + 180.
+      const localMs = s.startAt.getTime() - tzOffsetMin * 60_000;
+      const ymd = new Date(localMs).toISOString().slice(0, 10);
+      const perSource = bySourceDate.get(ymd) ?? new Map<string, number>();
+      perSource.set(s.source, (perSource.get(s.source) ?? 0) + Math.max(0, Math.round(s.value)));
+      bySourceDate.set(ymd, perSource);
     }
 
-    const series = Array.from(byDate.entries())
-      .map(([date, v]) => ({ date, steps: v.steps, sources: Array.from(v.sources) }))
+    const series = Array.from(bySourceDate.entries())
+      .map(([date, perSource]) => {
+        let max = 0;
+        const sources: string[] = [];
+        for (const [source, steps] of perSource) {
+          if (steps > max) max = steps;
+          sources.push(source);
+        }
+        return { date, steps: max, sources };
+      })
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    res.json({ days, series });
+    res.json({ days, tzOffsetMin, series });
   } catch (e) {
     logger.error('GET /user/health/steps:', e);
     res.status(500).json({ error: 'Ошибка получения шагов' });

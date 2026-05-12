@@ -282,7 +282,16 @@ export const healthKitAdapter: HealthDataProvider = {
         if (typeof queryQty !== 'function') continue;
         const samples: any[] = await queryQty(spec.hkType, { from: since, to: now }) ?? [];
         for (const r of samples) {
-          const value = typeof r.quantity === 'number' ? r.quantity : (typeof r.value === 'number' ? r.value : NaN);
+          // R240 audit M11: `@kingstinct/react-native-healthkit` v13→v14
+          // changed the sample shape — newer versions return a plain
+          // number for `quantity`, older builds (or iOS 16 path) return
+          // `{ doubleValue, unit }`. We defensively check both, plus
+          // `value` as a third fallback, before treating the sample as
+          // missing.
+          let value: number = NaN;
+          if (typeof r.quantity === 'number') value = r.quantity;
+          else if (typeof r?.quantity?.doubleValue === 'number') value = r.quantity.doubleValue;
+          else if (typeof r.value === 'number') value = r.value;
           if (!Number.isFinite(value)) continue;
           const startAt = r.startDate ?? r.start;
           if (!startAt) continue;

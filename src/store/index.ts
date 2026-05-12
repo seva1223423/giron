@@ -16,3 +16,4 @@ export { useMeasurementsStore } from './useMeasurementsStore';
 export type { BodyMeasurement } from './useMeasurementsStore';
 export { useRecipesStore } from './useRecipesStore';
 export { useDensityStore } from './useDensityStore';
+export { useHealthStore } from './useHealthStore';

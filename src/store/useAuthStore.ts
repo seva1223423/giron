@@ -85,6 +85,7 @@ function clearStoreUserData() {
     stores.useSubscriptionStore?.getState().clearUserData();
     stores.useSupportStore?.getState().clearUserData();
     stores.useRecipesStore?.getState().clearUserData();
+    stores.useHealthStore?.getState().clearUserData();
     stores.useOnboardingTipsStore?.getState().resetAll();
     stores.useThemeStore?.getState().resetToDefaults();
     stores.useSettingsStore?.getState().resetToDefaults();
