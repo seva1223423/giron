@@ -131,8 +131,12 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
   const core = buildCoreStatsContext(data);
   if (core) blocks.push(core);
 
-  // Start memory fetch early — runs in parallel with the intent-specific switch
+  // Start memory + watch-data fetches early — both run in parallel with the
+  // intent-specific switch. Watch data is broadly relevant (sleep,
+  // recovery, HR-based intensity), so we always attempt it and let the
+  // builder emit empty-string when there's nothing synced yet.
   const memoryPromise = buildMemoryBlock(data);
+  const healthSnapshotPromise = buildHealthSnapshotBlock(data);
 
   // Intent-specific blocks
   switch (data.intent) {
@@ -233,9 +237,10 @@ export async function buildDynamicContext(data: ChatContextData): Promise<string
     }
   }
 
-  // Memory: for all intents (cross-session personalization) — awaited after parallel work above
-  const memory = await memoryPromise;
+  // Memory + watch-data: for all intents — awaited after parallel work above
+  const [memory, healthSnapshot] = await Promise.all([memoryPromise, healthSnapshotPromise]);
   if (memory) blocks.push(memory);
+  if (healthSnapshot) blocks.push(healthSnapshot);
 
   return blocks.join('\n\n');
 }
@@ -818,6 +823,131 @@ function buildSleepBlock(data: ChatContextData): string {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Watch-data snapshot — surfaces metrics synced from HealthKit / Health
+ * Connect / direct BLE into the chat system prompt. Round-240 (Phase A
+ * of the smartwatch integration).
+ *
+ * Emits one compact block (~target ≤200 tokens) containing:
+ *   - yesterday's sleep with stages, SpO₂, HRV, awakenings
+ *   - 7-day median resting HR
+ *   - latest VO₂max (from the cardio session it was logged with)
+ *   - 7-day active minutes from cardio
+ *   - latest standalone SpO₂ / HRV samples (if not already in sleep)
+ *
+ * Returns '' when no watch-synced facts exist — keeps the prompt clean
+ * for users who haven't paired a device. All errors are swallowed (same
+ * pattern as buildMemoryBlock) so a broken Health Connect import never
+ * breaks /chat.
+ */
+async function buildHealthSnapshotBlock(data: ChatContextData): Promise<string> {
+  const { userId, todayDate } = data;
+  try {
+    const since7d = new Date(Date.now() - 7 * 86400_000);
+    const todayMs = new Date(todayDate + 'T00:00:00.000Z').getTime();
+    const yesterdayDate = new Date(todayMs - 86400_000).toISOString().slice(0, 10);
+    const sevenDaysAgoDate = new Date(todayMs - 7 * 86400_000).toISOString().slice(0, 10);
+
+    const [yesterdaySleep, restingHrSamples, latestCardioWithVo2, latestSpo2, latestHrv, cardio7d] = await Promise.all([
+      prisma.sleepEntry.findFirst({
+        where: { userId, date: yesterdayDate },
+        select: {
+          durationHours: true, quality: true, stages: true,
+          spo2Avg: true, hrvAvg: true, awakenings: true, deviceSource: true,
+        },
+      }),
+      prisma.healthSample.findMany({
+        where: { userId, kind: 'restingHr', startAt: { gte: since7d } },
+        select: { value: true },
+      }),
+      prisma.cardioSession.findFirst({
+        where: { userId, vo2Max: { not: null } },
+        orderBy: { date: 'desc' },
+        select: { vo2Max: true, date: true },
+      }),
+      prisma.healthSample.findFirst({
+        where: { userId, kind: 'spo2' },
+        orderBy: { startAt: 'desc' },
+        select: { value: true },
+      }),
+      prisma.healthSample.findFirst({
+        where: { userId, kind: 'hrv' },
+        orderBy: { startAt: 'desc' },
+        select: { value: true },
+      }),
+      prisma.cardioSession.findMany({
+        where: { userId, date: { gte: sevenDaysAgoDate } },
+        select: { durationMinutes: true, deviceSource: true },
+      }),
+    ]);
+
+    // Only emit the block if at least one fact came from a watch — manual
+    // logs already surface in other blocks (buildSleepBlock, buildRecoveryBlock).
+    const hasWatchData =
+      (yesterdaySleep && yesterdaySleep.deviceSource !== 'MANUAL') ||
+      restingHrSamples.length > 0 ||
+      latestCardioWithVo2?.vo2Max != null ||
+      latestSpo2 != null ||
+      latestHrv != null ||
+      cardio7d.some((c) => c.deviceSource !== 'MANUAL');
+
+    if (!hasWatchData) return '';
+
+    const lines: string[] = ['\n## 🩺 ДАННЫЕ С ЧАСОВ'];
+
+    if (yesterdaySleep) {
+      const parts: string[] = [`${yesterdaySleep.durationHours.toFixed(1)}ч`];
+      const stages = yesterdaySleep.stages as { rem?: number; deep?: number; light?: number; awake?: number } | null;
+      if (stages) {
+        const stageBits: string[] = [];
+        if (typeof stages.deep === 'number') stageBits.push(`глубокий ${Math.round(stages.deep)}м`);
+        if (typeof stages.rem === 'number') stageBits.push(`REM ${Math.round(stages.rem)}м`);
+        if (typeof stages.light === 'number') stageBits.push(`лёгкий ${Math.round(stages.light)}м`);
+        if (stageBits.length) parts.push(stageBits.join(', '));
+      }
+      if (yesterdaySleep.quality != null) parts.push(`качество ${yesterdaySleep.quality}/5`);
+      if (yesterdaySleep.awakenings != null) parts.push(`пробуждений ${yesterdaySleep.awakenings}`);
+      if (yesterdaySleep.spo2Avg != null) parts.push(`SpO₂ ${yesterdaySleep.spo2Avg.toFixed(0)}%`);
+      if (yesterdaySleep.hrvAvg != null) parts.push(`HRV ${yesterdaySleep.hrvAvg.toFixed(0)}мс`);
+      lines.push(`Вчера сон: ${parts.join(' | ')}`);
+    }
+
+    if (restingHrSamples.length > 0) {
+      const sorted = [...restingHrSamples.map((s) => s.value)].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const medianHr = sorted.length % 2 === 0
+        ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+        : Math.round(sorted[mid]);
+      lines.push(`Пульс покоя (7д медиана): ${medianHr} уд/мин`);
+    }
+
+    if (latestCardioWithVo2?.vo2Max != null) {
+      lines.push(`VO₂max: ${latestCardioWithVo2.vo2Max.toFixed(1)} (${latestCardioWithVo2.date})`);
+    }
+
+    const active7d = cardio7d.reduce((sum, c) => sum + c.durationMinutes, 0);
+    if (active7d > 0) {
+      lines.push(`Активность 7д: ${active7d} мин (~${Math.round(active7d / 7)} мин/день)`);
+    }
+
+    // Only show standalone SpO₂/HRV if not already in yesterday's sleep
+    if (latestSpo2?.value != null && yesterdaySleep?.spo2Avg == null) {
+      lines.push(`SpO₂: ${Math.round(latestSpo2.value)}%`);
+    }
+    if (latestHrv?.value != null && yesterdaySleep?.hrvAvg == null) {
+      lines.push(`HRV: ${Math.round(latestHrv.value)}мс`);
+    }
+
+    // Header-only output means we somehow had hasWatchData=true but no
+    // formatter produced a line. Drop the block entirely in that case.
+    if (lines.length === 1) return '';
+
+    return lines.join('\n');
+  } catch {
+    return '';
+  }
 }
 
 /**

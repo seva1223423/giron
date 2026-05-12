@@ -12,6 +12,7 @@ import { newsRouter } from './routes/news';
 import { subscriptionRouter } from './routes/subscription';
 import { trainerRouter } from './routes/trainer';
 import { cardioRouter } from './routes/cardio';
+import { healthRouter } from './routes/health';
 import { supportRouter } from './routes/support';
 import { adminRouter } from './routes/admin';
 import { recipesRouter } from './routes/recipes';
@@ -107,6 +108,13 @@ app.use(cors({
 }));
 // Food image analysis needs up to 10MB for base64-encoded photos — apply before the global limit.
 app.use('/api/ai/analyze-food', express.json({ limit: '10mb' }));
+// Watch sync ships GPS tracks (up to 5000 points × 30 bytes) and batches
+// of cardio/sleep/samples capped at 2000 each. A first-time sync of
+// historical data can realistically reach ~1-2 MB. The Zod schema caps
+// arrays at 2000 items each, so the body parser limit is the only thing
+// standing between us and DoS — 4mb fits a worst-case real sync without
+// being permissive enough to abuse.
+app.use('/api/user/health/sync', express.json({ limit: '4mb' }));
 
 // Global 10kb limit for all other endpoints.
 // Webhook rawBody captured here for HMAC signature verification in subscription/webhook routes.
@@ -362,6 +370,11 @@ app.use('/api/news', userRateLimiter, newsRouter);
 app.use('/api/subscription', userRateLimiter, subscriptionRouter);
 app.use('/api/trainer', userRateLimiter, trainerRouter);
 app.use('/api/cardio', userRateLimiter, cardioRouter);
+// Round 240 — smartwatch / health integration. Mounted under /api/user
+// so routes like /api/user/health/sync and /api/user/devices co-locate
+// with the existing /api/user/profile namespace. No conflict with
+// userRouter — health.ts uses /health/* and /devices/* paths only.
+app.use('/api/user', userRateLimiter, healthRouter);
 app.use('/api/support', userRateLimiter, supportRouter);
 app.use('/api/admin', adminRateLimiter, adminRouter);
 // Tight per-endpoint cap for the LLM-backed recipe generator — must be

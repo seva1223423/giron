@@ -9,12 +9,12 @@ datasource db {
 
 // ==================== USER & AUTH ====================
 model User {
-  id                      String   @id @default(cuid())
-  email                   String   @unique
-  phone                   String?   @unique
+  id                      String        @id @default(cuid())
+  email                   String        @unique
+  phone                   String?       @unique
   passwordHash            String?
-  googleId                String?  @unique
-  emailVerified           Boolean  @default(false)
+  googleId                String?       @unique
+  emailVerified           Boolean       @default(false)
   firstName               String
   lastName                String?
   dateOfBirth             DateTime?
@@ -25,33 +25,33 @@ model User {
   fitnessLevel            FitnessLevel?
   trainingExperienceYears Int?
   avatarUrl               String?
-  role                    UserRole  @default(CLIENT)
+  role                    UserRole      @default(CLIENT)
   gymId                   String?
   weekPlan                Json?
 
   // Nutrition targets — set by user or AI coach, persisted server-side
-  targetCalories          Float?
-  targetProtein           Float?
-  targetFats              Float?
-  targetCarbs             Float?
-  targetWaterMl           Float?
+  targetCalories Float?
+  targetProtein  Float?
+  targetFats     Float?
+  targetCarbs    Float?
+  targetWaterMl  Float?
 
-  vkId                    String?   @unique
-  yandexId                String?   @unique
-  phoneVerified           Boolean   @default(false)
+  vkId          String? @unique
+  yandexId      String? @unique
+  phoneVerified Boolean @default(false)
 
-  totpSecret              String?   // base32 TOTP secret (set during 2FA setup, before enabled)
-  totpEnabled             Boolean   @default(false)
-  totpBackupCodes         String?   // JSON: [{hash: string, used: boolean}] — single-use recovery codes
+  totpSecret      String? // base32 TOTP secret (set during 2FA setup, before enabled)
+  totpEnabled     Boolean @default(false)
+  totpBackupCodes String? // JSON: [{hash: string, used: boolean}] — single-use recovery codes
 
-  isBanned                Boolean   @default(false)
-  bannedAt                DateTime?
-  banReason               String?
-  adminNote               String?
+  isBanned  Boolean   @default(false)
+  bannedAt  DateTime?
+  banReason String?
+  adminNote String?
 
   // Login lockout (brute-force protection)
-  loginAttempts           Int       @default(0)
-  lockedUntil             DateTime?
+  loginAttempts Int       @default(0)
+  lockedUntil   DateTime?
 
   // Retention/activation tracking. firstChatAt is set the very first time
   // the AI chat handler accepts a successful user message — used by the
@@ -59,18 +59,18 @@ model User {
   // *PushSentAt fields are write-once flags so the same user is never
   // nagged twice for the same milestone. lastActiveAt drives the
   // inactivity-cohort queries without needing to scan multiple tables.
-  firstChatAt             DateTime?
-  lastActiveAt            DateTime?
-  activationPushSentAt    DateTime?
+  firstChatAt           DateTime?
+  lastActiveAt          DateTime?
+  activationPushSentAt  DateTime?
   /// Parallel email-channel flag for users who never installed the app
   /// (no push token). The activation cron sends both push AND email so
   /// the silent-majority cohort that registered via curl/web still gets
   /// reached. Each channel has its own write-once flag so a successful
   /// send on one doesn't suppress the other.
-  activationEmailSentAt   DateTime?
-  reactivation7dSentAt    DateTime?
-  reactivation14dSentAt   DateTime?
-  reactivation30dSentAt   DateTime?
+  activationEmailSentAt DateTime?
+  reactivation7dSentAt  DateTime?
+  reactivation14dSentAt DateTime?
+  reactivation30dSentAt DateTime?
 
   /// Onboarding funnel telemetry. Map of step number (0..4) → ISO
   /// timestamp, upserted by POST /user/onboarding/step as the user
@@ -78,12 +78,12 @@ model User {
   /// timestamp is recorded, subsequent revisits don't overwrite it. Lets
   /// the admin metrics endpoint compute drop-off rates per step without
   /// needing a separate event table. Null until the first step submission.
-  onboardingStepLog       Json?
+  onboardingStepLog     Json?
   /// Set when the user submits the final step (Days). Independent of
   /// `onboardingStepLog["4"]` so cohort filters can use a simple non-null
   /// check without parsing JSON. Drives "median time-to-onboarded"
   /// metric: onboardingCompletedAt - createdAt.
-  onboardingCompletedAt   DateTime?
+  onboardingCompletedAt DateTime?
 
   /// Round 237 — consent tracking (152-ФЗ §6 informed consent + GDPR
   /// Art.7 demonstrability). When the user accepted the terms-of-use +
@@ -93,45 +93,48 @@ model User {
   /// and by the future "your terms updated, please re-accept" prompt.
   /// Null only for legacy users registered before round 237 — those get
   /// a soft re-accept prompt on next launch (separate round).
-  consentAcceptedAt       DateTime?
-  consentVersion          String?
+  consentAcceptedAt DateTime?
+  consentVersion    String?
 
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  healthRestrictions      HealthRestriction[]
-  programs                Program[]
-  workouts                Workout[]
-  routines                Routine[]
-  meals                   Meal[]
-  bodyWeights             BodyWeight[]
-  bodyMeasurements        BodyMeasurement[]
-  chatMessages            ChatMessage[]
-  savedNews               SavedNews[]
-  subscription            Subscription?
-  aiMemories              AIMemory[]
-  trainerClients          TrainerClient[] @relation("TrainerOwnsClient")
+  healthRestrictions HealthRestriction[]
+  programs           Program[]
+  workouts           Workout[]
+  routines           Routine[]
+  meals              Meal[]
+  bodyWeights        BodyWeight[]
+  bodyMeasurements   BodyMeasurement[]
+  chatMessages       ChatMessage[]
+  savedNews          SavedNews[]
+  subscription       Subscription?
+  aiMemories         AIMemory[]
+  trainerClients     TrainerClient[]     @relation("TrainerOwnsClient")
   // Clients-side relation: when this user accepts a trainer invite, the
   // TrainerClient row points back here. A single user can be linked to
   // multiple trainers (history + switching), but at most once per trainer.
-  trainerLinks            TrainerClient[] @relation("ClientIsUser")
-  cardioSessions          CardioSession[]
-  supportTickets          SupportTicket[]  @relation("UserTickets")
-  assignedTickets         SupportTicket[]  @relation("StaffTickets")
-  supportMessages         SupportMessage[] @relation("MessageAuthor")
-  adminLogs               AdminLog[]       @relation("AdminLogs")
-  sleepEntries            SleepEntry[]
-  announcements           Announcement[]   @relation("Announcements")
-  recipes                 Recipe[]
+  trainerLinks       TrainerClient[]     @relation("ClientIsUser")
+  cardioSessions     CardioSession[]
+  supportTickets     SupportTicket[]     @relation("UserTickets")
+  assignedTickets    SupportTicket[]     @relation("StaffTickets")
+  supportMessages    SupportMessage[]    @relation("MessageAuthor")
+  adminLogs          AdminLog[]          @relation("AdminLogs")
+  sleepEntries       SleepEntry[]
+  announcements      Announcement[]      @relation("Announcements")
+  recipes            Recipe[]
 
-  gym                     Gym?      @relation(fields: [gymId], references: [id], onDelete: SetNull)
-  passwordResetTokens     PasswordResetToken[]
-  passwordHistory         PasswordHistory[]
-  refreshTokens           RefreshToken[]
-  pushTokens              PushToken[]
-  trustedDevices          TrustedDevice[]
-  usedTotpCodes           UsedTotpCode[]
-  foodScanLogs            FoodScanLog[]
+  gym                 Gym?                 @relation(fields: [gymId], references: [id], onDelete: SetNull)
+  passwordResetTokens PasswordResetToken[]
+  passwordHistory     PasswordHistory[]
+  refreshTokens       RefreshToken[]
+  pushTokens          PushToken[]
+  trustedDevices      TrustedDevice[]
+  usedTotpCodes       UsedTotpCode[]
+  foodScanLogs        FoodScanLog[]
+  // Round 240 — smartwatch integration back-relations
+  connectedDevices    ConnectedDevice[]
+  healthSamples       HealthSample[]
 
   // Index for the hourly retention cron — finds users registered >24h ago
   // whose firstChatAt is still null and activationPushSentAt is null.
@@ -186,11 +189,11 @@ model HealthRestriction {
 
 // ==================== GYM ====================
 model Gym {
-  id       String @id @default(cuid())
-  name     String
-  address  String?
-  phone    String?
-  members  User[]
+  id      String  @id @default(cuid())
+  name    String
+  address String?
+  phone   String?
+  members User[]
 }
 
 // ==================== EXERCISES ====================
@@ -201,8 +204,8 @@ model Exercise {
   instructions     String[]
   primaryMuscles   String[]
   secondaryMuscles String[]
-  type             String   // barbell, dumbbell, machine, etc.
-  category         String   // strength, cardio, flexibility, functional
+  type             String // barbell, dumbbell, machine, etc.
+  category         String // strength, cardio, flexibility, functional
   difficulty       String
   videoUrl         String?
   imageUrl         String?
@@ -213,30 +216,30 @@ model Exercise {
 
 // ==================== PROGRAMS & WORKOUTS ====================
 model Program {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
   name          String
   description   String?
-  type          String   // push_pull_legs, upper_lower, etc.
+  type          String // push_pull_legs, upper_lower, etc.
   goal          TrainingGoal
   level         FitnessLevel
   daysPerWeek   Int
   durationWeeks Int?
-  isActive      Boolean  @default(false)
-  createdBy     String   // system, user, ai
+  isActive      Boolean      @default(false)
+  createdBy     String // system, user, ai
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  workouts      Workout[]
+  workouts Workout[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
 
 model Workout {
   id              String    @id @default(cuid())
-  clientId        String?   // client-generated ID for offline-first idempotency
+  clientId        String? // client-generated ID for offline-first idempotency
   name            String
   description     String?
   scheduledDate   DateTime?
@@ -246,16 +249,16 @@ model Workout {
   totalVolume     Float?
   notes           String?
 
-  programId       String?
-  program         Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
-  routineId       String?
-  routine         Routine?  @relation(fields: [routineId], references: [id], onDelete: SetNull)
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId String?
+  program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  routineId String?
+  routine   Routine? @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  exercises       WorkoutExercise[]
+  exercises WorkoutExercise[]
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([clientId, userId]) // per-user idempotency: same timestamp can't collide across users
   @@index([userId])
@@ -273,34 +276,34 @@ model Workout {
 }
 
 model WorkoutExercise {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   order           Int
-  restSeconds     Int    @default(90)
+  restSeconds     Int     @default(90)
   supersetGroupId String?
   notes           String?
 
-  workoutId       String
-  workout         Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  exerciseId      String
-  exercise        Exercise @relation(fields: [exerciseId], references: [id])
+  workoutId  String
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
 
-  sets            WorkoutSet[]
+  sets WorkoutSet[]
 
   @@index([workoutId])
   @@index([exerciseId])
 }
 
 model WorkoutSet {
-  id                String  @id @default(cuid())
-  setNumber         Int
-  type              String  @default("normal") // normal, warmup, dropset, superset, failure
-  reps              Int?
-  weight            Float?
-  duration          Int?    // seconds
-  distance          Float?  // meters
-  rpe               Int?    // 1-10
-  completed         Boolean @default(false)
-  notes             String?
+  id        String  @id @default(cuid())
+  setNumber Int
+  type      String  @default("normal") // normal, warmup, dropset, superset, failure
+  reps      Int?
+  weight    Float?
+  duration  Int? // seconds
+  distance  Float? // meters
+  rpe       Int? // 1-10
+  completed Boolean @default(false)
+  notes     String?
 
   workoutExerciseId String
   workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
@@ -310,9 +313,9 @@ model WorkoutSet {
 
 // ==================== ROUTINES ====================
 model Routine {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
+  id                       String            @id @default(cuid())
+  name                     String
+  description              String?
   // Round 255: metadata for filtering and progression tuning.
   // targetGoal: "STRENGTH" | "MUSCLE_GAIN" | "ENDURANCE" | "FAT_LOSS" | "GENERAL"
   // difficulty: "BEGINNER" | "INTERMEDIATE" | "ADVANCED"
@@ -321,25 +324,25 @@ model Routine {
   targetGoal               String?
   difficulty               String?
   estimatedDurationMinutes Int?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercises   RoutineExercise[]
-  workouts    Workout[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  userId                   String
+  user                     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises                RoutineExercise[]
+  workouts                 Workout[]
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
 
   @@index([userId])
 }
 
 model RoutineExercise {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   order       Int
-  restSeconds Int      @default(90)
+  restSeconds Int          @default(90)
   notes       String?
   exerciseId  String
-  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+  exercise    Exercise     @relation(fields: [exerciseId], references: [id])
   routineId   String
-  routine     Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  routine     Routine      @relation(fields: [routineId], references: [id], onDelete: Cascade)
   sets        RoutineSet[]
 
   @@index([routineId])
@@ -347,9 +350,9 @@ model RoutineExercise {
 }
 
 model RoutineSet {
-  id                String  @id @default(cuid())
+  id                String          @id @default(cuid())
   setNumber         Int
-  type              String  @default("normal") // normal, warmup, dropset
+  type              String          @default("normal") // normal, warmup, dropset
   reps              Int?
   weight            Float?
   rpe               Int?
@@ -361,27 +364,27 @@ model RoutineSet {
 
 // ==================== NUTRITION ====================
 model Meal {
-  id             String   @id @default(cuid())
-  type           String   // breakfast, lunch, dinner, snack
-  photoUrl       String?
-  totalCalories  Float
-  totalProtein   Float
-  totalFats      Float
-  totalCarbs     Float
-  date           String   @default("")  // YYYY-MM-DD local date — timezone-safe filtering
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String  @id @default(cuid())
+  type          String // breakfast, lunch, dinner, snack
+  photoUrl      String?
+  totalCalories Float
+  totalProtein  Float
+  totalFats     Float
+  totalCarbs    Float
+  date          String  @default("") // YYYY-MM-DD local date — timezone-safe filtering
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  items          MealItem[]
+  items MealItem[]
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
-  @@index([userId, date])  // composite: date-filtered meal queries (replaces createdAt-based range)
+  @@index([userId, date]) // composite: date-filtered meal queries (replaces createdAt-based range)
 }
 
 model MealItem {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   calories    Float
   protein     Float
@@ -390,8 +393,8 @@ model MealItem {
   weightGrams Float
   imageUrl    String?
 
-  mealId      String
-  meal        Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  mealId String
+  meal   Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
 
   @@index([mealId])
 }
@@ -408,17 +411,17 @@ model BodyWeight {
 }
 
 model BodyMeasurement {
-  id      String   @id @default(cuid())
-  date    DateTime
-  userId  String
-  chest   Float?
-  waist   Float?
-  hips    Float?
-  bicep   Float?
-  thigh   Float?
-  calf    Float?
-  neck    Float?
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String   @id @default(cuid())
+  date   DateTime
+  userId String
+  chest  Float?
+  waist  Float?
+  hips   Float?
+  bicep  Float?
+  thigh  Float?
+  calf   Float?
+  neck   Float?
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId])
@@ -426,17 +429,17 @@ model BodyMeasurement {
 
 // ==================== AI CHAT ====================
 model ChatMessage {
-  id        String   @id @default(cuid())
-  role      String   // user, assistant
-  content   String
-  actions   Json?    // AI actions performed
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  role    String // user, assistant
+  content String
+  actions Json? // AI actions performed
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
   @@index([userId])
-  @@index([userId, createdAt])  // composite: paginated history + admin stats date-range scans
+  @@index([userId, createdAt]) // composite: paginated history + admin stats date-range scans
   // AI daily quota check: count(where userId + role='user' + createdAt>=floor).
   // Runs on every /ai/chat request before hitting Mistral. With just
   // [userId, createdAt] above, Postgres has to read-then-filter role; adding
@@ -447,14 +450,14 @@ model ChatMessage {
 
 // ==================== AI MEMORY ====================
 model AIMemory {
-  id        String   @id @default(cuid())
-  category  String   // preference, habit, injury, allergy, schedule, personality
-  key       String   // unique identifier: e.g. "preferred_split", "injury_shoulder"
-  value     String   // the learned fact
-  confidence Float   @default(0.5) // 0-1, increases with repeated confirmation
-  source    String   @default("inferred") // inferred, stated, observed
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String @id @default(cuid())
+  category   String // preference, habit, injury, allergy, schedule, personality
+  key        String // unique identifier: e.g. "preferred_split", "injury_shoulder"
+  value      String // the learned fact
+  confidence Float  @default(0.5) // 0-1, increases with repeated confirmation
+  source     String @default("inferred") // inferred, stated, observed
+  userId     String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -468,21 +471,21 @@ model AIMemory {
 
 // ==================== TRAINER ====================
 model TrainerClient {
-  id              String   @id @default(cuid())
+  id              String  @id @default(cuid())
   name            String
   phone           String?
   age             Int?
-  goal            String?  // muscle_gain, weight_loss, strength, etc.
-  level           String?  // beginner, intermediate, advanced
+  goal            String? // muscle_gain, weight_loss, strength, etc.
+  level           String? // beginner, intermediate, advanced
   assignedProgram String?
   notes           String?
-  emoji           String?  @default("🧑")
-  totalWorkouts   Int      @default(0)
-  lastVisit       String?   // YYYY-MM-DD
+  emoji           String? @default("🧑")
+  totalWorkouts   Int     @default(0)
+  lastVisit       String? // YYYY-MM-DD
 
-  trainerId       String
-  trainer         User              @relation("TrainerOwnsClient", fields: [trainerId], references: [id], onDelete: Cascade)
-  sessions        TrainerSession[]
+  trainerId String
+  trainer   User             @relation("TrainerOwnsClient", fields: [trainerId], references: [id], onDelete: Cascade)
+  sessions  TrainerSession[]
 
   // ── Invite linkage (B2B Dashboard Phase 1) ────────────────────────────────
   // A trainer invites a real Iron Gym user by generating a random code. The
@@ -491,33 +494,33 @@ model TrainerClient {
   // that point on the trainer can see the user's workouts / progress (subject
   // to the client's privacy toggle — TODO: add User.shareProgressWithTrainer
   // when we wire the consent UI).
-  inviteCode      String?  @unique
-  invitedAt       DateTime?
-  acceptedAt      DateTime?
-  clientUserId    String?
-  clientUser      User?             @relation("ClientIsUser", fields: [clientUserId], references: [id], onDelete: Cascade)
+  inviteCode   String?   @unique
+  invitedAt    DateTime?
+  acceptedAt   DateTime?
+  clientUserId String?
+  clientUser   User?     @relation("ClientIsUser", fields: [clientUserId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([trainerId])
-  @@index([clientUserId])
   // One trainer cannot link the same user twice — prevents duplicate roster
   // rows if a trainer accidentally sends two invite codes to the same client.
   @@unique([trainerId, clientUserId])
+  @@index([trainerId])
+  @@index([clientUserId])
 }
 
 model TrainerSession {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   clientId        String
   client          TrainerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  date            String   // YYYY-MM-DD
+  date            String // YYYY-MM-DD
   name            String
   durationMinutes Int
   volumeKg        Float?
   notes           String?
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([clientId])
   @@index([date])
@@ -533,7 +536,7 @@ model NewsArticle {
   categories  String[] // russian, powerlifting, records, etc.
   publishedAt DateTime @default(now())
 
-  savedBy     SavedNews[]
+  savedBy SavedNews[]
 
   @@index([title]) // dedup lookup in newsRefreshService: findFirst({ where: { title } })
   // News feed is the most-hit read endpoint after auth. Without this,
@@ -556,13 +559,13 @@ model SavedNews {
 
 // ==================== SUBSCRIPTION ====================
 model Subscription {
-  id         String   @id @default(cuid())
-  plan       String   // free, pro, trainer, club, lifetime
-  status     String   // active, cancelled, expired
-  startDate  DateTime
-  endDate    DateTime?
-  userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  plan      String // free, pro, trainer, club, lifetime
+  status    String // active, cancelled, expired
+  startDate DateTime
+  endDate   DateTime?
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // 376-ФЗ audit trail. canceledAt is set when the user taps "Отменить
   // подписку" — distinct from `status='cancelled'` which can also be set
@@ -571,16 +574,16 @@ model Subscription {
   // SubscriptionScreen, validates timestamp is recent server-side).
   // renewalNoticeSentAt prevents double-firing the 48h pre-renewal email
   // when the cron ticks more than once in the 48-46h window.
-  canceledAt              DateTime?
-  autoRenewalConsentAt    DateTime?
-  renewalNoticeSentAt     DateTime?
+  canceledAt           DateTime?
+  autoRenewalConsentAt DateTime?
+  renewalNoticeSentAt  DateTime?
   /// Renewal price snapshot — locks in the amount that the consent
   /// covered, so a later price change requires fresh consent before the
   /// next charge (376-ФЗ §3 — consent must cover the actual amount).
-  renewalAmountRub        Int?
+  renewalAmountRub     Int?
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Composite for admin cron jobs that scan expiring subscriptions daily:
   // where { status: 'active', endDate: { gte: now, lt: rangeEnd } }. Without
@@ -592,24 +595,38 @@ model Subscription {
   @@index([status, endDate, renewalNoticeSentAt])
 }
 
-
 // ==================== CARDIO ====================
 model CardioSession {
-  id             String   @id @default(cuid())
-  userId         String
-  type           String   // running, cycling, swimming, walking, hiit, elliptical, rowing, other
-  date           String   // YYYY-MM-DD
+  id              String        @id @default(cuid())
+  userId          String
+  type            String // running, cycling, swimming, walking, hiit, elliptical, rowing, other
+  date            String // YYYY-MM-DD
   durationMinutes Int
-  distanceKm     Float?
-  caloriesBurned Int?
-  avgHeartRate   Int?
-  notes          String?
-  createdAt      DateTime @default(now())
+  distanceKm      Float?
+  caloriesBurned  Int?
+  avgHeartRate    Int?
+  // Round 240: watch-integration fields. All optional — manual entries
+  // still work (deviceSource defaults to MANUAL). hrZones stores time-
+  // in-zone in minutes as { z1, z2, z3, z4, z5 }. gpsTrack server-caps
+  // at 5000 points to keep payloads sane.
+  maxHeartRate    Int?
+  minHeartRate    Int?
+  hrZones         Json?
+  gpsTrack        Json?
+  vo2Max          Float?
+  deviceSource    DeviceSource? @default(MANUAL)
+  // externalId = watch-provided UUID (HealthKit workout UUID, Health
+  // Connect record ID, or BLE session hash). Lets us idempotently
+  // re-sync the same workout multiple times without duplicates.
+  externalId      String?
+  notes           String?
+  createdAt       DateTime      @default(now())
 
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, externalId], map: "cardio_external_dedupe")
   @@index([userId])
-  @@index([userId, date])  // composite: date-range cardio history queries
+  @@index([userId, date]) // composite: date-range cardio history queries
 }
 
 // ==================== PUSH TOKENS ====================
@@ -631,7 +648,7 @@ model PasswordHistory {
   passwordHash String
   createdAt    DateTime @default(now())
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -648,7 +665,7 @@ model PasswordResetToken {
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // userId index: used in updateMany to invalidate old tokens on forgot-password
   @@index([userId])
@@ -656,40 +673,40 @@ model PasswordResetToken {
 
 // ==================== SUPPORT ====================
 model SupportTicket {
-  id           String   @id @default(cuid())
-  subject      String
-  category     String   // billing, technical, feature_request, account, bug, other
-  status       String   @default("open") // open, in_progress, resolved, closed
-  priority     String   @default("normal") // low, normal, high, urgent
+  id       String @id @default(cuid())
+  subject  String
+  category String // billing, technical, feature_request, account, bug, other
+  status   String @default("open") // open, in_progress, resolved, closed
+  priority String @default("normal") // low, normal, high, urgent
 
-  userId       String
-  user         User     @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
 
   assignedToId String?
-  assignedTo   User?    @relation("StaffTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo   User?   @relation("StaffTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
 
-  messages     SupportMessage[]
+  messages SupportMessage[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
   @@index([assignedToId])
-  @@index([userId, updatedAt])  // composite: user ticket list sorted by last activity
+  @@index([userId, updatedAt]) // composite: user ticket list sorted by last activity
 }
 
 model SupportMessage {
-  id         String   @id @default(cuid())
+  id         String  @id @default(cuid())
   content    String
-  isStaff    Boolean  @default(false)
-  isInternal Boolean  @default(false)
+  isStaff    Boolean @default(false)
+  isInternal Boolean @default(false)
 
-  ticketId  String
-  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
-  authorId  String?
-  author    User?    @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorId String?
+  author   User?   @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -698,13 +715,13 @@ model SupportMessage {
 
 // ==================== ADMIN LOG ====================
 model AdminLog {
-  id        String   @id @default(cuid())
-  action    String   // VIEW_USER, CHANGE_ROLE, CHANGE_SUBSCRIPTION, CLOSE_TICKET, REPLY_TICKET, BAN_USER
-  targetId  String?  // affected userId or ticketId
-  details   String?
+  id       String  @id @default(cuid())
+  action   String // VIEW_USER, CHANGE_ROLE, CHANGE_SUBSCRIPTION, CLOSE_TICKET, REPLY_TICKET, BAN_USER
+  targetId String? // affected userId or ticketId
+  details  String?
 
-  adminId   String?
-  admin     User?    @relation("AdminLogs", fields: [adminId], references: [id], onDelete: SetNull)
+  adminId String?
+  admin   User?   @relation("AdminLogs", fields: [adminId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -714,18 +731,83 @@ model AdminLog {
 
 // ==================== SLEEP ====================
 model SleepEntry {
-  id            String   @id @default(cuid())
-  date          String   // YYYY-MM-DD
-  bedtime       String   // HH:MM
-  wakeTime      String   // HH:MM
+  id            String        @id @default(cuid())
+  date          String // YYYY-MM-DD
+  bedtime       String // HH:MM
+  wakeTime      String // HH:MM
   durationHours Float
-  quality       Int?     // 1-5
+  quality       Int? // 1-5
+  // Round 240: watch-integration fields. stages = { rem, deep, light,
+  // awake } in minutes. Source/external are for HK/HC dedupe.
+  stages        Json?
+  spo2Avg       Float?
+  spo2Min       Float?
+  awakenings    Int?
+  hrvAvg        Float?
+  deviceSource  DeviceSource? @default(MANUAL)
+  externalId    String?
 
-  userId  String
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+  @@unique([userId, externalId], map: "sleep_external_dedupe")
   @@index([userId])
+}
+
+// ==================== WATCH / HEALTH INTEGRATION (round 240) ====================
+//
+// Layered design:
+//   • CardioSession + SleepEntry — aggregates the user / AI sees in the app.
+//     Watch-synced rows live alongside manual entries; `deviceSource` marks
+//     them. Idempotent re-sync via the `externalId` unique constraint.
+//   • ConnectedDevice — what the user paired (Apple Watch via HealthKit,
+//     Mi Band via Health Connect, Polar H10 via direct BLE). Capabilities
+//     listed so the UI can show "this device reports HR but not GPS".
+//   • HealthSample — raw append-only time-series for metrics that don't
+//     fit the session/entry model: continuous HR readings throughout the
+//     day, SpO₂ spot-checks, HRV samples, body temperature, etc. The AI
+//     `get_health_summary` tool aggregates from here.
+
+enum DeviceSource {
+  MANUAL
+  HEALTHKIT
+  HEALTH_CONNECT
+  BLE_DIRECT
+}
+
+model ConnectedDevice {
+  id           String    @id @default(cuid())
+  userId       String
+  kind         String // "apple_watch" | "mi_band" | "polar_h10" | "garmin" | "generic_ble"
+  displayName  String
+  externalId   String // BLE MAC address or HealthKit sourceBundleId
+  lastSyncAt   DateTime?
+  capabilities Json // ["hr","steps","sleep","spo2","gps","hrv","vo2max"]
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, externalId])
+  @@index([userId])
+}
+
+model HealthSample {
+  id         String       @id @default(cuid())
+  userId     String
+  kind       String // "hr" | "spo2" | "hrv" | "stress" | "bodyTemp" | "cycleEvent" | "vo2max" | "restingHr"
+  value      Float
+  unit       String // "bpm" | "percent" | "ms" | "celsius" | etc.
+  startAt    DateTime
+  endAt      DateTime?
+  source     DeviceSource
+  externalId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Per-kind dedupe: same metric at same instant from same source = one row.
+  @@unique([userId, kind, startAt, externalId], map: "sample_dedupe")
+  @@index([userId, kind, startAt])
 }
 
 // ==================== ANNOUNCEMENTS ====================
@@ -736,26 +818,26 @@ model Announcement {
   type       String    @default("info") // "info", "warning", "maintenance", "promo"
   isActive   Boolean   @default(true)
   endsAt     DateTime?
-  targetRole String?   // null = all users, "pro", "free", etc.
+  targetRole String? // null = all users, "pro", "free", etc.
   viewCount  Int       @default(0)
 
-  authorId  String?
-  author    User?     @relation("Announcements", fields: [authorId], references: [id], onDelete: SetNull)
+  authorId String?
+  author   User?   @relation("Announcements", fields: [authorId], references: [id], onDelete: SetNull)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive, createdAt])
 }
 
 // ==================== USED TOTP CODES (replay prevention) ====================
 model UsedTotpCode {
-  id        String   @id @default(cuid())
-  userId    String
-  code      String   // 6-digit TOTP code
-  usedAt    DateTime @default(now())
+  id     String   @id @default(cuid())
+  userId String
+  code   String // 6-digit TOTP code
+  usedAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Composite on (userId, code, usedAt): replay check queries all three columns
   @@index([userId, code, usedAt])
@@ -775,35 +857,35 @@ model OtpCode {
   // they observe the 6-digit code.
   userId    String?
   code      String
-  purpose   String   // "register", "login", "phone-login", "phone-reset", "email-verify", "email-change", "phone-change"
+  purpose   String // "register", "login", "phone-login", "phone-reset", "email-verify", "email-change", "phone-change"
   used      Boolean  @default(false)
-  attempts  Int      @default(0)  // wrong-guess counter; code invalidated at 5
+  attempts  Int      @default(0) // wrong-guess counter; code invalidated at 5
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   // Composite indexes: every query filters on (phone|email) + purpose + time/state
-  @@index([phone, purpose, createdAt])   // cooldown & rate-limit checks
-  @@index([email, purpose, createdAt])   // cooldown & rate-limit checks (email path)
-  @@index([phone, purpose, used, expiresAt])  // active OTP lookup
-  @@index([email, purpose, used, expiresAt])  // active OTP lookup (email path)
+  @@index([phone, purpose, createdAt]) // cooldown & rate-limit checks
+  @@index([email, purpose, createdAt]) // cooldown & rate-limit checks (email path)
+  @@index([phone, purpose, used, expiresAt]) // active OTP lookup
+  @@index([email, purpose, used, expiresAt]) // active OTP lookup (email path)
   @@index([userId, purpose, used, expiresAt]) // scoped change-email/change-phone lookup
 }
 
 // ==================== SECURITY EVENTS ====================
 model SecurityEvent {
-  id        String   @id @default(cuid())
-  userId    String?  // null for events before user is identified
-  action    String   // LOGIN_SUCCESS, LOGIN_FAIL, PASSWORD_CHANGE, EMAIL_VERIFIED, PHONE_VERIFIED, ACCOUNT_DELETED, OTP_BRUTEFORCE, TOKEN_REVOKED, ACCOUNT_LOCKED
+  id        String  @id @default(cuid())
+  userId    String? // null for events before user is identified
+  action    String // LOGIN_SUCCESS, LOGIN_FAIL, PASSWORD_CHANGE, EMAIL_VERIFIED, PHONE_VERIFIED, ACCOUNT_DELETED, OTP_BRUTEFORCE, TOKEN_REVOKED, ACCOUNT_LOCKED
   ip        String?
   userAgent String?
-  details   String?  // JSON or plain text extra info
+  details   String? // JSON or plain text extra info
 
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([createdAt])
   @@index([userId, createdAt])
-  @@index([userId, action, createdAt])  // checkSuspiciousLogin: filters (userId, action) ordered by createdAt
+  @@index([userId, action, createdAt]) // checkSuspiciousLogin: filters (userId, action) ordered by createdAt
 }
 
 // ==================== REFRESH TOKENS ====================
@@ -829,14 +911,14 @@ model RefreshToken {
 }
 
 model TrustedDevice {
-  id          String   @id @default(cuid())
-  tokenHash   String   @unique  // SHA256 of the device token stored on client
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userAgent   String?
-  ip          String?
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // SHA256 of the device token stored on client
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([tokenHash])
@@ -868,34 +950,34 @@ enum RecipeSource {
 }
 
 model Recipe {
-  id            String       @id @default(cuid())
-  source        RecipeSource
-  userId        String?
-  user          User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String       @id @default(cuid())
+  source RecipeSource
+  userId String?
+  user   User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name          String
   descriptionRu String?
-  imageUrl      String?      // null → client falls back to a placeholder icon
+  imageUrl      String? // null → client falls back to a placeholder icon
 
   totalCalories Float
   totalProtein  Float
   totalFats     Float
   totalCarbs    Float
 
-  prepTimeMin   Int
-  servings      Int          @default(1)
+  prepTimeMin Int
+  servings    Int @default(1)
 
   // [{ name, weightGrams, calories, protein, fats, carbs }]
-  ingredients   Json
+  ingredients Json
   // string[] — Russian cooking steps
-  steps         Json
+  steps       Json
   // tags: weight-loss/maintain/gain · breakfast/lunch/dinner/snack · high-protein/low-carb
-  tags          String[]
+  tags        String[]
   // allergens present: lactose/gluten/eggs/nuts/fish/soy
-  allergens     String[]
+  allergens   String[]
 
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([source, createdAt])
   @@index([userId, createdAt])
