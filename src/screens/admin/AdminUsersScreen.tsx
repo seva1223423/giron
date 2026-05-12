@@ -10,6 +10,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { adminService } from '../../services/adminService';
 import type { AdminUserSummary, UserRole } from '../../types';
+import { useAdminStepUp, StepUpCancelledError } from './useAdminStepUp';
 
 type AdminNav = NativeStackNavigationProp<any>;
 
@@ -36,8 +37,12 @@ const PLAN_COLOR: Record<string, string> = {
   free: '#6B7280', pro: '#6366F1', trainer: '#F59E0B', club: '#10B981',
 };
 
-// Quickly grant/revoke subscription inline from the list
-function SubActions({ user, onDone }: { user: AdminUserSummary; onDone: () => void }) {
+// Quickly grant/revoke subscription inline from the list.
+// `withStepUp` is hoisted up to the parent screen so the modal renders
+// once at root rather than per-row (R240 audit follow-up).
+type StepUpRunner = <T>(fn: (creds?: import('../../services/adminService').AdminStepUpCreds) => Promise<T>) => Promise<T>;
+
+function SubActions({ user, onDone, withStepUp }: { user: AdminUserSummary; onDone: () => void; withStepUp: StepUpRunner }) {
   const [busy, setBusy] = useState(false);
   const sub = user.subscription;
   const currentPlan = sub?.plan ?? 'free';
@@ -54,10 +59,10 @@ function SubActions({ user, onDone }: { user: AdminUserSummary; onDone: () => vo
           onPress: async () => {
             setBusy(true);
             try {
-              await adminService.changeUserSubscription(user.id, { plan, status: 'active' });
+              await withStepUp((creds) => adminService.changeUserSubscription(user.id, { plan, status: 'active' }, creds));
               onDone();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось выдать подписку');
+            } catch (e) {
+              if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось выдать подписку');
             } finally {
               setBusy(false);
             }
@@ -79,10 +84,10 @@ function SubActions({ user, onDone }: { user: AdminUserSummary; onDone: () => vo
           onPress: async () => {
             setBusy(true);
             try {
-              await adminService.changeUserSubscription(user.id, { plan: 'free', status: 'cancelled' });
+              await withStepUp((creds) => adminService.changeUserSubscription(user.id, { plan: 'free', status: 'cancelled' }, creds));
               onDone();
-            } catch {
-              Alert.alert('Ошибка', 'Не удалось отозвать подписку');
+            } catch (e) {
+              if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось отозвать подписку');
             } finally {
               setBusy(false);
             }
@@ -137,11 +142,12 @@ function engColor(score: number): string {
 }
 
 function UserRow({
-  user, onPress, onRefresh,
+  user, onPress, onRefresh, withStepUp,
 }: {
   user: AdminUserSummary;
   onPress: () => void;
   onRefresh: () => void;
+  withStepUp: StepUpRunner;
 }) {
   const handleLongPress = useCallback(() => {
     const options: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
@@ -170,10 +176,10 @@ function UserRow({
             async (reason) => {
               if (!reason?.trim()) return;
               try {
-                await adminService.banUser(user.id, reason.trim());
+                await withStepUp((creds) => adminService.banUser(user.id, reason.trim(), creds));
                 onRefresh();
-              } catch {
-                Alert.alert('Ошибка', 'Не удалось заблокировать');
+              } catch (e) {
+                if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось заблокировать');
               }
             },
             'plain-text'
@@ -263,7 +269,7 @@ function UserRow({
           <Text style={styles.scoreLabel}>eng</Text>
         </View>
       </TouchableOpacity>
-      {!user.isBanned && <SubActions user={user} onDone={onRefresh} />}
+      {!user.isBanned && <SubActions user={user} onDone={onRefresh} withStepUp={withStepUp} />}
     </View>
   );
 }
@@ -273,6 +279,7 @@ export default function AdminUsersScreen() {
   const route = useRoute<RouteProp<{ AdminUsersScreen: { initialSearch?: string; subExpiringSoon?: boolean; dormant?: boolean } }, 'AdminUsersScreen'>>();
   const params = (route.params as any) ?? {};
   const initialSearch = params.initialSearch ?? '';
+  const { withStepUp, modal: stepUpModal } = useAdminStepUp();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -384,26 +391,42 @@ export default function AdminUsersScreen() {
     if (selectedIds.size === 0 || bulkSubBusy) return;
     setBulkSubBusy(true);
     try {
+      // R240: bulk grant — collect step-up creds ONCE, reuse for all N
+      // calls. Without this the user would re-enter their password for
+      // every selected user (unbearable UX for batches). The first call
+      // pops the modal via withStepUp; we capture the creds via a side
+      // channel and pass them directly to the rest.
+      let cachedCreds: import('../../services/adminService').AdminStepUpCreds | undefined;
+      const firstId = Array.from(selectedIds)[0];
+      const restIds = Array.from(selectedIds).slice(1);
+
+      await withStepUp(async (creds) => {
+        cachedCreds = creds;
+        return adminService.changeUserSubscription(firstId, { plan: bulkSubPlan, status: 'active' }, creds);
+      });
+
       const results = await Promise.allSettled(
-        Array.from(selectedIds).map((id) =>
-          adminService.changeUserSubscription(id, { plan: bulkSubPlan, status: 'active' })
+        restIds.map((id) =>
+          adminService.changeUserSubscription(id, { plan: bulkSubPlan, status: 'active' }, cachedCreds)
         )
       );
-      const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+      const succeeded = 1 + results.filter((r) => r.status === 'fulfilled').length;
       const failed = results.filter((r) => r.status === 'rejected').length;
       setShowBulkSub(false);
       exitSelectMode();
       await load(1, false, true);
       Alert.alert('Готово', `Подписка ${bulkSubPlan.toUpperCase()} выдана ${succeeded} пользователям${failed > 0 ? `. Ошибок: ${failed}` : ''}`);
-    } catch {
-      Alert.alert('Ошибка', 'Не удалось выдать подписки');
+    } catch (e) {
+      if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось выдать подписки');
     } finally {
       setBulkSubBusy(false);
     }
-  }, [selectedIds, bulkSubPlan, bulkSubBusy, exitSelectMode, load]);
+  }, [selectedIds, bulkSubPlan, bulkSubBusy, exitSelectMode, load, withStepUp]);
 
   return (
     <View style={styles.container}>
+      {/* R240: step-up re-auth modal for inline grant/revoke actions */}
+      {stepUpModal}
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
@@ -551,6 +574,7 @@ export default function AdminUsersScreen() {
                 user={item}
                 onPress={() => selectMode ? toggleSelect(item.id) : navigation.navigate('AdminUserDetailScreen', { userId: item.id })}
                 onRefresh={() => load(1, false, true)}
+                withStepUp={withStepUp}
               />
             </TouchableOpacity>
           )}

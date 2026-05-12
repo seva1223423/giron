@@ -9,6 +9,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supportService } from '../../services/supportService';
 import { adminService } from '../../services/adminService';
+import { useAdminStepUp, StepUpCancelledError } from './useAdminStepUp';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeColors } from '../../store/useThemeStore';
 import { Spinner, Icon } from '../../components';
@@ -94,6 +95,7 @@ export default function AdminTicketScreen() {
   const { ticketId } = route.params ?? {};
   const userId = useAuthStore((s) => s.user?.id);
   const flatRef = useRef<FlatList>(null);
+  const { withStepUp, modal: stepUpModal } = useAdminStepUp();
 
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -240,23 +242,24 @@ export default function AdminTicketScreen() {
 
   const grantSubscription = useCallback(async () => {
     if (!ticket?.user?.id || grantingSubb) return;
+    const userId = ticket.user.id;
     setGrantingSubb(true);
     try {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + subDays);
-      await adminService.changeUserSubscription(ticket.user.id, {
+      await withStepUp((creds) => adminService.changeUserSubscription(userId, {
         plan: subPlan,
         status: 'active',
         endDate: endDate.toISOString().split('T')[0],
-      });
+      }, creds));
       setShowSubModal(false);
       Alert.alert('Готово', `Подписка ${subPlan.toUpperCase()} выдана на ${subDays} дней`);
-    } catch {
-      Alert.alert('Ошибка', 'Не удалось выдать подписку');
+    } catch (e) {
+      if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось выдать подписку');
     } finally {
       setGrantingSubb(false);
     }
-  }, [ticket, subPlan, subDays, grantingSubb]);
+  }, [ticket, subPlan, subDays, grantingSubb, withStepUp]);
 
   const quickClose = useCallback(async () => {
     Alert.alert('Закрыть тикет?', 'Тикет будет помечен как "closed".', [
@@ -292,6 +295,8 @@ export default function AdminTicketScreen() {
 
   return (
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      {/* R240: step-up re-auth modal for financial ops */}
+      {stepUpModal}
       {/* Canned replies modal */}
       <Modal visible={showCanned} transparent animationType="slide" onRequestClose={() => setShowCanned(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>

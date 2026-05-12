@@ -1198,11 +1198,11 @@ export default function AdminUserDetailScreen() {
                   if (busy) return;
                   setBusy(true);
                   try {
-                    const result = await adminService.forceLogoutUser(userId);
+                    const result = await withStepUp((creds) => adminService.forceLogoutUser(userId, creds));
                     Alert.alert('Готово', `Завершено ${result.revokedCount} сессий`);
                     setActiveSessions([]);
-                  } catch {
-                    Alert.alert('Ошибка', 'Не удалось завершить сессии');
+                  } catch (e) {
+                    if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось завершить сессии');
                   } finally {
                     setBusy(false);
                   }
@@ -1236,11 +1236,11 @@ export default function AdminUserDetailScreen() {
                     if (busy) return;
                     setBusy(true);
                     try {
-                      await adminService.forceDisable2FA(userId);
+                      await withStepUp((creds) => adminService.forceDisable2FA(userId, creds));
                       Alert.alert('Готово', 'Двухфакторная аутентификация отключена');
                       setUser((u) => u ? { ...u, totpEnabled: false } : u);
-                    } catch {
-                      Alert.alert('Ошибка', 'Не удалось отключить 2FA');
+                    } catch (e) {
+                      if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось отключить 2FA');
                     } finally {
                       setBusy(false);
                     }

@@ -333,13 +333,13 @@ export const adminService = {
     return res.data;
   },
 
-  async forceLogoutUser(userId: string): Promise<{ ok: boolean; revokedCount: number }> {
-    const res = await api.post(`/admin/users/${userId}/force-logout`);
+  async forceLogoutUser(userId: string, stepup?: AdminStepUpCreds): Promise<{ ok: boolean; revokedCount: number }> {
+    const res = await api.post(`/admin/users/${userId}/force-logout`, stepup ?? {});
     return res.data;
   },
 
-  async forceDisable2FA(userId: string): Promise<{ ok: boolean }> {
-    const res = await api.post(`/admin/users/${userId}/force-disable-2fa`);
+  async forceDisable2FA(userId: string, stepup?: AdminStepUpCreds): Promise<{ ok: boolean }> {
+    const res = await api.post(`/admin/users/${userId}/force-disable-2fa`, stepup ?? {});
     return res.data;
   },
 
