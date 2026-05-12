@@ -18,6 +18,7 @@ import {
 // crash report has useful context. No-op when Sentry isn't installed yet.
 import { addBreadcrumb } from './src/utils/errorReporter';
 import { checkAndApplyUpdate } from './src/services/otaUpdater';
+import { registerHealthBackgroundTask } from './src/services/health';
 
 addBreadcrumb('app:boot', { ts: new Date().toISOString() });
 
@@ -45,6 +46,14 @@ export default function App() {
       }
     });
     return () => sub.remove();
+  }, []);
+
+  // Round 240 — Phase B: register the background Health Connect sync.
+  // Idempotent and best-effort: no-op on iOS (Phase C pending), no-op
+  // when the OS denies background fetch. Foreground pull-on-open still
+  // works regardless, so failure here just means no daily passive sync.
+  useEffect(() => {
+    registerHealthBackgroundTask();
   }, []);
 
   return (
