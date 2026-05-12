@@ -2,6 +2,18 @@ import { api } from './api';
 import type { AdminStats, AdminUserSummary, AdminUserDetail, AdminLog, AdminAnalytics, UserRole, TicketStatus, TicketPriority, SupportTicket, Announcement, AnnouncementType } from '../types';
 
 /**
+ * Step-up re-auth credentials. The server requires these on financial /
+ * destructive admin actions (subscription change, role change, ban,
+ * delete, force-logout, force-disable-2fa) per the 2026-04 security
+ * audit (HIGH-11). The client collects them via `useAdminStepUp` and
+ * passes them as the second arg to the relevant adminService methods.
+ */
+export interface AdminStepUpCreds {
+  adminPassword: string;
+  adminTotpCode?: string;
+}
+
+/**
  * Response shape for GET /admin/metrics/key. Each block contains both raw
  * numbers and a derived `isHealthy` flag so the dashboard can colour-code
  * cards without re-implementing the threshold logic on the client. The
@@ -265,8 +277,8 @@ export const adminService = {
     return res.data;
   },
 
-  async changeUserRole(userId: string, role: string): Promise<{ id: string; email: string; firstName: string; role: UserRole }> {
-    const res = await api.patch(`/admin/users/${userId}/role`, { role });
+  async changeUserRole(userId: string, role: string, stepup?: AdminStepUpCreds): Promise<{ id: string; email: string; firstName: string; role: UserRole }> {
+    const res = await api.patch(`/admin/users/${userId}/role`, { role, ...(stepup ?? {}) });
     return res.data;
   },
 
@@ -274,13 +286,13 @@ export const adminService = {
     plan: 'free' | 'pro' | 'trainer' | 'club';
     status?: 'active' | 'cancelled' | 'expired';
     endDate?: string;
-  }): Promise<unknown> {
-    const res = await api.patch(`/admin/users/${userId}/subscription`, data);
+  }, stepup?: AdminStepUpCreds): Promise<unknown> {
+    const res = await api.patch(`/admin/users/${userId}/subscription`, { ...data, ...(stepup ?? {}) });
     return res.data;
   },
 
-  async banUser(userId: string, reason: string): Promise<unknown> {
-    const res = await api.post(`/admin/users/${userId}/ban`, { reason });
+  async banUser(userId: string, reason: string, stepup?: AdminStepUpCreds): Promise<unknown> {
+    const res = await api.post(`/admin/users/${userId}/ban`, { reason, ...(stepup ?? {}) });
     return res.data;
   },
 
@@ -304,8 +316,10 @@ export const adminService = {
     return res.data;
   },
 
-  async deleteUser(userId: string): Promise<unknown> {
-    const res = await api.delete(`/admin/users/${userId}`);
+  async deleteUser(userId: string, stepup?: AdminStepUpCreds): Promise<unknown> {
+    // R240 audit follow-up: server requires step-up re-auth via the
+    // request body. axios.delete supports `{ data }` for body payload.
+    const res = await api.delete(`/admin/users/${userId}`, { data: stepup });
     return res.data;
   },
 
