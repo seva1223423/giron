@@ -16,6 +16,7 @@ import {
   SuggestionChips, FirstPromptCta,
 } from './components';
 import { localDateStr } from '../../utils/date';
+import { useAIChatCommands } from './useAIChatCommands';
 
 const FALLBACK_PROMPTS = [
   { emoji: '◎', text: 'Составь программу тренировок под мои цели' },
@@ -51,6 +52,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { addEntry: addMeasurementEntry } = useMeasurementsStore();
   const scrollRef = useRef<ScrollView>(null);
   const dynamicPrompts = useDynamicPrompts();
+  // Phase A: local command parser hook. Returns tryHandle(text) that short-
+  // circuits the server send when a matching command (water/set/complete/
+  // adjust/next/repeat) is recognized.
+  const chatCommands = useAIChatCommands();
 
   // Build the welcome message once at first mount. The free-tier quota
   // hint is computed from the subscription store snapshot — premium users
@@ -176,15 +181,38 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, []);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
     // Acquire lock FIRST — prevents a race where two rapid taps both pass the quota
     // check before either sets the lock, allowing double-consumption of free credits.
     if (isSendingRef.current) return;
     isSendingRef.current = true;
+
+    // ── Phase A: try local command parser BEFORE quota debit ──
+    // Recognized commands (water, sets, complete, weight ±5, next, repeat)
+    // are handled locally — instant feedback via toast, no server roundtrip,
+    // no AI quota consumed. Unrecognized messages fall through to the
+    // existing server pipeline below. The user bubble is still pushed so
+    // the chat shows what the user typed.
+    if (chatCommands.tryHandle(trimmed)) {
+      haptic.light();
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInput('');
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      isSendingRef.current = false;
+      return;
+    }
+
     if (!consumeAiMessage()) { isSendingRef.current = false; haptic.warning(); setShowPaywall(true); return; }
     haptic.light();
 
-    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: text.trim(), createdAt: new Date().toISOString() };
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: trimmed, createdAt: new Date().toISOString() };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
