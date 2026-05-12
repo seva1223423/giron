@@ -5,6 +5,7 @@ import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore } from '../../store';
 import { Card, Button, AnimatedPressable, Icon, type IconName } from '../../components';
+import { AchievementSticker } from '../../components/Sticker';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { computeAchievements } from '../../utils/achievements';
@@ -462,15 +463,11 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
                     style={{
                       width: 42,
                       height: 42,
-                      borderRadius: 14,
-                      backgroundColor: unlocked ? colors.primary + '18' : 'transparent',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 22, color: unlocked ? colors.primary : colors.textTertiary }}>
-                      {ach.emoji}
-                    </Text>
+                    <AchievementSticker achievement={ach} size={40} />
                   </View>
                   <Text
                     style={{
