@@ -6,6 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { adminService } from '../../services/adminService';
+import { useAdminStepUp, StepUpCancelledError } from './useAdminStepUp';
 
 type AdminNav = NativeStackNavigationProp<any>;
 
@@ -93,6 +94,7 @@ function SubRow({ sub, onPress, onLongPress }: { sub: Sub; onPress: () => void; 
 
 export default function AdminSubscriptionsScreen() {
   const navigation = useNavigation<AdminNav>();
+  const { withStepUp, modal: stepUpModal } = useAdminStepUp();
   const [subs, setSubs] = useState<Sub[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -160,17 +162,17 @@ export default function AdminSubscriptionsScreen() {
       const currentEnd = sub.endDate ? new Date(sub.endDate) : new Date();
       if (currentEnd < new Date()) currentEnd.setTime(Date.now());
       currentEnd.setDate(currentEnd.getDate() + days);
-      await adminService.changeUserSubscription(sub.user.id, {
+      await withStepUp((creds) => adminService.changeUserSubscription(sub.user.id, {
         plan: sub.plan as any,
         status: 'active',
         endDate: currentEnd.toISOString().split('T')[0],
-      });
+      }, creds));
       Alert.alert('Готово', `Подписка продлена на ${days} дней`);
       load(1);
-    } catch {
-      Alert.alert('Ошибка', 'Не удалось продлить подписку');
+    } catch (e) {
+      if (!(e instanceof StepUpCancelledError)) Alert.alert('Ошибка', 'Не удалось продлить подписку');
     }
-  }, [load]);
+  }, [load, withStepUp]);
 
   const sendBroadcast = useCallback(async () => {
     if (!bcSubject.trim() || !bcMessage.trim()) {
@@ -221,6 +223,8 @@ export default function AdminSubscriptionsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* R240: step-up re-auth modal for financial / destructive ops */}
+      {stepUpModal}
       {/* Broadcast modal */}
       <Modal visible={showBroadcast} transparent animationType="slide" onRequestClose={() => setShowBroadcast(false)}>
         <View style={styles.modalOverlay}>
