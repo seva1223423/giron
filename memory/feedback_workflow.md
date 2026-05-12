@@ -1,10 +1,10 @@
 ---
 name: Giron working rules — enforced by user
-description: Hard rules for how to work on iron-gym: git, memory, code style, refactor pattern, knowledge blocks
+description: Hard rules for how to work on giron: git, memory, code style, refactor pattern, knowledge blocks
 type: feedback
 originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5
 ---
-Rules below come from `iron-gym/.claude/memory/feedback_rules.md` — the user enforces them actively.
+Rules below come from `giron/.claude/memory/feedback_rules.md` — the user enforces them actively.
 
 **Git: commit + push in one step, always. The user has flagged this rule TWICE — treat as hard.**
 Why: user reads GitHub between sessions; unpushed local commits once sat for hours and he was upset. The second reminder came as "не забывай что все изменения надо писать в гит хабе" — meaning the expectation is not just "push eventually" but "every meaningful change lands on GitHub before you reply to the user."

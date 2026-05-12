@@ -4,22 +4,22 @@ description: Sync Giron memory files and verify all documented facts match the r
 
 You are syncing Giron memory and verifying docs accuracy.
 
-**Repo memory:** `C:/Users/sevka/Desktop/1223/work/iron-gym/memory/`
+**Repo memory:** `C:/Users/sevka/Desktop/1223/work/giron/memory/`
 **Global memory:** `C:/Users/sevka/.claude/projects/C--Users-sevka-Desktop-1223/memory/`
 
 ## 1 — Count Real Facts (run in parallel)
 
 ```bash
-grep -c "^model " C:/Users/sevka/Desktop/1223/work/iron-gym/server/prisma/schema.prisma
+grep -c "^model " C:/Users/sevka/Desktop/1223/work/giron/server/prisma/schema.prisma
 
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/__tests__/*.test.ts | wc -l
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/__tests__/*.test.ts | wc -l
+ls C:/Users/sevka/Desktop/1223/work/giron/server/src/__tests__/*.test.ts | wc -l
+ls C:/Users/sevka/Desktop/1223/work/giron/src/__tests__/*.test.ts | wc -l
 
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/agents/ | wc -l
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/commands/ | wc -l
+ls C:/Users/sevka/Desktop/1223/work/giron/.claude/agents/ | wc -l
+ls C:/Users/sevka/Desktop/1223/work/giron/.claude/commands/ | wc -l
 
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/store/ | grep -v index.ts | wc -l
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/knowledge/ | grep -v "^index\.ts$" | wc -l
+ls C:/Users/sevka/Desktop/1223/work/giron/src/store/ | grep -v index.ts | wc -l
+ls C:/Users/sevka/Desktop/1223/work/giron/server/src/knowledge/ | grep -v "^index\.ts$" | wc -l
 ```
 
 Expected: 38 models · 38 server suites (~1412 tests) · 81 client suites (~2030 tests) · 25 knowledge modules · 5 commands · 14 stores
@@ -27,7 +27,7 @@ Expected: 38 models · 38 server suites (~1412 tests) · 81 client suites (~2030
 ## 2 — Compare With CLAUDE.md
 
 ```bash
-grep -n "модел\|model\|suites\|тестов\|stores\|knowledge" C:/Users/sevka/Desktop/1223/work/iron-gym/CLAUDE.md | head -15
+grep -n "модел\|model\|suites\|тестов\|stores\|knowledge" C:/Users/sevka/Desktop/1223/work/giron/CLAUDE.md | head -15
 ```
 
 Flag any number that differs from the real counts in Step 1.
@@ -35,15 +35,15 @@ Flag any number that differs from the real counts in Step 1.
 ## 3 — Check for Stale Paths
 
 ```bash
-grep -rn "sevka/Projects/iron-gym" C:/Users/sevka/Desktop/1223/work/iron-gym/.claude/ 2>/dev/null
+grep -rn "sevka/Projects/giron\|sevka/Projects/iron-gym" C:/Users/sevka/Desktop/1223/work/giron/.claude/ 2>/dev/null
 ```
 
-Old path `C:/Users/sevka/Projects/iron-gym` → must be `C:/Users/sevka/Desktop/1223/work/iron-gym`. Fix any hits in-place.
+Old path `C:/Users/sevka/Projects/iron-gym` → must be `C:/Users/sevka/Desktop/1223/work/giron`. Fix any hits in-place.
 
 ## 4 — Sync Memory Files
 
 ```bash
-ls -la C:/Users/sevka/Desktop/1223/work/iron-gym/memory/ 2>/dev/null || echo "REPO_MEMORY_MISSING"
+ls -la C:/Users/sevka/Desktop/1223/work/giron/memory/ 2>/dev/null || echo "REPO_MEMORY_MISSING"
 ls -la "C:/Users/sevka/.claude/projects/C--Users-sevka-Desktop-1223/memory/"
 ```
 

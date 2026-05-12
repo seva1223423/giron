@@ -41,8 +41,8 @@ const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#D4B07A'];
 // docs/terms.html "Last updated" date plus the server's CURRENT_CONSENT_VERSION.
 // Bump in lockstep with edits to either document.
 const CURRENT_CONSENT_VERSION = '2026-04-20';
-const TERMS_URL = 'https://iron-gym.app/terms.html';
-const PRIVACY_URL = 'https://iron-gym.app/privacy.html';
+const TERMS_URL = 'https://giron.app/terms.html';
+const PRIVACY_URL = 'https://giron.app/privacy.html';
 
 /** Format phone digits into display string */
 function formatPhone(digits: string): string {
@@ -216,7 +216,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     setYandexLoading(true);
     try {
       const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/yandex' });
+      const redirectUri = makeRedirectUri({ scheme: 'giron', path: 'auth/yandex' });
       const authUrl = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type === 'success') {
@@ -245,7 +245,7 @@ export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     setVkLoading(true);
     try {
       const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      const redirectUri = makeRedirectUri({ scheme: 'irongym', path: 'auth/vk' });
+      const redirectUri = makeRedirectUri({ scheme: 'giron', path: 'auth/vk' });
       const authUrl = `https://oauth.vk.com/authorize?client_id=${VK_APP_ID}&display=mobile&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&v=5.199&scope=email&state=${state}`;
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       if (result.type === 'success') {

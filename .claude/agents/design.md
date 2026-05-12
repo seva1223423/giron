@@ -141,11 +141,11 @@ UX quality (U-series — independent from P; both must be checked):
 
 ## Project root
 
-`C:/Users/sevka/Desktop/1223/work/iron-gym/`
+`C:/Users/sevka/Desktop/1223/work/giron/`
 
 TypeScript check (must be clean before reporting done):
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/giron && npx tsc --noEmit
 ```
 
 ## 1 — Direction A color tokens (src/theme/colors.ts)
@@ -438,43 +438,43 @@ import { EmptyState, Icon } from '../../components';
 ```bash
 # A. Hardcoded hex colors in screens / components
 grep -rEn "#[0-9A-Fa-f]{3,8}\b|rgb\(|rgba\(" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/screens \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/components \
+  C:/Users/sevka/Desktop/1223/work/giron/src/screens \
+  C:/Users/sevka/Desktop/1223/work/giron/src/components \
   --include="*.tsx" \
   | grep -v "^\s*//" | grep -v ".test." | grep -v "theme/colors.ts"
 
 # B. Banned old purple palette anywhere in client
 grep -rEn "#8B5CF6|#A78BFA|#7C3AED|#6D28D9" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx" --include="*.ts"
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx" --include="*.ts"
 
 # C. Banned Apple-style announcement palette
 grep -rEn "#6366F1|#F59E0B|#EF4444|#10B981" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/screens --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src/screens --include="*.tsx"
 
 # D. Unicode glyphs used as icons (banned: ‹›◈△○▸◎■▶●◦)
 grep -rPn "[‹›◈△○▸◎■▶●◦]" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx"
 
 # E. Emoji in JSX (rough — covers common ranges)
 grep -rPn "[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{1F000}-\x{1F2FF}]" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/screens --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src/screens --include="*.tsx"
 
 # F. ActivityIndicator (must be Spinner)
 grep -rn "ActivityIndicator" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/screens \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/components --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src/screens \
+  C:/Users/sevka/Desktop/1223/work/giron/src/components --include="*.tsx"
 
 # G. Direct e.message on caught errors (must be getApiError)
 grep -rEn "catch\s*\([^)]*\)\s*\{[^}]*\.message" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/screens --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src/screens --include="*.tsx"
 
 # H. Inline fontSize/fontWeight (should be typography token)
 grep -rEn "fontSize:\s*[0-9]+|fontWeight:\s*['\"]?[0-9]" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/screens --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src/screens --include="*.tsx"
 
 # I. SafeAreaView on scroll (should be useSafeTop or ScreenContainer)
 grep -rn "SafeAreaView" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src/screens --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src/screens --include="*.tsx"
 
 # J. PaywallModal state without modal render
 # manual: for each `setShowPaywall` find a corresponding `<PaywallModal visible=` in same file
@@ -1360,30 +1360,30 @@ These break specifically in dark mode (the inverse problem):
 ```bash
 # A. Hardcoded white/black text or backgrounds
 grep -rEn "(color|backgroundColor):\s*['\"]?#(?:[Ff]{3,6}|0{3,6})['\"]?" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx" \
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx" \
   | grep -v "theme/colors.ts"
 
 # B. Hardcoded shadow colors (should be theme-aware or token)
 grep -rEn "shadowColor:\s*['\"]#" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx"
 
 # C. StatusBar without theme-aware style
 grep -rEn "<StatusBar\s+style=" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx" \
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx" \
   | grep -v "theme ==="
 
 # D. RefreshControl without tintColor
 grep -rEn "<RefreshControl" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx" -A 4 \
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx" -A 4 \
   | grep -B 1 -A 3 "RefreshControl" | grep -v "tintColor"
 
 # E. Components that read theme without selector (re-render risk)
 grep -rEn "useThemeStore\(\)\s*$|const\s*\{\s*colors\s*\}\s*=\s*useThemeStore\(\)" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx"
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx"
 
 # F. Images / icons with hardcoded fill in JSX
 grep -rEn "fill=['\"]#[0-9A-Fa-f]{3,8}['\"]" \
-  C:/Users/sevka/Desktop/1223/work/iron-gym/src --include="*.tsx" \
+  C:/Users/sevka/Desktop/1223/work/giron/src --include="*.tsx" \
   | grep -v "Icon.tsx"
 ```
 

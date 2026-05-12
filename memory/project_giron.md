@@ -1,6 +1,6 @@
 ---
 name: Giron project facts
-description: Stack, layout, critical facts for iron-gym — and where the authoritative per-session context lives
+description: Stack, layout, critical facts for giron — and where the authoritative per-session context lives
 type: project
 originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5
 ---
@@ -35,7 +35,7 @@ Use those agents when the task fits their scope — they carry repo-specific nav
 
 **CI:** `.github/workflows/server-tests.yml` runs on pushes touching `server/**` — installs, `prisma generate`, `tsc --noEmit`, `jest`. A tsc error blocks the whole pipeline. Verify tsc locally before pushing server changes.
 
-**Local working copy** for this session: `C:\Users\sevka\Desktop\1223\work\iron-gym`. The user's own working directory is `C:\Users\sevka\Desktop\1223` — empty aside from this clone. Some agent files still reference the old `C:/Users/sevka/Projects/iron-gym/` path — that's stale, don't chase it.
+**Local working copy** for this session: `C:\Users\sevka\Desktop\1223\work\giron`. The user's own working directory is `C:\Users\sevka\Desktop\1223` — empty aside from this clone. Some agent files still reference the old `C:/Users/sevka/Projects/giron/` path — that's stale, don't chase it.
 
 **Known stale / contradictory docs to watch for:**
 - README.md says 17 Prisma models, orange brand — both superseded by CLAUDE.md (37 models, purple).

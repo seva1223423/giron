@@ -26,7 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStorageUsage } from '../utils/storage';
 
 async function clear() {
-  // clear all 8 iron-gym/cardio keys
+  // clear all 8 giron/cardio keys
   const keys = [
     'giron-workouts',
     'giron-nutrition',
@@ -205,7 +205,7 @@ describe('Store keys are unique and stable', () => {
     }
   });
 
-  test('iron-gym prefix for all store keys (except cardio legacy)', () => {
+  test('giron prefix for all store keys (except cardio legacy)', () => {
     const prefixed = KEYS.filter((k) => k.startsWith('giron-'));
     const unprefixed = KEYS.filter((k) => !k.startsWith('giron-'));
     expect(prefixed.length).toBe(7);

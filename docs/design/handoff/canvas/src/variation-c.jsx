@@ -13,7 +13,7 @@ window.B_Onboarding = function B_Onboarding() {
       <div style={{ padding: '24px 18px 20px', flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 6, background: t.chipBg, color: t.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1.5 }}>
-            <Icons.bolt size={11}/> IRON GYM
+            <Icons.bolt size={11}/> GIRON
           </div>
           <button style={{ background: 'transparent', border: 0, color: t.textSub, fontSize: 13 }}>ПРОПУСТИТЬ</button>
         </div>

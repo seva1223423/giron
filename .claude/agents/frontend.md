@@ -16,11 +16,11 @@ RESULT:
 
 ## Critical Project Facts
 
-**Client root:** `C:/Users/sevka/Desktop/1223/work/iron-gym/`
+**Client root:** `C:/Users/sevka/Desktop/1223/work/giron/`
 
 **TypeScript check:**
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/giron && npx tsc --noEmit
 ```
 
 **Key file locations:**
@@ -231,7 +231,7 @@ export const useMyStore = create<MyStore>()(
       },
     }),
     {
-      name: 'iron-gym-mystore',       // unique across all stores
+      name: 'giron-mystore',          // unique across all stores
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
       partialize: (s) => ({ items: s.items }), // exclude isLoading, errors

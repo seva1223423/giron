@@ -2,7 +2,7 @@
  * Bundled video + poster assets for verified exercises.
  *
  * Videos and posters live in assets/exercise-videos/ alongside the app code
- * (same repo — no separate iron-gym-media). Each entry is a React Native
+ * (same repo — no separate media repo). Each entry is a React Native
  * module id (produced by require()), which expo-av's <Video source={…} />
  * and <Image source={…} /> both accept directly.
  *

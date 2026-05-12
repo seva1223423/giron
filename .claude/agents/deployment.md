@@ -81,7 +81,7 @@ AI route often has most env vars. Enumerate all of them.
 grep -c "^model " server/prisma/schema.prisma
 
 # Check if schema has been edited without db push
-git -C "C:\Users\sevka\Desktop\1223\work\iron-gym" log --oneline -10 server/prisma/schema.prisma 2>/dev/null || echo "not a git repo"
+git -C "C:\Users\sevka\Desktop\1223\work\giron" log --oneline -10 server/prisma/schema.prisma 2>/dev/null || echo "not a git repo"
 ```
 
 Flag: schema changes that weren't followed by `db push` will cause `P2021` (table not found) errors in production. In CI there's no automatic `db push` — Render build only runs `prisma generate`.

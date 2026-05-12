@@ -1,8 +1,8 @@
 #!/bin/bash
-# Batch-process exercise demo videos for Iron Gym.
+# Batch-process exercise demo videos for Giron.
 #
 # Usage:
-#   ./scripts/process-exercise-videos.sh ~/iron-gym-raw ~/iron-gym-processed
+#   ./scripts/process-exercise-videos.sh ~/giron-raw ~/giron-processed
 #
 # Input:  folder with raw .mov/.mp4/.MOV/.MP4 files, named like squat.mov, deadlift.mov.
 # Output: folder with web-optimized 480p .mp4 + .jpg poster for each.
@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-SRC_DIR="${1:-$HOME/iron-gym-raw}"
-OUT_DIR="${2:-$HOME/iron-gym-processed}"
+SRC_DIR="${1:-$HOME/giron-raw}"
+OUT_DIR="${2:-$HOME/giron-processed}"
 
 if [ ! -d "$SRC_DIR" ]; then
   echo "Error: input directory '$SRC_DIR' does not exist." >&2
@@ -51,5 +51,5 @@ echo
 echo "Processed $COUNT videos → $OUT_DIR"
 echo "Next: upload with"
 echo "  aws --profile yandex --endpoint-url=https://storage.yandexcloud.net s3 sync \\"
-echo "    $OUT_DIR/ s3://iron-gym-media/exercises/ \\"
+echo "    $OUT_DIR/ s3://giron-media/exercises/ \\"
 echo "    --cache-control 'public, max-age=2592000' --content-type-by-suffix"

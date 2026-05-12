@@ -213,7 +213,7 @@ export async function sendEmailChangedAlert(
     from: FROM,
     to: oldEmail,
     subject: `${APP_NAME} — email аккаунта изменён`,
-    text: `Email вашего аккаунта ${APP_NAME} был изменён на ${newEmail}.\n\nДата: ${dateStr} (МСК)\nIP: ${ip}\n\nЕсли это были не вы — немедленно свяжитесь с поддержкой support@iron-gym.app.`,
+    text: `Email вашего аккаунта ${APP_NAME} был изменён на ${newEmail}.\n\nДата: ${dateStr} (МСК)\nIP: ${ip}\n\nЕсли это были не вы — немедленно свяжитесь с поддержкой support@giron.app.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #D4B07A; margin-bottom: 8px;">${APP_NAME}</h2>
@@ -224,7 +224,7 @@ export async function sendEmailChangedAlert(
           <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${safeIp}</p>
         </div>
         <p style="color: #E07A6B; font-weight: bold; font-size: 14px;">
-          Если это были не вы — немедленно напишите в поддержку: <a href="mailto:support@iron-gym.app" style="color: #E07A6B;">support@iron-gym.app</a>. Все сессии и доверенные устройства уже отключены, но без вашего обращения мы не сможем вернуть аккаунт.
+          Если это были не вы — немедленно напишите в поддержку: <a href="mailto:support@giron.app" style="color: #E07A6B;">support@giron.app</a>. Все сессии и доверенные устройства уже отключены, но без вашего обращения мы не сможем вернуть аккаунт.
         </p>
         <p style="color: #888; font-size: 12px; margin-top: 16px;">
           Это автоматическое уведомление системы безопасности ${APP_NAME}.
@@ -261,7 +261,7 @@ export async function sendAccountDeletedAlert(
     from: FROM,
     to: email,
     subject: `${APP_NAME} — аккаунт удалён`,
-    text: `Ваш аккаунт ${APP_NAME} был удалён по запросу.\n\nДата: ${dateStr} (МСК)\nIP: ${ip}\n\nВся история тренировок, питания, замеров и подписок удалена и не подлежит восстановлению. Если это были не вы — немедленно напишите в поддержку: support@iron-gym.app. Учтите, что подписки в магазине приложений / ЮKassa нужно отменить отдельно через ваш аккаунт у платёжного провайдера — мы не можем сделать это за вас.`,
+    text: `Ваш аккаунт ${APP_NAME} был удалён по запросу.\n\nДата: ${dateStr} (МСК)\nIP: ${ip}\n\nВся история тренировок, питания, замеров и подписок удалена и не подлежит восстановлению. Если это были не вы — немедленно напишите в поддержку: support@giron.app. Учтите, что подписки в магазине приложений / ЮKassa нужно отменить отдельно через ваш аккаунт у платёжного провайдера — мы не можем сделать это за вас.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #D4B07A; margin-bottom: 8px;">${APP_NAME}</h2>
@@ -272,7 +272,7 @@ export async function sendAccountDeletedAlert(
           <p style="margin: 4px 0; color: #333; font-size: 14px;"><strong>IP-адрес:</strong> ${safeIp}</p>
         </div>
         <p style="color: #E07A6B; font-weight: bold; font-size: 14px;">
-          Если это были не вы — напишите в <a href="mailto:support@iron-gym.app" style="color: #E07A6B;">support@iron-gym.app</a>. Без вашего обращения мы не сможем восстановить аккаунт.
+          Если это были не вы — напишите в <a href="mailto:support@giron.app" style="color: #E07A6B;">support@giron.app</a>. Без вашего обращения мы не сможем восстановить аккаунт.
         </p>
         <p style="color: #555; font-size: 13px; margin-top: 12px; padding: 12px; background: #fff8e1; border-radius: 8px;">
           <strong>Подписки:</strong> рекуррентные платежи в App Store / Google Play / ЮKassa нужно отменить отдельно через ваш аккаунт у платёжного провайдера — мы не можем сделать это за вас, и оплата может продолжаться до отмены.

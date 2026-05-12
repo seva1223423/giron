@@ -12,7 +12,7 @@ import { darkColors, lightColors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing, borderRadius } from '../theme/spacing';
 
-// ─── Source-of-truth tokens from iron-gym/project/src/tokens.js ────────────
+// ─── Source-of-truth tokens from project/src/tokens.js ───────────────────
 
 const DESIGN_TOKENS_A = {
   bg: '#0E0E0F',

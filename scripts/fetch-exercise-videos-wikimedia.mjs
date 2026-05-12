@@ -82,7 +82,7 @@ async function searchCommons(query, limit = 10) {
     origin: '*',
   });
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'iron-gym-fetch/2.0 (https://github.com/seva1223423/iron-gym)' },
+    headers: { 'User-Agent': 'giron-fetch/2.0 (https://github.com/seva1223423/iron-gym)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
@@ -119,7 +119,7 @@ function stripHtml(s) {
 
 async function download(url, outPath) {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'iron-gym-fetch/2.0 (https://github.com/seva1223423/iron-gym)' },
+    headers: { 'User-Agent': 'giron-fetch/2.0 (https://github.com/seva1223423/iron-gym)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());

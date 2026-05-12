@@ -1,5 +1,5 @@
 /**
- * Stress tests and edge cases for iron-gym stores and utilities.
+ * Stress tests and edge cases for giron stores and utilities.
  * Covers rapid bulk operations, boundary conditions, and concurrent usage patterns.
  */
 

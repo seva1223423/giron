@@ -268,7 +268,7 @@ describe('Push notification handling', () => {
   test('deep-link URL scheme validated before navigation (anti-injection)', () => {
     const f = path.join(SRC, 'navigation/AppNavigator.tsx');
     const code = fs.readFileSync(f, 'utf8');
-    expect(code).toMatch(/ALLOWED_PREFIXES|irongym:\/\//);
+    expect(code).toMatch(/ALLOWED_PREFIXES|giron:\/\//);
   });
 });
 

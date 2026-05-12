@@ -17,7 +17,7 @@ window.A_Onboarding = function A_Onboarding() {
         <div style={{ paddingTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: t.accent }}>
             <Icons.logo size={22}/>
-            <span style={{ fontFamily: t.fontH, fontWeight: 500, letterSpacing: 3, fontSize: 13 }}>IRON GYM</span>
+            <span style={{ fontFamily: t.fontH, fontWeight: 500, letterSpacing: 3, fontSize: 13 }}>GIRON</span>
           </div>
           <button style={{ background: 'transparent', border: 0, color: t.textSub, fontSize: 14, fontWeight: 500 }}>Пропустить</button>
         </div>
