@@ -17,6 +17,7 @@ import {
 } from './components';
 import { localDateStr } from '../../utils/date';
 import { useAIChatCommands } from './useAIChatCommands';
+import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
 
 const FALLBACK_PROMPTS = [
   { emoji: '◎', text: 'Составь программу тренировок под мои цели' },
@@ -440,6 +441,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
       <ChatHeader lastMeta={lastMeta} />
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} reason="ai_limit" navigation={navigation} />
+
+      {/* Phase B: live mirror of the in-progress workout. Renders null when
+          no activeWorkout — chat looks unchanged outside a session. When
+          Phase A commands (`+подход 100×6`, `done`, etc.) mutate the
+          workout store, the panel re-renders. */}
+      <CurrentWorkoutPanel />
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
         {historyPage < historyTotalPages && (
