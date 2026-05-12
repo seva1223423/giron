@@ -107,7 +107,7 @@ const sleepRecord = z.object({
 });
 
 const sampleRecord = z.object({
-  kind: z.enum(['hr', 'spo2', 'hrv', 'stress', 'bodyTemp', 'cycleEvent', 'vo2max', 'restingHr']),
+  kind: z.enum(['hr', 'spo2', 'hrv', 'stress', 'bodyTemp', 'cycleEvent', 'vo2max', 'restingHr', 'steps']),
   value: z.number().finite(),
   unit: z.string().min(1).max(20),
   startAt: z.string().datetime(),
@@ -294,6 +294,44 @@ router.get('/health/summary', authenticate, async (req: AuthRequest, res: Respon
   } catch (e) {
     logger.error('GET /user/health/summary:', e);
     res.status(500).json({ error: 'Ошибка получения сводки' });
+  }
+});
+
+// ─── GET /user/health/steps — daily step totals from watch ──────────────────
+
+router.get('/health/steps', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const days = Math.min(90, Math.max(1, parseInt(String(req.query.days ?? '30'), 10) || 30));
+    const since = new Date(Date.now() - days * 86400_000);
+
+    // Pull raw step samples. A single sync can write one daily-total
+    // record (Mi Band) or many hourly buckets (Apple Watch) — we sum
+    // per ISO-date here so the client gets a clean per-day series.
+    const samples = await prisma.healthSample.findMany({
+      where: { userId, kind: 'steps', startAt: { gte: since } },
+      select: { value: true, startAt: true, source: true },
+      orderBy: { startAt: 'asc' },
+      take: 5000,
+    });
+
+    const byDate = new Map<string, { steps: number; sources: Set<string> }>();
+    for (const s of samples) {
+      const ymd = s.startAt.toISOString().slice(0, 10);
+      const cur = byDate.get(ymd) ?? { steps: 0, sources: new Set<string>() };
+      cur.steps += Math.max(0, Math.round(s.value));
+      cur.sources.add(s.source);
+      byDate.set(ymd, cur);
+    }
+
+    const series = Array.from(byDate.entries())
+      .map(([date, v]) => ({ date, steps: v.steps, sources: Array.from(v.sources) }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json({ days, series });
+  } catch (e) {
+    logger.error('GET /user/health/steps:', e);
+    res.status(500).json({ error: 'Ошибка получения шагов' });
   }
 });
 

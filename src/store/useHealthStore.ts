@@ -17,6 +17,8 @@ import {
   healthSyncService, DEFAULT_HEALTH_SCOPES,
   type HealthSummary, type ConnectedDevice, type HealthScope,
 } from '../services/health';
+import { useCardioStore } from './useCardioStore';
+import { useSleepStore } from './useSleepStore';
 
 interface HealthStore {
   summary: HealthSummary | null;
@@ -72,9 +74,18 @@ export const useHealthStore = create<HealthStore>()(
           error: result.ok ? null : result.error ?? 'Ошибка синхронизации',
           lastSyncAt: result.ok ? new Date().toISOString() : get().lastSyncAt,
         });
-        // Refresh summary if anything new arrived
+        // Round 240 Phase E — when watch sync ingests new cardio/sleep,
+        // refresh the existing stores so the user sees the data on the
+        // standard Cardio/Sleep screens, not just here. Errors are
+        // swallowed: those stores have their own retry-on-mount logic.
         if (result.ok && ingestedTotal > 0) {
           await get().loadSummary();
+          try {
+            await Promise.all([
+              result.ingested.cardio > 0 ? useCardioStore.getState().syncFromServer() : Promise.resolve(),
+              result.ingested.sleep > 0 ? useSleepStore.getState().syncFromServer() : Promise.resolve(),
+            ]);
+          } catch { /* per-store sync handles its own errors */ }
         }
         return { ok: result.ok, ingestedTotal };
       },

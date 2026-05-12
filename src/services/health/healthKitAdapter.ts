@@ -273,6 +273,7 @@ export const healthKitAdapter: HealthDataProvider = {
       { hkType: 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN', kind: 'hrv', unit: 'ms' },
       { hkType: 'HKQuantityTypeIdentifierVO2Max', kind: 'vo2max', unit: 'ml/kg/min' },
       { hkType: 'HKQuantityTypeIdentifierBodyTemperature', kind: 'bodyTemp', unit: '°C' },
+      { hkType: 'HKQuantityTypeIdentifierStepCount', kind: 'steps', unit: 'count' },
     ];
     for (const spec of sampleSpecs) {
       try {
