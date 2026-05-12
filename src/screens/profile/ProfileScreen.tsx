@@ -496,6 +496,15 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
       <Card style={{ marginBottom: spacing.lg }}>
         <MenuRow
+          iconName="heart"
+          iconBg={colors.primary + '18'}
+          iconColor={colors.primary}
+          title="Здоровье и часы"
+          subtitle="Пульс, сон, VO₂max, Health Connect"
+          onPress={() => { haptic.selection(); navigation.navigate('Health'); }}
+          colors={colors}
+        />
+        <MenuRow
           iconName="settings"
           iconBg={colors.border}
           iconColor={colors.textSecondary}

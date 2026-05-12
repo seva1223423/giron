@@ -65,6 +65,7 @@ import { ChangeEmailScreen } from '../screens/profile/ChangeEmailScreen';
 import { LinkedAccountsScreen } from '../screens/profile/LinkedAccountsScreen';
 import { CardioScreen } from '../screens/cardio/CardioScreen';
 import { AddCardioScreen } from '../screens/cardio/AddCardioScreen';
+import HealthScreen from '../screens/health/HealthScreen';
 import SupportScreen from '../screens/support/SupportScreen';
 import CreateTicketScreen from '../screens/support/CreateTicketScreen';
 import SupportTicketScreen from '../screens/support/SupportTicketScreen';
@@ -225,6 +226,7 @@ function ProfileStackNavigator() {
       })}
     >
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="Health" component={HealthScreen} options={{ title: 'Здоровье и часы' }} />
       <ProfileStack.Screen name="Subscription" component={SubscriptionScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="TrainerDashboard" component={TrainerDashboardScreen} />
