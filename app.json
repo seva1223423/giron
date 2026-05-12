@@ -131,7 +131,20 @@
       "expo-web-browser",
       "react-native-health-connect",
       "@kingstinct/react-native-healthkit",
-      "react-native-ble-plx"
+      "react-native-ble-plx",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
