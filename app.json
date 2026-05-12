@@ -38,7 +38,6 @@
         "com.apple.developer.healthkit.access": []
       },
       "associatedDomains": [
-        "applinks:giron.app",
         "applinks:giron.app"
       ]
     },
@@ -69,16 +68,6 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            {
-              "scheme": "https",
-              "host": "giron.app",
-              "pathPrefix": "/reset-password"
-            },
-            {
-              "scheme": "https",
-              "host": "giron.app",
-              "pathPrefix": "/auth"
-            },
             {
               "scheme": "https",
               "host": "giron.app",
