@@ -84,7 +84,7 @@ function makeToken(userId: string) {
   return jwt.sign(
     { userId },
     process.env.JWT_SECRET!,
-    { expiresIn: '15m', issuer: 'irongym-api', audience: 'irongym-app' }
+    { expiresIn: '15m', issuer: 'giron-api', audience: 'giron-app' }
   );
 }
 

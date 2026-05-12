@@ -1,10 +1,10 @@
 ---
 name: User profile — sevka
-description: Solo developer of Iron Gym; works in Russian; expects autonomous execution with no narration
+description: Solo developer of Giron; works in Russian; expects autonomous execution with no narration
 type: user
 originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5
 ---
-Solo developer building Iron Gym. Windows 10, VS Code with Claude Code. Works 1–2h sessions, frequently pivots mid-task.
+Solo developer building Giron. Windows 10, VS Code with Claude Code. Works 1–2h sessions, frequently pivots mid-task.
 
 Communication: Russian always. Code, commits, comments: English.
 

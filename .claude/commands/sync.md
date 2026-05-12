@@ -1,8 +1,8 @@
 ---
-description: Sync Iron Gym memory files and verify all documented facts match the real codebase. Detects drift in model counts, test baselines, agent paths, and command counts. Copies newer files between repo memory/ and global Claude memory. Fixes stale facts automatically.
+description: Sync Giron memory files and verify all documented facts match the real codebase. Detects drift in model counts, test baselines, agent paths, and command counts. Copies newer files between repo memory/ and global Claude memory. Fixes stale facts automatically.
 ---
 
-You are syncing Iron Gym memory and verifying docs accuracy.
+You are syncing Giron memory and verifying docs accuracy.
 
 **Repo memory:** `C:/Users/sevka/Desktop/1223/work/iron-gym/memory/`
 **Global memory:** `C:/Users/sevka/.claude/projects/C--Users-sevka-Desktop-1223/memory/`

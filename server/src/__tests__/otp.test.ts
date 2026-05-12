@@ -228,7 +228,7 @@ describe('POST /api/auth/send-otp', () => {
     const token = jwt.sign(
       { userId: 'user-1' },
       process.env.JWT_SECRET!,
-      { expiresIn: '15m', issuer: 'irongym-api', audience: 'irongym-app' }
+      { expiresIn: '15m', issuer: 'giron-api', audience: 'giron-app' }
     );
     (mp.otpCode.findFirst as jest.Mock).mockResolvedValue(null);
     (mp.otpCode.count as jest.Mock).mockResolvedValue(0);
@@ -611,7 +611,7 @@ describe('POST /api/auth/refresh — token reuse detection', () => {
     jwt.sign(
       { userId },
       process.env.JWT_REFRESH_SECRET!,
-      { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' }
+      { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' }
     );
 
   it('returns new tokens for a valid unrevoked refresh token', async () => {
@@ -798,7 +798,7 @@ describe('POST /api/user/change-email — TOCTOU guard', () => {
 
   const makeUserToken = () =>
     jwt.sign({ userId: 'u-test' }, process.env.JWT_SECRET!, {
-      expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+      expiresIn: '1h', issuer: 'giron-api', audience: 'giron-app',
     });
 
   it('returns 400 when OTP already consumed by concurrent request', async () => {

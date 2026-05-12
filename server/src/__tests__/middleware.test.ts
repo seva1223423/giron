@@ -63,7 +63,7 @@ function makeToken(userId: string, expiresIn: string = '15m') {
   return jwt.sign(
     { userId },
     JWT_SECRET,
-    { expiresIn: expiresIn as any, issuer: 'irongym-api', audience: 'irongym-app' },
+    { expiresIn: expiresIn as any, issuer: 'giron-api', audience: 'giron-app' },
   );
 }
 
@@ -94,7 +94,7 @@ describe('Authentication Middleware', () => {
       const expired = jwt.sign(
         { userId: 'u1' },
         JWT_SECRET,
-        { expiresIn: '-1s', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '-1s', issuer: 'giron-api', audience: 'giron-app' },
       );
       const res = await request(app)
         .get('/api/user/profile')
@@ -106,7 +106,7 @@ describe('Authentication Middleware', () => {
       const tampered = jwt.sign(
         { userId: 'u1' },
         'wrong-secret',
-        { expiresIn: '15m', issuer: 'irongym-api', audience: 'irongym-app' },
+        { expiresIn: '15m', issuer: 'giron-api', audience: 'giron-app' },
       );
       const res = await request(app)
         .get('/api/user/profile')
@@ -306,7 +306,7 @@ describe('Auth edge cases', () => {
     const refreshToken = jwt.sign(
       { userId: 'u1' },
       process.env.JWT_REFRESH_SECRET!,
-      { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+      { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
     );
     (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue(null);
 
@@ -322,7 +322,7 @@ describe('Auth edge cases', () => {
     const refreshToken = jwt.sign(
       { userId: 'u1' },
       process.env.JWT_REFRESH_SECRET!,
-      { expiresIn: '30d', issuer: 'irongym-api', audience: 'irongym-app' },
+      { expiresIn: '30d', issuer: 'giron-api', audience: 'giron-app' },
     );
     (mockPrisma.refreshToken.findUnique as jest.Mock).mockResolvedValue({
       id: 'rt-1',

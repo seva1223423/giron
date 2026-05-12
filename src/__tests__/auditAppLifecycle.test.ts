@@ -254,16 +254,16 @@ describe('Deep link / universal link handling', () => {
     expect(code).toMatch(/prefixes/);
   });
 
-  test('irongym:// scheme registered', () => {
+  test('giron:// scheme registered', () => {
     const f = path.join(SRC, 'navigation/AppNavigator.tsx');
     const code = fs.readFileSync(f, 'utf8');
-    expect(code).toMatch(/irongym:\/\//);
+    expect(code).toMatch(/giron:\/\//);
   });
 
-  test('https://irongym.app universal link supported', () => {
+  test('https://giron.app universal link supported', () => {
     const f = path.join(SRC, 'navigation/AppNavigator.tsx');
     const code = fs.readFileSync(f, 'utf8');
-    expect(code).toMatch(/irongym\.app/);
+    expect(code).toMatch(/giron\.app/);
   });
 
   test('ResetPassword deep-link mapped', () => {

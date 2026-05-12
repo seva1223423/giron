@@ -25,8 +25,8 @@ import { normalizePhone } from '../services/smsService';
 import { sendPushToUser } from '../services/pushService';
 import { sendPasswordChangedAlert } from '../services/emailService';
 
-const JWT_ISS = 'irongym-api';
-const JWT_AUD = 'irongym-app';
+const JWT_ISS = 'giron-api';
+const JWT_AUD = 'giron-app';
 
 /** CUID v1 format: starts with 'c', ~25 chars, alphanumeric */
 const CUID_RE = /^c[a-z0-9]{20,30}$/;
@@ -583,7 +583,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
     sendPushToUser(req.userId!, {
       title: 'Пароль изменён',
       body: 'Пароль вашего аккаунта был изменён. Если это не вы — обратитесь в поддержку.',
-      data: { url: 'irongym://profile/security' },
+      data: { url: 'giron://profile/security' },
     }).catch(() => {});
 
     res.json({ message: 'Пароль успешно изменён' });
@@ -901,7 +901,7 @@ router.post('/2fa/enable', authenticate, async (req: AuthRequest, res: Response)
     sendPushToUser(req.userId!, {
       title: 'Двухфакторная аутентификация включена',
       body: 'Ваш аккаунт теперь защищён 2FA. Если это не вы — немедленно смените пароль.',
-      data: { url: 'irongym://profile/security' },
+      data: { url: 'giron://profile/security' },
     }).catch(() => {});
 
     // Return plaintext backup codes only once — user must save them
@@ -1134,7 +1134,7 @@ router.post('/change-email', authenticate, async (req: AuthRequest, res: Respons
     sendPushToUser(req.userId!, {
       title: 'Email аккаунта изменён',
       body: `К аккаунту привязан новый email. Другие устройства были отключены.`,
-      data: { url: 'irongym://profile/security' },
+      data: { url: 'giron://profile/security' },
     }).catch(() => {});
 
     // Round 234: alert the OLD email — best-effort, the security boundary
@@ -1272,7 +1272,7 @@ router.post('/change-phone', authenticate, async (req: AuthRequest, res: Respons
     sendPushToUser(req.userId!, {
       title: 'Номер телефона изменён',
       body: `К аккаунту привязан новый номер. Другие устройства были отключены.`,
-      data: { url: 'irongym://profile/security' },
+      data: { url: 'giron://profile/security' },
     }).catch(() => {});
 
     res.json({ ok: true, phone, phoneVerified: true, token: newToken, refreshToken: newRefreshToken });

@@ -339,7 +339,7 @@ export default function HealthScreen() {
                         Дай доступ к данным со своих часов
                       </Text>
                       <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-                        Iron Gym читает только указанные показатели — пульс, сон, активность.
+                        Giron читает только указанные показатели — пульс, сон, активность.
                       </Text>
                     </>
                   )}

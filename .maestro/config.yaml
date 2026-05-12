@@ -4,7 +4,7 @@
 flows:
   - "*.yaml"
 
-# Per-flow timeout. Iron Gym flows are short (≤2 min); cap so a hung flow
+# Per-flow timeout. Giron flows are short (≤2 min); cap so a hung flow
 # fails fast in CI rather than burning the whole job slot.
 timeoutMs: 120000
 

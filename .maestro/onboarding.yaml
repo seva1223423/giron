@@ -1,7 +1,7 @@
 # Smoke test: 4-step onboarding questionnaire after first registration.
 # Assumes user just completed register flow and lands on OnboardingScreen.
 
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp
 

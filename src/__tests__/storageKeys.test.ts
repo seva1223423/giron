@@ -1,6 +1,6 @@
 /**
  * Lock all AsyncStorage keys the app writes. Enforces:
- *   - Consistent "iron_gym_*" namespace prefix (no collisions with
+ *   - Consistent "giron_*" namespace prefix (no collisions with
  *     other apps sharing device storage)
  *   - No two values-of-the-same-variable have drifted (e.g. scanner
  *     draft accidentally saved under two different keys)
@@ -18,16 +18,16 @@ describe('AsyncStorage key namespace', () => {
   // Canonical list of every key string ever written. Adding here
   // requires adding a matching require-and-verify below.
   const KNOWN_KEYS = [
-    'iron_gym_barcode_cache',
-    'iron_gym_recent_scans',
-    'iron_gym_scanner_draft',
-    'iron_gym_scanner_last_meal_type',
-    'iron_gym_ai_scan_cache',
+    'giron_barcode_cache',
+    'giron_recent_scans',
+    'giron_scanner_draft',
+    'giron_scanner_last_meal_type',
+    'giron_ai_scan_cache',
   ];
 
-  test('every known key has iron_gym_ prefix', () => {
+  test('every known key has giron_ prefix', () => {
     for (const k of KNOWN_KEYS) {
-      expect(k).toMatch(/^iron_gym_/);
+      expect(k).toMatch(/^giron_/);
     }
   });
 

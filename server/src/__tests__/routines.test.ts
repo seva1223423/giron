@@ -57,7 +57,7 @@ const WORKOUT_ID = 'cworkout000000000000001';
 
 const makeToken = (userId = USER_ID) =>
   jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, {
-    expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+    expiresIn: '1h', issuer: 'giron-api', audience: 'giron-app',
   });
 
 const mockUser = { id: USER_ID, isBanned: false, lockedUntil: null, role: 'USER' };

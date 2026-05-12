@@ -61,8 +61,8 @@ import { prisma } from '../db';
 const makeToken = (userId = 'u-test', role = 'USER') =>
   jwt.sign({ userId, role }, process.env.JWT_SECRET!, {
     expiresIn: '1h',
-    issuer: 'irongym-api',
-    audience: 'irongym-app',
+    issuer: 'giron-api',
+    audience: 'giron-app',
   });
 
 const mockUser = { id: 'u-test', isBanned: false, lockedUntil: null, role: 'USER' };

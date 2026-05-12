@@ -8,7 +8,7 @@ import type { BodyMeasurement } from '../../../../types';
 import { localDateStr } from '../../../../utils/date';
 
 /** @deprecated Use useMeasurementsStore — kept for backward compat with WeightTab's offline fallback */
-export const MEASUREMENTS_KEY = 'iron_gym_body_measurements';
+export const MEASUREMENTS_KEY = 'giron_body_measurements';
 
 export const MEASUREMENT_FIELDS: { key: keyof BodyMeasurement; label: string; emoji: string }[] = [
   { key: 'chest', label: 'Грудь', emoji: '◉' },

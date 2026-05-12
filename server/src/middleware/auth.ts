@@ -20,8 +20,8 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   let payload: { userId: string };
   try {
     const raw = jwt.verify(token, process.env.JWT_SECRET!, {
-      issuer: 'irongym-api',
-      audience: 'irongym-app',
+      issuer: 'giron-api',
+      audience: 'giron-app',
       algorithms: ['HS256'],
     }) as { userId: string; phase?: string };
     // Reject intermediate tokens (e.g. TOTP-pending) — they must not grant full API access

@@ -1,10 +1,10 @@
 ---
 name: tests
-description: Sub-agent for writing tests in Iron Gym. Spawn me to: write new server integration tests (Supertest + mocked Prisma), write client store unit tests (Zustand + mocked AsyncStorage), identify what's missing coverage, fix a failing test. I implement the tests, run them, verify green, and report back. Do NOT spawn me for implementing features — test-only work.
+description: Sub-agent for writing tests in Giron. Spawn me to: write new server integration tests (Supertest + mocked Prisma), write client store unit tests (Zustand + mocked AsyncStorage), identify what's missing coverage, fix a failing test. I implement the tests, run them, verify green, and report back. Do NOT spawn me for implementing features — test-only work.
 tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
-You are a focused sub-agent helping the main Claude agent write and fix tests in Iron Gym. You do not communicate with the user — you write the tests, run them, and report back.
+You are a focused sub-agent helping the main Claude agent write and fix tests in Giron. You do not communicate with the user — you write the tests, run them, and report back.
 
 When done, always end your response with:
 ```
@@ -204,8 +204,8 @@ import { prisma } from '../db';
 const makeToken = (userId = 'u-test', role = 'USER') =>
   jwt.sign({ userId, role }, process.env.JWT_SECRET!, {
     expiresIn: '1h',
-    issuer: 'irongym-api',
-    audience: 'irongym-app',
+    issuer: 'giron-api',
+    audience: 'giron-app',
   });
 ```
 
@@ -217,8 +217,8 @@ describe('POST /api/workouts/history', () => {
   const makeToken = (id = userId, role = 'USER') =>
     jwt.sign({ userId: id, role }, process.env.JWT_SECRET!, {
       expiresIn: '1h',
-      issuer: 'irongym-api',
-      audience: 'irongym-app',
+      issuer: 'giron-api',
+      audience: 'giron-app',
     });
 
   beforeEach(() => jest.clearAllMocks());
@@ -290,7 +290,7 @@ Use this to test any subscription-gated endpoint:
 describe('Subscription gating — GET /api/workouts/leaderboard', () => {
   const userId = 'u-free';
   const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, {
-    expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+    expiresIn: '1h', issuer: 'giron-api', audience: 'giron-app',
   });
 
   beforeEach(() => {
@@ -333,7 +333,7 @@ Tests that when AI calls a tool, the correct Prisma mutation happens:
 describe('AI tool execution', () => {
   const userId = 'u-ai-test';
   const makeToken = () => jwt.sign({ userId, role: 'USER' }, process.env.JWT_SECRET!, {
-    expiresIn: '1h', issuer: 'irongym-api', audience: 'irongym-app',
+    expiresIn: '1h', issuer: 'giron-api', audience: 'giron-app',
   });
 
   beforeEach(() => {
@@ -532,7 +532,7 @@ describe('useSubscriptionStore', () => {
 | `MemCache is not a constructor` | memCache mock missing class export | Use the MemCache class mock pattern (Step 3 in boilerplate above) |
 | Test passes alone but 500s in full suite | `clearAllMocks()` wipes `mockResolvedValue` set in mock factory | Re-mock persistent fallback values (e.g. `findMany`, `count`) in `beforeEach` after `clearAllMocks()` |
 | State bleeds between tests | No `setState` reset in beforeEach | Reset all relevant store fields in `beforeEach` |
-| `JWT invalid` | Secret not set, or missing issuer/audience | `setup.ts` sets `JWT_SECRET`. Also add `issuer: 'irongym-api', audience: 'irongym-app'` to `jwt.sign()` — middleware verifies both |
+| `JWT invalid` | Secret not set, or missing issuer/audience | `setup.ts` sets `JWT_SECRET`. Also add `issuer: 'giron-api', audience: 'giron-app'` to `jwt.sign()` — middleware verifies both |
 | Test hangs after pass | Open handles | Use `--forceExit`; look for uncleared `setInterval` |
 | `analyzeImage is not a function` | deepseekAI not mocked | Add `jest.mock('../services/deepseekAI', ...)` before app import |
 | `isValidId returns false` for `r-1` style IDs | CUID regex `/^c[a-z0-9]{20,30}$/` in workout.ts | Use CUID-format mock IDs, e.g. `croutine00000000000000001` |

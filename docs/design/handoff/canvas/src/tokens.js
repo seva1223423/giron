@@ -1,4 +1,4 @@
-// Iron Gym — Design tokens for three visual directions
+// Giron — Design tokens for three visual directions
 // A: Graphite + Gold (premium, warm)
 // B: Neon Dark (tech, Whoop-style)
 // C: Energy (motivational, saturated)

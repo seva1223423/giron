@@ -93,7 +93,7 @@ export function clientVersionGate(req: Request, res: Response, next: NextFunctio
       // back to a generic prompt if platform is unknown. Round 191:
       // bundle id changed to com.giron.app — old APK users will still
       // get a valid RuStore link (the page may 404 until the new
-      // listing publishes; old com.irongym.app listing was never
+      // listing publishes; old com.giron.app listing was never
       // published, so no break).
       updateUrl:
         platform === 'android'

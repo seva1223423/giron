@@ -623,7 +623,7 @@ router.post('/test-notification', requireAdmin, async (req: AuthRequest, res: Re
           await sendPushToUser(req.userId!, {
             title: 'Giron — тест',
             body: 'Это тестовое уведомление из админки. Если ты его видишь — push работает.',
-            data: { url: 'irongym://admin', cohort: 'admin-test' },
+            data: { url: 'giron://admin', cohort: 'admin-test' },
           });
           pushSent = true;
         } catch (e: any) {

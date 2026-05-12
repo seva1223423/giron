@@ -58,8 +58,8 @@ function isQuietHourUtc(date: Date): boolean {
  * Each channel has its own write-once flag; firing on one doesn't
  * suppress the other so a user with both push + email gets a
  * coordinated nudge across channels. Internal email-domain accounts
- * (e.g. ok_*@irongym.internal from the legacy OK.ru flow) are skipped
- * via the `not @irongym.internal` filter.
+ * (e.g. ok_*@giron.internal from the legacy OK.ru flow) are skipped
+ * via the `not @giron.internal` filter.
  */
 export async function processActivationCohort(): Promise<number> {
   const now = new Date();
@@ -87,7 +87,7 @@ export async function processActivationCohort(): Promise<number> {
         isBanned: false,
         OR: [
           { activationPushSentAt: null, pushTokens: { some: {} } },
-          { activationEmailSentAt: null, NOT: { email: { endsWith: '@irongym.internal' } } },
+          { activationEmailSentAt: null, NOT: { email: { endsWith: '@giron.internal' } } },
         ],
       },
       select: {
@@ -134,7 +134,7 @@ export async function processActivationCohort(): Promise<number> {
             await sendPushToUser(user.id, {
               title: 'Iron Coach ждёт первого вопроса',
               body: `${greeting}задай ИИ-тренеру вопрос — программа, питание, техника. 30 секунд и план готов.`,
-              data: { url: 'irongym://ai', cohort: 'activation' },
+              data: { url: 'giron://ai', cohort: 'activation' },
             });
             pushSent++;
           } catch (err) {
@@ -152,10 +152,10 @@ export async function processActivationCohort(): Promise<number> {
       }
 
       // Email path — same eligibility window but separate gate. Skips
-      // users without a real email (synthetic *@irongym.internal stubs
+      // users without a real email (synthetic *@giron.internal stubs
       // from legacy OAuth flows would bounce on every send and waste
       // the SMTP quota).
-      if (!user.activationEmailSentAt && user.email && !user.email.endsWith('@irongym.internal')) {
+      if (!user.activationEmailSentAt && user.email && !user.email.endsWith('@giron.internal')) {
         // Round 251: atomic claim-then-send (same as push above).
         const claim = await prisma.user.updateMany({
           where: { id: user.id, activationEmailSentAt: null },
@@ -280,7 +280,7 @@ export async function processReactivationCohort(
         await sendPushToUser(user.id, {
           title,
           body,
-          data: { url: 'irongym://ai', cohort: `reactivation-${daysInactive}d` },
+          data: { url: 'giron://ai', cohort: `reactivation-${daysInactive}d` },
         });
         sent++;
       } catch (err) {
@@ -508,7 +508,7 @@ export async function processPreRenewalNotices(): Promise<number> {
           await sendPushToUser(sub.userId, {
             title: 'Подписка продлится через 2 дня',
             body: `Списание ${sub.endDate.toLocaleDateString('ru-RU')}. Отменить можно в разделе «Подписка».`,
-            data: { url: 'irongym://subscription', cohort: 'pre-renewal' },
+            data: { url: 'giron://subscription', cohort: 'pre-renewal' },
           }).catch(() => {});
         } else {
           pushDeferred++;

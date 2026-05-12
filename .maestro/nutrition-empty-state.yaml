@@ -2,7 +2,7 @@
 # scanner button is reachable. Specifically tests that the macro bars
 # don't break when no meals are logged (round 188 audit invariant).
 
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp
 

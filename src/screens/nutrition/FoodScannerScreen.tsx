@@ -49,8 +49,8 @@ const todayDate = () => localDateStr(new Date());
 
 // ─── Barcode cache ────────────────────────────────────────────────────────────
 
-const BARCODE_CACHE_KEY = 'iron_gym_barcode_cache';
-const RECENT_SCANS_KEY = 'iron_gym_recent_scans';
+const BARCODE_CACHE_KEY = 'giron_barcode_cache';
+const RECENT_SCANS_KEY = 'giron_recent_scans';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 /**
  * Round 218: Negative-cache TTL for OFF "не найдено" responses.
@@ -161,7 +161,7 @@ async function removeRecentScan(barcode: string) {
 
 // ─── First-launch onboarding hint ────────────────────────────────────────────
 
-const ONBOARDING_KEY = 'iron_gym_scanner_onboarded';
+const ONBOARDING_KEY = 'giron_scanner_onboarded';
 
 async function isOnboarded(): Promise<boolean> {
   try {
@@ -180,12 +180,12 @@ async function markOnboarded(): Promise<void> {
 
 // ─── Draft autosave (AsyncStorage) ───────────────────────────────────────────
 
-const DRAFT_KEY = 'iron_gym_scanner_draft';
+const DRAFT_KEY = 'giron_scanner_draft';
 // Remembers the last meal type the user SAVED (not just browsed). Lets the
 // default pick be "what you last picked at this hour" instead of the blunt
 // time-of-day heuristic alone. Key is stored separately so wiping scanner
 // drafts (on save/cancel) doesn't erase this preference.
-const LAST_MEAL_TYPE_KEY = 'iron_gym_scanner_last_meal_type';
+const LAST_MEAL_TYPE_KEY = 'giron_scanner_last_meal_type';
 // Keep only recent history (last 14 days) — so a 3-month-old "завтрак in
 // evening" choice doesn't override today's correct default.
 const LAST_MEAL_TYPE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -245,7 +245,7 @@ async function clearDraft(): Promise<void> {
 
 // ─── AI scan result cache (AsyncStorage wrapper around the utility helpers) ───
 
-const AI_SCAN_CACHE_KEY = 'iron_gym_ai_scan_cache';
+const AI_SCAN_CACHE_KEY = 'giron_ai_scan_cache';
 const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CachedAIResult {

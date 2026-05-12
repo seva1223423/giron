@@ -43,11 +43,11 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useThemeColors } from '../../store/useThemeStore';
 import { lightColors, darkColors } from '../../theme/colors';
 
-// Round 233 (2026-05-02 audit): IronGymTheme was previously HARDCODED DARK,
+// Round 233 (2026-05-02 audit): GironTheme was previously HARDCODED DARK,
 // rendering every Alert.alert + every toast in dark style regardless of
 // user's theme choice — a global theme-parity break per design.md §25.
 //
-// Now: `IronGymTheme` is exported for the dark-fallback case and for
+// Now: `GironTheme` is exported for the dark-fallback case and for
 // `toast.tsx` (which can render outside React tree via the global bridge);
 // inside the provider we use `useThemeColors()` so the live theme drives
 // the modal chrome.
@@ -73,9 +73,9 @@ function buildModalTheme(c: typeof darkColors) {
 
 // Dark-mode fallback — used by `toast.tsx` and by render paths that fire
 // before the provider hooks into the theme store. Matches dark Direction A.
-export const IronGymTheme = buildModalTheme(darkColors);
-export const IronGymThemeLight = buildModalTheme(lightColors);
-const T = IronGymTheme;
+export const GironTheme = buildModalTheme(darkColors);
+export const GironThemeLight = buildModalTheme(lightColors);
+const T = GironTheme;
 
 export type ModalKind = 'error' | 'success' | 'info' | 'confirm' | 'destructive';
 

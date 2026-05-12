@@ -604,11 +604,11 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         */}
         <Text style={[typography.caption, { color: colors.textTertiary, textAlign: 'center', marginTop: spacing.xl, paddingHorizontal: spacing.md, lineHeight: 16 }]}>
           Входя через соцсеть впервые, вы принимаете{' '}
-          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/terms.html')}>
+          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://giron.app/terms.html')}>
             Условия использования
           </Text>
           {' '}и{' '}
-          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://irongym.app/privacy.html')}>
+          <Text style={{ color: colors.primary }} onPress={() => Linking.openURL('https://giron.app/privacy.html')}>
             Политику конфиденциальности
           </Text>
           .

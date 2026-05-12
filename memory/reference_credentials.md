@@ -1,5 +1,5 @@
 ---
-name: Iron Gym — где лежат креды и какие сервисы используются
+name: Giron — где лежат креды и какие сервисы используются
 description: Где взять ключи для Mistral / DB / JWT / SMTP, что хостится на Render, что на Neon, где EAS
 type: reference
 originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5

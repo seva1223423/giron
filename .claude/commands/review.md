@@ -1,8 +1,8 @@
 ---
-description: Pre-commit security and quality review for Iron Gym. Checks all staged and unstaged changes for auth bypasses, missing Zod validation, IDOR gaps, unhandled errors, and client store rollback issues. Run before every commit to master.
+description: Pre-commit security and quality review for Giron. Checks all staged and unstaged changes for auth bypasses, missing Zod validation, IDOR gaps, unhandled errors, and client store rollback issues. Run before every commit to master.
 ---
 
-You are performing a pre-commit review of all Iron Gym changes.
+You are performing a pre-commit review of all Giron changes.
 
 ## 1 — Get the Diff
 

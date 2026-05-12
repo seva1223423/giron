@@ -19,4 +19,4 @@ The design medium is **HTML/CSS/JS** — these are prototypes, not production co
 ## Bundle contents
 
 - `iron-gym/README.md` — this file
-- `iron-gym/project/` — the `iron gym приложение` project files (HTML prototypes, assets, components)
+- `iron-gym/project/` — the `Giron приложение` project files (HTML prototypes, assets, components)

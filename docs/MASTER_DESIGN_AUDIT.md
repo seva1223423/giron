@@ -29,7 +29,7 @@
 | # | Issue | Where | Why critical |
 |---|---|---|---|
 | 1 | **Entire admin area renders dark-only**, no `useThemeStore` import in 12 files | `src/screens/admin/**` | Light mode = white-on-cream invisible |
-| 2 | **`AppModalProvider` hardcodes `IronGymTheme`** | `src/components/app-modal/AppModalProvider.tsx:46-61` | Every Alert/Toast across whole app dark-only |
+| 2 | **`AppModalProvider` hardcodes `GironTheme`** | `src/components/app-modal/AppModalProvider.tsx:46-61` | Every Alert/Toast across whole app dark-only |
 | 3 | **`MuscleHeatmapCard` checks `bgColor === '#0A0A0F'`** but actual is `#0E0E0F` | `src/screens/progress/components/MuscleHeatmapCard.tsx:75` | Branch always false → wrong colors in dark mode |
 | 4 | **`ErrorBoundary` shipped with `#8B5CF6` button** | `src/components/ErrorBoundary.tsx:67` | Banned palette shown on every JS crash |
 | 5 | **`ForceUpdateModal` shipped with `#8B5CF6` + `#F59E0B`** | `src/components/ForceUpdateModal.tsx:114, 102` | Banned palette on every force-update |
@@ -138,7 +138,7 @@
 
 These break entirely in light mode:
 - All admin screens (no `useThemeStore`)
-- `AppModalProvider` (hardcoded IronGymTheme dark)
+- `AppModalProvider` (hardcoded GironTheme dark)
 - `Toast` (Tailwind palette)
 - `Tooltip` (gold bg + white text = 2.8:1 FAIL)
 - `ErrorBoundary`, `ForceUpdateModal` (banned palette)
@@ -193,7 +193,7 @@ Per audit gaps:
 Fixes the most user-facing chrome.
 1. `ErrorBoundary.tsx` — replace `#8B5CF6` + theme-aware
 2. `ForceUpdateModal.tsx` — replace banned palette + theme-aware
-3. `AppModalProvider.tsx` — replace `IronGymTheme` constants with `useThemeStore`
+3. `AppModalProvider.tsx` — replace `GironTheme` constants with `useThemeStore`
 4. `Toast.tsx` — replace `VARIANT_BG` with theme tokens
 5. `Tooltip.tsx` — fix gold-bg/white-text contrast (use `textInverse`)
 6. `Button.tsx` — replace `ActivityIndicator` with `<Spinner>`

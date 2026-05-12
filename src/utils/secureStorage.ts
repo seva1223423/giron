@@ -11,9 +11,9 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
-const ACCESS_TOKEN_KEY = 'iron_gym_access_token';
-const REFRESH_TOKEN_KEY = 'iron_gym_refresh_token';
-const DEVICE_TOKEN_KEY = 'iron_gym_device_token';
+const ACCESS_TOKEN_KEY = 'giron_access_token';
+const REFRESH_TOKEN_KEY = 'giron_refresh_token';
+const DEVICE_TOKEN_KEY = 'giron_device_token';
 
 // Web fallback: in-memory only (no persistence — safer than localStorage)
 const webMemory: Record<string, string> = {};

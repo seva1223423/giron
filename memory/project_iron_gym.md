@@ -1,5 +1,5 @@
 ---
-name: Iron Gym project facts
+name: Giron project facts
 description: Stack, layout, critical facts for iron-gym — and where the authoritative per-session context lives
 type: project
 originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5

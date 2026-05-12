@@ -202,7 +202,7 @@ describe('SMTP configured (all env vars set)', () => {
     });
   });
 
-  test('sendPasswordResetEmail uses default APP_URL=https://irongym.app when env not set', async () => {
+  test('sendPasswordResetEmail uses default APP_URL=https://giron.app when env not set', async () => {
     configureSmtpEnv();
     delete process.env.APP_URL;
     const sendMail: jest.Mock = jest.fn(async () => ({ messageId: 'real-id' }));
@@ -214,7 +214,7 @@ describe('SMTP configured (all env vars set)', () => {
       await sendPasswordResetEmail('u@example.com', 'tok-xyz');
 
       const call = sendMail.mock.calls[0][0] as { html: string };
-      expect(call.html).toContain('https://irongym.app/reset-password?token=tok-xyz');
+      expect(call.html).toContain('https://giron.app/reset-password?token=tok-xyz');
     });
   });
 });

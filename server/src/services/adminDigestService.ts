@@ -195,7 +195,7 @@ export async function sendDailyAdminDigest(): Promise<number> {
         await sendPushToUser(admin.id, {
           title: pushTitle,
           body: pushBody,
-          data: { url: 'irongym://admin/metrics-key', cohort: 'admin-digest' },
+          data: { url: 'giron://admin/metrics-key', cohort: 'admin-digest' },
         }).catch(() => {});
 
         if (admin.email) {

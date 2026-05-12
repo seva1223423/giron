@@ -76,7 +76,7 @@ Maestro YAML schema: <https://maestro.mobile.dev/api-reference/commands>
 Quick reference:
 
 ```yaml
-appId: com.irongym.app
+appId: com.giron.app
 ---
 - launchApp
 - assertVisible: "Главная"
