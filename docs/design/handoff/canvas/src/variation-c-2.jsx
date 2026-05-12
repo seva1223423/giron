@@ -15,7 +15,7 @@ window.C_Onboarding = function C_Onboarding() {
 
       <div style={{ padding: '24px 22px', position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(20px)', color: '#FFF', fontSize: 11, fontWeight: 700 }}>
-          <Icons.bolt size={12}/> IRON GYM
+          <Icons.bolt size={12}/> GIRON
         </div>
         <button style={{ background: 'transparent', border: 0, color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 }}>Пропустить</button>
       </div>

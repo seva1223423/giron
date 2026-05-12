@@ -35,10 +35,10 @@
 
 ### Пакетный конвертер
 
-Если есть исходники в `~/iron-gym-raw/`:
+Если есть исходники в `~/giron-raw/`:
 
 ```bash
-./scripts/process-exercise-videos.sh ~/iron-gym-raw ./assets/exercise-videos
+./scripts/process-exercise-videos.sh ~/giron-raw ./assets/exercise-videos
 ```
 
 Скрипт использует `ffmpeg` из pip-пакета `imageio-ffmpeg` (не требует глобальной установки ffmpeg). Выдаёт MP4 + JPG для каждого файла.

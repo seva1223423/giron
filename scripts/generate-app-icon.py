@@ -1,9 +1,9 @@
 """
-Generate Iron Gym (Giron) app icons — Mono Gold variant.
+Generate Giron app icons — Mono Gold variant.
 
 Renders the canonical Direction A icon — golden G monogram on warm graphite —
 into PNGs sized for Expo / iOS / Android / web. Source spec:
-  iron-gym/project/release/canvas/src/giron-icons.jsx → Icon_GMono
+  project/release/canvas/src/giron-icons.jsx → Icon_GMono
 
 Outputs:
   assets/icon.png            1024×1024 — main app icon (iOS, fallback Android)

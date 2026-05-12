@@ -7,10 +7,10 @@ You are orchestrating a full Giron audit. Argument: **$ARGUMENTS**
 ## Phase 1 — Baselines (run in parallel)
 
 ```bash
-grep -c "^model " C:/Users/sevka/Desktop/1223/work/iron-gym/server/prisma/schema.prisma
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/server/src/__tests__/*.test.ts | wc -l
-ls C:/Users/sevka/Desktop/1223/work/iron-gym/src/__tests__/*.test.ts | wc -l
-cd C:/Users/sevka/Desktop/1223/work/iron-gym && git status --short
+grep -c "^model " C:/Users/sevka/Desktop/1223/work/giron/server/prisma/schema.prisma
+ls C:/Users/sevka/Desktop/1223/work/giron/server/src/__tests__/*.test.ts | wc -l
+ls C:/Users/sevka/Desktop/1223/work/giron/src/__tests__/*.test.ts | wc -l
+cd C:/Users/sevka/Desktop/1223/work/giron && git status --short
 ```
 
 Expected: 38 models · 38 server suites · 81 client suites (80 files in src/__tests__/ + 1 outside)
@@ -28,7 +28,7 @@ Expected: 38 models · 38 server suites · 81 client suites (80 files in src/__t
 | `tests` | Missing coverage, stale assertions, suite count drift vs CLAUDE.md |
 | `docs` | CLAUDE.md drift: model count, route sizes, test baselines, stale paths |
 
-Pass to each: project path `C:/Users/sevka/Desktop/1223/work/iron-gym`, focus `$ARGUMENTS`.
+Pass to each: project path `C:/Users/sevka/Desktop/1223/work/giron`, focus `$ARGUMENTS`.
 
 Wait for all 8 before Phase 3.
 

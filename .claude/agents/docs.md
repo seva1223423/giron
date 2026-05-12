@@ -32,7 +32,7 @@ Run these each time you audit, in parallel where possible. They are cheap and ca
 
 **Counts (grep-based):**
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/iron-gym
+cd C:/Users/sevka/Desktop/1223/work/giron
 grep -cE "^model [A-Z]" server/prisma/schema.prisma            # Prisma model count
 ls src/store/ | grep -v index.ts | wc -l                       # Zustand store count
 ls src/components/ | grep -v index.ts | wc -l                  # Reusable component count

@@ -1554,10 +1554,10 @@ router.get('/export', authenticate, async (req: AuthRequest, res: Response) => {
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="irongym-export-${userId}-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="giron-export-${userId}-${new Date().toISOString().slice(0, 10)}.json"`);
     res.json({
       exportedAt: new Date().toISOString(),
-      format: 'iron-gym/user-export/v1',
+      format: 'giron/user-export/v1',
       user,
       workouts,
       meals,

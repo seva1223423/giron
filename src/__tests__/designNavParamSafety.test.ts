@@ -127,7 +127,7 @@ describe('parseWorkoutIdParam', () => {
 });
 
 describe('Deep-link route params', () => {
-  // Simulating an attacker-crafted deep link like ironGym://workout/<id>
+  // Simulating an attacker-crafted deep link like giron://workout/<id>
   test('very long ID from URL rejected', () => {
     const suspicious = 'x'.repeat(500);
     expect(parseWorkoutIdParam(suspicious)).toBeNull();

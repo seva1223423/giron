@@ -488,7 +488,7 @@ model TrainerClient {
   sessions  TrainerSession[]
 
   // ── Invite linkage (B2B Dashboard Phase 1) ────────────────────────────────
-  // A trainer invites a real Iron Gym user by generating a random code. The
+  // A trainer invites a real Giron user by generating a random code. The
   // code is shared out-of-band (Telegram, SMS, email). When the client enters
   // it in their app, clientUserId is populated and acceptedAt stamped — from
   // that point on the trainer can see the user's workouts / progress (subject

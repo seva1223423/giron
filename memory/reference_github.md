@@ -1,6 +1,6 @@
 ---
 name: GitHub account & main repo
-description: User's GitHub account (seva1223423) and the single private repo where active work happens (iron-gym)
+description: User's GitHub account (seva1223423) and the single private repo where active work happens
 type: reference
 originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5
 ---

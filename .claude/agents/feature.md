@@ -36,7 +36,7 @@ Rules:
 
 After every schema change — run in this order, never skip:
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/iron-gym/server
+cd C:/Users/sevka/Desktop/1223/work/giron/server
 npx prisma generate    # regenerates TypeScript types
 npx prisma db push     # syncs to DB (NEVER prisma migrate)
 npx tsc --noEmit       # verify no TypeScript errors
@@ -111,7 +111,7 @@ Error response format (never deviate):
 
 Verify:
 ```bash
-cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/giron/server && npx tsc --noEmit
 ```
 
 ---
@@ -219,7 +219,7 @@ export const useFeatureStore = create<FeatureStore>()(
       },
     }),
     {
-      name: 'iron-gym-feature',           // unique key across all stores
+      name: 'giron-feature',              // unique key across all stores
       storage: createJSONStorage(() => AsyncStorage),
       version: 1,
       partialize: (s) => ({ items: s.items }), // never persist isLoading
@@ -400,13 +400,13 @@ Always implement both. Server = security. Client = UX. Client gate alone is bypa
 
 ```bash
 # Server TypeScript
-cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/giron/server && npx tsc --noEmit
 
 # Client TypeScript
-cd C:/Users/sevka/Desktop/1223/work/iron-gym && npx tsc --noEmit
+cd C:/Users/sevka/Desktop/1223/work/giron && npx tsc --noEmit
 
 # Server tests (confirm nothing broke)
-cd C:/Users/sevka/Desktop/1223/work/iron-gym/server && npx jest --no-coverage --forceExit
+cd C:/Users/sevka/Desktop/1223/work/giron/server && npx jest --no-coverage --forceExit
 ```
 
 All three must be clean before reporting success.

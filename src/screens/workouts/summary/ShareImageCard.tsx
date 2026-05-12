@@ -28,8 +28,8 @@ export const ShareImageCard = React.forwardRef<View, Props>(
           {/* Header: branding + date */}
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>IG</Text>
-              <Text style={styles.brand}>IRON GYM</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>G</Text>
+              <Text style={styles.brand}>GIRON</Text>
             </View>
             <Text style={styles.date}>{dateStr}</Text>
           </View>

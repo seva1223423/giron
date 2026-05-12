@@ -19,7 +19,7 @@ const TOTAL_STEPS = 5;
  *
  * Visual layer per design:
  *   - Radial gold glow from top-center (ellipse 50%/0%)
- *   - "IRON GYM" brand mark in gold at the top-left + "Пропустить" on the right
+ *   - "GIRON" brand mark in gold at the top-left + "Пропустить" on the right
  *   - Active progress-dot is a 28pt wide gold pill, inactive dots are 12pt
  *     neutral pills (matches the indent design spec exactly)
  *   - Bottom CTA uses the tall gold pill (Button lg variant already does this)
@@ -145,7 +145,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
         <Rect width="100%" height="100%" fill="url(#onbGlow)" />
       </Svg>
 
-      {/* Brand header row — gold IRON GYM mark + skip link. The skip
+      {/* Brand header row — gold GIRON mark + skip link. The skip
           button completes onboarding immediately, filling in sensible
           defaults downstream (handleFinish uses fallback numbers when
           inputs are blank). */}
@@ -160,7 +160,7 @@ export const OnboardingScreen: React.FC<{ navigation: any }> = () => {
               letterSpacing: 3,
             }}
           >
-            IRON GYM
+            GIRON
           </Text>
         </View>
         {step > 0 && (

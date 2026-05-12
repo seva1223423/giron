@@ -42,7 +42,7 @@ https://abc123def456@o0000000.ingest.sentry.io/4500000000000000
 
 ## Шаг 3. Добавить DSN в Render (1 минута)
 
-1. Открой https://dashboard.render.com → My project → iron-gym
+1. Открой https://dashboard.render.com → My project → giron
 2. В левом меню → **Environment**
 3. Прокрути вниз до **Environment Variables** → клик **Edit** (карандаш)
 4. Жми **+ Add variable**
@@ -97,7 +97,7 @@ https://iron-gym-swoe.onrender.com/health/sentry
 В терминале на твоём ПК:
 
 ```powershell
-cd C:\Users\sevka\Desktop\1223\work\iron-gym
+cd C:\Users\sevka\Desktop\1223\work\giron
 npx eas secret:create --scope project --name EXPO_PUBLIC_SENTRY_DSN --value "https://abc123@o0000000.ingest.sentry.io/4500000000000000" --type string
 ```
 

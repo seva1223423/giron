@@ -7,7 +7,7 @@
 ## 0. Быстрая шпаргалка (3 команды)
 
 ```powershell
-cd C:\Users\sevka\Desktop\1223\work\iron-gym
+cd C:\Users\sevka\Desktop\1223\work\giron
 npm install                                  # подтянуть expo-updates + sentry
 cd server && npm install && npx prisma db push && npx prisma generate
 ```
@@ -79,14 +79,14 @@ App Password создаётся за 1 минуту:
 
 ### Если поменялась `server/prisma/schema.prisma`
 ```powershell
-cd C:\Users\sevka\Desktop\1223\work\iron-gym\server
+cd C:\Users\sevka\Desktop\1223\work\giron\server
 npx prisma db push       # синхронизация схемы с БД на Neon
 npx prisma generate      # обновление TypeScript типов Prisma client
 ```
 
 ### Если поменялся `package.json`
 ```powershell
-cd C:\Users\sevka\Desktop\1223\work\iron-gym
+cd C:\Users\sevka\Desktop\1223\work\giron
 npm install              # клиент
 cd server
 npm install              # сервер
