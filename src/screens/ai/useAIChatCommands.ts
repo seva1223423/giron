@@ -29,7 +29,8 @@ import { exercises as EXERCISES } from '../../data/exercises';
 import { toast } from '../../components/app-modal/toast';
 import { localDateStr } from '../../utils/date';
 import {
-  parseChatCommand,
+  parseChatCommands,
+  approxMatch,
   type ParsedCommand,
   type MeasurementField,
   type MealType,
@@ -40,14 +41,25 @@ export interface AIChatCommandHandler {
 }
 
 export function useAIChatCommands(): AIChatCommandHandler {
-  const tryHandle = useCallback((text: string): boolean => {
-    const cmd = parseChatCommand(text);
-    if (!cmd) return false;
-    executeCommand(cmd);
-    return true;
-  }, []);
-
+  const tryHandle = useCallback((text: string): boolean => tryHandleCommand(text), []);
   return { tryHandle };
+}
+
+/**
+ * Pure function — easy to test without a React render shell.
+ *
+ * Uses the ARRAY parser so composite phrases like "выпил литр и done"
+ * fire ALL matched commands. Earlier code used `parseChatCommand`
+ * (single) which silently dropped every action after the first — this
+ * was the bug audited on master after PR #54 and PR #56 merged
+ * separately (PR #56 introduced the array parser but PR #54's handler
+ * had been wired against the single-parser overload).
+ */
+export function tryHandleCommand(text: string): boolean {
+  const cmds = parseChatCommands(text);
+  if (!cmds || cmds.length === 0) return false;
+  for (const cmd of cmds) executeCommand(cmd);
+  return true;
 }
 
 /**
@@ -461,10 +473,17 @@ function handleStatsLastWorkout(): void {
 // ─── Phase F handlers — name resolution ─────────────────────────────────────
 
 /**
- * 3-tier matching strategy — mirrors the server-side `activate_program` tool
- * (server/src/routes/ai.ts:3580-3619). Caller picks the first non-null match.
+ * 4-tier matching strategy. First three mirror the server-side
+ * `activate_program` tool (server/src/routes/ai.ts:3580-3619); the
+ * fourth tier (`approxMatch`) uses the Russian stemmer to bridge
+ * case-ending mismatches that the server's substring approach misses:
  *
- * Returns the matching item OR `null` if nothing was found.
+ *   exact lowercase  →  substring  →  prefix(first 5)  →  approxMatch
+ *
+ * The approxMatch fallback is the reason "курица с рисом" can now
+ * match "Куриная грудка с рисом" (different gender + adjective form) —
+ * a regression that was shipped but not actually live in the handler
+ * until this fix.
  */
 function findByName<T extends { name: string }>(items: T[], rawName: string): T | null {
   const query = rawName.toLowerCase().trim();
@@ -473,6 +492,7 @@ function findByName<T extends { name: string }>(items: T[], rawName: string): T 
     items.find((it) => it.name.toLowerCase() === query) ??
     items.find((it) => it.name.toLowerCase().includes(query)) ??
     items.find((it) => query.includes(it.name.toLowerCase().slice(0, 5))) ??
+    items.find((it) => approxMatch(query, it.name)) ??
     null
   );
 }

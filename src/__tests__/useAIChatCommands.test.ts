@@ -164,7 +164,7 @@ jest.mock('../utils/date', () => ({
   localDateStr: () => '2026-05-12',
 }));
 
-import { executeCommand } from '../screens/ai/useAIChatCommands';
+import { executeCommand, tryHandleCommand } from '../screens/ai/useAIChatCommands';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -401,5 +401,75 @@ describe('Phase F — add_recipe', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(mockToastError).toHaveBeenCalledWith('Не удалось добавить рецепт');
+  });
+});
+
+// ═════════════════════ Integration — bug regression pins ════════════════════
+
+describe('tryHandleCommand — integration regression pins', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockActiveWorkout = null;
+    mockPrograms = [];
+    mockCuratedRecipes = [];
+    mockMineRecipes = [];
+    mockGetDayLog.mockReturnValue({
+      targetCalories: 2000, targetProtein: 120, targetFats: 60, targetCarbs: 250,
+      waterTargetMl: 2500, waterMl: 0, meals: [],
+    });
+  });
+
+  it('BUG-FIX #1: composite phrase fires ALL matched store mutations', () => {
+    // Pre-fix, `tryHandle` used the single-parser and silently dropped
+    // every chunk after the first. After the fix both Nutrition AND
+    // Sleep store mutations must fire for "выпил литр и спал 8 часов".
+    const ok = tryHandleCommand('выпил литр и спал 8 часов');
+    expect(ok).toBe(true);
+    expect(mockAddWater).toHaveBeenCalledWith('2026-05-12', 1000);
+    expect(mockAddSleep).toHaveBeenCalledWith(expect.objectContaining({
+      bedtime: '23:00',
+      wakeTime: '07:00', // 23:00 + 8h wrapped
+    }));
+  });
+
+  it('BUG-FIX #1: 3-action composite all fire', () => {
+    mockActiveWorkout = {
+      currentExerciseIndex: 0,
+      workout: { exercises: [{ sets: [{ weight: 80, reps: 8, completed: false }] }] },
+    };
+    tryHandleCommand('тяжелее, готово, дальше');
+    expect(mockUpdateSetData).toHaveBeenCalledWith(0, 0, { weight: 85 });
+    expect(mockCompleteSet).toHaveBeenCalled();
+    expect(mockNextExercise).toHaveBeenCalledTimes(1);
+  });
+
+  it('BUG-FIX #1: returns false only if NOTHING parsed', () => {
+    expect(tryHandleCommand('абракадабра и привет')).toBe(false);
+    expect(mockAddWater).not.toHaveBeenCalled();
+  });
+
+  it('BUG-FIX #2: recipe in different Russian case resolves via approxMatch', async () => {
+    // "съел курицу с рисом" — query has "курицу" (accusative), but the
+    // recipe library has "Куриная грудка с рисом" (adjective). substring
+    // would miss the bridge. approxMatch via stemmer should hit.
+    mockCuratedRecipes = [{ id: 'r1', name: 'Куриная грудка с рисом' }];
+    tryHandleCommand('съел курицу с рисом');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockRecipeAddToDiary).toHaveBeenCalledWith('r1', expect.any(Object));
+  });
+
+  it('BUG-FIX #2: exercise swap with different case ending resolves via approxMatch', () => {
+    // The swap target uses an inflected form ("жимом" instrumental) but
+    // the library has "Жим штанги лёжа" (nominative). approxMatch bridges.
+    mockActiveWorkout = {
+      currentExerciseIndex: 0,
+      workout: {
+        exercises: [{ exercise: { name: 'Приседания со штангой' }, sets: [] }],
+      },
+    };
+    tryHandleCommand('замени приседания на жимом штанги');
+    expect(mockReplaceExercise).toHaveBeenCalledWith(0,
+      expect.objectContaining({ id: 'bench-press' }));
   });
 });
