@@ -270,13 +270,14 @@ export const healthConnectAdapter: HealthDataProvider = {
       }
     } catch { /* sleep read failed */ }
 
-    // ── Raw samples (resting HR, HRV, SpO₂, VO₂max) ─────────────────
+    // ── Raw samples (resting HR, HRV, SpO₂, VO₂max, steps) ──────────
     const sampleSpecs: Array<{ hcType: string; kind: NormalizedSample['kind']; unit: string; extract: (r: any) => number | undefined }> = [
       { hcType: 'RestingHeartRate', kind: 'restingHr', unit: 'bpm', extract: (r) => r.beatsPerMinute },
       { hcType: 'OxygenSaturation', kind: 'spo2', unit: '%', extract: (r) => r.percentage },
       { hcType: 'HeartRateVariabilityRmssd', kind: 'hrv', unit: 'ms', extract: (r) => r.heartRateVariabilityMillis },
       { hcType: 'Vo2Max', kind: 'vo2max', unit: 'ml/kg/min', extract: (r) => r.vo2MillilitersPerMinuteKilogram },
       { hcType: 'BodyTemperature', kind: 'bodyTemp', unit: '°C', extract: (r) => r.temperature?.inCelsius },
+      { hcType: 'Steps', kind: 'steps', unit: 'count', extract: (r) => r.count },
     ];
     for (const spec of sampleSpecs) {
       try {

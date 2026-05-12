@@ -149,6 +149,20 @@ export const healthSyncService = {
     }
   },
 
+  /**
+   * Daily step totals from watch-synced HealthSample(kind=steps).
+   * Returned as { date, steps, sources } ascending. Empty array on
+   * error / unauthenticated — caller falls back to phone pedometer.
+   */
+  async getDailySteps(days: number = 30): Promise<Array<{ date: string; steps: number; sources: string[] }>> {
+    try {
+      const { data } = await api.get('/user/health/steps', { params: { days } });
+      return Array.isArray(data?.series) ? data.series : [];
+    } catch {
+      return [];
+    }
+  },
+
   async listDevices(): Promise<ConnectedDevice[]> {
     try {
       const { data } = await api.get('/user/devices');

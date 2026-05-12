@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { Icon, Card, FadeIn, ProgressRing, Button } from '../../components';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { usePedometer } from '../../hooks/usePedometer';
+import { healthSyncService } from '../../services/health';
 
 /** Rough kcal/step constant — derived from MET * stride length. The
  *  averages-of-averages literature pegs a 70kg adult at ~0.04 kcal/step
@@ -65,8 +66,8 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const setStrideLengthCm = useSettingsStore((s) => s.setStrideLengthCm);
 
   const {
-    todaySteps,
-    historySteps,
+    todaySteps: phoneTodaySteps,
+    historySteps: phoneHistorySteps,
     historyDayLabels,
     isAvailable,
     isLoading,
@@ -81,6 +82,37 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalDraft, setGoalDraft] = useState(String(stepsDailyGoal));
   const [strideDraft, setStrideDraft] = useState(String(strideLengthCm));
+
+  // Round 240 Phase E — pull daily step totals synced from HealthKit/
+  // Health Connect via /user/health/steps. We merge `max(phone, watch)`
+  // per day below: the phone pedometer covers intervals when the watch
+  // isn't worn, the watch covers intervals when the phone is in the
+  // bag. Whichever has more for a given day is the truer count.
+  const [watchStepsByDate, setWatchStepsByDate] = useState<Map<string, number>>(new Map());
+  const fetchWatchSteps = useCallback(async () => {
+    const series = await healthSyncService.getDailySteps(HISTORY_DAYS);
+    const m = new Map<string, number>();
+    for (const s of series) m.set(s.date, s.steps);
+    setWatchStepsByDate(m);
+  }, []);
+  useEffect(() => { fetchWatchSteps().catch(() => { /* ignore */ }); }, [fetchWatchSteps]);
+
+  const todayYmd = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
+  const todaySteps = useMemo(
+    () => Math.max(phoneTodaySteps, watchStepsByDate.get(todayYmd) ?? 0),
+    [phoneTodaySteps, watchStepsByDate, todayYmd],
+  );
+  const historySteps = useMemo(() => {
+    if (phoneHistorySteps.length === 0) return phoneHistorySteps;
+    const todayMs = new Date(todayYmd + 'T00:00:00').getTime();
+    const N = phoneHistorySteps.length;
+    return phoneHistorySteps.map((phone, i) => {
+      const offset = N - 1 - i;
+      const ymd = new Date(todayMs - offset * 86400_000).toLocaleDateString('en-CA');
+      const watch = watchStepsByDate.get(ymd) ?? 0;
+      return Math.max(phone, watch);
+    });
+  }, [phoneHistorySteps, watchStepsByDate, todayYmd]);
 
   // Use a finer stride estimate when the profile has a height (Murray-Drought:
   // walking stride ≈ 0.413 × heightCm). Falls back to the user's saved
@@ -157,8 +189,8 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     haptic.light();
-    try { await refresh(); } finally { setRefreshing(false); }
-  }, [refresh, haptic]);
+    try { await Promise.all([refresh(), fetchWatchSteps()]); } finally { setRefreshing(false); }
+  }, [refresh, fetchWatchSteps, haptic]);
 
   const openGoalModal = () => {
     haptic.selection();

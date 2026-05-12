@@ -83,7 +83,7 @@ export interface NormalizedSleep {
 }
 
 export interface NormalizedSample {
-  kind: 'hr' | 'spo2' | 'hrv' | 'stress' | 'bodyTemp' | 'cycleEvent' | 'vo2max' | 'restingHr';
+  kind: 'hr' | 'spo2' | 'hrv' | 'stress' | 'bodyTemp' | 'cycleEvent' | 'vo2max' | 'restingHr' | 'steps';
   value: number;
   unit: string;
   /** ISO-8601 */
