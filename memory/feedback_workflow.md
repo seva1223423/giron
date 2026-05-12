@@ -48,3 +48,6 @@ Name functions `getBlock{NNNN}` with 4-digit zero-padded number. Add in batches 
 - Don't add types/docstrings/comments to code that didn't ask for them.
 - Don't refactor code adjacent to the task — stay scoped.
 - Don't change logic during a pure structural refactor.
+
+**APK builds (`eas build`) require EXPLICIT permission each time.**
+User said 2026-05-12: "без моего разрешения не делай апк". Treat every `eas build --profile rustore/play/appstore` invocation as needing a per-build OK. A general "do it all" / "сам сделай" / "делай" does NOT cover APK builds — they cost build minutes, generate a new versionCode that bumps the install monotonicity ceiling, and require the user to manually install. OTA pushes (`eas update`) are separately authorized and not covered by this rule. When the task naturally ends with "now we need a new APK", say so and stop — don't run `eas build` until the user types something specific like "собирай апк", "запусти билд", "ты сделай" *after* I asked about it.
