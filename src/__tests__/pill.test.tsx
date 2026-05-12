@@ -33,9 +33,8 @@ jest.mock('react-native', () => ({
 }));
 
 import React from 'react';
-// react-test-renderer has no published @types — same pattern as
-// snapshotPremiumComponents.test.tsx in this folder.
-// @ts-expect-error implicit-any for the runtime renderer
+// Module declaration lives in src/types/react-test-renderer.d.ts now,
+// so this import doesn't need @ts-expect-error any more.
 import TestRenderer from 'react-test-renderer';
 import { Pill } from '../components/Pill';
 import { DiffCard } from '../components/DiffCard';
