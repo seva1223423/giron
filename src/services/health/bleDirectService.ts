@@ -113,11 +113,24 @@ export const bleDirectService = {
    * Returns after `timeoutSeconds` (default 10s) with the unique
    * devices observed during the scan window.
    */
-  async scanForHrDevices(timeoutSeconds = 10): Promise<BleDiscoveredDevice[]> {
+  async scanForHrDevices(timeoutSeconds = 10, signal?: AbortSignal): Promise<BleDiscoveredDevice[]> {
     const mgr = await getManager();
     if (!mgr) return [];
     const found = new Map<string, BleDiscoveredDevice>();
     return new Promise((resolve) => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const finalize = () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+        try { mgr.stopDeviceScan(); } catch { /* ignore */ }
+        resolve(Array.from(found.values()).sort((a, b) => (b.rssi ?? -200) - (a.rssi ?? -200)));
+      };
+      // R240 audit M6: respect AbortSignal so the caller can cancel
+      // mid-scan (HealthScreen unmount, user nav-away, etc.) without
+      // leaving startDeviceScan running for the full timeout.
+      if (signal?.aborted) {
+        return resolve([]);
+      }
+      signal?.addEventListener('abort', finalize);
       try {
         mgr.startDeviceScan([HR_SERVICE_UUID], null, (err, device) => {
           if (err || !device) return;
@@ -129,13 +142,9 @@ export const bleDirectService = {
             });
           }
         });
-        setTimeout(() => {
-          try { mgr.stopDeviceScan(); } catch { /* ignore */ }
-          resolve(Array.from(found.values()).sort((a, b) => (b.rssi ?? -200) - (a.rssi ?? -200)));
-        }, timeoutSeconds * 1000);
+        timer = setTimeout(finalize, timeoutSeconds * 1000);
       } catch {
-        try { mgr.stopDeviceScan(); } catch { /* ignore */ }
-        resolve([]);
+        finalize();
       }
     });
   },
@@ -180,7 +189,20 @@ export const bleDirectService = {
     let connection: any = null;
     let monitorSub: any = null;
     try {
-      connection = await mgr.connectToDevice(deviceId);
+      // R240 audit M7: outer timeout on the connect path. BLE devices
+      // can sit in a bad state where connectToDevice hangs forever
+      // (paired-but-asleep, RSSI too low, OS bluetooth stack glitch).
+      // Without this wrapper the UI shows nothing and the user has no
+      // recourse but to kill the app. 15s covers a worst-case real
+      // connect (Polar H10 typically takes 2-4s).
+      const CONNECT_TIMEOUT_MS = 15_000;
+      connection = await Promise.race([
+        mgr.connectToDevice(deviceId),
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('BLE_CONNECT_TIMEOUT')),
+          CONNECT_TIMEOUT_MS,
+        )),
+      ]);
       await connection.discoverAllServicesAndCharacteristics();
 
       const start = Date.now();
