@@ -60,16 +60,28 @@ export const toast = {
 
 export function ToastHost() {
   const [items, setItems] = useState<ToastItem[]>([]);
+  // Track in-flight TTL timers so we can clear them on unmount. Without
+  // this, a toast enqueued just before unmount fires `setItems` on a
+  // mounted-then-gone component (the React warning "Can't perform a
+  // state update on an unmounted component" + a minor memory leak).
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   useEffect(() => {
     _enqueue = (item) => {
       const id = Math.random().toString(36).slice(2);
       setItems((prev) => [...prev, { ...item, id }]);
       const ttl = item.duration ?? 2800;
-      setTimeout(() => setItems((prev) => prev.filter((x) => x.id !== id)), ttl);
+      const t = setTimeout(() => {
+        timersRef.current.delete(t);
+        setItems((prev) => prev.filter((x) => x.id !== id));
+      }, ttl);
+      timersRef.current.add(t);
     };
     return () => {
       _enqueue = () => {};
+      // Clear every still-pending TTL on host teardown.
+      timersRef.current.forEach((t) => clearTimeout(t));
+      timersRef.current.clear();
     };
   }, []);
 
