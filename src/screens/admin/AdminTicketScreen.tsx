@@ -95,6 +95,28 @@ export default function AdminTicketScreen() {
   const { ticketId } = route.params ?? {};
   const userId = useAuthStore((s) => s.user?.id);
   const flatRef = useRef<FlatList>(null);
+  // Track all anonymous scrollToEnd timers so we can clear them on
+  // unmount — without this, a setTimeout fired right before navigation
+  // away still fires `flatRef.current?.scrollToEnd` on a null ref and
+  // the closure keeps the screen state alive longer than necessary.
+  const scrollTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  // Schedule a scrollToEnd that auto-cleans on unmount. Replaces 3
+  // anonymous `setTimeout(() => flatRef.current?.scrollToEnd(...), ms)`
+  // sites in this file (poll-on-new, mount-on-messages, send-success).
+  const scheduleScroll = useCallback((animated: boolean, ms: number) => {
+    const t = setTimeout(() => {
+      scrollTimersRef.current.delete(t);
+      flatRef.current?.scrollToEnd({ animated });
+    }, ms);
+    scrollTimersRef.current.add(t);
+  }, []);
+
+  // Clear every pending scroll timer on unmount.
+  useEffect(() => () => {
+    scrollTimersRef.current.forEach((t) => clearTimeout(t));
+    scrollTimersRef.current.clear();
+  }, []);
   const { withStepUp, modal: stepUpModal } = useAdminStepUp();
 
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
@@ -134,7 +156,7 @@ export default function AdminTicketScreen() {
       setTicket((prev) => {
         if (!prev) return data;
         if (data.messages.length !== prev.messages.length) {
-          setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+          scheduleScroll(true, 100);
         }
         return data;
       });
@@ -160,7 +182,7 @@ export default function AdminTicketScreen() {
 
   useEffect(() => {
     if (ticket?.messages.length) {
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
+      scheduleScroll(false, 100);
     }
   }, [ticket?.messages.length]);
 
@@ -177,7 +199,7 @@ export default function AdminTicketScreen() {
         const msg = await supportService.sendMessage(ticketId, trimmed);
         setTicket((t) => t ? { ...t, messages: [...t.messages, msg] } : t);
       }
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+      scheduleScroll(true, 100);
     } catch {
       Alert.alert('Ошибка', isNoteMode ? 'Не удалось добавить заметку' : 'Не удалось отправить сообщение');
     } finally {
