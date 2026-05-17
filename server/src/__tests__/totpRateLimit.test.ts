@@ -71,6 +71,28 @@ describe('TOTP rate limiter — applied to all 2FA endpoints', () => {
     );
   });
 
+  test('mounted on /api/user/account (DELETE — step-up reauth)', () => {
+    // Audit 2026-05-13: DELETE /user/account accepts password + TOTP for
+    // step-up reauth. Without per-endpoint limit, the generic 200/min
+    // userRateLimiter would let an attacker brute-force the
+    // WRONG_PASSWORD / INVALID_TOTP responses at ~200 attempts/min.
+    expect(INDEX_SRC).toMatch(
+      /app\.use\(\s*['"]\/api\/user\/account['"]\s*,\s*totpRateLimiter\s*\)/,
+    );
+  });
+
+  test('mounted on /api/user/change-email (step-up reauth)', () => {
+    expect(INDEX_SRC).toMatch(
+      /app\.use\(\s*['"]\/api\/user\/change-email['"]\s*,\s*totpRateLimiter\s*\)/,
+    );
+  });
+
+  test('mounted on /api/user/change-phone (step-up reauth)', () => {
+    expect(INDEX_SRC).toMatch(
+      /app\.use\(\s*['"]\/api\/user\/change-phone['"]\s*,\s*totpRateLimiter\s*\)/,
+    );
+  });
+
   test('NOT mounted only on /api/auth — would let /login/register bypass', () => {
     // Defensive: ensure the prefix isn't accidentally /api/auth (which
     // would apply the strict 5/5min limit to login + register too,
