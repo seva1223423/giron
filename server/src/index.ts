@@ -353,7 +353,14 @@ app.use('/api/auth/check-email', enumRateLimiter);
 app.use('/api/auth/check-phone', enumRateLimiter);
 app.use('/api/auth', authRateLimiter, authRouter);
 // Apply strict TOTP rate limiter to 2FA code-accepting user endpoints
+// AND to anything that accepts a password / TOTP / OTP guess as part of
+// step-up reauth. Without the per-endpoint limiter the generic
+// userRateLimiter (200/min) would still let an attacker holding a
+// stolen access token brute-force passwords on these flows.
 app.use('/api/user/2fa', totpRateLimiter);
+app.use('/api/user/account', totpRateLimiter);
+app.use('/api/user/change-email', totpRateLimiter);
+app.use('/api/user/change-phone', totpRateLimiter);
 app.use('/api/user', userRateLimiter, userRouter);
 app.use('/api/workouts', userRateLimiter, workoutRouter);
 app.use('/api/nutrition', userRateLimiter, nutritionRouter);
@@ -436,27 +443,38 @@ import {
 } from './utils/cleanupJobs';
 
 // Cleanup expired/revoked refresh tokens and expired trusted devices every 6 hours
-setInterval(async () => {
-  const db = (await import('./db')).prisma;
-  await runRefreshTokenAndDeviceCleanup(db);
+// Wrapped in `trackCron` so /admin/cron-health correctly reports the cleanup
+// jobs as alive — previously they fired but the liveness ledger never marked
+// them, leaving the dashboard showing "never run" on a working server.
+setInterval(() => {
+  void trackCron('cleanup-tokens-devices', async () => {
+    const db = (await import('./db')).prisma;
+    await runRefreshTokenAndDeviceCleanup(db);
+  });
 }, 6 * 60 * 60 * 1000).unref();
 
 // Cleanup used TOTP codes older than 90s (replay window) every 5 minutes
-setInterval(async () => {
-  const db = (await import('./db')).prisma;
-  await runTotpReplayCleanup(db);
+setInterval(() => {
+  void trackCron('cleanup-totp-replay', async () => {
+    const db = (await import('./db')).prisma;
+    await runTotpReplayCleanup(db);
+  });
 }, 5 * 60 * 1000).unref();
 
 // Cleanup expired/used OTP codes and stale TOTP replay records every hour
-setInterval(async () => {
-  const db = (await import('./db')).prisma;
-  await runOtpCodesCleanup(db);
+setInterval(() => {
+  void trackCron('cleanup-otp-codes', async () => {
+    const db = (await import('./db')).prisma;
+    await runOtpCodesCleanup(db);
+  });
 }, 60 * 60 * 1000).unref();
 
 // Cleanup expired password reset tokens every 6 hours
-setInterval(async () => {
-  const db = (await import('./db')).prisma;
-  await runPasswordResetCleanup(db);
+setInterval(() => {
+  void trackCron('cleanup-password-reset', async () => {
+    const db = (await import('./db')).prisma;
+    await runPasswordResetCleanup(db);
+  });
 }, 6 * 60 * 60 * 1000).unref();
 
 // Prune expired in-memory cache entries every 10 minutes to prevent memory growth.
