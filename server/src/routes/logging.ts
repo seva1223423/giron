@@ -19,7 +19,8 @@ import { Router, Response, Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
-import { sendErrorToTelegram } from '../services/telegramLogger';
+import { sendErrorToTelegram, lookupCachedError } from '../services/telegramLogger';
+import { createIssueFromError } from '../services/githubIssueCreator';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -77,6 +78,92 @@ router.post('/log-client-error', limiter, async (req: Request, res: Response) =>
   } catch (e) {
     logger.error('POST /log-client-error:', e);
     res.status(500).json({ error: 'Не удалось залогировать' });
+  }
+});
+
+// ─── Telegram webhook (button clicks → GitHub issues) ─────────────────────
+
+/**
+ * POST /api/telegram/webhook — receives Telegram bot updates including
+ * callback_query events from the "🔧 Fix it" inline button on each
+ * error message. On a `fix:<errorId>` callback:
+ *   1. Look up the cached error context (in-memory in telegramLogger)
+ *   2. Create a GitHub issue with full context (message + stack + tags)
+ *   3. Reply in Telegram with the issue URL
+ *
+ * Security:
+ *   - Telegram supports a secret_token validated via X-Telegram-Bot-Api-
+ *     Secret-Token header. We require TELEGRAM_WEBHOOK_SECRET in env;
+ *     missing secret = endpoint returns 401 (refuse all traffic). This
+ *     prevents anyone who knows the URL from spoofing callback events.
+ *
+ * Setup AFTER deploy (one-time):
+ *   curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+ *     -d "url=https://iron-gym-swoe.onrender.com/api/telegram/webhook" \
+ *     -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+ */
+router.post('/telegram/webhook', async (req: Request, res: Response) => {
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const gotSecret = req.header('X-Telegram-Bot-Api-Secret-Token');
+  if (!expectedSecret || gotSecret !== expectedSecret) {
+    return res.sendStatus(401);
+  }
+
+  try {
+    const update = req.body as any;
+
+    // Telegram callback_query — fires when user taps an inline button.
+    if (update?.callback_query) {
+      const cb = update.callback_query;
+      const data: string | undefined = cb.data;
+      const chatId = cb.message?.chat?.id;
+
+      if (data?.startsWith('fix:') && chatId) {
+        const errorId = data.slice(4);
+        const cached = lookupCachedError(errorId);
+
+        // Always answer the callback so the loading spinner stops.
+        const token = process.env.TELEGRAM_BOT_TOKEN!;
+        fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cb.id, text: 'Работаю…' }),
+        }).catch(() => {});
+
+        if (!cached) {
+          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: '⏳ Ошибка устарела — её контекст уже выпал из кэша. Дождись новой.',
+            }),
+          }).catch(() => {});
+          return res.json({ ok: true });
+        }
+
+        // Create the issue. Fire-and-await so the reply has the link.
+        const issue = await createIssueFromError(cached);
+        const replyText = issue
+          ? `✅ GitHub Issue #${issue.number} создан\n${issue.html_url}\n\nЧтобы починить — напиши Claude:\n\`почини issue #${issue.number}\``
+          : '❌ Не удалось создать issue. Проверь что GITHUB_TOKEN и GITHUB_REPO заданы в Render env.';
+
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: replyText,
+            disable_web_page_preview: false,
+          }),
+        }).catch(() => {});
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /telegram/webhook:', e);
+    res.status(500).json({ ok: false });
   }
 });
 
