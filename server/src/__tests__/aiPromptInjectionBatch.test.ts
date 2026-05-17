@@ -61,6 +61,46 @@ describe('update_memory schema regression', () => {
   });
 });
 
+describe('Tool resultText sanitize regression — workout.name and program names', () => {
+  test('modify_workout introduces safeWorkoutName before resultText uses', () => {
+    expect(AI_SRC).toMatch(
+      /const safeWorkoutName\s*=\s*sanitizeForPrompt\(workout\.name,\s*120\)/,
+    );
+  });
+
+  test('no raw `${workout.name}` interpolation left in modify_workout block', () => {
+    const block = AI_SRC.match(
+      /toolName === 'modify_workout'[\s\S]{0,18000}toolName === 'set_weekly_plan'/,
+    );
+    expect(block).not.toBeNull();
+    expect(block![0]).not.toMatch(/\$\{workout\.name\}/);
+  });
+
+  test('activate_program sanitizes match.name before resultText', () => {
+    expect(AI_SRC).toMatch(
+      /const safeMatchName\s*=\s*sanitizeForPrompt\(match\.name,\s*120\)/,
+    );
+  });
+
+  test('delete_program sanitizes active.name before resultText', () => {
+    expect(AI_SRC).toMatch(
+      /const safeActiveName\s*=\s*sanitizeForPrompt\(active\.name,\s*120\)/,
+    );
+  });
+
+  test('adjust_all_weights sanitizes the active program name', () => {
+    expect(AI_SRC).toMatch(
+      /const safeActiveProgName\s*=\s*sanitizeForPrompt\(active\.name,\s*120\)/,
+    );
+  });
+
+  test('create_workout uses safeWorkoutName in resultText', () => {
+    // create_workout is a separate path from modify_workout — has its own
+    // const safeWorkoutName.
+    expect(AI_SRC).toMatch(/Тренировка "\$\{safeWorkoutName\}" создана/);
+  });
+});
+
 describe('saveMemories sanitize regression', () => {
   test('safeKey and safeValue use sanitizeForPrompt (not just slice)', () => {
     expect(AI_SRC).toMatch(
