@@ -87,6 +87,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track all anonymous scrollToEnd-after-mount timers so we can clear
+  // them on unmount. Without this, a setTimeout fired right before
+  // navigation away still fires `scrollRef.current?.scrollToEnd` on a
+  // null ref — harmless, but the timer itself keeps the closure alive,
+  // a tiny leak per chat send.
+  const scrollTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   // Guard against concurrent sends: true while any request (streaming or fallback) is in flight.
   // isTyping becomes false when streaming starts, so isSendingRef is the reliable lock.
   const isSendingRef = useRef(false);
@@ -113,6 +119,21 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     abortRef.current?.abort();
     if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
     if (actionsTimerRef.current) clearTimeout(actionsTimerRef.current);
+    // Memory-leak fix: drop every pending scrollToEnd timer.
+    scrollTimersRef.current.forEach((t) => clearTimeout(t));
+    scrollTimersRef.current.clear();
+  }, []);
+
+  // Schedule a scrollToEnd that auto-cleans on unmount. Replaces 4
+  // anonymous `setTimeout(() => scrollRef.current?.scrollToEnd(...), ms)`
+  // sites in this file — each was a small leak when the user navigated
+  // away mid-send.
+  const scheduleScroll = useCallback((animated: boolean, ms: number) => {
+    const t = setTimeout(() => {
+      scrollTimersRef.current.delete(t);
+      scrollRef.current?.scrollToEnd({ animated });
+    }, ms);
+    scrollTimersRef.current.add(t);
   }, []);
 
   const handleSpeak = (id: string, text: string) => {
@@ -205,7 +226,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       };
       setMessages((prev) => [...prev, userMessage]);
       setInput('');
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      scheduleScroll(true, 100);
       isSendingRef.current = false;
       return;
     }
@@ -217,7 +238,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    scheduleScroll(true, 100);
 
     try {
       const todayDate = localDateStr(new Date());
@@ -248,7 +269,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           setMessages((prev) => prev.map((m) =>
             m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
           ));
-          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 0);
+          scheduleScroll(false, 0);
         }
       } catch (e: any) {
         if (controller.signal.aborted || e?.name === 'AbortError') {
@@ -430,7 +451,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     } finally {
       setIsTyping(false);
       isSendingRef.current = false;
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      scheduleScroll(true, 100);
     }
   };
 
