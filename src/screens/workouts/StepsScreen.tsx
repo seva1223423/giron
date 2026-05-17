@@ -225,7 +225,13 @@ export const StepsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   // on `canAskAgain`). Previously we showed a single static message
   // telling the user to fix it themselves, which forced them to dig
   // through their OS settings on their own.
-  if (!isLoading && permission !== 'granted') {
+  // R240 audit L13: if the phone pedometer is denied/unavailable BUT
+  // we have watch step data for today, let the screen render normally.
+  // The previous gate hid all watch steps behind "разреши доступ" even
+  // when the user had Apple Watch / Mi Band syncing — confusing UX
+  // ("у меня же часы есть, причём тут шагомер телефона?").
+  const hasWatchTodaySteps = (watchStepsByDate.get(todayYmd) ?? 0) > 0;
+  if (!isLoading && permission !== 'granted' && !hasWatchTodaySteps) {
     const hardwareMissing = permission === 'unavailable' || !hasHardware;
     const needsSettings = permission === 'denied' && !canAskAgain;
 

@@ -17,10 +17,18 @@
  * stores and have their own (manual) entry flows.
  */
 import { Platform } from 'react-native';
+import { addBreadcrumb } from '../../utils/errorReporter';
 import type {
   HealthDataProvider, HealthScope, NormalizedHealthPayload,
   NormalizedCardio, NormalizedSleep, NormalizedSample, CardioType,
 } from './types';
+
+// R240 audit M8/M9: drop a Sentry breadcrumb when a per-record-type
+// HK query fails. Sentry stays opt-in (SENTRY_DSN not set = no-op).
+function bc(block: string, err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  addBreadcrumb(`hk.${block}`, { error: msg.slice(0, 200) }, 'warning');
+}
 
 // Map app scopes → HealthKit quantity / category type identifiers.
 // HKQuantityTypeIdentifier* / HKCategoryTypeIdentifier* values.
@@ -190,7 +198,7 @@ export const healthKitAdapter: HealthDataProvider = {
           payload.cardio.push(cardio);
         }
       }
-    } catch { /* workouts query failed */ }
+    } catch (e) { bc('workouts-read', e); }
 
     // ── Sleep ────────────────────────────────────────────────────────
     // HKCategoryTypeIdentifierSleepAnalysis returns segments with stage
@@ -264,7 +272,7 @@ export const healthKitAdapter: HealthDataProvider = {
           payload.sleep.push(sleep);
         }
       }
-    } catch { /* sleep query failed */ }
+    } catch (e) { bc('sleep-read', e); }
 
     // ── Raw quantity samples ────────────────────────────────────────
     const sampleSpecs: Array<{ hkType: string; kind: NormalizedSample['kind']; unit: string }> = [
@@ -307,7 +315,7 @@ export const healthKitAdapter: HealthDataProvider = {
             externalId: `HK-${spec.hkType}-${r.uuid ?? startAt}`,
           });
         }
-      } catch { /* sample type failed — skip */ }
+      } catch (e) { bc(`sample-${spec.kind}`, e); }
     }
 
     return payload;

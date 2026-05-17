@@ -15,10 +15,20 @@
  * entirely so jest can run without polyfilling the native module.
  */
 import { Platform } from 'react-native';
+import { addBreadcrumb } from '../../utils/errorReporter';
 import type {
   HealthDataProvider, HealthScope, NormalizedHealthPayload,
   NormalizedCardio, NormalizedSleep, NormalizedSample, CardioType,
 } from './types';
+
+// R240 audit M8/M9: each adapter block used to `catch { /* skip */ }`
+// silently. Now we drop a Sentry breadcrumb so the next-level error
+// (or the lack of expected data) has context. No PII leakage — the
+// message is just the block name + error code/message.
+function bc(block: string, err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  addBreadcrumb(`hc.${block}`, { error: msg.slice(0, 200) }, 'warning');
+}
 
 // Maps app-level scopes → Health Connect record type names. Kept tight:
 // each entry is a record type we actually read in `pullSince`.
@@ -179,7 +189,7 @@ export const healthConnectAdapter: HealthDataProvider = {
             maxHr = Math.max(...samples);
             minHr = Math.min(...samples);
           }
-        } catch { /* hr series optional */ }
+        } catch (e) { bc('hr-series', e); }
 
         // Distance + calories: separate record types in HC, scoped to the session window
         let distanceKm: number | undefined, calories: number | undefined;
@@ -212,7 +222,7 @@ export const healthConnectAdapter: HealthDataProvider = {
         };
         payload.cardio.push(cardio);
       }
-    } catch { /* exercise read failed — skip cardio */ }
+    } catch (e) { bc('exercise-read', e); }
 
     // ── Sleep (SleepSession) ────────────────────────────────────────
     try {
@@ -268,7 +278,7 @@ export const healthConnectAdapter: HealthDataProvider = {
         };
         payload.sleep.push(sleep);
       }
-    } catch { /* sleep read failed */ }
+    } catch (e) { bc('sleep-read', e); }
 
     // ── Raw samples (resting HR, HRV, SpO₂, VO₂max, steps) ──────────
     const sampleSpecs: Array<{ hcType: string; kind: NormalizedSample['kind']; unit: string; extract: (r: any) => number | undefined }> = [
@@ -297,7 +307,7 @@ export const healthConnectAdapter: HealthDataProvider = {
             externalId: `HC-${spec.hcType}-${r.metadata?.id ?? startAt}`,
           });
         }
-      } catch { /* individual sample type failed — skip */ }
+      } catch (e) { bc(`sample-${spec.kind}`, e); }
     }
 
     return payload;

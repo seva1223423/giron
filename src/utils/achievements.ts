@@ -5,7 +5,7 @@ export interface Achievement {
   emoji: string;
   title: string;
   description: string;
-  category: 'workout' | 'strength' | 'streak' | 'nutrition' | 'exploration';
+  category: 'workout' | 'strength' | 'streak' | 'nutrition' | 'exploration' | 'recovery';
   unlocked: boolean;
   unlockedAt?: string;
   progress?: number;   // 0–1 for partial progress
@@ -25,6 +25,13 @@ export interface AchievementData {
   workoutHistory: Workout[];
   nutritionDaysLogged: number; // distinct dates with at least 1 meal
   currentStreak: number;
+  /** R240: optional watch/recovery signals — all fields nullable so
+   *  the achievements degrade gracefully when no watch is paired. */
+  sleepEntries?: Array<{ date: string; durationHours: number; quality?: number | null }>;
+  /** Cardio sessions that came from a non-MANUAL source (watch). */
+  watchCardioCount?: number;
+  /** Latest VO₂max value from any source. */
+  latestVo2Max?: number | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -864,6 +871,103 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
       progress: Math.min(nutritionDaysLogged / 30, 1),
       progressLabel: `${Math.min(nutritionDaysLogged, 30)} / 30`,
     }),
+  },
+
+  // ─── R240: Recovery / smartwatch ────────────────────────────────────────────
+
+  {
+    id: 'sleep_7days_streak',
+    emoji: '◐',
+    title: 'Неделя здорового сна',
+    description: '7 ночей подряд по 7+ часов сна',
+    category: 'recovery',
+    check: ({ sleepEntries }) => {
+      const entries = sleepEntries ?? [];
+      if (entries.length === 0) return { unlocked: false, progress: 0, progressLabel: '0 / 7' };
+      // Walk backwards from today, count consecutive 7h+ nights
+      const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+      let streak = 0;
+      for (const e of sorted) {
+        if (e.durationHours >= 7) streak++;
+        else break;
+      }
+      return {
+        unlocked: streak >= 7,
+        progress: Math.min(streak / 7, 1),
+        progressLabel: `${Math.min(streak, 7)} / 7`,
+      };
+    },
+  },
+  {
+    id: 'sleep_30nights',
+    emoji: '◑',
+    title: 'Месяц сна под контролем',
+    description: 'Записать 30 ночей сна',
+    category: 'recovery',
+    check: ({ sleepEntries }) => {
+      const n = sleepEntries?.length ?? 0;
+      return {
+        unlocked: n >= 30,
+        progress: Math.min(n / 30, 1),
+        progressLabel: `${Math.min(n, 30)} / 30`,
+      };
+    },
+  },
+  {
+    id: 'sleep_quality_avg4',
+    emoji: '◓',
+    title: 'Качественный отдых',
+    description: 'Средняя оценка сна ≥ 4/5 за последние 14 дней',
+    category: 'recovery',
+    check: ({ sleepEntries }) => {
+      const recent = (sleepEntries ?? []).slice(0, 14).filter((e) => e.quality != null);
+      if (recent.length < 7) return { unlocked: false, progress: recent.length / 7, progressLabel: `${recent.length} / 7 дней` };
+      const avg = recent.reduce((s, e) => s + (e.quality ?? 0), 0) / recent.length;
+      return {
+        unlocked: avg >= 4,
+        progress: Math.min(avg / 4, 1),
+        progressLabel: `${avg.toFixed(1)} / 4.0`,
+      };
+    },
+  },
+  {
+    id: 'watch_synced_first',
+    emoji: '◒',
+    title: 'На связи с часами',
+    description: 'Получить первую тренировку с часов (Apple Watch, Mi Band, Polar и др.)',
+    category: 'recovery',
+    check: ({ watchCardioCount }) => ({
+      unlocked: (watchCardioCount ?? 0) >= 1,
+      progress: Math.min((watchCardioCount ?? 0), 1),
+      progressLabel: `${Math.min((watchCardioCount ?? 0), 1)} / 1`,
+    }),
+  },
+  {
+    id: 'watch_synced_10',
+    emoji: '◔',
+    title: 'Регулярный синк',
+    description: '10 тренировок с часов',
+    category: 'recovery',
+    check: ({ watchCardioCount }) => ({
+      unlocked: (watchCardioCount ?? 0) >= 10,
+      progress: Math.min((watchCardioCount ?? 0) / 10, 1),
+      progressLabel: `${Math.min((watchCardioCount ?? 0), 10)} / 10`,
+    }),
+  },
+  {
+    id: 'vo2max_40',
+    emoji: '◕',
+    title: 'Хорошая форма',
+    description: 'VO₂max 40 и выше — выше среднего для возраста',
+    category: 'recovery',
+    check: ({ latestVo2Max }) => {
+      const v = latestVo2Max ?? 0;
+      return {
+        unlocked: v >= 40,
+        progress: Math.min(v / 40, 1),
+        progressLabel: v > 0 ? `${v.toFixed(1)} / 40` : 'нет данных',
+      };
+    },
   },
 ];
 

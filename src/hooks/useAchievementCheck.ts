@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { useWorkoutStore, useNutritionStore } from '../store';
+import { useWorkoutStore, useNutritionStore, useSleepStore, useCardioStore, useHealthStore } from '../store';
 import { computeAchievements, getNewlyUnlocked, Achievement } from '../utils/achievements';
 import { computeStreak } from '../utils/date';
 
@@ -18,6 +18,9 @@ import { computeStreak } from '../utils/date';
 export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) => void) {
   const { workoutHistory } = useWorkoutStore();
   const { dailyLog } = useNutritionStore();
+  const sleepEntries = useSleepStore((s) => s.entries);
+  const cardioSessions = useCardioStore((s) => s.sessions);
+  const healthSummary = useHealthStore((s) => s.summary);
 
   const prevUnlockedRef = useRef<string[]>([]);
   const initializedRef = useRef(false);
@@ -31,8 +34,23 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
     [workoutHistory],
   );
 
+  // R240: count cardio sessions that came from a watch (deviceSource !=
+  // MANUAL). Defaults gracefully when the field is missing on older
+  // entries pre-Phase A.
+  const watchCardioCount = useMemo(
+    () => cardioSessions.filter((c: any) => c.deviceSource && c.deviceSource !== 'MANUAL').length,
+    [cardioSessions],
+  );
+
   useEffect(() => {
-    const current = computeAchievements({ workoutHistory, nutritionDaysLogged, currentStreak: streak });
+    const current = computeAchievements({
+      workoutHistory,
+      nutritionDaysLogged,
+      currentStreak: streak,
+      sleepEntries,
+      watchCardioCount,
+      latestVo2Max: healthSummary?.latestVo2Max ?? null,
+    });
     if (!initializedRef.current) {
       // First run on mount: snapshot the existing unlocked set as the
       // baseline so the next change-driven run only surfaces the delta.
@@ -49,5 +67,5 @@ export function useAchievementCheck(onUnlocked: (achievements: Achievement[]) =>
       onUnlockedRef.current(newlyUnlocked);
     }
     prevUnlockedRef.current = current.filter((a) => a.unlocked).map((a) => a.id);
-  }, [nutritionDaysLogged, workoutHistory]);
+  }, [nutritionDaysLogged, workoutHistory, sleepEntries, watchCardioCount, healthSummary]);
 }

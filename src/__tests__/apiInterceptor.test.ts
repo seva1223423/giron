@@ -188,10 +188,15 @@ describe('response success interceptor', () => {
 // ── setOnlineStatus toggling ───────────────────────────────────────────────
 
 describe('response error: setOnlineStatus toggling', () => {
-  test('ECONNABORTED (timeout) → offline', async () => {
+  test('ECONNABORTED (timeout) → does NOT flag offline (R240)', async () => {
+    // R240 audit: request timeout is NOT the same as "no internet".
+    // Slow LLM responses and Render cold-starts can take 30-60s; the
+    // user shouldn't see "Нет соединения" banner during a long AI call.
+    // Genuine "can't reach host" still goes through ERR_NETWORK below.
     const err = { isAxiosError: true, code: 'ECONNABORTED', config: { method: 'get', headers: {} } };
     await expect(apiMock.handlers.responseError!(err)).rejects.toBe(err);
-    expect(setOnlineStatusMock).toHaveBeenCalledWith(false);
+    expect(setOnlineStatusMock).toHaveBeenCalledWith(true);
+    expect(setOnlineStatusMock).not.toHaveBeenCalledWith(false);
   });
 
   test('ERR_NETWORK → offline', async () => {

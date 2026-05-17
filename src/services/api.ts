@@ -94,7 +94,12 @@ const processQueue = (error: unknown, token: string | null = null) => {
 api.interceptors.response.use(
   (response) => { setOnlineStatus(true); return response; },
   async (error: AxiosError) => {
-    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
+    // R240 audit: don't flag the user as "offline" on a request timeout
+    // (ECONNABORTED). Slow LLM responses and Render cold-starts can take
+    // 30-60s and that's not the same as "no internet" — keeping the
+    // "Нет соединения" banner up during a 60s AI call is misleading.
+    // ERR_NETWORK = couldn't reach a host = genuine offline.
+    if (error.code === 'ERR_NETWORK' || (!error.response && error.code !== 'ECONNABORTED')) {
       setOnlineStatus(false);
     } else {
       setOnlineStatus(true);
@@ -251,11 +256,22 @@ export const getApiError = (error: unknown): ApiError => {
     const status = error.response?.status ?? 0;
     const serverMessage = error.response?.data?.error as string | undefined;
     const serverCode = error.response?.data?.code as string | undefined;
-    return {
-      message: serverMessage || STATUS_MESSAGES[status] || `Ошибка ${status || 'сети'}`,
-      status,
-      code: serverCode,
-    };
+    // R240 audit: distinguish timeout from genuine network-down. axios
+    // sends ECONNABORTED on timeout (server didn't reply in time) and
+    // ERR_NETWORK when the request couldn't reach a host at all. The
+    // original message conflated both as "Нет подключения к интернету"
+    // which was confusing during Render cold-starts and slow LLM calls
+    // — the user saw "no internet" when actually the server was just
+    // taking 30+s to wake up.
+    let message: string;
+    if (serverMessage) {
+      message = serverMessage;
+    } else if (status === 0 && error.code === 'ECONNABORTED') {
+      message = 'Сервер не отвечает. Возможно загружается — попробуй через 30 секунд.';
+    } else {
+      message = STATUS_MESSAGES[status] || `Ошибка ${status || 'сети'}`;
+    }
+    return { message, status, code: serverCode };
   }
   return { message: 'Неизвестная ошибка', status: 0 };
 };
