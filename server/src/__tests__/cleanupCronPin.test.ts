@@ -125,6 +125,31 @@ describe('Cleanup cron — OTP codes (every 1h)', () => {
   });
 });
 
+// ─── All cleanup intervals must call trackCron ───────────────────────────────
+//
+// Audit 2026-05-13: without trackCron the `/admin/cron-health` dashboard
+// falsely reported the cleanup jobs as "never run" on a live server. The
+// jobs themselves fired, but the in-memory liveness ledger only marks a
+// job alive when its body is wrapped in `trackCron(name, async () => ...)`.
+
+describe('Cleanup cron — every cleanup setInterval marks liveness via trackCron', () => {
+  test('refresh-token cleanup uses trackCron("cleanup-tokens-devices")', () => {
+    expect(INDEX_SRC).toMatch(/trackCron\(\s*['"]cleanup-tokens-devices['"]/);
+  });
+
+  test('totp-replay cleanup uses trackCron("cleanup-totp-replay")', () => {
+    expect(INDEX_SRC).toMatch(/trackCron\(\s*['"]cleanup-totp-replay['"]/);
+  });
+
+  test('otp-codes cleanup uses trackCron("cleanup-otp-codes")', () => {
+    expect(INDEX_SRC).toMatch(/trackCron\(\s*['"]cleanup-otp-codes['"]/);
+  });
+
+  test('password-reset cleanup uses trackCron("cleanup-password-reset")', () => {
+    expect(INDEX_SRC).toMatch(/trackCron\(\s*['"]cleanup-password-reset['"]/);
+  });
+});
+
 // ─── All cleanup intervals must .unref() ─────────────────────────────────────
 
 describe('Cleanup cron — every setInterval has .unref()', () => {
