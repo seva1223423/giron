@@ -20,7 +20,7 @@ RESULT:
 
 ## Known Deployment Architecture
 
-**Server:** Render (`iron-gym-swoe.onrender.com`), auto-deploy on push to `master`.
+**Server:** Render (`giron-api.onrender.com`), auto-deploy on push to `master`.
 - Build command: `cd server && npm install && npm run build && npx prisma generate`
 - Start command: `cd server && npm start`
 - Region: Oregon (US West) — note: DB is Neon Frankfurt (EU) = ~140ms baseline latency

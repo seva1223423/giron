@@ -118,14 +118,14 @@ For each raw SQL, check if CTEs use indexed columns in JOIN conditions.
 ```bash
 # Time a specific endpoint (need server running locally or hit prod)
 time curl -s -o /dev/null -H "Authorization: Bearer $TOKEN" \
-  https://iron-gym-swoe.onrender.com/workouts/exercises
+  https://giron-api.onrender.com/workouts/exercises
 
 # Count total query depth on a route by grepping prisma calls
 grep -c "await prisma\." server/src/routes/workout.ts
 
 # Check total JSON size for leaderboard response
 curl -s -H "Authorization: Bearer $TOKEN" \
-  https://iron-gym-swoe.onrender.com/workouts/leaderboard | wc -c
+  https://giron-api.onrender.com/workouts/leaderboard | wc -c
 ```
 
 ## Reference: Good vs Bad Patterns

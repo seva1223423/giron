@@ -44,7 +44,7 @@ Use those agents when the task fits their scope — they carry repo-specific nav
 
 **Exercise video pipeline (2026-04):**
 
-Videos and posters are **bundled in the main repo** (`assets/exercise-videos/`), not in a separate media repo. The `seva1223423/iron-gym-media` repo is obsolete.
+Videos and posters are **bundled in the main repo** (`assets/exercise-videos/`), not in a separate media repo. The `seva1223423/giron-media` repo is obsolete.
 
 - `src/data/exerciseVideoAssets.ts` → `EXERCISE_VIDEO_ASSETS` — canonical map of 32 verified exercise IDs to bundled video + poster paths.
 - `src/config/store.ts` — `VERIFIED_INLINE_VIDEO_IDS` set. For IDs not in the set, the client falls through to YouTube/Rutube fallback.

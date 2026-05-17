@@ -17,7 +17,7 @@
 
 1. Открой https://sentry.io/signup/ → Sign up
 2. Выбери **Sign in with GitHub** (быстрее всего)
-3. Заполни org name: `iron-gym` или любое
+3. Заполни org name: `giron` или любое
 4. Choose plan: **Free** (Developer)
 
 ---
@@ -27,7 +27,7 @@
 После регистрации Sentry попросит создать первый проект.
 
 1. Platform: выбери **Node.js → Express**
-2. Project name: `iron-gym-server`
+2. Project name: `giron-server`
 3. Default alert frequency: **Alert me on every new issue** (или что предлагают)
 4. Жми **Create Project**
 
@@ -60,7 +60,7 @@ Render автоматически перезапустит сервер.
 После того как Render показывает зелёный **Live** (~3-5 минут), открой в браузере:
 
 ```
-https://iron-gym-swoe.onrender.com/health/sentry
+https://giron-api.onrender.com/health/sentry
 ```
 
 Должен вернуть JSON:
@@ -75,7 +75,7 @@ https://iron-gym-swoe.onrender.com/health/sentry
 
 `sentryDsnConfigured: true` → DSN подхватился. И эндпоинт автоматически послал тестовую ошибку в Sentry.
 
-Через 30 секунд зайди на https://sentry.io → твой проект `iron-gym-server` → должно появиться issue `[health/sentry] init probe`. Это значит **Sentry полностью работает**.
+Через 30 секунд зайди на https://sentry.io → твой проект `giron-server` → должно появиться issue `[health/sentry] init probe`. Это значит **Sentry полностью работает**.
 
 Если issue появилось — можешь его удалить (это синтетическая ошибка, не реальная).
 
@@ -89,7 +89,7 @@ https://iron-gym-swoe.onrender.com/health/sentry
 
 1. На sentry.io → **Projects** → **Create Project**
 2. Platform: **React Native**
-3. Project name: `iron-gym-mobile`
+3. Project name: `giron-mobile`
 4. **Create Project** → копируй DSN
 
 ### 5б. Добавь DSN как EAS Secret
@@ -154,7 +154,7 @@ npx eas secret:create --scope project --name EXPO_PUBLIC_SENTRY_DSN --value "htt
 
 **Issue не появляется в Sentry дашборде:**
 - DSN мог быть скопирован с лишним пробелом — пересоздай в Render
-- Проверь что в правом верхнем углу sentry.io выбран правильный проект (`iron-gym-server`, не `iron-gym-mobile`)
+- Проверь что в правом верхнем углу sentry.io выбран правильный проект (`giron-server`, не `giron-mobile`)
 
 **`@sentry/node` не установлен на сервере:**
 Должен быть. Если по какой-то причине нет — выполни на Render через Settings → Build Command:
