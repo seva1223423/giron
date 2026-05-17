@@ -170,6 +170,48 @@ export interface ErrorContext {
  * Capture an error with optional context. Falls back to console.error when
  * Sentry isn't active.
  */
+/**
+ * Round 240: in production with Sentry inactive (the default for solo
+ * dev), forward errors to the server's Telegram-logging endpoint.
+ * Fire-and-forget — never throws, never awaited. The endpoint
+ * /api/log-client-error has its own 30/hour rate-limit.
+ *
+ * Imported lazily to avoid circular deps with api.ts (which itself
+ * imports from store/auth which might one day import reportError).
+ */
+function forwardToTelegramBackend(err: unknown, context: ErrorContext): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+    const { BASE_URL } = require('../services/api');
+    const e = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Unknown error');
+    const payload = {
+      message: (e.message || 'Unknown error').slice(0, 2000),
+      stack: (e.stack ?? '').slice(0, 8000),
+      route: context.screen,
+      appVersion: process.env.EXPO_PUBLIC_APP_VERSION,
+      platform: process.env.EXPO_PUBLIC_PLATFORM ?? 'android',
+    };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+    const { tokenStorage } = require('./secureStorage');
+    tokenStorage.getAccessToken().then((token: string | null) => {
+      fetch(`${BASE_URL}/log-client-error`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      }).catch(() => { /* swallow — last-resort logger can't fail loudly */ });
+    }).catch(() => { /* no token, post anonymously */
+      fetch(`${BASE_URL}/log-client-error`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch(() => { /* swallow */ });
+    });
+  } catch { /* swallow — error reporter must never break the app */ }
+}
+
 export function reportError(err: unknown, context: ErrorContext = {}): void {
   const s = tryLoadSentry();
   if (s) {
@@ -193,6 +235,11 @@ export function reportError(err: unknown, context: ErrorContext = {}): void {
   if (__DEV__) {
     // eslint-disable-next-line no-console
     console.error('[reportError]', err instanceof Error ? err.stack ?? err.message : err, context);
+  } else {
+    // Round 240: production fallback — forward to server, which forwards
+    // to Telegram if TELEGRAM_BOT_TOKEN is set in Render env. No-op when
+    // server has no Telegram config either.
+    forwardToTelegramBackend(err, context);
   }
 }
 
