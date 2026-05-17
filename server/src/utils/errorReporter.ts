@@ -23,6 +23,7 @@
  */
 
 import { logger } from './logger';
+import { sendErrorToTelegram } from '../services/telegramLogger';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SentryModule = any;
@@ -233,8 +234,16 @@ export function reportError(err: unknown, context: ErrorContext = {}): void {
     });
     return;
   }
-  // Local dev / Sentry not activated — log to console with context.
+  // Local dev / Sentry not activated — log to console + Telegram (if
+  // TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID set in env). Telegram call is
+  // fire-and-forget — never blocks the caller.
   logger.error('[reportError]', err instanceof Error ? err.stack ?? err.message : err, context);
+  sendErrorToTelegram(err, {
+    route: context.route,
+    userId: context.userId,
+    source: 'server',
+    tags: context.tags,
+  });
 }
 
 /**

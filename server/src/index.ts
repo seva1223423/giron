@@ -13,6 +13,7 @@ import { subscriptionRouter } from './routes/subscription';
 import { trainerRouter } from './routes/trainer';
 import { cardioRouter } from './routes/cardio';
 import { healthRouter } from './routes/health';
+import { loggingRouter } from './routes/logging';
 import { supportRouter } from './routes/support';
 import { adminRouter } from './routes/admin';
 import { recipesRouter } from './routes/recipes';
@@ -382,6 +383,10 @@ app.use('/api/cardio', userRateLimiter, cardioRouter);
 // with the existing /api/user/profile namespace. No conflict with
 // userRouter — health.ts uses /health/* and /devices/* paths only.
 app.use('/api/user', userRateLimiter, healthRouter);
+// Client-error logging endpoint (forwards to Telegram bot). Mounted
+// at /api so a client crash at /, /login or any pre-auth path can post
+// here without going through user-rate-limit (it has its own limiter).
+app.use('/api', loggingRouter);
 app.use('/api/support', userRateLimiter, supportRouter);
 app.use('/api/admin', adminRateLimiter, adminRouter);
 // Tight per-endpoint cap for the LLM-backed recipe generator — must be
