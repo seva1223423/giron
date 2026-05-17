@@ -5411,7 +5411,11 @@ async function executeTool(
   if (toolName === 'update_memory') {
     const updateMemSchema = z.object({
       action: z.enum(['set', 'forget']),
-      category: z.enum(['preference', 'habit', 'injury', 'allergy', 'schedule', 'personality', 'goal']).optional(),
+      // 9 categories — last two (`equipment`, `milestone`) were missing
+      // here despite being documented in CLAUDE.md and used elsewhere in
+      // the codebase. Without them every AI tool call setting these
+      // categories silent-failed with "Ошибка параметров update_memory".
+      category: z.enum(['preference', 'habit', 'injury', 'allergy', 'schedule', 'personality', 'goal', 'equipment', 'milestone']).optional(),
       key: z.string().min(1).max(80).regex(/^[a-z0-9_]+$/, 'key must be snake_case').transform((k) => k.toLowerCase()),
       value: z.string().min(0).max(200).transform((v) => sanitizeForPrompt(v, 200)).optional(),
     });
@@ -5791,7 +5795,7 @@ ${age ? `- Возраст: ${age} лет` : ''}
         EXPERT: 'эксперт',
       } as Record<string, string>)[user.fitnessLevel] || user.fitnessLevel : 'не указан'}
 - Тренировочный стаж: ${user.trainingExperienceYears ? `${user.trainingExperienceYears} лет` : 'не указан'}
-${user.healthRestrictions.length > 0 ? `- Ограничения здоровья: ${user.healthRestrictions.map((h) => `${h.bodyPart}: ${h.description} (${h.severity})`).join('; ')}` : '- Ограничений здоровья: нет'}`;
+${user.healthRestrictions.length > 0 ? `- Ограничения здоровья: ${user.healthRestrictions.map((h) => `${sanitizeForPrompt(h.bodyPart, 60)}: ${sanitizeForPrompt(h.description, 200)} (${h.severity})`).join('; ')}` : '- Ограничений здоровья: нет'}`;
     }
 
     // ─── Sleep data: client-provided or DB fallback ──────
@@ -13564,8 +13568,12 @@ export async function cleanupStaleMemories(userId: string): Promise<void> {
 export async function saveMemories(userId: string, memories: MemoryExtraction[]): Promise<void> {
   await Promise.all(memories.map(async (mem) => {
     try {
-      const safeKey = String(mem.key).slice(0, 100);
-      const safeValue = String(mem.value).slice(0, 500);
+      // Sanitize before persistence. Length-capping alone (the old code)
+      // let raw control chars / `[USER]:` injection markers land in the
+      // DB row — read paths sanitize, but the row was a future-regression
+      // trap waiting for any new reader that forgets the sanitize call.
+      const safeKey = sanitizeForPrompt(String(mem.key), 100);
+      const safeValue = sanitizeForPrompt(String(mem.value), 500);
       await prisma.aIMemory.upsert({
         where: { userId_key: { userId, key: safeKey } },
         create: {
@@ -16958,8 +16966,12 @@ function monitorJointHealth(
 
     if (riskyExercises.length > 0) {
       const severity = restriction.severity === 'severe' ? '🔴' : restriction.severity === 'moderate' ? '🟡' : '🟢';
+      // Sanitize user-controlled fields — `bodyPart` and `description` come
+      // from onboarding/profile input and would otherwise feed prompt-
+      // injection markers (e.g. "\n[USER]: …") into the LLM-readable
+      // warning block via persisted storage.
       warnings.push(
-        `${severity} ${restriction.bodyPart}: ${restriction.description} (${restriction.severity}) — потенциально задействованы: ${riskyExercises.map((e) => e.exercise?.name).join(', ')}`,
+        `${severity} ${sanitizeForPrompt(restriction.bodyPart, 60)}: ${sanitizeForPrompt(restriction.description, 200)} (${restriction.severity}) — потенциально задействованы: ${riskyExercises.map((e) => e.exercise?.name).join(', ')}`,
       );
     }
   }
