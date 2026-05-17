@@ -108,7 +108,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - JWT (60m access + 30d refresh, refresh hashed SHA-256) + bcryptjs, helmet, express-rate-limit
 - Zod (валидация), Multer (загрузка файлов), CORS
 - AI: Mistral API (основной, `mistral-small-latest`), DeepSeek, Ollama (локальный fallback)
-- Деплой: Render (`iron-gym-swoe.onrender.com`), автодеплой на push в master
+- Деплой: Render (`giron-api.onrender.com`), автодеплой на push в master
 
 ## Архитектура клиента
 

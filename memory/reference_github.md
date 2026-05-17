@@ -6,7 +6,7 @@ originSessionId: 4b576bd1-39bf-4a31-a62b-691aee14f1a5
 ---
 GitHub account: `seva1223423` (authenticated via `gh`, token has repo/workflow/gist/read:org scopes).
 
-Main (only) repo: `seva1223423/iron-gym` — private, default branch `master`, TypeScript.
+Main (only) repo: `seva1223423/giron` — private, default branch `master`, TypeScript.
 
 It's a React Native + Expo (client at repo root) + Express/Prisma (in `server/`) fitness app with a heavy AI layer. The repo has its own `CLAUDE.md` and `.claude/memory/` — read those first when the user says "my repo" or asks about project specifics; they are authoritative over this reference note.
 

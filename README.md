@@ -25,7 +25,7 @@
 - **helmet + express-rate-limit** — базовая защита + per-endpoint лимиты
 - **Mistral API** (основная AI) → DeepSeek (fallback) → Ollama (локальный fallback, qwen2.5:14b + llama3.2-vision)
 - **SMS.ru** (RU) → Twilio (fallback), **Nodemailer + SMTP** для email, **Expo Push** для уведомлений
-- Деплой: **Render Frankfurt** (`iron-gym-swoe.onrender.com`), автодеплой при push в master
+- Деплой: **Render Frankfurt** (`giron-api.onrender.com`), автодеплой при push в master
 
 ### Хранилище видео упражнений
 - 32 верифицированных MP4 + JPG постера в [`assets/exercise-videos/`](assets/exercise-videos/) — **bundled в APK** (не загружаются извне).
