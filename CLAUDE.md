@@ -116,7 +116,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **7 вкладок:** Главная, Тренировки (12 экранов), Питание (5), Прогресс, ИИ, Новости, Профиль (6)
 
-**14 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support, recipes
+**16 сторов:** auth, workout (самый сложный — PR-детекция, суперсеты, недельный план), nutrition, subscription (лимиты: 10 AI msg/день, 5 сканов), theme, settings, trainer, cardio, connection, measurements, onboardingTips, sleep, support, recipes, health, density
 
 **25 компонентов:** Button, Card, Input, FadeIn, AnimatedPressable, ProgressRing, MacroBar, PaywallModal, ErrorBoundary, SkeletonLoader, Tooltip, GoogleAuthButton (mode: `login|link`), ForceUpdateModal, Icon, Spinner, ScreenContainer + ScreenScroll, SafeModal, AdaptiveGrid, HitTarget, ResponsiveText, FormField, Skeleton + SkeletonText, EmptyState, Toast (ToastProvider/useToast), ResponsiveButton, NavBar + SectionHeader, IconButton + IconLabel
 
@@ -124,7 +124,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **Области экранов (15):** admin, ai, auth, cardio, home, news, nutrition, onboarding, profile, progress, settings, support, tracker, trainer, workouts
 
-**Данные:** 71 упражнение (data/exercises.ts), 6 программ (data/programs.ts), 20 ачивок (utils/achievements.ts)
+**Данные:** 111 упражнений (data/exercises.ts), 25 программ (data/programs.ts), 61 ачивка (utils/achievements.ts)
 
 ## Архитектура сервера
 
@@ -203,7 +203,7 @@ src/
 
 server/
   src/
-    routes/      — auth, user, workout, nutrition, news, subscription, ai, trainer, cardio, support, admin (11 файлов)
+    routes/      — auth, user, workout, nutrition, news, subscription, ai, trainer, cardio, support, admin, recipes, health (13 файлов)
     services/    — deepseekAI, localAI, newsRefreshService
     middleware/  — auth.ts (JWT verify)
     knowledge/   — 25 модулей (6547 строк, тренировки/питание/добавки/физиология/психология)
@@ -233,7 +233,7 @@ npm test               # jest (client unit tests, 81 суитов, ~2030 тес�
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 51 суитов, ~1769 тестов)
+npm test               # jest (server integration tests, ~91 суит, ~2500+ тестов)
                        # Новые суиты добавлены в rounds 2-18 (2026-04-28):
                        # retentionService, adminDigestService, cronHealth,
                        # aiMetrics, memCache, activityTracker
