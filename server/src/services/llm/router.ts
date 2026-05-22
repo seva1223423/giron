@@ -22,15 +22,18 @@ import {
 } from './types';
 import { mistralAdapter } from './mistralAdapter';
 import { yandexAdapter } from './yandexAdapter';
-import { gigachatAdapter } from './gigachatAdapter';
 
 // Provider name → singleton. Each adapter's `isAvailable()` checks env
 // vars at runtime, so listing them here is safe even without keys —
 // `resolveChain()` below filters out unavailable ones.
+//
+// `mistral` is the universal OpenAI-compatible slot — switching to
+// DeepSeek (or OpenRouter) is just env: AI_BASE_URL + AI_MODEL +
+// AI_API_KEY. The adapter name is a cost-tier label, not a strict
+// match (documented in mistralAdapter.ts).
 const PROVIDERS: Record<string, LLMProvider> = {
   mistral: mistralAdapter,
   yandex: yandexAdapter,     // set YANDEX_API_KEY + YANDEX_FOLDER_ID
-  gigachat: gigachatAdapter, // set GIGACHAT_AUTH_KEY (base64 clientId:secret)
 };
 
 function parseChain(raw: string | undefined, fallback: string[]): string[] {
