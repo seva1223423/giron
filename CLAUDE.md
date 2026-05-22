@@ -325,6 +325,14 @@ Force-update flow (когда старая версия должна обнов�
 ## Язык
 Пользователь общается на русском. Комментарии и коммиты на английском.
 
+## Sensitive paths (`<repo>/.claude/`)
+
+Claude Code хардкодит ВСЕ файлы под `<repo>/.claude/` как sensitive — спрашивает approval на каждое чтение/правку, settings-эскейпа нет. Поэтому в `iron-gym/.claude/` лежат ТОЛЬКО `agents/`, `commands/`, `worktrees/` (то, что Claude Code сам туда кладёт). Никаких пользовательских данных.
+
+- **Memory** — мирор лежит в `iron-gym/memory/`, не в `.claude/memory/`.
+- **Agent skills** — НЕ устанавливать в `<repo>/.claude/skills/`. Канонический источник в `C:/Users/sevka/agent-skills/`, глобальный mount в `~/.claude/skills/` (mirror через `cp -an`). Project-level skill dirs не используются.
+- **shadcn-ui** — `npx shadcn@latest add skill` по дефолту ставит в `<repo>/.claude/skills/`. НЕ запускать с этим дефолтом. Если нужно — скопировать SKILL.md из shared dir в `~/.claude/skills/shadcn-ui/` руками.
+
 ## Юрисдикция
 Приложение нацелено на российский рынок (планируется RuStore). Легальные требования и чеклист миграции — в [`docs/LEGAL_RF_CHECKLIST.md`](docs/LEGAL_RF_CHECKLIST.md). Ключевые точки:
 - Данные пользователей из РФ по 152-ФЗ должны обрабатываться в российской инфраструктуре — сейчас БД на Neon (Frankfurt), планируется миграция на Yandex Cloud / VK Cloud.
