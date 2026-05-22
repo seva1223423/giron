@@ -285,14 +285,39 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           response = { message: '', actions: result.actions, meta: result.meta };
         }, sleepEntries, todayDate, controller.signal);
 
+        // Audit R-2026-05-22 (vercel-react-best-practices): the stream
+        // can fire 30+ chunks/sec — naive setMessages on every chunk
+        // re-maps the whole message array and ScrollView re-layouts
+        // every frame, eating the JS thread. Batch chunks into a 33ms
+        // (~30fps) window so the UI still feels live but the render
+        // pressure drops 10-30×. The final flush after the loop guarantees
+        // the last partial buffer always lands.
+        const FLUSH_INTERVAL_MS = 33;
+        let streamBuffer = '';
+        let lastFlushAt = 0;
+        const flushStream = () => {
+          if (!streamBuffer) return;
+          const toAppend = streamBuffer;
+          streamBuffer = '';
+          setMessages((prev) => prev.map((m) =>
+            m.id === streamMsgId ? { ...m, content: m.content + toAppend } : m
+          ));
+          scheduleScroll(false, 0);
+        };
+
         for await (const chunk of stream) {
           if (!isMountedRef.current) break;
           if (controller.signal.aborted) { userAborted = true; break; }
-          setMessages((prev) => prev.map((m) =>
-            m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
-          ));
-          scheduleScroll(false, 0);
+          streamBuffer += chunk;
+          const now = Date.now();
+          if (now - lastFlushAt >= FLUSH_INTERVAL_MS) {
+            lastFlushAt = now;
+            flushStream();
+          }
         }
+        // Always drain whatever's left so the user sees the full message
+        // even if the last chunk arrived inside the throttle window.
+        flushStream();
       } catch (e: any) {
         if (controller.signal.aborted || e?.name === 'AbortError') {
           userAborted = true;
