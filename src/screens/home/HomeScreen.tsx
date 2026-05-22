@@ -284,6 +284,77 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     );
   }, [lastWorkout, navigation, haptic]);
 
+  // ─── Memoized JSX-section computations ────────────────────────────────
+  // Audit R-2026-05-22: these were inline `(() => {...})()` blocks in
+  // the JSX below — every HomeScreen render re-ran the filter/map/reduce.
+  // Hoisted to useMemo so they only recompute when their inputs change.
+
+  /** Filtered announcement list — drops the ones the user has dismissed. */
+  const visibleAnnouncements = useMemo(
+    () => announcements.filter((a) => !dismissedIds.has(a.id)),
+    [announcements, dismissedIds],
+  );
+
+  /** Pre-built color/icon meta for each announcement type. Depends only
+   *  on the 4 theme colors so it's stable across most renders. */
+  const announcementMeta = useMemo(
+    () =>
+      buildAnnouncementMeta({
+        primary: colors.primary,
+        warning: colors.warning,
+        error: colors.error,
+        success: colors.success,
+      }),
+    [colors.primary, colors.warning, colors.error, colors.success],
+  );
+
+  /** Whether the "time for first workout" banner should render. Avoids
+   *  re-running the .some() scan on every parent re-render. */
+  const showFirstWorkoutBanner = useMemo(() => {
+    if (firstWorkoutBannerDismissed) return false;
+    if (!user?.createdAt) return false;
+    const ageMs = Date.now() - new Date(user.createdAt).getTime();
+    if (ageMs < 24 * 60 * 60 * 1000) return false;
+    const hasAnyWorkout = workoutHistory.some((w) => w.completedAt);
+    return !hasAnyWorkout;
+  }, [firstWorkoutBannerDismissed, user?.createdAt, workoutHistory]);
+
+  /** AI coach card headline — choose between active workout recommendation,
+   *  rest-day tip, or generic nudge. */
+  const aiCoachHeadline = useMemo(() => {
+    return workoutRecommendation?.name
+      ? `${workoutRecommendation.name} · ${workoutRecommendation.daysLabel ?? ''}`.trim()
+      : restDayRecommendation?.tip
+        ?? 'Готов начать — выбери тренировку или попроси ИИ составить план';
+  }, [workoutRecommendation, restDayRecommendation]);
+
+  /** Ring stats — daily calories/protein/workouts. The reduce was running
+   *  on every render of HomeScreen; now only when dayLog or week count
+   *  actually changes. */
+  const ringStatsData = useMemo(() => {
+    const calTarget = dayLog.targetCalories || 2400;
+    const calNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalCalories ?? 0), 0);
+    const protTarget = dayLog.targetProtein || 160;
+    const protNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalProtein ?? 0), 0);
+    const dayProgress = calorieDayProgress(calNow, calTarget);
+    return { calTarget, calNow, protTarget, protNow, dayProgress };
+  }, [dayLog, weekWorkoutsCount]);
+
+  /** Week dots + best PR — both scan workoutHistory; memoize the pair. */
+  const streakPRData = useMemo(() => {
+    return {
+      weekDots: buildWeekDotsFromHistory(workoutHistory),
+      pr: findHeaviestPR(workoutHistory),
+    };
+  }, [workoutHistory]);
+
+  /** Week plan strip — derive the 7 day cards. Recomputes only when the
+   *  weekPlan or workoutHistory changes (not on every render). */
+  const weekPlanDays = useMemo(
+    () => deriveWeekPlanDays(weekPlan, workoutHistory),
+    [weekPlan, workoutHistory],
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
@@ -296,31 +367,28 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       </FadeIn>
 
       {/* ── Announcements ─────────────────── */}
-      {(() => {
-        const ANN_META = buildAnnouncementMeta({ primary: colors.primary, warning: colors.warning, error: colors.error, success: colors.success });
-        return announcements.filter((a) => !dismissedIds.has(a.id)).map((a) => {
-          const m = ANN_META[a.type];
-          return (
-            <View key={a.id} style={[annStyles.banner, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}>
-              <Icon name={m.iconName} size={18} color={m.color} />
-              <View style={{ flex: 1 }}>
-                <Text style={[annStyles.title, { color: m.color }]}>{a.title}</Text>
-                <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={3}>{a.body}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setDismissedIds((s) => new Set([...s, a.id]))}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel="Скрыть объявление"
-              >
-                <View style={{ transform: [{ rotate: '45deg' }], padding: 4 }}>
-                  <Icon name="plus" size={18} color={colors.textSecondary} />
-                </View>
-              </TouchableOpacity>
+      {visibleAnnouncements.map((a) => {
+        const m = announcementMeta[a.type];
+        return (
+          <View key={a.id} style={[annStyles.banner, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}>
+            <Icon name={m.iconName} size={18} color={m.color} />
+            <View style={{ flex: 1 }}>
+              <Text style={[annStyles.title, { color: m.color }]}>{a.title}</Text>
+              <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={3}>{a.body}</Text>
             </View>
-          );
-        });
-      })()}
+            <TouchableOpacity
+              onPress={() => setDismissedIds((s) => new Set([...s, a.id]))}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Скрыть объявление"
+            >
+              <View style={{ transform: [{ rotate: '45deg' }], padding: 4 }}>
+                <Icon name="plus" size={18} color={colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        );
+      })}
 
       {/* ── Email verification banner ─────────── */}
       {!user?.emailVerified && !emailBannerDismissed && (
@@ -374,46 +442,38 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           users who genuinely don't want to train (or are just browsing)
           aren't nagged forever; for active users the trigger fires once
           per session and goes away the moment they complete a set. */}
-      {(() => {
-        if (firstWorkoutBannerDismissed) return null;
-        if (!user?.createdAt) return null;
-        const ageMs = Date.now() - new Date(user.createdAt).getTime();
-        if (ageMs < 24 * 60 * 60 * 1000) return null;
-        const hasAnyWorkout = workoutHistory.some((w) => w.completedAt);
-        if (hasAnyWorkout) return null;
-        return (
-          <View style={[annStyles.banner, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10', marginBottom: spacing.md }]}>
-            <Icon name="dumbbell" size={20} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={[annStyles.title, { color: colors.primary }]}>Время первой тренировки</Text>
-              <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={2}>
-                Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('WorkoutsTab' as never)}
-                style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
-                accessibilityRole="button"
-                accessibilityLabel="Начать первую тренировку"
-              >
-                <Text style={{ color: colors.textInverse, fontSize: 12, fontWeight: '700' }}>Начать</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setFirstWorkoutBannerDismissed(true)}
-                hitSlop={12}
-                style={{ padding: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="Скрыть напоминание"
-              >
-                <View style={{ transform: [{ rotate: '45deg' }] }}>
-                  <Icon name="plus" size={16} color={colors.textSecondary} />
-                </View>
-              </TouchableOpacity>
-            </View>
+      {showFirstWorkoutBanner && (
+        <View style={[annStyles.banner, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10', marginBottom: spacing.md }]}>
+          <Icon name="dumbbell" size={20} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[annStyles.title, { color: colors.primary }]}>Время первой тренировки</Text>
+            <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={2}>
+              Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.
+            </Text>
           </View>
-        );
-      })()}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('WorkoutsTab' as never)}
+              style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
+              accessibilityRole="button"
+              accessibilityLabel="Начать первую тренировку"
+            >
+              <Text style={{ color: colors.textInverse, fontSize: 12, fontWeight: '700' }}>Начать</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setFirstWorkoutBannerDismissed(true)}
+              hitSlop={12}
+              style={{ padding: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Скрыть напоминание"
+            >
+              <View style={{ transform: [{ rotate: '45deg' }] }}>
+                <Icon name="plus" size={16} color={colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Email verification modal */}
       <Modal visible={showEmailVerifModal} transparent animationType="fade" onRequestClose={() => setShowEmailVerifModal(false)}>
@@ -524,95 +584,69 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
              (it's the most specific signal). Rest-day recommendation is
              used when the plan says "rest", and we fall back to a
              generic nudge if neither is available. */}
-      {!activeWorkout && (() => {
-        const headline = workoutRecommendation?.name
-          ? `${workoutRecommendation.name} · ${workoutRecommendation.daysLabel ?? ''}`.trim()
-          : restDayRecommendation?.tip
-          ?? 'Готов начать — выбери тренировку или попроси ИИ составить план';
-        return (
-          <FadeIn delay={60}>
-            <AICoachCard
-              navigation={navigation}
-              recommendation={headline}
-              onPressCta={handleStartPlannedWorkout}
-              onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
-            />
-          </FadeIn>
-        );
-      })()}
+      {!activeWorkout && (
+        <FadeIn delay={60}>
+          <AICoachCard
+            navigation={navigation}
+            recommendation={aiCoachHeadline}
+            onPressCta={handleStartPlannedWorkout}
+            onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
+          />
+        </FadeIn>
+      )}
 
       {/* 2. Ring stats — daily percentage ring + 3 progress rows.
              Calories + protein come from today's nutrition log; the
              third row mirrors the design's "Шаги" line by showing a
              static target for now (wired to the pedometer hook later). */}
-      {(() => {
-        const calTarget = dayLog.targetCalories || 2400;
-        const calNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalCalories ?? 0), 0);
-        const protTarget = dayLog.targetProtein || 160;
-        const protNow = (dayLog.meals ?? []).reduce((s, m) => s + (m?.totalProtein ?? 0), 0);
-        const dayProgress = calorieDayProgress(calNow, calTarget);
-        return (
-          <FadeIn delay={120}>
-            <RingStatsCard
-              dayProgress={dayProgress}
-              rows={[
-                {
-                  label: 'Калории',
-                  value: `${Math.round(calNow).toLocaleString('ru-RU')} / ${calTarget.toLocaleString('ru-RU')}`,
-                  progress: calNow / Math.max(1, calTarget),
-                  color: colors.calories,
-                },
-                {
-                  label: 'Белок',
-                  value: `${Math.round(protNow)} / ${protTarget} г`,
-                  progress: protNow / Math.max(1, protTarget),
-                  color: colors.primary,
-                },
-                {
-                  label: 'Тренировки/нед.',
-                  value: `${weekWorkoutsCount} / 4`,
-                  progress: weekWorkoutsCount / 4,
-                  color: colors.carbs,
-                },
-              ]}
-            />
-          </FadeIn>
-        );
-      })()}
+      <FadeIn delay={120}>
+        <RingStatsCard
+          dayProgress={ringStatsData.dayProgress}
+          rows={[
+            {
+              label: 'Калории',
+              value: `${Math.round(ringStatsData.calNow).toLocaleString('ru-RU')} / ${ringStatsData.calTarget.toLocaleString('ru-RU')}`,
+              progress: ringStatsData.calNow / Math.max(1, ringStatsData.calTarget),
+              color: colors.calories,
+            },
+            {
+              label: 'Белок',
+              value: `${Math.round(ringStatsData.protNow)} / ${ringStatsData.protTarget} г`,
+              progress: ringStatsData.protNow / Math.max(1, ringStatsData.protTarget),
+              color: colors.primary,
+            },
+            {
+              label: 'Тренировки/нед.',
+              value: `${weekWorkoutsCount} / 4`,
+              progress: weekWorkoutsCount / 4,
+              color: colors.carbs,
+            },
+          ]}
+        />
+      </FadeIn>
 
       {/* 3. Streak + PR side-by-side grid. Weekly dots look at the
              last 7 calendar days; PR picks the heaviest completed set
              across all history. */}
-      {(() => {
-        const weekDots = buildWeekDotsFromHistory(workoutHistory);
-        const pr = findHeaviestPR(workoutHistory);
-        return (
-          <FadeIn delay={180}>
-            <StreakPRGrid
-              streakDays={streak}
-              weekDots={weekDots}
-              prKg={pr.kg}
-              prLabel={pr.exerciseName}
-            />
-          </FadeIn>
-        );
-      })()}
+      <FadeIn delay={180}>
+        <StreakPRGrid
+          streakDays={streak}
+          weekDots={streakPRData.weekDots}
+          prKg={streakPRData.pr.kg}
+          prLabel={streakPRData.pr.exerciseName}
+        />
+      </FadeIn>
 
       {/* 4. Week plan strip — weekPlan is keyed by dow (0=Mon..6=Sun),
              not an array. We iterate 0..6 explicitly so the strip
              renders all 7 cards even on days with null entries. */}
-      {(() => {
-        const days = deriveWeekPlanDays(weekPlan, workoutHistory);
-        return (
-          <FadeIn delay={240}>
-            <WeekPlanStrip
-              days={days}
-              onPressAll={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
-              onPressDay={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
-            />
-          </FadeIn>
-        );
-      })()}
+      <FadeIn delay={240}>
+        <WeekPlanStrip
+          days={weekPlanDays}
+          onPressAll={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
+          onPressDay={() => navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' })}
+        />
+      </FadeIn>
 
       {/* 5. Quick actions — scanner + weight log. One-tap entries to
              the two highest-velocity tasks (matches the design's 2-up
