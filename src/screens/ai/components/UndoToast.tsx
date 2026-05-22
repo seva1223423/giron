@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { useThemeStore } from '../../../store';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -21,7 +22,7 @@ interface Props {
   label: string;
   /** Called when the user taps "Отменить". Parent is responsible for dismissing. */
   onUndo: () => void;
-  /** Called when the timer expires or the user taps "×". */
+  /** Called when the timer expires or the user taps the close button. */
   onDismiss: () => void;
   /** Auto-dismiss delay in ms. Default 8000 — long enough to read + react, short enough to not clutter. */
   durationMs?: number;
@@ -61,7 +62,10 @@ export const UndoToast: React.FC<Props> = ({ label, onUndo, onDismiss, durationM
     <View style={[styles.wrap, { backgroundColor: colors.surface, borderTopColor: colors.error + '40', borderBottomColor: colors.error + '40' }]}>
       <View style={styles.row}>
         <View style={[styles.dot, { backgroundColor: colors.error + '18', borderColor: colors.error + '40' }]}>
-          <Text style={{ fontSize: 12, fontWeight: '800', color: colors.error }}>×</Text>
+          {/* Cross via rotated plus — keeps glyph rules clean (no raw × char). */}
+          <View style={styles.rotated45}>
+            <Icon name="plus" size={14} color={colors.error} />
+          </View>
         </View>
         <Text style={[typography.smallMedium, { color: colors.text, flex: 1 }]} numberOfLines={2}>
           {label}
@@ -71,7 +75,7 @@ export const UndoToast: React.FC<Props> = ({ label, onUndo, onDismiss, durationM
           style={[styles.undoBtn, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '60' }]}
           accessibilityLabel="Отменить удаление"
         >
-          <Text style={[typography.captionMedium, { color: colors.primary, fontWeight: '700' }]}>Отменить</Text>
+          <Text style={[typography.captionMedium, { color: colors.primary }]}>Отменить</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleDismiss}
@@ -79,7 +83,9 @@ export const UndoToast: React.FC<Props> = ({ label, onUndo, onDismiss, durationM
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityLabel="Закрыть"
         >
-          <Text style={{ fontSize: 18, color: colors.textTertiary }}>×</Text>
+          <View style={styles.rotated45}>
+            <Icon name="plus" size={14} color={colors.textTertiary} />
+          </View>
         </TouchableOpacity>
       </View>
       {/* Progress bar countdown */}
@@ -119,6 +125,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rotated45: { transform: [{ rotate: '45deg' }] },
   undoBtn: {
     paddingHorizontal: spacing.md,
     paddingVertical: 6,

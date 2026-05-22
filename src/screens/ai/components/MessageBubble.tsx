@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, cancelAnimation } from 'react-native-reanimated';
 import { useThemeStore } from '../../../store';
 import { FadeIn, Icon } from '../../../components';
 import { typography } from '../../../theme';
@@ -11,12 +12,33 @@ interface Props {
   isLast: boolean;
   speakingId?: string | null;
   onSpeak?: (id: string, text: string) => void;
+  /** True when this bubble is the live streaming response. Draws a
+   *  blinking gold cursor at the end of the text so the user knows
+   *  the trainer is still talking. */
+  isStreaming?: boolean;
 }
 
-export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, onSpeak }) => {
+export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, onSpeak, isStreaming }) => {
   const { colors } = useThemeStore();
   const isUser = message.role === 'user';
   const isSpeaking = speakingId === message.id;
+
+  // Streaming cursor — pulses opacity 1 → 0 while the model emits chunks.
+  // Direction A signature: gold accent, soft 600ms breathing rhythm.
+  const cursorOpacity = useSharedValue(1);
+  useEffect(() => {
+    if (isStreaming) {
+      cursorOpacity.value = withRepeat(
+        withTiming(0, { duration: 600 }),
+        -1,
+        true,
+      );
+    } else {
+      cancelAnimation(cursorOpacity);
+      cursorOpacity.value = 0;
+    }
+  }, [isStreaming]);
+  const cursorStyle = useAnimatedStyle(() => ({ opacity: cursorOpacity.value }));
 
   // Direction A bubble radii — the corner on the "speaker" side pinches
   // to 4pt so the bubble reads as a speech balloon:
@@ -28,6 +50,25 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
 
   return (
     <FadeIn delay={isLast ? 100 : 0}>
+      {/* Iron Coach mini-header — brand voice on every AI bubble so the user
+          reads it as "from the trainer", not generic text. Hidden on user
+          messages (no need to label yourself to yourself). */}
+      {!isUser && (
+        <View style={styles.coachHeader}>
+          <View
+            style={[
+              styles.coachBadge,
+              {
+                backgroundColor: colors.primary + '20',
+                borderColor: colors.primary + '40',
+              },
+            ]}
+          >
+            <Icon name="spark" size={10} color={colors.primary} />
+          </View>
+          <Text style={[typography.metaLabel, { color: colors.textSecondary }]}>IRON COACH</Text>
+        </View>
+      )}
       <View
         style={[
           styles.bubble,
@@ -37,18 +78,23 @@ export const MessageBubble: React.FC<Props> = ({ message, isLast, speakingId, on
             : { alignSelf: 'flex-start', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
         ]}
       >
-        <Text
-          style={[styles.messageText, { color: isUser ? colors.textInverse : colors.text }]}
-        >
+        <Text style={[typography.body, { color: isUser ? colors.textInverse : colors.text }]}>
           {message.content}
+          {isStreaming && !isUser && (
+            <Animated.Text style={[typography.body, { color: colors.primary }, cursorStyle]}>
+              ▊
+            </Animated.Text>
+          )}
         </Text>
         <View style={styles.footer}>
           <Text
             style={[
-              styles.time,
+              typography.caption,
               {
                 color: isUser ? colors.textInverse : colors.textTertiary,
                 opacity: isUser ? 0.5 : 1,
+                flex: 1,
+                textAlign: 'right',
               },
             ]}
           >
@@ -104,24 +150,23 @@ const styles = StyleSheet.create({
   coachHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+    marginLeft: spacing.sm,
   },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '400',
-    letterSpacing: 0.1,
+  coachBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
     gap: 6,
-  },
-  time: {
-    fontSize: 10,
-    flex: 1,
-    textAlign: 'right',
   },
   speakButton: { paddingLeft: 4 },
 });

@@ -1,33 +1,33 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, TextInput, StyleSheet, useWindowDimensions, Pressable } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withSequence,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { AnimatedPressable } from '../../../components';
+import { AnimatedPressable, Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 const SET_TYPES = ['normal', 'warmup', 'dropset'] as const;
-/** Set-type chip colors aligned with Direction A design palette.
- *  - Normal working sets use the champagne gold (brand primary).
- *  - Warmup uses warm amber (warning token equivalent).
- *  - Dropset uses terracotta red — reads as "more intense" vs normal. */
-const SET_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  normal:  { label: 'РАБ',  color: '#D4B07A' }, // champagne gold
-  warmup:  { label: 'РАЗМ', color: '#E8A36A' }, // warm amber
-  dropset: { label: 'ДРОП', color: '#E07A6B' }, // terracotta
-};
+/** Set-type chip config — colors resolved per-call from theme so chips
+ *  follow light/dark mode. Was literal hex; refactored to use Direction A
+ *  semantic tokens (primary/warning/error). Same Russian labels. */
+const buildSetTypeConfig = (colors: any): Record<string, { label: string; color: string }> => ({
+  normal:  { label: 'РАБ',  color: colors.primary }, // champagne gold
+  warmup:  { label: 'РАЗМ', color: colors.warning }, // warm amber
+  dropset: { label: 'ДРОП', color: colors.error },   // terracotta
+});
 const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
-/** RPE scale colors — sage → amber → terracotta → crimson, matching
- *  the Direction A macro palette rather than the old neon spec. */
-function rpeColor(rpe: number): string {
-  if (rpe <= 7) return '#9AC28C';  // sage (good)
-  if (rpe <= 8) return '#E8A36A';  // amber (warn)
-  if (rpe <= 9) return '#E07A6B';  // terracotta (danger)
-  return '#B35647';                // deep terracotta (near failure)
+/** RPE scale colors — sage → amber → terracotta, theme-aware.
+ *  Maps directly to Direction A semantic tokens (success/warning/error).
+ *  Near-failure (RPE 9.5+) falls back to error so light & dark modes both
+ *  resolve correctly. */
+function rpeColor(rpe: number, colors: any): string {
+  if (rpe <= 7) return colors.success;  // sage (good)
+  if (rpe <= 8) return colors.warning;  // amber (warn)
+  return colors.error;                  // terracotta (danger / near failure)
 }
 
 interface Props {
@@ -35,6 +35,9 @@ interface Props {
   setIndex: number;
   prevSet?: { weight?: number; reps?: number } | null;
   suggestedRpe?: number;
+  /** True if this is the first uncompleted set — the row gets a gold
+   *  left-border + faint tint so the user's eye lands here. PHILOSOPHY §3. */
+  isActive?: boolean;
   onComplete: (reps: number, weight: number) => void;
   onRpeChange: (rpe: number) => void;
   onRemove?: () => void;
@@ -49,15 +52,19 @@ function estimate1RM(weight: number, reps: number): number {
   return Math.round(weight * (1 + reps / 30));
 }
 
-// Animated complete button with spring pop
+// Animated complete button with spring pop + burst on completion.
+// State-as-event (PHILOSOPHY.md §5): pressing the checkmark is a mini-event,
+// not a silent state change. Spring bounce + haptic success.
 const CompleteButton: React.FC<{ completed: boolean; onPress: () => void; colors: any; est1RM: number }> = ({ completed, onPress, colors, est1RM }) => {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const handlePress = useCallback(() => {
+    // Burst: overshoot 1.3 then settle — more pronounced than a press feedback,
+    // signals "set committed" celebration. Was 1.2; bumped for visibility.
     scale.value = withSequence(
-      withSpring(1.2, { damping: 6, stiffness: 700 }),
-      withSpring(1, { damping: 12, stiffness: 400 }),
+      withSpring(1.3, { damping: 6, stiffness: 700 }),
+      withSpring(1, { damping: 10, stiffness: 400 }),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPress();
@@ -66,12 +73,7 @@ const CompleteButton: React.FC<{ completed: boolean; onPress: () => void; colors
   return (
     <View style={{ alignItems: 'center' }}>
       <Animated.View style={[animStyle, styles.checkBtn, { backgroundColor: completed ? colors.success : colors.inputBackground, borderColor: completed ? colors.success : colors.border }]}>
-        <Text
-          onPress={handlePress}
-          style={{ color: completed ? '#FFF' : colors.textSecondary, fontWeight: '700', fontSize: 18, lineHeight: 44, textAlign: 'center', width: 44 }}
-        >
-          ✓
-        </Text>
+        <TouchableArea onPress={handlePress} completed={completed} colors={colors} />
       </Animated.View>
       {est1RM > 0 && (
         <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, marginTop: 2 }}>
@@ -82,7 +84,20 @@ const CompleteButton: React.FC<{ completed: boolean; onPress: () => void; colors
   );
 };
 
-export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
+// Inner pressable surface inside CompleteButton — hosts the Icon and
+// receives taps. Split out so the animated container stays purely visual.
+const TouchableArea: React.FC<{ onPress: () => void; completed: boolean; colors: any }> = ({ onPress, completed, colors }) => (
+  <Pressable
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={completed ? 'Сет выполнен' : 'Отметить сет выполненным'}
+    style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+  >
+    <Icon name="check" size={20} color={completed ? colors.textInverse : colors.textSecondary} strokeWidth={3} />
+  </Pressable>
+);
+
+export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, suggestedRpe, isActive, onComplete, onRpeChange, onRemove, onTypeChange, onOpenPlates, colors }) => {
   const { width: screenW } = useWindowDimensions();
   const SHOW_PLATE_CALC = screenW > 360;
   const haptic = useHaptic();
@@ -92,6 +107,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
   const [reps, setReps] = useState(initialReps);
   const [showRpe, setShowRpe] = useState(false);
   const currentType = set.type || 'normal';
+  const setTypeConfig = buildSetTypeConfig(colors);
 
   const handleComplete = useCallback(() => {
     if (set.completed) return;
@@ -113,13 +129,21 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
     ? estimate1RM(set.weight, set.reps)
     : 0;
 
+  // Highlight logic (PHILOSOPHY §3 — 3-level hierarchy):
+  //   completed → sage tint + 3px sage border-left
+  //   active (current set)  → gold 6% tint + 3px gold border-left (signals "you are here")
+  //   future → flat
+  const rowBg = set.completed ? colors.success + '10' : isActive ? colors.primary + '0F' : 'transparent';
+  const borderColor = set.completed ? colors.success : isActive ? colors.primary : 'transparent';
+  const borderWidth = set.completed || isActive ? 3 : 0;
+
   return (
     <View style={{
-      backgroundColor: set.completed ? colors.success + '10' : 'transparent',
+      backgroundColor: rowBg,
       borderRadius: borderRadius.sm,
       marginBottom: 2,
-      borderLeftWidth: set.completed ? 3 : 0,
-      borderLeftColor: set.completed ? colors.success : 'transparent',
+      borderLeftWidth: borderWidth,
+      borderLeftColor: borderColor,
     }}>
       <View style={[styles.setRow, { paddingVertical: spacing.sm }]}>
         {/* Set number / type badge */}
@@ -135,8 +159,8 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
           scaleDown={0.9}
           style={{ width: 40, alignItems: 'center', paddingVertical: spacing.xs } as any}
         >
-          <Text style={{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 1, color: SET_TYPE_CONFIG[currentType].color }}>
-            {SET_TYPE_CONFIG[currentType].label}
+          <Text style={{ fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 1, color: setTypeConfig[currentType].color }}>
+            {setTypeConfig[currentType].label}
           </Text>
           <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>{setIndex + 1}</Text>
         </AnimatedPressable>
@@ -177,7 +201,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             scaleDown={0.9}
             style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm } as any}
           >
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>◎</Text>
+            <Icon name="dumbbell" size={16} color={colors.primary} />
           </AnimatedPressable>
         )}
 
@@ -241,8 +265,8 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
                 haptic={false}
                 scaleDown={0.88}
                 style={[styles.rpeBtn, {
-                  backgroundColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary + '18' : colors.inputBackground,
-                  borderColor: set.rpe === v ? rpeColor(v) : suggestedRpe === v ? colors.primary : colors.border,
+                  backgroundColor: set.rpe === v ? rpeColor(v, colors) : suggestedRpe === v ? colors.primary + '18' : colors.inputBackground,
+                  borderColor: set.rpe === v ? rpeColor(v, colors) : suggestedRpe === v ? colors.primary : colors.border,
                   borderWidth: suggestedRpe === v && set.rpe !== v ? 2 : 1,
                 }] as any}
               >
@@ -254,7 +278,7 @@ export const SetRow: React.FC<Props> = React.memo(({ set, setIndex, prevSet, sug
             </View>
           ))}
           {set.rpe && (
-            <Text style={[typography.caption, { color: rpeColor(set.rpe), marginLeft: spacing.xs, fontWeight: '700' }]}>
+            <Text style={[typography.caption, { color: rpeColor(set.rpe, colors), marginLeft: spacing.xs, fontWeight: '700' }]}>
               {set.rpe >= 10 ? 'Макс' : set.rpe >= 9 ? 'Тяжело' : set.rpe >= 8 ? 'Сложно' : 'Легко'}
             </Text>
           )}

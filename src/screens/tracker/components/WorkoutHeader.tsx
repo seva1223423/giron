@@ -8,22 +8,26 @@ import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 import { Workout, MuscleGroup, ExerciseType } from '../../../types';
 
-// Muscle group → short label + hue (HSL)
+// Muscle group → short label + tonal hue. Was a neon rainbow (#EF4444 red,
+// #3B82F6 blue, #F59E0B amber, etc.) — all banned by Direction A.
+// Refactored to a warm tonal palette of Direction A semantics: terracotta /
+// gold / amber / sage / bronze variants. Adjacent muscles still differ
+// enough to read at a glance, but the dots stop screaming.
 const MUSCLE_META: Partial<Record<MuscleGroup, { abbr: string; color: string }>> = {
-  chest:       { abbr: 'Гр', color: '#EF4444' },
-  back:        { abbr: 'Сп', color: '#3B82F6' },
-  shoulders:   { abbr: 'Пл', color: '#D4B07A' },
-  biceps:      { abbr: 'Бц', color: '#F59E0B' },
-  triceps:     { abbr: 'Тц', color: '#F97316' },
-  forearms:    { abbr: 'Пр', color: '#84CC16' },
-  abs:         { abbr: 'Пр', color: '#14B8A6' },
-  quadriceps:  { abbr: 'Кв', color: '#EC4899' },
-  hamstrings:  { abbr: 'Бд', color: '#A855F7' },
-  glutes:      { abbr: 'Яг', color: '#F43F5E' },
-  calves:      { abbr: 'Ик', color: '#06B6D4' },
-  lower_back:  { abbr: 'Пс', color: '#10B981' },
+  chest:       { abbr: 'Гр', color: '#E07A6B' }, // terracotta (error tone)
+  back:        { abbr: 'Сп', color: '#8BA8BF' }, // info slate
+  shoulders:   { abbr: 'Пл', color: '#D4B07A' }, // primary gold
+  biceps:      { abbr: 'Бц', color: '#E8A36A' }, // warning amber
+  triceps:     { abbr: 'Тц', color: '#C9824E' }, // deeper amber
+  forearms:    { abbr: 'Пр', color: '#9AC28C' }, // success sage
+  abs:         { abbr: 'Пр', color: '#6FA66A' }, // deeper sage
+  quadriceps:  { abbr: 'Кв', color: '#B35647' }, // deep terracotta
+  hamstrings:  { abbr: 'Бд', color: '#B08A4E' }, // antique bronze
+  glutes:      { abbr: 'Яг', color: '#C76558' }, // light-mode terracotta
+  calves:      { abbr: 'Ик', color: '#6B91B0' }, // deeper slate
+  lower_back:  { abbr: 'Пс', color: '#8E6B3E' }, // dark bronze
   traps:       { abbr: 'Тр', color: '#B08A4E' },
-  lats:        { abbr: 'Ши', color: '#2563EB' },
+  lats:        { abbr: 'Ши', color: '#A8A49C' }, // warm grey
 };
 
 // MET values per exercise type for calorie estimation
@@ -145,7 +149,7 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
           <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>
             {workout.name}
           </Text>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginTop: 1 }}>
+          <Text style={[typography.h4, { color: colors.primary, marginTop: 1 }]}>
             {elapsed} мин
           </Text>
         </View>
@@ -156,7 +160,7 @@ export const WorkoutHeader: React.FC<Props> = ({ workout, elapsed, totalComplete
             fontSize: totalCompletedSets === totalSets && totalSets > 0 ? 18 : 16,
             fontWeight: totalCompletedSets === totalSets && totalSets > 0 ? '800' : '600',
           }]}>
-            {totalCompletedSets === totalSets && totalSets > 0 ? 'Завершить ◉' : 'Готово'}
+            {totalCompletedSets === totalSets && totalSets > 0 ? 'Завершить' : 'Готово'}
           </Text>
         </TouchableOpacity>
       </View>

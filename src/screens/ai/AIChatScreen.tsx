@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, Text, View } from 'react-native';
 import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
 import { useMeasurementsStore } from '../../store/useMeasurementsStore';
 import { useSleepStore } from '../../store/useSleepStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { PaywallModal } from '../../components';
+import { PaywallModal, Spinner, Icon, type IconName } from '../../components';
+import { useThemeStore } from '../../store/useThemeStore';
 import { ChatMessage } from '../../types';
 import { aiService, getApiError, AIActionResult, AIMeta, AIStarter, nutritionService, workoutService } from '../../services';
 import { applyAINavigation } from '../../utils/aiNavigation';
@@ -15,34 +16,59 @@ import {
   ActionsBar, CelebrationBar, ChatInputBar, UndoToast, useDynamicPrompts,
   SuggestionChips, FirstPromptCta,
 } from './components';
+import { typography } from '../../theme';
+import { spacing } from '../../theme/spacing';
 import { localDateStr } from '../../utils/date';
 import { useAIChatCommands } from './useAIChatCommands';
 import { CurrentWorkoutPanel } from './components/CurrentWorkoutPanel';
 
-const FALLBACK_PROMPTS = [
-  { emoji: '◎', text: 'Составь программу тренировок под мои цели' },
-  { emoji: '◑', text: 'Рассчитай мне КБЖУ и составь рацион' },
-  { emoji: '◎', text: 'Как правильно делать становую тягу?' },
-  { emoji: '◉', text: 'Программа тренировок дома без оборудования' },
-  { emoji: '◑', text: 'Составь рацион на день для похудения' },
-  { emoji: '◈', text: 'Я застрял на плато — как пробить?' },
-  { emoji: '◧', text: 'Какие добавки реально работают по науке?' },
-  { emoji: '◫', text: 'Как оптимизировать сон и восстановление?' },
-  { emoji: '◎', text: 'Как одновременно худеть и набирать мышцы?' },
-  { emoji: '◈', text: 'Как не бросить тренировки и держать мотивацию?' },
-  { emoji: '◉', text: 'Как совмещать кардио и силовые?' },
-  { emoji: '◫', text: 'Болит плечо при жиме — что делать?' },
+// Hand-picked icon per prompt by topic — beats a generic glyph because the
+// user can scan icons at a glance to find the kind of help they want.
+const FALLBACK_PROMPTS: { iconName: IconName; text: string }[] = [
+  { iconName: 'target',   text: 'Составь программу тренировок под мои цели' },
+  { iconName: 'apple',    text: 'Рассчитай мне КБЖУ и составь рацион' },
+  { iconName: 'dumbbell', text: 'Как правильно делать становую тягу?' },
+  { iconName: 'home',     text: 'Программа тренировок дома без оборудования' },
+  { iconName: 'apple',    text: 'Составь рацион на день для похудения' },
+  { iconName: 'chart',    text: 'Я застрял на плато — как пробить?' },
+  { iconName: 'bolt',     text: 'Какие добавки реально работают по науке?' },
+  { iconName: 'moon',     text: 'Как оптимизировать сон и восстановление?' },
+  { iconName: 'target',   text: 'Как одновременно худеть и набирать мышцы?' },
+  { iconName: 'flame',    text: 'Как не бросить тренировки и держать мотивацию?' },
+  { iconName: 'heart',    text: 'Как совмещать кардио и силовые?' },
+  { iconName: 'heart',    text: 'Болит плечо при жиме — что делать?' },
   // Round 128: prompts that exercise the new analytics + memory tools
   // (rounds 94-100). Surfacing them in the welcome chip list nudges
   // users to discover features that otherwise only fire when the user
   // already knows to ask.
-  { emoji: '◇', text: 'Покажи мои личные рекорды за последние месяцы' },
-  { emoji: '◇', text: 'Сравни мои тренировки за этот месяц с прошлым' },
-  { emoji: '◇', text: 'Что приготовить под лёгкий ужин до 500 ккал?' },
+  { iconName: 'trophy',   text: 'Покажи мои личные рекорды за последние месяцы' },
+  { iconName: 'chart',    text: 'Сравни мои тренировки за этот месяц с прошлым' },
+  { iconName: 'apple',    text: 'Что приготовить под лёгкий ужин до 500 ккал?' },
 ];
+
+// Server starters arrive with an emoji glyph; we don't render those (banned).
+// Map by first character of the emoji to the closest Icon name; everything
+// else falls through to a neutral default.
+function starterEmojiToIcon(emoji: string | undefined): IconName {
+  if (!emoji) return 'spark';
+  const first = Array.from(emoji)[0] ?? '';
+  if ('🏋💪🤸'.includes(first)) return 'dumbbell';
+  if ('🍎🥗🍳🥦🥩'.includes(first)) return 'apple';
+  if ('🔥'.includes(first)) return 'flame';
+  if ('🏆🥇'.includes(first)) return 'trophy';
+  if ('💧💦'.includes(first)) return 'water';
+  if ('🌙😴'.includes(first)) return 'moon';
+  if ('❤️♥️'.includes(first)) return 'heart';
+  if ('🎯'.includes(first)) return 'target';
+  if ('📊📈'.includes(first)) return 'chart';
+  if ('⏱⏰'.includes(first)) return 'timer';
+  if ('⚡'.includes(first)) return 'bolt';
+  return 'spark';
+}
 
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
+  const colors = useThemeStore((s) => s.colors);
   const { user, fetchProfile } = useAuthStore();
   const { fetchHistory, fetchPrograms, setWeekPlanDay, weekPlan } = useWorkoutStore();
   const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater, applyServerTargets } = useNutritionStore();
@@ -68,10 +94,10 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const remaining = aiMessagesLeft();
     const quotaLine = isPremium
       ? ''
-      : `\n\n💬 На бесплатном тарифе — ${remaining} сообщений сегодня (обновляется каждый день в полночь).`;
+      : `\n\nНа бесплатном тарифе — ${remaining} сообщений сегодня (обновляется каждый день в полночь).`;
     return [{
       id: 'welcome', role: 'assistant', createdAt: new Date().toISOString(),
-      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.${quotaLine}\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\n⚠️ Важно: мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах, хронических заболеваниях и перед началом программы — проконсультируйтесь со специалистом.\n\nВыбери вопрос ниже или спроси своё!`,
+      content: `Привет${user?.firstName ? `, ${user.firstName}` : ''}! Я Iron Coach — твой персональный ИИ-тренер.${quotaLine}\n\nМоя база знаний основана на 50+ научных исследованиях и работах лучших экспертов мира (Schoenfeld, Helms, Israetel, Nuckols, Aragon и др.).\n\nЯ могу помочь с:\n\n- Программы тренировок (зал, дом, любой уровень)\n- Питание и КБЖУ — расчёт и составление рациона\n- Техника — детальный разбор любого упражнения\n- Наука — физиология мышц, гормоны, биомеханика\n- Кардио — HIIT, LISS, совмещение с силовыми\n- Восстановление — сон, стресс, профилактика травм\n- Добавки — что работает, а что маркетинг\n- Мотивация — привычки, цели, преодоление плато\n\nВажно: мои рекомендации носят информационный характер и не заменяют консультацию врача. При болях, травмах, хронических заболеваниях и перед началом программы — проконсультируйтесь со специалистом.\n\nВыбери вопрос ниже или спроси своё!`,
     }];
   });
   const [input, setInput] = useState('');
@@ -455,8 +481,17 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  const staticPrompts = serverStarters.length > 0 ? serverStarters.map((s) => ({ emoji: s.emoji, text: s.text })) : FALLBACK_PROMPTS;
-  const allPrompts = [...dynamicPrompts, ...staticPrompts];
+  const staticPrompts: { iconName: IconName; text: string }[] = serverStarters.length > 0
+    ? serverStarters.map((s) => ({ iconName: starterEmojiToIcon(s.emoji), text: s.text }))
+    : FALLBACK_PROMPTS;
+  const allPrompts: { iconName: IconName; text: string }[] = [...dynamicPrompts, ...staticPrompts];
+
+  // Identify the live streaming bubble so MessageBubble can render the
+  // gold cursor at its tail. The stream placeholder always has id
+  // `ai-<timestamp>` and is the LAST assistant message while isStreaming.
+  const lastStreamingId = isStreaming
+    ? [...messages].reverse().find((m) => m.role === 'assistant' && m.id.startsWith('ai-'))?.id
+    : undefined;
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
@@ -473,7 +508,7 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {historyPage < historyTotalPages && (
           <View style={styles.loadOlderContainer}>
             <TouchableOpacity
-              style={styles.loadOlderButton}
+              style={[styles.loadOlderButton, { borderColor: colors.primary }]}
               onPress={loadOlderMessages}
               disabled={loadingOlderMessages}
               accessibilityRole="button"
@@ -481,12 +516,21 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               accessibilityState={{ disabled: loadingOlderMessages, busy: loadingOlderMessages }}
             >
               {loadingOlderMessages
-                ? <ActivityIndicator size="small" color="#D4B07A" />
-                : <Text style={styles.loadOlderText}>Загрузить старые сообщения</Text>}
+                ? <Spinner color={colors.primary} />
+                : <Text style={[typography.smallMedium, { color: colors.primary }]}>Загрузить старые сообщения</Text>}
             </TouchableOpacity>
           </View>
         )}
-        {messages.map((msg, i) => <MessageBubble key={msg.id} message={msg} isLast={i === messages.length - 1} speakingId={speakingId} onSpeak={handleSpeak} />)}
+        {messages.map((msg, i) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            isLast={i === messages.length - 1}
+            speakingId={speakingId}
+            onSpeak={handleSpeak}
+            isStreaming={msg.id === lastStreamingId}
+          />
+        ))}
         {/* Activation CTA (FUNNEL-1). Shown only to users who registered
             but never sent a single message — `firstChatAt` is null on the
             User row. Disappears on the next mount once they engage. The
@@ -497,6 +541,29 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <FirstPromptCta
             onPress={() => sendMessage('Составь мне первую программу тренировок под мои цели и уровень. Учти мой пол, рост, вес и опыт. Дай готовый план на неделю с упражнениями, подходами и весами.')}
           />
+        )}
+        {/* Coach hero — premium anchor on empty chat. Without it the screen
+            reads like an exposed message list; with it the user feels they've
+            walked into a coach's office. Gold halo around the spark glyph
+            ties to Direction A's "gold-rich premium" signature. */}
+        {messages.length <= 1 && (
+          <View style={styles.heroBlock}>
+            <View
+              style={[
+                styles.heroBadge,
+                {
+                  backgroundColor: colors.primary + '15',
+                  borderColor: colors.primary + '30',
+                  shadowColor: colors.primary,
+                },
+              ]}
+            >
+              <Icon name="spark" size={32} color={colors.primary} />
+            </View>
+            <Text style={[typography.metaLabel, { color: colors.textSecondary, marginTop: spacing.md }]}>
+              ТРЕНЕР · ВКЛЮЧЁН
+            </Text>
+          </View>
         )}
         {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
         {isTyping && <TypingIndicator />}
@@ -581,8 +648,22 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  messages: { padding: 16, paddingBottom: 8 },
-  loadOlderContainer: { alignItems: 'center', marginBottom: 12 },
-  loadOlderButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#D4B07A', minWidth: 48, alignItems: 'center' },
-  loadOlderText: { color: '#D4B07A', fontSize: 13 },
+  messages: { padding: spacing.lg, paddingBottom: spacing.sm },
+  loadOlderContainer: { alignItems: 'center', marginBottom: spacing.md },
+  loadOlderButton: { paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 1, minWidth: 48, alignItems: 'center' },
+  heroBlock: { alignItems: 'center', marginBottom: spacing.xl },
+  heroBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Direction A gold halo — soft glow that makes the coach feel like
+    // a lit lamp on a dark desk, not just a flat avatar.
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
 });

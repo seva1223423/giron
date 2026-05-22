@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { ScrollView, View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { AnimatedPressable } from '../../components';
 import { useHaptic } from '../../hooks/useHaptic';
-import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
+import { useThemeColors, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { FadeIn, Button, Card, Icon, Spinner } from '../../components';
@@ -18,7 +17,7 @@ import {
   HomeHeader,
   AICoachCard, RingStatsCard, StreakPRGrid, WeekPlanStrip, QuickActionsGrid,
 } from './components';
-import { Text, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography } from '../../theme';
 
 // Round 233 (2026-05-02 audit): replaced banned unicode glyph '◎' icons
@@ -50,9 +49,9 @@ const todayDate = todayDateStr;
 
 const SectionDivider: React.FC<{ label: string; colors: any }> = ({ label, colors }) => (
   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.md }}>
-    <View style={{ flex: 1, height: 1.5, backgroundColor: colors.primary + '20' }} />
-    <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary, letterSpacing: 1.2, marginHorizontal: spacing.md }}>{label}</Text>
-    <View style={{ flex: 1, height: 1.5, backgroundColor: colors.primary + '20' }} />
+    <View style={{ flex: 1, height: 1, backgroundColor: colors.primary + '20' }} />
+    <Text style={[typography.metaLabel, { color: colors.primary, marginHorizontal: spacing.md }]}>{label}</Text>
+    <View style={{ flex: 1, height: 1, backgroundColor: colors.primary + '20' }} />
   </View>
 );
 
@@ -72,7 +71,9 @@ function buildAnnouncementMeta(c: { primary: string; warning: string; error: str
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  // Use selector to avoid re-rendering on unrelated theme-store updates
+  // (PHILOSOPHY: dashboard is high-frequency, perf matters).
+  const colors = useThemeColors();
   const [announcements, setAnnouncements] = useState<Array<{ id: string; title: string; body: string; type: AnnouncementType; createdAt: string }>>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
@@ -191,7 +192,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const daysLabel = next.daysSince >= 999 ? 'Ещё не делал'
         : next.daysSince === 0 ? 'Уже сегодня'
         : `${next.daysSince} ${next.daysSince === 1 ? 'день' : next.daysSince < 5 ? 'дня' : 'дней'} назад`;
-      return { name: next.name, emoji: '◎', daysLabel, programWorkout: next.programWorkout };
+      return { name: next.name, daysLabel, programWorkout: next.programWorkout };
     }
     const splitLastDays = SPLITS.map((split) => {
       let lastDay = 999;
@@ -332,9 +333,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   setResendingVerification(false);
                 }
               }}
-              style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#D4B07A20', borderWidth: 1, borderColor: '#D4B07A40' }}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, backgroundColor: colors.primary + '20', borderWidth: 1, borderColor: colors.primary + '40' }}
             >
-              <Text style={{ color: '#D4B07A', fontSize: 12, fontWeight: '700' }}>
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>
                 {resendingVerification ? '...' : 'Ввести код'}
               </Text>
             </TouchableOpacity>
@@ -384,7 +385,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 accessibilityRole="button"
                 accessibilityLabel="Начать первую тренировку"
               >
-                <Text style={{ color: colors.textInverse, fontSize: 12, fontWeight: '700' }}>Начать</Text>
+                <Text style={[typography.captionMedium, { color: colors.textInverse }]}>Начать</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setFirstWorkoutBannerDismissed(true)}
@@ -407,17 +408,20 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: spacing.xxl }}>
             <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: spacing.xxl, width: '100%', borderWidth: 1, borderColor: colors.border }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>Подтверждение email</Text>
-              <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 20 }}>
-                Введите код из письма на{'\n'}<Text style={{ color: colors.text, fontWeight: '600' }}>{user?.email}</Text>
+              <Text style={[typography.numberSmall, { color: colors.text, marginBottom: spacing.sm }]}>Подтверждение email</Text>
+              <Text style={[typography.small, { color: colors.textSecondary, marginBottom: spacing.xl }]}>
+                Введите код из письма на{'\n'}<Text style={[typography.smallMedium, { color: colors.text }]}>{user?.email}</Text>
               </Text>
               <TextInput
-                style={{
-                  backgroundColor: colors.background, borderWidth: 2, borderRadius: 12,
-                  borderColor: emailVerifCode.length === 6 ? '#D4B07A' : colors.border,
-                  color: colors.text, fontSize: 28, fontWeight: '700', letterSpacing: 10,
-                  textAlign: 'center', paddingVertical: spacing.md, marginBottom: spacing.md,
-                }}
+                style={[
+                  typography.h2,
+                  {
+                    backgroundColor: colors.background, borderWidth: 2, borderRadius: borderRadius.md,
+                    borderColor: emailVerifCode.length === 6 ? colors.primary : colors.border,
+                    color: colors.text, letterSpacing: 10, // OTP letter-spacing hand-tuned for 6-digit code legibility, not a typography concern
+                    textAlign: 'center', paddingVertical: spacing.md, marginBottom: spacing.md,
+                  },
+                ]}
                 value={emailVerifCode}
                 onChangeText={async (t) => {
                   const clean = t.replace(/\D/g, '').slice(0, 6);
@@ -448,7 +452,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 placeholderTextColor={colors.textTertiary}
                 autoFocus
               />
-              {emailVerifError ? <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center', marginBottom: spacing.md }}>{emailVerifError}</Text> : null}
+              {emailVerifError ? <Text style={[typography.small, { color: colors.error, textAlign: 'center', marginBottom: spacing.md }]}>{emailVerifError}</Text> : null}
               <Button
                 title={emailVerifLoading ? '...' : 'Подтвердить'}
                 onPress={async () => {
@@ -488,7 +492,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 }}
                 style={{ paddingVertical: spacing.sm, alignItems: 'center', marginBottom: spacing.md }}
               >
-                <Text style={{ fontSize: 13, color: resendCountdown > 0 ? colors.textTertiary : '#D4B07A', fontWeight: '600' }}>
+                <Text style={[typography.smallMedium, { color: resendCountdown > 0 ? colors.textTertiary : colors.primary }]}>
                   {resendCountdown > 0 ? `Повторно через ${resendCountdown} с` : resendingVerification ? 'Отправка...' : 'Отправить повторно'}
                 </Text>
               </TouchableOpacity>
@@ -507,11 +511,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           state.
           ═══════════════════════════════════════════════════════════ */}
 
-      {/* 1. AI coach hero — prefers the workout recommendation copy
-             (it's the most specific signal). Rest-day recommendation is
-             used when the plan says "rest", and we fall back to a
-             generic nudge if neither is available. */}
-      {!activeWorkout && (() => {
+      {/* 1. AI coach hero — when a workout is in progress, switches to
+             "Идёт тренировка" + Continue CTA. Otherwise prefers the
+             workout recommendation copy (most specific signal), then
+             rest-day recommendation, then a generic nudge. */}
+      {(() => {
         const headline = workoutRecommendation?.name
           ? `${workoutRecommendation.name} · ${workoutRecommendation.daysLabel ?? ''}`.trim()
           : restDayRecommendation?.tip
@@ -521,12 +525,19 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <AICoachCard
               navigation={navigation}
               recommendation={headline}
+              activeWorkout={activeWorkout ? { name: activeWorkout.workout.name } : null}
+              onPressContinue={() => navigation.navigate('ActiveWorkout')}
               onPressCta={handleStartPlannedWorkout}
               onPressRefresh={() => { haptic.selection(); fetchWeekPlan(); }}
             />
           </FadeIn>
         );
       })()}
+
+      {/* PHILOSOPHY §"Hairline gold divider": subtle gold hairline at
+          12.5% alpha — gives the section break a deliberate feel
+          without adding a heavy 1px border. */}
+      <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.md }} />
 
       {/* 2. Ring stats — daily percentage ring + 3 progress rows.
              Calories + protein come from today's nutrition log; the
@@ -544,20 +555,23 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               dayProgress={dayProgress}
               rows={[
                 {
-                  label: 'Калории',
-                  value: `${Math.round(calNow).toLocaleString('ru-RU')} / ${calTarget.toLocaleString('ru-RU')}`,
+                  label: 'СЕГОДНЯ · КАЛОРИИ',
+                  numerator: Math.round(calNow),
+                  suffix: `/ ${calTarget.toLocaleString('ru-RU')} ккал`,
                   progress: calNow / Math.max(1, calTarget),
                   color: colors.calories,
                 },
                 {
-                  label: 'Белок',
-                  value: `${Math.round(protNow)} / ${protTarget} г`,
+                  label: 'СЕГОДНЯ · БЕЛОК',
+                  numerator: Math.round(protNow),
+                  suffix: `/ ${protTarget} г`,
                   progress: protNow / Math.max(1, protTarget),
                   color: colors.primary,
                 },
                 {
-                  label: 'Тренировки/нед.',
-                  value: `${weekWorkoutsCount} / 4`,
+                  label: 'НА ЭТОЙ НЕДЕЛЕ · ТРЕНИРОВКИ',
+                  numerator: weekWorkoutsCount,
+                  suffix: '/ 4',
                   progress: weekWorkoutsCount / 4,
                   color: colors.carbs,
                 },
@@ -566,6 +580,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </FadeIn>
         );
       })()}
+
+      <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.md }} />
 
       {/* 3. Streak + PR side-by-side grid. Weekly dots look at the
              last 7 calendar days; PR picks the heaviest completed set
@@ -585,6 +601,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         );
       })()}
 
+      <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.md }} />
+
       {/* 4. Week plan strip — weekPlan is keyed by dow (0=Mon..6=Sun),
              not an array. We iterate 0..6 explicitly so the strip
              renders all 7 cards even on days with null entries. */}
@@ -600,6 +618,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </FadeIn>
         );
       })()}
+
+      <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.md }} />
 
       {/* 5. Quick actions — scanner + weight log. One-tap entries to
              the two highest-velocity tasks (matches the design's 2-up
@@ -629,41 +649,22 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         />
       </FadeIn>
     </ScrollView>
-
-    {/* Floating "Start workout" button — shown when no active workout */}
-    {!activeWorkout && (
-      <View style={{
-        position: 'absolute', bottom: 24, right: spacing.xl,
-      }}>
-        <AnimatedPressable
-          onPress={() => { haptic.medium(); navigation.navigate('WorkoutsTab', { screen: 'WorkoutsList' }); }}
-          haptic={false}
-          scaleDown={0.94}
-          style={{
-            flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-            paddingVertical: spacing.md, paddingHorizontal: spacing.xl,
-            borderRadius: borderRadius.full, backgroundColor: colors.primary,
-            shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
-          }}
-        >
-          <Icon name="play" size={16} color={colors.textInverse} />
-          {/* Round 233: was '#FFF' on gold = 1.9:1 WCAG fail. Direction A
-              rule: gold CTA always pairs with DARK text via textInverse. */}
-          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textInverse, letterSpacing: 0.5 }}>Начать</Text>
-        </AnimatedPressable>
-      </View>
-    )}
+    {/* PHILOSOPHY §3: floating FAB removed — duplicate CTA. The single
+        primary action lives inside AICoachCard ("Начать тренировку").
+        One gold = one decision. */}
     </View>
   );
 };
 
 const annStyles = StyleSheet.create({
   banner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    borderRadius: 12, borderWidth: 1, padding: 12,
-    marginBottom: 10,
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+    borderRadius: borderRadius.md, borderWidth: 1, padding: spacing.md,
+    marginBottom: spacing.sm,
   },
-  title: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  body: { fontSize: 12, lineHeight: 18 }, // color now applied per-instance from theme
+  // Spread typography tokens so banner copy obeys the Direction A scale
+  // (was inline fontSize/fontWeight). Color is still applied per-instance
+  // from theme so dark/light parity holds.
+  title: { ...typography.smallMedium, marginBottom: 2 },
+  body: typography.caption,
 });
