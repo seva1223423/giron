@@ -21,15 +21,16 @@ import {
   LLMProviderUnavailableError,
 } from './types';
 import { mistralAdapter } from './mistralAdapter';
+import { yandexAdapter } from './yandexAdapter';
+import { gigachatAdapter } from './gigachatAdapter';
 
-// Provider name → singleton. Stub adapters can be added here as separate
-// files (yandexAdapter.ts / gigachatAdapter.ts) that export a
-// `yandexAdapter: LLMProvider` constant conforming to the interface. When
-// a stub becomes real, no caller changes.
+// Provider name → singleton. Each adapter's `isAvailable()` checks env
+// vars at runtime, so listing them here is safe even without keys —
+// `resolveChain()` below filters out unavailable ones.
 const PROVIDERS: Record<string, LLMProvider> = {
   mistral: mistralAdapter,
-  // yandex: yandexAdapter,  ← add when YANDEX_GPT_API_KEY lands
-  // gigachat: gigachatAdapter,
+  yandex: yandexAdapter,     // set YANDEX_API_KEY + YANDEX_FOLDER_ID
+  gigachat: gigachatAdapter, // set GIGACHAT_AUTH_KEY (base64 clientId:secret)
 };
 
 function parseChain(raw: string | undefined, fallback: string[]): string[] {
@@ -47,7 +48,11 @@ function resolveChain(): string[] {
   const primary = (process.env.AI_PRIMARY_PROVIDER || 'mistral').toLowerCase();
   const fallback = parseChain(process.env.AI_FALLBACK_CHAIN, []);
   const chain = [primary, ...fallback].filter((name, i, arr) => arr.indexOf(name) === i);
-  return chain.filter((name) => PROVIDERS[name]);
+  // Drop providers that aren't registered (typo in env) AND providers
+  // that don't have credentials. Without the isAvailable() filter the
+  // router would log "trying yandex" on every call when YANDEX_API_KEY
+  // isn't set — noisy and slow.
+  return chain.filter((name) => PROVIDERS[name] && PROVIDERS[name].isAvailable());
 }
 
 /** Pick the best-matching intent-specific provider override. Returns null

@@ -163,3 +163,49 @@ Principal difference: GigaChat использует OAuth2 (Client ID + Secret),
 ## До появления API-ключа (сейчас)
 
 Никаких изменений в коде не нужно. Этот README — единственный артефакт этой подготовительной задачи. Когда ключ появится — следуй чек-листу.
+
+---
+
+## Обновление 2026-05-22: адаптеры написаны и зарегистрированы
+
+`yandexAdapter.ts` и `gigachatAdapter.ts` уже лежат в этой папке и
+зарегистрированы в `router.ts`. Без env-переменных они автоматически
+скипаются `resolveChain()` — поведение `chat()` идентично текущему
+mistral-only.
+
+Чтобы активировать:
+
+```
+# .env / Render env
+AI_PRIMARY_PROVIDER=yandex
+AI_FALLBACK_CHAIN=mistral,gigachat
+
+# Yandex
+YANDEX_API_KEY=<Api-Key из консоли Yandex Cloud>
+YANDEX_FOLDER_ID=<folder catalog id>
+YANDEX_MODEL=yandexgpt-lite   # optional
+
+# GigaChat
+GIGACHAT_AUTH_KEY=<base64(clientId:clientSecret) из кабинета Сбера>
+GIGACHAT_SCOPE=GIGACHAT_API_PERS   # optional
+GIGACHAT_MODEL=GigaChat            # optional
+```
+
+После выставления env перезапусти сервер. `healthCheckAll()` (вызывается
+из `/admin/cron-health` в будущем) покажет, кто из адаптеров доступен.
+
+**Ограничения текущей реализации:**
+
+- Yandex не поддерживает function-calling → tools в `chat()` молча
+  игнорируются. Если intent классифицирован как `complex_planning` —
+  router должен переключаться на провайдер с tools (Mistral).
+- GigaChat: Sber-сертификаты подписаны Russian Trusted Root CA. Node.js
+  на не-РФ серверах упадёт TLS-handshake'ом, пока не добавишь CA через
+  `NODE_EXTRA_CA_CERTS=/path/to/russian-trusted-ca.pem`. Документировано
+  в шапке `gigachatAdapter.ts`.
+- Streaming для обоих не реализован — router падает на не-стриминговый
+  `chat()`. AI чат-стрим в UI обрывается на провайдере без stream
+  поддержки — на сегодня только mistral может стримить.
+
+Покрытие тестами: 21 тест для yandex, 12 для gigachat. Mock global fetch,
+никакой реальной сети не требуется.
