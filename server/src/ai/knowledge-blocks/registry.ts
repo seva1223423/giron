@@ -14,17 +14,29 @@ import type { KnowledgeBlock } from './types';
 import { seasonalAdviceBlock } from './seasonal';
 import { confidenceDirectiveBlock } from './confidence';
 import { macroSplitBlock } from './macros';
+import { smartRestBlock } from './recovery';
+import { repRangeBlock } from './hypertrophy';
+import { nutritionTimingBlock } from './nutritionTiming';
+import { trainingAgeBlock } from './trainingAge';
+import { exerciseTempoBlock } from './tempo';
 
 export const knowledgeBlocksRegistry: KnowledgeBlock[] = [
+  // Batch 1 (PoC, 2026-05-22)
   seasonalAdviceBlock,
   confidenceDirectiveBlock,
   macroSplitBlock,
-  // TODO: migrate the remaining ~1419 inline helpers from ai.ts.
+  // Batch 2 (2026-05-22, audit follow-up)
+  smartRestBlock,         // ai.ts L14516 — getSmartRestSuggestion
+  repRangeBlock,          // ai.ts L16283 — getRepRangeAdvice
+  nutritionTimingBlock,   // ai.ts L13347 — getNutritionTimingAdvice
+  trainingAgeBlock,       // ai.ts L18800 — getTrainingAgeAdvice
+  exerciseTempoBlock,     // ai.ts L19715 — getExerciseTempo
+  // TODO: migrate the remaining ~1414 inline helpers from ai.ts.
   // Next batches by topic (suggested order):
-  //   - sleep.ts        (getSmartRestSuggestion, sleep-related blocks)
-  //   - hypertrophy.ts  (getRepRangeAdvice, getPeriodizationAdvice)
   //   - technique.ts    (getTechniqueCues, getMuscleActivationCues)
   //   - injuries.ts     (getSubstitutionAdvice + EXERCISE_SUBSTITUTIONS table)
+  //   - periodization.ts (getPeriodizationAdvice, getPlateauBreakers)
+  //   - exercise.ts     (getExerciseAlternatives, getSmartSubstitutions)
 ];
 
 /** Helper for tests and the future selector wiring — finds a block by
