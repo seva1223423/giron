@@ -4,7 +4,7 @@
  * the back of iteration order), and singleton cache configuration.
  */
 
-import { MemCache, adminStatsCache, newsCache, foodVisionCache } from '../utils/memCache';
+import { MemCache, adminStatsCache, newsCache, foodVisionCache, aiUserContextCache, AI_USER_CONTEXT_TTL_MS } from '../utils/memCache';
 
 describe('MemCache TTL', () => {
   test('returns undefined for missing key', () => {
@@ -136,9 +136,37 @@ describe('MemCache delete + clear', () => {
 });
 
 describe('Singleton caches', () => {
-  test('all three singletons are MemCache instances and respond to size', () => {
+  test('all four singletons are MemCache instances and respond to size', () => {
     expect(typeof adminStatsCache.size).toBe('number');
     expect(typeof newsCache.size).toBe('number');
     expect(typeof foodVisionCache.size).toBe('number');
+    expect(typeof aiUserContextCache.size).toBe('number');
+  });
+
+  test('AI_USER_CONTEXT_TTL_MS is 60s (matches authUserCache window)', () => {
+    // Pin the TTL so a future change forces an explicit test update.
+    // 60s is the design contract — short enough that profile edits
+    // propagate within a minute, long enough that a hot user benefits
+    // from cache reuse across consecutive AI messages.
+    expect(AI_USER_CONTEXT_TTL_MS).toBe(60_000);
+  });
+
+  test('aiUserContextCache get/set/delete cycle works for opaque payloads', () => {
+    // The cache is typed `any` in memCache.ts (the typed shape lives at
+    // the AI-route use site to avoid pulling Prisma types into this
+    // shared util). Test the public API still round-trips.
+    const userId = 'test-user-' + Date.now();
+    const payload = {
+      id: userId,
+      firstName: 'Test',
+      healthRestrictions: [{ id: 'r1', bodyPart: 'knee', description: 'pain', severity: 'mild' }],
+    };
+    expect(aiUserContextCache.get(userId)).toBeUndefined();
+    aiUserContextCache.set(userId, payload, 60_000);
+    const cached = aiUserContextCache.get(userId) as typeof payload;
+    expect(cached).toEqual(payload);
+    expect(cached.healthRestrictions[0].bodyPart).toBe('knee');
+    aiUserContextCache.delete(userId);
+    expect(aiUserContextCache.get(userId)).toBeUndefined();
   });
 });

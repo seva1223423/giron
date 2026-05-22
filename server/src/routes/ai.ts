@@ -6,9 +6,10 @@ import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload }
 import { NAV_WHITELIST, validateNavigation } from '../ai/navigationWhitelist';
 import { computeWeightTrend } from '../ai/weightProjection';
 import { prisma } from '../db';
+import type { Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
-import { foodVisionCache } from '../utils/memCache';
+import { foodVisionCache, aiUserContextCache, AI_USER_CONTEXT_TTL_MS } from '../utils/memCache';
 import { parseFoodResponse, validateFoodItems, flagSanity, type FoodItem as FoodVisionItem } from '../utils/foodVision';
 import { sanitizeInput, sanitizeForPrompt } from '../utils/inputSanitizer';
 import { detectInjection } from '../utils/promptInjectionDetector';
@@ -2426,6 +2427,10 @@ async function executeTool(
 
     if (Object.keys(updateData).length === 0) return { resultText: 'Нет корректных данных для обновления профиля', actionDescription: '' };
     await prisma.user.update({ where: { id: userId }, data: updateData });
+    // Invalidate the AI user-context cache so the very next /chat message
+    // sees the fresh profile fields (weight/height/goal/level) without
+    // waiting for the 60s TTL.
+    aiUserContextCache.delete(userId);
 
     // Round 200: post-write verify (extends R197-199 pattern). Read
     // back the user row, confirm each updated field matches.
@@ -5667,7 +5672,27 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     // Fetch all user context data in parallel — 16 independent queries
     // (aiMemoryCount derived from userMemories.length after secondary block)
     // (weekMealsForCalories replaced by weekMeals which has all columns)
+    //
+    // Audit R-2026-05-22 (supabase-postgres / vercel-react skills):
+    // user findUnique + healthRestrictions JOIN is the biggest payload in
+    // the batch and changes infrequently. Serve from aiUserContextCache
+    // when fresh; explicit invalidation in update_user_profile keeps the
+    // tool's own write visible immediately. Other 15 queries either change
+    // every message (chatMessages, meals, workouts) or are too tied to
+    // current state to cache safely.
     const _t0ContextPrimary = Date.now();
+    // Typed shape of the cached/fresh user payload — same as what
+    // `prisma.user.findUnique({ include: { healthRestrictions: true } })`
+    // returns. Pinned via Prisma.UserGetPayload so a future schema bump
+    // that drops a field surfaces here as a tsc error.
+    type CachedAiUser = Prisma.UserGetPayload<{ include: { healthRestrictions: true } }>;
+    const cachedUser = aiUserContextCache.get(userId) as CachedAiUser | undefined;
+    const userFetch: Promise<CachedAiUser | null> = cachedUser
+      ? Promise.resolve(cachedUser)
+      : prisma.user.findUnique({
+          where: { id: userId },
+          include: { healthRestrictions: true },
+        });
     const [
       user,
       history,
@@ -5686,10 +5711,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       prevWeekWorkouts,
       weekMeals,
     ] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: userId },
-        include: { healthRestrictions: true },
-      }),
+      userFetch,
       prisma.chatMessage.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -5780,6 +5802,15 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     ]);
     const _primaryContextMs = Date.now() - _t0ContextPrimary;
     if (_primaryContextMs > 2000) logger.warn(`[AI] Primary context fetch slow: ${_primaryContextMs}ms (userId: ${userId})`);
+
+    // Save the fetched user (with healthRestrictions JOIN) to the
+    // per-user cache so the next /chat message in the same minute
+    // skips this Prisma round-trip entirely. Only set if we actually
+    // hit the DB this turn — otherwise we'd reset the TTL on the
+    // cached value and never let it expire.
+    if (!cachedUser && user) {
+      aiUserContextCache.set(userId, user, AI_USER_CONTEXT_TTL_MS);
+    }
 
     const weekPlanIdToName = new Map<string, string>();
     weekPlanExercisesRaw.forEach((ex) => weekPlanIdToName.set(ex.id, ex.name));
