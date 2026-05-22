@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -28,7 +28,7 @@ interface Props {
 }
 
 export const UndoToast: React.FC<Props> = ({ label, onUndo, onDismiss, durationMs = 8000 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [fired, setFired] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
 

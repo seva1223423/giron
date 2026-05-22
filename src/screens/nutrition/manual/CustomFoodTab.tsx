@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export const CustomFoodTab: React.FC<Props> = ({ state, onChange }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const macros = useMemo(() => {
     const p = Math.max(0, parseFloat(state.protein.replace(',', '.')) || 0);

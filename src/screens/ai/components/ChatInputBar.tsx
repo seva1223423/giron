@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export const ChatInputBar: React.FC<Props> = ({ value, onChange, isStreaming, isTyping, onSend, onStop }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   // While streaming we want the stop button enabled even without input text —
   // canSend would otherwise lock the button out.
   const canSend = !!value.trim() && !isTyping && !isStreaming;

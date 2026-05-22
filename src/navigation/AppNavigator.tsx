@@ -110,7 +110,7 @@ const ProfileStack = createNativeStackNavigator();
  */
 import type { IconName as IconSetName } from '../components';
 const TabIcon: React.FC<{ label: string; iconName: IconSetName; focused: boolean; center?: boolean }> = ({ label, iconName, focused, center }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   if (center) {
     return (
@@ -317,7 +317,7 @@ const TAB_META: Record<string, TabMeta> = {
  * reproduce that behavior with a Keyboard listener.
  */
 const PremiumTabBar: React.FC<MaterialTopTabBarProps> = ({ state, navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = React.useState(false);
 

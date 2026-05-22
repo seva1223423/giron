@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Input } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export const BodyStep: React.FC<Props> = ({ height, weight, age, onHeightChange, onWeightChange, onAgeChange }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   return (
     <View style={styles.container}>
       <Text style={[typography.h2, { color: colors.text, marginBottom: spacing.sm }]}>Параметры тела</Text>

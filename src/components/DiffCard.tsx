@@ -20,7 +20,7 @@
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useThemeStore } from '../store/useThemeStore';
+import { useThemeStore, useThemeColors } from '../store/useThemeStore';
 import { Pill, type PillVariant } from './Pill';
 
 interface DiffCardProps {
@@ -37,7 +37,7 @@ interface DiffCardProps {
 }
 
 export const DiffCard: React.FC<DiffCardProps> = ({ label, before, after, delta, unit = '' }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const dir = direction(delta);
   const afterVariant: PillVariant =
     dir === 'up' ? 'success' : dir === 'down' ? 'danger' : 'default';

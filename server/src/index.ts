@@ -445,6 +445,8 @@ import {
   runTotpReplayCleanup,
   runOtpCodesCleanup,
   runPasswordResetCleanup,
+  runFoodScanLogCleanup,
+  runHealthSampleCleanup,
 } from './utils/cleanupJobs';
 
 // Cleanup expired/revoked refresh tokens and expired trusted devices every 6 hours
@@ -481,6 +483,26 @@ setInterval(() => {
     await runPasswordResetCleanup(db);
   });
 }, 6 * 60 * 60 * 1000).unref();
+
+// Cleanup stale food-scan log entries (>90d) once a day. The aggregate
+// Meal/MealItem rows live forever; this only drops the per-scan diagnostic
+// blob that has no value past the day the meal was logged.
+setInterval(() => {
+  void trackCron('cleanup-food-scan-log', async () => {
+    const db = (await import('./db')).prisma;
+    await runFoodScanLogCleanup(db);
+  });
+}, 24 * 60 * 60 * 1000).unref();
+
+// Cleanup stale HealthSample rows (>90d) once a day. Raw watch samples
+// (HR/HRV/SpO2) can balloon fast — 1440 HR samples/day/user if a wearable
+// is connected. Dashboards/AI context only read the last 30-60 days.
+setInterval(() => {
+  void trackCron('cleanup-health-sample', async () => {
+    const db = (await import('./db')).prisma;
+    await runHealthSampleCleanup(db);
+  });
+}, 24 * 60 * 60 * 1000).unref();
 
 // Prune expired in-memory cache entries every 10 minutes to prevent memory growth.
 // foodVisionCache (24h TTL, 100 entries, 200KB/entry) was missing from this list —

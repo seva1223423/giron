@@ -3,7 +3,7 @@ import { Text, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -24,7 +24,7 @@ const openInBrowser = async (url: string) => {
 };
 
 export const LegalSection: React.FC = () => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   return (

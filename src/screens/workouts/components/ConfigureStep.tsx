@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Card, Button, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -21,7 +21,7 @@ interface Props {
 
 export const ConfigureStep: React.FC<Props> = ({ selectedExercises, onRemove, onMove, onBack, navigation }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { saveAsTemplate } = useWorkoutStore();
   const [workoutName, setWorkoutName] = useState('');
   const [exConfigs, setExConfigs] = useState<Record<string, ExConfig>>({});
@@ -135,7 +135,7 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
   onSaveTemplate, getConfig, navigation,
 }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <ScrollView

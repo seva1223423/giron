@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, View, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
 import { useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
@@ -25,7 +25,7 @@ function formatDurationGoal(min: number) {
 
 export const WorkoutSection: React.FC = () => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { height: screenHeight } = useWindowDimensions();
   const { restTimerDefault, setRestTimerDefault, workoutDurationGoal, setWorkoutDurationGoal } = useSettingsStore();
   const [showPicker, setShowPicker] = useState(false);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
-import { useThemeStore, useNutritionStore } from '../../../store';
+import { useThemeColors, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -29,7 +29,7 @@ interface Props {
 const PORTION_PRESETS = [30, 50, 100, 150, 200, 300];
 
 const RecognizedItemCardImpl: React.FC<Props> = ({ item, base, onWeightChange, onRemove, onRename, typicalWeight, isDuplicate }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
   const { saveFoodItem, savedFoods } = useNutritionStore();
   const savedId = `saved-${item.name.replace(/\s/g, '-').toLowerCase()}`;

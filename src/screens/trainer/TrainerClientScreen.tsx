@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useTrainerStore } from '../../store';
+import { useThemeColors, useTrainerStore } from '../../store';
 import { TrainerClient } from '../../store';
 import { Card, Button } from '../../components';
 import { typography } from '../../theme';
@@ -21,7 +21,7 @@ const LEVEL_LABELS: Record<string, string> = {
 export const TrainerClientScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { updateClient, logWorkoutSession, removeWorkoutSession, getClientSessions, fetchSessions } = useTrainerStore();
   const [client, setClient] = useState<TrainerClient>(route.params?.client);
   const [showProgramPicker, setShowProgramPicker] = useState(false);

@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../store';
+import { useThemeColors, useWorkoutStore } from '../../store';
 import { WeekPlanEntry } from '../../store/useWorkoutStore';
 import { Card } from '../../components';
 import { typography } from '../../theme';
@@ -23,7 +23,7 @@ const PRESET_SPLITS = [
 export const WeeklyPlanScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { weekPlan, setWeekPlanDay, savedTemplates, customExercises, startWorkoutFromRoutine, routines } = useWorkoutStore();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
   const [startingDow, setStartingDow] = useState<number | null>(null);

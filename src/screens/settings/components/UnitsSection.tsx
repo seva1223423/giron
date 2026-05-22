@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
@@ -9,7 +9,7 @@ import { spacing, borderRadius } from '../../../theme/spacing';
 
 export const UnitsSection: React.FC = () => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { units, setUnits } = useSettingsStore();
 
   return (

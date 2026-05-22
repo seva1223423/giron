@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { useThemeStore, useSubscriptionStore } from '../../../store';
+import { useThemeColors, useSubscriptionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -10,7 +10,7 @@ import { Workout } from '../../../types';
 interface Props { workout: Workout }
 
 export const AIInsightsCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { canSendAiMessage, consumeAiMessage } = useSubscriptionStore();
   const [insights, setInsights] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

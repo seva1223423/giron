@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { useAuthStore } from '../../store';
 import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -16,7 +16,7 @@ type Step = 'enter_phone' | 'enter_code' | 'enter_totp';
 
 export const ChangePhoneScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [step, setStep] = useState<Step>('enter_phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { localDateStr } from '../../../utils/date';
@@ -31,7 +31,7 @@ interface Props {
 
 export const DateNavigator: React.FC<Props> = ({ selectedDate, onChange }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const isToday = selectedDate === todayDate();
 
   return (

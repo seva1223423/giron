@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Text, View, TouchableOpacity, Switch, Modal, Alert, StyleSheet } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
@@ -18,7 +18,7 @@ import {
 
 export const NotificationsSection: React.FC = () => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const {
     notificationsEnabled, reminderHour, waterRemindersEnabled, waterReminderInterval,
     setNotificationsEnabled, setReminderHour, setWaterRemindersEnabled, setWaterReminderInterval,

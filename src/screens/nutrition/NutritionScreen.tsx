@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'rea
 import { useHaptic } from '../../hooks/useHaptic';
 import { useSafeTop } from '../../hooks/useSafeTop';
 import { useAchievementCheck } from '../../hooks/useAchievementCheck';
-import { useThemeStore, useNutritionStore } from '../../store';
+import { useThemeColors, useNutritionStore } from '../../store';
 import type { Achievement } from '../../utils/achievements';
 import { Button, Tooltip, Icon } from '../../components';
 import { typography } from '../../theme';
@@ -20,7 +20,7 @@ const todayDate = () => localDateStr(new Date());
 export const NutritionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);

@@ -17,7 +17,7 @@ interface FadeInProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export const FadeIn: React.FC<FadeInProps> = ({
+const FadeInImpl: React.FC<FadeInProps> = ({
   children,
   delay = 0,
   duration = 400,
@@ -54,3 +54,10 @@ export const FadeIn: React.FC<FadeInProps> = ({
     </Animated.View>
   );
 };
+
+// React.memo: FadeIn is sprinkled across screens (10+ instances per
+// RoutineDetailScreen). Without memo, every parent re-render restarts
+// the withTiming animation because the useEffect deps look "new" by
+// reference. Shallow memo on (delay, duration, from, distance, style)
+// keeps the animation stable.
+export const FadeIn = React.memo(FadeInImpl);

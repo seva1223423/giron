@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
-import { useThemeStore, useTrainerStore } from '../../../store';
+import { useThemeColors, useTrainerStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -30,7 +30,7 @@ interface Props {
  */
 export const InviteCodeDisplay: React.FC<Props> = ({ clientId, clientName }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { clients, generateInvite, disconnectLink } = useTrainerStore();
   const client = clients.find((c) => c.id === clientId);
 

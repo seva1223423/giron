@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -9,7 +9,7 @@ import { Workout } from '../../../types';
 interface Props { workout: Workout }
 
 export const ProgressionCard: React.FC<Props> = ({ workout }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const suggestions = workout.exercises.flatMap((ex) => {
     const completedSets = ex.sets.filter((s) => s.completed && s.weight && s.reps);

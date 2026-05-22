@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { ExerciseVideoModal } from '../../workouts/exercise/ExerciseVideoModal';
 import { ExerciseProgressionModal } from './ExerciseProgressionModal';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -34,7 +34,7 @@ interface Props {
 }
 
 export const ExerciseNavBar: React.FC<Props> = ({ currentExercise, currentExerciseIndex, totalExercises, onPrev, onNext, onSubstitute, hasSessionPR, navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const haptic = useHaptic();
   const [videoVisible, setVideoVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -13,7 +13,7 @@ interface HistoryEntry {
 }
 
 const TrendChart: React.FC<{ data: { label: string; value: number }[]; color: string }> = ({ data, color }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (data.length < 2) return null;
   const maxVal = Math.max(...data.map((d) => d.value));
   const minVal = Math.min(...data.map((d) => d.value));
@@ -56,7 +56,7 @@ interface Props {
 }
 
 export const ExerciseStatsCard: React.FC<Props> = ({ exerciseHistory, maxWeight, estimated1RM, oneRMTrend }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (exerciseHistory.length === 0) return null;
 
   return (
