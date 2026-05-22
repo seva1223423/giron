@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useThemeColors } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { Icon } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 
@@ -51,7 +52,7 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
           paddingHorizontal: 4,
         }}
       >
-        <Text style={[typography.h4, { color: colors.text }]}>План недели</Text>
+        <Text style={[typography.h4, { color: colors.text }]}>На этой неделе</Text>
         {onPressAll && (
           <TouchableOpacity
             onPress={() => { haptic.selection(); onPressAll(); }}
@@ -86,6 +87,18 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
                 backgroundColor: cardBg,
                 borderWidth: 1,
                 borderColor,
+                // Gold halo on the active day — "today" should be the
+                // single element the eye lands on first (PHILOSOPHY §1
+                // "Hero, не равные карточки").
+                ...(d.active
+                  ? {
+                      shadowColor: colors.primary,
+                      shadowOpacity: 0.35,
+                      shadowRadius: 16,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: 8,
+                    }
+                  : null),
               }}
             >
               <View
@@ -96,33 +109,24 @@ export const WeekPlanStrip: React.FC<Props> = ({ days, onPressAll, onPressDay })
                 }}
               >
                 <Text
-                  style={{
-                    color: fgSub,
-                    fontSize: 10,
-                    fontWeight: '500',
-                    letterSpacing: 1.5,
-                    textTransform: 'uppercase',
-                    opacity: d.active ? 0.7 : 0.5,
-                  }}
+                  style={[
+                    typography.metaLabel,
+                    {
+                      color: fgSub,
+                      textTransform: 'uppercase',
+                      opacity: d.active ? 0.7 : 0.5,
+                    },
+                  ]}
                 >
                   {d.dayLabel}
                 </Text>
-                {d.done && (
-                  <Text
-                    style={[typography.captionMedium, { color: fg }]}
-                  >
-                    ✓
-                  </Text>
-                )}
+                {d.done && <Icon name="check" size={14} color={fg} />}
               </View>
               <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '600',
-                  color: fg,
-                  marginTop: 10,
-                  lineHeight: 16,
-                }}
+                style={[
+                  typography.smallMedium,
+                  { color: fg, marginTop: spacing.sm },
+                ]}
                 numberOfLines={2}
               >
                 {d.title}

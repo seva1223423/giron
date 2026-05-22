@@ -19,6 +19,11 @@ interface Props {
   onPressCta: () => void;
   /** Secondary "regenerate" tap — refreshes the recommendation. */
   onPressRefresh?: () => void;
+  /** Active workout in progress — when set, card switches to a "Идёт
+   *  тренировка" state with a Continue CTA instead of the recommendation. */
+  activeWorkout?: { name: string } | null;
+  /** Tap-through to the active workout screen (only used in active state). */
+  onPressContinue?: () => void;
 }
 
 /**
@@ -36,13 +41,26 @@ interface Props {
  */
 export const AICoachCard: React.FC<Props> = ({
   recommendation,
-  eyebrow = 'Тренер рекомендует',
+  eyebrow = 'Сегодня от ИИ',
   ctaLabel = 'Начать тренировку',
   onPressCta,
   onPressRefresh,
+  activeWorkout,
+  onPressContinue,
 }) => {
   const colors = useThemeColors();
   const haptic = useHaptic();
+
+  // Conditional hero: when a workout is in progress, switch the card to
+  // "Идёт тренировка" + Continue CTA. Recommendation copy is irrelevant
+  // while the user is mid-set — they want a way back into the live screen.
+  const isActive = !!activeWorkout;
+  const resolvedEyebrow = isActive ? 'Идёт тренировка' : eyebrow;
+  const resolvedHeadline = isActive
+    ? activeWorkout?.name ?? 'Текущая тренировка'
+    : recommendation;
+  const resolvedCtaLabel = isActive ? 'Продолжить' : ctaLabel;
+  const resolvedOnPressCta = isActive ? (onPressContinue ?? onPressCta) : onPressCta;
 
   return (
     <View
@@ -64,6 +82,9 @@ export const AICoachCard: React.FC<Props> = ({
         preserveAspectRatio="none"
       >
         <Defs>
+          {/* Direction A brand-warm gradient (hand-tuned, not from token).
+              Three stops form the warm graphite→amber wash that makes this
+              card feel like the only "lit" surface on the home screen. */}
           <LinearGradient id="aiBg" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor="#1E1810" stopOpacity={1} />
             <Stop offset="0.6" stopColor="#2A1F12" stopOpacity={1} />
@@ -95,15 +116,15 @@ export const AICoachCard: React.FC<Props> = ({
             <Icon name="spark" size={16} color={colors.textInverse} strokeWidth={2.2} />
           </View>
           <Text
-            style={{
-              color: colors.primary,
-              fontSize: 12,
-              fontWeight: '600',
-              letterSpacing: 1.2,
-              textTransform: 'uppercase',
-            }}
+            style={[
+              typography.metaLabel,
+              {
+                color: colors.primary,
+                textTransform: 'uppercase',
+              },
+            ]}
           >
-            {eyebrow}
+            {resolvedEyebrow}
           </Text>
         </View>
 
@@ -118,14 +139,14 @@ export const AICoachCard: React.FC<Props> = ({
             },
           ]}
         >
-          {recommendation}
+          {resolvedHeadline}
         </Text>
 
         {/* Action row: gold pill CTA + circular refresh */}
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
           <TouchableOpacity
-            onPress={() => { haptic.medium(); onPressCta(); }}
-            accessibilityLabel={ctaLabel}
+            onPress={() => { haptic.medium(); resolvedOnPressCta(); }}
+            accessibilityLabel={resolvedCtaLabel}
             accessibilityRole="button"
             style={{
               flex: 1,
@@ -134,13 +155,20 @@ export const AICoachCard: React.FC<Props> = ({
               backgroundColor: colors.primary,
               alignItems: 'center',
               justifyContent: 'center',
+              // PHILOSOPHY §1 gold halo — the one primary CTA on the
+              // home screen earns the glow.
+              shadowColor: colors.primary,
+              shadowOpacity: 0.35,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 0 },
+              elevation: 8,
             }}
           >
             <Text style={[typography.smallMedium, { color: colors.textInverse }]}>
-              {ctaLabel}
+              {resolvedCtaLabel}
             </Text>
           </TouchableOpacity>
-          {onPressRefresh && (
+          {!isActive && onPressRefresh && (
             <TouchableOpacity
               onPress={() => { haptic.selection(); onPressRefresh(); }}
               accessibilityLabel="Обновить рекомендацию"
@@ -149,7 +177,7 @@ export const AICoachCard: React.FC<Props> = ({
                 width: 44,
                 height: 44,
                 borderRadius: borderRadius.lg,
-                backgroundColor: 'rgba(255,255,255,0.08)',
+                backgroundColor: colors.border,
                 borderWidth: 1,
                 borderColor: colors.border,
                 alignItems: 'center',

@@ -89,6 +89,8 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
               <View
                 style={[styles.proBadge, { backgroundColor: colors.primary }]}
               >
+                {/* PRO badge — tiny brand mark, smaller than any token; keep
+                    inline. Matches the design's 9pt all-caps lockup. */}
                 <Text
                   style={{ color: colors.textInverse, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}
                 >
@@ -133,11 +135,10 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
               ]}
             >
               <Text
-                style={{
-                  fontSize: 10,
-                  fontWeight: '600',
-                  color: getRecoveryColor(lastMeta.recovery, colors),
-                }}
+                style={[
+                  typography.captionMedium,
+                  { color: getRecoveryColor(lastMeta.recovery, colors) },
+                ]}
               >
                 {getRecoveryLabel(lastMeta.recovery)} {lastMeta.recovery}%
               </Text>
@@ -146,7 +147,7 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
           {lastMeta?.streak != null && lastMeta.streak > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Icon name="flame" size={12} color={colors.primary} />
-              <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+              <Text style={[typography.captionMedium, { color: colors.primary }]}>
                 {lastMeta.streak} дн.
               </Text>
             </View>
@@ -159,7 +160,6 @@ export const ChatHeader: React.FC<Props> = ({ lastMeta }) => {
           typography.caption,
           {
             color: colors.textTertiary,
-            fontSize: 10,
             textAlign: 'center',
             paddingHorizontal: spacing.md,
             marginTop: 8,

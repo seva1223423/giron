@@ -74,10 +74,10 @@ export const QuickActionsGrid: React.FC<Props> = ({ actions }) => {
           >
             <Icon name={a.icon} size={16} color={colors.primary} />
           </View>
-          <Text style={[typography.smallLite, { color: colors.text }]}>
+          <Text style={[typography.smallMedium, { color: colors.text }]}>
             {a.label}
           </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
             {a.subtitle}
           </Text>
         </TouchableOpacity>
