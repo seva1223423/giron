@@ -2509,16 +2509,23 @@ async function executeTool(
   }
 
   if (toolName === 'create_workout') {
-    const { name, exercises } = toolInput as {
-      name: string;
-      exercises: Array<{
-        exerciseName: string;
-        sets: number;
-        reps: number;
-        weight?: number;
-        restSeconds?: number;
-      }>;
-    };
+    // Audit R-2026-05-22: Zod guard. Missing exerciseName / zero sets /
+    // negative weight would crash downstream Prisma write.
+    const createWorkoutSchema = z.object({
+      name: z.string().min(1).max(200),
+      exercises: z.array(z.object({
+        exerciseName: z.string().min(1).max(200),
+        sets: z.number().int().min(1).max(50),
+        reps: z.number().int().min(1).max(1000),
+        weight: z.number().min(0).max(2000).optional(),
+        restSeconds: z.number().int().min(0).max(3600).optional(),
+      })).min(1).max(50),
+    });
+    const parsed = createWorkoutSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров create_workout: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { name, exercises } = parsed.data;
 
     // Batch-resolve exercises + find active program in parallel
     const safeExercises = exercises.slice(0, 20);
@@ -2722,15 +2729,28 @@ async function executeTool(
   // it shows up in history, contributes to PRs, weekly volume,
   // analyze_progress, etc.
   if (toolName === 'log_completed_workout') {
-    const { name: workoutName, exercises: completedExercises, durationMinutes, completedAt } = toolInput as {
-      name: string;
-      exercises: Array<{
-        exerciseName: string;
-        completedSets: Array<{ reps: number; weight?: number }>;
-      }>;
-      durationMinutes?: number;
-      completedAt?: string;
-    };
+    // Audit R-2026-05-22: Zod guard. Without it a malformed completedAt
+    // ("вчера") would propagate to Prisma's Date conversion and crash.
+    const logCompletedSchema = z.object({
+      name: z.string().min(1).max(200),
+      exercises: z.array(z.object({
+        exerciseName: z.string().min(1).max(200),
+        completedSets: z.array(z.object({
+          reps: z.number().int().min(0).max(1000),
+          weight: z.number().min(0).max(2000).optional(),
+        })).min(1).max(50),
+      })).min(1).max(50),
+      durationMinutes: z.number().int().min(0).max(1440).optional(),
+      // ISO 8601 date or datetime — Zod's datetime() also accepts plain
+      // dates if we allow z.string().datetime({ offset: true }) OR a date
+      // shape. Accept both for resilience.
+      completedAt: z.string().min(1).max(40).optional(),
+    });
+    const parsed = logCompletedSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров log_completed_workout: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { name: workoutName, exercises: completedExercises, durationMinutes, completedAt } = parsed.data;
 
     if (!workoutName || !completedExercises || completedExercises.length === 0) {
       return { resultText: 'Нужно указать название тренировки и хотя бы одно упражнение', actionDescription: '' };
@@ -3068,24 +3088,31 @@ async function executeTool(
   }
 
   if (toolName === 'create_program') {
-    const { name, description, type, goal, level, daysPerWeek, workouts } = toolInput as {
-      name: string;
-      description?: string;
-      type: string;
-      goal: string;
-      level: string;
-      daysPerWeek: number;
-      workouts: Array<{
-        name: string;
-        exercises: Array<{
-          exerciseName: string;
-          sets: number;
-          reps: number;
-          weight?: number;
-          restSeconds?: number;
-        }>;
-      }>;
-    };
+    // Audit R-2026-05-22: Zod guard. Without it daysPerWeek="много" or
+    // workouts.exercises being null/string would crash downstream.
+    const createProgramSchema = z.object({
+      name: z.string().min(1).max(200),
+      description: z.string().max(2000).optional(),
+      type: z.string().min(1).max(80),
+      goal: z.string().min(1).max(80),
+      level: z.string().min(1).max(80),
+      daysPerWeek: z.number().int().min(1).max(7),
+      workouts: z.array(z.object({
+        name: z.string().min(1).max(200),
+        exercises: z.array(z.object({
+          exerciseName: z.string().min(1).max(200),
+          sets: z.number().int().min(1).max(50),
+          reps: z.number().int().min(1).max(1000),
+          weight: z.number().min(0).max(2000).optional(),
+          restSeconds: z.number().int().min(0).max(3600).optional(),
+        })).min(1).max(50),
+      })).min(1).max(14),
+    });
+    const parsed = createProgramSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров create_program: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { name, description, type, goal, level, daysPerWeek, workouts } = parsed.data;
 
     const VALID_PROG_GOALS = ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'];
     const VALID_PROG_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
@@ -3297,14 +3324,26 @@ async function executeTool(
   }
 
   if (toolName === 'modify_workout') {
-    const { workoutName, action, exerciseName, sets, weightMultiplier, restSeconds } = toolInput as {
-      workoutName?: string;
-      action: 'remove_exercise' | 'add_exercise' | 'update_exercise';
-      exerciseName: string;
-      sets?: Array<{ reps: number; weight?: number }>;
-      weightMultiplier?: number;
-      restSeconds?: number;
-    };
+    // Audit R-2026-05-22: Zod guard. Without runtime validation a Mistral
+    // hallucination (e.g. `action: "delete"` instead of `remove_exercise`,
+    // missing `exerciseName`, or `weightMultiplier: "1.5"` as string) would
+    // reach Prisma and either crash or silently corrupt data.
+    const modifyWorkoutSchema = z.object({
+      workoutName: z.string().min(1).max(200).optional(),
+      action: z.enum(['remove_exercise', 'add_exercise', 'update_exercise']),
+      exerciseName: z.string().min(1).max(200),
+      sets: z.array(z.object({
+        reps: z.number().int().min(0).max(1000),
+        weight: z.number().min(0).max(2000).optional(),
+      })).max(50).optional(),
+      weightMultiplier: z.number().min(0.1).max(10).optional(),
+      restSeconds: z.number().int().min(0).max(3600).optional(),
+    });
+    const parsed = modifyWorkoutSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров modify_workout: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { workoutName, action, exerciseName, sets, weightMultiplier, restSeconds } = parsed.data;
 
     // Resolve exercise name with EN→RU fallback
     const resolveExerciseName = async (name: string) => {
@@ -4725,16 +4764,23 @@ async function executeTool(
   // logic of POST /recipes/:id/add-to-diary route so we don't drift.
 
   if (toolName === 'find_recipes') {
-    const {
-      query, mealType, maxCalories, maxPrepMin, allergensExcluded, goal,
-    } = toolInput as {
-      query?: string;
-      mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-      maxCalories?: number;
-      maxPrepMin?: number;
-      allergensExcluded?: string[];
-      goal?: 'weight-loss' | 'maintain' | 'gain';
-    };
+    // Audit R-2026-05-22: Zod guard. Existing code already filters bad
+    // enum values downstream; the schema fails fast for blatantly wrong
+    // types (e.g. maxCalories: "под 500"). Enums stay permissive — bad
+    // values are dropped downstream rather than rejecting the whole call.
+    const findRecipesSchema = z.object({
+      query: z.string().max(500).optional(),
+      mealType: z.string().max(40).optional(),
+      maxCalories: z.number().min(0).max(10000).optional(),
+      maxPrepMin: z.number().int().min(0).max(1440).optional(),
+      allergensExcluded: z.array(z.string().max(40)).max(20).optional(),
+      goal: z.string().max(40).optional(),
+    });
+    const parsed = findRecipesSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров find_recipes: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { query, mealType, maxCalories, maxPrepMin, allergensExcluded, goal } = parsed.data;
 
     const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
     const VALID_GOALS = ['weight-loss', 'maintain', 'gain'] as const;
@@ -5277,7 +5323,18 @@ async function executeTool(
   }
 
   if (toolName === 'compare_periods') {
-    const { windowDays } = toolInput as { windowDays?: number };
+    // Audit R-2026-05-22: Zod guard. The existing Math.floor(Number(...))
+    // already handles strings → NaN → 7, but Zod adds explicit rejection
+    // of bad shapes (object instead of number, array, etc.). Existing
+    // safeWindow logic stays — Zod just validates the OUTER shape.
+    const comparePeriodsSchema = z.object({
+      windowDays: z.union([z.number(), z.string(), z.null()]).optional(),
+    });
+    const parsed = comparePeriodsSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров compare_periods: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { windowDays } = parsed.data;
     const safeWindow = Math.min(90, Math.max(1, Math.floor(Number(windowDays) || 7)));
 
     // Round 227: anchor windows to start-of-day UTC. Without this, the
