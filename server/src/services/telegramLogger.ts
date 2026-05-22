@@ -31,32 +31,6 @@ const COOLDOWN_MS = 60_000;
 const MAX_TELEGRAM_MESSAGE = 4000;
 const lastSent = new Map<string, number>();
 
-// R240: error context cache for the "🔧 Fix it" inline button. When
-// a user taps the button in Telegram we look up the full error here
-// by the short ID we baked into callback_data (Telegram limits that
-// to 64 bytes — a counter ID is the only realistic way).
-export interface CachedErrorContext {
-  message: string;
-  stack: string;
-  route?: string;
-  source: 'server' | 'client';
-  userId?: string;
-  tags?: Record<string, string>;
-  createdAt: number;
-}
-const errorCache = new Map<string, CachedErrorContext>();
-let errorIdCounter = 0;
-function nextErrorId(): string {
-  errorIdCounter = (errorIdCounter + 1) % 1_000_000;
-  return `e${errorIdCounter}`;
-}
-
-/** Look up cached error by the short ID. Returns null when expired
- *  (cache is FIFO-capped at 200 entries — old IDs get evicted). */
-export function lookupCachedError(id: string): CachedErrorContext | null {
-  return errorCache.get(id) ?? null;
-}
-
 function hashKey(message: string, firstFrame: string): string {
   // Cheap deterministic key — first 80 chars of message + first stack frame.
   return (message.slice(0, 80) + '|' + firstFrame.slice(0, 80)).toLowerCase();
@@ -116,25 +90,6 @@ export function sendErrorToTelegram(
   }
   const stackTrim = stack.split('\n').slice(0, 8).join('\n');
 
-  // R240: cache the error context so the "🔧 Fix it" callback handler
-  // can look it up later. Cap at 200 entries — solo-dev volume, FIFO
-  // eviction is fine.
-  const errorId = nextErrorId();
-  errorCache.set(errorId, {
-    message: message.slice(0, 2000),
-    stack: stack.slice(0, 8000),
-    route: context.route,
-    source,
-    userId: context.userId,
-    tags: context.tags,
-    createdAt: now,
-  });
-  if (errorCache.size > 200) {
-    // Drop the oldest entry (Map iteration is insertion-order).
-    const firstKey = errorCache.keys().next().value;
-    if (firstKey) errorCache.delete(firstKey);
-  }
-
   const parts = [
     `${emoji} *${escapeMarkdown(source.toUpperCase())} ERROR*`,
     `\`${escapeMarkdown(message.slice(0, 300))}\``,
@@ -143,9 +98,9 @@ export function sendErrorToTelegram(
   ].filter(Boolean);
   const text = parts.join('\n\n').slice(0, MAX_TELEGRAM_MESSAGE);
 
-  // Fire-and-forget POST. Inline keyboard with "🔧 Fix it" button —
-  // when tapped Telegram POSTs a callback_query to our webhook which
-  // creates a GitHub issue with the full cached context.
+  // Fire-and-forget POST — plain text, no inline buttons. The "Fix it"
+  // auto-fix flow was reverted (too complex for solo-dev volume); user
+  // just reads errors here, manually fixes via Claude chat later.
   fetch(`https://api.telegram.org/bot${creds.token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -154,11 +109,6 @@ export function sendErrorToTelegram(
       text,
       parse_mode: 'MarkdownV2',
       disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '🔧 Fix it (Claude)', callback_data: `fix:${errorId}` },
-        ]],
-      },
     }),
   }).then(async (res) => {
     if (!res.ok) {
