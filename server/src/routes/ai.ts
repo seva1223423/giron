@@ -6,7 +6,7 @@ import { CONTEXT_TOOL_DEFINITIONS, executeContextTool, type ContextToolPreload }
 import { NAV_WHITELIST, validateNavigation } from '../ai/navigationWhitelist';
 import { computeWeightTrend } from '../ai/weightProjection';
 import { prisma } from '../db';
-import type { Prisma } from '@prisma/client';
+import { fetchPrimaryChatContext } from '../ai/chatContext';
 import { logger } from '../utils/logger';
 import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
 import { foodVisionCache, aiUserContextCache, AI_USER_CONTEXT_TTL_MS } from '../utils/memCache';
@@ -5714,43 +5714,24 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       res.setHeader('X-Accel-Buffering', 'no');
     }
 
-    // Pre-compute date ranges needed by parallel queries
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const twoWeeksAgo = new Date();
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-
     // Pre-compute weekPlan exercise IDs (available immediately from request body)
     const looksLikeId = (s: string) => s.length >= 20 && !/\s/.test(s);
     const allWeekPlanExerciseIds = weekPlan
       ? Object.values(weekPlan).flatMap((e) => (e?.exercises ?? []).filter(looksLikeId))
       : [];
 
-    // Fetch all user context data in parallel — 16 independent queries
-    // (aiMemoryCount derived from userMemories.length after secondary block)
-    // (weekMealsForCalories replaced by weekMeals which has all columns)
-    //
-    // Audit R-2026-05-22 (supabase-postgres / vercel-react skills):
-    // user findUnique + healthRestrictions JOIN is the biggest payload in
-    // the batch and changes infrequently. Serve from aiUserContextCache
-    // when fresh; explicit invalidation in update_user_profile keeps the
-    // tool's own write visible immediately. Other 15 queries either change
-    // every message (chatMessages, meals, workouts) or are too tied to
-    // current state to cache safely.
-    const _t0ContextPrimary = Date.now();
-    // Typed shape of the cached/fresh user payload — same as what
-    // `prisma.user.findUnique({ include: { healthRestrictions: true } })`
-    // returns. Pinned via Prisma.UserGetPayload so a future schema bump
-    // that drops a field surfaces here as a tsc error.
-    type CachedAiUser = Prisma.UserGetPayload<{ include: { healthRestrictions: true } }>;
-    const cachedUser = aiUserContextCache.get(userId) as CachedAiUser | undefined;
-    const userFetch: Promise<CachedAiUser | null> = cachedUser
-      ? Promise.resolve(cachedUser)
-      : prisma.user.findUnique({
-          where: { id: userId },
-          include: { healthRestrictions: true },
-        });
-    const [
+    // Primary context fetch — 16 parallel Prisma queries with user-row
+    // caching. Was inline in this function (~150 lines); extracted to
+    // ai/chatContext.ts in audit R-2026-05-22 step 1 of /chat split so
+    // the block is unit-testable + reusable by future endpoints
+    // (analyze-progress, weekly-summary) without copy-paste.
+    const _ctx = await fetchPrimaryChatContext({
+      userId,
+      todayDate,
+      allWeekPlanExerciseIds,
+      sleepEntries,
+    });
+    const {
       user,
       history,
       activeProgram,
@@ -5767,107 +5748,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       weekWorkouts,
       prevWeekWorkouts,
       weekMeals,
-    ] = await Promise.all([
-      userFetch,
-      prisma.chatMessage.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      prisma.program.findFirst({
-        where: { userId, isActive: true },
-        include: {
-          workouts: {
-            include: { exercises: { include: { exercise: true, sets: true } } },
-          },
-        },
-      }),
-      prisma.workout.findMany({
-        where: { userId, completedAt: { not: null } },
-        orderBy: { completedAt: 'desc' },
-        take: 5,
-        include: { exercises: { include: { exercise: true, sets: true } } },
-      }),
-      prisma.bodyWeight.findMany({
-        where: { userId },
-        orderBy: { date: 'desc' },
-        take: 10,
-      }),
-      prisma.workoutExercise.findMany({
-        where: { workout: { userId, completedAt: { not: null } } },
-        select: {
-          exerciseId: true,
-          exercise: { select: { name: true } },
-          workout: { select: { completedAt: true } },
-          sets: {
-            where: { completed: true },
-            select: { weight: true, reps: true, type: true },
-          },
-        },
-        orderBy: { workout: { completedAt: 'desc' } },
-        take: 1000,
-      }),
-      prisma.meal.findMany({
-        where: { userId, date: todayDate },
-        include: { items: true },
-        orderBy: { createdAt: 'asc' },
-        take: 100,
-      }),
-      prisma.bodyMeasurement.findMany({
-        where: { userId },
-        orderBy: { date: 'desc' },
-        take: 3,
-      }),
-      prisma.program.findMany({
-        where: { userId },
-        select: { id: true, name: true, isActive: true, type: true, daysPerWeek: true, createdBy: true },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      // Sleep: skip DB query if client already sent entries (avoids redundant fetch)
-      (sleepEntries && sleepEntries.length > 0)
-        ? Promise.resolve([] as Array<{ date: string; durationHours: number; quality: number | null }>)
-        : prisma.sleepEntry.findMany({
-            where: { userId },
-            orderBy: { date: 'desc' },
-            take: 14,
-            select: { date: true, durationHours: true, quality: true },
-          }),
-      prisma.workout.count({ where: { userId, completedAt: { not: null } } }),
-      prisma.workout.findFirst({
-        where: { userId, completedAt: { not: null } },
-        orderBy: { completedAt: 'asc' },
-        select: { completedAt: true },
-      }),
-      allWeekPlanExerciseIds.length > 0
-        ? prisma.exercise.findMany({ where: { id: { in: allWeekPlanExerciseIds } }, select: { id: true, name: true } })
-        : Promise.resolve([] as Array<{ id: string; name: string }>),
-      prisma.workout.findMany({
-        where: { userId, completedAt: { gte: oneWeekAgo } },
-        include: { exercises: { include: { sets: true } } },
-        take: 50,
-      }),
-      prisma.workout.findMany({
-        where: { userId, completedAt: { gte: twoWeeksAgo, lt: oneWeekAgo } },
-        include: { exercises: { include: { sets: true } } },
-        take: 50,
-      }),
-      prisma.meal.findMany({
-        where: { userId, createdAt: { gte: oneWeekAgo } },
-        take: 200,
-      }),
-    ]);
-    const _primaryContextMs = Date.now() - _t0ContextPrimary;
-    if (_primaryContextMs > 2000) logger.warn(`[AI] Primary context fetch slow: ${_primaryContextMs}ms (userId: ${userId})`);
-
-    // Save the fetched user (with healthRestrictions JOIN) to the
-    // per-user cache so the next /chat message in the same minute
-    // skips this Prisma round-trip entirely. Only set if we actually
-    // hit the DB this turn — otherwise we'd reset the TTL on the
-    // cached value and never let it expire.
-    if (!cachedUser && user) {
-      aiUserContextCache.set(userId, user, AI_USER_CONTEXT_TTL_MS);
-    }
+    } = _ctx;
 
     const weekPlanIdToName = new Map<string, string>();
     weekPlanExercisesRaw.forEach((ex) => weekPlanIdToName.set(ex.id, ex.name));
