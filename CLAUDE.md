@@ -228,12 +228,12 @@ server/
 # Клиент
 npm start              # expo start
 npm run android        # expo start --android
-npm test               # jest (client unit tests, 111 суитов, ~2030 тестов)
+npm test               # jest (client unit tests, 117 суитов, ~5475 тестов)
 
 # Сервер
 cd server
 npm run dev            # tsx watch src/index.ts (порт 3001)
-npm test               # jest (server integration tests, 92 суит, ~2500+ тестов)
+npm test               # jest (server integration tests, 92 суит, ~2604 тестов)
                        # Новые суиты добавлены в rounds 2-18 (2026-04-28):
                        # retentionService, adminDigestService, cronHealth,
                        # aiMetrics, memCache, activityTracker
