@@ -1,27 +1,27 @@
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useWorkoutStore } from '../../../store';
-import { Card, Button, FadeIn } from '../../../components';
+import { useThemeColors, useWorkoutStore } from '../../../store';
+import { Card, Button, FadeIn, Icon, type IconName } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../../types';
 import { startWorkoutSafe } from '../../../utils/startWorkoutSafe';
 
-const QUICK_WORKOUTS = [
-  { name: 'Грудь + Трицепс', emoji: '◎', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown', 'overhead-tricep-ext'] },
-  { name: 'Спина + Бицепс', emoji: '◎', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl', 'hammer-curl'] },
-  { name: 'Ноги', emoji: '◎', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'leg-extension', 'calf-raise'] },
-  { name: 'Плечи + Пресс', emoji: '◎', exercises: ['overhead-press', 'lateral-raise', 'arnold-press', 'face-pull', 'plank', 'cable-crunch'] },
-  { name: 'Фулбоди', emoji: '◈', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
-  { name: 'Руки', emoji: '◎', exercises: ['barbell-curl', 'hammer-curl', 'preacher-curl', 'tricep-pushdown', 'french-press', 'close-grip-bench'] },
-  { name: 'Базовая тройка', emoji: '◉', exercises: ['squat', 'bench-press', 'deadlift'] },
-  { name: 'Пресс + Кор', emoji: '◧', exercises: ['plank', 'cable-crunch', 'hanging-leg-raise', 'bicycle-crunch', 'russian-twist', 'side-plank'] },
-  { name: 'Кардио', emoji: '◑', exercises: ['treadmill', 'jump-rope', 'cycling'] },
-  { name: 'Тяжёлая спина', emoji: '◎', exercises: ['deadlift', 'barbell-row', 'pull-ups', 'lat-pulldown', 'seated-row', 'dumbbell-row'] },
-  { name: 'Ноги (гантели)', emoji: '◎', exercises: ['goblet-squat', 'lunges', 'romanian-deadlift', 'bulgarian-split-squat', 'leg-curl'] },
-  { name: 'Жим + Грудь', emoji: '◎', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-bench-press', 'cable-fly', 'dips'] },
+const QUICK_WORKOUTS: { name: string; iconName: IconName; exercises: string[] }[] = [
+  { name: 'Грудь + Трицепс', iconName: 'dumbbell', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-fly', 'tricep-pushdown', 'overhead-tricep-ext'] },
+  { name: 'Спина + Бицепс', iconName: 'dumbbell', exercises: ['deadlift', 'barbell-row', 'lat-pulldown', 'pull-ups', 'barbell-curl', 'hammer-curl'] },
+  { name: 'Ноги', iconName: 'flame', exercises: ['squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'leg-extension', 'calf-raise'] },
+  { name: 'Плечи + Пресс', iconName: 'bolt', exercises: ['overhead-press', 'lateral-raise', 'arnold-press', 'face-pull', 'plank', 'cable-crunch'] },
+  { name: 'Фулбоди', iconName: 'spark', exercises: ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'barbell-curl'] },
+  { name: 'Руки', iconName: 'dumbbell', exercises: ['barbell-curl', 'hammer-curl', 'preacher-curl', 'tricep-pushdown', 'french-press', 'close-grip-bench'] },
+  { name: 'Базовая тройка', iconName: 'trophy', exercises: ['squat', 'bench-press', 'deadlift'] },
+  { name: 'Пресс + Кор', iconName: 'target', exercises: ['plank', 'cable-crunch', 'hanging-leg-raise', 'bicycle-crunch', 'russian-twist', 'side-plank'] },
+  { name: 'Кардио', iconName: 'heart', exercises: ['treadmill', 'jump-rope', 'cycling'] },
+  { name: 'Тяжёлая спина', iconName: 'dumbbell', exercises: ['deadlift', 'barbell-row', 'pull-ups', 'lat-pulldown', 'seated-row', 'dumbbell-row'] },
+  { name: 'Ноги (гантели)', iconName: 'flame', exercises: ['goblet-squat', 'lunges', 'romanian-deadlift', 'bulgarian-split-squat', 'leg-curl'] },
+  { name: 'Жим + Грудь', iconName: 'dumbbell', exercises: ['bench-press', 'incline-bench-press', 'dumbbell-bench-press', 'cable-fly', 'dips'] },
 ];
 
 interface Props {
@@ -30,7 +30,7 @@ interface Props {
 
 export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { activeWorkout, savedTemplates, deleteTemplate, routines, fetchRoutines } = useWorkoutStore();
 
   useEffect(() => {
@@ -99,7 +99,7 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
                   style={[styles.routineCard, { backgroundColor: colors.card, borderColor: colors.primary + '40' }]}
                 >
                   <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◈</Text>
+                    <Icon name="spark" size={16} color={colors.primary} />
                   </View>
                   <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.xs }]} numberOfLines={2}>{routine.name}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>{routine.exercises.length} упр.</Text>
@@ -144,7 +144,9 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
                   }}
                   style={[styles.templateCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}><Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>◎</Text></View>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + '18', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm }}>
+                    <Icon name="bookmark" size={16} color={colors.primary} />
+                  </View>
                   <Text style={[typography.bodySemibold, { color: colors.text, marginBottom: spacing.xs }]} numberOfLines={2}>{tpl.name}</Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>{tpl.exercises.length} упр.</Text>
                 </TouchableOpacity>
@@ -154,30 +156,35 @@ export const QuickStartTab: React.FC<Props> = ({ navigation }) => {
         </>
       )}
 
-      <Text style={[typography.h4, { color: colors.text, marginBottom: spacing.lg }]}>Шаблоны тренировок</Text>
+      <Text style={[typography.metaLabel, { color: colors.textSecondary, marginBottom: spacing.md }]}>ШАБЛОНЫ ТРЕНИРОВОК</Text>
       {QUICK_WORKOUTS.map((template, i) => (
         <FadeIn key={i} delay={i * 80}>
           <Card style={{ marginBottom: spacing.md }} onPress={() => createWorkoutFromTemplate(template)}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>{template.emoji}</Text></View>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary + '20', borderWidth: 1.5, borderColor: colors.primary + '40', alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+                <Icon name={template.iconName} size={22} color={colors.primary} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{template.name}</Text>
                 <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>
                   {template.exercises.length} упражнений
                 </Text>
               </View>
-              <Text style={[typography.body, { color: colors.textTertiary }]}>{'>'}</Text>
+              <Icon name="chev" size={16} color={colors.textTertiary} />
             </View>
           </Card>
         </FadeIn>
       ))}
+
+      <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.lg }} />
 
       <Button
         title="Создать свою тренировку"
         variant="outline"
         onPress={() => navigation.navigate('CustomWorkout')}
         fullWidth
-        style={{ marginTop: spacing.md }}
+        icon={<Icon name="plus" size={18} color={colors.primary} />}
+        style={{ marginTop: spacing.xs }}
       />
     </>
   );
