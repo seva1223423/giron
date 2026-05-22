@@ -44,13 +44,35 @@ const FALLBACK_PROMPTS = [
 export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const { user, fetchProfile } = useAuthStore();
-  const { fetchHistory, fetchPrograms, setWeekPlanDay, weekPlan } = useWorkoutStore();
-  const { setTargets, syncMealsFromServer, defaultTargets, getDayLog, addWater, applyServerTargets } = useNutritionStore();
-  const { getWeekSessions, syncFromServer: syncCardio, addSession: addCardioSession } = useCardioStore();
-  const { getLastEntries: getSleepEntries, syncFromServer: syncSleep } = useSleepStore();
-  const { consumeAiMessage, isPremiumActive, aiMessagesLeft } = useSubscriptionStore();
-  const { setRestTimerDefault, setNotificationsEnabled, setReminderHour, setWaterRemindersEnabled, setWorkoutDurationGoal } = useSettingsStore();
-  const { addEntry: addMeasurementEntry } = useMeasurementsStore();
+  // Per-slice selectors — bare destructure pulls every field of every
+  // store (~25 fields across 7 stores). During streaming setMessages
+  // fires 30+ times/sec; any tick of any store re-renders the whole
+  // chat list. Action functions are stable refs so subscribing to them
+  // costs ~nothing.
+  const fetchHistory = useWorkoutStore((s) => s.fetchHistory);
+  const fetchPrograms = useWorkoutStore((s) => s.fetchPrograms);
+  const setWeekPlanDay = useWorkoutStore((s) => s.setWeekPlanDay);
+  const weekPlan = useWorkoutStore((s) => s.weekPlan);
+  const setTargets = useNutritionStore((s) => s.setTargets);
+  const syncMealsFromServer = useNutritionStore((s) => s.syncMealsFromServer);
+  const defaultTargets = useNutritionStore((s) => s.defaultTargets);
+  const getDayLog = useNutritionStore((s) => s.getDayLog);
+  const addWater = useNutritionStore((s) => s.addWater);
+  const applyServerTargets = useNutritionStore((s) => s.applyServerTargets);
+  const getWeekSessions = useCardioStore((s) => s.getWeekSessions);
+  const syncCardio = useCardioStore((s) => s.syncFromServer);
+  const addCardioSession = useCardioStore((s) => s.addSession);
+  const getSleepEntries = useSleepStore((s) => s.getLastEntries);
+  const syncSleep = useSleepStore((s) => s.syncFromServer);
+  const consumeAiMessage = useSubscriptionStore((s) => s.consumeAiMessage);
+  const isPremiumActive = useSubscriptionStore((s) => s.isPremiumActive);
+  const aiMessagesLeft = useSubscriptionStore((s) => s.aiMessagesLeft);
+  const setRestTimerDefault = useSettingsStore((s) => s.setRestTimerDefault);
+  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
+  const setReminderHour = useSettingsStore((s) => s.setReminderHour);
+  const setWaterRemindersEnabled = useSettingsStore((s) => s.setWaterRemindersEnabled);
+  const setWorkoutDurationGoal = useSettingsStore((s) => s.setWorkoutDurationGoal);
+  const addMeasurementEntry = useMeasurementsStore((s) => s.addEntry);
   const scrollRef = useRef<ScrollView>(null);
   const dynamicPrompts = useDynamicPrompts();
   // Phase A: local command parser hook. Returns tryHandle(text) that short-

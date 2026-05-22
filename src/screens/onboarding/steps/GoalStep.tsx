@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { TrainingGoal } from '../../../types';
@@ -20,7 +20,7 @@ interface Props {
 }
 
 export const GoalStep: React.FC<Props> = ({ goal, onSelect }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   return (
     <View style={styles.container}>
       <Text style={[typography.h2, { color: colors.text, marginBottom: spacing.sm }]}>Какая у тебя цель?</Text>

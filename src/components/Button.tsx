@@ -39,7 +39,7 @@ interface ButtonProps {
   accessibilityHint?: string;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+const ButtonImpl: React.FC<ButtonProps> = ({
   title,
   onPress,
   variant = 'primary',
@@ -168,3 +168,8 @@ export const Button: React.FC<ButtonProps> = ({
     </AnimatedPressable>
   );
 };
+
+// React.memo: Button is rendered in lists (settings rows, paywall plans,
+// onboarding steps). Shallow prop equality saves cascade re-renders when
+// parents update unrelated state.
+export const Button = React.memo(ButtonImpl);

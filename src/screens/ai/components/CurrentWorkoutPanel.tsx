@@ -24,10 +24,10 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useWorkoutStore } from '../../../store';
-import { useThemeStore } from '../../../store/useThemeStore';
+import { useThemeColors } from '../../../store/useThemeStore';
 
 export const CurrentWorkoutPanel: React.FC = () => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const activeWorkout = useWorkoutStore((s) => s.activeWorkout);
   const [collapsed, setCollapsed] = useState(false);
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { AIActionResult } from '../../../services';
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const ActionsBar: React.FC<Props> = ({ actions }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (actions.length === 0) return null;
   return (
     <View style={[styles.bar, { backgroundColor: colors.success + '18', borderTopColor: colors.success + '40' }]}>

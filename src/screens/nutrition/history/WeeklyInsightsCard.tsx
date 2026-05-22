@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -27,7 +27,7 @@ interface Props {
 }
 
 export const WeeklyInsightsCard: React.FC<Props> = ({ insights, delay = 80 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <FadeIn delay={delay}>

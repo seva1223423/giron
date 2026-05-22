@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { formatDuration } from './CalendarGrid';
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export const WorkoutDayModal: React.FC<Props> = ({ visible, onClose, selectedDayStr, workouts }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>

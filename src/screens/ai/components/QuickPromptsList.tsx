@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const QuickPromptsList: React.FC<Props> = ({ dynamicPrompts, allPrompts, hasServerStarters, onSend }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   return (
     <FadeIn delay={200}>

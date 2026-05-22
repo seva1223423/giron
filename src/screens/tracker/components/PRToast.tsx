@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -51,7 +51,7 @@ function useConfetti(active: boolean) {
 }
 
 export const PRToast: React.FC<Props> = ({ toast }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const anim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const [confettiActive, setConfettiActive] = useState(false);

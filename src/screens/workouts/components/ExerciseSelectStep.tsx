@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
@@ -39,7 +39,7 @@ interface Props {
 export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onNext, onCancel }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { customExercises, deleteCustomExercise } = useWorkoutStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');

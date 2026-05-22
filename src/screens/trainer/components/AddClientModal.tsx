@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Modal, StyleSheet } from 'react-native';
-import { useThemeStore, useTrainerStore } from '../../../store';
+import { useThemeColors, useTrainerStore } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -13,7 +13,7 @@ interface Props {
 
 export const AddClientModal: React.FC<Props> = ({ visible, onClose }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addClient } = useTrainerStore();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');

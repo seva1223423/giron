@@ -309,6 +309,14 @@ model WorkoutSet {
   workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
 
   @@index([workoutExerciseId])
+  // Composite covers leaderboard CTE and routine.start lookups that
+  // filter WHERE completed=true (workout.ts:1090, ai.ts:5723). Postgres
+  // can index-scan instead of seq-scanning the parent WorkoutExercise →
+  // WorkoutSet join. Partial index (WHERE completed=true AND type !=
+  // 'warmup') would be ~10x smaller but isn't expressible in Prisma
+  // schema — see scripts/db/partial-indexes.sql for the optional raw
+  // upgrade once the table grows past ~100K rows.
+  @@index([workoutExerciseId, completed])
 }
 
 // ==================== ROUTINES ====================

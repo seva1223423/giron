@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useWorkoutStore, useSubscriptionStore } from '../../../store';
+import { useThemeColors, useWorkoutStore, useSubscriptionStore } from '../../../store';
 import { Card, FadeIn, PaywallModal } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -34,7 +34,7 @@ interface Props {
 
 export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { programs } = useWorkoutStore();
   const { isPremiumActive } = useSubscriptionStore();
   const [showPaywall, setShowPaywall] = useState(false);

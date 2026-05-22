@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react'
 import { ScrollView, View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { AnimatedPressable } from '../../components';
 import { useHaptic } from '../../hooks/useHaptic';
-import { useThemeStore, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
+import { useThemeColors, useAuthStore, useWorkoutStore, useNutritionStore } from '../../store';
 import { exercises as localExercises } from '../../data/exercises';
 import { Workout, WorkoutExercise, WorkoutSet } from '../../types';
 import { FadeIn, Button, Card, Icon, Spinner } from '../../components';
@@ -72,7 +72,7 @@ function buildAnnouncementMeta(c: { primary: string; warning: string; error: str
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [announcements, setAnnouncements] = useState<Array<{ id: string; title: string; body: string; type: AnnouncementType; createdAt: string }>>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
@@ -99,7 +99,20 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
   const { user } = useAuthStore();
-  const { programs, workoutHistory, activeWorkout, weekPlan, isLoadingHistory, fetchPrograms, fetchHistory, customExercises, fetchWeekPlan, startWorkoutFromRoutine } = useWorkoutStore();
+  // Per-slice selectors instead of full-store destructure. Default
+  // destructure subscribes to every field — including restTimeRemaining
+  // which ticks every second during an active workout, re-rendering the
+  // whole HomeScreen tree once per second for no reason.
+  const programs = useWorkoutStore((s) => s.programs);
+  const workoutHistory = useWorkoutStore((s) => s.workoutHistory);
+  const activeWorkout = useWorkoutStore((s) => s.activeWorkout);
+  const weekPlan = useWorkoutStore((s) => s.weekPlan);
+  const isLoadingHistory = useWorkoutStore((s) => s.isLoadingHistory);
+  const customExercises = useWorkoutStore((s) => s.customExercises);
+  const fetchPrograms = useWorkoutStore((s) => s.fetchPrograms);
+  const fetchHistory = useWorkoutStore((s) => s.fetchHistory);
+  const fetchWeekPlan = useWorkoutStore((s) => s.fetchWeekPlan);
+  const startWorkoutFromRoutine = useWorkoutStore((s) => s.startWorkoutFromRoutine);
   const { getDayLog } = useNutritionStore();
 
   useEffect(() => {

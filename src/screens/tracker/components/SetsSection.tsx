@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { Card, Button, AnimatedPressable } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -31,7 +31,7 @@ export const SetsSection: React.FC<Props> = ({
   const { width: screenW } = useWindowDimensions();
   const SHOW_PLATE_CALC = screenW > 360;
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   // Progressive overload suggestion: if all prev sets hit target reps, suggest +2.5kg
   const overloadSuggestion = useMemo(() => {

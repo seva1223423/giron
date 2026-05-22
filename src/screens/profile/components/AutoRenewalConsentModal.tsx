@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Linking,
 } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Button } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
@@ -47,7 +47,7 @@ export const AutoRenewalConsentModal: React.FC<Props> = ({
   onConfirm,
   onCancel,
 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const [agreed, setAgreed] = useState(false);
 
   const handleConfirm = () => {

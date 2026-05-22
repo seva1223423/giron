@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 
@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const CelebrationBar: React.FC<Props> = ({ celebration }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   if (!celebration) return null;
   return (
     <View style={[styles.bar, { backgroundColor: colors.accent + '15', borderTopColor: colors.accent + '40' }]}>

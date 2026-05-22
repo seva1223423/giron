@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, KeyboardAvoidingView, Platform,
   ScrollView, TouchableOpacity,
 } from 'react-native';
-import { useThemeStore } from '../../store';
+import { useThemeColors } from '../../store';
 import { Button, Input } from '../../components';
 import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
@@ -25,7 +25,7 @@ const STRENGTH_COLORS = ['', '#EF4444', '#FF9F0A', '#34C759', '#D4B07A'];
 const STRENGTH_LABELS = ['', 'Слабый', 'Средний', 'Хороший', 'Отличный'];
 
 export const ChangePasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   // isSocialOnly is determined server-side — we ask the /has-password endpoint
   const [isSocialOnly, setIsSocialOnly] = useState<boolean | null>(null); // null = loading
   const [hasTwoFactor, setHasTwoFactor] = useState(false);

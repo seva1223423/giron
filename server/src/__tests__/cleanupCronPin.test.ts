@@ -148,6 +148,47 @@ describe('Cleanup cron — every cleanup setInterval marks liveness via trackCro
   test('password-reset cleanup uses trackCron("cleanup-password-reset")', () => {
     expect(INDEX_SRC).toMatch(/trackCron\(\s*['"]cleanup-password-reset['"]/);
   });
+
+  test('food-scan-log cleanup uses trackCron("cleanup-food-scan-log")', () => {
+    expect(INDEX_SRC).toMatch(/trackCron\(\s*['"]cleanup-food-scan-log['"]/);
+  });
+
+  test('health-sample cleanup uses trackCron("cleanup-health-sample")', () => {
+    expect(INDEX_SRC).toMatch(/trackCron\(\s*['"]cleanup-health-sample['"]/);
+  });
+});
+
+// ─── Daily food-scan-log + health-sample retention (added 2026-05-22 audit) ──
+
+describe('Cleanup cron — food-scan-log + health-sample retention (daily)', () => {
+  test('food-scan-log cleanup runs daily (24h cadence)', () => {
+    // 24h = 24 * 60 * 60 * 1000. Two daily cleanups now exist; the regex
+    // matches either as long as the wrapper still .unref()s.
+    expect(INDEX_SRC).toMatch(
+      /trackCron\(['"]cleanup-food-scan-log['"][\s\S]*?\}\s*,\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000\s*\)\.unref\(\)/,
+    );
+  });
+
+  test('health-sample cleanup runs daily (24h cadence)', () => {
+    expect(INDEX_SRC).toMatch(
+      /trackCron\(['"]cleanup-health-sample['"][\s\S]*?\}\s*,\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000\s*\)\.unref\(\)/,
+    );
+  });
+
+  test('food-scan-log predicate uses NINETY_DAYS_MS retention', () => {
+    expect(COMBINED).toMatch(/NINETY_DAYS_MS\s*=\s*90\s*\*\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000/);
+    expect(COMBINED).toMatch(
+      /foodScanLog\.deleteMany[\s\S]*?createdAt:\s*\{\s*lt:\s*cutoff\s*\}/,
+    );
+  });
+
+  test('health-sample predicate filters by startAt (NOT createdAt)', () => {
+    // Wearable timestamps live in startAt; createdAt is ingest time. Using
+    // createdAt would keep stale samples around if sync was delayed.
+    expect(COMBINED).toMatch(
+      /healthSample\.deleteMany[\s\S]*?startAt:\s*\{\s*lt:\s*cutoff\s*\}/,
+    );
+  });
 });
 
 // ─── All cleanup intervals must .unref() ─────────────────────────────────────

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
-import { useThemeStore, useNutritionStore, useAuthStore } from '../../../store';
+import { useThemeColors, useNutritionStore, useAuthStore } from '../../../store';
 import { Card, ProgressRing, MacroBar } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -36,7 +36,7 @@ const macroStyles = StyleSheet.create({
 });
 
 export const DailyOverview: React.FC<Props> = ({ selectedDate }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { getDayLog } = useNutritionStore();
   const { user } = useAuthStore();
   const { width: screenWidth } = useWindowDimensions();

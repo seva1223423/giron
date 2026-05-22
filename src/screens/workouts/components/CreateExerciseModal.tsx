@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
-import { useThemeStore, useWorkoutStore } from '../../../store';
+import { useThemeColors, useWorkoutStore } from '../../../store';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Exercise } from '../../../types';
@@ -31,7 +31,7 @@ interface Props {
 export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
   const haptic = useHaptic();
   const safeTop = useSafeTop();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { addCustomExercise } = useWorkoutStore();
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState('chest');

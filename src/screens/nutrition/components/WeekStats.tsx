@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
-import { useThemeStore, useNutritionStore } from '../../../store';
+import { useThemeColors, useNutritionStore } from '../../../store';
 import { Card } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { localDateStr } from '../../../utils/date';
 
 export const WeekStats: React.FC = () => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { dailyLog } = useNutritionStore();
 
   const weekStats = useMemo(() => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
-import { useThemeStore, useRecipesStore } from '../../../store';
+import { useThemeColors, useRecipesStore } from '../../../store';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { Icon, Card, Button } from '../../../components';
@@ -20,7 +20,7 @@ export const RecipeDetailScreen: React.FC<{ navigation: any; route: any }> = ({ 
   const { id, draft } = route.params as { id?: string; draft?: Recipe };
   const safeTop = useSafeTop();
   const haptic = useHaptic();
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
   const { mine, removeMine } = useRecipesStore();
 
   const [recipe, setRecipe] = useState<Recipe | null>(draft ?? null);

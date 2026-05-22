@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useThemeStore } from '../../../store';
+import { useThemeColors } from '../../../store';
 import { Card, FadeIn } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
@@ -28,7 +28,7 @@ interface Props {
 }
 
 export const NutritionDayCard: React.FC<Props> = ({ date, log, isExpanded, onPress, animDelay = 0 }) => {
-  const { colors } = useThemeStore();
+  const colors = useThemeColors();
 
   const totalCalories = log.meals.reduce((s, m) => s + m.totalCalories, 0);
   const totalProtein = log.meals.reduce((s, m) => s + m.totalProtein, 0);
