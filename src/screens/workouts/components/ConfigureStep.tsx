@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
+import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeColors, useWorkoutStore } from '../../../store';
-import { Card, Button, FadeIn } from '../../../components';
+import { Card, Button, FadeIn, Icon, HitTarget } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { Exercise, Workout, WorkoutExercise, WorkoutSet } from '../../../types';
@@ -135,110 +136,161 @@ export const ConfigureStepView: React.FC<InnerProps & { navigation: any }> = ({
   onSaveTemplate, getConfig, navigation,
 }) => {
   const haptic = useHaptic();
+  const safeTop = useSafeTop();
   const colors = useThemeColors();
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.huge }}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={[typography.h3, { color: colors.primary }]}>{'‹'}</Text>
-        </TouchableOpacity>
-        <Text style={[typography.h2, { color: colors.text, flex: 1, marginLeft: spacing.md }]}>Настройка</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: safeTop, paddingBottom: spacing.xxxl }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <HitTarget
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel="Назад"
+          >
+            <View style={[styles.backBtn, { transform: [{ rotate: '180deg' }] }]}>
+              <Icon name="chev" size={20} color={colors.text} />
+            </View>
+          </HitTarget>
+          <View style={{ flex: 1, marginLeft: spacing.md }}>
+            <Text style={[typography.metaLabel, { color: colors.textSecondary }]}>02 · НАСТРОЙКА</Text>
+            <Text style={[typography.h2, { color: colors.text, marginTop: 2 }]}>Параметры</Text>
+          </View>
+        </View>
 
-      <TextInput
-        style={[styles.nameInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
-        value={workoutName}
-        onChangeText={onNameChange}
-        placeholder="Название тренировки"
-        placeholderTextColor={colors.inputPlaceholder}
-      />
+        <TextInput
+          style={[styles.nameInput, typography.body, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+          value={workoutName}
+          onChangeText={onNameChange}
+          placeholder="Название тренировки"
+          placeholderTextColor={colors.inputPlaceholder}
+        />
 
-      <Text style={[typography.h4, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.md }]}>
-        Упражнения ({selectedExercises.length})
-      </Text>
+        <Text style={[typography.metaLabel, { color: colors.textSecondary, marginTop: spacing.xl, marginBottom: spacing.md }]}>
+          УПРАЖНЕНИЯ ({selectedExercises.length})
+        </Text>
 
-      {selectedExercises.map((ex, i) => {
-        const cfg = getConfig(ex.id);
-        const isSupersetStart = supersetPairs.has(i);
-        return (
-          <FadeIn key={ex.id} delay={i * 60}>
-            <Card style={{ marginBottom: spacing.xs }}>
-              <View style={styles.configRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-                  {i > 0 && (
-                    <TouchableOpacity onPress={() => onMove(i, 'up')} style={[styles.moveBtn, { borderColor: colors.border }]}>
-                      <Text style={[typography.body, { color: colors.textSecondary }]}>↑</Text>
-                    </TouchableOpacity>
-                  )}
-                  {i < selectedExercises.length - 1 && (
-                    <TouchableOpacity onPress={() => onMove(i, 'down')} style={[styles.moveBtn, { borderColor: colors.border }]}>
-                      <Text style={[typography.body, { color: colors.textSecondary }]}>↓</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity onPress={() => onRemove(ex)} style={[styles.moveBtn, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
-                    <Text style={[typography.body, { color: colors.error }]}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.steppersRow}>
-                {([
-                  { label: 'Подходы', field: 'sets' as const, min: 1, max: 20, step: 1, fmt: (v: number) => String(v) },
-                  { label: 'Повторения', field: 'reps' as const, min: 1, max: 50, step: 1, fmt: (v: number) => String(v) },
-                  { label: 'Отдых', field: 'rest' as const, min: 15, max: 300, step: 15, fmt: (v: number) => `${v}с` },
-                ]).map((s, si) => (
-                  <React.Fragment key={s.field}>
-                    {si > 0 && <View style={[styles.stepperDivider, { backgroundColor: colors.divider }]} />}
-                    <View style={styles.stepperGroup}>
-                      <Text style={[typography.caption, { color: colors.textTertiary }]}>{s.label}</Text>
-                      <View style={styles.stepper}>
-                        <TouchableOpacity
-                          onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.max(s.min, cfg[s.field] - s.step) }); }}
-                          style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
-                        >
-                          <Text style={[typography.bodySemibold, { color: colors.text }]}>−</Text>
-                        </TouchableOpacity>
-                        <Text style={[typography.bodySemibold, { color: colors.text, minWidth: s.field === 'rest' ? 32 : 24, textAlign: 'center' }]}>
-                          {s.fmt(cfg[s.field])}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.min(s.max, cfg[s.field] + s.step) }); }}
-                          style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
-                        >
-                          <Text style={[typography.bodySemibold, { color: colors.text }]}>+</Text>
-                        </TouchableOpacity>
+        {selectedExercises.map((ex, i) => {
+          const cfg = getConfig(ex.id);
+          const isSupersetStart = supersetPairs.has(i);
+          return (
+            <FadeIn key={ex.id} delay={i * 60}>
+              <Card style={{ marginBottom: spacing.xs }}>
+                <View style={styles.configRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.bodySemibold, { color: colors.text }]} numberOfLines={1}>{ex.name}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                    {i > 0 && (
+                      <HitTarget onPress={() => onMove(i, 'up')} accessibilityRole="button" accessibilityLabel="Переместить вверх">
+                        <View style={[styles.moveBtn, { borderColor: colors.border, transform: [{ rotate: '-90deg' }] }]}>
+                          <Icon name="chev" size={14} color={colors.textSecondary} />
+                        </View>
+                      </HitTarget>
+                    )}
+                    {i < selectedExercises.length - 1 && (
+                      <HitTarget onPress={() => onMove(i, 'down')} accessibilityRole="button" accessibilityLabel="Переместить вниз">
+                        <View style={[styles.moveBtn, { borderColor: colors.border, transform: [{ rotate: '90deg' }] }]}>
+                          <Icon name="chev" size={14} color={colors.textSecondary} />
+                        </View>
+                      </HitTarget>
+                    )}
+                    <HitTarget onPress={() => onRemove(ex)} accessibilityRole="button" accessibilityLabel="Удалить упражнение">
+                      <View style={[styles.moveBtn, { backgroundColor: colors.error + '15', borderColor: colors.error + '40', transform: [{ rotate: '45deg' }] }]}>
+                        <Icon name="plus" size={14} color={colors.error} />
                       </View>
-                    </View>
-                  </React.Fragment>
-                ))}
-              </View>
-            </Card>
+                    </HitTarget>
+                  </View>
+                </View>
 
-            {i < selectedExercises.length - 1 && (
-              <TouchableOpacity
-                onPress={() => onToggleSuperset(i)}
-                style={[styles.supersetBtn, { backgroundColor: isSupersetStart ? colors.accent + '20' : colors.surface, borderColor: isSupersetStart ? colors.accent : colors.border }]}
-              >
-                <Text style={[typography.captionMedium, { color: isSupersetStart ? colors.accent : colors.textTertiary }]}>
-                  {isSupersetStart ? 'SS Суперсет активен' : '+ Суперсет'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </FadeIn>
-        );
-      })}
+                <View style={styles.steppersRow}>
+                  {([
+                    { label: 'Подходы', field: 'sets' as const, min: 1, max: 20, step: 1, fmt: (v: number) => String(v) },
+                    { label: 'Повторения', field: 'reps' as const, min: 1, max: 50, step: 1, fmt: (v: number) => String(v) },
+                    { label: 'Отдых', field: 'rest' as const, min: 15, max: 300, step: 15, fmt: (v: number) => `${v}с` },
+                  ]).map((s, si) => (
+                    <React.Fragment key={s.field}>
+                      {si > 0 && <View style={[styles.stepperDivider, { backgroundColor: colors.divider }]} />}
+                      <View style={styles.stepperGroup}>
+                        <Text style={[typography.caption, { color: colors.textTertiary }]}>{s.label}</Text>
+                        <View style={styles.stepper}>
+                          <HitTarget
+                            onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.max(s.min, cfg[s.field] - s.step) }); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Уменьшить ${s.label.toLowerCase()}`}
+                          >
+                            <View style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                              <Text style={[typography.bodySemibold, { color: colors.text }]}>−</Text>
+                            </View>
+                          </HitTarget>
+                          <Text style={[typography.bodySemibold, { color: colors.text, minWidth: s.field === 'rest' ? 32 : 24, textAlign: 'center' }]}>
+                            {s.fmt(cfg[s.field])}
+                          </Text>
+                          <HitTarget
+                            onPress={() => { haptic.selection(); onUpdateConfig(ex.id, { [s.field]: Math.min(s.max, cfg[s.field] + s.step) }); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Увеличить ${s.label.toLowerCase()}`}
+                          >
+                            <View style={[styles.stepBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                              <Text style={[typography.bodySemibold, { color: colors.text }]}>+</Text>
+                            </View>
+                          </HitTarget>
+                        </View>
+                      </View>
+                    </React.Fragment>
+                  ))}
+                </View>
+              </Card>
 
-      <Button title="Сохранить как шаблон" variant="outline" onPress={onSaveTemplate} fullWidth style={{ marginTop: spacing.xl }} />
-      <Button title="Начать тренировку" onPress={() => onStart(navigation)} disabled={selectedExercises.length === 0} fullWidth size="lg" style={{ marginTop: spacing.md }} />
-    </ScrollView>
+              {i < selectedExercises.length - 1 && (
+                <TouchableOpacity
+                  onPress={() => onToggleSuperset(i)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isSupersetStart ? 'Убрать суперсет' : 'Добавить суперсет'}
+                  style={[styles.supersetBtn, { backgroundColor: isSupersetStart ? colors.accent + '20' : colors.surface, borderColor: isSupersetStart ? colors.accent : colors.border }]}
+                >
+                  <Icon name="link" size={14} color={isSupersetStart ? colors.accent : colors.textTertiary} />
+                  <Text style={[typography.captionMedium, { color: isSupersetStart ? colors.accent : colors.textTertiary }]}>
+                    {isSupersetStart ? 'Суперсет активен' : 'Суперсет'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </FadeIn>
+          );
+        })}
+
+        <Button title="Сохранить как шаблон" variant="outline" onPress={onSaveTemplate} fullWidth style={{ marginTop: spacing.xl }} />
+      </ScrollView>
+
+      {/* Sticky-bottom primary CTA — thumb-zone (§19) */}
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            shadowColor: '#000',
+            shadowOpacity: 0.12,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: -2 },
+            elevation: 8,
+          },
+        ]}
+      >
+        <Button
+          title="Начать тренировку"
+          onPress={() => onStart(navigation)}
+          disabled={selectedExercises.length === 0}
+          fullWidth
+          size="lg"
+          hapticStyle="medium"
+        />
+      </View>
+    </View>
   );
 };
 
@@ -303,7 +355,8 @@ export const ConfigureStepContainer: React.FC<{
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
-  nameInput: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16 },
+  backBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  nameInput: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg },
   configRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
   moveBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   steppersRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -311,5 +364,6 @@ const styles = StyleSheet.create({
   stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   stepBtn: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   stepperDivider: { width: 1, height: 36, marginHorizontal: spacing.xs },
-  supersetBtn: { alignSelf: 'center', paddingVertical: spacing.xs, paddingHorizontal: spacing.lg, borderRadius: borderRadius.full, borderWidth: 1, marginVertical: spacing.xs, marginBottom: spacing.sm },
+  supersetBtn: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs, paddingHorizontal: spacing.lg, borderRadius: borderRadius.full, borderWidth: 1, marginVertical: spacing.xs, marginBottom: spacing.sm },
+  bottomBar: { borderTopWidth: 1, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, paddingBottom: spacing.lg },
 });

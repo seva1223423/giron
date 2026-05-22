@@ -65,19 +65,19 @@ export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: safeTop }]}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Отмена">
+            <Text style={[typography.bodySemibold, { color: colors.textSecondary }]}>Отмена</Text>
           </TouchableOpacity>
           <Text style={[typography.h4, { color: colors.text }]}>Новое упражнение</Text>
-          <TouchableOpacity onPress={handleSave}>
+          <TouchableOpacity onPress={handleSave} hitSlop={8} accessibilityRole="button" accessibilityLabel="Сохранить">
             <Text style={[typography.bodySemibold, { color: colors.primary }]}>Сохранить</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>НАЗВАНИЕ</Text>
+          <Text style={[typography.metaLabel, { color: colors.textSecondary, marginBottom: spacing.sm }]}>НАЗВАНИЕ</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText, marginBottom: spacing.xl }]}
+            style={[styles.input, typography.body, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText, marginBottom: spacing.xl }]}
             value={name}
             onChangeText={setName}
             placeholder="Название упражнения"
@@ -85,7 +85,7 @@ export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
             autoFocus
           />
 
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>ГРУППА МЫШЦ</Text>
+          <Text style={[typography.metaLabel, { color: colors.textSecondary, marginBottom: spacing.sm }]}>ГРУППА МЫШЦ</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.xl }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               {MUSCLE_OPTIONS.map((opt) => (
@@ -94,13 +94,13 @@ export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
                   onPress={() => setMuscle(opt.key)}
                   style={[styles.chip, { backgroundColor: muscle === opt.key ? colors.primary : colors.surface, borderColor: muscle === opt.key ? colors.primary : colors.border }]}
                 >
-                  <Text style={[typography.captionMedium, { color: muscle === opt.key ? '#FFF' : colors.text }]}>{opt.label}</Text>
+                  <Text style={[typography.captionMedium, { color: muscle === opt.key ? colors.textInverse : colors.text }]}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </ScrollView>
 
-          <Text style={[typography.captionMedium, { color: colors.textSecondary, marginBottom: spacing.sm }]}>СНАРЯЖЕНИЕ</Text>
+          <Text style={[typography.metaLabel, { color: colors.textSecondary, marginBottom: spacing.sm }]}>СНАРЯЖЕНИЕ</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               {EQUIPMENT_OPTIONS.map((opt) => (
@@ -109,7 +109,7 @@ export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
                   onPress={() => setEquipment(opt.key)}
                   style={[styles.chip, { backgroundColor: equipment === opt.key ? colors.accent : colors.surface, borderColor: equipment === opt.key ? colors.accent : colors.border }]}
                 >
-                  <Text style={[typography.captionMedium, { color: equipment === opt.key ? '#FFF' : colors.text }]}>{opt.label}</Text>
+                  <Text style={[typography.captionMedium, { color: equipment === opt.key ? colors.textInverse : colors.text }]}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -123,6 +123,6 @@ export const CreateExerciseModal: React.FC<Props> = ({ visible, onClose }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
-  input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16 },
+  input: { height: 48, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg },
   chip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
 });
