@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert 
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useSafeTop } from '../../../hooks/useSafeTop';
 import { useThemeColors, useWorkoutStore } from '../../../store';
+import { Icon, HitTarget } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { exercises as localExercises } from '../../../data/exercises';
@@ -58,6 +59,14 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
     [allExercises, searchQuery, muscleFilter, equipmentFilter]
   );
 
+  // Derive the selected exercises (in original add order) for the bottom chip strip.
+  const selectedExerciseList = useMemo(
+    () => allExercises.filter((ex) => selectedIds.has(ex.id)),
+    [allExercises, selectedIds]
+  );
+
+  const canProceed = selectedIds.size > 0;
+
   const handleDeleteCustom = (id: string, name: string) => {
     Alert.alert('Удалить упражнение', `Удалить «${name}»?`, [
       { text: 'Отмена', style: 'cancel' },
@@ -66,27 +75,30 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: safeTop }]}>
-        <TouchableOpacity onPress={onCancel}>
-          <Text style={[typography.bodySemibold, { color: colors.error }]}>Отмена</Text>
+        <TouchableOpacity onPress={onCancel} hitSlop={8} accessibilityRole="button" accessibilityLabel="Отмена">
+          <Text style={[typography.bodySemibold, { color: colors.textSecondary }]}>Отмена</Text>
         </TouchableOpacity>
-        <Text style={[typography.h4, { color: colors.text }]} numberOfLines={1}>Выбери упражнения</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <TouchableOpacity onPress={() => setShowCreateModal(true)}>
-            <Text style={[typography.bodySemibold, { color: colors.accent }]}>+ Своё</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => selectedIds.size > 0 && onNext()}>
-            <Text style={[typography.bodySemibold, { color: selectedIds.size > 0 ? colors.primary : colors.textTertiary }]}>
-              Далее ({selectedIds.size})
-            </Text>
-          </TouchableOpacity>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={[typography.metaLabel, { color: colors.textSecondary }]}>01 · УПРАЖНЕНИЯ</Text>
+          <Text style={[typography.h4, { color: colors.text, marginTop: 2 }]} numberOfLines={1}>Выбери упражнения</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => setShowCreateModal(true)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Создать своё упражнение"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
+        >
+          <Icon name="plus" size={16} color={colors.primary} />
+          <Text style={[typography.bodySemibold, { color: colors.primary }]}>Своё</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.md }}>
         <TextInput
-          style={[styles.searchInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+          style={[styles.searchInput, typography.body, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Поиск упражнений..."
@@ -103,7 +115,7 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
         {MUSCLE_FILTERS.map((f) => (
           <TouchableOpacity key={f.key} onPress={() => { haptic.selection(); setMuscleFilter(f.key); }}
             style={[styles.chip, { backgroundColor: muscleFilter === f.key ? colors.primary : colors.surface, borderColor: muscleFilter === f.key ? colors.primary : colors.border }]}>
-            <Text style={[typography.captionMedium, { color: muscleFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+            <Text style={[typography.captionMedium, { color: muscleFilter === f.key ? colors.textInverse : colors.text }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -112,13 +124,21 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
         {EQUIPMENT_FILTERS.map((f) => (
           <TouchableOpacity key={f.key} onPress={() => { haptic.selection(); setEquipmentFilter(f.key); }}
             style={[styles.chip, { backgroundColor: equipmentFilter === f.key ? colors.accent : colors.surface, borderColor: equipmentFilter === f.key ? colors.accent : colors.border }]}>
-            <Text style={[typography.captionMedium, { color: equipmentFilter === f.key ? '#FFF' : colors.text }]}>{f.label}</Text>
+            <Text style={[typography.captionMedium, { color: equipmentFilter === f.key ? colors.textInverse : colors.text }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.huge }}>
-        {filteredExercises.map((ex) => {
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.lg }}>
+        {filteredExercises.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingTop: spacing.huge, paddingHorizontal: spacing.xl }}>
+            <Icon name="search" size={48} color={colors.textSecondary} />
+            <Text style={[typography.h4, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>Ничего не найдено</Text>
+            <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }]}>
+              Попробуй другой фильтр или поиск
+            </Text>
+          </View>
+        ) : filteredExercises.map((ex) => {
           const selected = selectedIds.has(ex.id);
           const isCustom = ex.id.startsWith('custom-');
           return (
@@ -126,14 +146,25 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
               key={ex.id}
               onPress={() => onToggle(ex)}
               onLongPress={() => isCustom && handleDeleteCustom(ex.id, ex.name)}
-              style={[styles.exerciseItem, { backgroundColor: selected ? colors.primary + '10' : colors.card, borderColor: selected ? colors.primary : colors.card }]}
+              style={[
+                styles.exerciseItem,
+                {
+                  backgroundColor: selected ? colors.primary + '15' : colors.card,
+                  borderColor: selected ? colors.primary : colors.card,
+                  borderWidth: selected ? 2 : 1.5,
+                  shadowColor: selected ? colors.primary : 'transparent',
+                  shadowOpacity: selected ? 0.15 : 0,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 0 },
+                },
+              ]}
             >
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                   <Text style={[typography.bodySemibold, { color: colors.text, flex: 1 }]} numberOfLines={1}>{ex.name}</Text>
                   {isCustom && (
                     <View style={{ backgroundColor: colors.accent + '25', borderRadius: borderRadius.full, paddingHorizontal: 6, paddingVertical: 1 }}>
-                      <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '600' }}>МОЁ</Text>
+                      <Text style={[typography.metaLabel, { color: colors.accent }]}>МОЁ</Text>
                     </View>
                   )}
                 </View>
@@ -142,12 +173,76 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
                 </Text>
               </View>
               <View style={[styles.checkCircle, { backgroundColor: selected ? colors.primary : 'transparent', borderColor: selected ? colors.primary : colors.border }]}>
-                {selected && <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12 }}>✓</Text>}
+                {selected && <Icon name="check" size={14} color={colors.textInverse} strokeWidth={3} />}
               </View>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
+
+      {/* Sticky-bottom action bar — primary CTA in thumb zone (§19) */}
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            shadowColor: '#000',
+            shadowOpacity: 0.12,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: -2 },
+            elevation: 8,
+          },
+        ]}
+      >
+        {selectedExerciseList.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: spacing.xl, gap: spacing.sm, paddingVertical: spacing.sm }}
+          >
+            {selectedExerciseList.map((ex) => (
+              <TouchableOpacity
+                key={`chip-${ex.id}`}
+                onPress={() => { haptic.selection(); onToggle(ex); }}
+                style={[styles.selectedChip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '60' }]}
+                accessibilityRole="button"
+                accessibilityLabel={`Убрать ${ex.name}`}
+              >
+                <Text style={[typography.captionMedium, { color: colors.primary }]} numberOfLines={1}>{ex.name}</Text>
+                <View style={{ transform: [{ rotate: '45deg' }] }}>
+                  <Icon name="plus" size={12} color={colors.primary} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+        <View style={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, paddingTop: selectedExerciseList.length > 0 ? spacing.xs : spacing.md }}>
+          <TouchableOpacity
+            onPress={() => { if (canProceed) { haptic.medium(); onNext(); } }}
+            disabled={!canProceed}
+            accessibilityRole="button"
+            accessibilityLabel={canProceed ? `Далее. Выбрано ${selectedIds.size}` : 'Выбери хотя бы одно упражнение'}
+            accessibilityState={{ disabled: !canProceed }}
+            style={[
+              styles.nextButton,
+              {
+                backgroundColor: canProceed ? colors.primary : colors.textTertiary,
+                opacity: canProceed ? 1 : 0.4,
+                shadowColor: canProceed ? colors.primary : 'transparent',
+                shadowOpacity: 0.35,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: canProceed ? 6 : 0,
+              },
+            ]}
+          >
+            <Text style={[typography.button, { color: colors.textInverse }]}>
+              Далее{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <CreateExerciseModal visible={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </View>
@@ -155,9 +250,12 @@ export const ExerciseSelectStep: React.FC<Props> = ({ selectedIds, onToggle, onN
 };
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1 },
-  searchInput: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg, fontSize: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: spacing.md, paddingHorizontal: spacing.xl, borderBottomWidth: 1, gap: spacing.md },
+  searchInput: { height: 44, borderRadius: borderRadius.md, borderWidth: 1, paddingHorizontal: spacing.lg },
   chip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
-  exerciseItem: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1.5, marginBottom: spacing.sm },
+  exerciseItem: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.lg, marginBottom: spacing.sm },
   checkCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  bottomBar: { borderTopWidth: 1 },
+  selectedChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1, maxWidth: 200 },
+  nextButton: { height: 56, borderRadius: borderRadius.xl, alignItems: 'center', justifyContent: 'center' },
 });
