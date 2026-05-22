@@ -15,8 +15,8 @@ import {
 } from '../ai/knowledge-blocks/registry';
 
 describe('knowledge-blocks registry', () => {
-  test('contains at least one block (PoC seeded with 3)', () => {
-    expect(knowledgeBlocksRegistry.length).toBeGreaterThan(0);
+  test('contains at least 8 blocks (PoC + batch 2)', () => {
+    expect(knowledgeBlocksRegistry.length).toBeGreaterThanOrEqual(8);
   });
 
   test('every block has a unique id', () => {
@@ -113,6 +113,96 @@ describe('confidence directive block', () => {
       hasGender: true,
     });
     expect(out).toContain('⚠️ ПРОТИВОРЕЧИЕ');
+  });
+});
+
+describe('batch 2 blocks — smoke tests', () => {
+  test('smart-rest block emits a rest header for normal sets', () => {
+    const block = findKnowledgeBlock('recovery:smart-rest')!;
+    const out = block.build({
+      message: 'отдых',
+      exerciseType: 'barbell',
+      setType: 'normal',
+      userGoal: 'STRENGTH',
+    });
+    expect(out).toContain('ОТДЫХ МЕЖДУ ПОДХОДАМИ');
+    expect(out).toContain('сек');
+  });
+
+  test('smart-rest STRENGTH goal uses ≥180s for barbell', () => {
+    const block = findKnowledgeBlock('recovery:smart-rest')!;
+    const out = block.build({
+      message: '',
+      exerciseType: 'barbell',
+      setType: 'normal',
+      userGoal: 'STRENGTH',
+    });
+    // 180s minimum for strength
+    expect(/180 сек|240 сек|210 сек/.test(out)).toBe(true);
+  });
+
+  test('rep-range block returns empty when goal unknown', () => {
+    const block = findKnowledgeBlock('training:rep-ranges')!;
+    expect(block.build({ message: 'повторений' })).toBe('');
+  });
+
+  test('rep-range block emits ranges for MUSCLE_GAIN', () => {
+    const block = findKnowledgeBlock('training:rep-ranges')!;
+    const out = block.build({ message: '', userGoal: 'MUSCLE_GAIN' });
+    expect(out).toContain('8-12 повторений');
+    expect(out).toContain('ДИАПАЗОНЫ ПОВТОРЕНИЙ');
+  });
+
+  test('nutrition-timing block returns empty when no meals + no workouts', () => {
+    const block = findKnowledgeBlock('nutrition:timing')!;
+    expect(block.build({ message: 'еда', hour: 12, todayMeals: [], recentWorkouts: [] })).toBe('');
+  });
+
+  test('nutrition-timing block flags evening protein deficit', () => {
+    const block = findKnowledgeBlock('nutrition:timing')!;
+    const out = block.build({
+      message: '',
+      hour: 21,
+      todayMeals: [
+        { type: 'breakfast', totalCalories: 500, totalProtein: 30, createdAt: new Date(Date.now() - 12 * 3600_000) },
+      ],
+      recentWorkouts: [],
+      nutritionTargets: { calories: 2400, protein: 160 },
+    });
+    expect(out).toContain('🌙');
+    expect(out).toContain('казеин');
+  });
+
+  test('training-age block always emits a tone block', () => {
+    const block = findKnowledgeBlock('coaching:training-age-tone')!;
+    const out = block.build({ message: '', trainingExperienceYears: 0 });
+    expect(out).toContain('УРОВЕНЬ СОВЕТОВ');
+  });
+
+  test('training-age block picks "ADVANCED" tone for 5+ years', () => {
+    const block = findKnowledgeBlock('coaching:training-age-tone')!;
+    // Need both: experience years AND a non-beginner fitnessLevel — the
+    // original ai.ts function gates on EITHER (so a "5 yr beginner" still
+    // gets beginner advice). Block preserves that semantic.
+    const out = block.build({
+      message: '',
+      trainingExperienceYears: 5,
+      fitnessLevel: 'ADVANCED',
+    });
+    expect(out).toContain('ПРОДВИНУТЫЙ');
+  });
+
+  test('exercise-tempo returns empty for unknown exercise', () => {
+    const block = findKnowledgeBlock('training:exercise-tempo')!;
+    expect(block.build({ message: 'темп', exerciseName: 'неизвестное упражнение' })).toBe('');
+  });
+
+  test('exercise-tempo returns tempo string for bench press', () => {
+    const block = findKnowledgeBlock('training:exercise-tempo')!;
+    const out = block.build({ message: '', exerciseName: 'жим лёжа', userGoal: 'MUSCLE_GAIN' });
+    // Header uses uppercase "ТЕМП"; just check for the tempo digits.
+    expect(out).toContain('ТЕМП');
+    expect(out).toContain('3-0-1-1');
   });
 });
 

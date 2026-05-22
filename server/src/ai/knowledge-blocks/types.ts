@@ -21,6 +21,29 @@ export interface KnowledgeBlockInput {
   /** Body-weight + frequency used by nutrition/macro-split block. */
   bodyWeightKg?: number | null;
   trainingDaysPerWeek?: number;
+  /** Recovery/rest block. */
+  exerciseCategory?: string;
+  exerciseType?: string;
+  setType?: string;
+  lastRpe?: number | null;
+  /** Hypertrophy block. */
+  trainingAgeYears?: number;
+  currentPhase?: string;
+  /** Nutrition timing block. */
+  hour?: number;
+  todayMeals?: Array<{
+    type: string;
+    totalCalories: number;
+    totalProtein: number;
+    createdAt: Date | string;
+  }>;
+  recentWorkouts?: Array<{ completedAt: Date | string | null }>;
+  nutritionTargets?: { calories: number; protein: number } | null;
+  clientDate?: string;
+  /** Training-age block. */
+  totalWorkouts?: number;
+  /** Exercise tempo block. */
+  exerciseName?: string;
 }
 
 export interface KnowledgeBlock {
