@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ScrollView, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import type { ListRenderItemInfo } from 'react-native';
 import * as Speech from 'expo-speech';
 import { useHaptic } from '../../hooks/useHaptic';
 import { useAuthStore, useWorkoutStore, useNutritionStore, useSubscriptionStore, useCardioStore } from '../../store';
@@ -73,7 +74,12 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const setWaterRemindersEnabled = useSettingsStore((s) => s.setWaterRemindersEnabled);
   const setWorkoutDurationGoal = useSettingsStore((s) => s.setWorkoutDurationGoal);
   const addMeasurementEntry = useMeasurementsStore((s) => s.addEntry);
-  const scrollRef = useRef<ScrollView>(null);
+  // Audit R-2026-05-22 (vercel-react / rendering-content-visibility):
+  // FlatList instead of ScrollView so only visible rows render. With
+  // 50+ messages the ScrollView used to lay out every bubble on every
+  // re-render; FlatList virtualises and keeps a sliding window.
+  // scrollToEnd/onContentSizeChange API is identical on both.
+  const scrollRef = useRef<FlatList<ChatMessage>>(null);
   const dynamicPrompts = useDynamicPrompts();
   // Phase A: local command parser hook. Returns tryHandle(text) that short-
   // circuits the server send when a matching command (water/set/complete/
@@ -516,38 +522,64 @@ export const AIChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           workout store, the panel re-renders. */}
       <CurrentWorkoutPanel />
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
-        {historyPage < historyTotalPages && (
-          <View style={styles.loadOlderContainer}>
-            <TouchableOpacity
-              style={styles.loadOlderButton}
-              onPress={loadOlderMessages}
-              disabled={loadingOlderMessages}
-              accessibilityRole="button"
-              accessibilityLabel="Загрузить старые сообщения"
-              accessibilityState={{ disabled: loadingOlderMessages, busy: loadingOlderMessages }}
-            >
-              {loadingOlderMessages
-                ? <ActivityIndicator size="small" color="#D4B07A" />
-                : <Text style={styles.loadOlderText}>Загрузить старые сообщения</Text>}
-            </TouchableOpacity>
-          </View>
-        )}
-        {messages.map((msg, i) => <MessageBubble key={msg.id} message={msg} isLast={i === messages.length - 1} speakingId={speakingId} onSpeak={handleSpeak} />)}
-        {/* Activation CTA (FUNNEL-1). Shown only to users who registered
-            but never sent a single message — `firstChatAt` is null on the
-            User row. Disappears on the next mount once they engage. The
-            prompt is intentionally narrow ("первая программа") because
-            wide-open AI chats with no starting point have a known choice-
-            paralysis problem on first use. */}
-        {messages.length <= 1 && !user?.firstChatAt && (
-          <FirstPromptCta
-            onPress={() => sendMessage('Составь мне первую программу тренировок под мои цели и уровень. Учти мой пол, рост, вес и опыт. Дай готовый план на неделю с упражнениями, подходами и весами.')}
+      <FlatList
+        ref={scrollRef}
+        data={messages}
+        keyExtractor={(msg) => msg.id}
+        renderItem={({ item, index }: ListRenderItemInfo<ChatMessage>) => (
+          <MessageBubble
+            message={item}
+            isLast={index === messages.length - 1}
+            speakingId={speakingId}
+            onSpeak={handleSpeak}
           />
         )}
-        {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
-        {isTyping && <TypingIndicator />}
-      </ScrollView>
+        contentContainerStyle={styles.messages}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+        // Render-window tuning — chat is mostly short bubbles; a window
+        // of ~21 (10 above + visible + 10 below) keeps the user feeling
+        // smooth scroll without rendering 1000-msg history at once.
+        initialNumToRender={15}
+        windowSize={11}
+        maxToRenderPerBatch={10}
+        removeClippedSubviews={Platform.OS === 'android'}
+        ListHeaderComponent={
+          historyPage < historyTotalPages ? (
+            <View style={styles.loadOlderContainer}>
+              <TouchableOpacity
+                style={styles.loadOlderButton}
+                onPress={loadOlderMessages}
+                disabled={loadingOlderMessages}
+                accessibilityRole="button"
+                accessibilityLabel="Загрузить старые сообщения"
+                accessibilityState={{ disabled: loadingOlderMessages, busy: loadingOlderMessages }}
+              >
+                {loadingOlderMessages
+                  ? <ActivityIndicator size="small" color="#D4B07A" />
+                  : <Text style={styles.loadOlderText}>Загрузить старые сообщения</Text>}
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={
+          <>
+            {/* Activation CTA (FUNNEL-1). Shown only to users who registered
+                but never sent a single message — `firstChatAt` is null on the
+                User row. Disappears on the next mount once they engage. The
+                prompt is intentionally narrow ("первая программа") because
+                wide-open AI chats with no starting point have a known choice-
+                paralysis problem on first use. */}
+            {messages.length <= 1 && !user?.firstChatAt && (
+              <FirstPromptCta
+                onPress={() => sendMessage('Составь мне первую программу тренировок под мои цели и уровень. Учти мой пол, рост, вес и опыт. Дай готовый план на неделю с упражнениями, подходами и весами.')}
+              />
+            )}
+            {messages.length <= 1 && <QuickPromptsList dynamicPrompts={dynamicPrompts} allPrompts={allPrompts} hasServerStarters={serverStarters.length > 0} onSend={sendMessage} />}
+            {isTyping && <TypingIndicator />}
+          </>
+        }
+      />
 
       {/* Compact suggestion chips from the Direction A design (A_AI) —
           horizontal scroll row just above the input bar, always visible
