@@ -521,7 +521,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 placeholderTextColor={colors.textTertiary}
                 autoFocus
               />
-              {emailVerifError ? <Text style={{ color: '#EF4444', fontSize: 13, textAlign: 'center', marginBottom: spacing.md }}>{emailVerifError}</Text> : null}
+              {emailVerifError ? <Text style={{ color: colors.error, fontSize: 13, textAlign: 'center', marginBottom: spacing.md }}>{emailVerifError}</Text> : null}
               <Button
                 title={emailVerifLoading ? '...' : 'Подтвердить'}
                 onPress={async () => {
