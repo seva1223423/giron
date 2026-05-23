@@ -6,8 +6,9 @@ import { typography } from '../../../theme';
 import { spacing } from '../../../theme/spacing';
 
 const TABS = [
-  { key: 'plan', label: 'План' },
-  { key: 'history', label: 'История' },
+  { key: 'start', label: 'Начать' },
+  { key: 'programs', label: 'Программы' },
+  { key: 'library', label: 'Библиотека' },
 ] as const;
 
 export type WorkoutsTab = typeof TABS[number]['key'];
@@ -27,11 +28,24 @@ export const WorkoutsTabBar: React.FC<Props> = ({ activeTab, onTabChange }) => {
         <TouchableOpacity
           key={t.key}
           onPress={() => { haptic.selection(); onTabChange(t.key); }}
-          style={[styles.tab, activeTab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2.5, backgroundColor: colors.primary + '08' }]}
+          style={[
+            styles.tab,
+            activeTab === t.key && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+              backgroundColor: colors.primary + '08',
+            },
+          ]}
           accessibilityRole="button"
           accessibilityLabel={t.label}
+          accessibilityState={{ selected: activeTab === t.key }}
         >
-          <Text style={[typography.smallMedium, { color: activeTab === t.key ? colors.primary : colors.textSecondary }]}>
+          <Text
+            style={[
+              typography.smallMedium,
+              { color: activeTab === t.key ? colors.primary : colors.textSecondary },
+            ]}
+          >
             {t.label}
           </Text>
         </TouchableOpacity>

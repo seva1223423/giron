@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { useHaptic } from '../../../hooks/useHaptic';
 import { useThemeStore, useWorkoutStore, useSubscriptionStore } from '../../../store';
-import { Card, FadeIn, PaywallModal } from '../../../components';
+import { Card, FadeIn, Icon, PaywallModal } from '../../../components';
 import { typography } from '../../../theme';
 import { spacing, borderRadius } from '../../../theme/spacing';
 import { builtInPrograms } from '../../../data/programs';
@@ -76,7 +76,50 @@ export const ProgramsTab: React.FC<Props> = ({ navigation }) => {
 
   return (
     <>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => { haptic.selection(); navigation.navigate('CreateProgram'); }}
+        accessibilityRole="button"
+        accessibilityLabel="Создать программу"
+        style={[
+          styles.createCta,
+          {
+            backgroundColor: colors.primary,
+            ...(Platform.OS === 'ios'
+              ? {
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.28,
+                  shadowRadius: 16,
+                }
+              : { elevation: 6 }),
+          },
+        ]}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.md,
+            backgroundColor: colors.background,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name="plus" size={22} color={colors.primary} strokeWidth={2.2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.bodySemibold, { color: colors.textInverse }]}>Создать программу</Text>
+          <Text style={[typography.caption, { color: colors.textInverse, opacity: 0.75, marginTop: 2 }]} numberOfLines={1}>
+            Свой план на 4 недели
+          </Text>
+        </View>
+        <Icon name="chev" size={20} color={colors.textInverse} strokeWidth={2.4} />
+      </TouchableOpacity>
+
       <UserProgramsList programs={programs} navigation={navigation} onStartWorkout={startProgramWorkout} />
+
+      <Text style={[typography.metaLabel, { color: colors.textSecondary, marginBottom: spacing.md }]}>ГОТОВЫЕ ПРОГРАММЫ</Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xs }}>
         {GOAL_FILTERS.map((f) => (
@@ -173,4 +216,13 @@ const styles = StyleSheet.create({
   miniTag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.sm },
   filterChip: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.full, borderWidth: 1 },
   proBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, marginBottom: spacing.md },
+  createCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.xl,
+    marginBottom: spacing.lg,
+  },
 });
