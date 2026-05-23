@@ -5,3 +5,4 @@
 - [Credentials & services](reference_credentials.md) — local .env at `C:/Users/sevka/Desktop/1223/work/giron/server/.env`; Render + Neon + Mistral + EAS + Gmail
 - [Giron deep technical dive](project_deep_dive.md) — 437 client files, 85K server lines, 25 knowledge modules, 38 DB models, security, architecture
 - [Production user state](project_user_state.md) — only sevka (admin), zero real users → no backwards-compat / migration / rollout dance
+- [Pending user-side actions (audit R-2026-05-22)](pending_user_actions.md) — mirror skills, prisma db push, Render pool, PR merge to master, DeepSeek/Yandex env when keys ready
