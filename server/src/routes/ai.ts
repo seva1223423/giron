@@ -7,6 +7,8 @@ import { NAV_WHITELIST, validateNavigation } from '../ai/navigationWhitelist';
 import { computeWeightTrend } from '../ai/weightProjection';
 import { prisma } from '../db';
 import { fetchPrimaryChatContext } from '../ai/chatContext';
+import { runChatFallback } from '../ai/chatFallback';
+import { persistChatMessage } from '../ai/chatPersist';
 import { logger } from '../utils/logger';
 import { recordAIRequest, recordToolExecution } from '../utils/aiMetrics';
 import { foodVisionCache, aiUserContextCache, AI_USER_CONTEXT_TTL_MS } from '../utils/memCache';
@@ -14686,40 +14688,26 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       }
     } catch (aiError) {
       logger.error('AI chat call failed, attempting simplified fallback:', aiError);
-      try {
-        // Fallback 1: same prompt, no tools, shorter context
-        const shortMessages = messages.slice(-6); // only last 3 exchanges
-        const fallbackContent = await chatWithoutTools({
-          system: finalSystemPrompt,
-          messages: shortMessages,
-          maxTokens: 4096,
-          temperature: 0.6,
-        });
-        result = { content: fallbackContent, toolCalls: [], hasToolCalls: false };
-      } catch (fallback1Error) {
-        logger.error('Fallback 1 failed, trying minimal prompt:', fallback1Error);
-        try {
-          // Fallback 2: minimal system prompt, only current message
-          const minimalSystem = `Ты Iron Coach — ИИ-тренер в приложении Giron. Отвечай на русском, коротко и по делу. ${userContext}`;
-          const minimalMessages: DeepSeekMessage[] = [{ role: 'user', content: message }];
-          const fallback2Content = await chatWithoutTools({
-            system: minimalSystem,
-            messages: minimalMessages,
-            maxTokens: 2048,
-            temperature: 0.5,
-          });
-          result = { content: fallback2Content, toolCalls: [], hasToolCalls: false };
-        } catch (fallback2Error) {
-          logger.error('All AI fallbacks failed:', fallback2Error);
-          if (res.headersSent) {
-            res.write(`data: ${JSON.stringify({ type: 'error', error: 'AI-сервис временно недоступен. Попробуй через минуту.' })}\n\n`);
-            res.end();
-          } else {
-            res.status(503).json({ error: 'AI-сервис временно недоступен. Попробуй через минуту.', retryAfter: 60 });
-          }
-          return;
+      // Audit R-2026-05-22 /chat split step 2: 3-tier degradation
+      // extracted to ai/chatFallback.ts. runChatFallback runs tier 1
+      // (shorter context, no tools) → tier 2 (minimal prompt, only
+      // current message), returns first success or {ok:false}.
+      const fb = await runChatFallback({
+        messages,
+        finalSystemPrompt,
+        userContext,
+        userMessage: message,
+      });
+      if (!fb.ok) {
+        if (res.headersSent) {
+          res.write(`data: ${JSON.stringify({ type: 'error', error: 'AI-сервис временно недоступен. Попробуй через минуту.' })}\n\n`);
+          res.end();
+        } else {
+          res.status(503).json({ error: 'AI-сервис временно недоступен. Попробуй через минуту.', retryAfter: 60 });
         }
+        return;
       }
+      result = { content: fb.content, toolCalls: [], hasToolCalls: false };
     }
 
     // ─── Validate and clean AI response ──────────────────────────────
@@ -14759,20 +14747,10 @@ ${user.healthRestrictions.length > 0 ? `- Ограничения здоровь�
       setCachedResponse(message, intent, aiContent, userId);
     }
 
-    // Save AI response with actions
-    await prisma.chatMessage.create({
-      data: {
-        role: 'assistant',
-        content: aiContent,
-        userId,
-        actions: performedActions.length > 0 ? JSON.parse(JSON.stringify(performedActions)) : undefined,
-      },
-    });
-
-    // Prune messages older than 90 days (fire-and-forget to keep on hot path)
-    prisma.chatMessage.deleteMany({
-      where: { userId, createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
-    }).catch(() => {});
+    // Audit R-2026-05-22 /chat split step 3: persist + retention prune
+    // extracted to ai/chatPersist.ts. Awaits the create (next request
+    // depends on row visibility) but fire-and-forget on the prune.
+    await persistChatMessage({ userId, aiContent, performedActions });
 
     // ─── Block 20: Response metadata ──────
     const contextTokens = estimateTokens(finalSystemPrompt);
