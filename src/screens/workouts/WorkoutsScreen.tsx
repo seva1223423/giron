@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useWorkoutStore, useThemeColors } from '../../store';
-import { typography } from '../../theme';
 import { spacing } from '../../theme/spacing';
 import {
   WorkoutsHeader,
@@ -10,24 +9,30 @@ import {
   QuickStartTab,
   ProgramsTab,
   HeroStartButton,
-  HistoryTab,
+  ExercisesTab,
   UtilityMenu,
 } from './components';
 
 /**
- * Workouts root screen — round 287 layout simplification.
+ * Workouts root screen — Phase 3 unified mental model.
  *
- *   Header (title + 🔍 + ⋮)
+ *   Header (title + 🔍 + ⋮)              🔍 → ExerciseLibrary (was Routines)
  *   HeroStartButton  (Начать / Продолжить)
- *   TabBar           (План / История)
- *   ─ План tab    → QuickStartTab + ProgramsTab in one scroll column
- *   ─ История tab → 4 nav cards (calendar, history, PRs, routines)
- *   ⋮ menu          → inline panel with 6 utility shortcuts
+ *   TabBar           (Начать / Программы / Библиотека)
+ *   ─ Начать tab       → QuickStartTab (saved templates + ready bundles)
+ *   ─ Программы tab    → ProgramsTab with «Создать программу» gold CTA
+ *   ─ Библиотека tab   → ExercisesTab (search/filter/favorites)
+ *   ⋮ menu             → inline panel with 2 groups
+ *                         (Инструменты + Логирование)
+ *
+ * "История" tab was removed in Phase 3 — its surfaces (Calendar, History,
+ * PRs) are reachable via the ⋮ menu and from the Home screen. Removing
+ * it brings cognitive density from 13 → ~5 sections.
  */
 export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const colors = useThemeColors();
   const { fetchPrograms, activeWorkout } = useWorkoutStore();
-  const [tab, setTab] = useState<WorkoutsTab>('plan');
+  const [tab, setTab] = useState<WorkoutsTab>('start');
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -42,8 +47,9 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     }
   };
 
-  // TODO: dedicated exercise search screen — currently routes to Routines list as a placeholder browse target.
-  const handleSearchPress = () => navigation.navigate('Routines');
+  // Phase 3: 🔍 now routes to the dedicated ExerciseLibrary screen
+  // (previously pointed at Routines as a placeholder).
+  const handleSearchPress = () => navigation.navigate('ExerciseLibrary', { focusSearch: true });
 
   const heroSubtitle = activeWorkout
     ? activeWorkout.workout.name || 'Идёт тренировка'
@@ -61,22 +67,15 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         onPress={handleHeroPress}
       />
       <WorkoutsTabBar activeTab={tab} onTabChange={setTab} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {tab === 'plan' ? (
-          <>
-            <QuickStartTab navigation={navigation} />
-            <View style={[styles.sectionDivider, { borderTopColor: colors.border }]}>
-              <Text style={[typography.h4, { color: colors.text }]}>Готовые программы</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.xs }]}>
-                Подбери под свою цель
-              </Text>
-            </View>
-            <ProgramsTab navigation={navigation} />
-          </>
-        ) : (
-          <HistoryTab navigation={navigation} />
-        )}
-      </ScrollView>
+      {tab === 'library' ? (
+        // ExercisesTab renders its own FlatList — don't wrap in ScrollView.
+        <ExercisesTab navigation={navigation} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {tab === 'start' && <QuickStartTab navigation={navigation} />}
+          {tab === 'programs' && <ProgramsTab navigation={navigation} />}
+        </ScrollView>
+      )}
       <UtilityMenu
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -89,10 +88,4 @@ export const WorkoutsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.xl, paddingBottom: spacing.huge },
-  sectionDivider: {
-    marginTop: spacing.xl,
-    paddingTop: spacing.lg,
-    marginBottom: spacing.md,
-    borderTopWidth: 1,
-  },
 });
