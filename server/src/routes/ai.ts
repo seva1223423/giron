@@ -4206,12 +4206,17 @@ async function executeTool(
   clientDate?: string,
 ): Promise<{ resultText: string; actionDescription: string; actionData?: Record<string, unknown> }> {
   if (toolName === 'update_user_profile') {
-    const { weightKg, heightCm, goal, fitnessLevel } = toolInput as {
-      weightKg?: number;
-      heightCm?: number;
-      goal?: string;
-      fitnessLevel?: string;
-    };
+    const updateUserProfileSchema = z.object({
+      weightKg: z.number().min(20).max(400).optional(),
+      heightCm: z.number().min(50).max(300).optional(),
+      goal: z.string().max(40).optional(),
+      fitnessLevel: z.string().max(40).optional(),
+    });
+    const parsed = updateUserProfileSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров update_user_profile: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { weightKg, heightCm, goal, fitnessLevel } = parsed.data;
 
     const VALID_GOALS = ['WEIGHT_LOSS', 'MUSCLE_GAIN', 'STRENGTH', 'ENDURANCE', 'FLEXIBILITY', 'GENERAL_FITNESS'];
     const VALID_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
@@ -4265,7 +4270,16 @@ async function executeTool(
   }
 
   if (toolName === 'log_body_weight') {
-    const { weightKg: rawWeight, date } = toolInput as { weightKg: number; date?: string };
+    const logBodyWeightSchema = z.object({
+      // weightKg accepted as number OR string (Mistral sometimes wraps numerics as strings)
+      weightKg: z.union([z.number(), z.string()]),
+      date: z.string().max(40).optional(),
+    });
+    const parsed = logBodyWeightSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров log_body_weight: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { weightKg: rawWeight, date } = parsed.data;
     const parsedWeight = Number(rawWeight);
     if (!isFinite(parsedWeight) || parsedWeight < 1 || parsedWeight > 500) {
       return { resultText: 'Укажи корректный вес (1–500 кг)', actionDescription: '' };
@@ -4712,18 +4726,23 @@ async function executeTool(
   }
 
   if (toolName === 'log_meal') {
-    const { mealType, items, date: mealDate } = toolInput as {
-      mealType: string;
-      items: Array<{
-        name: string;
-        weightGrams: number;
-        calories: number;
-        protein: number;
-        fats: number;
-        carbs: number;
-      }>;
-      date?: string;
-    };
+    const logMealSchema = z.object({
+      mealType: z.string().max(40),
+      items: z.array(z.object({
+        name: z.string().min(1).max(300),
+        weightGrams: z.union([z.number(), z.string()]).optional(),
+        calories: z.union([z.number(), z.string()]).optional(),
+        protein: z.union([z.number(), z.string()]).optional(),
+        fats: z.union([z.number(), z.string()]).optional(),
+        carbs: z.union([z.number(), z.string()]).optional(),
+      })).min(1).max(50),
+      date: z.string().max(40).optional(),
+    });
+    const parsed = logMealSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров log_meal: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { mealType, items, date: mealDate } = parsed.data;
 
     if (!items || items.length === 0) {
       return { resultText: 'Приём пищи должен содержать хотя бы один продукт', actionDescription: '' };
@@ -4821,7 +4840,14 @@ async function executeTool(
     // and the AIChatScreen forwards it to the nutrition store. So
     // there's no DB row to verify; the audit finding was a false
     // positive — but documenting here so future audits don't re-raise.
-    const { ml } = toolInput as { ml: number };
+    const logWaterSchema = z.object({
+      ml: z.union([z.number(), z.string()]).optional(),
+    });
+    const parsedLw = logWaterSchema.safeParse(toolInput);
+    if (!parsedLw.success) {
+      return { resultText: `Ошибка параметров log_water: ${parsedLw.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { ml } = parsedLw.data;
     const amount = Math.min(5000, Math.max(50, Math.round(Number(ml) || 250)));
     return {
       resultText: `Записано ${amount} мл воды`,
@@ -4831,7 +4857,14 @@ async function executeTool(
   }
 
   if (toolName === 'delete_meal') {
-    const { mealId } = toolInput as { mealId: string };
+    const deleteMealSchema = z.object({
+      mealId: z.string().min(1).max(100),
+    });
+    const parsed = deleteMealSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров delete_meal: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { mealId } = parsed.data;
 
     // Fetch with items so the client can offer an "Отменить" toast that
     // re-creates the meal with the exact same content.
@@ -5065,12 +5098,17 @@ async function executeTool(
   }
 
   if (toolName === 'update_nutrition_targets') {
-    const { calories, protein, fats, carbs } = toolInput as {
-      calories: number;
-      protein: number;
-      fats: number;
-      carbs: number;
-    };
+    const updateNutritionSchema = z.object({
+      calories: z.union([z.number(), z.string()]).optional(),
+      protein: z.union([z.number(), z.string()]).optional(),
+      fats: z.union([z.number(), z.string()]).optional(),
+      carbs: z.union([z.number(), z.string()]).optional(),
+    });
+    const parsed = updateNutritionSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров update_nutrition_targets: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { calories, protein, fats, carbs } = parsed.data;
 
     const cal = Math.min(10000, Math.max(500, Math.round(Number(calories) || 2000)));
     let prot = Math.min(500, Math.max(30, Math.round(Number(protein) || 150)));
@@ -5375,14 +5413,19 @@ async function executeTool(
   }
 
   if (toolName === 'set_weekly_plan') {
-    const { schedule } = toolInput as {
-      schedule: Array<{
-        dayIndex: number;
-        workoutName: string;
-        emoji?: string;
-        exerciseNames: string[];
-      }>;
-    };
+    const setWeeklyPlanSchema = z.object({
+      schedule: z.array(z.object({
+        dayIndex: z.number().int().min(0).max(6),
+        workoutName: z.string().min(1).max(200),
+        emoji: z.string().max(10).optional(),
+        exerciseNames: z.array(z.string().max(200)).max(50),
+      })).max(7),
+    });
+    const parsed = setWeeklyPlanSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров set_weekly_plan: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { schedule } = parsed.data;
 
     const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
@@ -5463,7 +5506,14 @@ async function executeTool(
   }
 
   if (toolName === 'activate_program') {
-    const { programName } = toolInput as { programName: string };
+    const activateProgramSchema = z.object({
+      programName: z.string().min(1).max(200),
+    });
+    const parsed = activateProgramSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров activate_program: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { programName } = parsed.data;
     const programs = await prisma.program.findMany({
       where: { userId },
       select: { id: true, name: true, isActive: true },
@@ -5513,7 +5563,15 @@ async function executeTool(
   }
 
   if (toolName === 'adjust_all_weights') {
-    const { multiplier, deltaKg } = toolInput as { multiplier?: number; deltaKg?: number };
+    const adjustWeightsSchema = z.object({
+      multiplier: z.union([z.number(), z.string()]).optional(),
+      deltaKg: z.union([z.number(), z.string()]).optional(),
+    });
+    const parsed = adjustWeightsSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров adjust_all_weights: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { multiplier, deltaKg } = parsed.data;
     const safeMultiplier = multiplier != null ? Math.min(3, Math.max(0.1, Number(multiplier) || 1)) : undefined;
     const safeDeltaKg = deltaKg != null ? Math.min(100, Math.max(-100, Number(deltaKg) || 0)) : undefined;
     const active = await prisma.program.findFirst({
@@ -5577,12 +5635,22 @@ async function executeTool(
   }
 
   if (toolName === 'log_cardio') {
-    const { type, durationMinutes, distanceKm, caloriesBurned, avgHeartRate, maxHeartRate, minHeartRate, vo2Max, date } = toolInput as {
-      type: string; durationMinutes: number;
-      distanceKm?: number; caloriesBurned?: number;
-      avgHeartRate?: number; maxHeartRate?: number; minHeartRate?: number; vo2Max?: number;
-      date?: string;
-    };
+    const logCardioSchema = z.object({
+      type: z.string().max(40),
+      durationMinutes: z.union([z.number(), z.string()]),
+      distanceKm: z.union([z.number(), z.string()]).optional(),
+      caloriesBurned: z.union([z.number(), z.string()]).optional(),
+      avgHeartRate: z.union([z.number(), z.string()]).optional(),
+      maxHeartRate: z.union([z.number(), z.string()]).optional(),
+      minHeartRate: z.union([z.number(), z.string()]).optional(),
+      vo2Max: z.union([z.number(), z.string()]).optional(),
+      date: z.string().max(40).optional(),
+    });
+    const parsed = logCardioSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров log_cardio: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { type, durationMinutes, distanceKm, caloriesBurned, avgHeartRate, maxHeartRate, minHeartRate, vo2Max, date } = parsed.data;
     // Validate date format; fall back to today if AI sends garbage
     const VALID_CARDIO_TYPES = ['running', 'cycling', 'swimming', 'walking', 'hiit', 'elliptical', 'rowing', 'other'];
     const safeType = VALID_CARDIO_TYPES.includes(type) ? type : 'other';
@@ -5592,10 +5660,17 @@ async function executeTool(
     // Round 240 — watch metrics. Same bounds as the /health/sync Zod schema
     // (30-250 bpm for HR, 10-100 ml/kg/min for VO2max). Out-of-range
     // values from the LLM get dropped — don't bake bad data.
-    const safeAvgHr = avgHeartRate != null && Number.isFinite(avgHeartRate) && avgHeartRate >= 30 && avgHeartRate <= 250 ? Math.round(avgHeartRate) : undefined;
-    const safeMaxHr = maxHeartRate != null && Number.isFinite(maxHeartRate) && maxHeartRate >= 30 && maxHeartRate <= 250 ? Math.round(maxHeartRate) : undefined;
-    const safeMinHr = minHeartRate != null && Number.isFinite(minHeartRate) && minHeartRate >= 20 && minHeartRate <= 200 ? Math.round(minHeartRate) : undefined;
-    const safeVo2 = vo2Max != null && Number.isFinite(vo2Max) && vo2Max >= 10 && vo2Max <= 100 ? Math.round(vo2Max * 10) / 10 : undefined;
+    // Zod allows union(number, string) above; Number() coerces both.
+    // The isFinite + range gate drops anything that's not actually a
+    // numeric in bounds (NaN from parsing failure, out-of-range LLM noise).
+    const avgHr = Number(avgHeartRate);
+    const maxHr = Number(maxHeartRate);
+    const minHr = Number(minHeartRate);
+    const v2 = Number(vo2Max);
+    const safeAvgHr = avgHeartRate != null && Number.isFinite(avgHr) && avgHr >= 30 && avgHr <= 250 ? Math.round(avgHr) : undefined;
+    const safeMaxHr = maxHeartRate != null && Number.isFinite(maxHr) && maxHr >= 30 && maxHr <= 250 ? Math.round(maxHr) : undefined;
+    const safeMinHr = minHeartRate != null && Number.isFinite(minHr) && minHr >= 20 && minHr <= 200 ? Math.round(minHr) : undefined;
+    const safeVo2 = vo2Max != null && Number.isFinite(v2) && v2 >= 10 && v2 <= 100 ? Math.round(v2 * 10) / 10 : undefined;
     const today = clientDate ?? new Date().toISOString().split('T')[0];
     const sessionDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T00:00:00Z').getTime())) ? date : today;
     const session = await prisma.cardioSession.create({
@@ -5632,7 +5707,14 @@ async function executeTool(
   // Round 240 — read-only health summary. Mirrors GET /user/health/summary
   // shape but executed directly via prisma (no HTTP round-trip).
   if (toolName === 'get_health_summary') {
-    const { days } = toolInput as { days?: number };
+    const getHealthSchema = z.object({
+      days: z.union([z.number(), z.string()]).optional(),
+    });
+    const parsed = getHealthSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров get_health_summary: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { days } = parsed.data;
     const safeDays = [1, 7, 30].includes(Number(days)) ? Number(days) : 1;
     const since = new Date(Date.now() - safeDays * 86400_000);
     const todayDate = new Date().toISOString().slice(0, 10);
@@ -5683,7 +5765,14 @@ async function executeTool(
   }
 
   if (toolName === 'get_sleep_breakdown') {
-    const { date } = toolInput as { date?: string };
+    const getSleepBreakdownSchema = z.object({
+      date: z.string().max(40).optional(),
+    });
+    const parsed = getSleepBreakdownSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров get_sleep_breakdown: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { date } = parsed.data;
     let target = date;
     if (!target || target === 'yesterday') {
       target = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
@@ -5825,11 +5914,16 @@ async function executeTool(
   // reliability checklist (validate, bounds, existence, classifyToolError,
   // post-write verify, Russian message).
   if (toolName === 'delete_cardio') {
-    const { sessionId, date, type } = toolInput as {
-      sessionId?: string;
-      date?: string;
-      type?: string;
-    };
+    const deleteCardioSchema = z.object({
+      sessionId: z.string().max(100).optional(),
+      date: z.string().max(40).optional(),
+      type: z.string().max(40).optional(),
+    });
+    const parsed = deleteCardioSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров delete_cardio: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { sessionId, date, type } = parsed.data;
 
     // 1. Validate: must have sessionId OR (date+type) OR just date
     if (!sessionId && !date) {
@@ -5916,7 +6010,22 @@ async function executeTool(
   }
 
   if (toolName === 'modify_meal') {
-    const { mealId, items } = toolInput as { mealId: string; items: Array<{ name: string; weightGrams: number; calories: number; protein: number; fats: number; carbs: number }> };
+    const modifyMealSchema = z.object({
+      mealId: z.string().min(1).max(100),
+      items: z.array(z.object({
+        name: z.string().min(1).max(300),
+        weightGrams: z.union([z.number(), z.string()]).optional(),
+        calories: z.union([z.number(), z.string()]).optional(),
+        protein: z.union([z.number(), z.string()]).optional(),
+        fats: z.union([z.number(), z.string()]).optional(),
+        carbs: z.union([z.number(), z.string()]).optional(),
+      })).min(1).max(50),
+    });
+    const parsed = modifyMealSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров modify_meal: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { mealId, items } = parsed.data;
     const meal = await prisma.meal.findFirst({ where: { id: mealId, userId } });
     if (!meal) return { resultText: 'Приём пищи не найден', actionDescription: '' };
     if (!items || items.length === 0) return { resultText: 'Список продуктов не может быть пустым', actionDescription: '' };
@@ -5983,7 +6092,29 @@ async function executeTool(
   }
 
   if (toolName === 'log_body_measurement') {
-    const raw = (toolInput && typeof toolInput === 'object' ? toolInput : {}) as Record<string, number>;
+    // Permissive schema — accepts numbers OR string-numerics for every
+    // body field; toNum() below filters by validity. Wide range so a
+    // single bad field doesn't reject the whole measurement update.
+    const logBodyMeasurementSchema = z.object({
+      chest: z.union([z.number(), z.string()]).optional(),
+      waist: z.union([z.number(), z.string()]).optional(),
+      hips: z.union([z.number(), z.string()]).optional(),
+      neck: z.union([z.number(), z.string()]).optional(),
+      bicep: z.union([z.number(), z.string()]).optional(),
+      bicepLeft: z.union([z.number(), z.string()]).optional(),
+      bicepRight: z.union([z.number(), z.string()]).optional(),
+      thigh: z.union([z.number(), z.string()]).optional(),
+      thighLeft: z.union([z.number(), z.string()]).optional(),
+      thighRight: z.union([z.number(), z.string()]).optional(),
+      calf: z.union([z.number(), z.string()]).optional(),
+      calfLeft: z.union([z.number(), z.string()]).optional(),
+      calfRight: z.union([z.number(), z.string()]).optional(),
+    });
+    const parsed = logBodyMeasurementSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров log_body_measurement: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const raw = parsed.data as Record<string, number | string | undefined>;
     const toNum = (v: unknown) => (typeof v === 'number' && v > 0 && v < 500 ? v : null);
     // DB schema uses single fields (bicep, thigh, calf) — average left/right if both provided
     const avg = (a: unknown, b: unknown) => {
@@ -6038,7 +6169,14 @@ async function executeTool(
   }
 
   if (toolName === 'set_water_target') {
-    const { targetMl } = toolInput as { targetMl: number };
+    const setWaterTargetSchema = z.object({
+      targetMl: z.union([z.number(), z.string()]),
+    });
+    const parsed = setWaterTargetSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров set_water_target: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { targetMl } = parsed.data;
     const safeTargetMl = Math.min(10000, Math.max(500, Math.round(Number(targetMl) || 2000)));
     await prisma.user.update({ where: { id: userId }, data: { targetWaterMl: safeTargetMl } });
     // Round 205: post-write verify on water target.
@@ -6059,13 +6197,29 @@ async function executeTool(
   }
 
   if (toolName === 'set_rest_timer') {
-    const { seconds } = toolInput as { seconds: number };
+    const setRestTimerSchema = z.object({
+      seconds: z.union([z.number(), z.string()]),
+    });
+    const parsed = setRestTimerSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров set_rest_timer: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { seconds } = parsed.data;
     const clamped = Math.min(Math.max(Math.round(Number(seconds) || 90), 15), 600);
     return { resultText: `Таймер отдыха установлен: ${clamped} сек`, actionDescription: `Отдых: ${clamped} сек`, actionData: { restTimerSeconds: clamped } };
   }
 
   if (toolName === 'set_notifications') {
-    const { enabled, reminderHour, waterReminders } = toolInput as { enabled?: boolean; reminderHour?: number; waterReminders?: boolean };
+    const setNotificationsSchema = z.object({
+      enabled: z.boolean().optional(),
+      reminderHour: z.union([z.number(), z.string()]).optional(),
+      waterReminders: z.boolean().optional(),
+    });
+    const parsed = setNotificationsSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров set_notifications: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { enabled, reminderHour, waterReminders } = parsed.data;
     const parts: string[] = [];
     if (enabled !== undefined) parts.push(enabled ? 'Напоминания включены' : 'Напоминания выключены');
     if (reminderHour !== undefined) parts.push(`Время напоминания: ${reminderHour}:00`);
@@ -6074,7 +6228,16 @@ async function executeTool(
   }
 
   if (toolName === 'swap_exercise') {
-    const { oldExerciseName, newExerciseName, workoutName } = toolInput as { oldExerciseName: string; newExerciseName: string; workoutName?: string };
+    const swapExerciseSchema = z.object({
+      oldExerciseName: z.string().min(1).max(200),
+      newExerciseName: z.string().min(1).max(200),
+      workoutName: z.string().max(200).optional(),
+    });
+    const parsed = swapExerciseSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров swap_exercise: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { oldExerciseName, newExerciseName, workoutName } = parsed.data;
     const active = await prisma.program.findFirst({
       where: { userId, isActive: true },
       include: { workouts: { include: { exercises: { include: { exercise: true } } } } },
@@ -6125,7 +6288,16 @@ async function executeTool(
   }
 
   if (toolName === 'add_superset') {
-    const { exercise1Name, exercise2Name, workoutName } = toolInput as { exercise1Name: string; exercise2Name: string; workoutName?: string };
+    const addSupersetSchema = z.object({
+      exercise1Name: z.string().min(1).max(200),
+      exercise2Name: z.string().min(1).max(200),
+      workoutName: z.string().max(200).optional(),
+    });
+    const parsed = addSupersetSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров add_superset: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { exercise1Name, exercise2Name, workoutName } = parsed.data;
     const active = await prisma.program.findFirst({
       where: { userId, isActive: true },
       include: { workouts: { include: { exercises: { include: { exercise: true } } } } },
@@ -6165,18 +6337,39 @@ async function executeTool(
   }
 
   if (toolName === 'generate_warmup') {
-    const { workoutName } = toolInput as { workoutName?: string };
+    const generateWarmupSchema = z.object({
+      workoutName: z.string().max(200).optional(),
+    });
+    const parsed = generateWarmupSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров generate_warmup: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { workoutName } = parsed.data;
     return { resultText: 'Разминочные подходы будут автоматически добавлены при начале тренировки через кнопку "🔥 Разминка"', actionDescription: 'Информация о разминке', actionData: { workoutName } };
   }
 
   if (toolName === 'set_workout_duration_goal') {
-    const { minutes } = toolInput as { minutes: number };
+    const setDurationGoalSchema = z.object({
+      minutes: z.union([z.number(), z.string()]),
+    });
+    const parsed = setDurationGoalSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров set_workout_duration_goal: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { minutes } = parsed.data;
     const safeMinutes = Math.min(480, Math.max(0, Math.round(Number(minutes) || 0)));
     return { resultText: safeMinutes > 0 ? `Цель тренировки: ${safeMinutes} минут` : 'Цель по длительности убрана', actionDescription: safeMinutes > 0 ? `Цель: ${safeMinutes} мин` : 'Цель длительности снята', actionData: { durationGoalMinutes: safeMinutes } };
   }
 
   if (toolName === 'analyze_progress') {
-    const { period = 'month' } = toolInput as { period?: string };
+    const analyzeProgressSchema = z.object({
+      period: z.string().max(40).optional(),
+    });
+    const parsed = analyzeProgressSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров analyze_progress: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { period = 'month' } = parsed.data;
     const days = period === 'week' ? 7 : period === '3months' ? 90 : 30;
     // Round 226: anchor window to client's local start-of-day, not server now().
     // Without this, a client in UTC+5 querying at 02:00 local time would see
@@ -6364,9 +6557,18 @@ async function executeTool(
   }
 
   if (toolName === 'log_sleep') {
-    const { durationHours, bedtime, wakeTime, quality, date } = toolInput as {
-      durationHours: number; bedtime?: string; wakeTime?: string; quality?: number; date?: string;
-    };
+    const logSleepSchema = z.object({
+      durationHours: z.union([z.number(), z.string()]),
+      bedtime: z.string().max(20).optional(),
+      wakeTime: z.string().max(20).optional(),
+      quality: z.union([z.number(), z.string()]).optional(),
+      date: z.string().max(40).optional(),
+    });
+    const parsed = logSleepSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров log_sleep: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { durationHours, bedtime, wakeTime, quality, date } = parsed.data;
     const safeDuration = Math.max(0.5, Math.min(24, Math.round(Number(durationHours) * 2) / 2));
     const safeQuality = quality != null ? Math.max(1, Math.min(5, Math.round(Number(quality)))) : undefined;
     const today = clientDate ?? new Date().toISOString().split('T')[0];
@@ -6405,7 +6607,14 @@ async function executeTool(
   // checklist applied (validate, exists, classifyToolError-friendly,
   // post-write verify, Russian message).
   if (toolName === 'delete_sleep') {
-    const { date } = toolInput as { date: string };
+    const deleteSleepSchema = z.object({
+      date: z.string().min(1).max(40),
+    });
+    const parsed = deleteSleepSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров delete_sleep: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { date } = parsed.data;
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return {
         resultText: `Дата "${date ?? 'не указана'}" в неправильном формате. Нужно YYYY-MM-DD.`,
@@ -6453,7 +6662,14 @@ async function executeTool(
   // Round 191 — companion to log_body_measurement. BodyMeasurement
   // model is keyed by (userId, date) — one row per date.
   if (toolName === 'delete_body_measurement') {
-    const { date } = toolInput as { date: string };
+    const deleteBodyMeasurementSchema = z.object({
+      date: z.string().min(1).max(40),
+    });
+    const parsed = deleteBodyMeasurementSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров delete_body_measurement: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { date } = parsed.data;
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return {
         resultText: `Дата "${date ?? 'не указана'}" в неправильном формате. Нужно YYYY-MM-DD.`,
@@ -6496,7 +6712,14 @@ async function executeTool(
   // existed but no delete tool — user mistyping their weight (185 vs 85)
   // had to use the UI. AI can now resolve by date OR delete latest.
   if (toolName === 'delete_body_weight') {
-    const { date } = toolInput as { date?: string };
+    const deleteBodyWeightSchema = z.object({
+      date: z.string().max(40).optional(),
+    });
+    const parsed = deleteBodyWeightSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров delete_body_weight: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { date } = parsed.data;
 
     let target: { id: string; date: Date; weightKg: number } | null = null;
     if (date) {
@@ -6755,12 +6978,17 @@ async function executeTool(
   }
 
   if (toolName === 'add_recipe_to_diary') {
-    const { recipeId, mealType, servings, date } = toolInput as {
-      recipeId?: string;
-      mealType?: string;
-      servings?: number;
-      date?: string;
-    };
+    const addRecipeSchema = z.object({
+      recipeId: z.string().max(100).optional(),
+      mealType: z.string().max(40).optional(),
+      servings: z.union([z.number(), z.string()]).optional(),
+      date: z.string().max(40).optional(),
+    });
+    const parsed = addRecipeSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров add_recipe_to_diary: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { recipeId, mealType, servings, date } = parsed.data;
 
     const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
     if (!recipeId || typeof recipeId !== 'string' || !/^c[a-z0-9]{20,30}$/.test(recipeId)) {
@@ -6862,12 +7090,17 @@ async function executeTool(
   // the next-turn AI context.
 
   if (toolName === 'search_exercises') {
-    const { muscle, equipment, difficulty, query } = toolInput as {
-      muscle?: string;
-      equipment?: 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'kettlebell' | 'band';
-      difficulty?: 'beginner' | 'intermediate' | 'advanced';
-      query?: string;
-    };
+    const searchExercisesSchema = z.object({
+      muscle: z.string().max(60).optional(),
+      equipment: z.string().max(40).optional(),
+      difficulty: z.string().max(40).optional(),
+      query: z.string().max(200).optional(),
+    });
+    const parsed = searchExercisesSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров search_exercises: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { muscle, equipment, difficulty, query } = parsed.data;
 
     const VALID_EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'kettlebell', 'band'] as const;
     const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'] as const;
@@ -6951,7 +7184,14 @@ async function executeTool(
   }
 
   if (toolName === 'explain_exercise') {
-    const { name } = toolInput as { name: string };
+    const explainExerciseSchema = z.object({
+      name: z.string().min(1).max(200),
+    });
+    const parsed = explainExerciseSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров explain_exercise: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { name } = parsed.data;
     const safeName = typeof name === 'string' ? sanitizeForPrompt(name, 80) : '';
     if (safeName.length < 2) {
       return { resultText: 'Укажи название упражнения для поиска.', actionDescription: '' };
@@ -7025,7 +7265,15 @@ async function executeTool(
   // (BUG-AI-009 in ai_security.test.ts pins this).
 
   if (toolName === 'get_pr_history') {
-    const { limit, exerciseName } = toolInput as { limit?: number; exerciseName?: string };
+    const getPrHistorySchema = z.object({
+      limit: z.union([z.number(), z.string()]).optional(),
+      exerciseName: z.string().max(200).optional(),
+    });
+    const parsed = getPrHistorySchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров get_pr_history: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { limit, exerciseName } = parsed.data;
     const safeLimit = Math.min(20, Math.max(1, Math.floor(Number(limit) || 8)));
     const safeExName = typeof exerciseName === 'string' ? sanitizeForPrompt(exerciseName, 80) : '';
 
@@ -7355,10 +7603,15 @@ async function executeTool(
   // does its own check (defense in depth). NEVER passes a screen
   // not in the whitelist into actionData.
   if (toolName === 'navigate_to_screen') {
-    const { target, params } = toolInput as {
-      target?: string;
-      params?: Record<string, unknown>;
-    };
+    const navigateSchema = z.object({
+      target: z.string().max(100).optional(),
+      params: z.record(z.unknown()).optional(),
+    });
+    const parsed = navigateSchema.safeParse(toolInput);
+    if (!parsed.success) {
+      return { resultText: `Ошибка параметров navigate_to_screen: ${parsed.error.issues[0]?.message ?? 'invalid input'}`, actionDescription: '' };
+    }
+    const { target, params } = parsed.data;
     const result = validateNavigation(target, params);
     if ('error' in result) {
       return { resultText: result.error, actionDescription: '' };
