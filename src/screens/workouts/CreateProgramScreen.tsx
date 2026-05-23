@@ -43,6 +43,7 @@ import { typography } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { workoutService } from '../../services/workoutService';
 import { getApiError } from '../../services/api';
+import { exercises as localExercises } from '../../data/exercises';
 
 // ---------------------------------------------------------------------------
 // Wizard model
@@ -64,7 +65,6 @@ interface WizardState {
   durationWeeks: number; // 1..12
   daysPerWeek: number;   // 2..6
   days: ProgramDay[];
-  sameAllWeeks: boolean;
 }
 
 const GOAL_OPTIONS: { value: Goal; label: string }[] = [
@@ -133,7 +133,6 @@ export const CreateProgramScreen: React.FC<{ navigation: any }> = ({ navigation 
     durationWeeks: 4,
     daysPerWeek: 3,
     days: buildEmptyDays(3),
-    sameAllWeeks: true,
   });
 
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
@@ -189,11 +188,6 @@ export const CreateProgramScreen: React.FC<{ navigation: any }> = ({ navigation 
     });
   }, [haptic]);
 
-  const toggleSameAllWeeks = useCallback(() => {
-    haptic.selection();
-    setState((s) => ({ ...s, sameAllWeeks: !s.sameAllWeeks }));
-  }, [haptic]);
-
   const updateDay = useCallback((index: number, patch: Partial<ProgramDay>) => {
     setState((s) => {
       const days = s.days.slice();
@@ -219,6 +213,10 @@ export const CreateProgramScreen: React.FC<{ navigation: any }> = ({ navigation 
         level: state.level ?? undefined,
         daysPerWeek: state.daysPerWeek,
         durationWeeks: state.durationWeeks,
+        days: state.days.map((day) => ({
+          name: day.name?.trim() || undefined,
+          exerciseIds: day.exerciseIds || [],
+        })),
       });
       // Refresh user programs in the store so the new program appears
       // immediately in the Programs tab after we navigate back.
@@ -265,7 +263,6 @@ export const CreateProgramScreen: React.FC<{ navigation: any }> = ({ navigation 
           state={state}
           saving={saving}
           onEditDay={(i) => { haptic.selection(); setEditingDayIndex(i); }}
-          onToggleSameAllWeeks={toggleSameAllWeeks}
           onSave={handleSave}
         />
       )}
@@ -277,16 +274,6 @@ export const CreateProgramScreen: React.FC<{ navigation: any }> = ({ navigation 
         onClose={() => setEditingDayIndex(null)}
         onUpdate={(patch) => {
           if (editingDayIndex !== null) updateDay(editingDayIndex, patch);
-        }}
-        onPickFromScratch={() => {
-          // Full from-scratch exercise picking happens in the existing
-          // ExerciseSelectStep flow (CustomWorkout). For programs, we
-          // route the user to the persistent ProgramDetail editor after
-          // save — this entry-point only surfaces presets in the MVP.
-          Alert.alert(
-            'Подбор упражнений',
-            'Полный конструктор упражнений будет в карточке программы после сохранения.',
-          );
         }}
       />
     </View>
@@ -552,11 +539,10 @@ interface BuilderStepProps {
   state: WizardState;
   saving: boolean;
   onEditDay: (index: number) => void;
-  onToggleSameAllWeeks: () => void;
   onSave: () => void;
 }
 
-const BuilderStep: React.FC<BuilderStepProps> = ({ state, saving, onEditDay, onToggleSameAllWeeks, onSave }) => {
+const BuilderStep: React.FC<BuilderStepProps> = ({ state, saving, onEditDay, onSave }) => {
   const colors = useThemeColors();
 
   return (
@@ -589,53 +575,6 @@ const BuilderStep: React.FC<BuilderStepProps> = ({ state, saving, onEditDay, onT
             </FadeIn>
           ))}
         </View>
-
-        {/* Same-all-weeks toggle ----------------------------------------- */}
-        <FadeIn delay={60 + state.days.length * 40 + 40}>
-          <TouchableOpacity
-            onPress={onToggleSameAllWeeks}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: state.sameAllWeeks }}
-            accessibilityLabel="Все недели одинаковые"
-            style={[
-              styles.toggleRow,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                marginTop: spacing.xl,
-              },
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.bodySemibold, { color: colors.text }]}>
-                Все недели одинаковые
-              </Text>
-              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                {state.sameAllWeeks
-                  ? `Один набор дней повторяется ${state.durationWeeks} ${ruWeeks(state.durationWeeks)}`
-                  : 'Каждая неделя — отдельный набор (настройка позже)'}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.toggleSwitch,
-                {
-                  backgroundColor: state.sameAllWeeks ? colors.primary : colors.border,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.toggleKnob,
-                  {
-                    backgroundColor: colors.background,
-                    transform: [{ translateX: state.sameAllWeeks ? 20 : 2 }],
-                  },
-                ]}
-              />
-            </View>
-          </TouchableOpacity>
-        </FadeIn>
       </ScrollView>
 
       {/* Sticky-bottom CTA */}
@@ -797,13 +736,13 @@ interface DayEditorSheetProps {
   day: ProgramDay;
   onClose: () => void;
   onUpdate: (patch: Partial<ProgramDay>) => void;
-  onPickFromScratch: () => void;
 }
 
-const DayEditorSheet: React.FC<DayEditorSheetProps> = ({ visible, index, day, onClose, onUpdate, onPickFromScratch }) => {
+const DayEditorSheet: React.FC<DayEditorSheetProps> = ({ visible, index, day, onClose, onUpdate }) => {
   const colors = useThemeColors();
   const safeTop = useSafeTop();
   const haptic = useHaptic();
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const applyPreset = (preset: { id: string; name: string; exerciseIds: string[] }) => {
     haptic.medium();
@@ -817,6 +756,27 @@ const DayEditorSheet: React.FC<DayEditorSheetProps> = ({ visible, index, day, on
     haptic.warning();
     onUpdate({ exerciseIds: [] });
   };
+
+  const removeExercise = (exerciseId: string) => {
+    haptic.selection();
+    onUpdate({ exerciseIds: day.exerciseIds.filter((id) => id !== exerciseId) });
+  };
+
+  // Merge picker results into the day's exercises (de-duped, preserves existing order).
+  const handlePickerDone = (newIds: string[]) => {
+    haptic.medium();
+    const existing = new Set(day.exerciseIds);
+    const merged = [...day.exerciseIds, ...newIds.filter((id) => !existing.has(id))];
+    onUpdate({ exerciseIds: merged });
+    setPickerVisible(false);
+  };
+
+  // Look up exercise names for the inline chip list. Local-only IDs may not
+  // resolve (e.g. a preset references an id we removed) — fall back to the raw id.
+  const selectedExercises = useMemo(
+    () => day.exerciseIds.map((id) => localExercises.find((e) => e.id === id) ?? { id, name: id }),
+    [day.exerciseIds],
+  );
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -932,25 +892,297 @@ const DayEditorSheet: React.FC<DayEditorSheetProps> = ({ visible, index, day, on
           <View style={{ height: 1, backgroundColor: colors.primary + '20', marginVertical: spacing.xl }} />
 
           <Text style={[typography.metaLabel, { color: colors.textSecondary, marginBottom: spacing.sm }]}>
-            ИЛИ СОБРАТЬ С НУЛЯ
+            УПРАЖНЕНИЯ
           </Text>
+
+          {selectedExercises.length === 0 ? (
+            <TouchableOpacity
+              onPress={() => { haptic.selection(); setPickerVisible(true); }}
+              accessibilityRole="button"
+              accessibilityLabel="Выбрать упражнения"
+              style={[
+                styles.outlineButton,
+                {
+                  borderColor: colors.primary + '60',
+                  backgroundColor: colors.primary + '10',
+                },
+              ]}
+            >
+              <Icon name="plus" size={18} color={colors.primary} />
+              <Text style={[typography.button, { color: colors.primary }]}>
+                Выбрать упражнения
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <View style={{ gap: spacing.sm }}>
+                {selectedExercises.map((ex) => (
+                  <View
+                    key={ex.id}
+                    style={[
+                      styles.exerciseRow,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}
+                      numberOfLines={1}
+                    >
+                      {ex.name}
+                    </Text>
+                    <HitTarget>
+                      <TouchableOpacity
+                        onPress={() => removeExercise(ex.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Убрать ${ex.name}`}
+                        style={{ padding: spacing.xs }}
+                      >
+                        <View style={{ transform: [{ rotate: '45deg' }] }}>
+                          <Icon name="plus" size={18} color={colors.textTertiary} />
+                        </View>
+                      </TouchableOpacity>
+                    </HitTarget>
+                  </View>
+                ))}
+              </View>
+              <TouchableOpacity
+                onPress={() => { haptic.selection(); setPickerVisible(true); }}
+                accessibilityRole="button"
+                accessibilityLabel="Добавить ещё упражнения"
+                style={[
+                  styles.outlineButton,
+                  {
+                    borderColor: colors.primary + '60',
+                    backgroundColor: colors.primary + '10',
+                    marginTop: spacing.md,
+                  },
+                ]}
+              >
+                <Icon name="plus" size={18} color={colors.primary} />
+                <Text style={[typography.button, { color: colors.primary }]}>
+                  Добавить ещё
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+
+        <ExercisePickerModal
+          visible={pickerVisible}
+          existingIds={day.exerciseIds}
+          onCancel={() => setPickerVisible(false)}
+          onDone={handlePickerDone}
+        />
+      </View>
+    </Modal>
+  );
+};
+
+// ------- Exercise picker modal -------------------------------------------
+
+const PICKER_MUSCLE_FILTERS = [
+  { key: 'all', label: 'Все' },
+  { key: 'chest', label: 'Грудь' },
+  { key: 'back', label: 'Спина' },
+  { key: 'shoulders', label: 'Плечи' },
+  { key: 'biceps', label: 'Бицепс' },
+  { key: 'triceps', label: 'Трицепс' },
+  { key: 'quadriceps', label: 'Ноги' },
+  { key: 'abs', label: 'Пресс' },
+];
+
+interface ExercisePickerModalProps {
+  visible: boolean;
+  existingIds: string[];
+  onCancel: () => void;
+  onDone: (selectedIds: string[]) => void;
+}
+
+const ExercisePickerModal: React.FC<ExercisePickerModalProps> = ({ visible, existingIds, onCancel, onDone }) => {
+  const colors = useThemeColors();
+  const safeTop = useSafeTop();
+  const haptic = useHaptic();
+  const [localSelected, setLocalSelected] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [muscleFilter, setMuscleFilter] = useState('all');
+
+  // Reset picker state every time the modal opens — fresh selection per session.
+  React.useEffect(() => {
+    if (visible) {
+      setLocalSelected(new Set());
+      setSearchQuery('');
+      setMuscleFilter('all');
+    }
+  }, [visible]);
+
+  const existingSet = useMemo(() => new Set(existingIds), [existingIds]);
+
+  const filteredExercises = useMemo(
+    () => localExercises.filter((ex) => {
+      const matchesSearch = searchQuery ? ex.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
+      const matchesMuscle = muscleFilter === 'all' ? true : ex.primaryMuscles.includes(muscleFilter as any);
+      return matchesSearch && matchesMuscle;
+    }),
+    [searchQuery, muscleFilter],
+  );
+
+  const toggle = (id: string) => {
+    haptic.selection();
+    setLocalSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDone = () => {
+    onDone(Array.from(localSelected));
+  };
+
+  const selectedCount = localSelected.size;
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onCancel}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={[styles.headerRow, { paddingTop: safeTop, borderBottomColor: colors.border, borderBottomWidth: 1 }]}>
+          <TouchableOpacity onPress={onCancel} hitSlop={8} accessibilityRole="button" accessibilityLabel="Отмена">
+            <Text style={[typography.bodySemibold, { color: colors.textSecondary }]}>Отмена</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[typography.metaLabel, { color: colors.textSecondary }]}>УПРАЖНЕНИЯ</Text>
+            <Text style={[typography.h4, { color: colors.text, marginTop: 2 }]} numberOfLines={1}>
+              Выбери упражнения
+            </Text>
+          </View>
           <TouchableOpacity
-            onPress={onPickFromScratch}
+            onPress={handleDone}
+            disabled={selectedCount === 0}
+            hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Выбрать упражнения"
-            style={[
-              styles.outlineButton,
-              {
-                borderColor: colors.primary + '60',
-                backgroundColor: colors.primary + '10',
-              },
-            ]}
+            accessibilityLabel={selectedCount > 0 ? `Готово, выбрано ${selectedCount}` : 'Готово'}
+            accessibilityState={{ disabled: selectedCount === 0 }}
           >
-            <Icon name="plus" size={18} color={colors.primary} />
-            <Text style={[typography.button, { color: colors.primary }]}>
-              Выбрать упражнения
+            <Text style={[typography.bodySemibold, { color: selectedCount === 0 ? colors.textTertiary : colors.primary }]}>
+              Готово{selectedCount > 0 ? ` (${selectedCount})` : ''}
             </Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.md }}>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Поиск..."
+            placeholderTextColor={colors.inputPlaceholder}
+            style={[
+              styles.searchInput,
+              typography.body,
+              {
+                backgroundColor: colors.inputBackground,
+                borderColor: colors.inputBorder,
+                color: colors.inputText,
+              },
+            ]}
+            accessibilityLabel="Поиск упражнений"
+          />
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, gap: spacing.sm, paddingVertical: spacing.md }}
+          style={{ flexGrow: 0 }}
+        >
+          {PICKER_MUSCLE_FILTERS.map((f) => {
+            const active = muscleFilter === f.key;
+            return (
+              <TouchableOpacity
+                key={f.key}
+                onPress={() => { haptic.selection(); setMuscleFilter(f.key); }}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: active ? colors.primary : colors.card,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={f.label}
+              >
+                <Text style={[typography.captionMedium, { color: active ? colors.textInverse : colors.text }]}>
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.huge }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {filteredExercises.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingTop: spacing.huge }}>
+              <Icon name="search" size={48} color={colors.textSecondary} />
+              <Text style={[typography.h4, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>
+                Ничего не найдено
+              </Text>
+              <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }]}>
+                Попробуй другой фильтр
+              </Text>
+            </View>
+          ) : (
+            filteredExercises.map((ex) => {
+              const selected = localSelected.has(ex.id);
+              const alreadyAdded = existingSet.has(ex.id);
+              return (
+                <TouchableOpacity
+                  key={ex.id}
+                  onPress={() => !alreadyAdded && toggle(ex.id)}
+                  disabled={alreadyAdded}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected, disabled: alreadyAdded }}
+                  accessibilityLabel={ex.name}
+                  style={[
+                    styles.pickerRow,
+                    {
+                      backgroundColor: selected ? colors.primary + '15' : colors.card,
+                      borderColor: selected ? colors.primary : colors.border,
+                      borderWidth: selected ? 2 : 1,
+                      opacity: alreadyAdded ? 0.5 : 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[typography.bodySemibold, { color: colors.text, flex: 1 }]}
+                    numberOfLines={1}
+                  >
+                    {ex.name}
+                  </Text>
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {selected && <Icon name="check" size={14} color={colors.textInverse} strokeWidth={3} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -1076,29 +1308,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.md,
   },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-  },
-  toggleSwitch: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-  },
-  toggleKnob: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-  },
   presetCard: {
     width: 160,
     padding: spacing.md,
     borderRadius: borderRadius.xl,
     alignItems: 'flex-start',
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+  },
+  searchInput: {
+    height: 44,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  filterChip: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
   },
 });

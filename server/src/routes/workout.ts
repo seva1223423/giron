@@ -20,6 +20,11 @@ const router = Router();
 const CUID_RE = /^c[a-z0-9]{20,30}$/;
 const isValidId = (id: string | string[]) => CUID_RE.test(String(id));
 
+const createProgramDaySchema = z.object({
+  name: z.string().trim().max(200).optional(),
+  exerciseIds: z.array(z.string().min(1).max(100)).max(50).default([]),
+});
+
 const createProgramSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().max(2000).optional(),
@@ -28,6 +33,7 @@ const createProgramSchema = z.object({
   level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
   daysPerWeek: z.number().int().finite().min(1).max(7),
   durationWeeks: z.number().int().finite().min(1).max(52).optional(),
+  days: z.array(createProgramDaySchema).max(7).optional(),
 });
 
 const workoutSetUpdateSchema = z.object({
@@ -119,16 +125,20 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
     const parsed = createProgramSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Некорректные данные', details: parsed.error.flatten() });
 
-    const { name, description, type, goal, level, daysPerWeek, durationWeeks } = parsed.data;
+    const { name, description, type, goal, level, daysPerWeek, durationWeeks, days } = parsed.data;
 
-    // Deactivate current active program and create new one atomically
+    // Deactivate current active program and create new one atomically.
+    // If days[] is provided, create a Workout row per non-empty day with
+    // 3x10 default sets per exercise. Days with unknown exerciseIds (no
+    // matching server Exercise row, e.g. local-only string IDs from
+    // src/data/exercises.ts) are skipped silently — user can edit later.
     const program = await prisma.$transaction(async (tx) => {
       await tx.program.updateMany({
         where: { userId: req.userId, isActive: true },
         data: { isActive: false },
       });
 
-      return tx.program.create({
+      const created = await tx.program.create({
         data: {
           name,
           description,
@@ -142,6 +152,48 @@ router.post('/programs', authenticate, async (req: AuthRequest, res: Response) =
           userId: req.userId!,
         },
       });
+
+      if (days && days.length > 0) {
+        for (let i = 0; i < days.length; i++) {
+          const day = days[i];
+          if (day.exerciseIds.length === 0) continue; // skip empty days
+          try {
+            await tx.workout.create({
+              data: {
+                name: day.name?.trim() || `День ${i + 1}`,
+                userId: req.userId!,
+                programId: created.id,
+                exercises: {
+                  create: day.exerciseIds.map((exId, exIndex) => ({
+                    order: exIndex,
+                    restSeconds: 90,
+                    exerciseId: exId,
+                    // Default 3x10 sets — user customizes weight/reps later in ProgramDetail.
+                    sets: {
+                      create: Array.from({ length: 3 }, (_, setIdx) => ({
+                        setNumber: setIdx + 1,
+                        type: 'normal',
+                        reps: 10,
+                        weight: 0,
+                      })),
+                    },
+                  })),
+                },
+              },
+            });
+          } catch (e: any) {
+            // P2003 = FK constraint (exerciseId not in server Exercise table).
+            // Skip this day silently — common for local-only IDs in MVP.
+            if (e?.code === 'P2003') {
+              logger.warn(`Skipped program day ${i} — some exerciseIds not found server-side`);
+            } else {
+              throw e;
+            }
+          }
+        }
+      }
+
+      return created;
     });
     res.status(201).json(program);
   } catch (e) {
