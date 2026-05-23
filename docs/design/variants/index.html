@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Giron — варианты раздела «Тренировки»</title>
+<style>
+:root {
+  /* Direction A — Premium Graphite + Gold (dark mode) */
+  --bg: #0E0E0F;
+  --surface: #17171A;
+  --surface-elev: #1E1E22;
+  --primary: #D4B07A;
+  --primary-dark: #B08A4E;
+  --primary-light: #E5C896;
+  --text: #F4F1EA;
+  --text-secondary: #A8A49C;
+  --text-tertiary: #6B6860;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.04);
+  --error: #E07A6B;
+  --warning: #E8A36A;
+  --success: #9AC28C;
+  --calories: #E07A6B;
+  --fats: #E8A36A;
+  --carbs: #9AC28C;
+
+  /* Phone frame */
+  --phone-w: 375px;
+  --phone-h: 812px;
+
+  /* Page palette */
+  --page-bg: #0a0a0c;
+  --panel: #14141a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  background: var(--page-bg);
+  color: var(--text);
+  padding: 48px 24px;
+  line-height: 1.4;
+  min-height: 100vh;
+}
+
+.page-header {
+  max-width: 1400px;
+  margin: 0 auto 56px;
+}
+.page-header h1 {
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -1.2px;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.page-header .subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  max-width: 720px;
+}
+.page-header .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 1200px;
+}
+.legend strong { color: var(--text); font-weight: 600; }
+
+.section {
+  max-width: 1400px;
+  margin: 0 auto 80px;
+}
+.section-header {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.section-header .meta-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: var(--primary);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.section-header h2 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  margin-bottom: 8px;
+}
+.section-header p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  max-width: 720px;
+}
+
+.variants-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+@media (max-width: 1280px) {
+  .variants-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 860px) {
+  .variants-row { grid-template-columns: 1fr; }
+}
+
+.variant {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.variant-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.variant-title .badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.badge.simplicity { background: rgba(154, 194, 140, 0.16); color: var(--success); }
+.badge.premium    { background: rgba(212, 176, 122, 0.18); color: var(--primary); }
+.badge.convenience { background: rgba(232, 163, 106, 0.16); color: var(--warning); }
+.badge.current { background: rgba(168, 164, 156, 0.16); color: var(--text-secondary); }
+
+.variant-title h3 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+.variant-title .desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.phone {
+  position: relative;
+  width: var(--phone-w);
+  height: var(--phone-h);
+  margin: 0 auto;
+  background: var(--bg);
+  border-radius: 44px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow:
+    0 30px 60px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(0,0,0,0.4) inset;
+  overflow: hidden;
+}
+.phone-inner {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  border-radius: 36px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.status-bar {
+  height: 44px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.status-bar .right-side { display: flex; gap: 6px; align-items: center; }
+
+.tab-bar-mock {
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 64px;
+  background: rgba(20,20,24,0.88);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: 12px;
+}
+.tab-bar-mock .tab-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.tab-bar-mock .tab-item.active { color: var(--primary); }
+.tab-bar-mock .tab-item .icon {
+  width: 22px; height: 22px;
+  background: currentColor;
+  mask-image: linear-gradient(transparent, transparent);
+  border-radius: 4px;
+  opacity: 0.85;
+}
+.tab-bar-mock .ai-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  margin-top: -16px;
+  box-shadow: 0 0 24px rgba(212,176,122,0.45);
+  font-size: 20px;
+  color: var(--bg);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 72px;
+}
+.content::-webkit-scrollbar { display: none; }
+
+/* --- COMMON PRIMITIVES --- */
+.meta {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+.h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.18; }
+.h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+.h4 { font-size: 18px; font-weight: 600; }
+.body { font-size: 16px; line-height: 1.5; }
+.body-sb { font-size: 16px; font-weight: 600; }
+.small { font-size: 14px; color: var(--text-secondary); }
+.caption { font-size: 12px; color: var(--text-secondary); }
+.num { font-size: 36px; font-weight: 700; letter-spacing: -0.8px; line-height: 1; }
+.num-sm { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.1; }
+
+.card {
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+.card-elev { background: var(--surface-elev); }
+.divider-gold { height: 1px; background: rgba(212,176,122,0.2); margin: 16px 0; }
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--bg);
+  padding: 14px;
+  border-radius: 16px;
+  font-weight: 600;
+  text-align: center;
+  font-size: 15px;
+  box-shadow: 0 0 18px rgba(212,176,122,0.3);
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 13px;
+  border-radius: 16px;
+  font-weight: 500;
+  text-align: center;
+  font-size: 15px;
+}
+.chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  display: inline-block;
+}
+.chip.active {
+  background: var(--primary);
+  color: var(--bg);
+  border-color: var(--primary);
+  font-weight: 500;
+}
+
+.icon-tile {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(212,176,122,0.18);
+  border: 1px solid rgba(212,176,122,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.icon-tile-lg {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: rgba(212,176,122,0.16);
+  border: 1px solid rgba(212,176,122,0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-size: 18px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.row { display: flex; gap: 12px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 4px; }
+
+.pros {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 12px 14px;
+  background: rgba(212,176,122,0.06);
+  border-radius: 10px;
+  border-left: 2px solid var(--primary);
+}
+.pros .line { display: flex; gap: 6px; align-items: flex-start; }
+.pros .line::before {
+  content: '·';
+  color: var(--primary);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* --- VARIANT A (Workouts root: «Журнал тренера») --- */
+.v-journal .hero-coach {
+  position: relative;
+  background: linear-gradient(135deg, #1E1810 0%, #2A1F12 60%, #382612 100%);
+  border-radius: 24px;
+  padding: 20px;
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.v-journal .hero-coach::after {
+  content: '';
+  position: absolute;
+  right: -40px; top: -40px;
+  width: 140px; height: 140px;
+  background: radial-gradient(circle, rgba(212,176,122,0.22), transparent 60%);
+}
+.v-journal .hero-coach .small { color: var(--text-secondary); }
+.v-journal .hero-coach .title { color: var(--text); font-size: 22px; font-weight: 600; line-height: 1.2; margin-top: 8px; }
+.v-journal .hero-coach .actions { display: flex; gap: 8px; margin-top: 20px; align-items: center; }
+.v-journal .hero-coach .actions .btn-primary { flex: 1; }
+.v-journal .hero-coach .actions .refresh { width: 44px; height: 44px; background: var(--surface); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+
+.v-journal .section-block { margin-top: 24px; }
+.v-journal .section-block .meta { margin-bottom: 8px; }
+.v-journal .recent {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.v-journal .recent-card {
+  flex-shrink: 0;
+  width: 130px;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+.v-journal .recent-card .day { font-size: 11px; color: var(--primary); font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase; }
+.v-journal .recent-card .name { font-size: 14px; font-weight: 600; margin-top: 4px; }
+.v-journal .recent-card .stat { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+
+.v-journal .week-summary {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+.v-journal .week-summary .stat-card {
+  flex: 1;
+  background: var(--surface);
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+.v-journal .week-summary .stat-card .num-sm { color: var(--primary); }
+
+/* --- VARIANT B (Workouts root: текущее — 3 tabs) --- */
+.v-tabs .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+}
+.v-tabs .header .h2 { font-size: 28px; }
+.v-tabs .header .actions { display: flex; gap: 8px; }
+.v-tabs .header .icon-btn {
+  width: 40px; height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text);
+}
+
+.v-tabs .hero-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--primary);
+  padding: 16px;
+  border-radius: 18px;
+  margin-top: 16px;
+  box-shadow: 0 0 24px rgba(212,176,122,0.35);
+}
+.v-tabs .hero-btn .icon-bg {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--bg);
+  color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.v-tabs .hero-btn .body-sb { color: var(--bg); }
+.v-tabs .hero-btn .caption { color: var(--bg); opacity: 0.7; }
+
+.v-tabs .tabs-row {
+  display: flex;
+  gap: 28px;
+  margin-top: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.v-tabs .tab-item {
+  padding: 12px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.v-tabs .tab-item.active {
+  color: var(--primary);
+  border-bottom: 2px solid var(--primary);
+}
+
+.v-tabs .saved-templates { margin-top: 20px; }
+.v-tabs .saved-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin-top: 12px;
+}
+.v-tabs .saved-card {
+  flex-shrink: 0;
+  width: 130px;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+}
+.v-tabs .saved-card .icon-tile { margin-bottom: 8px; }
+.v-tabs .saved-card .name { font-size: 14px; font-weight: 600; }
+.v-tabs .saved-card .count { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+.v-tabs .preset-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface);
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.v-tabs .preset-card .name { font-size: 14px; font-weight: 600; flex: 1; }
+.v-tabs .preset-card .count { font-size: 12px; color: var(--text-secondary); }
+
+/* --- VARIANT C (Workouts root: «Лента дня») --- */
+.v-feed .greeting { margin-top: 12px; }
+.v-feed .greeting .meta { color: var(--text-tertiary); }
+.v-feed .greeting .h2 { margin-top: 4px; }
+
+.v-feed .feed-card {
+  background: var(--surface);
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  padding: 18px;
+  margin-top: 16px;
+}
+.v-feed .feed-card.hero {
+  background: linear-gradient(135deg, #1E1810 0%, #2A1F12 60%, #382612 100%);
+  border-color: rgba(212,176,122,0.25);
+}
+.v-feed .feed-card .card-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+}
+.v-feed .feed-card .card-head .meta { color: var(--primary); flex: 1; }
+.v-feed .feed-card .body-sb { line-height: 1.3; }
+.v-feed .feed-card .small { margin-top: 8px; }
+.v-feed .feed-card .row-action {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.v-feed .feed-card .row-action .arrow { color: var(--primary); font-size: 18px; }
+.v-feed .feed-card .row-action .link { font-size: 13px; color: var(--primary); font-weight: 500; }
+
+/* --- CreateProgram Variants --- */
+
+.cp-header {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 12px; padding-bottom: 16px;
+}
+.cp-header .back { width: 32px; height: 32px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center; color: var(--text); font-size: 18px; }
+.cp-header .col { flex: 1; }
+.cp-header .meta { color: var(--text-secondary); }
+.cp-header .h4 { font-size: 17px; }
+
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.progress-bar .fill {
+  height: 100%;
+  background: var(--primary);
+  width: 50%;
+}
+
+/* CreateProgram V1: текущий 2-step wizard */
+.cp-wizard .meta-section { margin-top: 24px; }
+.cp-wizard .meta-section .meta { margin-bottom: 8px; }
+.cp-wizard .input-row {
+  background: var(--surface-elev);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  color: var(--text-tertiary);
+  font-size: 15px;
+}
+.cp-wizard .input-row.filled { color: var(--text); }
+.cp-wizard .chips-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cp-wizard .chip-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+.cp-wizard .chip-card.active {
+  background: rgba(212,176,122,0.12);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.cp-wizard .chip-inline {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.cp-wizard .chip-inline .chip-card { flex: 1; }
+.cp-wizard .stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 14px 18px;
+}
+.cp-wizard .stepper .stepper-val { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.cp-wizard .stepper .ctrl {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--surface-elev);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  color: var(--text);
+}
+.cp-wizard .double {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sticky-cta {
+  position: absolute;
+  left: 8px; right: 8px;
+  bottom: 8px;
+  padding: 16px 20px;
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+
+/* CreateProgram V2: одна страница с аккордеонами */
+.cp-onepage .accordion {
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.cp-onepage .accordion .head {
+  padding: 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.cp-onepage .accordion .head .icon-tile { background: rgba(212,176,122,0.18); border-color: rgba(212,176,122,0.3); }
+.cp-onepage .accordion .head .col { flex: 1; }
+.cp-onepage .accordion .head .arrow { color: var(--text-tertiary); }
+.cp-onepage .accordion .body { padding: 0 16px 16px; border-top: 1px solid var(--border); }
+.cp-onepage .accordion.open .head { background: rgba(212,176,122,0.05); }
+.cp-onepage .accordion.open .head .arrow { transform: rotate(90deg); color: var(--primary); }
+
+/* CreateProgram V3: расписание-первый */
+.cp-schedule .week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 16px;
+}
+.cp-schedule .week-grid .day-cell {
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 10px 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+.cp-schedule .week-grid .day-cell.rest { opacity: 0.4; }
+.cp-schedule .week-grid .day-cell.filled {
+  border-color: var(--primary);
+  background: rgba(212,176,122,0.08);
+  color: var(--primary);
+}
+.cp-schedule .week-grid .day-cell .dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--primary);
+  margin-top: 2px;
+}
+.cp-schedule .day-detail {
+  margin-top: 20px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+.cp-schedule .day-detail .exercise-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+}
+.cp-schedule .day-detail .exercise-row .num-tile {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: rgba(212,176,122,0.16);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--primary);
+}
+.cp-schedule .day-detail .exercise-row .name { flex: 1; font-size: 14px; }
+.cp-schedule .day-detail .exercise-row .sets { font-size: 12px; color: var(--text-secondary); }
+.cp-schedule .day-detail .add-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 0;
+  border-top: 1px dashed var(--border);
+  margin-top: 8px;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+.cp-schedule .meta-mini {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 16px;
+}
+.cp-schedule .meta-mini .chip { font-size: 12px; padding: 6px 10px; }
+
+/* --- ExerciseLibrary Variants --- */
+
+.el-header {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 12px;
+  padding-bottom: 16px;
+}
+.el-header .back { width: 32px; height: 32px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center; color: var(--text); font-size: 18px; }
+.el-header .h3 { flex: 1; font-size: 18px; }
+
+.el-search {
+  background: var(--surface-elev);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+/* EL V1: список с фильтрами */
+.el-list .chips-scroll {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.el-list .chips-scroll .chip { flex-shrink: 0; font-size: 12px; }
+.el-list .item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface);
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+.el-list .item .thumb {
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1E1E22, #17171A);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.el-list .item .name { flex: 1; font-size: 14px; font-weight: 600; }
+.el-list .item .meta-line { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.el-list .item .fav { color: var(--text-tertiary); font-size: 18px; }
+
+/* EL V2: карточная сетка */
+.el-grid .grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.el-grid .card-item {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.el-grid .card-item .thumb {
+  height: 80px;
+  background: linear-gradient(135deg, #1E1E22, #17171A);
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+.el-grid .card-item .thumb::after {
+  content: '';
+  position: absolute;
+  left: 8px; bottom: 8px;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: rgba(212,176,122,0.2);
+  border: 1px solid rgba(212,176,122,0.3);
+}
+.el-grid .card-item .info { padding: 10px; }
+.el-grid .card-item .name { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.el-grid .card-item .meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+
+/* EL V3: body diagram */
+.el-body .body-figure {
+  margin-top: 16px;
+  height: 280px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.el-body .body-figure svg {
+  height: 240px;
+}
+.el-body .body-figure svg .muscle {
+  fill: rgba(212,176,122,0.18);
+  stroke: rgba(212,176,122,0.4);
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+.el-body .body-figure svg .muscle.active {
+  fill: rgba(212,176,122,0.55);
+  stroke: var(--primary);
+}
+.el-body .body-figure svg .silhouette {
+  fill: var(--surface-elev);
+  stroke: var(--border);
+}
+.el-body .selected-muscle {
+  margin-top: 12px;
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 14px;
+}
+.el-body .selected-muscle .meta { color: var(--primary); margin-bottom: 6px; }
+.el-body .ex-mini {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.el-body .ex-mini:first-of-type { border-top: none; }
+.el-body .ex-mini .thumb-mini { width: 32px; height: 32px; border-radius: 8px; background: var(--surface-elev); border: 1px solid var(--border); }
+.el-body .ex-mini .name { flex: 1; font-size: 13px; font-weight: 500; }
+.el-body .ex-mini .arrow { color: var(--text-tertiary); }
+
+.utility-bar {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  right: 20px;
+  background: rgba(20,20,24,0.92);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 14px;
+  display: flex; justify-content: space-around;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.utility-bar div { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+
+/* --- Footer --- */
+.footer-note {
+  max-width: 1400px;
+  margin: 64px auto 0;
+  padding: 24px 28px;
+  background: var(--surface);
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.footer-note strong { color: var(--text); }
+.footer-note .vote {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(212,176,122,0.06);
+  border-left: 2px solid var(--primary);
+  border-radius: 6px;
+  color: var(--primary);
+}
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>Варианты раздела «Тренировки»</h1>
+  <p class="subtitle">
+    Три экрана × три варианта = девять макетов. Тёмная тема (Direction A — графит + золото).
+    Размер фрейма 375×812 (iPhone). Выбери что нравится — реализую.
+  </p>
+  <div class="legend">
+    <div><span class="badge simplicity">ПРОСТОТА</span> <strong>минимум</strong> элементов на viewport</div>
+    <div><span class="badge premium">ПРЕМИУМ</span> <strong>редакторская</strong> подача, тёплая глубина</div>
+    <div><span class="badge convenience">УДОБСТВО</span> <strong>скорость</strong> доступа к фичам</div>
+    <div><span class="badge current">СЕЙЧАС</span> то что <strong>уже работает</strong> на проде</div>
+  </div>
+</header>
+
+<!-- =================== SCREEN 1: WORKOUTS ROOT =================== -->
+<section class="section">
+  <header class="section-header">
+    <div class="meta-label">Экран 1 из 3</div>
+    <h2>Главный «Тренировки»</h2>
+    <p>
+      Куда юзер попадает с нижней вкладки. Точка входа во все тренировочные действия.
+      Это самый частый экран — сюда заходят перед каждой тренировкой.
+    </p>
+  </header>
+
+  <div class="variants-row">
+    <!-- Variant A1: Журнал тренера -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge premium">Премиум</span>
+        <h3>A. Журнал тренера</h3>
+        <p class="desc">Редакторская подача. AI-рекомендация занимает 50% экрана. Ниже — недавние тренировки и недельная сводка. Никаких табов.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content v-journal">
+            <div class="meta" style="margin-top:8px">ПОНЕДЕЛЬНИК · 12:30</div>
+            <div class="h2" style="margin-top:6px">Доброе утро,<br>Всеволод</div>
+
+            <div class="hero-coach">
+              <div class="row">
+                <div class="icon-tile">★</div>
+                <div class="meta" style="color:var(--primary)">ТРЕНЕР · СЕГОДНЯ</div>
+              </div>
+              <div class="title">Грудь и трицепс.<br>Жим штанги +2.5 кг<br>от прошлой недели.</div>
+              <div class="actions">
+                <div class="btn-primary">Начать тренировку</div>
+                <div class="refresh">↻</div>
+              </div>
+            </div>
+
+            <div class="section-block">
+              <div class="meta">НА ЭТОЙ НЕДЕЛЕ</div>
+              <div class="week-summary">
+                <div class="stat-card"><div class="num-sm">3</div><div class="caption">тренировки</div></div>
+                <div class="stat-card"><div class="num-sm">12.4т</div><div class="caption">кг объём</div></div>
+                <div class="stat-card"><div class="num-sm">2</div><div class="caption">PR</div></div>
+              </div>
+            </div>
+
+            <div class="section-block">
+              <div class="meta">НЕДАВНО</div>
+              <div class="recent">
+                <div class="recent-card"><div class="day">ВЧ</div><div class="name">Спина + бицепс</div><div class="stat">68 мин · 8.2т</div></div>
+                <div class="recent-card"><div class="day">2 ДН</div><div class="name">Ноги</div><div class="stat">52 мин · 9.4т</div></div>
+                <div class="recent-card"><div class="day">5 ДН</div><div class="name">Грудь</div><div class="stat">61 мин · 7.1т</div></div>
+              </div>
+            </div>
+
+            <div class="divider-gold"></div>
+
+            <div class="section-block">
+              <div class="row">
+                <div class="meta" style="flex:1">ИНСТРУМЕНТЫ</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                <div class="card" style="padding:12px"><div class="row"><div class="icon-tile">📐</div><div class="body-sb" style="font-size:13px">Программы</div></div></div>
+                <div class="card" style="padding:12px"><div class="row"><div class="icon-tile">🔍</div><div class="body-sb" style="font-size:13px">Упражнения</div></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-bar-mock">
+            <div class="tab-item"><div class="icon"></div>Главная</div>
+            <div class="tab-item active"><div class="icon"></div>Тренировки</div>
+            <div class="ai-btn">✦</div>
+            <div class="tab-item"><div class="icon"></div>Питание</div>
+            <div class="tab-item"><div class="icon"></div>Профиль</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> AI-рекомендация = главный hero. Юзер сразу видит «что делать сегодня».</div>
+        <div class="line"><strong>+</strong> 3-секундный тест — мгновенно ясно куда нажать.</div>
+        <div class="line"><strong>+</strong> Редакторский тон, не «формочка».</div>
+        <div class="line"><strong>−</strong> Программы и Библиотека спрятаны за «Инструменты» — лишний тап.</div>
+        <div class="line"><strong>~</strong> Лучший для: уверенных юзеров которые следуют AI-плану.</div>
+      </div>
+    </div>
+
+    <!-- Variant B1: Текущий 3-tab -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge current">Сейчас на проде</span>
+        <h3>B. Три вкладки (Начать · Программы · Библиотека)</h3>
+        <p class="desc">Что зашипилось вчера. Hero «Начать» + 3 вкладки. Юзер сам выбирает контекст: тренировка / программа / упражнения.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content v-tabs">
+            <div class="header">
+              <div class="h2">Тренировки</div>
+              <div class="actions">
+                <div class="icon-btn">🔍</div>
+                <div class="icon-btn">⋮</div>
+              </div>
+            </div>
+
+            <div class="hero-btn">
+              <div class="icon-bg">▶</div>
+              <div class="col" style="flex:1">
+                <div class="body-sb">Начать тренировку</div>
+                <div class="caption">Свободная тренировка</div>
+              </div>
+              <div style="color:var(--bg);font-size:18px">›</div>
+            </div>
+
+            <div class="tabs-row">
+              <div class="tab-item active">Начать</div>
+              <div class="tab-item">Программы</div>
+              <div class="tab-item">Библиотека</div>
+            </div>
+
+            <div class="saved-templates">
+              <div class="meta" style="margin-top:16px">МОИ ШАБЛОНЫ</div>
+              <div class="saved-row">
+                <div class="saved-card"><div class="icon-tile">★</div><div class="name">Грудь+Трицепс</div><div class="count">5 упр.</div></div>
+                <div class="saved-card"><div class="icon-tile">🔥</div><div class="name">Ноги тяжёлые</div><div class="count">6 упр.</div></div>
+                <div class="saved-card"><div class="icon-tile">⚡</div><div class="name">Спина</div><div class="count">6 упр.</div></div>
+              </div>
+
+              <div class="meta" style="margin-top:20px">ШАБЛОНЫ ТРЕНИРОВОК</div>
+              <div style="margin-top:8px">
+                <div class="preset-card">
+                  <div class="icon-tile-lg">💪</div>
+                  <div class="col" style="flex:1">
+                    <div class="name">Базовая тройка</div>
+                    <div class="count">3 упражнения</div>
+                  </div>
+                  <div style="color:var(--text-tertiary)">›</div>
+                </div>
+                <div class="preset-card">
+                  <div class="icon-tile-lg">⚡</div>
+                  <div class="col" style="flex:1">
+                    <div class="name">Фулбоди</div>
+                    <div class="count">5 упражнений</div>
+                  </div>
+                  <div style="color:var(--text-tertiary)">›</div>
+                </div>
+                <div class="preset-card">
+                  <div class="icon-tile-lg">❤</div>
+                  <div class="col" style="flex:1">
+                    <div class="name">Кардио</div>
+                    <div class="count">3 упражнения</div>
+                  </div>
+                  <div style="color:var(--text-tertiary)">›</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-bar-mock">
+            <div class="tab-item"><div class="icon"></div>Главная</div>
+            <div class="tab-item active"><div class="icon"></div>Тренировки</div>
+            <div class="ai-btn">✦</div>
+            <div class="tab-item"><div class="icon"></div>Питание</div>
+            <div class="tab-item"><div class="icon"></div>Профиль</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Четкое разделение: тренировка / программа / упражнения.</div>
+        <div class="line"><strong>+</strong> Hero CTA всегда сверху — главное действие очевидно.</div>
+        <div class="line"><strong>+</strong> Уже работает на проде, протестировано.</div>
+        <div class="line"><strong>−</strong> Юзер должен сам решать на какой tab нажать.</div>
+        <div class="line"><strong>~</strong> Лучший для: гибких сценариев и опытных юзеров.</div>
+      </div>
+    </div>
+
+    <!-- Variant C1: Лента дня -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge convenience">Удобство</span>
+        <h3>C. Лента дня</h3>
+        <p class="desc">Никаких табов. Единый вертикальный скролл с контекстными карточками: «Продолжи», «Сегодня по плану», «Шаблоны», «Программы». Как Apple Health.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content v-feed">
+            <div class="greeting">
+              <div class="meta">ПОНЕДЕЛЬНИК, 12 МАЯ</div>
+              <div class="h2">Привет, Всеволод</div>
+            </div>
+
+            <div class="feed-card hero">
+              <div class="card-head">
+                <div class="icon-tile">✦</div>
+                <div class="meta">СЕГОДНЯ · ТРЕНЕР</div>
+              </div>
+              <div class="body-sb" style="font-size:19px;line-height:1.3">Грудь и трицепс.<br>Жим штанги +2.5 кг.</div>
+              <div class="small">5 упражнений · ~55 мин</div>
+              <div class="row-action">
+                <div class="link">Подробнее</div>
+                <div class="btn-primary" style="padding:10px 18px;font-size:13px;flex:0">Начать</div>
+              </div>
+            </div>
+
+            <div class="feed-card">
+              <div class="card-head">
+                <div class="icon-tile">📅</div>
+                <div class="meta">МОИ ШАБЛОНЫ · 3</div>
+              </div>
+              <div class="row" style="gap:8px;overflow-x:auto;padding-bottom:4px">
+                <div class="card" style="padding:10px 12px;flex-shrink:0">
+                  <div class="body-sb" style="font-size:13px">Грудь+Трицепс</div>
+                  <div class="caption">5 упр.</div>
+                </div>
+                <div class="card" style="padding:10px 12px;flex-shrink:0">
+                  <div class="body-sb" style="font-size:13px">Ноги</div>
+                  <div class="caption">6 упр.</div>
+                </div>
+                <div class="card" style="padding:10px 12px;flex-shrink:0">
+                  <div class="body-sb" style="font-size:13px">Спина</div>
+                  <div class="caption">6 упр.</div>
+                </div>
+              </div>
+              <div class="row-action">
+                <div class="link">Все шаблоны</div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+
+            <div class="feed-card">
+              <div class="card-head">
+                <div class="icon-tile">📐</div>
+                <div class="meta">ПРОГРАММЫ</div>
+              </div>
+              <div class="body-sb" style="font-size:15px">Push Pull Legs · 4 недели</div>
+              <div class="small">Активна сейчас. День 6 из 12.</div>
+              <div class="row-action">
+                <div class="link">+ Создать программу</div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+
+            <div class="feed-card">
+              <div class="card-head">
+                <div class="icon-tile">🔍</div>
+                <div class="meta">БИБЛИОТЕКА</div>
+              </div>
+              <div class="body-sb" style="font-size:15px">111 упражнений · 4 группы мышц</div>
+              <div class="row-action">
+                <div class="link">Открыть библиотеку</div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-bar-mock">
+            <div class="tab-item"><div class="icon"></div>Главная</div>
+            <div class="tab-item active"><div class="icon"></div>Тренировки</div>
+            <div class="ai-btn">✦</div>
+            <div class="tab-item"><div class="icon"></div>Питание</div>
+            <div class="tab-item"><div class="icon"></div>Профиль</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Один скролл — никаких табов, никакого «не знаю куда жать».</div>
+        <div class="line"><strong>+</strong> Каждая карточка — самостоятельная история, не пункт меню.</div>
+        <div class="line"><strong>+</strong> Контекст сверху (приветствие + AI) → команды снизу.</div>
+        <div class="line"><strong>−</strong> Длинный экран = больше скролла.</div>
+        <div class="line"><strong>~</strong> Лучший для: повседневного использования, low-cognition входа.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== SCREEN 2: CREATE PROGRAM =================== -->
+<section class="section">
+  <header class="section-header">
+    <div class="meta-label">Экран 2 из 3</div>
+    <h2>Создание своей программы</h2>
+    <p>
+      «Хочу программу 4 недели на массу». Как юзер собирает её из упражнений.
+      Самая сложная часть приложения — нужно одновременно вводить много параметров.
+    </p>
+  </header>
+
+  <div class="variants-row">
+    <!-- CP V1: 2-step wizard (текущее) -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge current">Сейчас на проде</span>
+        <h3>A. Wizard 2 шага</h3>
+        <p class="desc">Шаг 1: имя, цель, уровень, длительность. Шаг 2: визуальная сетка недели, тап на день → bottom sheet выбора упражнений.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content cp-wizard">
+            <div class="cp-header">
+              <div class="back">‹</div>
+              <div class="col">
+                <div class="meta">1 ИЗ 2 · НОВАЯ ПРОГРАММА</div>
+                <div class="h4">Расскажи о цели</div>
+              </div>
+            </div>
+            <div class="progress-bar"><div class="fill"></div></div>
+
+            <div class="meta-section">
+              <div class="meta">НАЗВАНИЕ</div>
+              <div class="input-row filled">4 недели на массу</div>
+            </div>
+
+            <div class="meta-section">
+              <div class="meta">ЦЕЛЬ</div>
+              <div class="chips-grid">
+                <div class="chip-card">Сила</div>
+                <div class="chip-card active">Масса</div>
+                <div class="chip-card">Похудение</div>
+                <div class="chip-card">Выносливость</div>
+              </div>
+            </div>
+
+            <div class="meta-section">
+              <div class="meta">УРОВЕНЬ</div>
+              <div class="chip-inline">
+                <div class="chip-card">Новичок</div>
+                <div class="chip-card active">Средний</div>
+                <div class="chip-card">Продвинутый</div>
+              </div>
+            </div>
+
+            <div class="meta-section">
+              <div class="double">
+                <div>
+                  <div class="meta">ДЛИТЕЛЬНОСТЬ</div>
+                  <div class="stepper" style="margin-top:8px">
+                    <div class="ctrl">−</div>
+                    <div class="col" style="align-items:center">
+                      <div class="stepper-val">4</div>
+                      <div class="caption">нед</div>
+                    </div>
+                    <div class="ctrl">+</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="meta">ДНИ В НЕДЕЛЮ</div>
+                  <div class="stepper" style="margin-top:8px">
+                    <div class="ctrl">−</div>
+                    <div class="col" style="align-items:center">
+                      <div class="stepper-val">3</div>
+                      <div class="caption">дн</div>
+                    </div>
+                    <div class="ctrl">+</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sticky-cta">
+            <div class="btn-primary">Далее →</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Линейный, простой для первого раза.</div>
+        <div class="line"><strong>+</strong> Шаг 1 = настройки. Шаг 2 = упражнения. Естественное разделение.</div>
+        <div class="line"><strong>+</strong> Уже работает на проде.</div>
+        <div class="line"><strong>−</strong> На большой экран мало контента → много пустоты.</div>
+        <div class="line"><strong>−</strong> Чтобы изменить «недели» после step 2 → надо идти назад.</div>
+      </div>
+    </div>
+
+    <!-- CP V2: Один экран с аккордеонами -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge simplicity">Простота</span>
+        <h3>B. Одна страница, аккордеоны</h3>
+        <p class="desc">Всё на одном экране: параметры + дни + упражнения. Секции раскрываются/сворачиваются. Юзер видит всю программу сразу.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content cp-onepage">
+            <div class="cp-header">
+              <div class="back">‹</div>
+              <div class="col">
+                <div class="meta">НОВАЯ ПРОГРАММА</div>
+                <div class="h4">4 недели на массу</div>
+              </div>
+            </div>
+
+            <div class="accordion open">
+              <div class="head">
+                <div class="icon-tile">①</div>
+                <div class="col">
+                  <div class="body-sb" style="font-size:14px">Основное</div>
+                  <div class="caption">Масса · Средний · 4 нед · 3 дн</div>
+                </div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="body">
+                <div class="meta" style="margin:12px 0 6px">ЦЕЛЬ</div>
+                <div class="chip-inline" style="display:flex;gap:6px;flex-wrap:wrap">
+                  <div class="chip">Сила</div>
+                  <div class="chip active">Масса</div>
+                  <div class="chip">Похудение</div>
+                </div>
+                <div class="meta" style="margin:12px 0 6px">УРОВЕНЬ</div>
+                <div class="chip-inline" style="display:flex;gap:6px">
+                  <div class="chip">Новичок</div>
+                  <div class="chip active">Средний</div>
+                  <div class="chip">Продв.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="accordion open">
+              <div class="head">
+                <div class="icon-tile">②</div>
+                <div class="col">
+                  <div class="body-sb" style="font-size:14px">Расписание</div>
+                  <div class="caption">3 дня в неделю, 4 недели</div>
+                </div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="body">
+                <div class="row" style="gap:8px;margin-top:12px">
+                  <div class="card" style="flex:1;text-align:center;padding:10px 4px">
+                    <div class="caption">ДЕНЬ 1</div>
+                    <div class="body-sb" style="font-size:12px;margin-top:2px;color:var(--primary)">Грудь</div>
+                  </div>
+                  <div class="card" style="flex:1;text-align:center;padding:10px 4px">
+                    <div class="caption">ДЕНЬ 2</div>
+                    <div class="body-sb" style="font-size:12px;margin-top:2px;color:var(--primary)">Спина</div>
+                  </div>
+                  <div class="card" style="flex:1;text-align:center;padding:10px 4px">
+                    <div class="caption">ДЕНЬ 3</div>
+                    <div class="body-sb" style="font-size:12px;margin-top:2px;color:var(--primary)">Ноги</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="accordion">
+              <div class="head">
+                <div class="icon-tile">③</div>
+                <div class="col">
+                  <div class="body-sb" style="font-size:14px">Упражнения</div>
+                  <div class="caption">15 упражнений выбрано</div>
+                </div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+
+            <div class="accordion">
+              <div class="head">
+                <div class="icon-tile">④</div>
+                <div class="col">
+                  <div class="body-sb" style="font-size:14px">Прогрессия</div>
+                  <div class="caption">Линейная +2.5 кг/нед</div>
+                </div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+          </div>
+          <div class="sticky-cta">
+            <div class="btn-primary">Сохранить программу</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Вся программа на одном экране — нет навигации «вперёд-назад».</div>
+        <div class="line"><strong>+</strong> Можно редактировать любую секцию в любом порядке.</div>
+        <div class="line"><strong>+</strong> Каждая секция показывает превью когда свёрнута.</div>
+        <div class="line"><strong>−</strong> Может выглядеть «загружено» если все секции открыты.</div>
+        <div class="line"><strong>~</strong> Лучший для: тех кто любит видеть всё разом и допиливать частями.</div>
+      </div>
+    </div>
+
+    <!-- CP V3: Расписание-первый -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge convenience">Удобство</span>
+        <h3>C. Расписание-первый</h3>
+        <p class="desc">Сразу видишь пустую неделю. Тапаешь день → добавляешь упражнения. Параметры (название, цель) внизу. Сначала структура, потом метаданные.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content cp-schedule">
+            <div class="cp-header">
+              <div class="back">‹</div>
+              <div class="col">
+                <div class="meta">НОВАЯ ПРОГРАММА</div>
+                <div class="h4">Без названия</div>
+              </div>
+              <div style="color:var(--primary);font-size:13px;font-weight:500">Сохранить</div>
+            </div>
+
+            <div class="meta">НЕДЕЛЯ</div>
+            <div class="week-grid">
+              <div class="day-cell filled">ПН<div class="dot"></div></div>
+              <div class="day-cell rest">ВТ</div>
+              <div class="day-cell filled">СР<div class="dot"></div></div>
+              <div class="day-cell rest">ЧТ</div>
+              <div class="day-cell filled">ПТ<div class="dot"></div></div>
+              <div class="day-cell rest">СБ</div>
+              <div class="day-cell rest">ВС</div>
+            </div>
+
+            <div class="day-detail">
+              <div class="row" style="justify-content:space-between">
+                <div class="col">
+                  <div class="meta" style="color:var(--primary)">ДЕНЬ ПН · ГРУДЬ И ТРИЦЕПС</div>
+                  <div class="caption">5 упражнений · ~55 мин</div>
+                </div>
+                <div style="color:var(--text-tertiary)">✎</div>
+              </div>
+
+              <div class="exercise-row">
+                <div class="num-tile">1</div>
+                <div class="name">Жим лёжа</div>
+                <div class="sets">4×8</div>
+              </div>
+              <div class="exercise-row">
+                <div class="num-tile">2</div>
+                <div class="name">Жим на наклонной</div>
+                <div class="sets">3×10</div>
+              </div>
+              <div class="exercise-row">
+                <div class="num-tile">3</div>
+                <div class="name">Разводки гантелями</div>
+                <div class="sets">3×12</div>
+              </div>
+              <div class="add-row">
+                <div>+</div>
+                <div>Добавить упражнение</div>
+              </div>
+            </div>
+
+            <div class="meta" style="margin-top:24px">ПАРАМЕТРЫ</div>
+            <div class="meta-mini">
+              <div class="chip active">Масса</div>
+              <div class="chip">4 недели</div>
+              <div class="chip">Средний</div>
+              <div class="chip">+2.5 кг/нед</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Самое наглядное — сразу видно структуру недели.</div>
+        <div class="line"><strong>+</strong> Drag-drop день между позициями (можно перенести).</div>
+        <div class="line"><strong>+</strong> Метаданные (цель/уровень) не блокируют — заполняются в конце.</div>
+        <div class="line"><strong>−</strong> Новичку может быть непонятно с чего начать (без guidance).</div>
+        <div class="line"><strong>~</strong> Лучший для: опытных юзеров которые знают что хотят.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== SCREEN 3: EXERCISE LIBRARY =================== -->
+<section class="section">
+  <header class="section-header">
+    <div class="meta-label">Экран 3 из 3</div>
+    <h2>Библиотека упражнений</h2>
+    <p>
+      «Как делать жим штанги?» Браузинг 111 упражнений с поиском, фильтрами, видео.
+      Дизайн напрямую влияет на скорость нахождения нужного упражнения.
+    </p>
+  </header>
+
+  <div class="variants-row">
+    <!-- EL V1: Список (текущее) -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge current">Сейчас на проде</span>
+        <h3>A. Список с фильтрами</h3>
+        <p class="desc">Поиск + 14 фильтров мышц + 8 фильтров снаряжения + вертикальный список. Knowing-search паттерн (юзер уже знает что ищет).</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content el-list">
+            <div class="el-header">
+              <div class="back">‹</div>
+              <div class="h3">Библиотека упражнений</div>
+            </div>
+            <div class="el-search">🔍 Поиск упражнений...</div>
+            <div class="chips-scroll">
+              <div class="chip active">Все</div>
+              <div class="chip">★</div>
+              <div class="chip">Грудь</div>
+              <div class="chip">Спина</div>
+              <div class="chip">Плечи</div>
+              <div class="chip">Бицепс</div>
+            </div>
+            <div class="chips-scroll">
+              <div class="chip active">Любое</div>
+              <div class="chip">Штанга</div>
+              <div class="chip">Гантели</div>
+              <div class="chip">Блок</div>
+            </div>
+            <div class="caption" style="margin-top:8px">71 упражнение</div>
+
+            <div class="item">
+              <div class="thumb"></div>
+              <div class="col" style="flex:1">
+                <div class="name">Жим штанги лёжа</div>
+                <div class="meta-line">грудь · трицепс · плечи</div>
+              </div>
+              <div class="fav">♡</div>
+            </div>
+            <div class="item">
+              <div class="thumb"></div>
+              <div class="col" style="flex:1">
+                <div class="name">Жим штанги на наклонной</div>
+                <div class="meta-line">грудь · плечи</div>
+              </div>
+              <div class="fav">♥</div>
+            </div>
+            <div class="item">
+              <div class="thumb"></div>
+              <div class="col" style="flex:1">
+                <div class="name">Разводки гантелями</div>
+                <div class="meta-line">грудь</div>
+              </div>
+              <div class="fav">♡</div>
+            </div>
+            <div class="item">
+              <div class="thumb"></div>
+              <div class="col" style="flex:1">
+                <div class="name">Отжимания на брусьях</div>
+                <div class="meta-line">грудь · трицепс</div>
+              </div>
+              <div class="fav">♡</div>
+            </div>
+            <div class="item">
+              <div class="thumb"></div>
+              <div class="col" style="flex:1">
+                <div class="name">Жим в Хаммере</div>
+                <div class="meta-line">грудь</div>
+              </div>
+              <div class="fav">♡</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Знакомый паттерн (как в App Store).</div>
+        <div class="line"><strong>+</strong> Лёгкое сканирование: 5-6 упражнений на viewport.</div>
+        <div class="line"><strong>+</strong> Уже работает, ExercisesTab компонент готов.</div>
+        <div class="line"><strong>−</strong> Без миниатюр видео — все упражнения «одинаковы на глаз».</div>
+        <div class="line"><strong>~</strong> Лучший для: «уже знаю что ищу, дайте быстро найти».</div>
+      </div>
+    </div>
+
+    <!-- EL V2: Card grid -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge premium">Премиум</span>
+        <h3>B. Карточная сетка</h3>
+        <p class="desc">2-колоночная сетка с миниатюрами видео для каждого упражнения. Visual-first браузинг — отличает упражнения визуально, не текстом.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content el-grid">
+            <div class="el-header">
+              <div class="back">‹</div>
+              <div class="h3">Упражнения</div>
+            </div>
+            <div class="el-search">🔍 Поиск...</div>
+            <div class="chips-scroll" style="display:flex;gap:8px;margin-top:12px;overflow-x:auto">
+              <div class="chip active">Все 71</div>
+              <div class="chip">★ 12</div>
+              <div class="chip">Грудь 8</div>
+              <div class="chip">Спина 9</div>
+              <div class="chip">Плечи 7</div>
+            </div>
+
+            <div class="grid">
+              <div class="card-item">
+                <div class="thumb"></div>
+                <div class="info">
+                  <div class="name">Жим штанги лёжа</div>
+                  <div class="meta">грудь · базовое</div>
+                </div>
+              </div>
+              <div class="card-item">
+                <div class="thumb"></div>
+                <div class="info">
+                  <div class="name">Приседания со штангой</div>
+                  <div class="meta">ноги · базовое</div>
+                </div>
+              </div>
+              <div class="card-item">
+                <div class="thumb"></div>
+                <div class="info">
+                  <div class="name">Становая тяга</div>
+                  <div class="meta">спина · базовое</div>
+                </div>
+              </div>
+              <div class="card-item">
+                <div class="thumb"></div>
+                <div class="info">
+                  <div class="name">Жим на наклонной</div>
+                  <div class="meta">грудь · верх</div>
+                </div>
+              </div>
+              <div class="card-item">
+                <div class="thumb"></div>
+                <div class="info">
+                  <div class="name">Подтягивания</div>
+                  <div class="meta">спина · вес тела</div>
+                </div>
+              </div>
+              <div class="card-item">
+                <div class="thumb"></div>
+                <div class="info">
+                  <div class="name">Жим стоя</div>
+                  <div class="meta">плечи</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Миниатюры видео = мгновенное распознавание упражнения.</div>
+        <div class="line"><strong>+</strong> Премиальное ощущение — как Pinterest для тренировок.</div>
+        <div class="line"><strong>+</strong> Подходит для discovery (юзер не знает что ищет).</div>
+        <div class="line"><strong>−</strong> 4 упражнения на viewport vs 5 в списке (плотнее в списке).</div>
+        <div class="line"><strong>~</strong> Лучший для: «хочу посмотреть что есть, найти интересное».</div>
+      </div>
+    </div>
+
+    <!-- EL V3: Body diagram -->
+    <div class="variant">
+      <div class="variant-title">
+        <span class="badge convenience">Удобство</span>
+        <h3>C. По мышцам (диаграмма тела)</h3>
+        <p class="desc">Силуэт человека в центре. Тап на мышцу → список упражнений для неё. Визуальный навигатор по анатомии. Уникальная фишка.</p>
+      </div>
+      <div class="phone">
+        <div class="phone-inner">
+          <div class="status-bar"><span>9:41</span><span class="right-side">●●● ▮</span></div>
+          <div class="content el-body">
+            <div class="el-header">
+              <div class="back">‹</div>
+              <div class="h3">По группам мышц</div>
+              <div style="color:var(--primary);font-size:13px;font-weight:500">Список →</div>
+            </div>
+
+            <div class="body-figure">
+              <svg viewBox="0 0 120 240" xmlns="http://www.w3.org/2000/svg">
+                <!-- Body silhouette -->
+                <ellipse class="silhouette" cx="60" cy="22" rx="14" ry="16"/>
+                <rect class="silhouette" x="46" y="35" width="28" height="8" rx="4"/>
+                <!-- Torso outline -->
+                <path class="silhouette" d="M 30 50 Q 30 45 36 43 L 84 43 Q 90 45 90 50 L 92 130 Q 92 135 88 137 L 70 135 L 70 175 L 65 175 L 65 137 L 55 137 L 55 175 L 50 175 L 50 135 L 32 137 Q 28 135 28 130 Z"/>
+                <!-- Arms -->
+                <path class="silhouette" d="M 28 52 Q 22 60 20 80 L 18 130 L 22 132 L 26 105 L 30 75 Z"/>
+                <path class="silhouette" d="M 92 52 Q 98 60 100 80 L 102 130 L 98 132 L 94 105 L 90 75 Z"/>
+                <!-- Legs -->
+                <path class="silhouette" d="M 50 175 L 48 230 L 56 230 L 56 175 Z"/>
+                <path class="silhouette" d="M 64 175 L 64 230 L 72 230 L 70 175 Z"/>
+
+                <!-- Muscle highlights -->
+                <!-- Chest -->
+                <ellipse class="muscle active" cx="50" cy="65" rx="14" ry="10"/>
+                <ellipse class="muscle active" cx="70" cy="65" rx="14" ry="10"/>
+                <!-- Shoulders -->
+                <ellipse class="muscle" cx="32" cy="56" rx="7" ry="6"/>
+                <ellipse class="muscle" cx="88" cy="56" rx="7" ry="6"/>
+                <!-- Biceps -->
+                <ellipse class="muscle" cx="22" cy="85" rx="5" ry="9"/>
+                <ellipse class="muscle" cx="98" cy="85" rx="5" ry="9"/>
+                <!-- Abs -->
+                <ellipse class="muscle" cx="60" cy="100" rx="10" ry="14"/>
+                <!-- Quads -->
+                <ellipse class="muscle" cx="52" cy="190" rx="5" ry="14"/>
+                <ellipse class="muscle" cx="68" cy="190" rx="5" ry="14"/>
+              </svg>
+            </div>
+
+            <div class="selected-muscle">
+              <div class="meta">ВЫБРАНО · ГРУДЬ (8)</div>
+              <div class="ex-mini">
+                <div class="thumb-mini"></div>
+                <div class="name">Жим штанги лёжа</div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="ex-mini">
+                <div class="thumb-mini"></div>
+                <div class="name">Жим на наклонной</div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="ex-mini">
+                <div class="thumb-mini"></div>
+                <div class="name">Разводки гантелями</div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="ex-mini">
+                <div class="thumb-mini"></div>
+                <div class="name">Отжимания на брусьях</div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="line"><strong>+</strong> Уникально — выглядит как «настоящий тренерский планшет».</div>
+        <div class="line"><strong>+</strong> Особенно полезно когда юзер не знает русские названия мышц.</div>
+        <div class="line"><strong>+</strong> «Где-то болит → тап на это место → упражнения для этой группы».</div>
+        <div class="line"><strong>−</strong> Сложнее в реализации (SVG body diagram + интерактив).</div>
+        <div class="line"><strong>−</strong> Не покрывает search by name — нужен «Список →» fallback.</div>
+        <div class="line"><strong>~</strong> Лучший для: новичков + визуального learning style.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<div class="footer-note">
+  <strong>Как выбрать.</strong> Можешь смешивать: например — root экран <strong>C (Лента дня)</strong> + CreateProgram <strong>C (Расписание-первый)</strong> + Library <strong>C (По мышцам)</strong>. Или оставить root <strong>B</strong> (что сейчас) и менять только Library.
+  <br><br>
+  <strong>Главные идеи (PHILOSOPHY.md):</strong> простота <span class="badge simplicity" style="margin:0 4px">минимум элементов</span> · премиум <span class="badge premium" style="margin:0 4px">редакторская подача</span> · удобство <span class="badge convenience" style="margin:0 4px">скорость доступа</span> · Patek не Hublot.
+
+  <div class="vote">
+    <strong>Дай ответ в формате: «1A · 2C · 3B»</strong> (root · CreateProgram · Library) — и я реализую.
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>V4 — sticky CTA fix</title>
+<style>
+:root {
+  --bg: #0E0E0F;
+  --surface: #17171A;
+  --surface-elev: #1E1E22;
+  --primary: #D4B07A;
+  --primary-dark: #B08A4E;
+  --primary-light: #E5C896;
+  --text: #F4F1EA;
+  --text-secondary: #A8A49C;
+  --text-tertiary: #6B6860;
+  --border: rgba(255, 255, 255, 0.08);
+  --error: #E07A6B;
+  --warning: #E8A36A;
+  --success: #9AC28C;
+  --phone-w: 375px;
+  --phone-h: 812px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Arial, sans-serif;
+  background: #0a0a0c;
+  color: var(--text);
+  padding: 48px 24px;
+  min-height: 100vh;
+}
+
+.page-header { max-width: 1400px; margin: 0 auto 56px; }
+.page-header h1 { font-size: 32px; font-weight: 600; letter-spacing: -1px; color: var(--primary); margin-bottom: 8px; }
+.page-header p { font-size: 15px; color: var(--text-secondary); }
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+@media (max-width: 1280px) { .row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 860px)  { .row { grid-template-columns: 1fr; } }
+
+.variant { display: flex; flex-direction: column; gap: 16px; }
+.variant .label {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.variant .label .pill {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: rgba(212, 176, 122, 0.18);
+  color: var(--primary);
+}
+.variant .label h3 { font-size: 18px; font-weight: 600; }
+.variant .label .desc { font-size: 13px; color: var(--text-secondary); line-height: 1.45; }
+
+.phone {
+  position: relative;
+  width: var(--phone-w);
+  height: var(--phone-h);
+  background: var(--bg);
+  border-radius: 44px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 30px 60px rgba(0,0,0,0.45);
+  overflow: hidden;
+}
+.phone-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  border-radius: 36px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.status-bar {
+  height: 44px;
+  padding: 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 24px;
+}
+.content.with-tabbar {
+  padding-bottom: 90px;
+}
+.content::-webkit-scrollbar { display: none; }
+
+.tab-bar {
+  position: absolute;
+  bottom: 0;
+  left: 8px; right: 8px;
+  height: 64px;
+  background: rgba(20,20,24,0.88);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: 12px;
+}
+.tab-bar .tab {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  display: flex; flex-direction: column; gap: 2px; align-items: center;
+}
+.tab-bar .tab.active { color: var(--primary); }
+.tab-bar .tab .ico { width: 20px; height: 20px; }
+.tab-bar .ai-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  margin-top: -16px;
+  box-shadow: 0 0 24px rgba(212,176,122,0.45);
+  color: var(--bg);
+}
+
+.meta { font-size: 11px; font-weight: 500; letter-spacing: 1.5px; color: var(--text-secondary); text-transform: uppercase; }
+.h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.18; }
+.h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+.h4 { font-size: 18px; font-weight: 600; }
+.body { font-size: 16px; }
+.body-sb { font-size: 16px; font-weight: 600; }
+.small { font-size: 14px; color: var(--text-secondary); }
+.caption { font-size: 12px; color: var(--text-secondary); }
+.num { font-size: 32px; font-weight: 700; letter-spacing: -0.6px; line-height: 1; }
+
+.divider { height: 1px; background: rgba(212,176,122,0.2); margin: 20px 0; }
+
+/* SVG icon helper — use these instead of emoji */
+.icon-svg { display: inline-block; vertical-align: middle; }
+
+/* ========== SCREEN 1: Журнал тренера (improved) ========== */
+.s1 .hero-coach {
+  position: relative;
+  background: linear-gradient(135deg, #1E1810 0%, #2A1F12 60%, #382612 100%);
+  border-radius: 24px;
+  padding: 22px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.s1 .hero-coach::after {
+  content: '';
+  position: absolute; right: -40px; top: -40px;
+  width: 160px; height: 160px;
+  background: radial-gradient(circle, rgba(212,176,122,0.25), transparent 65%);
+}
+.s1 .hero-eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+  position: relative; z-index: 1;
+}
+.s1 .hero-eyebrow .spark-tile {
+  width: 28px; height: 28px;
+  background: var(--primary);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.s1 .hero-title {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.3px;
+  max-width: 270px;
+  position: relative; z-index: 1;
+}
+.s1 .hero-actions {
+  display: flex; gap: 10px;
+  margin-top: 22px;
+  position: relative; z-index: 1;
+}
+.s1 .btn-primary {
+  flex: 1;
+  background: var(--primary);
+  color: var(--bg);
+  padding: 14px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(212,176,122,0.35);
+}
+.s1 .btn-circle {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.s1 .week-stats { display: flex; gap: 10px; margin-top: 24px; }
+.s1 .week-stats .card {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+.s1 .week-stats .num-line {
+  font-size: 24px; font-weight: 700; letter-spacing: -0.4px;
+  color: var(--primary);
+}
+.s1 .week-stats .caption { margin-top: 4px; }
+
+.s1 .section-mt { margin-top: 24px; }
+.s1 .recent-list {
+  display: flex; gap: 10px;
+  overflow-x: auto;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+.s1 .recent-card {
+  flex-shrink: 0;
+  width: 140px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+.s1 .recent-card .day-tag {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: var(--primary);
+  text-transform: uppercase;
+}
+.s1 .recent-card .name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.s1 .recent-card .stat {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+}
+
+.s1 .nav-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.s1 .nav-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.s1 .nav-tile .ico-bg {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: rgba(212,176,122,0.15);
+  border: 1px solid rgba(212,176,122,0.3);
+  display: flex; align-items: center; justify-content: center;
+}
+.s1 .nav-tile .col { flex: 1; }
+.s1 .nav-tile .body-sb { font-size: 14px; }
+.s1 .nav-tile .caption { font-size: 11px; margin-top: 2px; }
+
+/* ========== SCREEN 2: Расписание-первый (with wizard onboarding) ========== */
+.s2 .cp-header {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+.s2 .cp-header .back {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+}
+.s2 .cp-header .col { flex: 1; }
+.s2 .cp-header .save-link {
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.s2 .progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.s2 .progress-bar .fill {
+  height: 100%;
+  background: var(--primary);
+  width: 100%;
+}
+
+.s2 .meta-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(212,176,122,0.06);
+  border: 1px solid rgba(212,176,122,0.2);
+  border-radius: 12px;
+}
+.s2 .meta-row .chip-mini {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(212,176,122,0.18);
+  border: 1px solid rgba(212,176,122,0.35);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.s2 .meta-row .chip-mini.passive {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.s2 .week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 18px;
+}
+.s2 .day-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 0 10px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.s2 .day-pill .dot-row {
+  display: flex;
+  gap: 2px;
+}
+.s2 .day-pill .dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.s2 .day-pill.rest { opacity: 0.35; }
+.s2 .day-pill.filled {
+  background: rgba(212,176,122,0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+.s2 .day-pill.today {
+  box-shadow: inset 0 0 0 2px var(--primary), 0 0 12px rgba(212,176,122,0.3);
+}
+
+.s2 .day-detail {
+  margin-top: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+.s2 .day-detail .head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.s2 .day-detail .head .col .meta { color: var(--primary); margin-bottom: 4px; }
+.s2 .day-detail .head .col .caption { font-size: 12px; }
+.s2 .day-detail .head .pencil {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: var(--surface-elev);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.s2 .ex-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.s2 .ex-row:last-of-type { border-bottom: none; }
+.s2 .ex-row .num-tile {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(212,176,122,0.15);
+  border: 1px solid rgba(212,176,122,0.3);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.s2 .ex-row .name { flex: 1; font-size: 14px; }
+.s2 .ex-row .sets {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.s2 .ex-row .grip {
+  color: var(--text-tertiary);
+  font-size: 16px;
+}
+
+.s2 .add-ex {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 0 6px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(212,176,122,0.2);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.s2 .sticky-cta {
+  flex-shrink: 0;
+  padding: 16px 20px 24px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+.s2 .sticky-cta .save-btn {
+  background: var(--primary);
+  color: var(--bg);
+  padding: 16px;
+  border-radius: 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 0 28px rgba(212,176,122,0.5);
+}
+
+/* ========== SCREEN 3: Карточная сетка (with real-feeling thumbnails) ========== */
+.s3 .el-header {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 12px;
+  padding-bottom: 16px;
+}
+.s3 .el-header .back {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+}
+.s3 .el-header .h3 { flex: 1; font-size: 19px; }
+
+.s3 .search {
+  background: var(--surface-elev);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.s3 .chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.s3 .chips .chip {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.s3 .chips .chip.active {
+  background: var(--primary);
+  color: var(--bg);
+  border-color: var(--primary);
+}
+.s3 .chips .chip .ct {
+  opacity: 0.55;
+  font-weight: 400;
+  font-size: 11px;
+}
+.s3 .chips .chip.active .ct { opacity: 0.85; }
+
+.s3 .grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* Realistic exercise card with muscle-group color tint and silhouette */
+.s3 .ex-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+}
+.s3 .ex-card .thumb {
+  height: 96px;
+  position: relative;
+  background: linear-gradient(135deg, var(--surface-elev), var(--surface));
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.s3 .ex-card .thumb.chest::before { background: radial-gradient(circle at 50% 50%, rgba(224, 122, 107, 0.32), transparent 60%); }
+.s3 .ex-card .thumb.back::before { background: radial-gradient(circle at 50% 50%, rgba(139, 168, 191, 0.32), transparent 60%); }
+.s3 .ex-card .thumb.legs::before { background: radial-gradient(circle at 50% 50%, rgba(154, 194, 140, 0.32), transparent 60%); }
+.s3 .ex-card .thumb.shoulders::before { background: radial-gradient(circle at 50% 50%, rgba(232, 163, 106, 0.32), transparent 60%); }
+.s3 .ex-card .thumb.biceps::before { background: radial-gradient(circle at 50% 50%, rgba(212, 176, 122, 0.32), transparent 60%); }
+.s3 .ex-card .thumb::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+}
+.s3 .ex-card .thumb svg {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 72px;
+  opacity: 0.7;
+}
+.s3 .ex-card .badge {
+  position: absolute;
+  top: 8px; left: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--primary);
+  background: rgba(20,20,24,0.78);
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.s3 .ex-card .play-icon {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: rgba(212,176,122,0.85);
+  display: flex; align-items: center; justify-content: center;
+}
+.s3 .ex-card .fav {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(20,20,24,0.78);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
+}
+.s3 .ex-card .fav.on { color: var(--primary); }
+.s3 .ex-card .info { padding: 10px 12px 12px; }
+.s3 .ex-card .info .name { font-size: 13px; font-weight: 600; line-height: 1.25; }
+.s3 .ex-card .info .meta-line { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>V4 — sticky CTA fix</h1>
+  <p>Фиксы V3: phone-inner теперь positioned правильно, sticky CTA снизу не обрезается. День сокращён до 3 упражнений чтобы место для bottom bar.</p>
+</header>
+
+<div class="row">
+
+  <!-- SCREEN 1: Журнал (improved) -->
+  <div class="variant">
+    <div class="label">
+      <span class="pill">Экран 1 · Главный</span>
+      <h3>Журнал тренера v2</h3>
+      <p class="desc">AI-рекомендация = единственный hero. Недельные числа · недавние тренировки · 2 nav-tile.<br><strong>Изменения:</strong> SVG-иконки вместо эмодзи, добавлен дневной таб-индикатор, золотое свечение.</p>
+    </div>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="status-bar"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="content s1 with-tabbar">
+          <div class="meta" style="margin-top:14px">ПОНЕДЕЛЬНИК · 12:30</div>
+          <div class="h2" style="margin-top:6px">Доброе утро,<br>Всеволод</div>
+
+          <div class="hero-coach">
+            <div class="hero-eyebrow">
+              <div class="spark-tile">
+                <!-- Spark icon (Direction A icon) -->
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E0E0F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/>
+                </svg>
+              </div>
+              <div class="meta" style="color:var(--primary)">ТРЕНЕР · СЕГОДНЯ</div>
+            </div>
+            <div class="hero-title">Грудь и трицепс.<br>Жим штанги +2.5 кг<br>от прошлой недели.</div>
+            <div class="hero-actions">
+              <div class="btn-primary">Начать тренировку</div>
+              <div class="btn-circle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4F1EA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 4 23 10 17 10"/><path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="meta section-mt">НА ЭТОЙ НЕДЕЛЕ</div>
+          <div class="week-stats">
+            <div class="card"><div class="num-line">3</div><div class="caption">тренировки</div></div>
+            <div class="card"><div class="num-line">12.4т</div><div class="caption">кг объём</div></div>
+            <div class="card"><div class="num-line">2</div><div class="caption">рекорда</div></div>
+          </div>
+
+          <div class="meta section-mt">НЕДАВНО</div>
+          <div class="recent-list">
+            <div class="recent-card"><div class="day-tag">ВЧ</div><div class="name">Спина и бицепс</div><div class="stat">68 мин · 8.2т</div></div>
+            <div class="recent-card"><div class="day-tag">2 ДН</div><div class="name">Ноги</div><div class="stat">52 мин · 9.4т</div></div>
+            <div class="recent-card"><div class="day-tag">5 ДН</div><div class="name">Грудь</div><div class="stat">61 мин · 7.1т</div></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="meta">ИНСТРУМЕНТЫ</div>
+          <div class="nav-grid">
+            <div class="nav-tile">
+              <div class="ico-bg">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4B07A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/>
+                </svg>
+              </div>
+              <div class="col">
+                <div class="body-sb">Программы</div>
+                <div class="caption">2 активных</div>
+              </div>
+            </div>
+            <div class="nav-tile">
+              <div class="ico-bg">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4B07A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                </svg>
+              </div>
+              <div class="col">
+                <div class="body-sb">Упражнения</div>
+                <div class="caption">71 в базе</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 4l9 8M5 10v10h14V10"/></svg>
+            Главная
+          </div>
+          <div class="tab active">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h4v16H6zM14 4h4v16h-4zM3 8v8M21 8v8"/></svg>
+            Тренировки
+          </div>
+          <div class="ai-btn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0E0E0F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/></svg>
+          </div>
+          <div class="tab">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+            Питание
+          </div>
+          <div class="tab">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5 21v-2a7 7 0 0114 0v2"/></svg>
+            Профиль
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Расписание-первый (improved) -->
+  <div class="variant">
+    <div class="label">
+      <span class="pill">Экран 2 · Создание программы</span>
+      <h3>Расписание-первый v2</h3>
+      <p class="desc">Метаданные сверху в одной строке-капсуле. Вся неделя сразу видна. Тап день → инлайн редактор.<br><strong>Изменения:</strong> компактная meta-row внизу не блокирует, недельная сетка с подсветкой «сегодня».</p>
+    </div>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="status-bar"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="content s2">
+          <div class="cp-header">
+            <div class="back">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F4F1EA" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </div>
+            <div class="col">
+              <div class="meta">НОВАЯ ПРОГРАММА</div>
+              <div class="h4" style="font-size:17px;margin-top:2px">4 недели на массу</div>
+            </div>
+          </div>
+
+          <div class="progress-bar"><div class="fill"></div></div>
+
+          <div class="meta-row">
+            <div class="chip-mini">Масса</div>
+            <div class="chip-mini">4 недели</div>
+            <div class="chip-mini">Средний</div>
+            <div class="chip-mini">3 дн/нед</div>
+            <div class="chip-mini passive">+2.5 кг/нед</div>
+          </div>
+
+          <div class="meta" style="margin-top:18px">НЕДЕЛЯ 1</div>
+          <div class="week-grid">
+            <div class="day-pill filled today">ПН<div class="dot-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+            <div class="day-pill rest">ВТ</div>
+            <div class="day-pill filled">СР<div class="dot-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>
+            <div class="day-pill rest">ЧТ</div>
+            <div class="day-pill filled">ПТ<div class="dot-row"><div class="dot"></div><div class="dot"></div></div></div>
+            <div class="day-pill rest">СБ</div>
+            <div class="day-pill rest">ВС</div>
+          </div>
+
+          <div class="day-detail">
+            <div class="head">
+              <div class="col">
+                <div class="meta">ДЕНЬ ПН</div>
+                <div class="body-sb" style="font-size:16px;margin-top:2px">Грудь и трицепс</div>
+                <div class="caption">5 упражнений · ~55 мин</div>
+              </div>
+              <div class="pencil">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4B07A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </div>
+            </div>
+
+            <div class="ex-row">
+              <div class="num-tile">1</div>
+              <div class="name">Жим штанги лёжа</div>
+              <div class="sets">4×8</div>
+              <div class="grip">⋮⋮</div>
+            </div>
+            <div class="ex-row">
+              <div class="num-tile">2</div>
+              <div class="name">Жим на наклонной</div>
+              <div class="sets">3×10</div>
+              <div class="grip">⋮⋮</div>
+            </div>
+            <div class="ex-row">
+              <div class="num-tile">3</div>
+              <div class="name">Разводки гантелями</div>
+              <div class="sets">3×12</div>
+              <div class="grip">⋮⋮</div>
+            </div>
+
+            <div class="add-ex">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4B07A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Добавить упражнение</span>
+            </div>
+          </div>
+        </div>
+        <div class="sticky-cta">
+          <div class="save-btn">Сохранить программу</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: Карточная сетка (improved with thumbnails) -->
+  <div class="variant">
+    <div class="label">
+      <span class="pill">Экран 3 · Библиотека</span>
+      <h3>Карточная сетка v2</h3>
+      <p class="desc">Миниатюры с цветом группы мышц + силуэт-стрелка из иконок. Понятно с первого взгляда что за упражнение.<br><strong>Изменения:</strong> badge группы мышц, play-кнопка превью, осмысленные превью.</p>
+    </div>
+    <div class="phone">
+      <div class="phone-inner">
+        <div class="status-bar"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="content s3">
+          <div class="el-header">
+            <div class="back">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F4F1EA" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </div>
+            <div class="h3">Упражнения</div>
+          </div>
+
+          <div class="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6860" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            Поиск упражнений...
+          </div>
+
+          <div class="chips">
+            <div class="chip active">Все<span class="ct">71</span></div>
+            <div class="chip">★<span class="ct">12</span></div>
+            <div class="chip">Грудь<span class="ct">8</span></div>
+            <div class="chip">Спина<span class="ct">9</span></div>
+            <div class="chip">Ноги<span class="ct">11</span></div>
+            <div class="chip">Плечи<span class="ct">7</span></div>
+          </div>
+
+          <div class="grid">
+            <div class="ex-card">
+              <div class="thumb chest">
+                <div class="badge">Грудь</div>
+                <div class="fav on">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                </div>
+                <svg width="56" height="72" viewBox="0 0 56 72" fill="rgba(244,241,234,0.4)" stroke="rgba(244,241,234,0.6)" stroke-width="1">
+                  <ellipse cx="28" cy="12" rx="7" ry="8"/>
+                  <path d="M14 25 L42 25 L44 50 L36 50 L36 65 L20 65 L20 50 L12 50 Z"/>
+                  <rect x="10" y="35" width="36" height="4" fill="#D4B07A" opacity="0.8"/>
+                </svg>
+                <div class="play-icon">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#0E0E0F" stroke="none"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+                </div>
+              </div>
+              <div class="info">
+                <div class="name">Жим штанги лёжа</div>
+                <div class="meta-line">база · 4×8</div>
+              </div>
+            </div>
+
+            <div class="ex-card">
+              <div class="thumb legs">
+                <div class="badge">Ноги</div>
+                <div class="fav">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                </div>
+                <svg width="56" height="72" viewBox="0 0 56 72" fill="rgba(244,241,234,0.4)" stroke="rgba(244,241,234,0.6)" stroke-width="1">
+                  <ellipse cx="28" cy="10" rx="6" ry="7"/>
+                  <path d="M16 20 L40 20 L40 40 L34 50 L34 65 L22 65 L22 50 L16 40 Z"/>
+                  <rect x="14" y="22" width="28" height="4" fill="#D4B07A" opacity="0.8"/>
+                </svg>
+                <div class="play-icon">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#0E0E0F" stroke="none"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+                </div>
+              </div>
+              <div class="info">
+                <div class="name">Приседания</div>
+                <div class="meta-line">база · 4×8</div>
+              </div>
+            </div>
+
+            <div class="ex-card">
+              <div class="thumb back">
+                <div class="badge">Спина</div>
+                <div class="fav on">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                </div>
+                <svg width="56" height="72" viewBox="0 0 56 72" fill="rgba(244,241,234,0.4)" stroke="rgba(244,241,234,0.6)" stroke-width="1">
+                  <ellipse cx="28" cy="12" rx="6" ry="7"/>
+                  <path d="M18 22 L38 22 L42 50 L38 50 L38 65 L18 65 L18 50 L14 50 Z"/>
+                  <line x1="20" y1="55" x2="36" y2="55" stroke="#D4B07A" stroke-width="3" opacity="0.8"/>
+                </svg>
+                <div class="play-icon">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#0E0E0F" stroke="none"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+                </div>
+              </div>
+              <div class="info">
+                <div class="name">Становая тяга</div>
+                <div class="meta-line">база · 3×5</div>
+              </div>
+            </div>
+
+            <div class="ex-card">
+              <div class="thumb chest">
+                <div class="badge">Грудь</div>
+                <div class="fav">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                </div>
+                <svg width="56" height="72" viewBox="0 0 56 72" fill="rgba(244,241,234,0.4)" stroke="rgba(244,241,234,0.6)" stroke-width="1">
+                  <ellipse cx="28" cy="10" rx="6" ry="7"/>
+                  <path d="M16 20 Q14 18 12 22 L24 32 L32 32 L44 22 Q42 18 40 20 L40 50 L34 50 L34 65 L22 65 L22 50 L16 50 Z"/>
+                  <rect x="14" y="28" width="28" height="3" fill="#D4B07A" opacity="0.8"/>
+                </svg>
+                <div class="play-icon">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#0E0E0F" stroke="none"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+                </div>
+              </div>
+              <div class="info">
+                <div class="name">Жим на наклонной</div>
+                <div class="meta-line">верх · 3×10</div>
+              </div>
+            </div>
+
+            <div class="ex-card">
+              <div class="thumb back">
+                <div class="badge">Спина</div>
+                <div class="fav on">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                </div>
+                <svg width="56" height="72" viewBox="0 0 56 72" fill="rgba(244,241,234,0.4)" stroke="rgba(244,241,234,0.6)" stroke-width="1">
+                  <ellipse cx="28" cy="14" rx="6" ry="6"/>
+                  <line x1="10" y1="8" x2="46" y2="8" stroke="#D4B07A" stroke-width="2.5" opacity="0.8"/>
+                  <line x1="28" y1="8" x2="28" y2="22" stroke="rgba(244,241,234,0.55)" stroke-width="1.2"/>
+                  <path d="M18 24 L38 24 L40 50 L34 50 L34 65 L22 65 L22 50 L16 50 Z"/>
+                </svg>
+                <div class="play-icon">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#0E0E0F" stroke="none"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+                </div>
+              </div>
+              <div class="info">
+                <div class="name">Подтягивания</div>
+                <div class="meta-line">вес тела · 4×AMRAP</div>
+              </div>
+            </div>
+
+            <div class="ex-card">
+              <div class="thumb shoulders">
+                <div class="badge">Плечи</div>
+                <div class="fav">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                </div>
+                <svg width="56" height="72" viewBox="0 0 56 72" fill="rgba(244,241,234,0.4)" stroke="rgba(244,241,234,0.6)" stroke-width="1">
+                  <ellipse cx="28" cy="14" rx="6" ry="6"/>
+                  <line x1="14" y1="6" x2="42" y2="6" stroke="#D4B07A" stroke-width="2.5" opacity="0.8"/>
+                  <line x1="28" y1="6" x2="28" y2="22" stroke="rgba(244,241,234,0.55)" stroke-width="1.2"/>
+                  <path d="M18 24 L38 24 L40 50 L34 50 L34 65 L22 65 L22 50 L16 50 Z"/>
+                </svg>
+                <div class="play-icon">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#0E0E0F" stroke="none"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+                </div>
+              </div>
+              <div class="info">
+                <div class="name">Жим стоя</div>
+                <div class="meta-line">плечи · 4×6</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
