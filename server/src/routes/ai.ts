@@ -4201,7 +4201,12 @@ function describeMissing(meta: Record<string, unknown>): string {
 }
 
 // Execute an AI tool call and return the result string + performed action info
-async function executeTool(
+// Exported for per-tool happy-path tests (audit R-2026-05-22 Tier 1
+// item 6). Not part of the public route surface — tests call it
+// directly with mocked prisma instead of standing up the whole /chat
+// pipeline. Adding `export` is non-breaking; the executor was already
+// reachable through the route handler.
+export async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   userId: string,
