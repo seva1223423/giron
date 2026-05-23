@@ -14,13 +14,21 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-// AI module is now split: routes/ai.ts holds the route + infrastructure,
-// ai/knowledgeHelpers.ts holds the extracted prose helpers. Concat both
-// so static-grep regression pins keep working regardless of which file
-// owns the code after the audit R-2026-05-22 split.
+// AI module is now split:
+//   - routes/ai.ts holds the route + infrastructure
+//   - ai/knowledgeHelpers.ts is a barrel re-exporting from
+//     ai/knowledge-topics/<topic>.ts (audit R-2026-05-22 Tier 1 item 4)
+// Concat the route file + every topic file so static-grep regression
+// pins keep working regardless of which topic owns the code.
+const TOPICS_DIR = path.resolve(__dirname, '..', 'ai', 'knowledge-topics');
+const topicSources = fs.existsSync(TOPICS_DIR)
+  ? fs.readdirSync(TOPICS_DIR)
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => fs.readFileSync(path.join(TOPICS_DIR, f), 'utf8'))
+  : [];
 const AI_SRC = [
   fs.readFileSync(path.resolve(__dirname, '..', 'routes', 'ai.ts'), 'utf8'),
-  fs.readFileSync(path.resolve(__dirname, '..', 'ai', 'knowledgeHelpers.ts'), 'utf8'),
+  ...topicSources,
 ].join('\n\n// ---- module boundary ----\n\n');
 
 describe('HealthRestriction sanitize regression pins', () => {
