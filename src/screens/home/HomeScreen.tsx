@@ -17,6 +17,7 @@ import type { AnnouncementType } from '../../types';
 import {
   HomeHeader,
   AICoachCard, RingStatsCard, StreakPRGrid, WeekPlanStrip, QuickActionsGrid,
+  AnnouncementsBanner, FirstWorkoutBanner,
 } from './components';
 import { Text, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography } from '../../theme';
@@ -288,12 +289,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   // Audit R-2026-05-22: these were inline `(() => {...})()` blocks in
   // the JSX below — every HomeScreen render re-ran the filter/map/reduce.
   // Hoisted to useMemo so they only recompute when their inputs change.
-
-  /** Filtered announcement list — drops the ones the user has dismissed. */
-  const visibleAnnouncements = useMemo(
-    () => announcements.filter((a) => !dismissedIds.has(a.id)),
-    [announcements, dismissedIds],
-  );
+  //
+  // Tier 1 item 3 (2026-05-22 follow-up): banner blocks moved into
+  // proper memo subcomponents (AnnouncementsBanner, FirstWorkoutBanner).
+  // The visibility check + filter now live INSIDE the components so
+  // HomeScreen doesn't need to track the derived state. Stable
+  // useCallback handlers below let the memoized children bail out
+  // cleanly on parent re-render.
 
   /** Pre-built color/icon meta for each announcement type. Depends only
    *  on the 4 theme colors so it's stable across most renders. */
@@ -308,16 +310,18 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     [colors.primary, colors.warning, colors.error, colors.success],
   );
 
-  /** Whether the "time for first workout" banner should render. Avoids
-   *  re-running the .some() scan on every parent re-render. */
-  const showFirstWorkoutBanner = useMemo(() => {
-    if (firstWorkoutBannerDismissed) return false;
-    if (!user?.createdAt) return false;
-    const ageMs = Date.now() - new Date(user.createdAt).getTime();
-    if (ageMs < 24 * 60 * 60 * 1000) return false;
-    const hasAnyWorkout = workoutHistory.some((w) => w.completedAt);
-    return !hasAnyWorkout;
-  }, [firstWorkoutBannerDismissed, user?.createdAt, workoutHistory]);
+  /** Dismiss handler — stable ref so AnnouncementsBanner can bail via memo. */
+  const handleDismissAnnouncement = useCallback((id: string) => {
+    setDismissedIds((s) => new Set([...s, id]));
+  }, []);
+
+  /** First-workout banner: dismiss + CTA handlers, stable refs. */
+  const handleDismissFirstWorkoutBanner = useCallback(() => {
+    setFirstWorkoutBannerDismissed(true);
+  }, []);
+  const handleStartFirstWorkout = useCallback(() => {
+    navigation.navigate('WorkoutsTab' as never);
+  }, [navigation]);
 
   /** AI coach card headline — choose between active workout recommendation,
    *  rest-day tip, or generic nudge. */
@@ -367,28 +371,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       </FadeIn>
 
       {/* ── Announcements ─────────────────── */}
-      {visibleAnnouncements.map((a) => {
-        const m = announcementMeta[a.type];
-        return (
-          <View key={a.id} style={[annStyles.banner, { borderColor: m.color + '40', backgroundColor: m.color + '10' }]}>
-            <Icon name={m.iconName} size={18} color={m.color} />
-            <View style={{ flex: 1 }}>
-              <Text style={[annStyles.title, { color: m.color }]}>{a.title}</Text>
-              <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={3}>{a.body}</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setDismissedIds((s) => new Set([...s, a.id]))}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Скрыть объявление"
-            >
-              <View style={{ transform: [{ rotate: '45deg' }], padding: 4 }}>
-                <Icon name="plus" size={18} color={colors.textSecondary} />
-              </View>
-            </TouchableOpacity>
-          </View>
-        );
-      })}
+      <AnnouncementsBanner
+        announcements={announcements}
+        dismissedIds={dismissedIds}
+        colors={colors}
+        meta={announcementMeta}
+        onDismiss={handleDismissAnnouncement}
+      />
 
       {/* ── Email verification banner ─────────── */}
       {!user?.emailVerified && !emailBannerDismissed && (
@@ -442,38 +431,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           users who genuinely don't want to train (or are just browsing)
           aren't nagged forever; for active users the trigger fires once
           per session and goes away the moment they complete a set. */}
-      {showFirstWorkoutBanner && (
-        <View style={[annStyles.banner, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10', marginBottom: spacing.md }]}>
-          <Icon name="dumbbell" size={20} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={[annStyles.title, { color: colors.primary }]}>Время первой тренировки</Text>
-            <Text style={[annStyles.body, { color: colors.textSecondary }]} numberOfLines={2}>
-              Ты с нами больше суток — попробуй короткую тренировку. Без неё профиль не оживает.
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('WorkoutsTab' as never)}
-              style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary }}
-              accessibilityRole="button"
-              accessibilityLabel="Начать первую тренировку"
-            >
-              <Text style={{ color: colors.textInverse, fontSize: 12, fontWeight: '700' }}>Начать</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setFirstWorkoutBannerDismissed(true)}
-              hitSlop={12}
-              style={{ padding: 4 }}
-              accessibilityRole="button"
-              accessibilityLabel="Скрыть напоминание"
-            >
-              <View style={{ transform: [{ rotate: '45deg' }] }}>
-                <Icon name="plus" size={16} color={colors.textSecondary} />
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      <FirstWorkoutBanner
+        userCreatedAt={user?.createdAt}
+        workoutHistory={workoutHistory}
+        dismissed={firstWorkoutBannerDismissed}
+        colors={colors}
+        onDismiss={handleDismissFirstWorkoutBanner}
+        onStart={handleStartFirstWorkout}
+      />
 
       {/* Email verification modal */}
       <Modal visible={showEmailVerifModal} transparent animationType="fade" onRequestClose={() => setShowEmailVerifModal(false)}>
