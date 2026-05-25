@@ -10,6 +10,12 @@ interface Row {
   value: string;
   progress: number;
   color: string;
+  /** Optional day-over-day delta (-1..+∞ as a ratio: +0.05 = +5%).
+   *  When provided, renders a compact `↑5%` / `↓12%` / `—` after
+   *  the value. Semantic colour from the THEME (success / danger
+   *  / tertiary). Audit R-2026-05-22 V4 design pick — fits in 375px
+   *  without line-wrap. */
+  delta?: number;
 }
 
 interface Props {
@@ -105,12 +111,21 @@ export const RingStatsCard: React.FC<Props> = ({ dayProgress, rows }) => {
   // stays because we want an integer for the "68%" display.
   const pct = Math.round(clampProgress(dayProgress) * 100);
 
+  // Audit R-2026-05-22 V3 design pick: auto-celebration state when EVERY
+  // row hits 100% AND the hero ring also hits 100%. Switches palette to
+  // sage (recovery/success Direction A) and shows a ✓ in the ring center.
+  // No new prop needed — derived from existing data.
+  const allHit = pct >= 100 && rows.every((r) => clampProgress(r.progress) >= 1);
+  const SAGE = '#9AC28C';
+  const heroColor = allHit ? SAGE : colors.primary;
+  const heroBorder = allHit ? SAGE + '59' /* ~35% */ : colors.border;
+
   return (
     <View
       style={{
         backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: heroBorder,
         borderRadius: 24,
         padding: 20,
         marginBottom: spacing.lg,
@@ -123,44 +138,76 @@ export const RingStatsCard: React.FC<Props> = ({ dayProgress, rows }) => {
               size={110}
               stroke={8}
               value={dayProgress}
-              color={colors.primary}
+              color={heroColor}
               track={colors.border}
             />
           </View>
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-            <Text
-              style={[typography.h2, { color: colors.text, lineHeight: 28 }]}
-            >
-              {pct}%
-            </Text>
+            {allHit ? (
+              <Text style={{ color: SAGE, fontSize: 28, lineHeight: 30, fontWeight: '700' }}>✓</Text>
+            ) : (
+              <Text style={[typography.h2, { color: colors.text, lineHeight: 28 }]}>
+                {pct}%
+              </Text>
+            )}
             <Text
               style={[
                 typography.metaLabel,
-                { color: colors.textSecondary, textTransform: 'uppercase', marginTop: -2 },
+                {
+                  color: allHit ? SAGE : colors.textSecondary,
+                  textTransform: 'uppercase',
+                  marginTop: -2,
+                  fontWeight: allHit ? '700' : undefined,
+                },
               ]}
             >
-              день
+              {allHit ? 'цели' : 'день'}
             </Text>
           </View>
         </View>
         <View style={{ flex: 1, gap: 10 }}>
-          {rows.map((r) => (
-            <View key={r.label}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  marginBottom: 4,
-                }}
-              >
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>{r.label}</Text>
-                <Text style={[typography.caption, { color: colors.text, fontVariant: ['tabular-nums'] }]}>
-                  {r.value}
-                </Text>
+          {rows.map((r) => {
+            // Render the compact delta if provided. Show only ABSOLUTE
+            // value as percent + arrow; sign comes from colour. "—" for
+            // flat (|delta| < 1%) to avoid noisy "↑0%" labels.
+            const d = r.delta;
+            const hasDelta = typeof d === 'number' && Number.isFinite(d);
+            const absPct = hasDelta ? Math.abs(Math.round(d * 100)) : 0;
+            const isFlat = hasDelta && absPct < 1;
+            const isUp = hasDelta && d > 0 && !isFlat;
+            const isDown = hasDelta && d < 0 && !isFlat;
+            const deltaColor = isUp
+              ? colors.success
+              : isDown
+                ? colors.error
+                : colors.textTertiary;
+            return (
+              <View key={r.label}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    marginBottom: 4,
+                    gap: 6,
+                  }}
+                >
+                  <Text style={[typography.caption, { color: colors.textSecondary }]}>{r.label}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                    <Text style={[typography.caption, { color: colors.text, fontVariant: ['tabular-nums'] }]}>
+                      {r.value}
+                    </Text>
+                    {hasDelta && (
+                      <Text style={{ color: deltaColor, fontSize: 10, fontWeight: '600' }}>
+                        {isFlat ? '—' : isUp ? `↑${absPct}%` : `↓${absPct}%`}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <Bar value={r.progress} color={r.color} track={colors.border} />
               </View>
-              <Bar value={r.progress} color={r.color} track={colors.border} />
-            </View>
-          ))}
+            );
+          })}
         </View>
       </View>
     </View>
