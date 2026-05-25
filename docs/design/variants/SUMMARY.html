@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>HomeScreen redesign — 6 components SUMMARY</title>
+<style>
+  :root {
+    --bg: #0E0E0F; --surface: #17171A; --surface-elev: #1E1E22;
+    --primary: #D4B07A; --primary-deep: #B08A4E;
+    --text: #F4F1EA; --text-secondary: #C9C7C0; --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --border: rgba(255, 255, 255, 0.10);
+    --success: #9AC28C; --danger: #E07A6B; --sage: #9AC28C;
+    --calories: #E07A6B; --carbs: #9AC28C; --fats: #E8A36A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; padding: 32px; width: 1280px; }
+  h1 { color: var(--text); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .sub { color: var(--text-tertiary); font-size: 13px; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .col { background: var(--bg); padding: 16px; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 18px; }
+  .col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .label { color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 700; }
+  .badge { font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 4px; }
+  .badge.before { background: rgba(255, 255, 255, 0.06); color: var(--text-tertiary); }
+  .badge.after { background: rgba(212, 176, 122, 0.18); color: var(--primary); }
+  .stage { width: 100%; padding: 16px; border-radius: 14px; background: var(--bg); }
+  .row { display: flex; flex-direction: column; gap: 16px; }
+  .group { padding: 16px; border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 16px; }
+  .group-label { color: var(--text); font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+  .group-label .pill { background: rgba(212, 176, 122, 0.14); color: var(--primary); font-size: 10px; padding: 2px 7px; border-radius: 100px; font-weight: 700; }
+
+  /* ===================== Component mocks ===================== */
+
+  /* HomeHeader V5 */
+  .hh { display: flex; justify-content: space-between; align-items: center; }
+  .hh-greet { color: var(--text); font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .hh-greet .sun { color: var(--primary); }
+  .hh-meta { color: var(--text-tertiary); font-size: 12px; margin-top: 2px; }
+  .hh-right { display: flex; gap: 8px; align-items: center; }
+  .streak-chip {
+    display: flex; align-items: center; gap: 4px;
+    padding: 5px 10px; border-radius: 100px;
+    background: rgba(212, 176, 122, 0.12);
+    border: 1px solid rgba(212, 176, 122, 0.35);
+    color: var(--primary); font-size: 12px; font-weight: 700;
+  }
+  .bell {
+    width: 36px; height: 36px; border-radius: 12px;
+    background: var(--surface-elev); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--text); position: relative;
+  }
+  .bell .dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg); }
+
+  /* AICoachCard V5 */
+  .ai {
+    position: relative; border-radius: 24px; padding: 18px; overflow: hidden;
+    background: radial-gradient(circle at 85% 0%, rgba(212, 176, 122, 0.2) 0%, transparent 45%),
+                linear-gradient(135deg, #1E1810 0%, #2A1F12 60%, #382612 100%);
+    border: 1px solid var(--border);
+  }
+  .ai-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .ai-icon-square { width: 26px; height: 26px; border-radius: 7px; background: var(--primary); color: var(--text-inverse); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .ai-eyebrow-text { color: var(--primary); font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+  .ai-chips { display: flex; gap: 6px; margin-bottom: 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 100px; background: rgba(212, 176, 122, 0.10); border: 1px solid rgba(212, 176, 122, 0.30); color: var(--primary); font-size: 10px; font-weight: 600; }
+  .chip.neutral { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.10); color: var(--text-secondary); }
+  .ai-hero { color: var(--text); font-size: 18px; font-weight: 600; line-height: 22px; max-width: 280px; }
+  .ai-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .ai-cta { flex: 1; padding: 9px; border-radius: 12px; background: var(--primary); color: var(--text-inverse); font-size: 12px; font-weight: 600; text-align: center; border: none; }
+  .ai-refresh { width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+  /* FirstWorkoutBanner V10 */
+  .fwb {
+    position: relative; border-radius: 14px; padding: 14px 14px 12px; overflow: hidden;
+    background: linear-gradient(135deg, rgba(212, 176, 122, 0.14) 0%, rgba(212, 176, 122, 0.02) 100%), var(--surface);
+    border: 1px solid rgba(212, 176, 122, 0.3);
+  }
+  .fwb::before { content: ''; position: absolute; top: -25px; right: -25px; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(closest-side, rgba(212, 176, 122, 0.25) 0%, transparent 70%); }
+  .fwb-top { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+  .fwb-ring { flex-shrink: 0; width: 40px; height: 40px; position: relative; }
+  .fwb-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .fwb-track { fill: none; stroke: rgba(212, 176, 122, 0.18); stroke-width: 4; }
+  .fwb-prog { fill: none; stroke: var(--primary); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 113.1; stroke-dashoffset: 84.82; }
+  .fwb-ring-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--primary); }
+  .fwb-titles { flex: 1; }
+  .fwb-tag { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.3px; color: var(--primary); margin-bottom: 1px; }
+  .fwb-title { color: var(--text); font-size: 14px; font-weight: 700; line-height: 18px; }
+  .fwb-actions { display: flex; gap: 6px; }
+  .fwb-primary { flex: 1; padding: 9px; border-radius: 9px; background: var(--primary); color: var(--text-inverse); font-size: 12px; font-weight: 700; text-align: center; }
+  .fwb-secondary { padding: 9px 11px; border-radius: 9px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.14); color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+
+  /* RingStatsCard V4 */
+  .rs { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px; }
+  .rs-row { display: flex; align-items: center; gap: 16px; }
+  .rs-ring-wrap { width: 88px; height: 88px; position: relative; display: flex; align-items: center; justify-content: center; }
+  .rs-ring svg { width: 88px; height: 88px; transform: rotate(-90deg); position: absolute; inset: 0; }
+  .rs-track { fill: none; stroke: var(--border); stroke-width: 7; }
+  .rs-prog { fill: none; stroke: var(--primary); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 257.6; stroke-dashoffset: 82.4; }
+  .rs-center { text-align: center; position: absolute; }
+  .rs-pct { color: var(--text); font-size: 21px; font-weight: 700; }
+  .rs-lbl { color: var(--text-secondary); font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; }
+  .rs-stats { flex: 1; display: flex; flex-direction: column; gap: 9px; }
+  .rs-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .rs-l { color: var(--text-secondary); font-size: 11px; }
+  .rs-right { display: flex; gap: 4px; align-items: baseline; }
+  .rs-v { color: var(--text); font-size: 11px; }
+  .delta.up { color: var(--success); font-size: 9px; font-weight: 600; }
+  .delta.down { color: var(--danger); font-size: 9px; font-weight: 600; }
+  .rs-bar { height: 3px; background: var(--border); border-radius: 999px; overflow: hidden; }
+  .rs-bar-fill { height: 100%; border-radius: 999px; }
+
+  /* WeekPlanStrip V3 */
+  .wp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 2px; }
+  .wp-title { color: var(--text); font-size: 14px; font-weight: 700; }
+  .wp-all { color: var(--primary); font-size: 11px; font-weight: 600; }
+  .wp-strip { display: flex; gap: 6px; }
+  .wp-card { min-width: 86px; padding: 11px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .wp-card.done { background: rgba(212, 176, 122, 0.08); border-color: rgba(212, 176, 122, 0.30); }
+  .wp-card.active { background: var(--primary); border-color: var(--primary); }
+  .wp-card.rest { background: transparent; border: 1px dashed rgba(255, 255, 255, 0.15); }
+  .wp-cardhead { display: flex; justify-content: space-between; align-items: center; }
+  .wp-letter { font-size: 9px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-secondary); opacity: 0.5; }
+  .wp-card.done .wp-letter { color: var(--primary); opacity: 1; font-weight: 700; }
+  .wp-today { font-size: 8px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-inverse); background: rgba(0, 0, 0, 0.18); padding: 2px 5px; border-radius: 4px; }
+  .wp-check { color: var(--primary); font-size: 11px; font-weight: 700; }
+  .wp-card.active .wp-check { color: var(--text-inverse); }
+  .wp-cardtitle { margin-top: 8px; font-size: 11px; font-weight: 600; line-height: 14px; color: var(--text); }
+  .wp-card.active .wp-cardtitle { color: var(--text-inverse); }
+  .wp-card.rest .wp-cardtitle { color: var(--text-tertiary); font-weight: 500; }
+
+  /* QuickActionsGrid V3 */
+  .qa { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .qa-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px; }
+  .qa-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 14px; }
+  .qa-icon.cal { background: rgba(224, 122, 107, 0.18); color: var(--calories); }
+  .qa-icon.gld { background: rgba(212, 176, 122, 0.18); color: var(--primary); }
+  .qa-icon.sgr { background: rgba(154, 194, 140, 0.18); color: var(--carbs); }
+  .qa-icon.amb { background: rgba(232, 163, 106, 0.18); color: var(--fats); }
+  .qa-l { color: var(--text); font-size: 12px; font-weight: 600; }
+  .qa-s { color: var(--text-secondary); font-size: 10px; margin-top: 1px; }
+</style>
+</head>
+<body>
+  <h1>HomeScreen redesign — 6 components</h1>
+  <div class="sub">Audit R-2026-05-22 /goal-mode design exploration · 30 HTML mockups · 6 RN implementations · backwards-compat везде · 5 493 client tests pass</div>
+
+  <div class="grid">
+    <!-- BEFORE -->
+    <div class="col">
+      <div class="col-head"><span class="label">До (V1, production)</span><span class="badge before">BEFORE</span></div>
+
+      <div class="group">
+        <div class="group-label">HomeHeader<span class="pill">статический greet</span></div>
+        <div class="stage">
+          <div class="hh">
+            <div>
+              <div class="hh-greet">Привет, Sevka</div>
+              <div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;">ПОНЕДЕЛЬНИК, 27 МАЯ</div>
+            </div>
+            <div class="hh-right"><div class="bell">🔔<div class="dot"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">AICoachCard<span class="pill">без context</span></div>
+        <div class="ai">
+          <div class="ai-eyebrow"><div class="ai-icon-square">⚡</div><span class="ai-eyebrow-text">Тренер рекомендует</span></div>
+          <div class="ai-hero">Сегодня — грудь и трицепс. Жим штанги на 2.5 кг больше</div>
+          <div class="ai-actions"><div class="ai-cta">Начать тренировку</div><div class="ai-refresh">↻</div></div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">RingStatsCard<span class="pill">без trend</span></div>
+        <div class="rs">
+          <div class="rs-row">
+            <div class="rs-ring-wrap">
+              <svg viewBox="0 0 88 88" class="rs-ring"><circle class="rs-track" cx="44" cy="44" r="41"/><circle class="rs-prog" cx="44" cy="44" r="41"/></svg>
+              <div class="rs-center"><div class="rs-pct">68%</div><div class="rs-lbl">день</div></div>
+            </div>
+            <div class="rs-stats">
+              <div><div class="rs-head"><span class="rs-l">Калории</span><span class="rs-v">1 640 / 2 400</span></div><div class="rs-bar"><div class="rs-bar-fill" style="width:68%;background:var(--calories)"></div></div></div>
+              <div><div class="rs-head"><span class="rs-l">Белок</span><span class="rs-v">98 / 160 г</span></div><div class="rs-bar"><div class="rs-bar-fill" style="width:61%;background:var(--primary)"></div></div></div>
+              <div><div class="rs-head"><span class="rs-l">Тренировки</span><span class="rs-v">3 / 4</span></div><div class="rs-bar"><div class="rs-bar-fill" style="width:75%;background:var(--carbs)"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">FirstWorkoutBanner<span class="pill">slim</span></div>
+        <div style="display:flex;flex-direction:row;align-items:flex-start;gap:10px;border-radius:10px;border:1px solid rgba(212, 176, 122, 0.25);background:rgba(212, 176, 122, 0.06);padding:11px;">
+          <div style="font-size:16px;color:var(--primary);">🏋</div>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:1px;">Время первой тренировки</div>
+            <div style="font-size:11px;color:var(--text-secondary);line-height:15px;">Ты с нами больше суток — попробуй короткую тренировку...</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <div style="padding:5px 9px;border-radius:5px;background:var(--primary);color:var(--text-inverse);font-size:11px;font-weight:700;">Начать</div>
+            <div style="padding:4px;color:var(--text-secondary);transform:rotate(45deg);">+</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">WeekPlanStrip<span class="pill">no rest state</span></div>
+        <div class="wp-head"><span class="wp-title">План недели</span><span class="wp-all">Все →</span></div>
+        <div class="wp-strip">
+          <div class="wp-card"><div class="wp-cardhead"><span class="wp-letter">ПН</span><span class="wp-check">✓</span></div><div class="wp-cardtitle">Грудь</div></div>
+          <div class="wp-card active"><div class="wp-cardhead"><span class="wp-letter" style="color:var(--text-inverse);opacity:0.7;">ВТ</span></div><div class="wp-cardtitle">Спина</div></div>
+          <div class="wp-card"><div class="wp-cardhead"><span class="wp-letter">СР</span></div><div class="wp-cardtitle">Кардио</div></div>
+          <div class="wp-card"><div class="wp-cardhead"><span class="wp-letter">ЧТ</span></div><div class="wp-cardtitle">Ноги</div></div>
+          <div class="wp-card"><div class="wp-cardhead"><span class="wp-letter">ПТ</span></div><div class="wp-cardtitle">Отдых</div></div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">QuickActionsGrid<span class="pill">all-gold</span></div>
+        <div class="qa">
+          <div class="qa-card"><div class="qa-icon gld">⌬</div><div class="qa-l">Сканировать еду</div><div class="qa-s">ИИ определит КБЖУ</div></div>
+          <div class="qa-card"><div class="qa-icon gld">⚖</div><div class="qa-l">Добавить вес</div><div class="qa-s">Утреннее взвеш.</div></div>
+          <div class="qa-card"><div class="qa-icon gld">⚡</div><div class="qa-l">Прогресс</div><div class="qa-s">Графики</div></div>
+          <div class="qa-card"><div class="qa-icon gld">💬</div><div class="qa-l">Спросить AI</div><div class="qa-s">Любой вопрос</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="col">
+      <div class="col-head"><span class="label">После (V5/V10/V4/V3 — итерации)</span><span class="badge after">AFTER</span></div>
+
+      <div class="group">
+        <div class="group-label">HomeHeader V5<span class="pill">time-aware + 🔥 streak</span></div>
+        <div class="stage">
+          <div class="hh">
+            <div>
+              <div class="hh-greet"><span class="sun">Доброе утро,</span> Sevka</div>
+              <div class="hh-meta">Понедельник, 27 мая</div>
+            </div>
+            <div class="hh-right">
+              <div class="streak-chip">🔥 5</div>
+              <div class="bell">🔔<div class="dot"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">AICoachCard V5<span class="pill">+ chips + rest mode</span></div>
+        <div class="ai">
+          <div class="ai-eyebrow"><div class="ai-icon-square">⚡</div><span class="ai-eyebrow-text">Тренер рекомендует</span></div>
+          <div class="ai-chips"><span class="chip">🔥 5 дней подряд</span><span class="chip neutral">⏱ 2 дня без зала</span></div>
+          <div class="ai-hero">Сегодня — грудь и трицепс. Жим штанги на 2.5 кг больше</div>
+          <div class="ai-actions"><div class="ai-cta">Начать тренировку</div><div class="ai-refresh">↻</div></div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">RingStatsCard V4<span class="pill">+ ↑↓ deltas + auto-celebrate</span></div>
+        <div class="rs">
+          <div class="rs-row">
+            <div class="rs-ring-wrap">
+              <svg viewBox="0 0 88 88" class="rs-ring"><circle class="rs-track" cx="44" cy="44" r="41"/><circle class="rs-prog" cx="44" cy="44" r="41"/></svg>
+              <div class="rs-center"><div class="rs-pct">68%</div><div class="rs-lbl">день</div></div>
+            </div>
+            <div class="rs-stats">
+              <div><div class="rs-head"><span class="rs-l">Калории</span><span class="rs-right"><span class="rs-v">1 640 / 2 400</span><span class="delta up">↑5%</span></span></div><div class="rs-bar"><div class="rs-bar-fill" style="width:68%;background:var(--calories)"></div></div></div>
+              <div><div class="rs-head"><span class="rs-l">Белок</span><span class="rs-right"><span class="rs-v">98 / 160 г</span><span class="delta down">↓12%</span></span></div><div class="rs-bar"><div class="rs-bar-fill" style="width:61%;background:var(--primary)"></div></div></div>
+              <div><div class="rs-head"><span class="rs-l">Тренировки</span><span class="rs-right"><span class="rs-v">3 / 4</span><span class="delta up">↑1</span></span></div><div class="rs-bar"><div class="rs-bar-fill" style="width:75%;background:var(--carbs)"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">FirstWorkoutBanner V10<span class="pill">premium + journey</span></div>
+        <div class="fwb">
+          <div style="position:absolute;top:6px;right:9px;color:var(--text-secondary);transform:rotate(45deg);font-size:14px;">+</div>
+          <div class="fwb-top">
+            <div class="fwb-ring">
+              <svg viewBox="0 0 40 40"><circle class="fwb-track" cx="20" cy="20" r="18"/><circle class="fwb-prog" cx="20" cy="20" r="18"/></svg>
+              <div class="fwb-ring-label">1/4</div>
+            </div>
+            <div class="fwb-titles">
+              <div class="fwb-tag">НАСТРОЙКА</div>
+              <div class="fwb-title">Первая тренировка — 15 минут</div>
+            </div>
+          </div>
+          <div class="fwb-actions">
+            <div class="fwb-primary">Начать сейчас →</div>
+            <div class="fwb-secondary">Через час</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">WeekPlanStrip V3<span class="pill">4 visual states</span></div>
+        <div class="wp-head"><span class="wp-title">План недели</span><span class="wp-all">Все →</span></div>
+        <div class="wp-strip">
+          <div class="wp-card done"><div class="wp-cardhead"><span class="wp-letter">ПН</span><span class="wp-check">✓</span></div><div class="wp-cardtitle">Грудь</div></div>
+          <div class="wp-card active"><div class="wp-cardhead"><span class="wp-today">сегодня</span></div><div class="wp-cardtitle">Спина</div></div>
+          <div class="wp-card"><div class="wp-cardhead"><span class="wp-letter">СР</span></div><div class="wp-cardtitle">Кардио</div></div>
+          <div class="wp-card"><div class="wp-cardhead"><span class="wp-letter">ЧТ</span></div><div class="wp-cardtitle">Ноги</div></div>
+          <div class="wp-card rest"><div class="wp-cardhead"><span class="wp-letter">ПТ</span></div><div class="wp-cardtitle">Отдых</div></div>
+        </div>
+      </div>
+
+      <div class="group" style="margin-top:14px;">
+        <div class="group-label">QuickActionsGrid V3<span class="pill">domain colors</span></div>
+        <div class="qa">
+          <div class="qa-card"><div class="qa-icon cal">⌬</div><div class="qa-l">Сканировать еду</div><div class="qa-s">ИИ определит КБЖУ</div></div>
+          <div class="qa-card"><div class="qa-icon gld">⚖</div><div class="qa-l">Добавить вес</div><div class="qa-s">Утреннее взвеш.</div></div>
+          <div class="qa-card"><div class="qa-icon sgr">⚡</div><div class="qa-l">Прогресс</div><div class="qa-s">Графики</div></div>
+          <div class="qa-card"><div class="qa-icon amb">💬</div><div class="qa-l">Спросить AI</div><div class="qa-s">Любой вопрос</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
