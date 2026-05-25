@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>FirstWorkoutBanner — V3 Minimal inline</title>
+<style>
+  :root {
+    --bg: #0E0E0F;
+    --surface: #17171A;
+    --primary: #D4B07A;
+    --text: #F4F1EA;
+    --text-secondary: #C9C7C0;
+    --text-tertiary: #8A8780;
+    --text-inverse: #0A0A0A;
+    --border: rgba(255, 255, 255, 0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    padding: 40px;
+    width: 375px;
+  }
+  .label {
+    color: var(--text-tertiary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+  }
+
+  /* V3 — minimal single-line CTA, no icon, no banner box */
+  .banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+  }
+  .body {
+    flex: 1;
+    min-width: 0;
+  }
+  .title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 2px 0;
+  }
+  .text {
+    font-size: 12px;
+    line-height: 17px;
+    color: var(--text-tertiary);
+    margin: 0;
+  }
+  .cta {
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cta:hover { background: rgba(212, 176, 122, 0.1); }
+</style>
+</head>
+<body>
+  <div class="label">V3 — Minimal inline (low-friction nudge)</div>
+  <div class="banner">
+    <div class="body">
+      <h3 class="title">Готов к первой тренировке?</h3>
+      <p class="text">15 минут — и профиль оживёт</p>
+    </div>
+    <button class="cta">Начать</button>
+  </div>
+</body>
+</html>
